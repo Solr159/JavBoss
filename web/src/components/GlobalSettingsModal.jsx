@@ -19,7 +19,7 @@ const SETTINGS_SECTIONS = [
   {
     id: 'proxy',
     title: { zh: '网络与代理', en: 'Network & Proxy' },
-    summary: { zh: '代理端口与连接行为', en: 'Proxy port and connection behavior' },
+    summary: { zh: '代理地址与连接行为', en: 'Proxy address and connection behavior' },
   },
   {
     id: 'jav',
@@ -42,6 +42,8 @@ const PLAYER_BASIC_DEFAULTS = {
   showHotkeyHint: true,
 }
 
+const DEFAULT_PROXY_HOST = '127.0.0.1'
+
 export default function GlobalSettingsModal({
   open,
   onClose,
@@ -51,8 +53,9 @@ export default function GlobalSettingsModal({
   onCreateDirectory,
   onUpdateDirectory,
   onDeleteDirectory,
+  proxyHost,
   proxyPort,
-  onSaveProxyPort,
+  onSaveProxySettings,
   javMetadataLanguage,
   onSaveJavMetadataLanguage,
   defaultPlayer,
@@ -67,6 +70,7 @@ export default function GlobalSettingsModal({
   playerHotkeys,
   onSavePlayerHotkeys,
 }) {
+  const [proxyHostInput, setProxyHostInput] = useState('')
   const [proxyInput, setProxyInput] = useState('')
   const [proxyError, setProxyError] = useState('')
   const [savingProxy, setSavingProxy] = useState(false)
@@ -105,6 +109,7 @@ export default function GlobalSettingsModal({
 
   useEffect(() => {
     if (open) {
+      setProxyHostInput(proxyHost || DEFAULT_PROXY_HOST)
       setProxyInput(proxyPort ? String(proxyPort) : '')
       setProxyEnabledInput(Boolean(proxyPort))
       setProxyEditing(false)
@@ -127,6 +132,7 @@ export default function GlobalSettingsModal({
     }
   }, [
     open,
+    proxyHost,
     proxyPort,
     javMetadataLanguage,
     defaultPlayer,
@@ -142,23 +148,30 @@ export default function GlobalSettingsModal({
 
   const handleSaveProxy = async () => {
     setProxyError('')
+    const host = proxyHostInput.trim()
     const raw = proxyInput.trim()
     let port = 0
+    let nextHost = ''
     if (proxyEnabledInput) {
+      if (host === '') {
+        setProxyError(zh('请输入代理 IP 或主机名', 'Enter a proxy IP or host'))
+        return
+      }
       if (raw === '') {
         setProxyError(zh('请输入 1-65535 的端口号', 'Enter a port between 1 and 65535'))
         return
       }
-      const parsed = parseInt(raw, 10)
+      const parsed = /^\d+$/.test(raw) ? Number(raw) : NaN
       if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 65535) {
         setProxyError(zh('请输入 1-65535 的端口号', 'Enter a port between 1 and 65535'))
         return
       }
       port = parsed
+      nextHost = host
     }
     setSavingProxy(true)
     try {
-      await onSaveProxyPort?.(port)
+      await onSaveProxySettings?.({ host: nextHost, port })
       setProxyEditing(false)
     } catch (err) {
       setProxyError(err.message || zh('保存失败', 'Save failed'))
@@ -167,10 +180,15 @@ export default function GlobalSettingsModal({
     }
   }
 
+  const currentProxyHost = proxyHost || DEFAULT_PROXY_HOST
+  const proxyHostInputTrimmed = proxyHostInput.trim()
   const proxyInputTrimmed = proxyInput.trim()
+  const desiredHostText = proxyEnabledInput ? proxyHostInputTrimmed : ''
   const desiredPortText = proxyEnabledInput ? proxyInputTrimmed : ''
+  const currentHostText = proxyPort ? currentProxyHost : ''
   const currentPortText = proxyPort ? String(proxyPort) : ''
-  const proxyUnchanged = desiredPortText === currentPortText
+  const proxyUnchanged = desiredHostText === currentHostText && desiredPortText === currentPortText
+  const proxyHostMissing = proxyEnabledInput && proxyHostInputTrimmed === ''
   const proxyInputMissing = proxyEnabledInput && proxyInputTrimmed === ''
   const activeTitle = SETTINGS_SECTIONS.find((item) => item.id === activeSection)?.title || {
     zh: '全局设置',
@@ -254,11 +272,14 @@ export default function GlobalSettingsModal({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-zinc-800">
-                {zh('代理端口', 'Proxy Port')}
+                {zh('代理地址', 'Proxy Address')}
               </h4>
               <p className="mt-1 text-sm text-zinc-500">
                 {proxyPort
-                  ? zh(`当前使用端口 ${proxyPort}`, `Currently using port ${proxyPort}`)
+                  ? zh(
+                      `当前使用 ${currentProxyHost}:${proxyPort}`,
+                      `Currently using ${currentProxyHost}:${proxyPort}`
+                    )
                   : zh('当前使用自动检测', 'Currently using auto-detection')}
               </p>
             </div>
@@ -288,21 +309,34 @@ export default function GlobalSettingsModal({
                   }}
                   className="h-4 w-4 rounded"
                 />
-                <span>{zh('手动设置端口', 'Set port manually')}</span>
+                <span>{zh('手动设置代理', 'Set proxy manually')}</span>
               </label>
 
               {proxyEnabledInput && (
-                <div className="max-w-sm">
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    {zh('端口号', 'Port')}
-                  </label>
-                  <input
-                    value={proxyInput}
-                    onChange={(e) => setProxyInput(e.target.value)}
-                    placeholder={zh('输入 1-65535', 'Enter 1-65535')}
-                    inputMode="numeric"
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
-                  />
+                <div className="grid max-w-2xl gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+                  <div>
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {zh('代理IP', 'Proxy IP')}
+                    </label>
+                    <input
+                      value={proxyHostInput}
+                      onChange={(e) => setProxyHostInput(e.target.value)}
+                      placeholder={DEFAULT_PROXY_HOST}
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {zh('端口号', 'Port')}
+                    </label>
+                    <input
+                      value={proxyInput}
+                      onChange={(e) => setProxyInput(e.target.value)}
+                      placeholder={zh('输入 1-65535', 'Enter 1-65535')}
+                      inputMode="numeric"
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
               )}
 
@@ -312,6 +346,7 @@ export default function GlobalSettingsModal({
                 <button
                   type="button"
                   onClick={() => {
+                    setProxyHostInput(proxyHost || DEFAULT_PROXY_HOST)
                     setProxyInput(proxyPort ? String(proxyPort) : '')
                     setProxyEnabledInput(Boolean(proxyPort))
                     setProxyError('')
@@ -324,7 +359,7 @@ export default function GlobalSettingsModal({
                 <button
                   type="button"
                   onClick={handleSaveProxy}
-                  disabled={savingProxy || proxyUnchanged || proxyInputMissing}
+                  disabled={savingProxy || proxyUnchanged || proxyHostMissing || proxyInputMissing}
                   className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
                 >
                   {savingProxy ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
@@ -709,7 +744,7 @@ export default function GlobalSettingsModal({
                 const badgeText =
                   section.id === 'proxy'
                     ? proxyPort
-                      ? String(proxyPort)
+                      ? `${currentProxyHost}:${proxyPort}`
                       : zh('自动', 'Auto')
                     : section.id === 'jav'
                       ? javMetadataLanguage === 'en'

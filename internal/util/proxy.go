@@ -1,7 +1,7 @@
 package util
 
 import (
-	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	proxyOnce sync.Once
-	proxyFunc func(*http.Request) (*url.URL, error)
-	proxyPort atomic.Value // stores *url.URL
+	proxyOnce     sync.Once
+	proxyFunc     func(*http.Request) (*url.URL, error)
+	proxyOverride atomic.Value // stores *url.URL
 )
 
 // DetectProxyFunc returns a proxy function that prefers manual override, then env/system
@@ -28,31 +28,45 @@ func DetectProxyFunc() func(*http.Request) (*url.URL, error) {
 	return proxyFunc
 }
 
-// SetProxyPort configures the local proxy port. Use <=0 to disable.
-func SetProxyPort(port int) {
+// SetProxy configures the manual HTTP proxy. Use port <= 0 to disable.
+func SetProxy(host string, port int) {
 	if port <= 0 {
-		proxyPort.Store((*url.URL)(nil))
-		logging.Info("proxy: cleared configured port")
+		proxyOverride.Store((*url.URL)(nil))
+		logging.Info("proxy: cleared configured proxy")
 		return
 	}
-	u := &url.URL{Scheme: "http", Host: fmt.Sprintf("127.0.0.1:%d", port)}
-	proxyPort.Store(u)
-	logging.Info("proxy: using configured port %s", u.Redacted())
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	u := &url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}
+	proxyOverride.Store(u)
+	logging.Info("proxy: using configured proxy %s", u.Redacted())
 }
 
-// SetProxyPortFromString parses a port string and configures the local proxy port.
-func SetProxyPortFromString(raw string) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+// SetProxyPort configures the local proxy port. Use <=0 to disable.
+func SetProxyPort(port int) {
+	SetProxy("127.0.0.1", port)
+}
+
+// SetProxyFromStrings parses host and port strings and configures the manual proxy.
+func SetProxyFromStrings(hostRaw, portRaw string) {
+	portRaw = strings.TrimSpace(portRaw)
+	if portRaw == "" {
 		SetProxyPort(0)
 		return
 	}
-	port, err := strconv.Atoi(raw)
+	port, err := strconv.Atoi(portRaw)
 	if err != nil || port <= 0 || port > 65535 {
 		SetProxyPort(0)
 		return
 	}
-	SetProxyPort(port)
+	SetProxy(hostRaw, port)
+}
+
+// SetProxyPortFromString parses a port string and configures the local proxy port.
+func SetProxyPortFromString(raw string) {
+	SetProxyFromStrings("127.0.0.1", raw)
 }
 
 func resolveProxy() func(*http.Request) (*url.URL, error) {
@@ -69,7 +83,7 @@ func resolveProxy() func(*http.Request) (*url.URL, error) {
 }
 
 func loadProxyOverride() *url.URL {
-	val := proxyPort.Load()
+	val := proxyOverride.Load()
 	if val == nil {
 		return nil
 	}

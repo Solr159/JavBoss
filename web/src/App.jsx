@@ -1978,9 +1978,10 @@ export default function App() {
           await loadDirectories()
           return deleted
         }}
+        proxyHost={config?.proxy_host || ''}
         proxyPort={Number.parseInt(config?.proxy_port, 10) || 0}
-        onSaveProxyPort={async (port) => {
-          const cfg = await updateConfig({ proxy_port: port })
+        onSaveProxySettings={async ({ host, port }) => {
+          const cfg = await updateConfig({ proxy_host: host, proxy_port: port })
           useStore.setState({ config: cfg })
         }}
         javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}

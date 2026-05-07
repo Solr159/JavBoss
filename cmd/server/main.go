@@ -182,7 +182,7 @@ func applyRuntimeConfig(ctx context.Context) {
 		logging.Error("load runtime config failed: %v", err)
 		return
 	}
-	util.SetProxyPortFromString(cfg["proxy_port"])
+	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
 	jav.SetMetadataLanguage(cfg["jav_metadata_language"])
 }
 

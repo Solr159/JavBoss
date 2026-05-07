@@ -2,7 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -44,6 +46,7 @@ func updateConfig(c *gin.Context) {
 		IdolSort               string                `json:"idol_sort"`
 		JavMetadataLanguage    string                `json:"jav_metadata_language"`
 		DefaultPlayer          string                `json:"default_player"`
+		ProxyHost              *string               `json:"proxy_host"`
 		ProxyPort              *int                  `json:"proxy_port"`
 		PlayerWindowSize       *int                  `json:"player_window_size"`
 		PlayerWindowWidth      *int                  `json:"player_window_width"`
@@ -142,6 +145,20 @@ func updateConfig(c *gin.Context) {
 			entries["proxy_port"] = ""
 		} else if port <= 65535 {
 			entries["proxy_port"] = strconv.Itoa(port)
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "proxy port out of range"})
+			return
+		}
+	}
+	if req.ProxyHost != nil {
+		host := strings.TrimSpace(*req.ProxyHost)
+		if host == "" {
+			entries["proxy_host"] = ""
+		} else if cleanHost, ok := normalizeProxyHost(host); ok {
+			entries["proxy_host"] = cleanHost
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid proxy host"})
+			return
 		}
 	}
 	if req.PlayerWindowSize != nil {
@@ -256,9 +273,33 @@ func updateConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
-	util.SetProxyPortFromString(cfg["proxy_port"])
+	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
 	jav.SetMetadataLanguage(cfg["jav_metadata_language"])
 	c.JSON(http.StatusOK, cfg)
+}
+
+func normalizeProxyHost(host string) (string, bool) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return "", true
+	}
+	if strings.Contains(host, "://") {
+		u, err := url.Parse(host)
+		if err != nil || u.Hostname() == "" || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
+			return "", false
+		}
+		host = u.Hostname()
+	}
+	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") {
+		host = strings.TrimPrefix(strings.TrimSuffix(host, "]"), "[")
+	}
+	if strings.ContainsAny(host, "/\\?#@ \t\r\n") {
+		return "", false
+	}
+	if strings.Contains(host, ":") && net.ParseIP(host) == nil {
+		return "", false
+	}
+	return host, true
 }
 
 func normalizedPlayerHotkeyAmount(action string, amount float64) float64 {
