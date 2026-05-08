@@ -169,7 +169,7 @@ func ListJavTags(ctx context.Context, directoryIDs []int64) ([]JavTagCount, erro
 	visibleProviders := visibleJavTagProviders()
 	query := common.DB.WithContext(ctx).
 		Table("jav_tag jt").
-		Select("jt.id, jt.name, jt.provider, COUNT(CASE WHEN "+activeLocationWhereSQL("vl", "d")+" THEN vl.id END) AS count").
+		Select("jt.id, jt.name, jt.provider, COUNT(DISTINCT CASE WHEN "+activeLocationWhereSQL("vl", "d")+" THEN jtm.jav_id END) AS count").
 		Joins("LEFT JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id").
 		Joins("LEFT JOIN video_location vl ON vl.jav_id = jtm.jav_id").
 		Joins("LEFT JOIN directory d ON d.id = vl.directory_id").

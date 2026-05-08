@@ -622,7 +622,7 @@ func TestListIdolsMissingProfileFiltersCurrentLanguage(t *testing.T) {
 	}
 }
 
-func TestJavBindingUsesVideoLocationsAndCountsLocations(t *testing.T) {
+func TestJavBindingUsesVideoLocationsAndCountsTagWorks(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -707,8 +707,8 @@ func TestJavBindingUsesVideoLocationsAndCountsLocations(t *testing.T) {
 	for _, item := range tags {
 		tagCounts[item.Name] = item.Count
 	}
-	if tagCounts[tag.Name] != 2 {
-		t.Fatalf("tag count = %d, want 2", tagCounts[tag.Name])
+	if tagCounts[tag.Name] != 1 {
+		t.Fatalf("tag count = %d, want 1", tagCounts[tag.Name])
 	}
 
 	idols, _, err := ListJavIdols(ctx, "", "work", 20, 0, nil)
