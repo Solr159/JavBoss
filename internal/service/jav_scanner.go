@@ -24,14 +24,14 @@ func ScanAll(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	preferredProvider := jav.PreferredProvider()
-	lookup := jav.PreferredLookupProvider()
-	logging.Info("jav scan provider=%s", preferredProvider.String())
-
 	for _, v := range videos {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
+
+		preferredProvider := jav.PreferredProvider()
+		lookup := jav.PreferredLookupProvider()
+
 		if v.JavID != nil && jav.ParseProvider(v.JavProvider) == preferredProvider {
 			continue
 		}
