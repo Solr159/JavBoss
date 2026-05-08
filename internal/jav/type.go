@@ -114,14 +114,6 @@ func PreferredProvider() Provider {
 	return ProviderJavBus
 }
 
-// ProviderForMetadataLanguage returns the metadata source used for a language.
-func ProviderForMetadataLanguage(value string) Provider {
-	if NormalizeMetadataLanguage(value) == MetadataLanguageEnglish {
-		return ProviderJavDatabase
-	}
-	return ProviderJavBus
-}
-
 // PreferredLookupProvider returns the scraper that matches the configured metadata language.
 func PreferredLookupProvider() JavLookupProvider {
 	if provider, ok := lookupProvidersByProvider[PreferredProvider()]; ok {
