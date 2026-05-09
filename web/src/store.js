@@ -23,6 +23,7 @@ import { zh } from '@/utils/i18n'
 
 const VIDEO_PAGE_SIZE = 25
 const JAV_PAGE_SIZE = 24
+const JAV_STUDIO_PAGE_SIZE = 24
 const JAV_GRID_COLUMNS_AUTO = 0
 let videoLoadSeq = 0
 let lastVideoFetchKey = null
@@ -595,10 +596,12 @@ export const useStore = create((set, get) => ({
     }
   },
   loadJavStudios: async (options = {}) => {
-    const { studioPage, idolPageSize, javSearchTerm } = get()
+    const { studioPage, javSearchTerm } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
-    const key = ['studio', studioPage, idolPageSize, search, directoryIds.join(',')].join('|')
+    const key = ['studio', studioPage, JAV_STUDIO_PAGE_SIZE, search, directoryIds.join(',')].join(
+      '|'
+    )
     if (!options.force && key === lastStudioFetchKey) {
       return
     }
@@ -606,8 +609,8 @@ export const useStore = create((set, get) => ({
     set({ studioLoading: true, studioError: null })
     try {
       const resp = await fetchJavStudios({
-        limit: idolPageSize,
-        offset: (studioPage - 1) * idolPageSize,
+        limit: JAV_STUDIO_PAGE_SIZE,
+        offset: (studioPage - 1) * JAV_STUDIO_PAGE_SIZE,
         search,
         directoryIds,
       })

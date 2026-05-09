@@ -66,6 +66,7 @@ export const parseUrlState = (searchString = window.location.search) => {
       .filter(Boolean),
     tagIds: parseIds(sp.get('tag_ids')),
     studioId: parsePositiveInt(sp.get('studio_id')),
+    studioName: (sp.get('studio_name') || '').trim(),
     sort: javSort,
     tempSort: javTempSort,
     idolSort,
@@ -97,6 +98,7 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     }
     if (state.jav.tab === 'list' && state.jav.studioId) {
       sp.set('studio_id', String(state.jav.studioId))
+      if (state.jav.studioName) sp.set('studio_name', state.jav.studioName)
     }
     const sortVal = state.jav.tab === 'idol' ? state.jav.idolSort : state.jav.sort
     if (state.jav.tab === 'idol') {
@@ -196,6 +198,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       actors: store.javActors || [],
       tagIds: store.javTags || [],
       studioId: store.javStudioId || null,
+      studioName: (store.javStudioName || '').trim(),
       sort: store.javSort || 'recent',
       tempSort: store.javTab === 'list' && !store.javRandomMode ? store.javTempSort || '' : '',
       idolSort: store.idolSort || 'work',

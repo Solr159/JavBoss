@@ -39,6 +39,8 @@ import { normalizeVideoSort } from '@/constants/video'
 import { isChineseLocale, zh } from '@/utils/i18n'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 
+const JAV_STUDIO_PAGE_SIZE = 24
+
 const normalizeDefaultPlayer = (value) =>
   String(value || '')
     .trim()
@@ -593,6 +595,7 @@ export default function App() {
         tab: tabOverride,
         actors: actorsOverride,
         studioId: studioIdOverride,
+        studioName: studioNameOverride,
         sort: sortOverride,
         tagIds: tagIdsOverride,
         random: randomOverride,
@@ -621,6 +624,11 @@ export default function App() {
       const studioId = hasStudioIdOverride ? studioIdOverride : javStudioId
       if (tab === 'list' && studioId) {
         sp.set('studio_id', String(studioId))
+        const studioName =
+          studioNameOverride ?? (hasStudioIdOverride ? '' : String(javStudioName || '').trim())
+        if (studioName) {
+          sp.set('studio_name', studioName)
+        }
       }
       const hasSortOverride = Object.prototype.hasOwnProperty.call(options, 'sort')
       const normalizedSortOverride = hasSortOverride
@@ -666,6 +674,7 @@ export default function App() {
       studioPage,
       javActors,
       javStudioId,
+      javStudioName,
       javPage,
       javTempSort,
       javSearchTerm,
@@ -728,7 +737,7 @@ export default function App() {
           javActors: jav.tab === 'list' && !jav.studioId ? jav.actors : [],
           javTags: jav.tab === 'list' && !jav.studioId ? jav.tagIds : [],
           javStudioId: jav.tab === 'list' ? jav.studioId : null,
-          javStudioName: '',
+          javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
           javPage: jav.random ? 1 : jav.page,
           idolPage: jav.tab === 'idol' ? jav.page : 1,
           studioPage: jav.tab === 'studio' ? jav.page : 1,
@@ -994,7 +1003,7 @@ export default function App() {
   const idolLastPage = Math.max(1, Math.ceil((idolTotal || 0) / idolPageSize))
   const idolHasPrev = idolPage > 1
   const idolHasNext = idolPage < idolLastPage
-  const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / idolPageSize))
+  const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
   const studioHasPrev = studioPage > 1
   const studioHasNext = studioPage < studioLastPage
   const javTagNameMap = useMemo(
@@ -1080,7 +1089,10 @@ export default function App() {
         const tagsLabel = formatList(tagNames)
         if (tagsLabel) parts.push(zh(`标签: ${tagsLabel}`, `Tags: ${tagsLabel}`))
         if (javStudioId) {
-          const label = javStudioName || `#${javStudioId}`
+          const loadedStudioName =
+            javItems.find((item) => Number(item?.studio?.id) === Number(javStudioId))?.studio
+              ?.name || ''
+          const label = javStudioName || loadedStudioName || `#${javStudioId}`
           parts.push(zh(`片商: ${label}`, `Studio: ${label}`))
         }
         if (javRandomMode) parts.push(zh('随机', 'Random'))
@@ -1105,6 +1117,7 @@ export default function App() {
     javTags,
     javStudioId,
     javStudioName,
+    javItems,
     javTagNameMap,
     javSearchTerm,
     javRandomMode,
@@ -1193,7 +1206,7 @@ export default function App() {
       const prevStudioPage = studioPage
       const javLast = Math.max(1, Math.ceil((javTotal || 0) / javSize))
       const idolLast = Math.max(1, Math.ceil((idolTotal || 0) / idolSize))
-      const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / idolSize))
+      const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
       useStore.setState({
         javPageSize: javSize,
         javGridColumns: javColumns,
@@ -1789,6 +1802,7 @@ export default function App() {
                   actors: [],
                   tagIds: [],
                   studioId: studio.id,
+                  studioName: studio.name,
                   tempSort: '',
                 })
               }
