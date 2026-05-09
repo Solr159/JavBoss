@@ -459,7 +459,6 @@ function JavCard({
                 className={`min-w-0 truncate text-left ${
                   canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                 }`}
-                title={studioText}
                 onClick={() => {
                   if (canFilterStudio) onStudioClick(item.studio)
                 }}
