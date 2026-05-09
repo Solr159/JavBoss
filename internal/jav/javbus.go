@@ -12,22 +12,23 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/net/html"
 	"pornboss/internal/common/logging"
+
+	"golang.org/x/net/html"
 )
 
-// JavBus implements JavLookupProvider.
-type JavBus struct{}
+// javBus implements lookupProvider.
+type javBus struct{}
 
-var JavBusProvider JavLookupProvider = JavBus{}
+var javBusProvider lookupProvider = javBus{}
 
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (JavBus) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (javBus) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (JavBus) LookupJavByCode(code string) (*Info, error) {
+func (javBus) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, ResourceNotFonud
@@ -51,16 +52,16 @@ func (JavBus) LookupJavByCode(code string) (*Info, error) {
 }
 
 // LookupActressByCode resolves a solo movie code to its actress profile.
-func (JavBus) LookupActressByCode(code string) (*ActressInfo, error) {
+func (javBus) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javbus: lookup actress not supported")
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (JavBus) LookupCoverURLByCode(code string) (string, error) {
+func (javBus) LookupCoverURLByCode(code string) (string, error) {
 	return "", errors.New("javbus: lookup cover not supported")
 }
 
-func fetchInfo(ctx context.Context, code string) (*Info, error) {
+func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
 	base := "https://www.javbus.com"
 
 	url := fmt.Sprintf("%s/%s", base, code)
@@ -129,7 +130,7 @@ func buildRequest(ctx context.Context, url string) (*http.Request, error) {
 	return req, nil
 }
 
-func parseDocument(doc *html.Node) *Info {
+func parseDocument(doc *html.Node) *JavInfo {
 	rawTitle := firstTextByTag(doc, "h3")
 	if rawTitle == "" {
 		rawTitle = firstTextByTag(doc, "title")
@@ -144,7 +145,7 @@ func parseDocument(doc *html.Node) *Info {
 	if title == "" && len(tags) == 0 && len(actors) == 0 {
 		return nil
 	}
-	return &Info{
+	return &JavInfo{
 		Title:       title,
 		Code:        code,
 		ReleaseUnix: releaseUnix,

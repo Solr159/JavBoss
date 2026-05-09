@@ -22,13 +22,13 @@ type CoverManager struct {
 	tasks     chan string
 	coverDir  string
 	workers   int
-	providers []jav.JavLookupProvider
+	providers []jav.Provider
 }
 
 const minValidCoverSizeBytes int64 = 30 * 1024
 
 // NewCoverManager creates a manager when coverDir and providers are provided.
-func NewCoverManager(coverDir string, providers []jav.JavLookupProvider) *CoverManager {
+func NewCoverManager(coverDir string, providers []jav.Provider) *CoverManager {
 	coverDir = strings.TrimSpace(coverDir)
 	providers = compactCoverProviders(providers)
 	if coverDir == "" || len(providers) == 0 {
@@ -138,7 +138,7 @@ func (m *CoverManager) fetchCoverURL(code string) (string, error) {
 	}
 	var lastErr error
 	for _, provider := range m.providers {
-		coverURL, err := provider.LookupCoverURLByCode(code)
+		coverURL, err := jav.LookupCoverURLByCode(code, provider)
 		if err == nil {
 			coverURL = strings.TrimSpace(coverURL)
 			if coverURL != "" {
@@ -150,7 +150,7 @@ func (m *CoverManager) fetchCoverURL(code string) (string, error) {
 			continue
 		}
 		lastErr = err
-		logging.Error("fetch cover url failed: provider=%T code=%s err=%v", provider, code, err)
+		logging.Error("fetch cover url failed: provider=%s code=%s err=%v", provider.String(), code, err)
 	}
 	if lastErr != nil {
 		return "", fmt.Errorf("fetch cover url: %w", lastErr)
@@ -247,13 +247,14 @@ func guessExt(ct string) string {
 	}
 }
 
-func compactCoverProviders(providers []jav.JavLookupProvider) []jav.JavLookupProvider {
+func compactCoverProviders(providers []jav.Provider) []jav.Provider {
 	if len(providers) == 0 {
 		return nil
 	}
-	compact := make([]jav.JavLookupProvider, 0, len(providers))
+	compact := make([]jav.Provider, 0, len(providers))
 	for _, provider := range providers {
-		if provider != nil {
+		provider = jav.ParseProvider(int(provider))
+		if provider != jav.ProviderUnknown && provider != jav.ProviderUser {
 			compact = append(compact, provider)
 		}
 	}

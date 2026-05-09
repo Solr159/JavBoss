@@ -5,43 +5,40 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"pornboss/internal/util"
 
-	"golang.org/x/net/html"
 	"pornboss/internal/common/logging"
+
+	"golang.org/x/net/html"
 )
 
-// JavDatabase implements JavLookupProvider.
-type JavDatabase struct{}
+// javDatabase implements lookupProvider.
+type javDatabase struct{}
 
-var JavDatabaseProvider JavLookupProvider = JavDatabase{}
+var javDatabaseProvider lookupProvider = javDatabase{}
 
 var errNoActressLink = errors.New("javdatabase: actress link not found")
 
-var noActressLinkCache sync.Map
-
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (JavDatabase) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (javDatabase) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 
 // LookupActressByCode resolves a solo movie code to its actress profile.
-func (JavDatabase) LookupActressByCode(code string) (*ActressInfo, error) {
+func (javDatabase) LookupActressByCode(code string) (*ActressInfo, error) {
 	return lookupActressByCode(code)
 }
 
 // LookupCoverURLByCode resolves the cover image URL for a given movie code.
-func (JavDatabase) LookupCoverURLByCode(code string) (string, error) {
+func (javDatabase) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", ResourceNotFonud
@@ -55,10 +52,7 @@ func (JavDatabase) LookupCoverURLByCode(code string) (string, error) {
 
 	doc, status, err := fetchJavDatabaseHTML(ctx, movieURL, base)
 	if err != nil {
-		if isRetryableJavDatabaseErr(err) {
-			return "", err
-		}
-		return "", ResourceNotFonud
+		return "", err
 	}
 	if status == http.StatusNotFound || doc == nil {
 		return "", ResourceNotFonud
@@ -72,7 +66,7 @@ func (JavDatabase) LookupCoverURLByCode(code string) (string, error) {
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (JavDatabase) LookupJavByCode(code string) (*Info, error) {
+func (javDatabase) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, ResourceNotFonud
@@ -86,10 +80,7 @@ func (JavDatabase) LookupJavByCode(code string) (*Info, error) {
 
 	doc, status, err := fetchJavDatabaseHTML(ctx, movieURL, base)
 	if err != nil {
-		if isRetryableJavDatabaseErr(err) {
-			return nil, err
-		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if status == http.StatusNotFound || doc == nil {
 		return nil, ResourceNotFonud
@@ -99,25 +90,14 @@ func (JavDatabase) LookupJavByCode(code string) (*Info, error) {
 	if info == nil {
 		return nil, ResourceNotFonud
 	}
+	if info.Code != "" && normalizeJavDatabaseCode(info.Code) != normalizeJavDatabaseCode(code) {
+		logging.Info("javdatabase: requested code %s resolved to %s", code, info.Code)
+		return nil, ResourceNotFonud
+	}
 	if info.Code == "" {
 		info.Code = code
 	}
 	return info, nil
-}
-
-func isNoActressLinkCached(url string) bool {
-	if url == "" {
-		return false
-	}
-	_, ok := noActressLinkCache.Load(url)
-	return ok
-}
-
-func markNoActressLink(url string) {
-	if url == "" {
-		return
-	}
-	noActressLinkCache.Store(url, struct{}{})
 }
 
 func lookupActressByCode(code string) (*ActressInfo, error) {
@@ -129,19 +109,13 @@ func lookupActressByCode(code string) (*ActressInfo, error) {
 	base := "https://www.javdatabase.com"
 
 	movieURL := fmt.Sprintf("%s/movies/%s", base, code)
-	if isNoActressLinkCached(movieURL) {
-		return nil, ResourceNotFonud
-	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	doc, status, err := fetchJavDatabaseHTML(ctx, movieURL, base)
 	if err != nil {
-		if isRetryableJavDatabaseErr(err) {
-			return nil, err
-		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if status == http.StatusNotFound || doc == nil {
 		return nil, ResourceNotFonud
@@ -150,12 +124,11 @@ func lookupActressByCode(code string) (*ActressInfo, error) {
 	actressLink, err := findJavDatabaseActressLink(doc)
 	if err != nil {
 		if errors.Is(err, errNoActressLink) {
-			markNoActressLink(movieURL)
+			return nil, ResourceNotFonud
 		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if actressLink == "" {
-		markNoActressLink(movieURL)
 		return nil, ResourceNotFonud
 	}
 	actressURL := resolveURL(movieURL, actressLink)
@@ -165,10 +138,7 @@ func lookupActressByCode(code string) (*ActressInfo, error) {
 
 	actressDoc, status, err := fetchJavDatabaseHTML(ctx, actressURL, movieURL)
 	if err != nil {
-		if isRetryableJavDatabaseErr(err) {
-			return nil, err
-		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if status == http.StatusNotFound || actressDoc == nil {
 		return nil, ResourceNotFonud
@@ -180,27 +150,6 @@ func lookupActressByCode(code string) (*ActressInfo, error) {
 	}
 	info.ProfileURL = actressURL
 	return info, nil
-}
-
-func isRetryableJavDatabaseErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return true
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		return true
-	}
-	return false
 }
 
 func fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
@@ -528,7 +477,7 @@ func parseJavDatabaseActressInfo(root *html.Node) *ActressInfo {
 	return info
 }
 
-func parseJavDatabaseMovieInfo(root *html.Node) *Info {
+func parseJavDatabaseMovieInfo(root *html.Node) *JavInfo {
 	scope := findJavDatabaseMovieInfoColumn(root)
 	if scope == nil {
 		return nil
@@ -540,16 +489,17 @@ func parseJavDatabaseMovieInfo(root *html.Node) *Info {
 		title = cleanJavDatabaseMoviePageTitle(strings.TrimSpace(firstTextByTag(root, "title")))
 	}
 
-	info := &Info{
+	info := &JavInfo{
 		Title:       title,
 		Code:        strings.TrimSpace(fields.Code),
+		Studio:      strings.TrimSpace(fields.Studio),
 		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
 		DurationMin: parseRuntimeMinutes(fields.Runtime),
 		Tags:        dedupeNonEmpty(fields.Tags),
 		Actors:      dedupeNonEmpty(fields.Actors),
 		Provider:    ProviderJavDatabase,
 	}
-	if info.Title == "" && info.Code == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+	if info.Title == "" && info.Code == "" && info.Studio == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
 	}
 	return info
@@ -591,9 +541,21 @@ func parseJavDatabaseCoverURL(root *html.Node, pageURL string) string {
 	return strings.TrimSpace(cover)
 }
 
+func normalizeJavDatabaseCode(code string) string {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	var b strings.Builder
+	for _, r := range code {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 type javDatabaseMovieFields struct {
 	Title       string
 	Code        string
+	Studio      string
 	ReleaseDate string
 	Runtime     string
 	Tags        []string
@@ -701,6 +663,10 @@ func assignJavDatabaseMovieField(out *javDatabaseMovieFields, label string, line
 	case labelHasAny(label, []string{"runtime", "duration"}):
 		if out.Runtime == "" {
 			out.Runtime = strings.TrimSpace(collectValueAfterBold(bold))
+		}
+	case labelHasAny(label, []string{"studio", "studios"}):
+		if out.Studio == "" {
+			out.Studio = firstNonEmpty(firstAnchorText(line), collectValueAfterBold(bold))
 		}
 	case labelHasAny(label, []string{"genre", "genres"}):
 		if len(out.Tags) == 0 {

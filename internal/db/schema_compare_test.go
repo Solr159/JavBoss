@@ -32,6 +32,7 @@ func TestMigratedSchemaMatchesGormModels(t *testing.T) {
 	defer closeDBForSchemaCompare(t, reference)
 	if err := reference.AutoMigrate(
 		&models.Directory{},
+		&models.JavStudio{},
 		&models.Jav{},
 		&models.Video{},
 		&models.VideoLocation{},

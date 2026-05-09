@@ -22,6 +22,7 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
         <p class="mb-1"><b>DVD ID: </b>IPX-004</p>
         <p class="mb-1"><b>Release Date: </b>2017-09-09</p>
         <p class="mb-1"><b>Runtime: </b>159  (HD: 159) min.</p>
+        <p class="mb-1"><b>Studio: </b><span><a href="/studios/idea-pocket/">Idea Pocket</a></span></p>
         <p class="mb-1"><b>Genre(s): </b><span><a href="/genres/a">Beautiful Girl</a></span> <span><a href="/genres/b">Hi-Def</a></span></p>
         <p class="mb-1"><b>Idol(s)/Actress(es): </b><span><a href="/idols/tsumugi-akari/">Tsumugi Akari</a></span></p>
       </div>
@@ -43,6 +44,9 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
 	}
 	if info.Code != "IPX-004" {
 		t.Fatalf("unexpected code: %q", info.Code)
+	}
+	if info.Studio != "Idea Pocket" {
+		t.Fatalf("unexpected studio: %q", info.Studio)
 	}
 
 	wantRelease := time.Date(2017, 9, 9, 0, 0, 0, 0, time.UTC).Unix()
@@ -71,6 +75,15 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
 		if info.Actors[i] != actor {
 			t.Fatalf("unexpected actor at %d: got %q want %q", i, info.Actors[i], actor)
 		}
+	}
+}
+
+func TestNormalizeJavDatabaseCodeDoesNotPrefixMatch(t *testing.T) {
+	if normalizeJavDatabaseCode("ipx-1") == normalizeJavDatabaseCode("IPX-100") {
+		t.Fatal("ipx-1 must not match IPX-100")
+	}
+	if normalizeJavDatabaseCode("ipx 004") != normalizeJavDatabaseCode("IPX-004") {
+		t.Fatal("expected separator-insensitive match")
 	}
 }
 

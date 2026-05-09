@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -11,100 +10,16 @@ import (
 	"pornboss/internal/common/logging"
 	"pornboss/internal/db"
 	"pornboss/internal/jav"
-	"pornboss/internal/util"
 )
 
-// ScanAll iterates over all videos and attempts to associate them with JAV metadata.
-func ScanAll(ctx context.Context) error {
-	if common.DB == nil {
-		return errors.New("nil db")
-	}
-
-	videos, err := db.ListVideosForJavScan(ctx)
-	if err != nil {
-		return err
-	}
-	for _, v := range videos {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		preferredProvider := jav.PreferredProvider()
-		lookup := jav.PreferredLookupProvider()
-
-		if v.JavID != nil && jav.ParseProvider(v.JavProvider) == preferredProvider {
-			continue
-		}
-		if v.DurationSec > 0 && v.DurationSec < 3600 {
-			continue
-		}
-
-		filename := filepath.Base(filepath.FromSlash(v.Filename))
-		possibleCodes := util.ExtractCodeFromName(filename)
-		if len(possibleCodes) == 0 {
-			continue
-		}
-
-		linked := false
-		for _, code := range possibleCodes {
-			if existJav, err := db.GetJavByCode(ctx, code); err == nil && existJav != nil {
-				if jav.ParseProvider(existJav.Provider) != preferredProvider {
-					continue
-				}
-				if err := db.SetVideoLocationJavID(ctx, v.LocationID, existJav.ID, v.UpdatedAt); err != nil {
-					logging.Error("set video location jav failed location=%d code=%s err=%v", v.LocationID, code, err)
-				} else {
-					enqueueCover(existJav.Code)
-				}
-				linked = true
-				break
-			} else if err != nil {
-				logging.Error("jav lookup existing failed location=%d code=%s err=%v", v.LocationID, code, err)
-			}
-		}
-		if linked {
-			continue
-		}
-
-		for _, code := range possibleCodes {
-			info, err := lookup.LookupJavByCode(code)
-			if err != nil {
-				if errors.Is(err, jav.ResourceNotFonud) {
-					continue
-				}
-				logging.Error("jav lookup failed location=%s code=%s err=%v", filename, code, err)
-				continue
-			}
-			if info == nil {
-				continue
-			}
-
-			_, err = db.SaveJavInfoAndLinkLocation(ctx, info, v.LocationID, v.UpdatedAt)
-			if err != nil {
-				logging.Error("link video location->jav failed location=%s code=%s err=%v", filename, info.Code, err)
-			} else {
-				logging.Info("link video location->jav success location=%s code=%s", filename, info.Code)
-				enqueueCover(info.Code)
-			}
-			linked = true
-			break
-		}
-	}
-	return nil
-}
-
-// StartJavScanner launches a goroutine that periodically scans all videos for JAV
-// metadata. The task runs immediately once, then every interval until ctx is done.
-func StartJavScanner(ctx context.Context, interval time.Duration) {
+// StartJavStudioScanner periodically fills missing JAV studio metadata from JavDatabase.
+func StartJavStudioScanner(ctx context.Context, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
-			if err := ScanAll(ctx); err != nil {
-				logging.Error("periodic jav scan failed: %v", err)
-			}
-			if err := enqueueMissingCovers(ctx); err != nil {
-				logging.Error("periodic jav cover enqueue failed: %v", err)
+			if err := ScanJavStudios(ctx); err != nil {
+				logging.Error("jav studio scan failed: %v", err)
 			}
 			select {
 			case <-ctx.Done():
@@ -115,36 +30,51 @@ func StartJavScanner(ctx context.Context, interval time.Duration) {
 	}()
 }
 
-func enqueueCover(code string) {
-	mgr := common.CoverManager
-	if mgr == nil {
-		return
+// ScanJavStudios scans jav rows with missing studio data and queries JavDatabase for it.
+func ScanJavStudios(ctx context.Context) error {
+	if common.DB == nil {
+		return errors.New("nil db")
 	}
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return
-	}
-	mgr.Enqueue(code)
-}
 
-func enqueueMissingCovers(ctx context.Context) error {
-	mgr := common.CoverManager
-	if common.DB == nil || mgr == nil {
-		return nil
-	}
-	codes, err := db.ListJavCodes(ctx)
+	items, err := db.ListJavsMissingStudio(ctx)
 	if err != nil {
 		return err
 	}
-	for _, c := range codes {
-		code := strings.TrimSpace(c)
+	if len(items) == 0 {
+		return nil
+	}
+	logging.Info("found %d jav rows missing studio info", len(items))
+
+	for _, item := range items {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		code := strings.TrimSpace(item.Code)
 		if code == "" {
 			continue
 		}
-		if mgr.Exists(code) {
+
+		info, err := jav.LookupJavByCode(code, jav.ProviderJavDatabase)
+		if err != nil {
+			if !errors.Is(err, jav.ResourceNotFonud) {
+				logging.Error("lookup jav studio failed id=%d code=%s err=%v", item.ID, code, err)
+			}
 			continue
 		}
-		mgr.Enqueue(code)
+
+		studio := ""
+		if info != nil {
+			studio = strings.TrimSpace(info.Studio)
+		}
+		if studio == "" {
+			continue
+		}
+		if err := db.UpdateJavStudio(ctx, item.ID, studio); err != nil {
+			logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
+			continue
+		}
+		logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
 	}
 	return nil
 }

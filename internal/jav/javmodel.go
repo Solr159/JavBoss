@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"pornboss/internal/common/logging"
@@ -13,36 +12,30 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"golang.org/x/net/html"
 )
 
-// JavBus implements JavLookupProvider.
-type JavModel struct{}
+// javModel implements lookupProvider.
+type javModel struct{}
 
-var JavModelProvider JavLookupProvider = JavModel{}
+var javModelProvider lookupProvider = javModel{}
 
-var invalidJavModelNameCache sync.Map
-
-// LookupActressByCode implements JavLookupProvider.
-func (JavModel) LookupActressByCode(code string) (*ActressInfo, error) {
+// LookupActressByCode implements lookupProvider.
+func (javModel) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javmodel: lookup actress not supported")
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (JavModel) LookupCoverURLByCode(code string) (string, error) {
+func (javModel) LookupCoverURLByCode(code string) (string, error) {
 	return "", errors.New("javmodel: lookup cover not supported")
 }
 
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (JavModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (javModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return nil, ResourceNotFonud
-	}
-	if isInvalidJavModelNameCached(name) {
 		return nil, ResourceNotFonud
 	}
 	logging.Info("javmodel: name -> %s", name)
@@ -55,10 +48,7 @@ func (JavModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 
 	searchDoc, status, err := fetchJavModelHTML(ctx, searchURL, base)
 	if err != nil {
-		if isRetryableJavModelErr(err) {
-			return nil, err
-		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if status == http.StatusNotFound || searchDoc == nil {
 		return nil, ResourceNotFonud
@@ -66,7 +56,6 @@ func (JavModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 
 	card := findJavModelSearchCard(searchDoc)
 	if card == nil {
-		markInvalidJavModelName(name)
 		return nil, ResourceNotFonud
 	}
 	romanName, href := extractJavModelSearchResult(card)
@@ -81,19 +70,14 @@ func (JavModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 		detailURL = resolveURL(searchURL, href)
 	}
 	if detailURL == "" {
-		markInvalidJavModelName(name)
 		return nil, ResourceNotFonud
 	}
 
 	detailDoc, status, err := fetchJavModelHTML(ctx, detailURL, searchURL)
 	if err != nil {
-		if isRetryableJavModelErr(err) {
-			return nil, err
-		}
-		return nil, ResourceNotFonud
+		return nil, err
 	}
 	if status == http.StatusFound {
-		markInvalidJavModelName(name)
 		return nil, ResourceNotFonud
 	}
 	if status == http.StatusNotFound || detailDoc == nil {
@@ -120,8 +104,8 @@ func (JavModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	return info, nil
 }
 
-// LookupJavByCode implements JavLookupProvider.
-func (JavModel) LookupJavByCode(code string) (*Info, error) {
+// LookupJavByCode implements lookupProvider.
+func (javModel) LookupJavByCode(code string) (*JavInfo, error) {
 	panic("unimplemented")
 }
 
@@ -172,52 +156,6 @@ func buildJavModelRequest(ctx context.Context, targetURL, referer string) (*http
 		req.Header.Set("Referer", referer)
 	}
 	return req, nil
-}
-
-func isRetryableJavModelErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return true
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		return true
-	}
-	return false
-}
-
-func normalizeJavModelNameKey(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return ""
-	}
-	return strings.ToLower(name)
-}
-
-func isInvalidJavModelNameCached(name string) bool {
-	key := normalizeJavModelNameKey(name)
-	if key == "" {
-		return false
-	}
-	_, ok := invalidJavModelNameCache.Load(key)
-	return ok
-}
-
-func markInvalidJavModelName(name string) {
-	key := normalizeJavModelNameKey(name)
-	if key == "" {
-		return
-	}
-	invalidJavModelNameCache.Store(key, struct{}{})
 }
 
 func findJavModelSearchCard(root *html.Node) *html.Node {

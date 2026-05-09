@@ -118,7 +118,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	gdb := openTestDB(t)
 	now := time.Unix(1710000000, 0).UTC()
 
-	save := func(info *jav.Info) {
+	save := func(info *jav.JavInfo) {
 		t.Helper()
 		if err := gdb.Transaction(func(tx *gorm.DB) error {
 			_, err := saveJavInfoTx(tx, info, now)
@@ -128,7 +128,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		}
 	}
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "AAA-001",
 		Title:    "Japanese metadata",
 		Actors:   []string{"岬ななみ"},
@@ -138,7 +138,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"岬ななみ": false,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "AAA-001",
 		Title:    "Japanese metadata refreshed",
 		Actors:   []string{"別の女優"},
@@ -148,7 +148,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"岬ななみ": false,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "AAA-001",
 		Title:    "English metadata",
 		Actors:   []string{"Nanami Misaki"},
@@ -160,7 +160,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"Nanami Misaki": true,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "AAA-001",
 		Title:    "English metadata refreshed",
 		Actors:   []string{"Other Actress"},
@@ -172,13 +172,13 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"Nanami Misaki": true,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "BBB-001",
 		Title:    "Shared-name metadata",
 		Actors:   []string{"Shared Name"},
 		Provider: jav.ProviderJavBus,
 	})
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "BBB-001",
 		Title:    "Shared-name metadata refreshed",
 		Actors:   []string{"Shared Name"},
@@ -188,7 +188,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	assertJavIdolLanguageCount(t, gdb, "Shared Name", 2)
 	assertJavIdolMapLanguages(t, gdb, "BBB-001", "Shared Name", []bool{false, true})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "CCC-001",
 		Title:    "Japanese-name English-provider metadata",
 		Actors:   []string{"三上悠亜"},
@@ -198,7 +198,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"三上悠亜": true,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "DDD-001",
 		Title:    "English alias metadata",
 		Actors:   []string{"Ameri Ichinose (Ayaka Misora)"},
@@ -208,7 +208,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"Ameri Ichinose (Ayaka Misora)": true,
 	})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "EEE-001",
 		Title:    "JavBus romanized stage name",
 		Actors:   []string{"AIKA"},
@@ -217,7 +217,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	assertJavIdolMaps(t, gdb, "EEE-001", map[string]bool{
 		"AIKA": false,
 	})
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "EEE-001",
 		Title:    "English romanized stage name",
 		Actors:   []string{"AIKA"},
@@ -226,7 +226,7 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	assertJavIdolLanguageCount(t, gdb, "AIKA", 2)
 	assertJavIdolMapLanguages(t, gdb, "EEE-001", "AIKA", []bool{false, true})
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "FFF-001",
 		Title:    "ThePornDB metadata",
 		Actors:   []string{"English Performer"},
@@ -242,7 +242,7 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 	gdb := openTestDB(t)
 	now := time.Unix(1710000000, 0).UTC()
 
-	save := func(info *jav.Info) {
+	save := func(info *jav.JavInfo) {
 		t.Helper()
 		if err := gdb.Transaction(func(tx *gorm.DB) error {
 			_, err := saveJavInfoTx(tx, info, now)
@@ -252,7 +252,7 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 		}
 	}
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "TAG-001",
 		Title:    "Initial metadata",
 		Tags:     []string{"Drama", "Featured Actress"},
@@ -278,7 +278,7 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 		t.Fatalf("create extra tag maps: %v", err)
 	}
 
-	save(&jav.Info{
+	save(&jav.JavInfo{
 		Code:     "TAG-001",
 		Title:    "Refreshed metadata",
 		Tags:     []string{"Cosplay"},
@@ -290,6 +290,34 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 		"Plot Based": int(jav.ProviderJavDatabase),
 		"Favorite":   int(jav.ProviderUser),
 	})
+}
+
+func TestSaveAndUpdateJavStudio(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	if err := gdb.Transaction(func(tx *gorm.DB) error {
+		_, err := saveJavInfoTx(tx, &jav.JavInfo{
+			Code:     "STU-001",
+			Title:    "Studio metadata",
+			Studio:   "Idea Pocket",
+			Provider: jav.ProviderJavDatabase,
+		}, now)
+		return err
+	}); err != nil {
+		t.Fatalf("save jav info: %v", err)
+	}
+	assertJavStudio(t, gdb, "STU-001", "Idea Pocket")
+
+	plainJav := models.Jav{Code: "STU-002", Title: "Missing studio", Provider: int(jav.ProviderJavBus), FetchedAt: now}
+	if err := gdb.Create(&plainJav).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	if err := UpdateJavStudio(ctx, plainJav.ID, "S1 No. 1 Style"); err != nil {
+		t.Fatalf("update jav studio: %v", err)
+	}
+	assertJavStudio(t, gdb, "STU-002", "S1 No. 1 Style")
 }
 
 func TestSetVideoLocationJavIDAllowsStaleNoop(t *testing.T) {
@@ -1055,6 +1083,21 @@ func assertJavTitles(t *testing.T, db *gorm.DB, code, wantTitle, wantTitleEn str
 	}
 	if rec.Title != wantTitle || rec.TitleEn != wantTitleEn {
 		t.Fatalf("unexpected titles for %q: title=%q title_en=%q want title=%q title_en=%q", code, rec.Title, rec.TitleEn, wantTitle, wantTitleEn)
+	}
+}
+
+func assertJavStudio(t *testing.T, db *gorm.DB, code, want string) {
+	t.Helper()
+
+	var rec models.Jav
+	if err := db.Preload("Studio").Where("code = ?", code).First(&rec).Error; err != nil {
+		t.Fatalf("load jav %q: %v", code, err)
+	}
+	if rec.Studio == nil {
+		t.Fatalf("missing studio for %q", code)
+	}
+	if rec.Studio.Name != want {
+		t.Fatalf("unexpected studio for %q: got %q want %q", code, rec.Studio.Name, want)
 	}
 }
 

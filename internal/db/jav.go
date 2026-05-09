@@ -34,6 +34,12 @@ type JavScanVideo struct {
 	DurationSec int64     `gorm:"column:duration_sec"`
 }
 
+// JavStudioScanItem contains a JAV row that needs studio metadata.
+type JavStudioScanItem struct {
+	ID   int64  `gorm:"column:id"`
+	Code string `gorm:"column:code"`
+}
+
 // SearchJav lists Jav metadata filtered by actors/tag IDs/search with pagination and sorting.
 func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64) ([]models.Jav, int64, error) {
 	if limit <= 0 {
@@ -98,6 +104,7 @@ func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sor
 	}
 	visibleTagProviders := visibleJavTagProviders()
 	query := filtered.
+		Preload("Studio").
 		Preload("Tags", "provider IN ?", visibleTagProviders).
 		Preload("Idols", "COALESCE(is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
 		Limit(limit).
@@ -719,51 +726,56 @@ func ListIdolsMissingProfile(ctx context.Context) ([]models.JavIdol, error) {
 }
 
 // UpdateIdolProfile updates missing idol profile fields with fetched info.
-func UpdateIdolProfile(ctx context.Context, idolID int64, info *jav.ActressInfo) error {
+func UpdateIdolProfile(ctx context.Context, idolID int64, info *jav.ActressInfo) (bool, error) {
 	if idolID == 0 {
-		return errors.New("idol id cannot be zero")
+		return false, errors.New("idol id cannot be zero")
 	}
 	if info == nil {
-		return errors.New("actress info is nil")
+		return false, errors.New("actress info is nil")
 	}
+	var idol models.JavIdol
+	if err := common.DB.WithContext(ctx).Where("id = ?", idolID).First(&idol).Error; err != nil {
+		return false, fmt.Errorf("get idol profile: %w", err)
+	}
+
 	updates := make(map[string]any)
-	if name := strings.TrimSpace(info.JapaneseName); name != "" {
-		updates["japanese_name"] = gorm.Expr("CASE WHEN japanese_name IS NULL OR japanese_name = '' THEN ? ELSE japanese_name END", name)
+	addTextUpdate := func(column, current, value string) {
+		value = strings.TrimSpace(value)
+		if value == "" || strings.TrimSpace(current) != "" {
+			return
+		}
+		updates[column] = value
 	}
-	if name := strings.TrimSpace(info.RomanName); name != "" {
-		updates["roman_name"] = gorm.Expr("CASE WHEN roman_name IS NULL OR roman_name = '' THEN ? ELSE roman_name END", name)
+	addIntUpdate := func(column string, current *int, value int) {
+		if value <= 0 || current != nil {
+			return
+		}
+		updates[column] = value
 	}
-	if name := strings.TrimSpace(info.ChineseName); name != "" {
-		updates["chinese_name"] = gorm.Expr("CASE WHEN chinese_name IS NULL OR chinese_name = '' THEN ? ELSE chinese_name END", name)
+
+	addTextUpdate("japanese_name", idol.JapaneseName, info.JapaneseName)
+	addTextUpdate("roman_name", idol.RomanName, info.RomanName)
+	addTextUpdate("chinese_name", idol.ChineseName, info.ChineseName)
+	addIntUpdate("height_cm", idol.HeightCM, info.HeightCM)
+	if info.BirthDate > 0 && idol.BirthDate == nil {
+		updates["birth_date"] = time.Unix(int64(info.BirthDate), 0).UTC()
 	}
-	if info.HeightCM > 0 {
-		updates["height_cm"] = gorm.Expr("CASE WHEN height_cm IS NULL THEN ? ELSE height_cm END", info.HeightCM)
-	}
-	if info.BirthDate > 0 {
-		updates["birth_date"] = gorm.Expr("CASE WHEN birth_date IS NULL THEN ? ELSE birth_date END", time.Unix(int64(info.BirthDate), 0).UTC())
-	}
-	if info.Bust > 0 {
-		updates["bust"] = gorm.Expr("CASE WHEN bust IS NULL THEN ? ELSE bust END", info.Bust)
-	}
-	if info.Waist > 0 {
-		updates["waist"] = gorm.Expr("CASE WHEN waist IS NULL THEN ? ELSE waist END", info.Waist)
-	}
-	if info.Hips > 0 {
-		updates["hips"] = gorm.Expr("CASE WHEN hips IS NULL THEN ? ELSE hips END", info.Hips)
-	}
-	if info.Cup > 0 {
-		updates["cup"] = gorm.Expr("CASE WHEN cup IS NULL THEN ? ELSE cup END", info.Cup)
-	}
+	addIntUpdate("bust", idol.Bust, info.Bust)
+	addIntUpdate("waist", idol.Waist, info.Waist)
+	addIntUpdate("hips", idol.Hips, info.Hips)
+	addIntUpdate("cup", idol.Cup, info.Cup)
+
 	if len(updates) == 0 {
-		return nil
+		return false, nil
 	}
-	if err := common.DB.WithContext(ctx).
+	res := common.DB.WithContext(ctx).
 		Model(&models.JavIdol{}).
 		Where("id = ?", idolID).
-		Updates(updates).Error; err != nil {
-		return fmt.Errorf("update idol profile: %w", err)
+		Updates(updates)
+	if res.Error != nil {
+		return false, fmt.Errorf("update idol profile: %w", res.Error)
 	}
-	return nil
+	return res.RowsAffected > 0, nil
 }
 
 // ListVideosForJavScan loads fields used by the jav scanner.
@@ -804,7 +816,7 @@ func SetVideoLocationJavID(ctx context.Context, locationID, javID int64, expecte
 }
 
 // SaveJavInfoAndLinkLocation upserts jav metadata and associates the video location in one transaction.
-func SaveJavInfoAndLinkLocation(ctx context.Context, info *jav.Info, locationID int64, expectedUpdatedAt time.Time) (*models.Jav, error) {
+func SaveJavInfoAndLinkLocation(ctx context.Context, info *jav.JavInfo, locationID int64, expectedUpdatedAt time.Time) (*models.Jav, error) {
 	if info == nil {
 		return nil, errors.New("jav info is nil")
 	}
@@ -862,7 +874,47 @@ func ListJavCodes(ctx context.Context) ([]string, error) {
 	return codes, nil
 }
 
-func saveJavInfoTx(tx *gorm.DB, info *jav.Info, now ...time.Time) (*models.Jav, error) {
+// ListJavsMissingStudio returns JAV rows whose studio relation is empty.
+func ListJavsMissingStudio(ctx context.Context) ([]JavStudioScanItem, error) {
+	var items []JavStudioScanItem
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Select("id, code").
+		Where("COALESCE(code, '') <> ''").
+		Where("studio_id IS NULL").
+		Order("created_at ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("list javs missing studio: %w", err)
+	}
+	return items, nil
+}
+
+// UpdateJavStudio records the studio lookup result for a JAV row.
+func UpdateJavStudio(ctx context.Context, javID int64, studio string) error {
+	if javID == 0 {
+		return errors.New("jav id cannot be zero")
+	}
+	studio = strings.TrimSpace(studio)
+	if studio == "" {
+		return nil
+	}
+	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rec, err := ensureStudioTx(tx, studio)
+		if err != nil {
+			return err
+		}
+		if err := tx.Model(&models.Jav{}).
+			Where("id = ?", javID).
+			Updates(map[string]any{
+				"studio_id": rec.ID,
+			}).Error; err != nil {
+			return fmt.Errorf("update jav studio: %w", err)
+		}
+		return nil
+	})
+}
+
+func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Jav, error) {
 	if tx == nil {
 		return nil, errors.New("tx is nil")
 	}
@@ -889,6 +941,13 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.Info, now ...time.Time) (*models.Jav, 
 	javRec.DurationMin = info.DurationMin
 	javRec.Provider = int(provider)
 	javRec.FetchedAt = ts
+	if studio := strings.TrimSpace(info.Studio); studio != "" {
+		studioRec, err := ensureStudioTx(tx, studio)
+		if err != nil {
+			return nil, err
+		}
+		javRec.StudioID = &studioRec.ID
+	}
 	if err := tx.Save(javRec).Error; err != nil {
 		return nil, fmt.Errorf("save jav: %w", err)
 	}
@@ -924,6 +983,24 @@ func lockJavByCodeTx(tx *gorm.DB, code string) (*models.Jav, error) {
 		return nil, fmt.Errorf("get jav by code: %w", err)
 	}
 	return &javRec, nil
+}
+
+func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("studio name cannot be empty")
+	}
+	studio := models.JavStudio{Name: name}
+	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&studio).Error; err != nil {
+		return nil, fmt.Errorf("ensure studio %q: %w", name, err)
+	}
+	if studio.ID != 0 {
+		return &studio, nil
+	}
+	if err := tx.Where("name = ?", name).First(&studio).Error; err != nil {
+		return nil, fmt.Errorf("load studio %q: %w", name, err)
+	}
+	return &studio, nil
 }
 
 func ensureJavTagsTx(tx *gorm.DB, names []string, provider jav.Provider) ([]models.JavTag, error) {

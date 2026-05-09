@@ -20,6 +20,7 @@ const (
 	ProviderJavDB
 	ProviderAvmoo
 	ProviderThePornDB
+	ProviderJavModel
 )
 
 func (p Provider) String() string {
@@ -36,6 +37,8 @@ func (p Provider) String() string {
 		return "avmoo"
 	case ProviderThePornDB:
 		return "theporndb"
+	case ProviderJavModel:
+		return "javmodel"
 	default:
 		return "unknown"
 	}
@@ -45,7 +48,7 @@ func (p Provider) String() string {
 func ParseProvider(value int) Provider {
 	p := Provider(value)
 	switch p {
-	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB:
+	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB, ProviderJavModel:
 		return p
 	default:
 		return ProviderUnknown
@@ -65,12 +68,15 @@ var metadataLanguageState = struct {
 	value MetadataLanguage
 }{value: MetadataLanguageChinese}
 
-var lookupProvidersByProvider = map[Provider]JavLookupProvider{
-	ProviderJavBus:      JavBusProvider,
-	ProviderJavDatabase: JavDatabaseProvider,
-	ProviderJavDB:       JavDBProvider,
-	ProviderAvmoo:       AvmooProvider,
-	ProviderThePornDB:   ThePornDBProvider,
+var errUnsupportedProvider = errors.New("jav: unsupported provider")
+
+var lookupProvidersByProvider = map[Provider]lookupProvider{
+	ProviderJavBus:      javBusProvider,
+	ProviderJavDatabase: javDatabaseProvider,
+	ProviderJavDB:       javDBProvider,
+	ProviderAvmoo:       avmooProvider,
+	ProviderThePornDB:   thePornDBProvider,
+	ProviderJavModel:    javModelProvider,
 }
 
 var metadataLanguageByProvider = map[Provider]MetadataLanguage{
@@ -144,18 +150,11 @@ func PreferredProvider() Provider {
 	return ProviderJavBus
 }
 
-// PreferredLookupProvider returns the scraper that matches the configured metadata language.
-func PreferredLookupProvider() JavLookupProvider {
-	if provider, ok := lookupProvidersByProvider[PreferredProvider()]; ok {
-		return provider
-	}
-	return JavBusProvider
-}
-
-// Info holds basic metadata extracted from a JAV metadata provider.
-type Info struct {
+// JavInfo holds basic metadata extracted from a JAV metadata provider.
+type JavInfo struct {
 	Title       string
 	Code        string
+	Studio      string
 	ReleaseUnix int64
 	DurationMin int
 	Tags        []string
@@ -177,12 +176,97 @@ type ActressInfo struct {
 	ProfileURL   string
 }
 
-// JavLookupProvider can resolve both JAV metadata and actress profiles by code.
+// lookupProvider can resolve both JAV metadata and actress profiles by code.
 // Return ResourceNotFonud when the code is invalid or not found.
 // Return other error for retryable lookup failures.
-type JavLookupProvider interface {
+type lookupProvider interface {
 	LookupActressByCode(code string) (*ActressInfo, error)
 	LookupActressByJapaneseName(name string) (*ActressInfo, error)
 	LookupCoverURLByCode(code string) (string, error)
-	LookupJavByCode(code string) (*Info, error)
+	LookupJavByCode(code string) (*JavInfo, error)
+}
+
+func lookupProviderFor(provider Provider) (lookupProvider, error) {
+	provider = ParseProvider(int(provider))
+	if provider == ProviderUnknown || provider == ProviderUser {
+		return nil, errUnsupportedProvider
+	}
+	lookup, ok := lookupProvidersByProvider[provider]
+	if !ok || lookup == nil {
+		return nil, errUnsupportedProvider
+	}
+	return lookup, nil
+}
+
+// LookupJavByCode fetches JAV metadata from the selected provider.
+func LookupJavByCode(code string, provider Provider) (info *JavInfo, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_jav", code)
+	if cached, ok, err := lookupCacheGet[JavInfo](cacheKey); ok {
+		return cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	info, err = lookup.LookupJavByCode(code)
+	cacheableLookupResult(cacheKey, info, err)
+	return info, err
+}
+
+// LookupActressByCode fetches actress profile metadata by a movie code from the selected provider.
+func LookupActressByCode(code string, provider Provider) (info *ActressInfo, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_actress_code", code)
+	if cached, ok, err := lookupCacheGet[ActressInfo](cacheKey); ok {
+		return cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	info, err = lookup.LookupActressByCode(code)
+	cacheableLookupResult(cacheKey, info, err)
+	return info, err
+}
+
+// LookupActressByJapaneseName fetches actress profile metadata by Japanese/name text from the selected provider.
+func LookupActressByJapaneseName(name string, provider Provider) (info *ActressInfo, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_actress_name", name)
+	if cached, ok, err := lookupCacheGet[ActressInfo](cacheKey); ok {
+		return cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	info, err = lookup.LookupActressByJapaneseName(name)
+	cacheableLookupResult(cacheKey, info, err)
+	return info, err
+}
+
+// LookupCoverURLByCode fetches a cover image URL from the selected provider.
+func LookupCoverURLByCode(code string, provider Provider) (coverURL string, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return "", err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_cover", code)
+	if cached, ok, err := lookupCacheGet[string](cacheKey); ok {
+		if cached == nil {
+			return "", err
+		}
+		return *cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	coverURL, err = lookup.LookupCoverURLByCode(code)
+	cacheableLookupResult(cacheKey, coverURL, err)
+	return coverURL, err
+}
+
+func recoverUnsupportedProvider(err *error) {
+	if r := recover(); r != nil {
+		*err = errUnsupportedProvider
+	}
 }

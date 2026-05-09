@@ -16,12 +16,12 @@ import (
 type methodOption struct {
 	name   string
 	prompt string
-	call   func(jav.JavLookupProvider, string) (any, error)
+	call   func(jav.Provider, string) (any, error)
 }
 
 type providerOption struct {
 	name     string
-	provider jav.JavLookupProvider
+	provider jav.Provider
 	methods  []methodOption
 }
 
@@ -30,56 +30,56 @@ func main() {
 	providers := []providerOption{
 		{
 			name:     "javbus",
-			provider: jav.JavBusProvider,
+			provider: jav.ProviderJavBus,
 		},
 		{
 			name:     "javdatabase",
-			provider: jav.JavDatabaseProvider,
+			provider: jav.ProviderJavDatabase,
 		},
 		{
 			name:     "javdb",
-			provider: jav.JavDBProvider,
+			provider: jav.ProviderJavDB,
 		},
 		{
 			name:     "avmoo",
-			provider: jav.AvmooProvider,
+			provider: jav.ProviderAvmoo,
 		},
 		{
 			name:     "javmodel",
-			provider: jav.JavModelProvider,
+			provider: jav.ProviderJavModel,
 		},
 		{
 			name:     "theporndb",
-			provider: jav.ThePornDBProvider,
+			provider: jav.ProviderThePornDB,
 		},
 	}
 	methods := []methodOption{
 		{
 			name:   "LookupActressByCode",
 			prompt: "请输入番号",
-			call: func(provider jav.JavLookupProvider, input string) (any, error) {
-				return provider.LookupActressByCode(input)
+			call: func(provider jav.Provider, input string) (any, error) {
+				return jav.LookupActressByCode(input, provider)
 			},
 		},
 		{
 			name:   "LookupActressByJapaneseName",
 			prompt: "请输入女优日文名",
-			call: func(provider jav.JavLookupProvider, input string) (any, error) {
-				return provider.LookupActressByJapaneseName(input)
+			call: func(provider jav.Provider, input string) (any, error) {
+				return jav.LookupActressByJapaneseName(input, provider)
 			},
 		},
 		{
 			name:   "LookupCoverURLByCode",
 			prompt: "请输入番号",
-			call: func(provider jav.JavLookupProvider, input string) (any, error) {
-				return provider.LookupCoverURLByCode(input)
+			call: func(provider jav.Provider, input string) (any, error) {
+				return jav.LookupCoverURLByCode(input, provider)
 			},
 		},
 		{
 			name:   "LookupJavByCode",
 			prompt: "请输入番号",
-			call: func(provider jav.JavLookupProvider, input string) (any, error) {
-				return provider.LookupJavByCode(input)
+			call: func(provider jav.Provider, input string) (any, error) {
+				return jav.LookupJavByCode(input, provider)
 			},
 		},
 	}
@@ -164,7 +164,7 @@ func mustReadNonEmpty(reader *bufio.Reader, prompt string) string {
 	}
 }
 
-func safeCall(method methodOption, provider jav.JavLookupProvider, input string) (result any, err error) {
+func safeCall(method methodOption, provider jav.Provider, input string) (result any, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errMethodNotSupported
@@ -175,7 +175,7 @@ func safeCall(method methodOption, provider jav.JavLookupProvider, input string)
 		return result, nil
 	}
 	lower := strings.ToLower(err.Error())
-	if strings.Contains(lower, "not supported") || strings.Contains(lower, "unimplemented") {
+	if strings.Contains(lower, "not supported") || strings.Contains(lower, "unsupported") || strings.Contains(lower, "unimplemented") {
 		return nil, errMethodNotSupported
 	}
 	return result, err

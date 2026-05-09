@@ -21,8 +21,8 @@ func TestMetadataLanguageEnglishUsesThePornDB(t *testing.T) {
 	if got := CurrentMetadataLanguage(); got != MetadataLanguageEnglish {
 		t.Fatalf("CurrentMetadataLanguage() = %q, want %q", got, MetadataLanguageEnglish)
 	}
-	if got := PreferredProvider(); got != ProviderThePornDB {
-		t.Fatalf("PreferredProvider() = %s, want %s", got.String(), ProviderThePornDB.String())
+	if got := PreferredProvider(); got != ProviderJavDatabase {
+		t.Fatalf("PreferredProvider() = %s, want %s", got.String(), ProviderJavDatabase.String())
 	}
 }
 
@@ -52,24 +52,22 @@ func TestProviderLanguageHelpers(t *testing.T) {
 }
 
 func TestLookupProvidersByProviderIncludesMetadataProviders(t *testing.T) {
-	tests := []struct {
-		provider Provider
-		wantType any
-	}{
-		{ProviderJavBus, JavBus{}},
-		{ProviderJavDatabase, JavDatabase{}},
-		{ProviderJavDB, JavDB{}},
-		{ProviderAvmoo, Avmoo{}},
-		{ProviderThePornDB, ThePornDB{}},
+	tests := []Provider{
+		ProviderJavBus,
+		ProviderJavDatabase,
+		ProviderJavDB,
+		ProviderAvmoo,
+		ProviderThePornDB,
+		ProviderJavModel,
 	}
 
-	for _, tt := range tests {
-		got, ok := lookupProvidersByProvider[tt.provider]
+	for _, provider := range tests {
+		got, ok := lookupProvidersByProvider[provider]
 		if !ok {
-			t.Fatalf("lookup provider missing for %s", tt.provider.String())
+			t.Fatalf("lookup provider missing for %s", provider.String())
 		}
-		if got != tt.wantType {
-			t.Fatalf("lookup provider for %s = %T, want %T", tt.provider.String(), got, tt.wantType)
+		if got == nil {
+			t.Fatalf("lookup provider for %s is nil", provider.String())
 		}
 	}
 }

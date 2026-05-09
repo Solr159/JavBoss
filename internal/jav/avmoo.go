@@ -17,28 +17,28 @@ import (
 	"pornboss/internal/util"
 )
 
-// Avmoo implements JavLookupProvider.
-type Avmoo struct{}
+// avmoo implements lookupProvider.
+type avmoo struct{}
 
-var AvmooProvider JavLookupProvider = Avmoo{}
+var avmooProvider lookupProvider = avmoo{}
 
 const (
 	avmooBaseURL   = "https://avmoo.shop"
 	avmooUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (Avmoo) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (avmoo) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	return nil, errors.New("avmoo: lookup actress not supported")
 }
 
-// LookupActressByCode implements JavLookupProvider.
-func (Avmoo) LookupActressByCode(code string) (*ActressInfo, error) {
+// LookupActressByCode implements lookupProvider.
+func (avmoo) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("avmoo: lookup actress not supported")
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (Avmoo) LookupCoverURLByCode(code string) (string, error) {
+func (avmoo) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", ResourceNotFonud
@@ -59,7 +59,7 @@ func (Avmoo) LookupCoverURLByCode(code string) (string, error) {
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (Avmoo) LookupJavByCode(code string) (*Info, error) {
+func (avmoo) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, ResourceNotFonud
@@ -210,7 +210,7 @@ type avmooMovieFields struct {
 	Actors      []string
 }
 
-func parseAvmooMovieInfo(root *html.Node) *Info {
+func parseAvmooMovieInfo(root *html.Node) *JavInfo {
 	scope := findAvmooMainContainer(root)
 	if scope == nil {
 		return nil
@@ -222,7 +222,7 @@ func parseAvmooMovieInfo(root *html.Node) *Info {
 		title = cleanAvmooMoviePageTitle(strings.TrimSpace(firstTextByTag(root, "title")))
 	}
 
-	info := &Info{
+	info := &JavInfo{
 		Title:       title,
 		Code:        strings.TrimSpace(fields.Code),
 		ReleaseUnix: parseDateUnix(fields.ReleaseDate),

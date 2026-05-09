@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,10 +18,10 @@ import (
 	"pornboss/internal/util"
 )
 
-// JavDB implements JavLookupProvider.
-type JavDB struct{}
+// javDB implements lookupProvider.
+type javDB struct{}
 
-var JavDBProvider JavLookupProvider = JavDB{}
+var javDBProvider lookupProvider = javDB{}
 
 const (
 	javDBBaseURL   = "https://javdb.com"
@@ -34,18 +33,18 @@ var (
 	javDBHTTPClient     *http.Client
 )
 
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (JavDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (javDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	return nil, errors.New("javdb: lookup actress not supported")
 }
 
-// LookupActressByCode implements JavLookupProvider.
-func (JavDB) LookupActressByCode(code string) (*ActressInfo, error) {
+// LookupActressByCode implements lookupProvider.
+func (javDB) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javdb: lookup actress not supported")
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (JavDB) LookupCoverURLByCode(code string) (string, error) {
+func (javDB) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", ResourceNotFonud
@@ -66,7 +65,7 @@ func (JavDB) LookupCoverURLByCode(code string) (string, error) {
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (JavDB) LookupJavByCode(code string) (*Info, error) {
+func (javDB) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, ResourceNotFonud
@@ -94,10 +93,7 @@ func fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, strin
 	searchURL := fmt.Sprintf("%s/search?q=%s&f=all", javDBBaseURL, url.QueryEscape(code))
 	searchDoc, status, err := fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
 	if err != nil {
-		if isRetryableJavDBErr(err) {
-			return nil, "", err
-		}
-		return nil, "", ResourceNotFonud
+		return nil, "", err
 	}
 	if status == http.StatusNotFound || searchDoc == nil {
 		return nil, "", ResourceNotFonud
@@ -110,36 +106,12 @@ func fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, strin
 
 	detailDoc, status, err := fetchJavDBHTML(ctx, detailURL, searchURL)
 	if err != nil {
-		if isRetryableJavDBErr(err) {
-			return nil, "", err
-		}
-		return nil, "", ResourceNotFonud
+		return nil, "", err
 	}
 	if status == http.StatusNotFound || detailDoc == nil {
 		return nil, "", ResourceNotFonud
 	}
 	return detailDoc, detailURL, nil
-}
-
-func isRetryableJavDBErr(err error) bool {
-	if err == nil {
-		return false
-	}
-	if errors.Is(err, context.DeadlineExceeded) {
-		return true
-	}
-	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return true
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return true
-	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		return true
-	}
-	return false
 }
 
 func fetchJavDBHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
@@ -311,14 +283,14 @@ type javDBMovieFields struct {
 	Actors      []string
 }
 
-func parseJavDBMovieInfo(root *html.Node) *Info {
+func parseJavDBMovieInfo(root *html.Node) *JavInfo {
 	fields := extractJavDBMovieFields(root)
 	title := strings.TrimSpace(fields.Title)
 	if title == "" {
 		title = cleanJavDBMoviePageTitle(strings.TrimSpace(firstTextByTag(root, "title")))
 	}
 
-	info := &Info{
+	info := &JavInfo{
 		Title:       title,
 		Code:        strings.TrimSpace(fields.Code),
 		ReleaseUnix: parseDateUnix(fields.ReleaseDate),

@@ -16,25 +16,25 @@ import (
 	"pornboss/internal/util"
 )
 
-// ThePornDB implements JavLookupProvider.
-type ThePornDB struct{}
+// thePornDB implements lookupProvider.
+type thePornDB struct{}
 
-var ThePornDBProvider JavLookupProvider = ThePornDB{}
+var thePornDBProvider lookupProvider = thePornDB{}
 
 const thePornDBBearerToken = "uqtWi1LRXC2ngClxz8QrqfOERuH2qbuh89CQAiXx85088612"
 
-// LookupActressByCode implements JavLookupProvider.
-func (ThePornDB) LookupActressByCode(code string) (*ActressInfo, error) {
+// LookupActressByCode implements lookupProvider.
+func (thePornDB) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
 }
 
-// LookupActressByJapaneseName implements JavLookupProvider.
-func (ThePornDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByJapaneseName implements lookupProvider.
+func (thePornDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
 }
 
-// LookupJavByCode implements JavLookupProvider.
-func (ThePornDB) LookupJavByCode(code string) (*Info, error) {
+// LookupJavByCode implements lookupProvider.
+func (thePornDB) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, ResourceNotFonud
@@ -61,8 +61,8 @@ func (ThePornDB) LookupJavByCode(code string) (*Info, error) {
 	return info, nil
 }
 
-// LookupCoverURLByCode implements JavLookupProvider.
-func (ThePornDB) LookupCoverURLByCode(code string) (string, error) {
+// LookupCoverURLByCode implements lookupProvider.
+func (thePornDB) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.ToLower(strings.TrimSpace(code))
 	if code == "" {
 		return "", ResourceNotFonud
@@ -142,8 +142,8 @@ func findThePornDBRecordByCode(payload *thePornDBResponse, code string) *thePorn
 	return nil
 }
 
-func parseThePornDBJavInfo(item thePornDBRecord) *Info {
-	info := &Info{
+func parseThePornDBJavInfo(item thePornDBRecord) *JavInfo {
+	info := &JavInfo{
 		Title:       cleanThePornDBTitle(item.Title, item.ExternalID),
 		Code:        normalizeThePornDBCodeDisplay(item.ExternalID),
 		ReleaseUnix: parseDateUnix(item.Date),

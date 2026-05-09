@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"pornboss/internal/cache"
 	"pornboss/internal/common"
 	"pornboss/internal/common/logging"
 	"pornboss/internal/db"
@@ -113,19 +114,29 @@ func main() {
 
 	dataDir := filepath.Dir(cfg.DatabasePath)
 	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
-	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.JavLookupProvider{
-		jav.ThePornDBProvider,
-		jav.JavDatabaseProvider,
+	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
+		jav.ProviderThePornDB,
+		jav.ProviderJavDatabase,
 	})
 
 	common.AppConfig = cfg
 	common.ScreenshotManager = screenshotManager
 	common.CoverManager = coverManager
 
+	javCache, err := cache.OpenSQLiteKV(filepath.Join(dataDir, "cache", "jav_cache.db"))
+	if err != nil {
+		logger.Printf("open jav lookup cache failed, continue without cache: %v", err)
+	} else {
+		defer javCache.Close()
+		jav.SetCache(javCache)
+		javCache.StartCleaner(ctx, 24*time.Hour)
+	}
+
 	screenshotManager.Start(ctx)
 	coverManager.Start(ctx)
 	service.StartDirectoryScanner(ctx, time.Minute)
 	service.StartJavScanner(ctx, time.Minute)
+	service.StartJavStudioScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
 	router := server.NewRouter(resolveStaticDir(*staticDir))
