@@ -273,6 +273,7 @@ export async function fetchJavs({
   search = '',
   actors = [],
   tagIds = [],
+  studioId = null,
   sort = '',
   seed = null,
   directoryIds = [],
@@ -283,6 +284,7 @@ export async function fetchJavs({
   if (search) params.set('search', search)
   if (actors.length) params.set('actors', actors.join(','))
   if (tagIds.length) params.set('tag_ids', tagIds.join(','))
+  if (studioId) params.set('studio_id', String(studioId))
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
@@ -404,6 +406,25 @@ export async function fetchJavIdols({
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载女优失败', 'Failed to load idols'))
+  }
+  return res.json()
+}
+
+export async function fetchJavStudios({
+  limit = 25,
+  offset = 0,
+  search = '',
+  directoryIds = [],
+} = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', String(limit))
+  params.set('offset', String(offset))
+  if (search) params.set('search', search)
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  const res = await fetch(`/jav/studios?${params.toString()}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载片商失败', 'Failed to load studios'))
   }
   return res.json()
 }

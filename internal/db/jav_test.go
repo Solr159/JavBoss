@@ -114,6 +114,75 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	}
 }
 
+func TestListJavStudiosAndSearchByStudio(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+
+	studioA := models.JavStudio{Name: "Studio A"}
+	studioB := models.JavStudio{Name: "Studio B"}
+	if err := db.Create(&studioA).Error; err != nil {
+		t.Fatalf("create studio a: %v", err)
+	}
+	if err := db.Create(&studioB).Error; err != nil {
+		t.Fatalf("create studio b: %v", err)
+	}
+
+	javs := []models.Jav{
+		{Code: "STA-001", Title: "Studio A One", StudioID: int64Ptr(studioA.ID), Provider: 1, FetchedAt: now},
+		{Code: "STA-002", Title: "Studio A Two", StudioID: int64Ptr(studioA.ID), Provider: 1, FetchedAt: now},
+		{Code: "STB-001", Title: "Studio B One", StudioID: int64Ptr(studioB.ID), Provider: 1, FetchedAt: now},
+	}
+	if err := db.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+
+	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "sta-001.mp4", Filename: "sta-001.mp4", Fingerprint: "fp-sta-001", JavID: int64Ptr(javs[0].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "sta-002.mp4", Filename: "sta-002.mp4", Fingerprint: "fp-sta-002", JavID: int64Ptr(javs[1].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "stb-001.mp4", Filename: "stb-001.mp4", Fingerprint: "fp-stb-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	studios, total, err := ListJavStudios(ctx, "", 20, 0, nil)
+	if err != nil {
+		t.Fatalf("ListJavStudios: %v", err)
+	}
+	if total != 2 {
+		t.Fatalf("unexpected studio total: got %d want 2", total)
+	}
+	if len(studios) != 2 {
+		t.Fatalf("unexpected studio count: got %d want 2", len(studios))
+	}
+	if studios[0].ID != studioA.ID || studios[0].WorkCount != 2 {
+		t.Fatalf("unexpected first studio: %#v", studios[0])
+	}
+	if studios[0].SampleCode == "" {
+		t.Fatalf("expected sample code for first studio")
+	}
+
+	items, total, err := SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil, studioA.ID)
+	if err != nil {
+		t.Fatalf("SearchJav by studio: %v", err)
+	}
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("unexpected filtered javs: total=%d len=%d", total, len(items))
+	}
+	for _, item := range items {
+		if item.StudioID == nil || *item.StudioID != studioA.ID {
+			t.Fatalf("unexpected studio filtered item: %#v", item)
+		}
+	}
+}
+
 func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	gdb := openTestDB(t)
 	now := time.Unix(1710000000, 0).UTC()

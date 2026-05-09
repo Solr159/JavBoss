@@ -41,7 +41,7 @@ type JavStudioScanItem struct {
 }
 
 // SearchJav lists Jav metadata filtered by actors/tag IDs/search with pagination and sorting.
-func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64) ([]models.Jav, int64, error) {
+func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, studioIDs ...int64) ([]models.Jav, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -54,10 +54,11 @@ func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sor
 	search = strings.TrimSpace(search)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
-	filtered := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs)
+	studioID := firstPositiveInt64(studioIDs)
+	filtered := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs, studioID)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs)
+	countBase := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs, studioID)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -398,7 +399,7 @@ func ReplaceJavUserTags(ctx context.Context, javIDs, tagIDs []int64) error {
 	})
 }
 
-func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search string, directoryIDs []int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search string, directoryIDs []int64, studioID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -418,6 +419,9 @@ func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search
 		}
 		q = q.Where("code LIKE ? OR "+titleColumn+" LIKE ?", like, like)
 	}
+	if studioID > 0 {
+		q = q.Where("studio_id = ?", studioID)
+	}
 	if len(tagIDs) > 0 {
 		q = q.
 			Joins("JOIN jav_tag_map jtm ON jtm.jav_id = jav.id").
@@ -436,6 +440,100 @@ func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search
 			Having("COUNT(DISTINCT ji.name) >= ?", len(actors))
 	}
 	return q
+}
+
+func firstPositiveInt64(values []int64) int64 {
+	for _, value := range values {
+		if value > 0 {
+			return value
+		}
+	}
+	return 0
+}
+
+// JavStudioSummary represents studio info with aggregated work count and a sample code for cover lookup.
+type JavStudioSummary struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	WorkCount  int64  `json:"work_count"`
+	SampleCode string `json:"sample_code"`
+}
+
+func applyJavStudioSearch(q *gorm.DB, search string) *gorm.DB {
+	search = strings.TrimSpace(search)
+	if search == "" {
+		return q
+	}
+	like := fmt.Sprintf("%%%s%%", search)
+	return q.Where("js.name LIKE ?", like)
+}
+
+// ListJavStudios returns studios ordered by visible work count descending.
+func ListJavStudios(ctx context.Context, search string, limit, offset int, directoryIDs []int64) ([]JavStudioSummary, int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	countBase := common.DB.WithContext(ctx).
+		Table("jav_studio js").
+		Joins("JOIN jav j ON j.studio_id = js.id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where(activeLocationWhereSQL("vl", "d"))
+	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
+	countBase = applyJavStudioSearch(countBase, search)
+
+	var total int64
+	if err := countBase.Distinct("js.id").Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count jav studios: %w", err)
+	}
+
+	var items []JavStudioSummary
+	base := common.DB.WithContext(ctx).
+		Table("jav_studio js").
+		Joins("JOIN jav j ON j.studio_id = js.id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where(activeLocationWhereSQL("vl", "d"))
+	base = applyDirectoryFilter(base, "vl", directoryIDs)
+	base = applyJavStudioSearch(base, search)
+	if err := base.
+		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name").
+		Order("work_count DESC, js.name ASC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&items).Error; err != nil {
+		return nil, 0, fmt.Errorf("list jav studios: %w", err)
+	}
+
+	return items, total, nil
+}
+
+// ListStudioCoverCodes returns a prioritized list of codes for a studio.
+func ListStudioCoverCodes(ctx context.Context, studioID int64, directoryIDs []int64) ([]string, error) {
+	if studioID <= 0 {
+		return nil, errors.New("studio id must be positive")
+	}
+	var codes []string
+	query := common.DB.WithContext(ctx).
+		Table("jav j").
+		Select("j.code").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("j.studio_id = ?", studioID).
+		Where(activeLocationWhereSQL("vl", "d"))
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	if err := query.
+		Group("j.code").
+		Order("j.code").
+		Pluck("j.code", &codes).Error; err != nil {
+		return nil, fmt.Errorf("list studio cover codes: %w", err)
+	}
+	return codes, nil
 }
 
 // JavIdolSummary represents idol info with aggregated work count and a sample code for cover lookup.
