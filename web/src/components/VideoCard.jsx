@@ -59,6 +59,12 @@ export default function VideoCard({
       console.error(zh('打开所在位置失败', 'Reveal file failed'), err)
     }
   }
+
+  const handleOpenScreenshots = (event) => {
+    event.stopPropagation()
+    onOpenScreenshots?.(video)
+  }
+
   return (
     <div
       className={`video-card group relative overflow-hidden rounded-xl border bg-white shadow transition-all ${
@@ -79,7 +85,7 @@ export default function VideoCard({
           aria-label={zh(`选择 ${displayName}`, `Select ${displayName}`)}
         />
       </div>
-      <div className="aspect-video w-full overflow-hidden bg-gray-200">
+      <div className="relative aspect-video w-full overflow-hidden bg-gray-200">
         <img
           src={`/videos/${video.id}/thumbnail`}
           alt={displayName}
@@ -89,6 +95,17 @@ export default function VideoCard({
             e.currentTarget.style.display = 'none'
           }}
         />
+        <div className="absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={handleOpenScreenshots}
+            title={zh('查看截图', 'View screenshots')}
+            aria-label={zh('查看截图', 'View screenshots')}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+          >
+            <PhotoLibraryOutlinedIcon className="h-5 w-5 text-white" fontSize="inherit" />
+          </button>
+        </div>
       </div>
 
       <div className="p-3">
@@ -166,19 +183,6 @@ export default function VideoCard({
               className="h-6 w-6"
             >
               <FolderOpenIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={zh('查看截图', 'View screenshots')}>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenScreenshots?.(video)
-              }}
-              aria-label={zh('查看截图', 'View screenshots')}
-              className="h-6 w-6"
-            >
-              <PhotoLibraryOutlinedIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
         </div>

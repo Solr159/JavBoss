@@ -166,6 +166,7 @@ export default function JavView({
           <JavGrid
             items={javItems}
             columns={javGridColumns}
+            buildJavUrl={buildJavUrl}
             onPlay={onPlay}
             onIdolClick={onIdolClick}
             onStudioClick={onStudioClick}

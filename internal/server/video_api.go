@@ -30,6 +30,7 @@ func listVideos(c *gin.Context) {
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	search := strings.TrimSpace(c.Query("search"))
 	sort := strings.TrimSpace(c.Query("sort"))
+	hideJav := queryBool(c, "hide_jav", true)
 	seedParam := strings.TrimSpace(c.Query("seed"))
 	var seed *int64
 	if seedParam != "" {
@@ -41,14 +42,14 @@ func listVideos(c *gin.Context) {
 		seed = &parsed
 	}
 
-	videos, err := dbpkg.ListVideos(c.Request.Context(), limit, offset, tagFilter, search, sort, seed, directoryIDs)
+	videos, err := dbpkg.ListVideos(c.Request.Context(), limit, offset, tagFilter, search, sort, seed, directoryIDs, hideJav)
 	if err != nil {
 		logging.Error("list videos error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
 
-	total, err := dbpkg.CountVideos(c.Request.Context(), tagFilter, search, directoryIDs)
+	total, err := dbpkg.CountVideos(c.Request.Context(), tagFilter, search, directoryIDs, hideJav)
 	if err != nil {
 		logging.Error("count videos error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})

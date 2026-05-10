@@ -1,6 +1,7 @@
 import { zh } from '@/utils/i18n'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
+const javIdolResolveInFlight = new Map()
 
 export async function fetchVideos({
   limit = 25,
@@ -10,6 +11,7 @@ export async function fetchVideos({
   sort = '',
   seed = null,
   directoryIds = [],
+  hideJav = true,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
@@ -19,6 +21,7 @@ export async function fetchVideos({
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  params.set('hide_jav', hideJav ? '1' : '0')
   const res = await fetch(`/videos?${params.toString()}`)
   if (!res.ok) throw new Error(zh('加载视频失败', 'Failed to load videos'))
   const data = await res.json()
@@ -29,9 +32,10 @@ export async function fetchVideos({
   return data
 }
 
-export async function fetchTags({ directoryIds = [] } = {}) {
+export async function fetchTags({ directoryIds = [], hideJav = true } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  params.set('hide_jav', hideJav ? '1' : '0')
   const query = params.toString()
   const res = await fetch(`/tags${query ? `?${query}` : ''}`)
   if (!res.ok) throw new Error(zh('加载标签失败', 'Failed to load tags'))
@@ -271,7 +275,7 @@ export async function fetchJavs({
   limit = 25,
   offset = 0,
   search = '',
-  actors = [],
+  idolIds = [],
   tagIds = [],
   studioId = null,
   sort = '',
@@ -282,7 +286,7 @@ export async function fetchJavs({
   params.set('limit', String(limit))
   params.set('offset', String(offset))
   if (search) params.set('search', search)
-  if (actors.length) params.set('actors', actors.join(','))
+  if (idolIds.length) params.set('idol_ids', idolIds.join(','))
   if (tagIds.length) params.set('tag_ids', tagIds.join(','))
   if (studioId) params.set('studio_id', String(studioId))
   if (sort) params.set('sort', sort)
@@ -439,4 +443,35 @@ export async function fetchJavIdolPreview(id, { directoryIds = [] } = {}) {
     throw new Error(err.error || zh('加载女优预览失败', 'Failed to load idol preview'))
   }
   return res.json()
+}
+
+export async function resolveJavIdols(ids = []) {
+  const clean = Array.from(
+    new Set(
+      (ids || [])
+        .map((id) => Number.parseInt(String(id), 10))
+        .filter((id) => Number.isFinite(id) && id > 0)
+    )
+  ).sort((a, b) => a - b)
+  if (!clean.length) return []
+  const key = clean.join(',')
+  if (javIdolResolveInFlight.has(key)) {
+    return javIdolResolveInFlight.get(key)
+  }
+  const params = new URLSearchParams()
+  params.set('ids', clean.join(','))
+  const request = fetch(`/jav/idols/resolve?${params.toString()}`)
+    .then(async (res) => {
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || zh('加载女优名称失败', 'Failed to load idol names'))
+      }
+      const data = await res.json()
+      return Array.isArray(data?.items) ? data.items : []
+    })
+    .finally(() => {
+      javIdolResolveInFlight.delete(key)
+    })
+  javIdolResolveInFlight.set(key, request)
+  return request
 }

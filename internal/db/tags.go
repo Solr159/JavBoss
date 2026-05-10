@@ -69,11 +69,20 @@ func RenameTag(ctx context.Context, id int64, newName string) error {
 }
 
 // ListTags returns all tags ordered by name with attached active location counts.
-func ListTags(ctx context.Context, directoryIDs []int64) ([]TagCount, error) {
+// By default it hides locations already associated with JAV metadata.
+func ListTags(ctx context.Context, directoryIDs []int64, hideJav ...bool) ([]TagCount, error) {
 	var tags []TagCount
+	hideRecognizedJav := true
+	if len(hideJav) > 0 {
+		hideRecognizedJav = hideJav[0]
+	}
+	countWhere := activeLocationWhereSQL("vl", "d")
+	if hideRecognizedJav {
+		countWhere += " AND vl.jav_id IS NULL"
+	}
 	query := common.DB.WithContext(ctx).
 		Table("tag t").
-		Select("t.id, t.name, COUNT(DISTINCT CASE WHEN " + activeLocationWhereSQL("vl", "d") + " THEN vl.id END) AS count").
+		Select("t.id, t.name, COUNT(DISTINCT CASE WHEN " + countWhere + " THEN vl.id END) AS count").
 		Joins("LEFT JOIN video_tag vt ON vt.tag_id = t.id").
 		Joins("LEFT JOIN video_location vl ON vl.video_id = vt.video_id").
 		Joins("LEFT JOIN directory d ON d.id = vl.directory_id")

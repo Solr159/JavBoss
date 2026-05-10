@@ -14,13 +14,18 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ListVideos returns paginated active, unassigned video locations as video-like rows.
-func ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64) ([]models.Video, error) {
+// ListVideos returns paginated active video locations as video-like rows.
+// By default it hides locations already associated with JAV metadata.
+func ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	if offset < 0 {
 		offset = 0
+	}
+	hideRecognizedJav := true
+	if len(hideJav) > 0 {
+		hideRecognizedJav = hideJav[0]
 	}
 
 	orderClause := "video.created_at DESC, video_location.id DESC" // default: newest first
@@ -44,7 +49,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	case "random":
 		if seed != nil && *seed > 0 {
 			orderExpr = clause.Expr{
-				SQL:  "splitmix64(video_location.id, ?), video_location.id",
+				SQL:  "stable_random_rank(video_location.id, ?), video_location.id",
 				Vars: []any{*seed},
 			}
 			useExpr = true
@@ -62,13 +67,15 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Joins("JOIN video ON video.id = video_location.video_id").
-		Where("video_location.jav_id IS NULL").
 		Where(activeLocationWhereSQL("video_location", "directory")).
 		Preload("DirectoryRef").
 		Preload("Video").
 		Preload("Video.Tags").
 		Limit(limit).
 		Offset(offset)
+	if hideRecognizedJav {
+		query = query.Where("video_location.jav_id IS NULL")
+	}
 	query = applyDirectoryFilter(query, "video_location", directoryIDs)
 	if useExpr {
 		query = query.Order(clause.OrderBy{Expression: orderExpr})
@@ -106,10 +113,15 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	return videos, nil
 }
 
-// CountVideos returns the total number of active, unassigned locations that match optional filters.
-func CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64) (int64, error) {
+// CountVideos returns the total number of active locations that match optional filters.
+// By default it hides locations already associated with JAV metadata.
+func CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
 	cleanedTags := normalizeTagNames(tagNames)
 	cleanedSearch := strings.TrimSpace(search)
+	hideRecognizedJav := true
+	if len(hideJav) > 0 {
+		hideRecognizedJav = hideJav[0]
+	}
 	like := ""
 	if cleanedSearch != "" {
 		like = fmt.Sprintf("%%%s%%", cleanedSearch)
@@ -121,8 +133,10 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 		base := common.DB.WithContext(ctx).
 			Model(&models.VideoLocation{}).
 			Joins("JOIN directory ON directory.id = video_location.directory_id").
-			Where("video_location.jav_id IS NULL").
 			Where(activeLocationWhereSQL("video_location", "directory"))
+		if hideRecognizedJav {
+			base = base.Where("video_location.jav_id IS NULL")
+		}
 		base = applyDirectoryFilter(base, "video_location", directoryIDs)
 		if like != "" {
 			base = base.Where("video_location.filename LIKE ? COLLATE NOCASE", like)
@@ -138,12 +152,14 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	sub := common.DB.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
-		Where("video_location.jav_id IS NULL").
 		Where(activeLocationWhereSQL("video_location", "directory")).
 		Select("video_location.id").
 		Joins("JOIN video_tag ON video_tag.video_id = video_location.video_id").
 		Joins("JOIN tag ON tag.id = video_tag.tag_id").
 		Where("tag.name IN ?", cleanedTags)
+	if hideRecognizedJav {
+		sub = sub.Where("video_location.jav_id IS NULL")
+	}
 	sub = applyDirectoryFilter(sub, "video_location", directoryIDs)
 
 	if like != "" {

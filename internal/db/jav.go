@@ -40,8 +40,8 @@ type JavStudioScanItem struct {
 	Code string `gorm:"column:code"`
 }
 
-// SearchJav lists Jav metadata filtered by actors/tag IDs/search with pagination and sorting.
-func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, studioIDs ...int64) ([]models.Jav, int64, error) {
+// SearchJav lists Jav metadata filtered by idol IDs/tag IDs/search with pagination and sorting.
+func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, studioIDs ...int64) ([]models.Jav, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -49,16 +49,16 @@ func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sor
 		offset = 0
 	}
 
-	actors = normalizeNames(actors)
+	idolIDs = uniqueInt64s(idolIDs)
 	tagIDs = uniqueInt64s(tagIDs)
 	search = strings.TrimSpace(search)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
 	studioID := firstPositiveInt64(studioIDs)
-	filtered := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs, studioID)
+	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, actors, tagIDs, search, directoryIDs, studioID)
+	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -91,7 +91,7 @@ func SearchJav(ctx context.Context, actors []string, tagIDs []int64, search, sor
 	case "random":
 		if seed != nil && *seed > 0 {
 			orderExpr = clause.Expr{
-				SQL:  "splitmix64(jav.id, ?), jav.id",
+				SQL:  "stable_random_rank(jav.id, ?), jav.id",
 				Vars: []any{*seed},
 			}
 			useExpr = true
@@ -399,7 +399,7 @@ func ReplaceJavUserTags(ctx context.Context, javIDs, tagIDs []int64) error {
 	})
 }
 
-func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search string, directoryIDs []int64, studioID int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -431,13 +431,12 @@ func buildJavFilter(ctx context.Context, actors []string, tagIDs []int64, search
 			Group("jav.id").
 			Having("COUNT(DISTINCT jtm.jav_tag_id) = ?", len(tagIDs))
 	}
-	if len(actors) > 0 {
+	if len(idolIDs) > 0 {
 		q = q.
 			Joins("JOIN jav_idol_map jim ON jim.jav_id = jav.id").
-			Joins("JOIN jav_idol ji ON ji.id = jim.jav_idol_id").
-			Where("ji.name IN ?", actors).
+			Where("jim.jav_idol_id IN ?", idolIDs).
 			Group("jav.id").
-			Having("COUNT(DISTINCT ji.name) >= ?", len(actors))
+			Having("COUNT(DISTINCT jim.jav_idol_id) = ?", len(idolIDs))
 	}
 	return q
 }
@@ -635,6 +634,26 @@ func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) 
 		return nil, gorm.ErrRecordNotFound
 	}
 	return &item, nil
+}
+
+// ResolveJavIdols returns lightweight idol labels for URL/filter display.
+func ResolveJavIdols(ctx context.Context, ids []int64) ([]JavIdolSummary, error) {
+	cleanIDs := uniqueInt64s(ids)
+	if len(cleanIDs) == 0 {
+		return []JavIdolSummary{}, nil
+	}
+
+	var items []JavIdolSummary
+	if err := common.DB.WithContext(ctx).
+		Table("jav_idol ji").
+		Select("ji.id, ji.name").
+		Where("ji.id IN ?", cleanIDs).
+		Where("COALESCE(ji.is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
+		Order("ji.name").
+		Scan(&items).Error; err != nil {
+		return nil, fmt.Errorf("resolve jav idols: %w", err)
+	}
+	return items, nil
 }
 
 // ListJavIdols returns idols ordered by selected sort with pagination.

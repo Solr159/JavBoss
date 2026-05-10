@@ -68,6 +68,7 @@ function ReleaseIcon() {
 export default function JavGrid({
   items,
   columns = 0,
+  buildJavUrl,
   onPlay,
   onIdolClick,
   onStudioClick,
@@ -139,6 +140,7 @@ export default function JavGrid({
           key={item.id || item.code}
           item={item}
           onPlay={onPlay}
+          buildJavUrl={buildJavUrl}
           onIdolClick={onIdolClick}
           onStudioClick={onStudioClick}
           onTagClick={onTagClick}
@@ -160,6 +162,31 @@ export default function JavGrid({
 }
 
 function CoverPreviewModal({ preview, onClose }) {
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    if (!preview?.src) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const handleWheel = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const direction = event.deltaY < 0 ? 1 : -1
+      setScale((current) => Math.min(5, Math.max(0.5, current + direction * 0.2)))
+    }
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+      window.removeEventListener('wheel', handleWheel, true)
+    }
+  }, [preview?.src])
+
   if (!preview?.src) return null
 
   return (
@@ -186,7 +213,8 @@ function CoverPreviewModal({ preview, onClose }) {
       <img
         src={preview.src}
         alt={preview.alt || zh('JAV 封面', 'JAV cover')}
-        className="relative z-10 max-h-[92vh] max-w-[94vw] object-contain shadow-2xl"
+        className="relative z-10 max-h-[92vh] max-w-[94vw] transform-gpu cursor-zoom-in object-contain shadow-2xl"
+        style={{ transform: `scale(${scale})` }}
       />
     </div>
   )
@@ -195,6 +223,7 @@ function CoverPreviewModal({ preview, onClose }) {
 function JavCard({
   item,
   onPlay,
+  buildJavUrl,
   onIdolClick,
   onStudioClick,
   onTagClick,
@@ -313,6 +342,52 @@ function JavCard({
   const externalMenuRef = useRef(null)
   const externalMenuOpen = Boolean(externalAnchorEl)
 
+  const isModifiedClick = (event) =>
+    event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0
+
+  const handleFilterLinkClick = (event, action) => {
+    event.stopPropagation()
+    if (isModifiedClick(event)) return
+    event.preventDefault()
+    action?.()
+  }
+
+  const buildIdolFilterHref = (idol) => {
+    const id = Number(idol?.id)
+    if (!Number.isFinite(id) || id <= 0) return '#'
+    return (
+      buildJavUrl?.({
+        tab: 'list',
+        page: 1,
+        search: '',
+        idolIds: [id],
+        tagIds: [],
+        studioId: null,
+        studioName: '',
+        random: false,
+        tempSort: '',
+      }) || '#'
+    )
+  }
+
+  const buildTagFilterHref = (tag) => {
+    const id = Number(tag?.id)
+    if (!Number.isFinite(id) || id <= 0) return '#'
+    return (
+      buildJavUrl?.({
+        tab: 'list',
+        page: 1,
+        search: '',
+        idolIds: [],
+        tagIds: [id],
+        studioId: null,
+        studioName: '',
+        random: false,
+        tempSort: '',
+      }) || '#'
+    )
+  }
+
   useEffect(() => {
     return () => {
       if (closeTimerRef.current) {
@@ -410,16 +485,30 @@ function JavCard({
             </svg>
           </button>
         </div>
-        {cover ? (
-          <div className="absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+        {cover || canOpen ? (
+          <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            {cover ? (
+              <button
+                type="button"
+                onClick={handleOpenCoverPreview}
+                title={zh('查看封面', 'View cover')}
+                aria-label={zh('查看封面', 'View cover')}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+              >
+                <SearchIcon className="h-5 w-5 text-white" fontSize="inherit" />
+              </button>
+            ) : null}
             <button
               type="button"
-              onClick={handleOpenCoverPreview}
-              title={zh('放大封面', 'Enlarge cover')}
-              aria-label={zh('放大封面', 'Enlarge cover')}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+              onClick={handleOpenScreenshots}
+              disabled={!canOpen}
+              title={zh('查看截图', 'View screenshots')}
+              aria-label={zh('查看截图', 'View screenshots')}
+              className={`flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg shadow-black/60 ${
+                canOpen ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
+              }`}
             >
-              <SearchIcon className="h-5 w-5 text-white" fontSize="inherit" />
+              <PhotoLibraryOutlinedIcon className="h-5 w-5 text-white" fontSize="inherit" />
             </button>
           </div>
         ) : null}
@@ -472,18 +561,18 @@ function JavCard({
         {Array.isArray(item?.idols) && item.idols.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {item.idols.map((idol) => (
-              <button
+              <a
                 key={idol.id || idol.name}
-                type="button"
+                href={buildIdolFilterHref(idol)}
                 className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 transition hover:bg-purple-200"
                 onMouseEnter={(event) => handleIdolHoverStart(idol, event)}
                 onMouseLeave={scheduleHoverClose}
                 onFocus={(event) => handleIdolHoverStart(idol, event)}
                 onBlur={scheduleHoverClose}
-                onClick={() => onIdolClick?.(idol.name)}
+                onClick={(event) => handleFilterLinkClick(event, () => onIdolClick?.(idol))}
               >
                 {idol.name}
-              </button>
+              </a>
             ))}
             <Popper
               open={Boolean(previewIdol && hoverAnchorEl)}
@@ -507,7 +596,8 @@ function JavCard({
                 {previewIdol ? (
                   <IdolCard
                     item={previewIdol}
-                    onSelectIdol={(idol) => onIdolClick?.(idol?.name)}
+                    onSelectIdol={(idol) => onIdolClick?.(idol)}
+                    href={buildIdolFilterHref(previewIdol)}
                     bgWidthPercent={bgWidthPercent}
                     coverAspectPercent={coverAspectPercent}
                     showWorkCount={showIdolWorkCount}
@@ -526,14 +616,14 @@ function JavCard({
                 ? 'bg-emerald-500 hover:bg-emerald-600'
                 : 'bg-orange-500 hover:bg-orange-600'
               return (
-                <button
+                <a
                   key={tag.id || tag.name}
-                  type="button"
+                  href={buildTagFilterHref(tag)}
                   className={`rounded-full px-2 py-1 text-xs font-medium text-white transition ${tagClass}`}
-                  onClick={() => onTagClick?.(tag)}
+                  onClick={(event) => handleFilterLinkClick(event, () => onTagClick?.(tag))}
                 >
                   {tag.name}
-                </button>
+                </a>
               )
             })}
           </div>
@@ -624,17 +714,6 @@ function JavCard({
               className="h-6 w-6"
             >
               <FolderOpenIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={zh('查看截图', 'View screenshots')}>
-            <IconButton
-              size="small"
-              onClick={handleOpenScreenshots}
-              disabled={!canOpen}
-              aria-label={zh('查看截图', 'View screenshots')}
-              className="h-6 w-6"
-            >
-              <PhotoLibraryOutlinedIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
           {showEditTags && (

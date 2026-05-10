@@ -18,6 +18,21 @@ func queryInt(c *gin.Context, key string, def int) int {
 	return def
 }
 
+func queryBool(c *gin.Context, key string, def bool) bool {
+	value := strings.TrimSpace(strings.ToLower(c.Query(key)))
+	if value == "" {
+		return def
+	}
+	switch value {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return def
+	}
+}
+
 func parseTagQuery(raw string) []string {
 	if raw == "" {
 		return nil

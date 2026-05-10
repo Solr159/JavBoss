@@ -22,6 +22,10 @@ export default function Pagination({
   const start = Math.max(1, Math.min(page - offset, totalPages - windowSize + 1))
   const end = Math.min(totalPages, start + windowSize - 1)
   const canJump = totalPages > 1
+  const prevTenPage = Math.max(1, page - 10)
+  const nextTenPage = Math.min(totalPages, page + 10)
+  const hasPrevTen = page > 1
+  const hasNextTen = page < totalPages
   const [jumpAnchorEl, setJumpAnchorEl] = useState(null)
   const jumpColumnCount = Math.min(6, totalPages)
   const jumpPanelWidth = Math.min(560, Math.max(180, jumpColumnCount * 56 + 24))
@@ -41,7 +45,7 @@ export default function Pagination({
 
   return (
     <div className="flex flex-col items-center gap-1 py-1 text-sm">
-      <div className="flex items-center justify-center gap-1.5">
+      <div className="flex flex-wrap items-center justify-center gap-1.5">
         <a
           href={buildPageUrl ? buildPageUrl({ page: 1 }) : '#'}
           onClick={(e) => {
@@ -54,6 +58,19 @@ export default function Pagination({
           aria-label={zh('首页', 'First page')}
         >
           {zh('« 首页', '« First')}
+        </a>
+        <a
+          href={buildPageUrl ? buildPageUrl({ page: prevTenPage }) : '#'}
+          onClick={(e) => {
+            if (isModifiedClick(e) || !hasPrevTen) return
+            e.preventDefault()
+            onGoToPage(prevTenPage)
+          }}
+          className={`rounded border px-2 py-0.5 ${!hasPrevTen ? 'pointer-events-none opacity-50' : ''}`}
+          aria-disabled={!hasPrevTen}
+          aria-label={zh('上十页', 'Previous 10 pages')}
+        >
+          {zh('‹ 上十页', '‹ -10')}
         </a>
         <a
           href={buildPageUrl ? buildPageUrl({ page: page - 1 }) : '#'}
@@ -97,6 +114,19 @@ export default function Pagination({
           aria-label={zh('下一页', 'Next page')}
         >
           {zh('下一页 ›', 'Next ›')}
+        </a>
+        <a
+          href={buildPageUrl ? buildPageUrl({ page: nextTenPage }) : '#'}
+          onClick={(e) => {
+            if (isModifiedClick(e) || !hasNextTen) return
+            e.preventDefault()
+            onGoToPage(nextTenPage)
+          }}
+          className={`rounded border px-2 py-0.5 ${!hasNextTen ? 'pointer-events-none opacity-50' : ''}`}
+          aria-disabled={!hasNextTen}
+          aria-label={zh('下十页', 'Next 10 pages')}
+        >
+          {zh('下十页 ›', '+10 ›')}
         </a>
         <a
           href={buildPageUrl ? buildPageUrl({ page: lastPage }) : '#'}

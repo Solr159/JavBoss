@@ -7,6 +7,8 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
 import { zh } from '@/utils/i18n'
 
 export default function TopBar({
@@ -31,10 +33,14 @@ export default function TopBar({
   javRandomHref,
   javRandomMode,
   onJavRandomClick,
+  onJavFilterRandomClick,
+  onCancelJavFilterRandom,
+  showJavFilterRandomButton,
   isModifiedClick,
   javTab,
   onSwitchJavTab,
   filterSummary,
+  onOpenJavQueryEditor,
   showDirectorySetupHint,
   directories = [],
   enabledDirectoryIds = [],
@@ -296,7 +302,56 @@ export default function TopBar({
                 </Button>
               </div>
 
-              {filterSummary ? (
+              {isJavMode && javTab === 'list' ? (
+                <div className="flex min-w-0 flex-1 items-center gap-1">
+                  {filterSummary ? (
+                    <span
+                      className="min-w-0 truncate whitespace-nowrap text-xs text-gray-500"
+                      title={`${filterLabelPrefix}${filterSummary}`}
+                    >
+                      {filterLabelPrefix}
+                      <span className="font-semibold text-gray-700">{filterSummary}</span>
+                    </span>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={onOpenJavQueryEditor}
+                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    title={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
+                    aria-label={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
+                  >
+                    <TuneOutlinedIcon fontSize="inherit" className="text-[16px]" />
+                  </button>
+                  {showJavFilterRandomButton ? (
+                    <span className="inline-flex shrink-0 items-center">
+                      <button
+                        type="button"
+                        onClick={onJavFilterRandomClick}
+                        className={`inline-flex h-5 w-5 items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                          javRandomMode
+                            ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                            : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                        }`}
+                        title={zh('基于当前筛选条件随机', 'Random within current filters')}
+                        aria-label={zh('基于当前筛选条件随机', 'Random within current filters')}
+                      >
+                        <ShuffleOutlinedIcon fontSize="inherit" className="text-[16px]" />
+                      </button>
+                      {javRandomMode ? (
+                        <button
+                          type="button"
+                          onClick={onCancelJavFilterRandom}
+                          className="-ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-sm text-amber-500 hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          title={zh('取消筛选随机', 'Cancel filter random')}
+                          aria-label={zh('取消筛选随机', 'Cancel filter random')}
+                        >
+                          <CloseRoundedIcon fontSize="inherit" className="text-[14px]" />
+                        </button>
+                      ) : null}
+                    </span>
+                  ) : null}
+                </div>
+              ) : filterSummary ? (
                 <span
                   className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-gray-500"
                   title={`${filterLabelPrefix}${filterSummary}`}

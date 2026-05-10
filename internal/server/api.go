@@ -52,6 +52,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/jav/tags/replace", replaceJavTagsForItems)
 	router.GET("/jav/:code/cover", getJavCover)
 	router.GET("/jav/idols", listJavIdols)
+	router.GET("/jav/idols/resolve", resolveJavIdols)
 	router.GET("/jav/idols/:id", getJavIdol)
 }
 

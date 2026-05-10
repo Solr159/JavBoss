@@ -17,9 +17,11 @@ import {
   renameJavTag,
   deleteJavTag,
   replaceJavTagsForItems,
+  resolveJavIdols,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
 import JavIdolView from '@/components/JavIdolView'
+import JavQueryEditorModal from '@/components/JavQueryEditorModal'
 import JavSettingsModal from '@/components/JavSettingsModal'
 import JavStudioView from '@/components/JavStudioView'
 import JavTagModal from '@/components/JavTagModal'
@@ -79,6 +81,7 @@ export default function App() {
     setSearchTerm,
     sortOrder,
     videoTempSort,
+    videoHideJav,
     setVideoTempSort,
     loadJavRandom,
     randomMode,
@@ -91,7 +94,7 @@ export default function App() {
     javPageSize,
     javGridColumns,
     javSearchTerm,
-    javActors,
+    javIdolIds,
     javTags,
     javStudioId,
     javStudioName,
@@ -139,6 +142,7 @@ export default function App() {
   const [javSettingsOpen, setJavSettingsOpen] = useState(false)
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false)
   const [javTagModalOpen, setJavTagModalOpen] = useState(false)
+  const [javQueryEditorOpen, setJavQueryEditorOpen] = useState(false)
   const [javVideoPickerOpen, setJavVideoPickerOpen] = useState(false)
   const [javVideoPickerItem, setJavVideoPickerItem] = useState(null)
   const [javVideoPickerAction, setJavVideoPickerAction] = useState('play')
@@ -172,6 +176,15 @@ export default function App() {
       }).join(','),
     [directories, enabledDirectoryIds, directoryFilterMode]
   )
+  const javQueryDirectoryIds = useMemo(
+    () =>
+      directoryQueryIds({
+        directories,
+        enabledDirectoryIds,
+        directoryFilterMode,
+      }),
+    [directories, enabledDirectoryIds, directoryFilterMode]
+  )
   const [tagPickerFor, setTagPickerFor] = useState(null)
   const [tagPickerSelected, setTagPickerSelected] = useState([])
   const [javTagPickerItem, setJavTagPickerItem] = useState(null)
@@ -182,11 +195,13 @@ export default function App() {
   const [selectionTagChoices, setSelectionTagChoices] = useState([])
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
+  const [videoHideJavInput, setVideoHideJavInput] = useState(videoHideJav)
   const [javPageSizeInput, setJavPageSizeInput] = useState(javPageSize)
   const [javGridColumnsInput, setJavGridColumnsInput] = useState(javGridColumns)
   const [idolPageSizeInput, setIdolPageSizeInput] = useState(idolPageSize)
   const [javSortInput, setJavSortInput] = useState(javSort)
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
+  const [javResolvedIdols, setJavResolvedIdols] = useState({})
   const [toastMessage, setToastMessage] = useState('')
   const javVideoChoices = javVideoPickerItem?.videos || []
   const locationPickerItem = locationPickerVideo
@@ -593,7 +608,7 @@ export default function App() {
         page: pageOverride,
         search: searchOverride,
         tab: tabOverride,
-        actors: actorsOverride,
+        idolIds: idolIdsOverride,
         studioId: studioIdOverride,
         studioName: studioNameOverride,
         sort: sortOverride,
@@ -612,9 +627,9 @@ export default function App() {
       if (searchVal) {
         sp.set('search', searchVal)
       }
-      const actorList = actorsOverride ?? javActors
-      if (tab === 'list' && actorList && actorList.length > 0) {
-        sp.set('actors', actorList.join(','))
+      const idolIdList = idolIdsOverride ?? javIdolIds
+      if (tab === 'list' && idolIdList && idolIdList.length > 0) {
+        sp.set('idol_ids', idolIdList.join(','))
       }
       const tagList = tagIdsOverride ?? javTags
       if (tab === 'list' && tagList && tagList.length > 0) {
@@ -672,7 +687,7 @@ export default function App() {
     [
       idolPage,
       studioPage,
-      javActors,
+      javIdolIds,
       javStudioId,
       javStudioName,
       javPage,
@@ -702,7 +717,7 @@ export default function App() {
       javTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
-      javActors: [],
+      javIdolIds: [],
       javStudioId: null,
       javStudioName: '',
       javTags: clean,
@@ -734,8 +749,8 @@ export default function App() {
           javRandomMode: jav.tab === 'list' ? jav.random : false,
           javRandomSeed: jav.tab === 'list' && jav.random ? jav.seed : null,
           javSearchTerm: jav.search,
-          javActors: jav.tab === 'list' && !jav.studioId ? jav.actors : [],
-          javTags: jav.tab === 'list' && !jav.studioId ? jav.tagIds : [],
+          javIdolIds: jav.tab === 'list' ? jav.idolIds : [],
+          javTags: jav.tab === 'list' ? jav.tagIds : [],
           javStudioId: jav.tab === 'list' ? jav.studioId : null,
           javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
           javPage: jav.random ? 1 : jav.page,
@@ -810,7 +825,7 @@ export default function App() {
   useEffect(() => {
     loadTags({ skipUnchanged: true })
     loadJavTags({ skipUnchanged: true })
-  }, [loadTags, loadJavTags, directoryTagKey])
+  }, [loadTags, loadJavTags, directoryTagKey, videoHideJav])
 
   useEffect(() => {
     if (!pendingVideoTagIdsRef.current || !tags.length) return
@@ -838,6 +853,7 @@ export default function App() {
     directoryFilterMode,
     sortOrder,
     videoTempSort,
+    videoHideJav,
   ])
 
   useEffect(() => {
@@ -856,7 +872,7 @@ export default function App() {
     javPage,
     javPageSize,
     javSearchTerm,
-    javActors,
+    javIdolIds,
     javTags,
     javStudioId,
     javSort,
@@ -909,9 +925,10 @@ export default function App() {
           javTab,
           javPage,
           javSearchTerm,
-          javActors,
+          javIdolIds,
           javTags,
           javStudioId,
+          javStudioName,
           javSort,
           javTempSort,
           javRandomMode,
@@ -932,7 +949,7 @@ export default function App() {
       idolPage,
       idolSort,
       studioPage,
-      javActors,
+      javIdolIds,
       javStudioId,
       javPage,
       javRandomMode,
@@ -951,6 +968,7 @@ export default function App() {
       videoTempSort,
       tagsByName,
       viewMode,
+      javStudioName,
     ]
   )
 
@@ -1010,10 +1028,69 @@ export default function App() {
     () => new Map((javTagOptions || []).map((tag) => [tag.id, tag.name])),
     [javTagOptions]
   )
+  const javDirectoryKey = javQueryDirectoryIds.join(',')
+  const javIdolOptionMap = useMemo(() => {
+    const map = new Map()
+    const addIdol = (idol) => {
+      const id = Number(idol?.id)
+      if (!Number.isFinite(id) || id <= 0 || map.has(id)) return
+      map.set(id, idol)
+    }
+    Object.values(javResolvedIdols || {}).forEach(addIdol)
+    ;(idolItems || []).forEach(addIdol)
+    ;(javItems || []).forEach((item) => {
+      ;(item?.idols || []).forEach(addIdol)
+    })
+    return map
+  }, [idolItems, javItems, javResolvedIdols])
+  const javIdolFilterOptions = useMemo(
+    () => Array.from(javIdolOptionMap.values()),
+    [javIdolOptionMap]
+  )
   const javUserTagOptions = useMemo(
     () => (javTagOptions || []).filter((tag) => isUserJavTag(tag)),
     [javTagOptions]
   )
+  const showJavFilterRandomButton =
+    isJavMode &&
+    javTab === 'list' &&
+    (javIdolIds.length > 0 ||
+      javTags.length > 0 ||
+      Boolean(javStudioId) ||
+      Boolean((javSearchTerm || '').trim()))
+  useEffect(() => {
+    setJavResolvedIdols({})
+  }, [config?.jav_metadata_language, javDirectoryKey])
+
+  useEffect(() => {
+    if (!isJavMode || javTab !== 'list' || javIdolIds.length === 0) return undefined
+    const missingIds = javIdolIds
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0 && !javIdolOptionMap.has(id))
+    if (missingIds.length === 0) return undefined
+
+    let cancelled = false
+    resolveJavIdols(missingIds)
+      .then((items) => {
+        if (cancelled) return
+        const loaded = {}
+        for (const idol of items || []) {
+          const id = Number(idol?.id)
+          if (Number.isFinite(id) && id > 0) loaded[id] = idol
+        }
+        if (Object.keys(loaded).length > 0) {
+          setJavResolvedIdols((current) => ({ ...current, ...loaded }))
+        }
+      })
+      .catch((err) => {
+        console.warn('resolve jav idol names failed', err)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isJavMode, javTab, javIdolIds, javIdolOptionMap, javQueryDirectoryIds])
+
   const searchHref = buildVideoUrl({
     search: searchInput,
     page: 1,
@@ -1026,7 +1103,7 @@ export default function App() {
     search: javSearchInput,
     page: 1,
     tab: javTab,
-    actors: [],
+    idolIds: [],
     tagIds: [],
     studioId: null,
     random: false,
@@ -1036,7 +1113,7 @@ export default function App() {
     random: true,
     page: 1,
     tab: 'list',
-    actors: [],
+    idolIds: [],
     tagIds: [],
     studioId: null,
     search: '',
@@ -1048,7 +1125,7 @@ export default function App() {
       videoTempSort: '',
       javTab: 'list',
       javTempSort: '',
-      javActors: [],
+      javIdolIds: [],
       javTags: [],
       javStudioId: null,
       javStudioName: '',
@@ -1060,6 +1137,27 @@ export default function App() {
     setJavSearchInput('')
     loadJavRandom(nextSeed)
   }, [loadJavRandom])
+
+  const handleJavFilterRandomClick = useCallback(() => {
+    const nextSeed = generateRandomSeed()
+    useStore.setState({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: 'list',
+      idolPage: 1,
+      studioPage: 1,
+    })
+    loadJavRandom(nextSeed)
+  }, [loadJavRandom])
+
+  const handleCancelJavFilterRandom = useCallback(() => {
+    useStore.setState({
+      javTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javPage: 1,
+    })
+  }, [])
 
   const handleVideoRandomClick = useCallback(() => {
     const nextSeed = generateRandomSeed()
@@ -1083,8 +1181,11 @@ export default function App() {
     if (isJavMode) {
       const parts = []
       if (javTab === 'list') {
-        const actorsLabel = formatList(javActors)
-        if (actorsLabel) parts.push(zh(`女优: ${actorsLabel}`, `Idols: ${actorsLabel}`))
+        const idolNames = javIdolIds
+          .map((id) => javIdolOptionMap.get(Number(id))?.name)
+          .filter(Boolean)
+        const idolsLabel = formatList(idolNames)
+        if (idolsLabel) parts.push(zh(`女优: ${idolsLabel}`, `Idols: ${idolsLabel}`))
         const tagNames = javTags.map((id) => javTagNameMap.get(id)).filter(Boolean)
         const tagsLabel = formatList(tagNames)
         if (tagsLabel) parts.push(zh(`标签: ${tagsLabel}`, `Tags: ${tagsLabel}`))
@@ -1095,7 +1196,6 @@ export default function App() {
           const label = javStudioName || loadedStudioName || `#${javStudioId}`
           parts.push(zh(`片商: ${label}`, `Studio: ${label}`))
         }
-        if (javRandomMode) parts.push(zh('随机', 'Random'))
       }
       const searchLabel = (javSearchTerm || '').trim()
       if (searchLabel) parts.push(zh(`搜索: ${searchLabel}`, `Search: ${searchLabel}`))
@@ -1106,24 +1206,20 @@ export default function App() {
     if (tagsLabel) parts.push(zh(`标签: ${tagsLabel}`, `Tags: ${tagsLabel}`))
     const searchLabel = (searchTerm || '').trim()
     if (searchLabel) parts.push(zh(`搜索: ${searchLabel}`, `Search: ${searchLabel}`))
-    if (randomMode) {
-      parts.push(zh('随机', 'Random'))
-    }
     return parts.length ? parts.join(isChineseLocale() ? '；' : '; ') : ''
   }, [
     isJavMode,
     javTab,
-    javActors,
+    javIdolIds,
+    javIdolOptionMap,
     javTags,
     javStudioId,
     javStudioName,
     javItems,
     javTagNameMap,
     javSearchTerm,
-    javRandomMode,
     selectedTags,
     searchTerm,
-    randomMode,
   ])
 
   const submitSearch = (e) => {
@@ -1148,7 +1244,7 @@ export default function App() {
       javTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
-      javActors: [],
+      javIdolIds: [],
       javTags: [],
       javStudioId: null,
       javStudioName: '',
@@ -1163,15 +1259,21 @@ export default function App() {
     const size = Math.max(1, parseInt(videoPageSizeInput, 10) || pageSize)
     const normalizedSort = normalizeVideoSort(videoSortInput)
     try {
-      await updateConfig({ video_page_size: size, video_sort: normalizedSort })
+      await updateConfig({
+        video_page_size: size,
+        video_sort: normalizedSort,
+        video_hide_jav: videoHideJavInput,
+      })
       const prevPage = page
       // ensure current page does not exceed last page after page size change
       const lastPage = Math.max(1, Math.ceil((total || 0) / size))
-      const nextPage = prevPage > lastPage ? lastPage : prevPage
+      const filterChanged = videoHideJavInput !== videoHideJav
+      const nextPage = filterChanged ? 1 : prevPage > lastPage ? lastPage : prevPage
 
       useStore.setState({
         pageSize: size,
         sortOrder: normalizedSort,
+        videoHideJav: videoHideJavInput,
         videoTempSort: '',
         page: nextPage,
         randomMode: false,
@@ -1230,8 +1332,9 @@ export default function App() {
     if (videoSettingsOpen) {
       setVideoPageSizeInput(pageSize)
       setVideoSortInput(sortOrder)
+      setVideoHideJavInput(videoHideJav)
     }
-  }, [videoSettingsOpen, pageSize, sortOrder])
+  }, [videoSettingsOpen, pageSize, sortOrder, videoHideJav])
 
   useEffect(() => {
     if (javSettingsOpen) {
@@ -1495,7 +1598,7 @@ export default function App() {
         javTempSort: '',
         javRandomMode: false,
         javRandomSeed: null,
-        javActors: [],
+        javIdolIds: [],
         javTags: [],
         javStudioId: null,
         javStudioName: '',
@@ -1532,13 +1635,14 @@ export default function App() {
 
   const handleSwitchJavTab = (tab) => {
     const nextTab = tab === 'idol' ? 'idol' : tab === 'studio' ? 'studio' : 'list'
-    const shouldClearSearch = nextTab !== javTab
-    const nextRandomMode = nextTab === 'list' ? javRandomMode : false
-    const nextRandomSeed = nextTab === 'list' ? javRandomSeed : null
+    const shouldResetRandomList = nextTab === 'list' && javRandomMode
+    const shouldClearSearch = nextTab !== javTab || shouldResetRandomList
+    const nextRandomMode = nextTab === 'list' && !shouldResetRandomList ? javRandomMode : false
+    const nextRandomSeed = nextTab === 'list' && !shouldResetRandomList ? javRandomSeed : null
     const updates = {
       javTab: nextTab,
       javTempSort: '',
-      javActors: [],
+      javIdolIds: [],
       javTags: [],
       javStudioId: null,
       javStudioName: '',
@@ -1566,7 +1670,8 @@ export default function App() {
   }
 
   const handleSelectIdol = (idol) => {
-    if (!idol || !idol.name) return
+    const id = Number(idol?.id)
+    if (!Number.isFinite(id) || id <= 0) return
     useStore.setState({
       viewMode: 'jav',
       videoTempSort: '',
@@ -1574,7 +1679,7 @@ export default function App() {
       javTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
-      javActors: [idol.name],
+      javIdolIds: [id],
       javTags: [],
       javStudioId: null,
       javStudioName: '',
@@ -1585,9 +1690,9 @@ export default function App() {
     })
   }
 
-  const handleJavActorClick = useCallback((name) => {
-    const trimmed = (name || '').trim()
-    if (!trimmed) return
+  const handleJavIdolClick = useCallback((idol) => {
+    const id = Number(idol?.id ?? idol)
+    if (!Number.isFinite(id) || id <= 0) return
     useStore.setState({
       viewMode: 'jav',
       videoTempSort: '',
@@ -1595,7 +1700,7 @@ export default function App() {
       javTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
-      javActors: [trimmed],
+      javIdolIds: [id],
       javTags: [],
       javStudioId: null,
       javStudioName: '',
@@ -1616,7 +1721,7 @@ export default function App() {
       javTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
-      javActors: [],
+      javIdolIds: [],
       javTags: [],
       javStudioId: id,
       javStudioName: String(studio?.name || '').trim(),
@@ -1641,6 +1746,41 @@ export default function App() {
     setJavTagModalOpen(true)
     loadJavTags()
   }, [loadJavTags])
+
+  const handleApplyJavQuery = useCallback((query) => {
+    const nextSearch = String(query?.search || '').trim()
+    const nextIdolIds = Array.from(
+      new Set(
+        (query?.idolIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      )
+    )
+    const nextTags = Array.from(
+      new Set(
+        (query?.tagIds || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      )
+    )
+    const nextStudioId = Number(query?.studio?.id)
+    const hasStudio = Number.isFinite(nextStudioId) && nextStudioId > 0
+    const nextStudioName = hasStudio ? String(query?.studio?.name || '').trim() : ''
+    useStore.setState({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: 'list',
+      javTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javSearchTerm: nextSearch,
+      javIdolIds: nextIdolIds,
+      javTags: nextTags,
+      javStudioId: hasStudio ? nextStudioId : null,
+      javStudioName: nextStudioName,
+      javPage: 1,
+      idolPage: 1,
+      studioPage: 1,
+    })
+    setJavSearchInput(nextSearch)
+    setJavQueryEditorOpen(false)
+  }, [])
 
   const handleToggleSelectPage = useCallback(() => {
     if (!Array.isArray(videos) || videos.length === 0) return
@@ -1734,10 +1874,17 @@ export default function App() {
         javRandomHref={javRandomHref}
         javRandomMode={javRandomMode}
         onJavRandomClick={handleJavRandomClick}
+        onJavFilterRandomClick={handleJavFilterRandomClick}
+        onCancelJavFilterRandom={handleCancelJavFilterRandom}
+        showJavFilterRandomButton={showJavFilterRandomButton}
         isModifiedClick={isModifiedClick}
         javTab={javTab}
         onSwitchJavTab={handleSwitchJavTab}
         filterSummary={filterSummary}
+        onOpenJavQueryEditor={() => {
+          setJavQueryEditorOpen(true)
+          loadJavTags()
+        }}
         showDirectorySetupHint={showDirectorySetupHint}
         directories={directories}
         enabledDirectoryIds={enabledDirectoryIds}
@@ -1770,7 +1917,7 @@ export default function App() {
                   page: 1,
                   search: '',
                   tab: 'list',
-                  actors: [idol.name],
+                  idolIds: [idol.id],
                   tagIds: [],
                   tempSort: '',
                 })
@@ -1799,7 +1946,7 @@ export default function App() {
                   page: 1,
                   search: '',
                   tab: 'list',
-                  actors: [],
+                  idolIds: [],
                   tagIds: [],
                   studioId: studio.id,
                   studioName: studio.name,
@@ -1834,7 +1981,7 @@ export default function App() {
               openFileLabel={alternatePlayerLabel}
               onRevealFile={handleJavRevealFile}
               onOpenScreenshots={handleJavOpenScreenshots}
-              onIdolClick={handleJavActorClick}
+              onIdolClick={handleJavIdolClick}
               onStudioClick={handleSelectStudio}
               onTagClick={handleJavTagClick}
               onEditTags={openJavTagEditor}
@@ -1872,6 +2019,20 @@ export default function App() {
         )}
       </main>
 
+      <JavQueryEditorModal
+        open={javQueryEditorOpen}
+        onClose={() => setJavQueryEditorOpen(false)}
+        onApply={handleApplyJavQuery}
+        search={javSearchTerm}
+        idolIds={javIdolIds}
+        idolOptions={javIdolFilterOptions}
+        tagIds={javTags}
+        tagOptions={javTagOptions}
+        studioId={javStudioId}
+        studioName={javStudioName}
+        directoryIds={javQueryDirectoryIds}
+      />
+
       <VideoSettingsModal
         open={videoSettingsOpen}
         onClose={() => setVideoSettingsOpen(false)}
@@ -1879,6 +2040,8 @@ export default function App() {
         onPageSizeChange={setVideoPageSizeInput}
         sortInput={videoSortInput}
         onSortChange={setVideoSortInput}
+        hideJavInput={videoHideJavInput}
+        onHideJavChange={setVideoHideJavInput}
         onSave={handleSaveVideoSettings}
       />
 

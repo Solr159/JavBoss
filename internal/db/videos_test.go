@@ -72,6 +72,102 @@ func TestListVideosSortByDurationDirections(t *testing.T) {
 	}
 }
 
+func TestListVideosCanIncludeRecognizedJav(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	plainVideo := models.Video{
+		DirectoryID: dir.ID,
+		Path:        "plain.mp4",
+		Filename:    "plain.mp4",
+		Fingerprint: "plain-fp",
+		ModifiedAt:  now,
+	}
+	javVideo := models.Video{
+		DirectoryID: dir.ID,
+		Path:        "abc-001.mp4",
+		Filename:    "abc-001.mp4",
+		Fingerprint: "jav-fp",
+		ModifiedAt:  now.Add(time.Second),
+	}
+	if err := gdb.Create(&plainVideo).Error; err != nil {
+		t.Fatalf("create plain video: %v", err)
+	}
+	if err := gdb.Create(&javVideo).Error; err != nil {
+		t.Fatalf("create jav video: %v", err)
+	}
+	createVideoLocationsForVideos(t, gdb, plainVideo, javVideo)
+
+	javRec := models.Jav{Code: "ABC-001", Title: "recognized"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("video_id = ?", javVideo.ID).
+		Update("jav_id", javRec.ID).Error; err != nil {
+		t.Fatalf("mark jav location: %v", err)
+	}
+	tag := models.Tag{Name: "shared"}
+	if err := gdb.Create(&tag).Error; err != nil {
+		t.Fatalf("create tag: %v", err)
+	}
+	if err := gdb.Create(&[]models.VideoTag{
+		{VideoID: plainVideo.ID, TagID: tag.ID, CreatedAt: now},
+		{VideoID: javVideo.ID, TagID: tag.ID, CreatedAt: now},
+	}).Error; err != nil {
+		t.Fatalf("create video tags: %v", err)
+	}
+
+	defaultItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil)
+	if err != nil {
+		t.Fatalf("ListVideos default: %v", err)
+	}
+	if len(defaultItems) != 1 || defaultItems[0].ID != plainVideo.ID {
+		t.Fatalf("default list should hide recognized jav: %#v", defaultItems)
+	}
+	defaultCount, err := CountVideos(ctx, nil, "", nil)
+	if err != nil {
+		t.Fatalf("CountVideos default: %v", err)
+	}
+	if defaultCount != 1 {
+		t.Fatalf("default count should hide recognized jav: got %d want 1", defaultCount)
+	}
+	defaultTags, err := ListTags(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListTags default: %v", err)
+	}
+	if len(defaultTags) != 1 || defaultTags[0].Count != 1 {
+		t.Fatalf("default tag count should hide recognized jav: %#v", defaultTags)
+	}
+
+	allItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, false)
+	if err != nil {
+		t.Fatalf("ListVideos include jav: %v", err)
+	}
+	if len(allItems) != 2 {
+		t.Fatalf("include jav list should return both videos: got %d", len(allItems))
+	}
+	allCount, err := CountVideos(ctx, nil, "", nil, false)
+	if err != nil {
+		t.Fatalf("CountVideos include jav: %v", err)
+	}
+	if allCount != 2 {
+		t.Fatalf("include jav count should return both videos: got %d want 2", allCount)
+	}
+	allTags, err := ListTags(ctx, nil, false)
+	if err != nil {
+		t.Fatalf("ListTags include jav: %v", err)
+	}
+	if len(allTags) != 1 || allTags[0].Count != 2 {
+		t.Fatalf("include jav tag count should return both videos: %#v", allTags)
+	}
+}
+
 func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

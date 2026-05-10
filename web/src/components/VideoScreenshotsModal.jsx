@@ -203,6 +203,32 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
 }
 
 function ScreenshotPreviewModal({ item, onClose }) {
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    if (!item?.url) return undefined
+
+    setScale(1)
+    const previousOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const handleWheel = (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      const direction = event.deltaY < 0 ? 1 : -1
+      setScale((current) => Math.min(5, Math.max(0.5, current + direction * 0.2)))
+    }
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+      window.removeEventListener('wheel', handleWheel, true)
+    }
+  }, [item?.url])
+
   if (!item?.url) return null
 
   return (
@@ -229,7 +255,8 @@ function ScreenshotPreviewModal({ item, onClose }) {
       <img
         src={item.url}
         alt={item.name || zh('MPV 截图', 'MPV screenshot')}
-        className="relative z-10 max-h-[92vh] max-w-[94vw] object-contain shadow-2xl"
+        className="relative z-10 max-h-[92vh] max-w-[94vw] transform-gpu cursor-zoom-in object-contain shadow-2xl"
+        style={{ transform: `scale(${scale})` }}
       />
     </div>
   )

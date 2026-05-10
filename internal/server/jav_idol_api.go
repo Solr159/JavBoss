@@ -38,6 +38,20 @@ func listJavIdols(c *gin.Context) {
 	})
 }
 
+func resolveJavIdols(c *gin.Context) {
+	ids := parseInt64CSV(c.Query("ids"))
+	items, err := dbpkg.ResolveJavIdols(c.Request.Context(), ids)
+	if err != nil {
+		logging.Error("resolve jav idols: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if items == nil {
+		items = []dbpkg.JavIdolSummary{}
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
 func getJavIdol(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

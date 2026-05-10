@@ -113,6 +113,7 @@ export const useStore = create((set, get) => ({
   searchTerm: '',
   sortOrder: 'recent',
   videoTempSort: '',
+  videoHideJav: true,
   javSort: 'recent',
   javTempSort: '',
   randomMode: false,
@@ -140,7 +141,7 @@ export const useStore = create((set, get) => ({
     })
   },
   javSearchTerm: '',
-  javActors: [],
+  javIdolIds: [],
   javTags: [],
   javStudioId: null,
   javStudioName: '',
@@ -271,9 +272,15 @@ export const useStore = create((set, get) => ({
     if (tab !== 'list' && tab !== 'idol' && tab !== 'studio') return
     set({ javTab: tab, javTempSort: '' })
   },
-  setJavActors: (actors) => {
-    const clean = Array.from(new Set((actors || []).map((n) => (n || '').trim()).filter(Boolean)))
-    set({ javActors: clean, javStudioId: null, javStudioName: '', javTempSort: '', javPage: 1 })
+  setJavIdolIds: (idolIds) => {
+    const clean = Array.from(
+      new Set(
+        (idolIds || [])
+          .map((id) => Number.parseInt(String(id), 10))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    )
+    set({ javIdolIds: clean, javStudioId: null, javStudioName: '', javTempSort: '', javPage: 1 })
   },
   setJavTags: (tags) => {
     const clean = Array.from(
@@ -294,7 +301,7 @@ export const useStore = create((set, get) => ({
     set({
       javStudioId: id,
       javStudioName: String(studio?.name || '').trim(),
-      javActors: [],
+      javIdolIds: [],
       javTags: [],
       javTempSort: '',
       javRandomMode: false,
@@ -328,8 +335,9 @@ export const useStore = create((set, get) => ({
   },
 
   loadTags: async (options = {}) => {
+    const { videoHideJav } = get()
     const directoryIds = directoryQueryIds(get())
-    const key = `tags|${directoryIds.join(',')}`
+    const key = `tags|${directoryIds.join(',')}|${videoHideJav ? 'hide-jav' : 'show-jav'}`
     if (tagFetchInFlight && tagFetchInFlightKey === key) {
       return tagFetchInFlight
     }
@@ -339,7 +347,7 @@ export const useStore = create((set, get) => ({
     tagFetchInFlightKey = key
     tagFetchInFlight = (async () => {
       try {
-        const tags = await fetchTags({ directoryIds })
+        const tags = await fetchTags({ directoryIds, hideJav: videoHideJav })
         set({ tags })
         lastTagFetchKey = key
         return tags
@@ -395,6 +403,7 @@ export const useStore = create((set, get) => ({
       const updates = { config: cfg }
       const videoSize = clamp(cfg?.video_page_size)
       const videoSort = normalizeVideoSort((cfg?.video_sort || '').toLowerCase(), '')
+      const videoHideJav = String(cfg?.video_hide_jav || '').toLowerCase() !== 'false'
       const javSize = clamp(cfg?.jav_page_size)
       const javGridColumnsRaw = parseInt(cfg?.jav_grid_columns, 10)
       const javGridColumns =
@@ -409,6 +418,9 @@ export const useStore = create((set, get) => ({
       }
       if (videoSort) {
         updates.sortOrder = videoSort
+      }
+      if (videoHideJav !== state.videoHideJav) {
+        updates.videoHideJav = videoHideJav
       }
       if (javSort) {
         updates.javSort = javSort
@@ -464,6 +476,7 @@ export const useStore = create((set, get) => ({
       searchTerm,
       sortOrder,
       videoTempSort,
+      videoHideJav,
       randomMode,
       randomSeed,
     } = get()
@@ -479,6 +492,7 @@ export const useStore = create((set, get) => ({
       randomMode ? randomSeed || '' : '',
       (selectedTags || []).join(','),
       directoryIds.join(','),
+      videoHideJav ? 'hide-jav' : 'show-jav',
     ].join('|')
     if (!options.force && key === lastVideoFetchKey) {
       return
@@ -495,6 +509,7 @@ export const useStore = create((set, get) => ({
         sort: randomMode ? 'random' : effectiveSort,
         seed: randomMode ? randomSeed : null,
         directoryIds,
+        hideJav: videoHideJav,
       })
       if (reqId !== videoLoadSeq) return
       const total = resp.total ?? 0
@@ -516,7 +531,7 @@ export const useStore = create((set, get) => ({
       javPage,
       javPageSize,
       javSearchTerm,
-      javActors,
+      javIdolIds,
       javTags,
       javStudioId,
       javSort,
@@ -532,7 +547,7 @@ export const useStore = create((set, get) => ({
       javRandomMode ? 1 : javPage,
       javPageSize,
       search,
-      (javActors || []).join(','),
+      (javIdolIds || []).join(','),
       (javTags || []).join(','),
       javStudioId || '',
       effectiveSort,
@@ -549,7 +564,7 @@ export const useStore = create((set, get) => ({
         limit: javPageSize,
         offset: javRandomMode ? 0 : (javPage - 1) * javPageSize,
         search,
-        actors: javActors,
+        idolIds: javIdolIds,
         tagIds: javTags,
         studioId: javStudioId,
         sort: javRandomMode ? 'random' : effectiveSort,

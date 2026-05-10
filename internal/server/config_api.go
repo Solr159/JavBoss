@@ -41,6 +41,7 @@ func updateConfig(c *gin.Context) {
 		JavPageSize            *int                  `json:"jav_page_size"`
 		JavGridColumns         *int                  `json:"jav_grid_columns"`
 		IdolPageSize           *int                  `json:"idol_page_size"`
+		VideoHideJav           *bool                 `json:"video_hide_jav"`
 		VideoSort              string                `json:"video_sort"`
 		JavSort                string                `json:"jav_sort"`
 		IdolSort               string                `json:"idol_sort"`
@@ -97,6 +98,9 @@ func updateConfig(c *gin.Context) {
 		if v, ok := clampSize(*req.IdolPageSize); ok {
 			entries["idol_page_size"] = v
 		}
+	}
+	if req.VideoHideJav != nil {
+		entries["video_hide_jav"] = strconv.FormatBool(*req.VideoHideJav)
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.VideoSort)); s != "" {
 		switch s {

@@ -114,6 +114,67 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	}
 }
 
+func TestSearchJavFiltersByIdolIDs(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+
+	idolA := models.JavIdol{Name: "Idol A"}
+	idolB := models.JavIdol{Name: "Idol B"}
+	idolC := models.JavIdol{Name: "Idol C"}
+	if err := db.Create(&[]models.JavIdol{idolA, idolB, idolC}).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+	var idols []models.JavIdol
+	if err := db.Order("name").Find(&idols).Error; err != nil {
+		t.Fatalf("load idols: %v", err)
+	}
+	idolA, idolB, idolC = idols[0], idols[1], idols[2]
+
+	javs := []models.Jav{
+		{Code: "IDA-001", Title: "A and B", Provider: 1, FetchedAt: now},
+		{Code: "IDA-002", Title: "A only", Provider: 1, FetchedAt: now},
+		{Code: "IDC-001", Title: "C only", Provider: 1, FetchedAt: now},
+	}
+	if err := db.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+	maps := []models.JavIdolMap{
+		{JavID: javs[0].ID, JavIdolID: idolA.ID},
+		{JavID: javs[0].ID, JavIdolID: idolB.ID},
+		{JavID: javs[1].ID, JavIdolID: idolA.ID},
+		{JavID: javs[2].ID, JavIdolID: idolC.ID},
+	}
+	if err := db.Create(&maps).Error; err != nil {
+		t.Fatalf("create idol maps: %v", err)
+	}
+	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "ida-001.mp4", Filename: "ida-001.mp4", Fingerprint: "fp-ida-001", JavID: int64Ptr(javs[0].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "ida-002.mp4", Filename: "ida-002.mp4", Fingerprint: "fp-ida-002", JavID: int64Ptr(javs[1].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "idc-001.mp4", Filename: "idc-001.mp4", Fingerprint: "fp-idc-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	items, total, err := SearchJav(ctx, []int64{idolA.ID, idolB.ID}, nil, "", "code", 20, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("SearchJav by idol ids: %v", err)
+	}
+	if total != 1 || len(items) != 1 {
+		t.Fatalf("unexpected filtered javs: total=%d len=%d", total, len(items))
+	}
+	if items[0].Code != "IDA-001" {
+		t.Fatalf("unexpected jav code: got %q want IDA-001", items[0].Code)
+	}
+}
+
 func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

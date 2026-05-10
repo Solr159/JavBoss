@@ -60,10 +60,7 @@ export const parseUrlState = (searchString = window.location.search) => {
     tab: sp.get('tab') === 'idol' ? 'idol' : sp.get('tab') === 'studio' ? 'studio' : 'list',
     page: parseIntSafe(sp.get('page'), 1),
     search: (sp.get('search') || '').trim(),
-    actors: (sp.get('actors') || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
+    idolIds: parseIds(sp.get('idol_ids')),
     tagIds: parseIds(sp.get('tag_ids')),
     studioId: parsePositiveInt(sp.get('studio_id')),
     studioName: (sp.get('studio_name') || '').trim(),
@@ -90,8 +87,8 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
       sp.set('tab', state.jav.tab)
     }
     if (state.jav.search) sp.set('search', state.jav.search)
-    if (state.jav.tab === 'list' && state.jav.actors?.length) {
-      sp.set('actors', state.jav.actors.join(','))
+    if (state.jav.tab === 'list' && state.jav.idolIds?.length) {
+      sp.set('idol_ids', state.jav.idolIds.join(','))
     }
     if (state.jav.tab === 'list' && state.jav.tagIds?.length) {
       sp.set('tag_ids', state.jav.tagIds.join(','))
@@ -195,7 +192,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
               ? 1
               : store.javPage,
       search: (store.javSearchTerm || '').trim(),
-      actors: store.javActors || [],
+      idolIds: store.javIdolIds || [],
       tagIds: store.javTags || [],
       studioId: store.javStudioId || null,
       studioName: (store.javStudioName || '').trim(),
