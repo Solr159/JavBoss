@@ -1,12 +1,20 @@
 package jav
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/net/html"
 )
+
+func resetJavDatabaseRateLimiterForTest() {
+	javDatabaseRateLimiter.Lock()
+	javDatabaseRateLimiter.next = time.Time{}
+	javDatabaseRateLimiter.Unlock()
+}
 
 func TestParseJavDatabaseMovieInfo(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
@@ -75,6 +83,45 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
 		if info.Actors[i] != actor {
 			t.Fatalf("unexpected actor at %d: got %q want %q", i, info.Actors[i], actor)
 		}
+	}
+}
+
+func TestJavDatabaseRateLimiterInterval(t *testing.T) {
+	if javDatabaseRequestInterval != 500*time.Millisecond {
+		t.Fatalf("javdatabase interval = %s, want 500ms", javDatabaseRequestInterval)
+	}
+}
+
+func TestJavDatabaseRateLimiterSpacesRequests(t *testing.T) {
+	resetJavDatabaseRateLimiterForTest()
+	t.Cleanup(resetJavDatabaseRateLimiterForTest)
+
+	start := time.Now()
+	for i := 0; i < 3; i++ {
+		if err := waitForJavDatabaseRateLimit(context.Background()); err != nil {
+			t.Fatalf("waitForJavDatabaseRateLimit() request %d: %v", i+1, err)
+		}
+	}
+
+	if elapsed := time.Since(start); elapsed < (2*javDatabaseRequestInterval - 50*time.Millisecond) {
+		t.Fatalf("rate limiter allowed 3 requests in %s", elapsed)
+	}
+}
+
+func TestJavDatabaseRateLimiterHonorsContext(t *testing.T) {
+	resetJavDatabaseRateLimiterForTest()
+	t.Cleanup(resetJavDatabaseRateLimiterForTest)
+
+	javDatabaseRateLimiter.Lock()
+	javDatabaseRateLimiter.next = time.Now().Add(time.Hour)
+	javDatabaseRateLimiter.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	err := waitForJavDatabaseRateLimit(ctx)
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("waitForJavDatabaseRateLimit() err = %v, want context deadline exceeded", err)
 	}
 }
 

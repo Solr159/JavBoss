@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"pornboss/internal/util"
@@ -26,6 +27,13 @@ type javDatabase struct{}
 var javDatabaseProvider lookupProvider = javDatabase{}
 
 var errNoActressLink = errors.New("javdatabase: actress link not found")
+
+const javDatabaseRequestInterval = 500 * time.Millisecond
+
+var javDatabaseRateLimiter = struct {
+	sync.Mutex
+	next time.Time
+}{}
 
 // LookupActressByJapaneseName implements lookupProvider.
 func (javDatabase) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
@@ -159,7 +167,7 @@ func fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html
 	}
 
 	logging.Info("javdatabase request: %s", targetURL)
-	resp, err := util.DoRequest(req)
+	resp, err := doJavDatabaseRequest(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
 			return nil, http.StatusNotFound, nil
@@ -186,6 +194,40 @@ func fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html
 		return nil, resp.StatusCode, fmt.Errorf("javdatabase: parse html: %w", err)
 	}
 	return doc, resp.StatusCode, nil
+}
+
+func doJavDatabaseRequest(req *http.Request) (*http.Response, error) {
+	if err := waitForJavDatabaseRateLimit(req.Context()); err != nil {
+		return nil, err
+	}
+	return util.DoRequest(req)
+}
+
+func waitForJavDatabaseRateLimit(ctx context.Context) error {
+	for {
+		javDatabaseRateLimiter.Lock()
+		now := time.Now()
+		if !now.Before(javDatabaseRateLimiter.next) {
+			javDatabaseRateLimiter.next = now.Add(javDatabaseRequestInterval)
+			javDatabaseRateLimiter.Unlock()
+			return nil
+		}
+		wait := time.Until(javDatabaseRateLimiter.next)
+		javDatabaseRateLimiter.Unlock()
+
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return fmt.Errorf("javdatabase: rate limit wait: %w", ctx.Err())
+		case <-timer.C:
+		}
+	}
 }
 
 func buildJavDatabaseRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
