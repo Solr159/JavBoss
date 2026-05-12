@@ -115,6 +115,7 @@ func main() {
 	dataDir := filepath.Dir(cfg.DatabasePath)
 	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
 	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
+		jav.ProviderJavBus,
 		jav.ProviderThePornDB,
 		jav.ProviderJavDatabase,
 	})

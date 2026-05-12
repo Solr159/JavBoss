@@ -3,8 +3,11 @@ package jav
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	"golang.org/x/net/html"
 )
 
 func resetJavBusRateLimiterForTest() {
@@ -43,5 +46,27 @@ func TestJavBusRateLimiterHonorsContext(t *testing.T) {
 	err := waitForJavBusRateLimit(ctx)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("waitForJavBusRateLimit() err = %v, want context deadline exceeded", err)
+	}
+}
+
+func TestParseJavBusCoverURL(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+		<html>
+			<head>
+				<meta property="og:image" content="/pics/cover/c85j_b.jpg">
+			</head>
+			<body>
+				<a class="bigImage" href="https://www.javbus.com/pics/cover/fallback_b.jpg">
+					<img src="/pics/cover/fallback_b.jpg">
+				</a>
+			</body>
+		</html>`))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	got := parseJavBusCoverURL(doc, "https://www.javbus.com/ABC-001")
+	if got != "https://www.javbus.com/pics/cover/c85j_b.jpg" {
+		t.Fatalf("unexpected cover url: %q", got)
 	}
 }

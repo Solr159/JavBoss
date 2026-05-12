@@ -66,52 +66,31 @@ func (javBus) LookupActressByCode(code string) (*ActressInfo, error) {
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
 func (javBus) LookupCoverURLByCode(code string) (string, error) {
-	return "", errors.New("javbus: lookup cover not supported")
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	doc, pageURL, err := fetchJavBusDocument(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	coverURL := parseJavBusCoverURL(doc, pageURL)
+	if coverURL == "" {
+		return "", ResourceNotFonud
+	}
+	return coverURL, nil
 }
 
 func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
-	base := "https://www.javbus.com"
-
-	url := fmt.Sprintf("%s/%s", base, code)
-
-	req, err := buildRequest(ctx, url)
+	doc, url, err := fetchJavBusDocument(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
-	logging.Info("javbus request: %s", url)
-
-	resp, err := doJavBusRequest(req)
-	// TODO: Should not return here, try curl fallback.
-	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			logging.Info("javbus: cached 404 for %s", url)
-			return nil, ResourceNotFonud
-		}
-		return nil, err
-	}
-	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	logging.Info("javbus response status: %s, length: %d bytes", resp.Status, len(body))
-
-	if resp.StatusCode == http.StatusNotFound {
-		logging.Info("javbus: %s 404 not found", url)
-		return nil, ResourceNotFonud
-	}
-	if resp.StatusCode != http.StatusOK {
-		logging.Info("javbus: non-200 status on %s: %s", url, resp.Status)
-		return nil, errors.New("javbus: non-200 response")
-	}
-
-	doc, err := html.Parse(strings.NewReader(string(body)))
-	if err != nil {
-		logging.Error("parse javbus html: %s", err.Error())
-		return nil, ResourceNotFonud
-	}
 	info := parseDocument(doc)
 	if info == nil {
 		logging.Info("javbus: parseDocument returned nil")
@@ -123,6 +102,52 @@ func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
 	}
 	logging.Info("javbus parsed from %s: title=%q tags=%d actors=%d", url, info.Title, len(info.Tags), len(info.Actors))
 	return info, nil
+}
+
+func fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, error) {
+	base := "https://www.javbus.com"
+
+	url := fmt.Sprintf("%s/%s", base, code)
+
+	req, err := buildRequest(ctx, url)
+	if err != nil {
+		return nil, "", err
+	}
+
+	logging.Info("javbus request: %s", url)
+
+	resp, err := doJavBusRequest(req)
+	// TODO: Should not return here, try curl fallback.
+	if err != nil {
+		if errors.Is(err, util.ErrCachedNotFound) {
+			logging.Info("javbus: cached 404 for %s", url)
+			return nil, "", ResourceNotFonud
+		}
+		return nil, "", err
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return nil, "", err
+	}
+
+	logging.Info("javbus response status: %s, length: %d bytes", resp.Status, len(body))
+
+	if resp.StatusCode == http.StatusNotFound {
+		logging.Info("javbus: %s 404 not found", url)
+		return nil, "", ResourceNotFonud
+	}
+	if resp.StatusCode != http.StatusOK {
+		logging.Info("javbus: non-200 status on %s: %s", url, resp.Status)
+		return nil, "", errors.New("javbus: non-200 response")
+	}
+
+	doc, err := html.Parse(strings.NewReader(string(body)))
+	if err != nil {
+		logging.Error("parse javbus html: %s", err.Error())
+		return nil, "", ResourceNotFonud
+	}
+	return doc, url, nil
 }
 
 func doJavBusRequest(req *http.Request) (*http.Response, error) {
@@ -196,6 +221,45 @@ func parseDocument(doc *html.Node) *JavInfo {
 		Actors:      actors,
 		Provider:    ProviderJavBus,
 	}
+}
+
+func parseJavBusCoverURL(root *html.Node, pageURL string) string {
+	if root == nil {
+		return ""
+	}
+
+	var cover string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if cover != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "meta" {
+			prop := strings.ToLower(strings.TrimSpace(attrValue(n, "property")))
+			content := strings.TrimSpace(attrValue(n, "content"))
+			if prop == "og:image" && content != "" {
+				cover = resolveURL(pageURL, content)
+				return
+			}
+		}
+		if n.Type == html.ElementNode && n.Data == "a" && hasClass(n, "bigImage") {
+			if href := strings.TrimSpace(attrValue(n, "href")); href != "" {
+				cover = resolveURL(pageURL, href)
+				return
+			}
+		}
+		if n.Type == html.ElementNode && n.Data == "img" {
+			if src := strings.TrimSpace(attrValue(n, "src")); src != "" && (hasClass(n, "cover") || isInsideClass(n, "bigImage")) {
+				cover = resolveURL(pageURL, src)
+				return
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return strings.TrimSpace(cover)
 }
 
 func firstTextByTag(root *html.Node, tag string) string {

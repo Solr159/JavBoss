@@ -163,7 +163,7 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 	if err != nil {
 		return fmt.Errorf("build cover request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; JavCoverBot/1.0)")
+	setCoverDownloadHeaders(req)
 	resp, err := util.DoRequest(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
@@ -209,6 +209,21 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		return fmt.Errorf("finalize cover: %w", err)
 	}
 	return nil
+}
+
+func setCoverDownloadHeaders(req *http.Request) {
+	if req == nil || req.URL == nil {
+		return
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; JavCoverBot/1.0)")
+	host := strings.ToLower(req.URL.Hostname())
+	if host == "javbus.com" || strings.HasSuffix(host, ".javbus.com") {
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+		req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+		req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+		req.Header.Set("Referer", "https://www.javbus.com/")
+		req.Header.Set("Cookie", "age=verified; existmag=mag")
+	}
 }
 
 var knownExts = []string{".jpg", ".jpeg", ".png", ".webp"}
