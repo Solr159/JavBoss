@@ -243,6 +243,55 @@ function normalizeJavTitleMaxRows(value) {
   return Number.isFinite(rows) && rows >= 0 ? Math.min(rows, 12) : 2
 }
 
+function TagCollapseToggleButton({
+  expanded,
+  count,
+  title,
+  expandedClassName,
+  collapsedClassName,
+  onToggle,
+}) {
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+  const [activeTooltipTitle, setActiveTooltipTitle] = useState(title)
+  const className = expanded ? expandedClassName : collapsedClassName
+
+  const button = (
+    <button
+      type="button"
+      onClick={() => {
+        setTooltipOpen(false)
+        onToggle?.()
+      }}
+      aria-label={title}
+      className={className}
+    >
+      {expanded ? (
+        <ExpandLessIcon sx={{ fontSize: 15 }} />
+      ) : (
+        <>
+          <span>{count}</span>
+          <ExpandMoreIcon sx={{ fontSize: 15 }} />
+        </>
+      )}
+    </button>
+  )
+
+  return (
+    <Tooltip
+      title={activeTooltipTitle}
+      open={tooltipOpen}
+      onOpen={() => {
+        setActiveTooltipTitle(title)
+        setTooltipOpen(true)
+      }}
+      onClose={() => setTooltipOpen(false)}
+      TransitionProps={{ timeout: 0 }}
+    >
+      {button}
+    </Tooltip>
+  )
+}
+
 function IdolTagList({
   idols,
   maxRows,
@@ -330,9 +379,6 @@ function IdolTagList({
   const toggleTitle = expanded
     ? zh('点击收回', 'Click to collapse')
     : zh(`共 ${idols.length} 位女优，点击展开`, `${idols.length} actresses total, click to expand`)
-  const toggleClassName = expanded
-    ? 'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100'
-    : 'inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-purple-300 bg-white px-1.5 text-[11px] font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50'
 
   return (
     <div className="relative">
@@ -352,23 +398,14 @@ function IdolTagList({
           </a>
         ))}
         {showToggle ? (
-          <Tooltip title={toggleTitle}>
-            <button
-              type="button"
-              onClick={() => setExpanded((current) => !current)}
-              aria-label={toggleTitle}
-              className={toggleClassName}
-            >
-              {expanded ? (
-                <ExpandLessIcon sx={{ fontSize: 15 }} />
-              ) : (
-                <>
-                  <span>{idols.length}</span>
-                  <ExpandMoreIcon sx={{ fontSize: 15 }} />
-                </>
-              )}
-            </button>
-          </Tooltip>
+          <TagCollapseToggleButton
+            expanded={expanded}
+            count={idols.length}
+            title={toggleTitle}
+            expandedClassName="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100"
+            collapsedClassName="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-purple-300 bg-white px-1.5 text-[11px] font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50"
+            onToggle={() => setExpanded((current) => !current)}
+          />
         ) : null}
       </div>
       {rowLimit > 0 ? (
@@ -496,9 +533,6 @@ function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFilterLin
   const toggleTitle = expanded
     ? zh('点击收回', 'Click to collapse')
     : zh(`共 ${tags.length} 个标签，点击展开`, `${tags.length} tags total, click to expand`)
-  const toggleClassName = expanded
-    ? 'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100'
-    : 'inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-orange-300 bg-white px-1.5 text-[11px] font-semibold text-orange-700 shadow-sm transition hover:border-orange-500 hover:bg-orange-50'
 
   return (
     <div className="relative">
@@ -520,23 +554,14 @@ function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFilterLin
           )
         })}
         {showToggle ? (
-          <Tooltip title={toggleTitle}>
-            <button
-              type="button"
-              onClick={() => setExpanded((current) => !current)}
-              aria-label={toggleTitle}
-              className={toggleClassName}
-            >
-              {expanded ? (
-                <ExpandLessIcon sx={{ fontSize: 15 }} />
-              ) : (
-                <>
-                  <span>{tags.length}</span>
-                  <ExpandMoreIcon sx={{ fontSize: 15 }} />
-                </>
-              )}
-            </button>
-          </Tooltip>
+          <TagCollapseToggleButton
+            expanded={expanded}
+            count={tags.length}
+            title={toggleTitle}
+            expandedClassName="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100"
+            collapsedClassName="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-orange-300 bg-white px-1.5 text-[11px] font-semibold text-orange-700 shadow-sm transition hover:border-orange-500 hover:bg-orange-50"
+            onToggle={() => setExpanded((current) => !current)}
+          />
         ) : null}
       </div>
       {rowLimit > 0 ? (
