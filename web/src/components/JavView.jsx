@@ -32,6 +32,7 @@ export default function JavView({
   setJavTempSort,
   javItems,
   javGridColumns,
+  javTitleMaxRows,
   javIdolTagMaxRows,
   onPlay,
   onIdolClick,
@@ -167,6 +168,7 @@ export default function JavView({
           <JavGrid
             items={javItems}
             columns={javGridColumns}
+            titleMaxRows={javTitleMaxRows}
             idolTagMaxRows={javIdolTagMaxRows}
             buildJavUrl={buildJavUrl}
             onPlay={onPlay}

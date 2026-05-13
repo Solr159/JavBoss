@@ -70,6 +70,7 @@ function ReleaseIcon() {
 export default function JavGrid({
   items,
   columns = 0,
+  titleMaxRows = 2,
   idolTagMaxRows = 0,
   buildJavUrl,
   onPlay,
@@ -155,6 +156,7 @@ export default function JavGrid({
           loadIdolPreview={loadIdolPreview}
           onOpenCoverPreview={setCoverPreview}
           javMetadataLanguage={javMetadataLanguage}
+          titleMaxRows={titleMaxRows}
           idolTagMaxRows={idolTagMaxRows}
         />
       ))}
@@ -226,7 +228,12 @@ function CoverPreviewModal({ preview, onClose }) {
 
 function normalizeIdolTagMaxRows(value) {
   const rows = Math.floor(Number(value))
-  return Number.isFinite(rows) && rows > 0 ? Math.min(rows, 20) : 0
+  return Number.isFinite(rows) && rows > 0 ? Math.min(rows, 12) : 0
+}
+
+function normalizeJavTitleMaxRows(value) {
+  const rows = Math.floor(Number(value))
+  return Number.isFinite(rows) && rows >= 0 ? Math.min(rows, 12) : 2
 }
 
 function IdolTagList({
@@ -418,6 +425,7 @@ function JavCard({
   loadIdolPreview,
   onOpenCoverPreview,
   javMetadataLanguage,
+  titleMaxRows,
   idolTagMaxRows,
 }) {
   const primaryVideo = useMemo(() => (item?.videos || [])[0], [item])
@@ -437,6 +445,16 @@ function JavCard({
   const codeText = item?.code?.trim()
   const mainTitle = getJavDisplayTitle(item, javMetadataLanguage)
   const titleText = [codeText, mainTitle].filter(Boolean).join(' ')
+  const normalizedTitleMaxRows = normalizeJavTitleMaxRows(titleMaxRows)
+  const titleClampStyle =
+    normalizedTitleMaxRows > 0
+      ? {
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical',
+          WebkitLineClamp: normalizedTitleMaxRows,
+          overflow: 'hidden',
+        }
+      : undefined
   const videos = item?.videos || []
   const openableVideos = videos.filter((video) =>
     Boolean(video?.path && (video?.directory?.path || video?.directory_path))
@@ -698,7 +716,7 @@ function JavCard({
         ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
-        <div className="line-clamp-2 text-sm leading-tight" title={titleText}>
+        <div className="text-sm leading-tight" title={titleText} style={titleClampStyle}>
           {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
           {codeText ? ' ' : null}
           <span className="font-medium text-gray-800">{mainTitle}</span>
