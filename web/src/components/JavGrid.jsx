@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { IconButton, Popper, Tooltip } from '@mui/material'
 import Fade from '@mui/material/Fade'
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
@@ -237,10 +238,10 @@ function IdolTagList({
   onIdolHoverStart,
   onIdolHoverEnd,
 }) {
-  const listRef = useRef(null)
+  const measureRef = useRef(null)
   const [expanded, setExpanded] = useState(false)
-  const [measuredMaxHeight, setMeasuredMaxHeight] = useState(null)
   const [overflowing, setOverflowing] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(idols.length)
   const rowLimit = normalizeIdolTagMaxRows(maxRows)
   const identity = useMemo(
     () => (idols || []).map((idol) => idol?.id || idol?.name || '').join('|'),
@@ -249,69 +250,77 @@ function IdolTagList({
 
   useEffect(() => {
     setExpanded(false)
-  }, [identity, rowLimit])
+    setVisibleCount(idols.length)
+  }, [identity, idols.length, rowLimit])
 
   useEffect(() => {
-    if (rowLimit <= 0 || expanded) {
-      setMeasuredMaxHeight(null)
+    if (rowLimit <= 0) {
       setOverflowing(false)
+      setVisibleCount(idols.length)
       return undefined
     }
 
-    const list = listRef.current
-    if (!list) return undefined
+    const measureList = measureRef.current
+    if (!measureList) return undefined
 
     const measure = () => {
-      const children = Array.from(list.children)
-      if (children.length === 0) {
-        setMeasuredMaxHeight(null)
+      const containerWidth = measureList.clientWidth
+      const tagNodes = Array.from(measureList.querySelectorAll('[data-idol-tag-measure]'))
+      const toggleNode = measureList.querySelector('[data-idol-toggle-measure]')
+
+      if (containerWidth <= 0 || tagNodes.length === 0 || !toggleNode) {
         setOverflowing(false)
+        setVisibleCount(idols.length)
         return
       }
 
-      const rows = []
-      for (const child of children) {
-        const top = child.offsetTop
-        const row = rows.find((item) => Math.abs(item.top - top) <= 1)
-        if (row) {
-          row.bottom = Math.max(row.bottom, top + child.offsetHeight)
-        } else {
-          rows.push({ top, bottom: top + child.offsetHeight })
-        }
-      }
-      rows.sort((a, b) => a.top - b.top)
-
-      const isOverflowing = rows.length > rowLimit
+      const tagWidths = tagNodes.map((node) => node.offsetWidth)
+      const toggleWidth = toggleNode.offsetWidth
+      const gap = Number.parseFloat(window.getComputedStyle(measureList).columnGap) || 0
+      const fullRows = countFlexRows(tagWidths, 0, containerWidth, gap)
+      const isOverflowing = fullRows > rowLimit
       setOverflowing(isOverflowing)
       if (!isOverflowing) {
-        setMeasuredMaxHeight(null)
+        setVisibleCount(idols.length)
         return
       }
-      const firstTop = rows[0]?.top || 0
-      const limitedBottom = rows[Math.min(rowLimit, rows.length) - 1]?.bottom || 0
-      setMeasuredMaxHeight(Math.max(0, limitedBottom - firstTop))
+
+      let low = 0
+      let high = tagWidths.length
+      let best = 0
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2)
+        const rows = countFlexRows(tagWidths.slice(0, mid), toggleWidth, containerWidth, gap)
+        if (rows <= rowLimit) {
+          best = mid
+          low = mid + 1
+        } else {
+          high = mid - 1
+        }
+      }
+      setVisibleCount(best)
     }
 
     measure()
     const resizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null
-    resizeObserver?.observe(list)
+    resizeObserver?.observe(measureList)
     window.addEventListener('resize', measure)
     return () => {
       resizeObserver?.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [expanded, identity, rowLimit])
+  }, [identity, idols.length, rowLimit])
 
-  const collapsed = rowLimit > 0 && !expanded && overflowing && measuredMaxHeight
+  const showToggle = rowLimit > 0 && overflowing
+  const renderedIdols = showToggle && !expanded ? idols.slice(0, visibleCount) : idols
+  const toggleTitle = expanded
+    ? zh('收回演员标签', 'Collapse actor tags')
+    : zh('展开演员标签', 'Expand actor tags')
 
   return (
-    <div className="flex items-start gap-1">
-      <div
-        ref={listRef}
-        className={`flex min-w-0 flex-1 flex-wrap gap-1 ${collapsed ? 'overflow-hidden' : ''}`}
-        style={collapsed ? { maxHeight: `${measuredMaxHeight}px` } : undefined}
-      >
-        {idols.map((idol) => (
+    <div className="relative">
+      <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+        {renderedIdols.map((idol) => (
           <a
             key={idol.id || idol.name}
             href={buildIdolFilterHref(idol)}
@@ -325,21 +334,68 @@ function IdolTagList({
             {idol.name}
           </a>
         ))}
+        {showToggle ? (
+          <Tooltip title={toggleTitle}>
+            <button
+              type="button"
+              onClick={() => setExpanded((current) => !current)}
+              aria-label={toggleTitle}
+              className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-purple-300 bg-white px-1.5 text-[11px] font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50"
+            >
+              <span>{idols.length}</span>
+              {expanded ? (
+                <ExpandLessIcon sx={{ fontSize: 15 }} />
+              ) : (
+                <ExpandMoreIcon sx={{ fontSize: 15 }} />
+              )}
+            </button>
+          </Tooltip>
+        ) : null}
       </div>
-      {rowLimit > 0 && overflowing && !expanded ? (
-        <Tooltip title={zh('展开演员标签', 'Expand actor tags')}>
-          <IconButton
-            size="small"
-            onClick={() => setExpanded(true)}
-            aria-label={zh('展开演员标签', 'Expand actor tags')}
-            className="h-6 w-6 shrink-0 text-purple-700"
+      {rowLimit > 0 ? (
+        <div
+          ref={measureRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap gap-1 opacity-0"
+        >
+          {idols.map((idol) => (
+            <span
+              key={idol.id || idol.name}
+              data-idol-tag-measure
+              className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium"
+            >
+              {idol.name}
+            </span>
+          ))}
+          <span
+            data-idol-toggle-measure
+            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-semibold"
           >
-            <ExpandMoreIcon fontSize="inherit" />
-          </IconButton>
-        </Tooltip>
+            <span>{idols.length}</span>
+            <ExpandMoreIcon sx={{ fontSize: 15 }} />
+          </span>
+        </div>
       ) : null}
     </div>
   )
+}
+
+function countFlexRows(itemWidths, trailingWidth, containerWidth, gap) {
+  const widths = trailingWidth > 0 ? [...itemWidths, trailingWidth] : itemWidths
+  if (widths.length === 0) return 0
+
+  let rows = 1
+  let rowWidth = 0
+  for (const width of widths) {
+    const nextWidth = rowWidth === 0 ? width : rowWidth + gap + width
+    if (rowWidth > 0 && nextWidth > containerWidth) {
+      rows += 1
+      rowWidth = width
+    } else {
+      rowWidth = nextWidth
+    }
+  }
+  return rows
 }
 
 function JavCard({
