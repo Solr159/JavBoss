@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '@mui/material'
+import { Button, Tooltip } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined'
+import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
@@ -234,13 +235,21 @@ export default function TopBar({
                     >
                       {zh('随机', 'Random')}
                     </Button>
-                    <Button
-                      startIcon={<LocalOfferOutlinedIcon fontSize="small" />}
-                      variant="outlined"
-                      onClick={onOpenJavTagModal}
-                    >
-                      {zh('标签', 'Tag')}
-                    </Button>
+                    <Tooltip title={zh('JAV标签', 'JAV tags')} arrow>
+                      <Button
+                        variant="outlined"
+                        onClick={onOpenJavTagModal}
+                        aria-label={zh('JAV标签', 'JAV tags')}
+                        sx={{
+                          minWidth: 40,
+                          width: 40,
+                          height: 40,
+                          p: 0,
+                        }}
+                      >
+                        <LocalOfferOutlinedIcon fontSize="small" />
+                      </Button>
+                    </Tooltip>
                   </div>
                 ) : (
                   <>
@@ -301,14 +310,33 @@ export default function TopBar({
                   </>
                 )}
 
-                <Button
-                  startIcon={<SettingsOutlinedIcon fontSize="small" />}
-                  variant="outlined"
-                  onClick={handleSettingsClick}
-                  title={zh('全局设置', 'Global settings')}
-                >
-                  {zh('设置', 'Settings')}
-                </Button>
+                {isJavMode ? (
+                  <Tooltip title={zh('JAV设置', 'JAV settings')} arrow>
+                    <Button
+                      variant="outlined"
+                      onClick={handleSettingsClick}
+                      aria-label={zh('JAV设置', 'JAV settings')}
+                      sx={{
+                        minWidth: 40,
+                        width: 40,
+                        height: 40,
+                        p: 0,
+                      }}
+                    >
+                      <DisplaySettingsIcon fontSize="small" />
+                    </Button>
+                  </Tooltip>
+                ) : (
+                  <Tooltip title={zh('设置', 'Settings')} arrow>
+                    <Button
+                      startIcon={<SettingsOutlinedIcon fontSize="small" />}
+                      variant="outlined"
+                      onClick={handleSettingsClick}
+                    >
+                      {zh('设置', 'Settings')}
+                    </Button>
+                  </Tooltip>
+                )}
               </div>
 
               {isJavMode && javTab === 'list' ? (
@@ -322,40 +350,46 @@ export default function TopBar({
                       <span className="font-semibold text-gray-700">{filterSummary}</span>
                     </span>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={onOpenJavQueryEditor}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    title={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
-                    aria-label={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
-                  >
-                    <TuneOutlinedIcon fontSize="inherit" className="text-[16px]" />
-                  </button>
+                  <Tooltip title={zh('编辑 JAV 查询条件', 'Edit JAV filters')} arrow>
+                    <button
+                      type="button"
+                      onClick={onOpenJavQueryEditor}
+                      className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      aria-label={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
+                    >
+                      <TuneOutlinedIcon fontSize="inherit" className="text-[16px]" />
+                    </button>
+                  </Tooltip>
                   {showJavFilterRandomButton ? (
                     <span className="inline-flex shrink-0 items-center">
-                      <button
-                        type="button"
-                        onClick={onJavFilterRandomClick}
-                        className={`inline-flex h-5 w-5 items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                          javRandomMode
-                            ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                            : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                        }`}
+                      <Tooltip
                         title={zh('基于当前筛选条件随机', 'Random within current filters')}
-                        aria-label={zh('基于当前筛选条件随机', 'Random within current filters')}
+                        arrow
                       >
-                        <ShuffleOutlinedIcon fontSize="inherit" className="text-[16px]" />
-                      </button>
-                      {javRandomMode ? (
                         <button
                           type="button"
-                          onClick={onCancelJavFilterRandom}
-                          className="-ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-sm text-amber-500 hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          title={zh('取消筛选随机', 'Cancel filter random')}
-                          aria-label={zh('取消筛选随机', 'Cancel filter random')}
+                          onClick={onJavFilterRandomClick}
+                          className={`inline-flex h-5 w-5 items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                            javRandomMode
+                              ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
+                              : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+                          }`}
+                          aria-label={zh('基于当前筛选条件随机', 'Random within current filters')}
                         >
-                          <CloseRoundedIcon fontSize="inherit" className="text-[14px]" />
+                          <ShuffleOutlinedIcon fontSize="inherit" className="text-[16px]" />
                         </button>
+                      </Tooltip>
+                      {javRandomMode ? (
+                        <Tooltip title={zh('取消筛选随机', 'Cancel filter random')} arrow>
+                          <button
+                            type="button"
+                            onClick={onCancelJavFilterRandom}
+                            className="-ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-sm text-amber-500 hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            aria-label={zh('取消筛选随机', 'Cancel filter random')}
+                          >
+                            <CloseRoundedIcon fontSize="inherit" className="text-[14px]" />
+                          </button>
+                        </Tooltip>
                       ) : null}
                     </span>
                   ) : null}
@@ -373,36 +407,38 @@ export default function TopBar({
           </div>
 
           <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outlined"
-              onClick={() => window.history.back()}
-              aria-label={zh('后退', 'Back')}
-              title={zh('后退', 'Back')}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-              }}
-            >
-              <ArrowBackRoundedIcon fontSize="small" />
-            </Button>
-            <Button
-              type="button"
-              variant="outlined"
-              onClick={() => window.history.forward()}
-              aria-label={zh('前进', 'Forward')}
-              title={zh('前进', 'Forward')}
-              sx={{
-                minWidth: 40,
-                width: 40,
-                height: 40,
-                p: 0,
-              }}
-            >
-              <ArrowForwardRoundedIcon fontSize="small" />
-            </Button>
+            <Tooltip title={zh('后退', 'Back')} arrow>
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={() => window.history.back()}
+                aria-label={zh('后退', 'Back')}
+                sx={{
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                }}
+              >
+                <ArrowBackRoundedIcon fontSize="small" />
+              </Button>
+            </Tooltip>
+            <Tooltip title={zh('前进', 'Forward')} arrow>
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={() => window.history.forward()}
+                aria-label={zh('前进', 'Forward')}
+                sx={{
+                  minWidth: 40,
+                  width: 40,
+                  height: 40,
+                  p: 0,
+                }}
+              >
+                <ArrowForwardRoundedIcon fontSize="small" />
+              </Button>
+            </Tooltip>
             {showDirectorySetupHint ? (
               <div
                 className="directory-setup-hint flex max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm"
@@ -422,37 +458,49 @@ export default function TopBar({
               </div>
             ) : null}
             <div ref={directoryMenuRef} className="relative inline-flex">
-              <Button
-                variant="outlined"
-                onClick={onOpenGlobalSettings}
-                title={zh('全局设置', 'Global settings')}
-                aria-label={zh('全局设置', 'Global settings')}
-                sx={{
-                  minWidth: 72,
-                  width: 72,
-                  height: 40,
-                  p: 0,
-                  pr: 4,
-                }}
-              >
-                <SettingsOutlinedIcon fontSize="small" />
-              </Button>
-              <button
-                type="button"
-                onClick={() => setDirectoryMenuOpen((open) => !open)}
-                aria-label={zh('选择启用目录', 'Choose enabled directories')}
-                aria-haspopup="menu"
-                aria-expanded={directoryMenuOpen}
-                title={zh('选择启用目录', 'Choose enabled directories')}
-                className="absolute inset-y-px right-px inline-flex w-8 items-center justify-center rounded-r text-blue-600 hover:bg-blue-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                <KeyboardArrowDownRoundedIcon
-                  fontSize="small"
-                  className={
-                    directoryMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'
-                  }
-                />
-              </button>
+              <Tooltip title={zh('全局设置', 'Global settings')} arrow>
+                <Button
+                  variant="outlined"
+                  onClick={onOpenGlobalSettings}
+                  aria-label={zh('全局设置', 'Global settings')}
+                  sx={{
+                    minWidth: 40,
+                    width: 40,
+                    height: 40,
+                    p: 0,
+                    borderTopRightRadius: 0,
+                    borderBottomRightRadius: 0,
+                  }}
+                >
+                  <SettingsOutlinedIcon fontSize="small" />
+                </Button>
+              </Tooltip>
+              <Tooltip title={zh('选择启用目录', 'Choose enabled directories')} arrow>
+                <Button
+                  type="button"
+                  onClick={() => setDirectoryMenuOpen((open) => !open)}
+                  aria-label={zh('选择启用目录', 'Choose enabled directories')}
+                  aria-haspopup="menu"
+                  aria-expanded={directoryMenuOpen}
+                  variant="outlined"
+                  sx={{
+                    minWidth: 32,
+                    width: 32,
+                    height: 40,
+                    p: 0,
+                    ml: '-1px',
+                    borderTopLeftRadius: 0,
+                    borderBottomLeftRadius: 0,
+                  }}
+                >
+                  <KeyboardArrowDownRoundedIcon
+                    fontSize="small"
+                    className={
+                      directoryMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'
+                    }
+                  />
+                </Button>
+              </Tooltip>
 
               {directoryMenuOpen ? (
                 <div
