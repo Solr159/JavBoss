@@ -1721,6 +1721,7 @@ export default function App() {
     if (isJavMode) {
       useStore.setState({
         viewMode: 'jav',
+        javTab: 'list',
         videoTempSort: '',
         javTempSort: '',
         javRandomMode: false,
@@ -1729,13 +1730,16 @@ export default function App() {
         javTags: [],
         javStudioId: null,
         javStudioName: '',
+        javSeriesId: null,
+        javSeriesName: '',
         javSearchTerm: '',
         javPage: 1,
         idolPage: 1,
         studioPage: 1,
+        seriesPage: 1,
       })
       setJavSearchInput('')
-      forceReloadJavByTab(javTab)
+      forceReloadJavByTab('list')
     } else {
       useStore.setState({
         viewMode: 'video',

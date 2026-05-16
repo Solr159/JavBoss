@@ -956,7 +956,7 @@ function JavCard({
           ) : null}
         </div>
         {seriesText ? (
-          <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">
+          <div className="flex min-w-0 items-start gap-1 text-xs text-gray-600">
             <Tooltip title={zh('系列', 'Series')} arrow>
               <span className="inline-flex">
                 <MovieCreationIcon sx={{ fontSize: 16 }} className="shrink-0 text-emerald-600" />
@@ -964,7 +964,7 @@ function JavCard({
             </Tooltip>
             <button
               type="button"
-              className={`min-w-0 truncate text-left ${
+              className={`min-w-0 whitespace-normal break-words text-left leading-snug ${
                 canFilterSeries ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
               }`}
               onClick={() => {
