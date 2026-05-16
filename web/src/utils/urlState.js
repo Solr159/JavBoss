@@ -32,9 +32,11 @@ const parseIntSafe = (val, def = 1) => {
   return Number.isFinite(n) && n > 0 ? n : def
 }
 
-export const parseUrlState = (searchString = window.location.search) => {
+export const parseUrlState = (searchString = window.location.search, options = {}) => {
   const sp = new URLSearchParams(searchString)
-  const view = sp.get('view') === 'jav' ? 'jav' : 'video'
+  const defaultView = options.defaultView === 'jav' ? 'jav' : 'video'
+  const rawView = sp.get('view')
+  const view = rawView === 'jav' ? 'jav' : rawView === 'video' ? 'video' : defaultView
   const directoryIds = parseDirectoryIds(sp)
 
   const videoSortRaw = (sp.get('sort') || '').trim()

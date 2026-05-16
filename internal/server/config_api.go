@@ -51,6 +51,7 @@ func updateConfig(c *gin.Context) {
 		IdolSort               string                `json:"idol_sort"`
 		JavMetadataLanguage    string                `json:"jav_metadata_language"`
 		DefaultPlayer          string                `json:"default_player"`
+		InitialViewMode        string                `json:"initial_view_mode"`
 		ProxyHost              *string               `json:"proxy_host"`
 		ProxyPort              *int                  `json:"proxy_port"`
 		PlayerWindowSize       *int                  `json:"player_window_size"`
@@ -174,6 +175,15 @@ func updateConfig(c *gin.Context) {
 			entries["default_player"] = s
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid default player"})
+			return
+		}
+	}
+	if s := strings.ToLower(strings.TrimSpace(req.InitialViewMode)); s != "" {
+		switch s {
+		case "video", "jav":
+			entries["initial_view_mode"] = s
+		default:
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid initial view mode"})
 			return
 		}
 	}

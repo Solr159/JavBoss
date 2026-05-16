@@ -55,6 +55,8 @@ export default function GlobalSettingsModal({
   onSaveJavMetadataLanguage,
   defaultPlayer,
   onSaveDefaultPlayer,
+  initialViewMode,
+  onSaveInitialViewMode,
   playerWindowWidth,
   playerWindowHeight,
   playerWindowUseAutofit,
@@ -78,6 +80,9 @@ export default function GlobalSettingsModal({
   const [defaultPlayerInput, setDefaultPlayerInput] = useState('mpv')
   const [defaultPlayerError, setDefaultPlayerError] = useState('')
   const [savingDefaultPlayer, setSavingDefaultPlayer] = useState(false)
+  const [initialViewModeInput, setInitialViewModeInput] = useState('video')
+  const [initialViewModeError, setInitialViewModeError] = useState('')
+  const [savingInitialViewMode, setSavingInitialViewMode] = useState(false)
   const [playerTab, setPlayerTab] = useState('basic')
   const [playerBasicError, setPlayerBasicError] = useState('')
   const [playerBasicSuccess, setPlayerBasicSuccess] = useState('')
@@ -113,6 +118,8 @@ export default function GlobalSettingsModal({
       setJavMetadataLanguageError('')
       setDefaultPlayerInput(defaultPlayer === 'system' ? 'system' : 'mpv')
       setDefaultPlayerError('')
+      setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
+      setInitialViewModeError('')
       setPlayerTab('basic')
       setPlayerBasicError('')
       setPlayerBasicSuccess('')
@@ -131,6 +138,7 @@ export default function GlobalSettingsModal({
     proxyPort,
     javMetadataLanguage,
     defaultPlayer,
+    initialViewMode,
     playerWindowWidth,
     playerWindowHeight,
     playerWindowUseAutofit,
@@ -203,9 +211,24 @@ export default function GlobalSettingsModal({
     }
   }
 
+  const handleSaveInitialViewMode = async () => {
+    const next = initialViewModeInput === 'jav' ? 'jav' : 'video'
+    setInitialViewModeError('')
+    setSavingInitialViewMode(true)
+    try {
+      await onSaveInitialViewMode?.(next)
+    } catch (err) {
+      setInitialViewModeError(err.message || zh('保存失败', 'Save failed'))
+    } finally {
+      setSavingInitialViewMode(false)
+    }
+  }
+
   const renderBasicPanel = () => {
     const currentDefaultPlayer = defaultPlayer === 'system' ? 'system' : 'mpv'
-    const unchanged = defaultPlayerInput === currentDefaultPlayer
+    const defaultPlayerUnchanged = defaultPlayerInput === currentDefaultPlayer
+    const currentInitialViewMode = initialViewMode === 'jav' ? 'jav' : 'video'
+    const initialViewModeUnchanged = initialViewModeInput === currentInitialViewMode
 
     return (
       <div className="space-y-5">
@@ -248,10 +271,57 @@ export default function GlobalSettingsModal({
               <button
                 type="button"
                 onClick={handleSaveDefaultPlayer}
-                disabled={savingDefaultPlayer || unchanged}
+                disabled={savingDefaultPlayer || defaultPlayerUnchanged}
                 className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
               >
                 {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+              </button>
+            </div>
+          </div>
+        </section>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <h4 className="text-sm font-semibold text-zinc-800">
+                {zh('初始页面', 'Initial Page')}
+              </h4>
+              <span className="relative inline-block">
+                <select
+                  value={initialViewModeInput}
+                  onChange={(event) => {
+                    setInitialViewModeInput(event.target.value === 'jav' ? 'jav' : 'video')
+                    setInitialViewModeError('')
+                  }}
+                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
+                >
+                  <option value="video">{zh('视频模式', 'Video Mode')}</option>
+                  <option value="jav">{zh('JAV模式', 'JAV Mode')}</option>
+                </select>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
+                />
+              </span>
+            </div>
+            <p className="text-sm text-zinc-500">
+              {zh(
+                '打开新页面，默认进入所选模式。',
+                'When opening a new page, use the selected mode by default.'
+              )}
+            </p>
+
+            {initialViewModeError && (
+              <div className="text-sm text-red-600">{initialViewModeError}</div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveInitialViewMode}
+                disabled={savingInitialViewMode || initialViewModeUnchanged}
+                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+              >
+                {savingInitialViewMode ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
               </button>
             </div>
           </div>

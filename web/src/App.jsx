@@ -52,6 +52,13 @@ const normalizeDefaultPlayer = (value) =>
     ? 'system'
     : 'mpv'
 
+const normalizeInitialViewMode = (value) =>
+  String(value || '')
+    .trim()
+    .toLowerCase() === 'jav'
+    ? 'jav'
+    : 'video'
+
 export default function App() {
   const isPoppingRef = useRef(false)
   const lastUrlRef = useRef(window.location.pathname + window.location.search)
@@ -274,6 +281,7 @@ export default function App() {
       }
     : null
   const defaultPlayer = normalizeDefaultPlayer(config?.default_player)
+  const initialViewMode = normalizeInitialViewMode(config?.initial_view_mode)
   const alternatePlayer = defaultPlayer === 'system' ? 'mpv' : 'system'
   const alternatePlayerLabel =
     alternatePlayer === 'mpv'
@@ -883,9 +891,10 @@ export default function App() {
   )
 
   useEffect(() => {
+    if (!configLoaded) return
     ensureBrowserHistoryState()
     const apply = (fromPopstate = false) => {
-      const parsed = parseUrlState()
+      const parsed = parseUrlState(window.location.search, { defaultView: initialViewMode })
       if (parsed.view === 'jav') {
         useStore.setState({ viewMode: 'jav' })
       } else {
@@ -907,6 +916,8 @@ export default function App() {
     ensureBrowserHistoryState,
     readBrowserHistoryIndex,
     setBrowserNavigationFromIndex,
+    configLoaded,
+    initialViewMode,
   ])
 
   useEffect(() => {
@@ -2598,6 +2609,11 @@ export default function App() {
         defaultPlayer={defaultPlayer}
         onSaveDefaultPlayer={async (player) => {
           const cfg = await updateConfig({ default_player: normalizeDefaultPlayer(player) })
+          useStore.setState({ config: cfg })
+        }}
+        initialViewMode={initialViewMode}
+        onSaveInitialViewMode={async (mode) => {
+          const cfg = await updateConfig({ initial_view_mode: normalizeInitialViewMode(mode) })
           useStore.setState({ config: cfg })
         }}
         playerWindowWidth={
