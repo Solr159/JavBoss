@@ -16,12 +16,17 @@ func addJavSeries(ctx context.Context, tx *sql.Tx) error {
 		id integer PRIMARY KEY AUTOINCREMENT,
 		name text,
 		is_english numeric NOT NULL DEFAULT 0,
+		studio_id integer,
 		created_at datetime,
-		updated_at datetime
+		updated_at datetime,
+		CONSTRAINT fk_jav_series_studio FOREIGN KEY (studio_id) REFERENCES jav_studio(id) ON UPDATE CASCADE ON DELETE SET NULL
 	)`); err != nil {
 		return err
 	}
 	if err := execDB(ctx, tx, `CREATE UNIQUE INDEX IF NOT EXISTS idx_jav_series_name_language ON jav_series(name, is_english)`); err != nil {
+		return err
+	}
+	if err := execDB(ctx, tx, `CREATE INDEX IF NOT EXISTS idx_jav_series_studio_id ON jav_series(studio_id)`); err != nil {
 		return err
 	}
 	if err := addColumnIfMissing(ctx, tx, "jav", "series_id", "integer"); err != nil {

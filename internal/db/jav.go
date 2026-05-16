@@ -471,6 +471,7 @@ type JavSeriesSummary struct {
 	ID         int64  `json:"id"`
 	Name       string `json:"name"`
 	IsEnglish  bool   `json:"is_english"`
+	StudioID   *int64 `json:"studio_id"`
 	WorkCount  int64  `json:"work_count"`
 	SampleCode string `json:"sample_code"`
 }
@@ -597,8 +598,8 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavSeriesSearch(base, search)
 	if err := base.
-		Select("js.id, js.name, js.is_english, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name, js.is_english").
+		Select("js.id, js.name, js.is_english, js.studio_id, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name, js.is_english, js.studio_id").
 		Order("work_count DESC, js.name ASC").
 		Limit(limit).
 		Offset(offset).
@@ -1101,6 +1102,53 @@ func ListJavsMissingStudioOrSeries(ctx context.Context) ([]JavMetadataScanItem, 
 		return nil, fmt.Errorf("list javs missing studio or series: %w", err)
 	}
 	return items, nil
+}
+
+// UpdateMissingJavSeriesStudios assigns a studio to series that can be inferred from a linked JAV row.
+func UpdateMissingJavSeriesStudios(ctx context.Context) (int64, error) {
+	type candidate struct {
+		SeriesID int64 `gorm:"column:series_id"`
+		StudioID int64 `gorm:"column:studio_id"`
+	}
+
+	var candidates []candidate
+	if err := common.DB.WithContext(ctx).
+		Table("jav_series js").
+		Select("js.id AS series_id, MIN(j.studio_id) AS studio_id").
+		Joins(`JOIN jav j ON (
+			(COALESCE(js.is_english, 0) = 0 AND j.series_id = js.id)
+			OR (COALESCE(js.is_english, 0) <> 0 AND j.series_en_id = js.id)
+		)`).
+		Where("js.studio_id IS NULL").
+		Where("j.studio_id IS NOT NULL").
+		Group("js.id").
+		Scan(&candidates).Error; err != nil {
+		return 0, fmt.Errorf("list jav series studio candidates: %w", err)
+	}
+	if len(candidates) == 0 {
+		return 0, nil
+	}
+
+	var updated int64
+	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range candidates {
+			if item.SeriesID <= 0 || item.StudioID <= 0 {
+				continue
+			}
+			res := tx.Model(&models.JavSeries{}).
+				Where("id = ? AND studio_id IS NULL", item.SeriesID).
+				Update("studio_id", item.StudioID)
+			if res.Error != nil {
+				return fmt.Errorf("update jav series studio id=%d: %w", item.SeriesID, res.Error)
+			}
+			updated += res.RowsAffected
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return updated, nil
 }
 
 // UpdateJavStudio records the studio lookup result for a JAV row.

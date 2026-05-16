@@ -33,11 +33,13 @@ type JavStudio struct {
 }
 
 type JavSeries struct {
-	ID        int64     `json:"id" gorm:"primaryKey"`
-	Name      string    `json:"name" gorm:"uniqueIndex:idx_jav_series_name_language"`
-	IsEnglish bool      `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_series_name_language"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        int64      `json:"id" gorm:"primaryKey"`
+	Name      string     `json:"name" gorm:"uniqueIndex:idx_jav_series_name_language"`
+	IsEnglish bool       `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_series_name_language"`
+	StudioID  *int64     `json:"studio_id" gorm:"index"`
+	Studio    *JavStudio `json:"studio,omitempty" gorm:"foreignKey:StudioID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 type JavTag struct {

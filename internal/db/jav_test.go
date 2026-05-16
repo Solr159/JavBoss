@@ -545,6 +545,83 @@ func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
 	assertJavSeries(t, gdb, "STU-002", "中年オヤジ", false)
 }
 
+func TestUpdateMissingJavSeriesStudios(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	studioA := models.JavStudio{Name: "Studio A"}
+	studioB := models.JavStudio{Name: "Studio B"}
+	if err := gdb.Create(&[]models.JavStudio{studioA, studioB}).Error; err != nil {
+		t.Fatalf("create studios: %v", err)
+	}
+	var studios []models.JavStudio
+	if err := gdb.Order("name").Find(&studios).Error; err != nil {
+		t.Fatalf("load studios: %v", err)
+	}
+	studioA = studios[0]
+	studioB = studios[1]
+
+	zhSeries := models.JavSeries{Name: "中文系列"}
+	enSeries := models.JavSeries{Name: "English Series", IsEnglish: true}
+	emptySeries := models.JavSeries{Name: "No Studio Series"}
+	keptSeries := models.JavSeries{Name: "Kept Series", StudioID: &studioB.ID}
+	if err := gdb.Create(&[]models.JavSeries{zhSeries, enSeries, emptySeries, keptSeries}).Error; err != nil {
+		t.Fatalf("create series: %v", err)
+	}
+	var series []models.JavSeries
+	if err := gdb.Order("name").Find(&series).Error; err != nil {
+		t.Fatalf("load series: %v", err)
+	}
+	byName := map[string]models.JavSeries{}
+	for _, item := range series {
+		byName[item.Name] = item
+	}
+	zhSeries = byName["中文系列"]
+	enSeries = byName["English Series"]
+	emptySeries = byName["No Studio Series"]
+	keptSeries = byName["Kept Series"]
+
+	javs := []models.Jav{
+		{Code: "SER-001", StudioID: &studioA.ID, SeriesID: &zhSeries.ID, Provider: 1, FetchedAt: now},
+		{Code: "SER-002", StudioID: &studioB.ID, SeriesEnID: &enSeries.ID, Provider: 2, FetchedAt: now},
+		{Code: "SER-003", SeriesID: &emptySeries.ID, Provider: 1, FetchedAt: now},
+		{Code: "SER-004", StudioID: &studioA.ID, SeriesID: &keptSeries.ID, Provider: 1, FetchedAt: now},
+	}
+	if err := gdb.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+
+	updated, err := UpdateMissingJavSeriesStudios(ctx)
+	if err != nil {
+		t.Fatalf("update missing series studios: %v", err)
+	}
+	if updated != 2 {
+		t.Fatalf("updated = %d, want 2", updated)
+	}
+
+	var got []models.JavSeries
+	if err := gdb.Order("name").Find(&got).Error; err != nil {
+		t.Fatalf("load updated series: %v", err)
+	}
+	gotByName := map[string]models.JavSeries{}
+	for _, item := range got {
+		gotByName[item.Name] = item
+	}
+	if gotByName["中文系列"].StudioID == nil || *gotByName["中文系列"].StudioID != studioA.ID {
+		t.Fatalf("unexpected zh series studio: %#v", gotByName["中文系列"])
+	}
+	if gotByName["English Series"].StudioID == nil || *gotByName["English Series"].StudioID != studioB.ID {
+		t.Fatalf("unexpected en series studio: %#v", gotByName["English Series"])
+	}
+	if gotByName["No Studio Series"].StudioID != nil {
+		t.Fatalf("unexpected empty series studio: %#v", gotByName["No Studio Series"])
+	}
+	if gotByName["Kept Series"].StudioID == nil || *gotByName["Kept Series"].StudioID != studioB.ID {
+		t.Fatalf("unexpected kept series studio: %#v", gotByName["Kept Series"])
+	}
+}
+
 func TestSetVideoLocationJavIDAllowsStaleNoop(t *testing.T) {
 	gdb := openTestDB(t)
 	now := time.Unix(1710000000, 0).UTC()
