@@ -240,11 +240,11 @@ export default function TopBar({
                     >
                       {zh('随机', 'Random')}
                     </Button>
-                    <Tooltip title={zh('JAV标签', 'JAV tags')} arrow>
+                    <Tooltip title={zh('标签管理', 'Tag management')} arrow>
                       <Button
                         variant="outlined"
                         onClick={onOpenJavTagModal}
-                        aria-label={zh('JAV标签', 'JAV tags')}
+                        aria-label={zh('标签管理', 'Tag management')}
                         sx={{
                           minWidth: 36,
                           width: 36,
@@ -316,11 +316,11 @@ export default function TopBar({
                 )}
 
                 {isJavMode ? (
-                  <Tooltip title={zh('JAV设置', 'JAV settings')} arrow>
+                  <Tooltip title={zh('显示设置', 'Display settings')} arrow>
                     <Button
                       variant="outlined"
                       onClick={handleSettingsClick}
-                      aria-label={zh('JAV设置', 'JAV settings')}
+                      aria-label={zh('显示设置', 'Display settings')}
                       sx={{
                         minWidth: 36,
                         width: 36,
@@ -332,15 +332,14 @@ export default function TopBar({
                     </Button>
                   </Tooltip>
                 ) : (
-                  <Tooltip title={zh('设置', 'Settings')} arrow>
-                    <Button
-                      startIcon={<SettingsOutlinedIcon fontSize="small" />}
-                      variant="outlined"
-                      onClick={handleSettingsClick}
-                    >
-                      {zh('设置', 'Settings')}
-                    </Button>
-                  </Tooltip>
+                  <Button
+                    startIcon={<DisplaySettingsIcon fontSize="small" />}
+                    variant="outlined"
+                    onClick={handleSettingsClick}
+                    aria-label={zh('设置', 'Settings')}
+                  >
+                    {zh('设置', 'Settings')}
+                  </Button>
                 )}
               </div>
 
@@ -399,12 +398,14 @@ export default function TopBar({
                   ) : null}
                 </div>
               ) : filterSummary ? (
-                <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
-                  <span className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-gray-500">
-                    {filterLabelPrefix}
-                    <span className="font-semibold text-gray-700">{filterSummary}</span>
-                  </span>
-                </Tooltip>
+                <div className="min-w-0 flex-1">
+                  <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
+                    <span className="inline-block max-w-full truncate whitespace-nowrap text-xs text-gray-500">
+                      {filterLabelPrefix}
+                      <span className="font-semibold text-gray-700">{filterSummary}</span>
+                    </span>
+                  </Tooltip>
+                </div>
               ) : null}
             </div>
           </div>
