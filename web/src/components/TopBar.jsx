@@ -410,7 +410,7 @@ export default function TopBar({
             </div>
           </div>
 
-          <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="mt-0.5 flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {!showDirectorySetupHint ? (
               <>
                 <Tooltip title={zh('浏览器后退', 'Browser back')} arrow>
