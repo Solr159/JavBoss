@@ -260,6 +260,11 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 
 	seriesA := models.JavSeries{Name: "Series A"}
 	seriesB := models.JavSeries{Name: "Series B", IsEnglish: true}
+	studioA := models.JavStudio{Name: "Series Studio"}
+	if err := db.Create(&studioA).Error; err != nil {
+		t.Fatalf("create studio a: %v", err)
+	}
+	seriesA.StudioID = &studioA.ID
 	if err := db.Create(&seriesA).Error; err != nil {
 		t.Fatalf("create series a: %v", err)
 	}
@@ -299,6 +304,9 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	}
 	if series[0].ID != seriesA.ID || series[0].WorkCount != 2 {
 		t.Fatalf("unexpected zh series: %#v", series[0])
+	}
+	if series[0].StudioID == nil || *series[0].StudioID != studioA.ID || series[0].StudioName != studioA.Name {
+		t.Fatalf("unexpected zh series studio: %#v", series[0])
 	}
 	if series[0].SampleCode == "" {
 		t.Fatalf("expected sample code for zh series")

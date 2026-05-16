@@ -1,3 +1,6 @@
+import { Tooltip } from '@mui/material'
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
+
 import Pagination from '@/components/Pagination'
 import { zh } from '@/utils/i18n'
 
@@ -16,6 +19,7 @@ export default function JavSeriesView({
   onLast,
   items,
   onSelectSeries,
+  onSelectStudio,
 }) {
   return (
     <>
@@ -42,6 +46,7 @@ export default function JavSeriesView({
         <JavSeriesGrid
           items={items}
           onSelectSeries={onSelectSeries}
+          onSelectStudio={onSelectStudio}
           buildSeriesUrl={buildSeriesUrl}
         />
       )}
@@ -49,7 +54,7 @@ export default function JavSeriesView({
   )
 }
 
-function JavSeriesGrid({ items, onSelectSeries, buildSeriesUrl }) {
+function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }) {
   const hasItems = Array.isArray(items) && items.length > 0
   if (!hasItems) {
     return (
@@ -67,15 +72,20 @@ function JavSeriesGrid({ items, onSelectSeries, buildSeriesUrl }) {
           item={item}
           href={buildSeriesUrl?.(item)}
           onSelectSeries={onSelectSeries}
+          onSelectStudio={onSelectStudio}
         />
       ))}
     </div>
   )
 }
 
-function SeriesCard({ item, href, onSelectSeries }) {
+function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
   const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
   const name = item?.name || zh('未知系列', 'Unknown series')
+  const studioName = String(item?.studio_name || '').trim()
+  const studioId = Number(item?.studio_id)
+  const canFilterStudio =
+    studioName && Number.isFinite(studioId) && studioId > 0 && typeof onSelectStudio === 'function'
   const workCount = item?.work_count || 0
 
   const handleClick = (e) => {
@@ -90,6 +100,13 @@ function SeriesCard({ item, href, onSelectSeries }) {
     }
     e.preventDefault()
     onSelectSeries?.(item)
+  }
+
+  const handleStudioClick = (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    if (!canFilterStudio) return
+    onSelectStudio?.({ id: studioId, name: studioName })
   }
 
   return (
@@ -120,8 +137,27 @@ function SeriesCard({ item, href, onSelectSeries }) {
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <div className="line-clamp-2 text-sm font-semibold leading-tight">{name}</div>
-        <div className="text-xs text-gray-500">
-          {zh(`${workCount} 部作品`, `${workCount} works`)}
+        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-500">
+          <span className="shrink-0">{zh(`${workCount} 部作品`, `${workCount} works`)}</span>
+          {studioName ? (
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <Tooltip title={zh('片商', 'Studio')} arrow>
+                <span className="inline-flex">
+                  <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
+                </span>
+              </Tooltip>
+              <button
+                type="button"
+                className={`min-w-0 truncate text-left ${
+                  canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                }`}
+                onClick={handleStudioClick}
+                disabled={!canFilterStudio}
+              >
+                {studioName}
+              </button>
+            </span>
+          ) : null}
         </div>
       </div>
     </a>

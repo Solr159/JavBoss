@@ -472,6 +472,7 @@ type JavSeriesSummary struct {
 	Name       string `json:"name"`
 	IsEnglish  bool   `json:"is_english"`
 	StudioID   *int64 `json:"studio_id"`
+	StudioName string `json:"studio_name"`
 	WorkCount  int64  `json:"work_count"`
 	SampleCode string `json:"sample_code"`
 }
@@ -591,6 +592,7 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	base := common.DB.WithContext(ctx).
 		Table("jav_series js").
 		Joins("JOIN jav j ON j.series_id = js.id OR j.series_en_id = js.id").
+		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
@@ -598,8 +600,8 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavSeriesSearch(base, search)
 	if err := base.
-		Select("js.id, js.name, js.is_english, js.studio_id, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name, js.is_english, js.studio_id").
+		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name, js.is_english, js.studio_id, jst.name").
 		Order("work_count DESC, js.name ASC").
 		Limit(limit).
 		Offset(offset).

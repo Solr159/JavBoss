@@ -2170,6 +2170,7 @@ export default function App() {
               onLast={() => setSeriesPage(seriesLastPage)}
               items={seriesItems}
               onSelectSeries={handleSelectSeries}
+              onSelectStudio={handleSelectStudio}
             />
           ) : (
             <JavView
