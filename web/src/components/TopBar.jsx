@@ -413,44 +413,38 @@ export default function TopBar({
           <div className="mt-0.5 flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {!showDirectorySetupHint ? (
               <>
-                <Tooltip title={zh('浏览器后退', 'Browser back')} arrow>
-                  <span className="inline-flex">
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      onClick={onBrowserBack}
-                      disabled={!canGoBack}
-                      aria-label={zh('浏览器后退', 'Browser back')}
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        p: 0,
-                      }}
-                    >
-                      <ArrowBackRoundedIcon fontSize="small" />
-                    </Button>
-                  </span>
-                </Tooltip>
-                <Tooltip title={zh('浏览器前进', 'Browser forward')} arrow>
-                  <span className="inline-flex">
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      onClick={onBrowserForward}
-                      disabled={!canGoForward}
-                      aria-label={zh('浏览器前进', 'Browser forward')}
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        p: 0,
-                      }}
-                    >
-                      <ArrowForwardRoundedIcon fontSize="small" />
-                    </Button>
-                  </span>
-                </Tooltip>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  onClick={onBrowserBack}
+                  disabled={!canGoBack}
+                  title={zh('浏览器后退', 'Browser back')}
+                  aria-label={zh('浏览器后退', 'Browser back')}
+                  sx={{
+                    minWidth: 36,
+                    width: 36,
+                    height: 36,
+                    p: 0,
+                  }}
+                >
+                  <ArrowBackRoundedIcon fontSize="small" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  onClick={onBrowserForward}
+                  disabled={!canGoForward}
+                  title={zh('浏览器前进', 'Browser forward')}
+                  aria-label={zh('浏览器前进', 'Browser forward')}
+                  sx={{
+                    minWidth: 36,
+                    width: 36,
+                    height: 36,
+                    p: 0,
+                  }}
+                >
+                  <ArrowForwardRoundedIcon fontSize="small" />
+                </Button>
               </>
             ) : null}
             {showDirectorySetupHint ? (
