@@ -3,13 +3,13 @@ import { IconButton, Popper, Tooltip } from '@mui/material'
 import Fade from '@mui/material/Fade'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import LibraryBooksOutlinedIcon from '@mui/icons-material/LibraryBooksOutlined'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import SearchIcon from '@mui/icons-material/Search'
-import ViewCarouselOutlinedIcon from '@mui/icons-material/ViewCarouselOutlined'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
 import { fetchJavIdolPreview } from '@/api'
@@ -955,7 +955,7 @@ function JavCard({
           <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">
             <Tooltip title={zh('系列', 'Series')} arrow>
               <span className="inline-flex">
-                <ViewCarouselOutlinedIcon
+                <LibraryBooksOutlinedIcon
                   sx={{ fontSize: 16 }}
                   className="shrink-0 text-violet-600"
                 />
