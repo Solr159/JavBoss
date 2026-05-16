@@ -3,7 +3,7 @@ import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
 
-import { fetchJavIdols, fetchJavStudios } from '@/api'
+import { fetchJavIdols, fetchJavSeries, fetchJavStudios } from '@/api'
 import { zh } from '@/utils/i18n'
 
 const JAV_FILTER_FETCH_LIMIT = 500
@@ -57,6 +57,28 @@ const fetchAllJavStudios = async ({ directoryIds = [] } = {}) => {
   return all
 }
 
+const fetchAllJavSeries = async ({ directoryIds = [] } = {}) => {
+  const all = []
+  let offset = 0
+  let total = null
+
+  while (total == null || offset < total) {
+    const resp = await fetchJavSeries({
+      limit: JAV_FILTER_FETCH_LIMIT,
+      offset,
+      search: '',
+      directoryIds,
+    })
+    const items = Array.isArray(resp?.items) ? resp.items : []
+    all.push(...items)
+    total = Number.isFinite(Number(resp?.total)) ? Number(resp.total) : all.length
+    if (items.length === 0) break
+    offset += items.length
+  }
+
+  return all
+}
+
 export default function JavQueryEditorModal({
   open,
   onClose,
@@ -68,9 +90,12 @@ export default function JavQueryEditorModal({
   tagOptions = [],
   studioId = null,
   studioName = '',
+  seriesId = null,
+  seriesName = '',
   directoryIds = [],
 }) {
   const studioInputRef = useRef(null)
+  const seriesInputRef = useRef(null)
   const [keyword, setKeyword] = useState('')
   const [selectedIdolIds, setSelectedIdolIds] = useState([])
   const [idolSearch, setIdolSearch] = useState('')
@@ -87,11 +112,19 @@ export default function JavQueryEditorModal({
   const [allStudios, setAllStudios] = useState([])
   const [studioLoading, setStudioLoading] = useState(false)
   const [studioError, setStudioError] = useState('')
+  const [selectedSeries, setSelectedSeries] = useState(null)
+  const [seriesSearch, setSeriesSearch] = useState('')
+  const [seriesPickerOpen, setSeriesPickerOpen] = useState(false)
+  const [allSeries, setAllSeries] = useState([])
+  const [seriesLoading, setSeriesLoading] = useState(false)
+  const [seriesError, setSeriesError] = useState('')
 
   useEffect(() => {
     if (!open) return
     const trimmedStudioName = String(studioName || '').trim()
     const parsedStudioId = Number(studioId)
+    const trimmedSeriesName = String(seriesName || '').trim()
+    const parsedSeriesId = Number(seriesId)
     setKeyword(String(search || '').trim())
     setSelectedIdolIds(cleanIds(idolIds))
     setIdolSearch('')
@@ -108,7 +141,15 @@ export default function JavQueryEditorModal({
     setStudioSearch('')
     setStudioPickerOpen(false)
     setStudioError('')
-  }, [idolIds, open, search, studioId, studioName, tagIds])
+    setSelectedSeries(
+      Number.isFinite(parsedSeriesId) && parsedSeriesId > 0
+        ? { id: parsedSeriesId, name: trimmedSeriesName || `#${parsedSeriesId}` }
+        : null
+    )
+    setSeriesSearch('')
+    setSeriesPickerOpen(false)
+    setSeriesError('')
+  }, [idolIds, open, search, seriesId, seriesName, studioId, studioName, tagIds])
 
   useEffect(() => {
     if (!open) return
@@ -139,6 +180,7 @@ export default function JavQueryEditorModal({
     if (open) return
     setAllIdols([])
     setAllStudios([])
+    setAllSeries([])
   }, [open])
 
   useEffect(() => {
@@ -159,6 +201,31 @@ export default function JavQueryEditorModal({
       })
       .finally(() => {
         if (!cancelled) setStudioLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [directoryIds, open])
+
+  useEffect(() => {
+    if (!open) return
+
+    let cancelled = false
+    setSeriesLoading(true)
+    setSeriesError('')
+    fetchAllJavSeries({ directoryIds })
+      .then((items) => {
+        if (!cancelled) setAllSeries(items)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setAllSeries([])
+          setSeriesError(err.message || zh('加载系列失败', 'Failed to load series'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setSeriesLoading(false)
       })
 
     return () => {
@@ -251,6 +318,23 @@ export default function JavQueryEditorModal({
       })
   }, [allStudios, studioSearch])
 
+  const filteredSeries = useMemo(() => {
+    const query = seriesSearch.trim().toLowerCase()
+    return [...allSeries]
+      .filter((series) => {
+        if (!query) return true
+        return String(series?.name || '')
+          .toLowerCase()
+          .includes(query)
+      })
+      .sort((a, b) => {
+        const countA = Number.isFinite(a?.work_count) ? a.work_count : 0
+        const countB = Number.isFinite(b?.work_count) ? b.work_count : 0
+        if (countB !== countA) return countB - countA
+        return String(a?.name || '').localeCompare(String(b?.name || ''))
+      })
+  }, [allSeries, seriesSearch])
+
   const toggleIdol = (id) => {
     const parsed = Number(id)
     if (!Number.isFinite(parsed) || parsed <= 0) return
@@ -292,6 +376,9 @@ export default function JavQueryEditorModal({
     setSelectedStudio(null)
     setStudioSearch('')
     setStudioPickerOpen(false)
+    setSelectedSeries(null)
+    setSeriesSearch('')
+    setSeriesPickerOpen(false)
   }
 
   const applyQuery = () => {
@@ -300,6 +387,7 @@ export default function JavQueryEditorModal({
       idolIds: selectedIdolIds,
       tagIds: selectedTagIds,
       studio: selectedStudio,
+      series: selectedSeries,
     })
   }
 
@@ -593,6 +681,90 @@ export default function JavQueryEditorModal({
                   ) : (
                     <div className="px-2 py-3 text-sm text-slate-500">
                       {zh('没有匹配片商', 'No matching studios')}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            <div className="text-sm font-semibold text-slate-800">{zh('系列', 'Series')}</div>
+            {selectedSeries ? (
+              <div className="flex items-center justify-between gap-2 rounded border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                <span className="min-w-0 truncate font-medium">{selectedSeries.name}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSeries(null)
+                    setSeriesSearch('')
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded hover:bg-emerald-100"
+                  aria-label={zh('删除系列条件', 'Remove series filter')}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </button>
+              </div>
+            ) : null}
+            <div onBlur={closePickerOnBlur(setSeriesPickerOpen)}>
+              <input
+                ref={seriesInputRef}
+                value={seriesSearch}
+                onFocus={() => setSeriesPickerOpen(true)}
+                onChange={(event) => {
+                  setSeriesSearch(event.target.value)
+                  setSeriesPickerOpen(true)
+                  setSelectedSeries(null)
+                }}
+                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder={zh('搜索并选择系列', 'Search and choose a series')}
+              />
+              {seriesPickerOpen ? (
+                <div className="mt-1 max-h-52 overflow-y-auto rounded border border-slate-200 bg-white p-1 shadow-lg">
+                  {seriesLoading ? (
+                    <div className="px-2 py-3 text-sm text-slate-500">
+                      {zh('加载中…', 'Loading...')}
+                    </div>
+                  ) : seriesError ? (
+                    <div className="px-2 py-3 text-sm text-rose-600">{seriesError}</div>
+                  ) : filteredSeries.length > 0 ? (
+                    filteredSeries.map((series) => {
+                      const checked = Number(selectedSeries?.id) === Number(series.id)
+                      return (
+                        <button
+                          key={series.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={checked}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setSelectedSeries({ id: series.id, name: series.name })
+                            setSeriesSearch('')
+                            setSeriesPickerOpen(false)
+                            seriesInputRef.current?.blur()
+                          }}
+                          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                        >
+                          <input
+                            type="radio"
+                            checked={checked}
+                            readOnly
+                            tabIndex={-1}
+                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-blue-600"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-slate-800">
+                            {series.name}
+                          </span>
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {zh(`${series.work_count || 0} 部`, `${series.work_count || 0} works`)}
+                          </span>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div className="px-2 py-3 text-sm text-slate-500">
+                      {zh('没有匹配系列', 'No matching series')}
                     </div>
                   )}
                 </div>

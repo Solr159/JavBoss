@@ -1927,6 +1927,9 @@ export default function App() {
     const nextStudioId = Number(query?.studio?.id)
     const hasStudio = Number.isFinite(nextStudioId) && nextStudioId > 0
     const nextStudioName = hasStudio ? String(query?.studio?.name || '').trim() : ''
+    const nextSeriesId = Number(query?.series?.id)
+    const hasSeries = Number.isFinite(nextSeriesId) && nextSeriesId > 0
+    const nextSeriesName = hasSeries ? String(query?.series?.name || '').trim() : ''
     useStore.setState({
       viewMode: 'jav',
       videoTempSort: '',
@@ -1939,8 +1942,8 @@ export default function App() {
       javTags: nextTags,
       javStudioId: hasStudio ? nextStudioId : null,
       javStudioName: nextStudioName,
-      javSeriesId: null,
-      javSeriesName: '',
+      javSeriesId: hasSeries ? nextSeriesId : null,
+      javSeriesName: nextSeriesName,
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
@@ -2241,6 +2244,8 @@ export default function App() {
         tagOptions={javTagOptions}
         studioId={javStudioId}
         studioName={javStudioName}
+        seriesId={javSeriesId}
+        seriesName={javSeriesName}
         directoryIds={javQueryDirectoryIds}
       />
 
