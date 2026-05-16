@@ -347,13 +347,12 @@ export default function TopBar({
               {isJavMode && javTab === 'list' ? (
                 <div className="flex min-w-0 flex-1 items-center gap-1">
                   {filterSummary ? (
-                    <span
-                      className="min-w-0 truncate whitespace-nowrap text-xs text-gray-500"
-                      title={`${filterLabelPrefix}${filterSummary}`}
-                    >
-                      {filterLabelPrefix}
-                      <span className="font-semibold text-gray-700">{filterSummary}</span>
-                    </span>
+                    <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
+                      <span className="min-w-0 truncate whitespace-nowrap text-xs text-gray-500">
+                        {filterLabelPrefix}
+                        <span className="font-semibold text-gray-700">{filterSummary}</span>
+                      </span>
+                    </Tooltip>
                   ) : null}
                   <Tooltip title={zh('编辑 JAV 查询条件', 'Edit JAV filters')} arrow>
                     <button
@@ -400,13 +399,12 @@ export default function TopBar({
                   ) : null}
                 </div>
               ) : filterSummary ? (
-                <span
-                  className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-gray-500"
-                  title={`${filterLabelPrefix}${filterSummary}`}
-                >
-                  {filterLabelPrefix}
-                  <span className="font-semibold text-gray-700">{filterSummary}</span>
-                </span>
+                <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
+                  <span className="min-w-0 flex-1 truncate whitespace-nowrap text-xs text-gray-500">
+                    {filterLabelPrefix}
+                    <span className="font-semibold text-gray-700">{filterSummary}</span>
+                  </span>
+                </Tooltip>
               ) : null}
             </div>
           </div>
