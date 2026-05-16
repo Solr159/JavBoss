@@ -34,14 +34,14 @@ type JavScanVideo struct {
 	DurationSec int64     `gorm:"column:duration_sec"`
 }
 
-// JavStudioScanItem contains a JAV row that needs studio metadata.
-type JavStudioScanItem struct {
+// JavMetadataScanItem contains a JAV row that needs studio or series metadata.
+type JavMetadataScanItem struct {
 	ID   int64  `gorm:"column:id"`
 	Code string `gorm:"column:code"`
 }
 
 // SearchJav lists Jav metadata filtered by idol IDs/tag IDs/search with pagination and sorting.
-func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, studioIDs ...int64) ([]models.Jav, int64, error) {
+func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, filterIDs ...int64) ([]models.Jav, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -54,11 +54,11 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 	search = strings.TrimSpace(search)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
-	studioID := firstPositiveInt64(studioIDs)
-	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID)
+	studioID, seriesID := javFilterIDs(filterIDs)
+	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID)
+	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -106,6 +106,8 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 	visibleTagProviders := visibleJavTagProviders()
 	query := filtered.
 		Preload("Studio").
+		Preload("Series").
+		Preload("SeriesEn").
 		Preload("Tags", "provider IN ?", visibleTagProviders).
 		Preload("Idols", "COALESCE(is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
 		Limit(limit).
@@ -399,7 +401,7 @@ func ReplaceJavUserTags(ctx context.Context, javIDs, tagIDs []int64) error {
 	})
 }
 
-func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -422,6 +424,9 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	if studioID > 0 {
 		q = q.Where("studio_id = ?", studioID)
 	}
+	if seriesID > 0 {
+		q = q.Where("series_id = ? OR series_en_id = ?", seriesID, seriesID)
+	}
 	if len(tagIDs) > 0 {
 		q = q.
 			Joins("JOIN jav_tag_map jtm ON jtm.jav_id = jav.id").
@@ -441,13 +446,16 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	return q
 }
 
-func firstPositiveInt64(values []int64) int64 {
-	for _, value := range values {
-		if value > 0 {
-			return value
-		}
+func javFilterIDs(values []int64) (int64, int64) {
+	studioID := int64(0)
+	seriesID := int64(0)
+	if len(values) > 0 && values[0] > 0 {
+		studioID = values[0]
 	}
-	return 0
+	if len(values) > 1 && values[1] > 0 {
+		seriesID = values[1]
+	}
+	return studioID, seriesID
 }
 
 // JavStudioSummary represents studio info with aggregated work count and a sample code for cover lookup.
@@ -458,7 +466,25 @@ type JavStudioSummary struct {
 	SampleCode string `json:"sample_code"`
 }
 
+// JavSeriesSummary represents series info with aggregated work count and a sample code for cover lookup.
+type JavSeriesSummary struct {
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	IsEnglish  bool   `json:"is_english"`
+	WorkCount  int64  `json:"work_count"`
+	SampleCode string `json:"sample_code"`
+}
+
 func applyJavStudioSearch(q *gorm.DB, search string) *gorm.DB {
+	search = strings.TrimSpace(search)
+	if search == "" {
+		return q
+	}
+	like := fmt.Sprintf("%%%s%%", search)
+	return q.Where("js.name LIKE ?", like)
+}
+
+func applyJavSeriesSearch(q *gorm.DB, search string) *gorm.DB {
 	search = strings.TrimSpace(search)
 	if search == "" {
 		return q
@@ -531,6 +557,77 @@ func ListStudioCoverCodes(ctx context.Context, studioID int64, directoryIDs []in
 		Order("j.code").
 		Pluck("j.code", &codes).Error; err != nil {
 		return nil, fmt.Errorf("list studio cover codes: %w", err)
+	}
+	return codes, nil
+}
+
+// ListJavSeries returns series ordered by visible work count descending.
+func ListJavSeries(ctx context.Context, search string, limit, offset int, directoryIDs []int64) ([]JavSeriesSummary, int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
+
+	countBase := common.DB.WithContext(ctx).
+		Table("jav_series js").
+		Joins("JOIN jav j ON j.series_id = js.id OR j.series_en_id = js.id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where(activeLocationWhereSQL("vl", "d"))
+	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
+	countBase = applyJavSeriesSearch(countBase, search)
+
+	var total int64
+	if err := countBase.Distinct("js.id").Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count jav series: %w", err)
+	}
+
+	var items []JavSeriesSummary
+	base := common.DB.WithContext(ctx).
+		Table("jav_series js").
+		Joins("JOIN jav j ON j.series_id = js.id OR j.series_en_id = js.id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where(activeLocationWhereSQL("vl", "d"))
+	base = applyDirectoryFilter(base, "vl", directoryIDs)
+	base = applyJavSeriesSearch(base, search)
+	if err := base.
+		Select("js.id, js.name, js.is_english, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name, js.is_english").
+		Order("work_count DESC, js.name ASC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&items).Error; err != nil {
+		return nil, 0, fmt.Errorf("list jav series: %w", err)
+	}
+
+	return items, total, nil
+}
+
+// ListSeriesCoverCodes returns a prioritized list of codes for a series.
+func ListSeriesCoverCodes(ctx context.Context, seriesID int64, directoryIDs []int64) ([]string, error) {
+	if seriesID <= 0 {
+		return nil, errors.New("series id must be positive")
+	}
+	var codes []string
+	query := common.DB.WithContext(ctx).
+		Table("jav j").
+		Select("j.code").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("j.series_id = ? OR j.series_en_id = ?", seriesID, seriesID).
+		Where(activeLocationWhereSQL("vl", "d"))
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	if err := query.
+		Group("j.code").
+		Order("j.code").
+		Pluck("j.code", &codes).Error; err != nil {
+		return nil, fmt.Errorf("list series cover codes: %w", err)
 	}
 	return codes, nil
 }
@@ -991,17 +1088,17 @@ func ListJavCodes(ctx context.Context) ([]string, error) {
 	return codes, nil
 }
 
-// ListJavsMissingStudio returns JAV rows whose studio relation is empty.
-func ListJavsMissingStudio(ctx context.Context) ([]JavStudioScanItem, error) {
-	var items []JavStudioScanItem
+// ListJavsMissingStudioOrSeries returns JAV rows whose studio or series relation is empty.
+func ListJavsMissingStudioOrSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Select("id, code").
 		Where("COALESCE(code, '') <> ''").
-		Where("studio_id IS NULL").
+		Where("studio_id IS NULL OR series_id IS NULL OR series_en_id IS NULL").
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing studio: %w", err)
+		return nil, fmt.Errorf("list javs missing studio or series: %w", err)
 	}
 	return items, nil
 }
@@ -1026,6 +1123,33 @@ func UpdateJavStudio(ctx context.Context, javID int64, studio string) error {
 				"studio_id": rec.ID,
 			}).Error; err != nil {
 			return fmt.Errorf("update jav studio: %w", err)
+		}
+		return nil
+	})
+}
+
+// UpdateJavSeries records the series lookup result for a JAV row.
+func UpdateJavSeries(ctx context.Context, javID int64, series string, isEnglish bool) error {
+	if javID == 0 {
+		return errors.New("jav id cannot be zero")
+	}
+	series = strings.TrimSpace(series)
+	if series == "" {
+		return nil
+	}
+	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rec, err := ensureSeriesTx(tx, series, isEnglish)
+		if err != nil {
+			return err
+		}
+		column := "series_id"
+		if isEnglish {
+			column = "series_en_id"
+		}
+		if err := tx.Model(&models.Jav{}).
+			Where("id = ?", javID).
+			Update(column, rec.ID).Error; err != nil {
+			return fmt.Errorf("update jav series: %w", err)
 		}
 		return nil
 	})
@@ -1064,6 +1188,17 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 			return nil, err
 		}
 		javRec.StudioID = &studioRec.ID
+	}
+	if series := strings.TrimSpace(info.Series); series != "" {
+		seriesRec, err := ensureSeriesTx(tx, series, jav.ProviderIsEnglish(provider))
+		if err != nil {
+			return nil, err
+		}
+		if jav.ProviderIsEnglish(provider) {
+			javRec.SeriesEnID = &seriesRec.ID
+		} else {
+			javRec.SeriesID = &seriesRec.ID
+		}
 	}
 	if err := tx.Save(javRec).Error; err != nil {
 		return nil, fmt.Errorf("save jav: %w", err)
@@ -1118,6 +1253,24 @@ func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 		return nil, fmt.Errorf("load studio %q: %w", name, err)
 	}
 	return &studio, nil
+}
+
+func ensureSeriesTx(tx *gorm.DB, name string, isEnglish bool) (*models.JavSeries, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("series name cannot be empty")
+	}
+	series := models.JavSeries{Name: name, IsEnglish: isEnglish}
+	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&series).Error; err != nil {
+		return nil, fmt.Errorf("ensure series %q: %w", name, err)
+	}
+	if series.ID != 0 {
+		return &series, nil
+	}
+	if err := tx.Where("name = ? AND is_english = ?", name, isEnglish).First(&series).Error; err != nil {
+		return nil, fmt.Errorf("load series %q: %w", name, err)
+	}
+	return &series, nil
 }
 
 func ensureJavTagsTx(tx *gorm.DB, names []string, provider jav.Provider) ([]models.JavTag, error) {

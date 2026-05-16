@@ -31,6 +31,7 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
         <p class="mb-1"><b>Release Date: </b>2017-09-09</p>
         <p class="mb-1"><b>Runtime: </b>159  (HD: 159) min.</p>
         <p class="mb-1"><b>Studio: </b><span><a href="/studios/idea-pocket/">Idea Pocket</a></span></p>
+        <p class="mb-1"><b>Series: </b><span><a href="/series/beautiful-girl/">Beautiful Girl Series</a></span></p>
         <p class="mb-1"><b>Genre(s): </b><span><a href="/genres/a">Beautiful Girl</a></span> <span><a href="/genres/b">Hi-Def</a></span></p>
         <p class="mb-1"><b>Idol(s)/Actress(es): </b><span><a href="/idols/tsumugi-akari/">Tsumugi Akari</a></span></p>
       </div>
@@ -55,6 +56,9 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
 	}
 	if info.Studio != "Idea Pocket" {
 		t.Fatalf("unexpected studio: %q", info.Studio)
+	}
+	if info.Series != "Beautiful Girl Series" {
+		t.Fatalf("unexpected series: %q", info.Series)
 	}
 
 	wantRelease := time.Date(2017, 9, 9, 0, 0, 0, 0, time.UTC).Unix()

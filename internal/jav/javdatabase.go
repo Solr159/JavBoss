@@ -535,13 +535,14 @@ func parseJavDatabaseMovieInfo(root *html.Node) *JavInfo {
 		Title:       title,
 		Code:        strings.TrimSpace(fields.Code),
 		Studio:      strings.TrimSpace(fields.Studio),
+		Series:      strings.TrimSpace(fields.Series),
 		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
 		DurationMin: parseRuntimeMinutes(fields.Runtime),
 		Tags:        dedupeNonEmpty(fields.Tags),
 		Actors:      dedupeNonEmpty(fields.Actors),
 		Provider:    ProviderJavDatabase,
 	}
-	if info.Title == "" && info.Code == "" && info.Studio == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
 	}
 	return info
@@ -598,6 +599,7 @@ type javDatabaseMovieFields struct {
 	Title       string
 	Code        string
 	Studio      string
+	Series      string
 	ReleaseDate string
 	Runtime     string
 	Tags        []string
@@ -709,6 +711,10 @@ func assignJavDatabaseMovieField(out *javDatabaseMovieFields, label string, line
 	case labelHasAny(label, []string{"studio", "studios"}):
 		if out.Studio == "" {
 			out.Studio = firstNonEmpty(firstAnchorText(line), collectValueAfterBold(bold))
+		}
+	case labelHasAny(label, []string{"series"}):
+		if out.Series == "" {
+			out.Series = firstNonEmpty(firstAnchorText(line), collectValueAfterBold(bold))
 		}
 	case labelHasAny(label, []string{"genre", "genres"}):
 		if len(out.Tags) == 0 {

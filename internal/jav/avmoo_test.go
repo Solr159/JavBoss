@@ -68,6 +68,9 @@ func TestParseAvmooMovieInfoFromFixture(t *testing.T) {
 	if info.Title != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ" {
 		t.Fatalf("unexpected title: %q", info.Title)
 	}
+	if info.Series != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交" {
+		t.Fatalf("unexpected series: %q", info.Series)
+	}
 
 	wantRelease := time.Date(2018, 11, 10, 0, 0, 0, 0, time.UTC).Unix()
 	if info.ReleaseUnix != wantRelease {

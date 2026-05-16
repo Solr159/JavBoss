@@ -155,6 +155,7 @@ type JavInfo struct {
 	Title       string
 	Code        string
 	Studio      string
+	Series      string
 	ReleaseUnix int64
 	DurationMin int
 	Tags        []string

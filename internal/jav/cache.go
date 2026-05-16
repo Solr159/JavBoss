@@ -9,13 +9,18 @@ import (
 )
 
 const (
-	lookupCacheKeyVersion = "v1"
-	lookupCacheStatusHit  = "hit"
-	lookupCacheStatusMiss = "not_found"
+	lookupCacheDefaultKeyVersion = "v1"
+	lookupCacheStatusHit         = "hit"
+	lookupCacheStatusMiss        = "not_found"
 
 	lookupCacheSuccessTTL  = 90 * 24 * time.Hour
 	lookupCacheNotFoundTTL = 7 * 24 * time.Hour
 )
+
+var lookupJavCacheKeyVersionByProvider = map[Provider]string{
+	ProviderJavDatabase: "v2",
+	ProviderAvmoo:       "v2",
+}
 
 // LookupCache is a persistent key-value store for provider lookup results.
 type LookupCache interface {
@@ -24,9 +29,8 @@ type LookupCache interface {
 }
 
 type lookupCacheEnvelope struct {
-	Version int             `json:"v"`
-	Status  string          `json:"status"`
-	Data    json.RawMessage `json:"data,omitempty"`
+	Status string          `json:"status"`
+	Data   json.RawMessage `json:"data,omitempty"`
 }
 
 var lookupCacheState = struct {
@@ -90,9 +94,8 @@ func lookupCacheSetHit(key string, value any) {
 		return
 	}
 	raw, err := json.Marshal(lookupCacheEnvelope{
-		Version: 1,
-		Status:  lookupCacheStatusHit,
-		Data:    data,
+		Status: lookupCacheStatusHit,
+		Data:   data,
 	})
 	if err != nil {
 		return
@@ -106,8 +109,7 @@ func lookupCacheSetNotFound(key string) {
 		return
 	}
 	raw, err := json.Marshal(lookupCacheEnvelope{
-		Version: 1,
-		Status:  lookupCacheStatusMiss,
+		Status: lookupCacheStatusMiss,
 	})
 	if err != nil {
 		return
@@ -127,12 +129,22 @@ func cacheableLookupResult(key string, value any, err error) {
 
 func lookupCacheKey(provider Provider, method, input string) string {
 	return strings.Join([]string{
-		lookupCacheKeyVersion,
+		lookupCacheKeyVersion(provider, method),
 		"jav",
 		ParseProvider(int(provider)).String(),
 		method,
 		normalizeLookupCacheInput(method, input),
 	}, ":")
+}
+
+func lookupCacheKeyVersion(provider Provider, method string) string {
+	provider = ParseProvider(int(provider))
+	if method == "lookup_jav" {
+		if version, ok := lookupJavCacheKeyVersionByProvider[provider]; ok {
+			return version
+		}
+	}
+	return lookupCacheDefaultKeyVersion
 }
 
 func normalizeLookupCacheInput(method, input string) string {

@@ -56,14 +56,24 @@ export const parseUrlState = (searchString = window.location.search) => {
   const idolSort = normalizeIdolSort(sortParam)
   const javTempSort = normalizeJavSort((sp.get('temp_sort') || '').trim(), '')
 
+  const rawJavTab = sp.get('tab')
   const jav = {
-    tab: sp.get('tab') === 'idol' ? 'idol' : sp.get('tab') === 'studio' ? 'studio' : 'list',
+    tab:
+      rawJavTab === 'idol'
+        ? 'idol'
+        : rawJavTab === 'studio'
+          ? 'studio'
+          : rawJavTab === 'series'
+            ? 'series'
+            : 'list',
     page: parseIntSafe(sp.get('page'), 1),
     search: (sp.get('search') || '').trim(),
     idolIds: parseIds(sp.get('idol_ids')),
     tagIds: parseIds(sp.get('tag_ids')),
     studioId: parsePositiveInt(sp.get('studio_id')),
     studioName: (sp.get('studio_name') || '').trim(),
+    seriesId: parsePositiveInt(sp.get('series_id')),
+    seriesName: (sp.get('series_name') || '').trim(),
     sort: javSort,
     tempSort: javTempSort,
     idolSort,
@@ -83,7 +93,7 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     } else if (Array.isArray(state.directoryIds) && state.directoryIds.length === 0) {
       sp.set('directory_ids', '0')
     }
-    if (state.jav.tab === 'idol' || state.jav.tab === 'studio') {
+    if (state.jav.tab === 'idol' || state.jav.tab === 'studio' || state.jav.tab === 'series') {
       sp.set('tab', state.jav.tab)
     }
     if (state.jav.search) sp.set('search', state.jav.search)
@@ -96,6 +106,10 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     if (state.jav.tab === 'list' && state.jav.studioId) {
       sp.set('studio_id', String(state.jav.studioId))
       if (state.jav.studioName) sp.set('studio_name', state.jav.studioName)
+    }
+    if (state.jav.tab === 'list' && state.jav.seriesId) {
+      sp.set('series_id', String(state.jav.seriesId))
+      if (state.jav.seriesName) sp.set('series_name', state.jav.seriesName)
     }
     const sortVal = state.jav.tab === 'idol' ? state.jav.idolSort : state.jav.sort
     if (state.jav.tab === 'idol') {
@@ -182,20 +196,31 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       seed: store.randomMode ? store.randomSeed : null,
     },
     jav: {
-      tab: store.javTab === 'idol' ? 'idol' : store.javTab === 'studio' ? 'studio' : 'list',
+      tab:
+        store.javTab === 'idol'
+          ? 'idol'
+          : store.javTab === 'studio'
+            ? 'studio'
+            : store.javTab === 'series'
+              ? 'series'
+              : 'list',
       page:
         store.javTab === 'idol'
           ? store.idolPage
           : store.javTab === 'studio'
             ? store.studioPage
-            : store.javRandomMode
-              ? 1
-              : store.javPage,
+            : store.javTab === 'series'
+              ? store.seriesPage
+              : store.javRandomMode
+                ? 1
+                : store.javPage,
       search: (store.javSearchTerm || '').trim(),
       idolIds: store.javIdolIds || [],
       tagIds: store.javTags || [],
       studioId: store.javStudioId || null,
       studioName: (store.javStudioName || '').trim(),
+      seriesId: store.javSeriesId || null,
+      seriesName: (store.javSeriesName || '').trim(),
       sort: store.javSort || 'recent',
       tempSort: store.javTab === 'list' && !store.javRandomMode ? store.javTempSort || '' : '',
       idolSort: store.idolSort || 'work',

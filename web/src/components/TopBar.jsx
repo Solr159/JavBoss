@@ -174,6 +174,12 @@ export default function TopBar({
                     >
                       {zh('片商', 'Studio')}
                     </Button>
+                    <Button
+                      variant={javTab === 'series' ? 'contained' : 'outlined'}
+                      onClick={() => onSwitchJavTab('series')}
+                    >
+                      {zh('系列', 'Series')}
+                    </Button>
                     <form
                       onSubmit={onSubmitJavSearch}
                       className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
@@ -186,7 +192,9 @@ export default function TopBar({
                             ? zh('搜索女优名称', 'Search idol name')
                             : javTab === 'studio'
                               ? zh('搜索片商名称', 'Search studio name')
-                              : zh('搜索番号或标题', 'Search code or title')
+                              : javTab === 'series'
+                                ? zh('搜索系列名称', 'Search series name')
+                                : zh('搜索番号或标题', 'Search code or title')
                         }
                         className="h-10 flex-1 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         aria-label={zh('搜索JAV', 'Search JAV')}

@@ -23,6 +23,7 @@ import GlobalSettingsModal from '@/components/GlobalSettingsModal'
 import JavIdolView from '@/components/JavIdolView'
 import JavQueryEditorModal from '@/components/JavQueryEditorModal'
 import JavSettingsModal from '@/components/JavSettingsModal'
+import JavSeriesView from '@/components/JavSeriesView'
 import JavStudioView from '@/components/JavStudioView'
 import JavTagModal from '@/components/JavTagModal'
 import JavVideoPickerModal from '@/components/JavVideoPickerModal'
@@ -101,6 +102,8 @@ export default function App() {
     javTags,
     javStudioId,
     javStudioName,
+    javSeriesId,
+    javSeriesName,
     javSort,
     javTempSort,
     javRandomMode,
@@ -130,6 +133,13 @@ export default function App() {
     studioLoading,
     studioError,
     loadJavStudios,
+    seriesPage,
+    setSeriesPage,
+    seriesItems,
+    seriesTotal,
+    seriesLoading,
+    seriesError,
+    loadJavSeries,
     directories,
     loadDirectories,
     createDirectory,
@@ -617,6 +627,8 @@ export default function App() {
         idolIds: idolIdsOverride,
         studioId: studioIdOverride,
         studioName: studioNameOverride,
+        seriesId: seriesIdOverride,
+        seriesName: seriesNameOverride,
         sort: sortOverride,
         tagIds: tagIdsOverride,
         random: randomOverride,
@@ -626,7 +638,7 @@ export default function App() {
       const sp = new URLSearchParams()
       sp.set('view', 'jav')
       const tab = tabOverride ?? javTab
-      if (tab === 'idol' || tab === 'studio') {
+      if (tab === 'idol' || tab === 'studio' || tab === 'series') {
         sp.set('tab', tab)
       }
       const searchVal = (searchOverride ?? javSearchTerm).trim()
@@ -649,6 +661,16 @@ export default function App() {
           studioNameOverride ?? (hasStudioIdOverride ? '' : String(javStudioName || '').trim())
         if (studioName) {
           sp.set('studio_name', studioName)
+        }
+      }
+      const hasSeriesIdOverride = Object.prototype.hasOwnProperty.call(options, 'seriesId')
+      const seriesId = hasSeriesIdOverride ? seriesIdOverride : javSeriesId
+      if (tab === 'list' && seriesId) {
+        sp.set('series_id', String(seriesId))
+        const seriesName =
+          seriesNameOverride ?? (hasSeriesIdOverride ? '' : String(javSeriesName || '').trim())
+        if (seriesName) {
+          sp.set('series_name', seriesName)
         }
       }
       const hasSortOverride = Object.prototype.hasOwnProperty.call(options, 'sort')
@@ -684,7 +706,14 @@ export default function App() {
         sp.delete('random')
         sp.delete('seed')
         const targetPage =
-          pageOverride ?? (tab === 'idol' ? idolPage : tab === 'studio' ? studioPage : javPage)
+          pageOverride ??
+          (tab === 'idol'
+            ? idolPage
+            : tab === 'studio'
+              ? studioPage
+              : tab === 'series'
+                ? seriesPage
+                : javPage)
         sp.set('page', String(targetPage))
       }
       const query = sp.toString()
@@ -693,9 +722,12 @@ export default function App() {
     [
       idolPage,
       studioPage,
+      seriesPage,
       javIdolIds,
       javStudioId,
       javStudioName,
+      javSeriesId,
+      javSeriesName,
       javPage,
       javTempSort,
       javSearchTerm,
@@ -726,11 +758,14 @@ export default function App() {
       javIdolIds: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javTags: clean,
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
   }, [])
 
@@ -759,9 +794,12 @@ export default function App() {
           javTags: jav.tab === 'list' ? jav.tagIds : [],
           javStudioId: jav.tab === 'list' ? jav.studioId : null,
           javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
+          javSeriesId: jav.tab === 'list' ? jav.seriesId : null,
+          javSeriesName: jav.tab === 'list' && jav.seriesId ? jav.seriesName : '',
           javPage: jav.random ? 1 : jav.page,
           idolPage: jav.tab === 'idol' ? jav.page : 1,
           studioPage: jav.tab === 'studio' ? jav.page : 1,
+          seriesPage: jav.tab === 'series' ? jav.page : 1,
           javSort: jav.tab === 'list' ? jav.sort : 'recent',
           javTempSort: jav.tab !== 'list' || jav.random ? '' : jav.tempSort,
           idolSort: jav.tab === 'idol' ? jav.idolSort : currentIdolSort,
@@ -868,6 +906,8 @@ export default function App() {
       loadJavIdols()
     } else if (javTab === 'studio') {
       loadJavStudios()
+    } else if (javTab === 'series') {
+      loadJavSeries()
     } else {
       loadJavs()
     }
@@ -881,6 +921,7 @@ export default function App() {
     javIdolIds,
     javTags,
     javStudioId,
+    javSeriesId,
     javSort,
     javTempSort,
     javRandomMode,
@@ -889,11 +930,13 @@ export default function App() {
     idolPage,
     idolPageSize,
     studioPage,
+    seriesPage,
     enabledDirectoryIds,
     directoryFilterMode,
     loadJavs,
     loadJavIdols,
     loadJavStudios,
+    loadJavSeries,
     configLoaded,
   ])
 
@@ -909,11 +952,13 @@ export default function App() {
         loadJavIdols({ force: true })
       } else if (tab === 'studio') {
         loadJavStudios({ force: true })
+      } else if (tab === 'series') {
+        loadJavSeries({ force: true })
       } else {
         loadJavs({ force: true })
       }
     },
-    [configLoaded, hydrated, loadJavIdols, loadJavStudios, loadJavs]
+    [configLoaded, hydrated, loadJavIdols, loadJavSeries, loadJavStudios, loadJavs]
   )
 
   const currentUrlState = useMemo(
@@ -935,6 +980,8 @@ export default function App() {
           javTags,
           javStudioId,
           javStudioName,
+          javSeriesId,
+          javSeriesName,
           javSort,
           javTempSort,
           javRandomMode,
@@ -942,6 +989,7 @@ export default function App() {
           idolSort,
           idolPage,
           studioPage,
+          seriesPage,
           directories,
           enabledDirectoryIds,
           directoryFilterMode,
@@ -955,8 +1003,10 @@ export default function App() {
       idolPage,
       idolSort,
       studioPage,
+      seriesPage,
       javIdolIds,
       javStudioId,
+      javSeriesId,
       javPage,
       javRandomMode,
       javRandomSeed,
@@ -975,6 +1025,7 @@ export default function App() {
       tagsByName,
       viewMode,
       javStudioName,
+      javSeriesName,
     ]
   )
 
@@ -1030,6 +1081,9 @@ export default function App() {
   const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
   const studioHasPrev = studioPage > 1
   const studioHasNext = studioPage < studioLastPage
+  const seriesLastPage = Math.max(1, Math.ceil((seriesTotal || 0) / JAV_STUDIO_PAGE_SIZE))
+  const seriesHasPrev = seriesPage > 1
+  const seriesHasNext = seriesPage < seriesLastPage
   const javTagNameMap = useMemo(
     () => new Map((javTagOptions || []).map((tag) => [tag.id, tag.name])),
     [javTagOptions]
@@ -1063,6 +1117,7 @@ export default function App() {
     (javIdolIds.length > 0 ||
       javTags.length > 0 ||
       Boolean(javStudioId) ||
+      Boolean(javSeriesId) ||
       Boolean((javSearchTerm || '').trim()))
   useEffect(() => {
     setJavResolvedIdols({})
@@ -1112,6 +1167,7 @@ export default function App() {
     idolIds: [],
     tagIds: [],
     studioId: null,
+    seriesId: null,
     random: false,
     tempSort: '',
   })
@@ -1122,6 +1178,7 @@ export default function App() {
     idolIds: [],
     tagIds: [],
     studioId: null,
+    seriesId: null,
     search: '',
   })
   const handleJavRandomClick = useCallback(() => {
@@ -1135,10 +1192,13 @@ export default function App() {
       javTags: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
     setJavSearchInput('')
     loadJavRandom(nextSeed)
@@ -1152,6 +1212,7 @@ export default function App() {
       javTab: 'list',
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
     loadJavRandom(nextSeed)
   }, [loadJavRandom])
@@ -1202,6 +1263,19 @@ export default function App() {
           const label = javStudioName || loadedStudioName || `#${javStudioId}`
           parts.push(zh(`片商: ${label}`, `Studio: ${label}`))
         }
+        if (javSeriesId) {
+          const loadedSeriesItem = javItems.find(
+            (item) =>
+              Number(item?.series?.id) === Number(javSeriesId) ||
+              Number(item?.series_en?.id) === Number(javSeriesId)
+          )
+          const loadedSeriesName =
+            Number(loadedSeriesItem?.series?.id) === Number(javSeriesId)
+              ? loadedSeriesItem?.series?.name || ''
+              : loadedSeriesItem?.series_en?.name || ''
+          const label = javSeriesName || loadedSeriesName || `#${javSeriesId}`
+          parts.push(zh(`系列: ${label}`, `Series: ${label}`))
+        }
       }
       const searchLabel = (javSearchTerm || '').trim()
       if (searchLabel) parts.push(zh(`搜索: ${searchLabel}`, `Search: ${searchLabel}`))
@@ -1227,6 +1301,8 @@ export default function App() {
     javTags,
     javStudioId,
     javStudioName,
+    javSeriesId,
+    javSeriesName,
     javItems,
     javTagNameMap,
     javSearchTerm,
@@ -1262,10 +1338,13 @@ export default function App() {
       javTags: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javSearchTerm: (javSearchInput || '').trim(),
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
   }
 
@@ -1334,9 +1413,11 @@ export default function App() {
       const prevJavPage = javPage
       const prevIdolPage = idolPage
       const prevStudioPage = studioPage
+      const prevSeriesPage = seriesPage
       const javLast = Math.max(1, Math.ceil((javTotal || 0) / javSize))
       const idolLast = Math.max(1, Math.ceil((idolTotal || 0) / idolSize))
       const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
+      const seriesLast = Math.max(1, Math.ceil((seriesTotal || 0) / JAV_STUDIO_PAGE_SIZE))
       useStore.setState({
         javPageSize: javSize,
         javGridColumns: javColumns,
@@ -1350,6 +1431,7 @@ export default function App() {
         javPage: Math.min(prevJavPage, javLast),
         idolPage: Math.min(prevIdolPage, idolLast),
         studioPage: Math.min(prevStudioPage, studioLast),
+        seriesPage: Math.min(prevSeriesPage, seriesLast),
         javRandomMode: false,
         javRandomSeed: null,
         config: cfg,
@@ -1673,13 +1755,15 @@ export default function App() {
   }
 
   const handleSwitchToJav = () => {
-    const targetTab = javTab === 'idol' || javTab === 'studio' ? javTab : 'list'
+    const targetTab =
+      javTab === 'idol' || javTab === 'studio' || javTab === 'series' ? javTab : 'list'
     useStore.setState({ viewMode: 'jav', videoTempSort: '', javTab: targetTab, javTempSort: '' })
     forceReloadJavByTab(targetTab)
   }
 
   const handleSwitchJavTab = (tab) => {
-    const nextTab = tab === 'idol' ? 'idol' : tab === 'studio' ? 'studio' : 'list'
+    const nextTab =
+      tab === 'idol' ? 'idol' : tab === 'studio' ? 'studio' : tab === 'series' ? 'series' : 'list'
     const shouldResetRandomList = nextTab === 'list' && javRandomMode
     const shouldClearSearch = nextTab === 'list' || nextTab !== javTab || shouldResetRandomList
     const nextRandomMode = nextTab === 'list' && !shouldResetRandomList ? javRandomMode : false
@@ -1691,11 +1775,14 @@ export default function App() {
       javTags: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javRandomMode: nextRandomMode,
       javRandomSeed: nextRandomSeed,
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     }
     if (shouldClearSearch) {
       updates.javSearchTerm = ''
@@ -1728,10 +1815,13 @@ export default function App() {
       javTags: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
   }
 
@@ -1749,10 +1839,13 @@ export default function App() {
       javTags: [],
       javStudioId: null,
       javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
   }, [])
 
@@ -1770,10 +1863,37 @@ export default function App() {
       javTags: [],
       javStudioId: id,
       javStudioName: String(studio?.name || '').trim(),
+      javSeriesId: null,
+      javSeriesName: '',
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
+    })
+  }
+
+  const handleSelectSeries = (series) => {
+    const id = Number(series?.id)
+    if (!Number.isFinite(id) || id <= 0) return
+    useStore.setState({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: 'list',
+      javTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javIdolIds: [],
+      javTags: [],
+      javStudioId: null,
+      javStudioName: '',
+      javSeriesId: id,
+      javSeriesName: String(series?.name || '').trim(),
+      javSearchTerm: '',
+      javPage: 1,
+      idolPage: 1,
+      studioPage: 1,
+      seriesPage: 1,
     })
   }
 
@@ -1819,9 +1939,12 @@ export default function App() {
       javTags: nextTags,
       javStudioId: hasStudio ? nextStudioId : null,
       javStudioName: nextStudioName,
+      javSeriesId: null,
+      javSeriesName: '',
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
     setJavSearchInput(nextSearch)
     setJavQueryEditorOpen(false)
@@ -1861,7 +1984,9 @@ export default function App() {
       ? idolError
       : javTab === 'studio'
         ? studioError
-        : javError
+        : javTab === 'series'
+          ? seriesError
+          : javError
     : error
   const showDirectorySetupHint =
     hydrated &&
@@ -1874,7 +1999,13 @@ export default function App() {
     videos.length === 0
 
   const activeJavLoading =
-    javTab === 'idol' ? idolLoading : javTab === 'studio' ? studioLoading : javLoading
+    javTab === 'idol'
+      ? idolLoading
+      : javTab === 'studio'
+        ? studioLoading
+        : javTab === 'series'
+          ? seriesLoading
+          : javLoading
   const javVideoPickerTitle =
     javVideoPickerAction === 'open'
       ? alternatePlayer === 'mpv'
@@ -2005,6 +2136,37 @@ export default function App() {
               onLast={() => setStudioPage(studioLastPage)}
               items={studioItems}
               onSelectStudio={handleSelectStudio}
+            />
+          ) : javTab === 'series' ? (
+            <JavSeriesView
+              page={seriesPage}
+              lastPage={seriesLastPage}
+              hasPrev={seriesHasPrev}
+              hasNext={seriesHasNext}
+              loading={seriesLoading}
+              buildPageUrl={({ page: targetPage }) =>
+                buildJavUrl({ page: targetPage, tab: 'series' })
+              }
+              buildSeriesUrl={(series) =>
+                buildJavUrl({
+                  page: 1,
+                  search: '',
+                  tab: 'list',
+                  idolIds: [],
+                  tagIds: [],
+                  studioId: null,
+                  seriesId: series.id,
+                  seriesName: series.name,
+                  tempSort: '',
+                })
+              }
+              onFirst={() => setSeriesPage(1)}
+              onPrev={() => seriesHasPrev && setSeriesPage(seriesPage - 1)}
+              onGoToPage={(p) => setSeriesPage(p)}
+              onNext={() => seriesHasNext && setSeriesPage(seriesPage + 1)}
+              onLast={() => setSeriesPage(seriesLastPage)}
+              items={seriesItems}
+              onSelectSeries={handleSelectSeries}
             />
           ) : (
             <JavView

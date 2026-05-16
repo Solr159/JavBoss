@@ -499,7 +499,12 @@ func assertModelIndexes(t *testing.T, db *gorm.DB) {
 	})
 	assertTableIndexes(t, db, "jav", []string{
 		"idx_jav_code",
+		"idx_jav_series_en_id",
+		"idx_jav_series_id",
 		"idx_jav_studio_id",
+	})
+	assertTableIndexes(t, db, "jav_series", []string{
+		"idx_jav_series_name_language",
 	})
 	assertTableIndexes(t, db, "jav_studio", []string{
 		"idx_jav_studio_name",

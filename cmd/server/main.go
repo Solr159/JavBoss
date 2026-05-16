@@ -137,7 +137,7 @@ func main() {
 	coverManager.Start(ctx)
 	service.StartDirectoryScanner(ctx, time.Minute)
 	service.StartJavScanner(ctx, time.Minute)
-	service.StartJavStudioScanner(ctx, time.Minute)
+	service.StartJavMetadataScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
 	router := server.NewRouter(resolveStaticDir(*staticDir))

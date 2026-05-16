@@ -14,6 +14,7 @@ import {
   fetchJavs,
   fetchJavIdols,
   fetchJavStudios,
+  fetchJavSeries,
   fetchJavTags,
   fetchConfig,
 } from '@/api'
@@ -33,6 +34,7 @@ let lastVideoFetchKey = null
 let lastJavFetchKey = null
 let lastIdolFetchKey = null
 let lastStudioFetchKey = null
+let lastSeriesFetchKey = null
 let lastTagFetchKey = null
 let lastJavTagFetchKey = null
 let tagFetchInFlight = null
@@ -124,7 +126,7 @@ export const useStore = create((set, get) => ({
   javRandomMode: false,
   javRandomSeed: null,
   viewMode: 'video', // video | jav
-  javTab: 'list', // list | idol | studio
+  javTab: 'list', // list | idol | studio | series
   javPage: 1,
   javPageSize: JAV_PAGE_SIZE,
   javGridColumns: JAV_GRID_COLUMNS_AUTO,
@@ -151,6 +153,8 @@ export const useStore = create((set, get) => ({
   javTags: [],
   javStudioId: null,
   javStudioName: '',
+  javSeriesId: null,
+  javSeriesName: '',
   javItems: [],
   javTotal: 0,
   javLoading: false,
@@ -167,9 +171,14 @@ export const useStore = create((set, get) => ({
   studioTotal: 0,
   studioLoading: false,
   studioError: null,
+  seriesPage: 1,
+  seriesItems: [],
+  seriesTotal: 0,
+  seriesLoading: false,
+  seriesError: null,
   setIdolPageSize: (size) => {
     const next = Math.max(1, Math.floor(Number(size) || JAV_PAGE_SIZE))
-    set({ idolPageSize: next, idolPage: 1, studioPage: 1 })
+    set({ idolPageSize: next, idolPage: 1, studioPage: 1, seriesPage: 1 })
   },
   setIdolSort: (sort) => {
     const normalized = normalizeIdolSort(sort)
@@ -275,7 +284,7 @@ export const useStore = create((set, get) => ({
     set({ viewMode: mode, ...(mode === 'jav' ? { videoTempSort: '' } : { javTempSort: '' }) })
   },
   setJavTab: (tab) => {
-    if (tab !== 'list' && tab !== 'idol' && tab !== 'studio') return
+    if (tab !== 'list' && tab !== 'idol' && tab !== 'studio' && tab !== 'series') return
     set({ javTab: tab, javTempSort: '' })
   },
   setJavIdolIds: (idolIds) => {
@@ -286,7 +295,15 @@ export const useStore = create((set, get) => ({
           .filter((id) => Number.isFinite(id) && id > 0)
       )
     )
-    set({ javIdolIds: clean, javStudioId: null, javStudioName: '', javTempSort: '', javPage: 1 })
+    set({
+      javIdolIds: clean,
+      javStudioId: null,
+      javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
+      javTempSort: '',
+      javPage: 1,
+    })
   },
   setJavTags: (tags) => {
     const clean = Array.from(
@@ -296,7 +313,15 @@ export const useStore = create((set, get) => ({
           .filter((id) => Number.isFinite(id) && id > 0)
       )
     )
-    set({ javTags: clean, javStudioId: null, javStudioName: '', javTempSort: '', javPage: 1 })
+    set({
+      javTags: clean,
+      javStudioId: null,
+      javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
+      javTempSort: '',
+      javPage: 1,
+    })
   },
   setJavStudio: (studio) => {
     const id = Number(studio?.id)
@@ -307,6 +332,27 @@ export const useStore = create((set, get) => ({
     set({
       javStudioId: id,
       javStudioName: String(studio?.name || '').trim(),
+      javSeriesId: null,
+      javSeriesName: '',
+      javIdolIds: [],
+      javTags: [],
+      javTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javPage: 1,
+    })
+  },
+  setJavSeries: (series) => {
+    const id = Number(series?.id)
+    if (!Number.isFinite(id) || id <= 0) {
+      set({ javSeriesId: null, javSeriesName: '', javPage: 1 })
+      return
+    }
+    set({
+      javSeriesId: id,
+      javSeriesName: String(series?.name || '').trim(),
+      javStudioId: null,
+      javStudioName: '',
       javIdolIds: [],
       javTags: [],
       javTempSort: '',
@@ -321,13 +367,14 @@ export const useStore = create((set, get) => ({
   },
   setIdolPage: (p) => set({ idolPage: p }),
   setStudioPage: (p) => set({ studioPage: p }),
+  setSeriesPage: (p) => set({ seriesPage: p }),
   setJavSearchTerm: (value, options = {}) => {
     const { resetPage = true } = options
     const trimmed = (value || '').trim()
     const state = get()
     if (trimmed === state.javSearchTerm) {
       if (resetPage && state.javPage !== 1) {
-        set({ javTempSort: '', javPage: 1, idolPage: 1, studioPage: 1 })
+        set({ javTempSort: '', javPage: 1, idolPage: 1, studioPage: 1, seriesPage: 1 })
       }
       return
     }
@@ -336,6 +383,7 @@ export const useStore = create((set, get) => ({
       next.javPage = 1
       next.idolPage = 1
       next.studioPage = 1
+      next.seriesPage = 1
     }
     set(next)
   },
@@ -564,6 +612,7 @@ export const useStore = create((set, get) => ({
       javIdolIds,
       javTags,
       javStudioId,
+      javSeriesId,
       javSort,
       javTempSort,
       javRandomMode,
@@ -580,6 +629,7 @@ export const useStore = create((set, get) => ({
       (javIdolIds || []).join(','),
       (javTags || []).join(','),
       javStudioId || '',
+      javSeriesId || '',
       effectiveSort,
       javRandomMode ? javRandomSeed || '' : '',
       directoryIds.join(','),
@@ -597,6 +647,7 @@ export const useStore = create((set, get) => ({
         idolIds: javIdolIds,
         tagIds: javTags,
         studioId: javStudioId,
+        seriesId: javSeriesId,
         sort: javRandomMode ? 'random' : effectiveSort,
         seed: javRandomMode ? javRandomSeed : null,
         directoryIds,
@@ -667,6 +718,35 @@ export const useStore = create((set, get) => ({
       set({ studioError: e.message || zh('加载片商失败', 'Failed to load studios') })
     } finally {
       set({ studioLoading: false })
+    }
+  },
+  loadJavSeries: async (options = {}) => {
+    const { seriesPage, javSearchTerm } = get()
+    const directoryIds = directoryQueryIds(get())
+    const search = javSearchTerm || ''
+    const key = ['series', seriesPage, JAV_STUDIO_PAGE_SIZE, search, directoryIds.join(',')].join(
+      '|'
+    )
+    if (!options.force && key === lastSeriesFetchKey) {
+      return
+    }
+    lastSeriesFetchKey = key
+    set({ seriesLoading: true, seriesError: null })
+    try {
+      const resp = await fetchJavSeries({
+        limit: JAV_STUDIO_PAGE_SIZE,
+        offset: (seriesPage - 1) * JAV_STUDIO_PAGE_SIZE,
+        search,
+        directoryIds,
+      })
+      set({
+        seriesItems: resp.items || [],
+        seriesTotal: resp.total || 0,
+      })
+    } catch (e) {
+      set({ seriesError: e.message || zh('加载系列失败', 'Failed to load series') })
+    } finally {
+      set({ seriesLoading: false })
     }
   },
 
@@ -766,6 +846,7 @@ export const useStore = create((set, get) => ({
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
       videoTempSort: '',
       javTempSort: '',
       randomMode: false,
@@ -777,6 +858,7 @@ export const useStore = create((set, get) => ({
     lastJavFetchKey = null
     lastIdolFetchKey = null
     lastStudioFetchKey = null
+    lastSeriesFetchKey = null
     lastTagFetchKey = null
     lastJavTagFetchKey = null
   },
@@ -808,11 +890,13 @@ export const useStore = create((set, get) => ({
       javPage: 1,
       idolPage: 1,
       studioPage: 1,
+      seriesPage: 1,
     })
     lastVideoFetchKey = null
     lastJavFetchKey = null
     lastIdolFetchKey = null
     lastStudioFetchKey = null
+    lastSeriesFetchKey = null
     lastTagFetchKey = null
     lastJavTagFetchKey = null
   },

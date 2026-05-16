@@ -76,6 +76,53 @@ func TestLookupJavByCodeDoesNotCacheTemporaryErrors(t *testing.T) {
 	}
 }
 
+func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
+	cases := []struct {
+		name     string
+		provider Provider
+		method   string
+		input    string
+		want     string
+	}{
+		{
+			name:     "javbus lookup jav keeps default version",
+			provider: ProviderJavBus,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v1:jav:javbus:lookup_jav:ABC-001",
+		},
+		{
+			name:     "javdatabase lookup jav uses provider version",
+			provider: ProviderJavDatabase,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v2:jav:javdatabase:lookup_jav:ABC-001",
+		},
+		{
+			name:     "avmoo lookup jav uses provider version",
+			provider: ProviderAvmoo,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v2:jav:avmoo:lookup_jav:ABC-001",
+		},
+		{
+			name:     "javdatabase cover keeps default version",
+			provider: ProviderJavDatabase,
+			method:   "lookup_cover",
+			input:    "abc-001",
+			want:     "v1:jav:javdatabase:lookup_cover:ABC-001",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := lookupCacheKey(tc.provider, tc.method, tc.input); got != tc.want {
+				t.Fatalf("lookupCacheKey() = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 type memoryLookupCache struct {
 	items map[string]memoryLookupCacheItem
 }

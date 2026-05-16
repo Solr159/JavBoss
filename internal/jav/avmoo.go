@@ -245,6 +245,7 @@ func findAvmooSearchItemCode(item *html.Node) string {
 type avmooMovieFields struct {
 	Title       string
 	Code        string
+	Series      string
 	ReleaseDate string
 	Runtime     string
 	Tags        []string
@@ -266,13 +267,14 @@ func parseAvmooMovieInfo(root *html.Node) *JavInfo {
 	info := &JavInfo{
 		Title:       title,
 		Code:        strings.TrimSpace(fields.Code),
+		Series:      strings.TrimSpace(fields.Series),
 		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
 		DurationMin: parseRuntimeMinutes(fields.Runtime),
 		Tags:        dedupeNonEmpty(fields.Tags),
 		Actors:      dedupeNonEmpty(fields.Actors),
 		Provider:    ProviderAvmoo,
 	}
-	if info.Title == "" && info.Code == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+	if info.Title == "" && info.Code == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
 	}
 	return info
@@ -317,11 +319,20 @@ func extractAvmooMovieFields(root *html.Node) avmooMovieFields {
 }
 
 func extractAvmooInfoFields(root *html.Node, out *avmooMovieFields) {
+	pendingLabel := ""
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "p" {
-			if label, value := extractAvmooParagraphField(n); label != "" {
+			label, value := extractAvmooParagraphField(n)
+			switch {
+			case label != "" && value != "":
+				pendingLabel = ""
 				assignAvmooMovieField(out, label, value)
+			case label != "":
+				pendingLabel = label
+			case pendingLabel != "":
+				assignAvmooMovieField(out, pendingLabel, firstNonEmpty(firstAnchorText(n), flattenText(n)))
+				pendingLabel = ""
 			}
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -367,6 +378,10 @@ func assignAvmooMovieField(out *avmooMovieFields, label, value string) {
 	case "長度", "长度", "時長", "时长", "duration", "runtime":
 		if out.Runtime == "" {
 			out.Runtime = value
+		}
+	case "系列", "series":
+		if out.Series == "" {
+			out.Series = value
 		}
 	}
 }
