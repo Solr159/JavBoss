@@ -1,4 +1,4 @@
-import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
+import { normalizeJavSort } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 
 const RANDOM_SEED_MAX = 2147483646
@@ -38,26 +38,18 @@ export const parseUrlState = (searchString = window.location.search, options = {
   const rawView = sp.get('view')
   const view = rawView === 'jav' ? 'jav' : rawView === 'video' ? 'video' : defaultView
   const directoryIds = parseDirectoryIds(sp)
-  const hasSort = sp.has('sort')
 
-  const videoSortRaw = (sp.get('sort') || '').trim()
-  const videoSort = normalizeVideoSort(videoSortRaw)
   const videoTempSort = normalizeVideoSort((sp.get('temp_sort') || '').trim(), '')
 
   const video = {
     page: parseIntSafe(sp.get('page'), 1),
     search: (sp.get('search') || '').trim(),
-    sort: videoSort,
-    hasSort,
     tempSort: videoTempSort,
     tagIds: parseIds(sp.get('tag_ids')),
     random: sp.get('random') === '1',
     seed: clampSeed(sp.get('seed')),
   }
 
-  const sortParam = (sp.get('sort') || '').trim().toLowerCase()
-  const javSort = normalizeJavSort(sortParam)
-  const idolSort = normalizeIdolSort(sortParam)
   const javTempSort = normalizeJavSort((sp.get('temp_sort') || '').trim(), '')
 
   const rawJavTab = sp.get('tab')
@@ -78,10 +70,7 @@ export const parseUrlState = (searchString = window.location.search, options = {
     studioName: (sp.get('studio_name') || '').trim(),
     seriesId: parsePositiveInt(sp.get('series_id')),
     seriesName: (sp.get('series_name') || '').trim(),
-    sort: javSort,
-    hasSort,
     tempSort: javTempSort,
-    idolSort,
     random: sp.get('random') === '1',
     seed: clampSeed(sp.get('seed')),
   }
@@ -116,12 +105,6 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
       sp.set('series_id', String(state.jav.seriesId))
       if (state.jav.seriesName) sp.set('series_name', state.jav.seriesName)
     }
-    const sortVal = state.jav.tab === 'idol' ? state.jav.idolSort : state.jav.sort
-    if (state.jav.tab === 'idol') {
-      if (sortVal && sortVal !== 'work') sp.set('sort', sortVal)
-    } else if (state.jav.tab === 'list' && sortVal && sortVal !== 'recent') {
-      sp.set('sort', sortVal)
-    }
     if (state.jav.tab === 'list' && !state.jav.random && state.jav.tempSort) {
       sp.set('temp_sort', state.jav.tempSort)
     }
@@ -142,7 +125,6 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     sp.set('directory_ids', '0')
   }
   if (state.video.search) sp.set('search', state.video.search)
-  if (state.video.sort && state.video.sort !== 'recent') sp.set('sort', state.video.sort)
   if (!state.video.random && state.video.tempSort) sp.set('temp_sort', state.video.tempSort)
   if (state.video.tagIds?.length) {
     sp.set('tag_ids', [...state.video.tagIds].sort((a, b) => a - b).join(','))
@@ -194,7 +176,6 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
     video: {
       page: store.randomMode ? 1 : store.page,
       search: store.randomMode ? '' : (store.searchTerm || '').trim(),
-      sort: store.sortOrder || 'recent',
       tempSort: store.randomMode ? '' : store.videoTempSort || '',
       tagIds: selectedIds,
       random: store.randomMode,
@@ -226,9 +207,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       studioName: (store.javStudioName || '').trim(),
       seriesId: store.javSeriesId || null,
       seriesName: (store.javSeriesName || '').trim(),
-      sort: store.javSort || 'recent',
       tempSort: store.javTab === 'list' && !store.javRandomMode ? store.javTempSort || '' : '',
-      idolSort: store.idolSort || 'work',
       random: store.javTab === 'list' && store.javRandomMode,
       seed: store.javTab === 'list' && store.javRandomMode ? store.javRandomSeed : null,
     },

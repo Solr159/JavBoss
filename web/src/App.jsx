@@ -637,9 +637,6 @@ export default function App() {
       if (searchVal) {
         sp.set('search', searchVal)
       }
-      if (sortOrder && sortOrder !== 'recent') {
-        sp.set('sort', sortOrder)
-      }
       const hasTempSortOverride = Object.prototype.hasOwnProperty.call(options, 'tempSort')
       const tempSortVal = hasTempSortOverride
         ? normalizeVideoSort(tempSortOverride, '')
@@ -667,7 +664,7 @@ export default function App() {
       const query = sp.toString()
       return `${window.location.pathname}${query ? `?${query}` : ''}`
     },
-    [page, randomMode, randomSeed, searchTerm, selectedTagIds, sortOrder, videoTempSort]
+    [page, randomMode, randomSeed, searchTerm, selectedTagIds, videoTempSort]
   )
 
   const buildJavUrl = useCallback(
@@ -681,7 +678,6 @@ export default function App() {
         studioName: studioNameOverride,
         seriesId: seriesIdOverride,
         seriesName: seriesNameOverride,
-        sort: sortOverride,
         tagIds: tagIdsOverride,
         random: randomOverride,
         seed: seedOverride,
@@ -725,23 +721,6 @@ export default function App() {
           sp.set('series_name', seriesName)
         }
       }
-      const hasSortOverride = Object.prototype.hasOwnProperty.call(options, 'sort')
-      const normalizedSortOverride = hasSortOverride
-        ? tab === 'idol'
-          ? normalizeIdolSort(sortOverride, null)
-          : normalizeJavSort(sortOverride, null)
-        : null
-      const sortVal =
-        tab === 'idol'
-          ? String(normalizedSortOverride ?? idolSort ?? '').trim()
-          : String(normalizedSortOverride ?? javSort ?? '').trim()
-      if (tab === 'idol') {
-        if (sortVal && sortVal !== 'work') {
-          sp.set('sort', sortVal)
-        }
-      } else if (tab === 'list' && sortVal && sortVal !== 'recent') {
-        sp.set('sort', sortVal)
-      }
       const hasTempSortOverride = Object.prototype.hasOwnProperty.call(options, 'tempSort')
       const tempSortVal = hasTempSortOverride ? normalizeJavSort(tempSortOverride, '') : javTempSort
       const randomFlag = randomOverride ?? javRandomMode
@@ -784,9 +763,7 @@ export default function App() {
       javTempSort,
       javSearchTerm,
       javTab,
-      javSort,
       javTags,
-      idolSort,
       javRandomMode,
       javRandomSeed,
     ]
@@ -834,7 +811,6 @@ export default function App() {
       }
       if (parsed.view === 'jav') {
         const { jav } = parsed
-        const { javSort: currentJavSort, idolSort: currentIdolSort } = useStore.getState()
         useStore.setState({
           viewMode: 'jav',
           videoTempSort: '',
@@ -852,9 +828,7 @@ export default function App() {
           idolPage: jav.tab === 'idol' ? jav.page : 1,
           studioPage: jav.tab === 'studio' ? jav.page : 1,
           seriesPage: jav.tab === 'series' ? jav.page : 1,
-          javSort: jav.tab === 'list' && jav.hasSort ? jav.sort : currentJavSort,
           javTempSort: jav.tab !== 'list' || jav.random ? '' : jav.tempSort,
-          idolSort: jav.tab === 'idol' && jav.hasSort ? jav.idolSort : currentIdolSort,
         })
         setJavSearchInput(jav.search)
         if (jav.tab === 'list' && jav.random) {
@@ -865,11 +839,9 @@ export default function App() {
       }
 
       const { video } = parsed
-      const currentVideoSort = useStore.getState().sortOrder
       useStore.setState({
         viewMode: 'video',
         javTempSort: '',
-        sortOrder: video.hasSort ? video.sort : currentVideoSort,
         videoTempSort: video.random ? '' : video.tempSort,
         randomMode: video.random,
         randomSeed: video.random ? video.seed : null,
@@ -1035,7 +1007,6 @@ export default function App() {
           viewMode,
           page,
           searchTerm,
-          sortOrder,
           videoTempSort,
           selectedTags,
           randomMode,
@@ -1049,11 +1020,9 @@ export default function App() {
           javStudioName,
           javSeriesId,
           javSeriesName,
-          javSort,
           javTempSort,
           javRandomMode,
           javRandomSeed,
-          idolSort,
           idolPage,
           studioPage,
           seriesPage,
@@ -1068,7 +1037,6 @@ export default function App() {
       directoryFilterMode,
       enabledDirectoryIds,
       idolPage,
-      idolSort,
       studioPage,
       seriesPage,
       javIdolIds,
@@ -1078,7 +1046,6 @@ export default function App() {
       javRandomMode,
       javRandomSeed,
       javSearchTerm,
-      javSort,
       javTempSort,
       javTab,
       javTags,
@@ -1087,7 +1054,6 @@ export default function App() {
       randomSeed,
       searchTerm,
       selectedTags,
-      sortOrder,
       videoTempSort,
       tagsByName,
       viewMode,
