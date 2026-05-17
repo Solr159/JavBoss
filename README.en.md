@@ -189,7 +189,7 @@ After downloading and extracting a new version, copy the old version's `data/` d
 <br>
 
 - Q: Do I need to keep external network access available while using Pornboss?
-- A: No. Pornboss reads all existing information from the `data/` directory, which means anything you have already seen remains available offline. Without external network access, Pornboss cannot continue fetching or updating JAV information, but already indexed information is not affected.
+- A: No. Pornboss reads all existing information from the `data/` directory, and anything you have already seen remains available offline. Without external network access, Pornboss cannot continue fetching or updating JAV information, but already indexed information is not affected.
 
 <br>
 
