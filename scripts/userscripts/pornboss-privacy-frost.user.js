@@ -18,7 +18,7 @@
   'use strict'
 
   const CONFIG = {
-    blurPx: 6,
+    blurPx: 12,
     brightness: 1,
     saturate: 0.98,
     scale: 1.015,
