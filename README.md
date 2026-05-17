@@ -2,12 +2,12 @@
 
 <h1 align="center">Pornboss</h1>
 
-<p align="center">面向本地成人视频收藏的一站式媒体库：自动识别 JAV、抓取元数据、管理目录与标签，并通过内置 mpv 快速播放。</p>
+<p align="center">本地成人视频收藏的一站式解决方案：自动扫描目录视频生成封面截图，识别 JAV 并抓取元数据，提供强大的视频和 JAV 检索功能，并通过内置 mpv 播放器快速播放。</p>
 
 <p align="center">
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/pornboss?display_name=tag"></a>
-  <a href="https://github.com/JavBoss/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/pornboss?style=social"></a>
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/pornboss?display_name=tag"></a>
+  <a href="https://github.com/Solr159/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/pornboss?style=social"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
@@ -15,52 +15,64 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
-## Keywords
-
-porn manager, jav manager, av manager, jav scraper, jav metadata, adult video manager, pornhub, jav library, javbus, 91, 日本av
-
 ## Pornboss 是什么？
 
-Pornboss 是一个本地媒体库管理工具，适合管理大量本地成人视频、JAV、短视频、合集与移动硬盘资源。它不会修改你的视频目录内容，而是把扫描索引、标签、封面、缩略图和元数据统一保存在项目的 `data/` 目录中。
+Pornboss 是一个本地web应用，提供全方位、全自动化的本地成人视频管理服务，尤其擅长日本AV的管理和检索。
 
-如果你希望像浏览 JavBus / JavLibrary 一样浏览自己的本地收藏，又不想手动改文件、整理 NFO、配置一堆工具，Pornboss 会把这些流程集中到一个简单的 Web UI 里。
+Pornboss的浏览体验有点类似 JavDb、JavBus、JavLibrary，但在他们的基础之上做了优化和改进，追求的是更加直观、更加强大、更加友好的用户体验。
 
-## 核心功能
+## 核心理念
 
-### 1. JAV 自动识别与元数据抓取
+- **全自动化托管式目录服务**：pornboss提供的是托管式的本地目录服务，用户只需要将目录添加进pornboss，之后所有的数据抓取、索引、目录变化时的数据更新都会pornboss由自动完成。
+
+<br>
+
+- **零侵入式设计**：pornboss充分尊重用户目录的内容，只读取目录绝不做任何修改，用户无需担心pornboss在自己的目录里随意生成各种垃圾（.nfo文件或者各种封面图片），这就意味着pornboss可以无缝与其他视频管理工具协作而不用担心相互影响。
+<br>
+
+- **数据永不丢失**：pornboss所有的数据保存在项目的`data/`目录中，只要妥善保管好`data/`目录，无论是升级系统、还是更换电脑数据都永远不会丢失。
+
+
+## ✨ 功能介绍
+
+### 1. 🔎 强大的 JAV 信息收集和检索
 
 Pornboss 会从文件名中自动提取番号，例如 `IPX-633`、`SSIS-001`、`ipx633_ch` 等常见格式，并将识别出的影片归入 JAV 媒体库。
 
-- 自动抓取作品标题、发行时间、封面、演员、标签等 JAV 信息。
-- 自动抓取并补全女优信息，支持按女优聚合浏览本地作品。
-- 支持中英文Jav元数据抓取，可自由切换。
-- 支持按番号、标题、女优、标签、时长、发行时间、播放次数等条件筛选和排序。
-- 普通视频和 JAV 分开管理，自拍、短视频、合集、无码片段不会和番号作品混在一起。
+- 内部整合多个数据源（javbus、avmoo、theporndb、javdatabase等等），不同信息自动从最合适的数据源获取。
+- 自动抓取作品标题、发行时间、封面、演员、标签等基本信息。
+- 自动抓取并补全女优信息，身高、中英文名、三围、出生日期等等。
+- 自动抓取并补全 JAV 厂商和系列信息。
+- 支持中英文 JAV 元数据抓取，可自由切换。
+- 强大的排序功能：支持多种Jav和女优排序方式，发行日期、时长、播放次数、身高、年龄、三围等等。
+- 强大的查找和筛选功能，支持编辑各种复杂查询（关键字、女优、标签、厂商、系列等）进行分页浏览。
+- 强大的随机浏览功能：支持全局随机显示以及在某个筛选条件下进行随机，并且可以随时退出。
 
-### 2. 智能目录管理与可迁移数据
+### 2. 📁 智能目录管理与可迁移数据
 
 添加本地视频目录后，Pornboss 会在后台持续同步目录内容。目录变化会被持续感知并及时刷新，新增、删除、移动文件都会自动反映到媒体库中，已经入库的视频可以立即浏览，扫描和资料补全会逐步完成。
 
 - 支持多个资源目录，适合本机硬盘、NAS 挂载目录、移动硬盘等场景。
+- 自动截图生成视频封面，生成视频指纹落库，通过视频文件名尝试关联 JAV 番号。
 - 可任意选择启用目录，未启用的目录内容自动隐藏。
 - 目录不可用时不会删除历史索引，移动硬盘重新接入后数据会恢复显示。
 - 标签、JAV 关联和视频指纹绑定，常见的视频移动、改名场景不用重新打标签。
 - 数据库、封面、缩略图等运行数据集中保存在 `data/`，升级或迁移时复制 `data/` 目录即可。
 
-### 3. 内置 mpv 播放器
+### 3. ⏯️ 内置 mpv 播放器
 
-Pornboss 集成 mpv 播放能力，点击视频即可调用轻量、高性能的本地播放器，适合播放大文件、高码率和各种常见视频格式。
+Pornboss 集成 [mpv](https://github.com/mpv-player/mpv) 播放能力，点击视频即可调用轻量、高性能的本地播放器，适合播放大文件、高码率和各种常见视频格式。
 
 - 通过 mpv 播放原始本地文件，避免浏览器格式兼容性限制。
 - 支持默认音量、窗口尺寸、置顶等播放配置。
 - 支持自定义快捷键，例如快进、快退、音量调整等。
 - 自带 [ModernZ](https://github.com/Samillion/ModernZ) OSC 脚本，mpv 播放时默认使用更现代的播放器控制界面。
-- 使用 mpv 播放时可随时截图，截图按视频保存在 `data/video/{video_id}/screenshot/`。
+- 使用 mpv 播放时可随时截图，截图文件保存在`/data`目录中。
 - 在普通视频库和 JAV 作品库中都可以打开截图面板，按时间顺序预览所有 mpv 截图。
 - 截图面板支持放大预览、删除截图，并可直接从某张截图对应的时刻继续播放。
 - 可在全局设置中选择默认播放器，支持使用 mpv 或系统播放器播放视频，并可定位到文件所在目录。
 
-### 4. 简单易用的 UI
+### 4. 🧭 简单易用的 UI
 
 前端界面围绕“快速找到想看的视频”设计，不堆复杂设置，把常用操作放在筛选、排序、标签和随机浏览上。
 
@@ -73,19 +85,19 @@ Pornboss 集成 mpv 播放能力，点击视频即可调用轻量、高性能的
 
 ### 1. 下载
 
-前往 [Releases](https://github.com/JavBoss/pornboss/releases) 页面，下载适合你系统的版本并解压：
+前往 [Releases](https://github.com/Solr159/pornboss/releases) 页面，下载适合你系统的版本并解压：
 
 - `windows-x86_64`
 - `linux-x86_64`
-- `macos-x86_64`
-- `macos-arm64`
+- `macos-x86_64`（适用于Intel芯片的macOS）
+- `macos-arm64` （适用于M芯片的macOS）
 
 ### 2. 启动程序
 
 - Windows：双击 `pornboss.exe`。首次运行可能会被 SmartScreen 阻止，点击“更多信息” -> “仍要运行”。
 - macOS：双击 `pornboss.command`。如果提示无法验证，打开“系统设置” -> “隐私与安全性”，滑到最底部点击“仍要打开”。
-<p align="center">
-  <img src="screenshot/macos1.png" style="width: 100%; height: auto;">
+<p align="left">
+  <img src="screenshot/macos1.png" style="width: 500px; height: auto;">
 </p>
 
 - Linux：打开终端运行 `pornboss`。
@@ -98,15 +110,15 @@ Pornboss 集成 mpv 播放能力，点击视频即可调用轻量、高性能的
 port = 17654
 ```
 
-### 3. 添加资源目录
+### 3. 添加本地目录
 
-进入“全局设置” -> “目录管理”，添加存放视频的本地文件夹。扫描任务会在后台运行，已入库的视频可以直接使用，不需要等待全部扫描完成。
+进入“全局设置” -> “目录管理”，添加存放视频的本地文件夹。扫描任务会在后台运行，已入库的视频可以直接使用，不需要等待全部扫描完成。（JAV 模式的数据更新会稍微滞后于视频模式，请耐心等待1-5分钟）
 
 ### 4. 开始使用
 
 - 在顶部目录下拉菜单或“目录管理”中勾选想看的目录。
 - 在“视频”模式管理普通成人视频、短视频和合集。
-- 在“JAV”模式按番号、作品、标签和女优浏览。
+- 在“JAV”模式按作品、女优、厂商、系列和标签浏览。
 - 给常看内容打上“收藏”“中文字幕”“无码”“必看”等自定义标签。
 - 使用搜索、筛选、排序和随机浏览快速定位内容。
 
@@ -167,9 +179,8 @@ port = 17654
 ## 注意事项
 
 - Pornboss 是本地媒体库管理工具，不是在线视频站。
-- JAV 元数据、封面和女优资料依赖外部站点可访问性，中国大陆地区请自备梯子。
+- JAV 元数据、封面资料首次抓取依赖外部站点可访问性，中国大陆地区请自备梯子。
 - 首次导入大库时，扫描、封面抓取、资料补全和缩略图生成需要一些时间。
-- Pornboss 不会主动修改你的视频文件和目录结构，索引与扩展数据保存在 `data/`。
 
 ## Q&A
 
@@ -180,6 +191,11 @@ port = 17654
   3. 不小心点错了，想回到上一页的内容，直接点击浏览器回退按钮。
   4. 看到一个Jav或者女优，想检索一下相关信息，直接鼠标拖动选中文本，右键选择在Google中检索。
 
+
+<br>
+
+- Q: 使用时要一直确保外网访问通畅吗？
+- A: pornboss所有的信息读取来源于`\data`目录，已经看到的信息都是永远离线可用的。无法访问外网意味着pornboss无法做后续的 JAV 信息的抓取和更新，已入库的信息不受影响。
 
 <br>
 
@@ -209,7 +225,7 @@ port = 17654
 <br>
 
 - Q: 换电脑时怎么迁移？
-- A: 同系统迁移直接复制整个pronboss目录到新电脑即可运行。跨系统迁移在新电脑下载对应系统的pornboss，然后将旧电脑的`data/`目录复制到新电脑的pornboss目录下即可。（注意如果视频目录也发生了变化，你还需要手动在目录管理中进行调整）
+- A: 同系统迁移直接复制整个pornboss目录到新电脑即可运行。跨系统迁移在新电脑下载对应系统的pornboss，然后将旧电脑的`data/`目录复制到新电脑的pornboss目录下即可。（注意如果视频目录也发生了变化，你还需要手动在目录管理中进行调整）
 
 ## 开发者说明
 
