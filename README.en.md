@@ -29,9 +29,9 @@ The browsing experience is somewhat similar to JavDb, JavBus, and JavLibrary, bu
 
 - **Data that stays safe**: All Pornboss data is stored in the project's `data/` directory. As long as you keep `data/` safe, your library data remains available when upgrading or moving to another computer.
 
-## Features
+## ✨ Features
 
-### 1. Powerful JAV Metadata Collection And Search
+### 1. 🔎 Powerful JAV Metadata Collection And Search
 
 Pornboss extracts JAV codes from filenames, including common patterns such as `IPX-633`, `SSIS-001`, and `ipx633_ch`, then places recognized videos into the JAV library.
 
@@ -44,7 +44,7 @@ Pornboss extracts JAV codes from filenames, including common patterns such as `I
 - Provides powerful search and filtering, with editable complex queries covering keywords, actresses, tags, makers, series, and more for paged browsing.
 - Provides powerful random browsing, including global random mode and random results under the current filters, with the ability to exit random mode at any time.
 
-### 2. Smart Folder Management And Portable Data
+### 2. 📁 Smart Folder Management And Portable Data
 
 After you add local media folders, Pornboss continuously syncs their contents in the background. Folder changes are detected and refreshed promptly, so newly added, removed, or moved files are reflected in the media library. Indexed videos can be browsed immediately while scanning and metadata completion continue in the background.
 
@@ -55,7 +55,7 @@ After you add local media folders, Pornboss continuously syncs their contents in
 - Binds tags, JAV associations, and metadata to video fingerprints, so common move and rename workflows do not require retagging.
 - Stores the database, covers, thumbnails, and runtime data under `data/`; copy this directory to upgrade or migrate.
 
-### 3. Built-In mpv Playback
+### 3. ⏯️ Built-In mpv Playback
 
 Pornboss integrates mpv playback, so clicking a video can launch a lightweight, high-performance local player that handles large files, high bitrates, and many common video formats.
 
@@ -68,7 +68,7 @@ Pornboss integrates mpv playback, so clicking a video can launch a lightweight, 
 - The screenshot panel supports enlarged previews, deleting screenshots, and resuming playback directly from a screenshot timestamp.
 - Lets you choose the default player in global settings, supports playback through mpv or the system player, and can reveal the file in its containing folder.
 
-### 4. Simple, Practical UI
+### 4. 🧭 Simple, Practical UI
 
 The frontend is designed around finding the right video quickly. Common operations are centered on filtering, sorting, tagging, and random discovery instead of dense configuration screens.
 
