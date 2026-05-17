@@ -125,51 +125,51 @@ port = 17654
 ## 部分截图
 
 <p align="center">
-  <img src="screenshot/image2_1.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_work.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_2.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_idol.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_3.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_studio.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_4.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_series.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_5.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_search.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_6.png" style="width: 100%; height: auto;">
+  <img src="screenshot/jav_screenshot.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_7.png" style="width: 100%; height: auto;">
+  <img src="screenshot/mpv.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_8.png" style="width: 100%; height: auto;">
+  <img src="screenshot/video_work.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_9.png" style="width: 100%; height: auto;">
+  <img src="screenshot/setting_dir.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_10.png" style="width: 100%; height: auto;">
+  <img src="screenshot/setting_basic.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_11.png" style="width: 100%; height: auto;">
+  <img src="screenshot/setting_mpv_1.png" style="width: 100%; height: auto;">
 </p>
 
 <p align="center">
-  <img src="screenshot/image2_12.png" style="width: 100%; height: auto;">
+  <img src="screenshot/setting_mpv_2.png" style="width: 100%; height: auto;">
 </p>
 
 ## 如何升级版本
