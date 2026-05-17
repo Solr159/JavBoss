@@ -5,9 +5,9 @@
 <p align="center">本地成人视频收藏的一站式解决方案：自动扫描目录视频生成封面截图，识别 JAV 并抓取元数据，提供强大的视频和 JAV 检索功能，并通过内置 mpv 播放器快速播放。</p>
 
 <p align="center">
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/pornboss?display_name=tag"></a>
-  <a href="https://github.com/JavBoss/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/pornboss?style=social"></a>
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/pornboss?display_name=tag"></a>
+  <a href="https://github.com/Solr159/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/pornboss?style=social"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
@@ -61,7 +61,7 @@ Pornboss 会从文件名中自动提取番号，例如 `IPX-633`、`SSIS-001`、
 
 ### 3. ⏯️ 内置 mpv 播放器
 
-Pornboss 集成 mpv 播放能力，点击视频即可调用轻量、高性能的本地播放器，适合播放大文件、高码率和各种常见视频格式。
+Pornboss 集成 [mpv](https://github.com/mpv-player/mpv) 播放能力，点击视频即可调用轻量、高性能的本地播放器，适合播放大文件、高码率和各种常见视频格式。
 
 - 通过 mpv 播放原始本地文件，避免浏览器格式兼容性限制。
 - 支持默认音量、窗口尺寸、置顶等播放配置。
@@ -85,7 +85,7 @@ Pornboss 集成 mpv 播放能力，点击视频即可调用轻量、高性能的
 
 ### 1. 下载
 
-前往 [Releases](https://github.com/JavBoss/pornboss/releases) 页面，下载适合你系统的版本并解压：
+前往 [Releases](https://github.com/Solr159/pornboss/releases) 页面，下载适合你系统的版本并解压：
 
 - `windows-x86_64`
 - `linux-x86_64`

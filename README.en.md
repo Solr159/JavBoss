@@ -3,9 +3,9 @@
 <p align="center">An all-in-one solution for local adult video collections: automatically scan folders, generate cover screenshots, detect JAV titles and fetch metadata, provide powerful search for videos and JAV titles, and play videos quickly through the bundled mpv player.</p>
 
 <p align="center">
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/pornboss?display_name=tag"></a>
-  <a href="https://github.com/JavBoss/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/pornboss?style=social"></a>
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/pornboss?display_name=tag"></a>
+  <a href="https://github.com/Solr159/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/pornboss?style=social"></a>
+  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
@@ -57,7 +57,7 @@ After you add local media folders, Pornboss continuously syncs their contents in
 
 ### 3. ⏯️ Built-In mpv Playback
 
-Pornboss integrates mpv playback, so clicking a video can launch a lightweight, high-performance local player that handles large files, high bitrates, and many common video formats.
+Pornboss integrates [mpv](https://github.com/mpv-player/mpv) playback, so clicking a video can launch a lightweight, high-performance local player that handles large files, high bitrates, and many common video formats.
 
 - Plays the original local file through mpv, avoiding browser playback format limitations.
 - Supports playback options such as default volume, window size, and always-on-top behavior.
@@ -81,7 +81,7 @@ The frontend is designed around finding the right video quickly. Common operatio
 
 ### 1. Download
 
-Go to the [Releases](https://github.com/JavBoss/pornboss/releases) page, download the package for your system, and extract it:
+Go to the [Releases](https://github.com/Solr159/pornboss/releases) page, download the package for your system, and extract it:
 
 - `windows-x86_64`
 - `linux-x86_64`
