@@ -13,3 +13,5 @@ release/
 temp
 internal/bin/
 bin
+!uosc/scripts/uosc/bin/
+!uosc/scripts/uosc/bin/*

@@ -6,7 +6,7 @@
 - `internal/`: application packages; key folders include `common` (shared config/globals/logging), `db` (GORM setup and stores), `models` (domain structs), `server` (Gin router and handlers), `service` (directory/video/JAV scanners), `jav` (metadata providers), `manager` (cover and screenshot helpers), `mpv` (player integration), and `util` (filesystem, locale, proxy, playback, and platform helpers).
 - `web/`: React + Tailwind frontend (Vite). Components live in `web/src/components`, shared state in `web/src/store.js`, API helpers in `web/src/api.js`, constants in `web/src/constants`, utilities in `web/src/utils`, and static icons in `web/public/ico`.
 - `scripts/`: development/release helpers. `scripts/cli.sh` wraps common workflows, while `scripts/cli/` contains the Node CLI source and generated `scripts/cli/build/` output.
-- `bin/`, `internal/bin/`, and `modernz/`: bundled runtime player/tool assets used by releases and mpv integration.
+- `bin/`, `internal/bin/`, and `uosc/`: bundled runtime player/tool assets used by releases and mpv integration.
 - `data/`, `web/dist/`, `release/`, `screenshot/`, `temp/`, `.gocache/`, and other scratch/build output directories are generated or runtime artifacts; keep them out of commits unless a release workflow explicitly requires them.
 
 ## Build, Test, and Development Commands

@@ -446,8 +446,8 @@ async function copyBundledMpv(choice, outDir) {
   }
 }
 
-async function copyModernZAssets(outDir) {
-  await copyDir(path.join(ROOT_DIR, "modernz"), path.join(outDir, "modernz"));
+async function copyUOSCAssets(outDir) {
+  await copyDir(path.join(ROOT_DIR, "uosc"), path.join(outDir, "uosc"));
 }
 
 async function createMacCommandLauncher(outDir) {
@@ -546,8 +546,8 @@ async function runRelease(choice, version) {
     console.log("[release] 复制 mpv");
     await copyBundledMpv(choice, outDir);
   }
-  console.log("[release] 复制 ModernZ OSC");
-  await copyModernZAssets(outDir);
+  console.log("[release] 复制 uosc OSC");
+  await copyUOSCAssets(outDir);
   console.log("[release] 生成默认配置文件");
   await createReleaseConfig(outDir);
   if (choice.goos === "darwin") {

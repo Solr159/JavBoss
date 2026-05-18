@@ -42,10 +42,10 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "video-align-y=1\n") {
 		t.Fatalf("expected video-align-y=1 in mpv config, got %q", content)
 	}
-	if !strings.Contains(content, "video-margin-ratio-bottom=0.145\n") {
-		t.Fatalf("expected video-margin-ratio-bottom=0.145 in mpv config, got %q", content)
+	if strings.Contains(content, "video-margin-ratio-bottom=") {
+		t.Fatalf("expected uosc mpv config to avoid bottom video margin, got %q", content)
 	}
-	if !strings.Contains(content, "watch-later-options-remove=sub-pos,osd-margin-y\n") {
+	if !strings.Contains(content, "watch-later-options-remove=video-margin-ratio-bottom,sub-pos,osd-margin-y\n") {
 		t.Fatalf("expected watch-later overrides in mpv config, got %q", content)
 	}
 	if !strings.Contains(content, "geometry=80%x80%+50%+50%\n") {
