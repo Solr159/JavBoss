@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const uoscEnvDir = "PORNBOSS_UOSC_DIR"
@@ -17,12 +18,16 @@ var uoscAssetMappings = []struct {
 	dir    bool
 }{
 	{source: "uosc.conf", target: filepath.Join("script-opts", "uosc.conf")},
+	{source: "thumbfast.conf", target: filepath.Join("script-opts", "thumbfast.conf")},
+	{source: filepath.Join("scripts", "thumbfast.lua"), target: filepath.Join("scripts", "thumbfast.lua")},
 	{source: filepath.Join("scripts", "uosc"), target: filepath.Join("scripts", "uosc"), dir: true},
 	{source: "fonts", target: "fonts", dir: true},
 }
 
 var uoscRequiredFiles = []string{
 	"uosc.conf",
+	"thumbfast.conf",
+	filepath.Join("scripts", "thumbfast.lua"),
 	filepath.Join("scripts", "uosc", "main.lua"),
 	filepath.Join("scripts", "uosc", "bin", "ziggy-darwin"),
 	filepath.Join("scripts", "uosc", "bin", "ziggy-linux"),
@@ -32,8 +37,9 @@ var uoscRequiredFiles = []string{
 }
 
 type uoscAssets struct {
-	ConfigDir  string
-	ScriptPath string
+	ConfigDir           string
+	ScriptPath          string
+	ThumbfastScriptPath string
 }
 
 func ensureUOSCAssets() (uoscAssets, error) {
@@ -60,9 +66,37 @@ func ensureUOSCAssets() (uoscAssets, error) {
 	}
 
 	return uoscAssets{
-		ConfigDir:  configDir,
-		ScriptPath: filepath.Join(configDir, "scripts", "uosc"),
+		ConfigDir:           configDir,
+		ScriptPath:          filepath.Join(configDir, "scripts", "uosc"),
+		ThumbfastScriptPath: filepath.Join(configDir, "scripts", "thumbfast.lua"),
 	}, nil
+}
+
+func writeThumbfastRuntimeConfig(configDir, mpvPath string) error {
+	path := filepath.Join(configDir, "script-opts", "thumbfast.conf")
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read thumbfast config: %w", err)
+	}
+
+	line := "mpv_path=" + mpvPath
+	lines := strings.Split(strings.TrimRight(string(content), "\n"), "\n")
+	found := false
+	for i, item := range lines {
+		if strings.HasPrefix(strings.TrimSpace(item), "mpv_path=") {
+			lines[i] = line
+			found = true
+			break
+		}
+	}
+	if !found {
+		lines = append(lines, line)
+	}
+
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		return fmt.Errorf("write thumbfast config: %w", err)
+	}
+	return nil
 }
 
 func syncUOSCDir(sourceDir, targetDir string) error {
@@ -144,7 +178,7 @@ func findUOSCSourceDir() (string, error) {
 		}
 	}
 
-	return "", errors.New("uosc assets not found; expected uosc/uosc.conf, scripts/uosc, scripts/uosc/bin, and fonts")
+	return "", errors.New("uosc assets not found; expected uosc/uosc.conf, thumbfast.conf, scripts/thumbfast.lua, scripts/uosc, scripts/uosc/bin, and fonts")
 }
 
 func uoscCandidateDirs(base string) []string {

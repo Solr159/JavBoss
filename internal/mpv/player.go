@@ -49,13 +49,17 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, err
 	}
-	args := make([]string, 0, 9)
+	if err := writeThumbfastRuntimeConfig(uosc.ConfigDir, mpvPath); err != nil {
+		return nil, err
+	}
+	args := make([]string, 0, 10)
 	args = append(args, "--config-dir="+uosc.ConfigDir)
 	args = append(args, "--load-scripts=no")
 	if runtime.GOOS == "linux" && os.Getenv("PORNBOSS_BUILD_MODE") != "release" {
 		args = append(args, "--vo=x11")
 	}
 	args = append(args, "--include="+mpvConfigPath)
+	args = append(args, "--script="+uosc.ThumbfastScriptPath)
 	args = append(args, "--script="+uosc.ScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
 		return nil, err
