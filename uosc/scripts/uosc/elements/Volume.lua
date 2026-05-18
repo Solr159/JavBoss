@@ -205,6 +205,7 @@ function Volume:init()
 	Element.init(self, 'volume', {render_order = 7})
 	self.size = 0
 	self.mute_ay = 0
+	self.last_volume = state.volume
 	self.slider = VolumeSlider:new({anchor_id = 'volume', render_order = self.render_order})
 	self:update_dimensions()
 end
@@ -216,7 +217,8 @@ end
 
 function Volume:get_visibility()
 	if not state.is_idle and not state.has_audio then return 0 end
-	return self.slider.pressed and 1 or Elements:maybe('timeline', 'get_is_hovered') and -1
+	return self.slider.pressed and 1
+		or Elements:maybe('timeline', 'get_is_hovered') and -1
 		or Element.get_visibility(self)
 end
 
@@ -243,6 +245,11 @@ function Volume:on_display() self:update_dimensions() end
 function Volume:on_prop_border() self:update_dimensions() end
 function Volume:on_prop_title_bar() self:update_dimensions() end
 function Volume:on_prop_volume_max() self:update_dimensions() end
+function Volume:on_prop_volume()
+	if self.last_volume == state.volume then return end
+	self.last_volume = state.volume
+	self:flash()
+end
 function Volume:on_controls_reflow() self:update_dimensions() end
 function Volume:on_options() self:update_dimensions() end
 
