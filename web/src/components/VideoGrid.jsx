@@ -13,22 +13,25 @@ export default function VideoGrid({
   onOpenScreenshots,
   onTagClick,
 }) {
+  const renderVideo = (v) => (
+    <VideoCard
+      video={v}
+      checked={selectedIds.has(videoSelectionKey(v))}
+      onToggle={() => onToggleSelect(v)}
+      onPlay={onPlay}
+      onOpenFile={onOpenFile}
+      onRevealFile={onRevealFile}
+      openFileLabel={openFileLabel}
+      onOpenTagPicker={() => onOpenTagPicker(v.id)}
+      onOpenScreenshots={onOpenScreenshots}
+      onTagClick={onTagClick}
+    />
+  )
+
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       {videos.map((v) => (
-        <VideoCard
-          key={videoSelectionKey(v)}
-          video={v}
-          checked={selectedIds.has(videoSelectionKey(v))}
-          onToggle={() => onToggleSelect(v)}
-          onPlay={onPlay}
-          onOpenFile={onOpenFile}
-          onRevealFile={onRevealFile}
-          openFileLabel={openFileLabel}
-          onOpenTagPicker={() => onOpenTagPicker(v.id)}
-          onOpenScreenshots={onOpenScreenshots}
-          onTagClick={onTagClick}
-        />
+        <div key={videoSelectionKey(v)}>{renderVideo(v)}</div>
       ))}
     </div>
   )

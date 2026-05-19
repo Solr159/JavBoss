@@ -158,6 +158,7 @@ export const useStore = create((set, get) => ({
   javItems: [],
   javTotal: 0,
   javLoading: false,
+  javLoadingMore: false,
   javError: null,
   idolPage: 1,
   idolPageSize: JAV_PAGE_SIZE,
@@ -165,16 +166,19 @@ export const useStore = create((set, get) => ({
   idolItems: [],
   idolTotal: 0,
   idolLoading: false,
+  idolLoadingMore: false,
   idolError: null,
   studioPage: 1,
   studioItems: [],
   studioTotal: 0,
   studioLoading: false,
+  studioLoadingMore: false,
   studioError: null,
   seriesPage: 1,
   seriesItems: [],
   seriesTotal: 0,
   seriesLoading: false,
+  seriesLoadingMore: false,
   seriesError: null,
   setIdolPageSize: (size) => {
     const next = Math.max(1, Math.floor(Number(size) || JAV_PAGE_SIZE))
@@ -194,6 +198,7 @@ export const useStore = create((set, get) => ({
   enabledDirectoryIds: [],
   directoryFilterMode: DIRECTORY_FILTER_ALL,
   loading: false,
+  videoLoadingMore: false,
   error: null,
   total: 0,
   hasNext: false,
@@ -577,7 +582,7 @@ export const useStore = create((set, get) => ({
     }
     lastVideoFetchKey = key
     const reqId = (videoLoadSeq += 1)
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, videoLoadingMore: false })
     try {
       const resp = await fetchVideos({
         limit: pageSize,
@@ -602,6 +607,43 @@ export const useStore = create((set, get) => ({
       if (reqId === videoLoadSeq) {
         set({ loading: false })
       }
+    }
+  },
+  loadMoreVideos: async () => {
+    const state = get()
+    if (state.loading || state.videoLoadingMore || state.randomMode) return
+    const loaded = Array.isArray(state.videos) ? state.videos.length : 0
+    const total = state.total || 0
+    const baseOffset = (state.page - 1) * state.pageSize
+    if (total > 0 && baseOffset + loaded >= total) return
+
+    const directoryIds = directoryQueryIds(state)
+    const search = state.searchTerm ? state.searchTerm : ''
+    const effectiveSort = state.videoTempSort || state.sortOrder
+    set({ videoLoadingMore: true, error: null })
+    try {
+      const resp = await fetchVideos({
+        limit: state.pageSize,
+        offset: baseOffset + loaded,
+        tags: state.selectedTags,
+        search,
+        sort: effectiveSort,
+        directoryIds,
+        hideJav: state.videoHideJav,
+      })
+      const items = resp.items ?? []
+      const nextTotal = resp.total ?? total
+      const nextLoaded = loaded + items.length
+      set({
+        videos: [...(get().videos || []), ...items],
+        total: nextTotal,
+        hasNext:
+          nextTotal > 0 ? baseOffset + nextLoaded < nextTotal : items.length >= state.pageSize,
+      })
+    } catch (e) {
+      set({ error: e.message })
+    } finally {
+      set({ videoLoadingMore: false })
     }
   },
   loadJavs: async (options = {}) => {
@@ -638,7 +680,7 @@ export const useStore = create((set, get) => ({
       return
     }
     lastJavFetchKey = key
-    set({ javLoading: true, javError: null })
+    set({ javLoading: true, javLoadingMore: false, javError: null })
     try {
       const resp = await fetchJavs({
         limit: javPageSize,
@@ -663,6 +705,41 @@ export const useStore = create((set, get) => ({
       set({ javLoading: false })
     }
   },
+  loadMoreJavs: async () => {
+    const state = get()
+    if (state.javLoading || state.javLoadingMore || state.javRandomMode) return
+    const loaded = Array.isArray(state.javItems) ? state.javItems.length : 0
+    const total = state.javTotal || 0
+    const baseOffset = (state.javPage - 1) * state.javPageSize
+    if (total > 0 && baseOffset + loaded >= total) return
+
+    const directoryIds = directoryQueryIds(state)
+    const search = state.javSearchTerm || ''
+    const effectiveSort = state.javTempSort || state.javSort
+    set({ javLoadingMore: true, javError: null })
+    try {
+      const resp = await fetchJavs({
+        limit: state.javPageSize,
+        offset: baseOffset + loaded,
+        search,
+        idolIds: state.javIdolIds,
+        tagIds: state.javTags,
+        studioId: state.javStudioId,
+        seriesId: state.javSeriesId,
+        sort: effectiveSort,
+        directoryIds,
+      })
+      const items = resp.items || []
+      set({
+        javItems: [...(get().javItems || []), ...items],
+        javTotal: resp.total || total,
+      })
+    } catch (e) {
+      set({ javError: e.message || zh('加载 JAV 失败', 'Failed to load JAV') })
+    } finally {
+      set({ javLoadingMore: false })
+    }
+  },
   loadJavIdols: async (options = {}) => {
     const { idolPage, idolPageSize, javSearchTerm, idolSort } = get()
     const directoryIds = directoryQueryIds(get())
@@ -672,7 +749,7 @@ export const useStore = create((set, get) => ({
       return
     }
     lastIdolFetchKey = key
-    set({ idolLoading: true, idolError: null })
+    set({ idolLoading: true, idolLoadingMore: false, idolError: null })
     try {
       const resp = await fetchJavIdols({
         limit: idolPageSize,
@@ -691,6 +768,36 @@ export const useStore = create((set, get) => ({
       set({ idolLoading: false })
     }
   },
+  loadMoreJavIdols: async () => {
+    const state = get()
+    if (state.idolLoading || state.idolLoadingMore) return
+    const loaded = Array.isArray(state.idolItems) ? state.idolItems.length : 0
+    const total = state.idolTotal || 0
+    const baseOffset = (state.idolPage - 1) * state.idolPageSize
+    if (total > 0 && baseOffset + loaded >= total) return
+
+    const directoryIds = directoryQueryIds(state)
+    const search = state.javSearchTerm || ''
+    set({ idolLoadingMore: true, idolError: null })
+    try {
+      const resp = await fetchJavIdols({
+        limit: state.idolPageSize,
+        offset: baseOffset + loaded,
+        search,
+        sort: state.idolSort,
+        directoryIds,
+      })
+      const items = resp.items || []
+      set({
+        idolItems: [...(get().idolItems || []), ...items],
+        idolTotal: resp.total || total,
+      })
+    } catch (e) {
+      set({ idolError: e.message || zh('加载女优失败', 'Failed to load idols') })
+    } finally {
+      set({ idolLoadingMore: false })
+    }
+  },
   loadJavStudios: async (options = {}) => {
     const { studioPage, javSearchTerm } = get()
     const directoryIds = directoryQueryIds(get())
@@ -702,7 +809,7 @@ export const useStore = create((set, get) => ({
       return
     }
     lastStudioFetchKey = key
-    set({ studioLoading: true, studioError: null })
+    set({ studioLoading: true, studioLoadingMore: false, studioError: null })
     try {
       const resp = await fetchJavStudios({
         limit: JAV_STUDIO_PAGE_SIZE,
@@ -720,6 +827,35 @@ export const useStore = create((set, get) => ({
       set({ studioLoading: false })
     }
   },
+  loadMoreJavStudios: async () => {
+    const state = get()
+    if (state.studioLoading || state.studioLoadingMore) return
+    const loaded = Array.isArray(state.studioItems) ? state.studioItems.length : 0
+    const total = state.studioTotal || 0
+    const baseOffset = (state.studioPage - 1) * JAV_STUDIO_PAGE_SIZE
+    if (total > 0 && baseOffset + loaded >= total) return
+
+    const directoryIds = directoryQueryIds(state)
+    const search = state.javSearchTerm || ''
+    set({ studioLoadingMore: true, studioError: null })
+    try {
+      const resp = await fetchJavStudios({
+        limit: JAV_STUDIO_PAGE_SIZE,
+        offset: baseOffset + loaded,
+        search,
+        directoryIds,
+      })
+      const items = resp.items || []
+      set({
+        studioItems: [...(get().studioItems || []), ...items],
+        studioTotal: resp.total || total,
+      })
+    } catch (e) {
+      set({ studioError: e.message || zh('加载片商失败', 'Failed to load studios') })
+    } finally {
+      set({ studioLoadingMore: false })
+    }
+  },
   loadJavSeries: async (options = {}) => {
     const { seriesPage, javSearchTerm } = get()
     const directoryIds = directoryQueryIds(get())
@@ -731,7 +867,7 @@ export const useStore = create((set, get) => ({
       return
     }
     lastSeriesFetchKey = key
-    set({ seriesLoading: true, seriesError: null })
+    set({ seriesLoading: true, seriesLoadingMore: false, seriesError: null })
     try {
       const resp = await fetchJavSeries({
         limit: JAV_STUDIO_PAGE_SIZE,
@@ -747,6 +883,35 @@ export const useStore = create((set, get) => ({
       set({ seriesError: e.message || zh('加载系列失败', 'Failed to load series') })
     } finally {
       set({ seriesLoading: false })
+    }
+  },
+  loadMoreJavSeries: async () => {
+    const state = get()
+    if (state.seriesLoading || state.seriesLoadingMore) return
+    const loaded = Array.isArray(state.seriesItems) ? state.seriesItems.length : 0
+    const total = state.seriesTotal || 0
+    const baseOffset = (state.seriesPage - 1) * JAV_STUDIO_PAGE_SIZE
+    if (total > 0 && baseOffset + loaded >= total) return
+
+    const directoryIds = directoryQueryIds(state)
+    const search = state.javSearchTerm || ''
+    set({ seriesLoadingMore: true, seriesError: null })
+    try {
+      const resp = await fetchJavSeries({
+        limit: JAV_STUDIO_PAGE_SIZE,
+        offset: baseOffset + loaded,
+        search,
+        directoryIds,
+      })
+      const items = resp.items || []
+      set({
+        seriesItems: [...(get().seriesItems || []), ...items],
+        seriesTotal: resp.total || total,
+      })
+    } catch (e) {
+      set({ seriesError: e.message || zh('加载系列失败', 'Failed to load series') })
+    } finally {
+      set({ seriesLoadingMore: false })
     }
   },
 

@@ -1,5 +1,6 @@
 import { getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import Pagination from '@/components/Pagination'
+import WaterfallLoader from '@/components/WaterfallLoader'
 import { zh } from '@/utils/i18n'
 
 export default function JavStudioView({
@@ -17,6 +18,11 @@ export default function JavStudioView({
   onLast,
   items,
   onSelectStudio,
+  waterfallMode,
+  onWaterfallModeChange,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }) {
   return (
     <>
@@ -33,6 +39,8 @@ export default function JavStudioView({
           onGoToPage={onGoToPage}
           onNext={onNext}
           onLast={onLast}
+          waterfallMode={waterfallMode}
+          onWaterfallModeChange={onWaterfallModeChange}
         />
       </div>
       {loading ? (
@@ -46,6 +54,12 @@ export default function JavStudioView({
           buildStudioUrl={buildStudioUrl}
         />
       )}
+      <WaterfallLoader
+        enabled={waterfallMode && !loading}
+        hasMore={hasMore}
+        loading={loadingMore}
+        onLoadMore={onLoadMore}
+      />
     </>
   )
 }
@@ -60,15 +74,14 @@ function JavStudioGrid({ items, onSelectStudio, buildStudioUrl }) {
     )
   }
 
+  const renderStudio = (item) => (
+    <StudioCard item={item} href={buildStudioUrl?.(item)} onSelectStudio={onSelectStudio} />
+  )
+
   return (
     <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
       {items.map((item) => (
-        <StudioCard
-          key={item.id || item.name}
-          item={item}
-          href={buildStudioUrl?.(item)}
-          onSelectStudio={onSelectStudio}
-        />
+        <div key={item.id || item.name}>{renderStudio(item)}</div>
       ))}
     </div>
   )

@@ -3,6 +3,7 @@ import { Button, Popover } from '@mui/material'
 import { useState } from 'react'
 import Pagination from '@/components/Pagination'
 import VideoGrid from '@/components/VideoGrid'
+import WaterfallLoader from '@/components/WaterfallLoader'
 import {
   VIDEO_SORT_OPTIONS,
   findVideoSortOption,
@@ -51,6 +52,11 @@ export default function VideoView({
   setTagPickerFor,
   onOpenScreenshots,
   onTagClick,
+  waterfallMode,
+  onWaterfallModeChange,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }) {
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
   const pageIds = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
@@ -59,6 +65,7 @@ export default function VideoView({
   const hasSelection = selectedCount > 0
   const effectiveSort = videoTempSort || videoGlobalSort
   const currentOption = findVideoSortOption(effectiveSort) || VIDEO_SORT_OPTIONS[0]
+  const activeWaterfallMode = waterfallMode && !randomMode
 
   const isOptionActive = (option) => {
     return findVideoSortOption(effectiveSort)?.base === option.base
@@ -132,6 +139,8 @@ export default function VideoView({
               onLast={() => {
                 goToLastPage()
               }}
+              waterfallMode={activeWaterfallMode}
+              onWaterfallModeChange={onWaterfallModeChange}
             />
           )}
         </div>
@@ -224,6 +233,12 @@ export default function VideoView({
           onTagClick={onTagClick}
         />
       )}
+      <WaterfallLoader
+        enabled={activeWaterfallMode && !loading}
+        hasMore={hasMore}
+        loading={loadingMore}
+        onLoadMore={onLoadMore}
+      />
     </>
   )
 }
