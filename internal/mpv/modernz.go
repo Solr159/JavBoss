@@ -1,7 +1,6 @@
 package mpv
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -54,13 +53,20 @@ func ensureModernZAssets() (modernZAssets, error) {
 }
 
 func syncModernZAsset(sourcePath, targetPath string) error {
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return fmt.Errorf("stat ModernZ asset %s: %w", sourcePath, err)
+	}
+
+	if targetInfo, err := os.Stat(targetPath); err == nil &&
+		filepath.Base(sourcePath) == filepath.Base(targetPath) &&
+		targetInfo.Size() == sourceInfo.Size() {
+		return nil
+	}
+
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("read ModernZ asset %s: %w", sourcePath, err)
-	}
-
-	if current, err := os.ReadFile(targetPath); err == nil && bytes.Equal(current, content) {
-		return nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
