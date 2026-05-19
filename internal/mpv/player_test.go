@@ -54,3 +54,11 @@ func TestBuildPlaybackStartArgsIncludesStartTime(t *testing.T) {
 		t.Fatalf("expected start args, got %v", args)
 	}
 }
+
+func TestBuildThumbfastScriptArgsUsesResolvedMPVPath(t *testing.T) {
+	mpvPath := filepath.Join(t.TempDir(), "mpv with spaces")
+	args := buildThumbfastScriptArgs(mpvPath)
+	if len(args) != 1 || args[0] != "--script-opt=thumbfast-mpv_path="+mpvPath {
+		t.Fatalf("expected thumbfast mpv path script option, got %v", args)
+	}
+}

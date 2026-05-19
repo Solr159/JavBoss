@@ -54,8 +54,11 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	if runtime.GOOS == "linux" && os.Getenv("PORNBOSS_BUILD_MODE") != "release" {
 		args = append(args, "--vo=x11")
 	}
+	args = append(args, "--load-scripts=no")
 	args = append(args, "--include="+mpvConfigPath)
+	args = append(args, buildThumbfastScriptArgs(mpvPath)...)
 	args = append(args, "--script="+modernZ.ScriptPath)
+	args = append(args, "--script="+modernZ.ThumbfastScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
 		return nil, err
 	} else if len(screenshotArgs) > 0 {
@@ -70,6 +73,13 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	args = append(args, "--input-conf="+inputConfPath)
 	args = append(args, "--", path)
 	return exec.Command(mpvPath, args...), nil
+}
+
+func buildThumbfastScriptArgs(mpvPath string) []string {
+	if strings.TrimSpace(mpvPath) == "" {
+		return nil
+	}
+	return []string{"--script-opt=thumbfast-mpv_path=" + mpvPath}
 }
 
 func buildPlaybackStartArgs(options PlayOptions) []string {

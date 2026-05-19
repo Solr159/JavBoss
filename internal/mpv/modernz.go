@@ -1,7 +1,6 @@
 package mpv
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -17,11 +16,14 @@ var modernZRequiredFiles = []struct {
 	{source: "modernz.lua", target: filepath.Join("scripts", "modernz.lua")},
 	{source: "modernz.conf", target: filepath.Join("script-opts", "modernz.conf")},
 	{source: "modernz-icons.ttf", target: filepath.Join("fonts", "modernz-icons.ttf")},
+	{source: "thumbfast.lua", target: filepath.Join("scripts", "thumbfast.lua")},
+	{source: "thumbfast.conf", target: filepath.Join("script-opts", "thumbfast.conf")},
 }
 
 type modernZAssets struct {
-	ConfigDir  string
-	ScriptPath string
+	ConfigDir           string
+	ScriptPath          string
+	ThumbfastScriptPath string
 }
 
 func ensureModernZAssets() (modernZAssets, error) {
@@ -44,19 +46,27 @@ func ensureModernZAssets() (modernZAssets, error) {
 	}
 
 	return modernZAssets{
-		ConfigDir:  configDir,
-		ScriptPath: filepath.Join(configDir, "scripts", "modernz.lua"),
+		ConfigDir:           configDir,
+		ScriptPath:          filepath.Join(configDir, "scripts", "modernz.lua"),
+		ThumbfastScriptPath: filepath.Join(configDir, "scripts", "thumbfast.lua"),
 	}, nil
 }
 
 func syncModernZAsset(sourcePath, targetPath string) error {
+	sourceInfo, err := os.Stat(sourcePath)
+	if err != nil {
+		return fmt.Errorf("stat ModernZ asset %s: %w", sourcePath, err)
+	}
+
+	if targetInfo, err := os.Stat(targetPath); err == nil &&
+		filepath.Base(sourcePath) == filepath.Base(targetPath) &&
+		targetInfo.Size() == sourceInfo.Size() {
+		return nil
+	}
+
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
 		return fmt.Errorf("read ModernZ asset %s: %w", sourcePath, err)
-	}
-
-	if current, err := os.ReadFile(targetPath); err == nil && bytes.Equal(current, content) {
-		return nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
@@ -98,7 +108,7 @@ func findModernZSourceDir() (string, error) {
 		}
 	}
 
-	return "", errors.New("ModernZ assets not found; expected modernz/modernz.lua, modernz.conf, and modernz-icons.ttf")
+	return "", errors.New("ModernZ assets not found; expected modernz/modernz.lua, modernz.conf, modernz-icons.ttf, thumbfast.lua, and thumbfast.conf")
 }
 
 func modernZCandidateDirs(base string) []string {

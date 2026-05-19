@@ -387,7 +387,7 @@ func buildConfigContent() (string, error) {
 		fmt.Sprintf("ontop=%s", mpvBool(ontop)),
 		fmt.Sprintf("osd-playing-msg-duration=%d", startupHintDuration),
 		"video-align-y=1",
-		"video-margin-ratio-bottom=0.145",
+		"video-margin-ratio-bottom=0.125",
 		"watch-later-options-remove=sub-pos,osd-margin-y",
 	}
 	if useAutofit {
