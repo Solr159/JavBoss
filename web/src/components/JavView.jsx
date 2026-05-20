@@ -3,6 +3,7 @@ import { Popover } from '@mui/material'
 import { useState } from 'react'
 import JavGrid from '@/components/JavGrid'
 import Pagination from '@/components/Pagination'
+import WaterfallLoader from '@/components/WaterfallLoader'
 import { JAV_SORT_OPTIONS, findSortOption, reverseSortValue, sortLabelParts } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
 
@@ -45,11 +46,17 @@ export default function JavView({
   openFileLabel,
   onRevealFile,
   onOpenScreenshots,
+  waterfallMode,
+  onWaterfallModeChange,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }) {
   const contentClass = javRandomMode ? 'mt-4' : ''
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
   const effectiveSort = javTempSort || javGlobalSort
   const currentOption = findSortOption(JAV_SORT_OPTIONS, effectiveSort) || JAV_SORT_OPTIONS[0]
+  const activeWaterfallMode = waterfallMode && !javRandomMode
 
   const isOptionActive = (option) => {
     return findSortOption([option], effectiveSort)
@@ -85,6 +92,8 @@ export default function JavView({
                 if (javHasNext) setJavPage(javPage + 1)
               }}
               onLast={() => setJavPage(javLastPage)}
+              waterfallMode={activeWaterfallMode}
+              onWaterfallModeChange={onWaterfallModeChange}
             />
           </div>
           <div className="flex justify-end">
@@ -187,6 +196,12 @@ export default function JavView({
           />
         </div>
       )}
+      <WaterfallLoader
+        enabled={activeWaterfallMode && !javLoading}
+        hasMore={hasMore}
+        loading={loadingMore}
+        onLoadMore={onLoadMore}
+      />
     </>
   )
 }

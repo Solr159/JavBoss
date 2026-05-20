@@ -77,6 +77,7 @@ export default function App() {
     selectedVideoIds,
     selectedVideoMeta,
     loadVideos,
+    loadMoreVideos,
     loadTags,
     toggleTagFilter,
     createTag,
@@ -84,6 +85,7 @@ export default function App() {
     renameTag,
     toggleSelectVideo,
     loading,
+    videoLoadingMore,
     error,
     hasNext,
     total,
@@ -122,9 +124,11 @@ export default function App() {
     idolSort,
     setJavTempSort,
     loadJavs,
+    loadMoreJavs,
     javItems,
     javTotal,
     javLoading,
+    javLoadingMore,
     javError,
     javTagOptions,
     loadJavTags,
@@ -135,22 +139,28 @@ export default function App() {
     idolItems,
     idolTotal,
     idolLoading,
+    idolLoadingMore,
     idolError,
     loadJavIdols,
+    loadMoreJavIdols,
     studioPage,
     setStudioPage,
     studioItems,
     studioTotal,
     studioLoading,
+    studioLoadingMore,
     studioError,
     loadJavStudios,
+    loadMoreJavStudios,
     seriesPage,
     setSeriesPage,
     seriesItems,
     seriesTotal,
     seriesLoading,
+    seriesLoadingMore,
     seriesError,
     loadJavSeries,
+    loadMoreJavSeries,
     directories,
     loadDirectories,
     createDirectory,
@@ -177,6 +187,13 @@ export default function App() {
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
   const [searchInput, setSearchInput] = useState('')
   const [javSearchInput, setJavSearchInput] = useState('')
+  const [waterfallModes, setWaterfallModes] = useState({
+    video: false,
+    jav: false,
+    idol: false,
+    studio: false,
+    series: false,
+  })
   const [hydrated, setHydrated] = useState(false)
   const [configLoaded, setConfigLoaded] = useState(false)
   const [browserNavigation, setBrowserNavigation] = useState({
@@ -1000,6 +1017,25 @@ export default function App() {
     [configLoaded, hydrated, loadJavIdols, loadJavSeries, loadJavStudios, loadJavs]
   )
 
+  const setWaterfallMode = useCallback(
+    (key, enabled) => {
+      setWaterfallModes((current) => ({ ...current, [key]: enabled }))
+      if (enabled || !hydrated || !configLoaded) return
+      if (key === 'video') {
+        loadVideos({ force: true })
+      } else if (key === 'jav') {
+        loadJavs({ force: true })
+      } else if (key === 'idol') {
+        loadJavIdols({ force: true })
+      } else if (key === 'studio') {
+        loadJavStudios({ force: true })
+      } else if (key === 'series') {
+        loadJavSeries({ force: true })
+      }
+    },
+    [configLoaded, hydrated, loadJavIdols, loadJavSeries, loadJavStudios, loadJavs, loadVideos]
+  )
+
   const currentUrlState = useMemo(
     () =>
       normalizeUrlStateFromStore(
@@ -1123,6 +1159,16 @@ export default function App() {
   const seriesLastPage = Math.max(1, Math.ceil((seriesTotal || 0) / JAV_STUDIO_PAGE_SIZE))
   const seriesHasPrev = seriesPage > 1
   const seriesHasNext = seriesPage < seriesLastPage
+  const videoWaterfallHasMore =
+    !randomMode && (page - 1) * pageSize + (videos?.length || 0) < (total || 0)
+  const javWaterfallHasMore =
+    !javRandomMode && (javPage - 1) * javPageSize + (javItems?.length || 0) < (javTotal || 0)
+  const idolWaterfallHasMore =
+    (idolPage - 1) * idolPageSize + (idolItems?.length || 0) < (idolTotal || 0)
+  const studioWaterfallHasMore =
+    (studioPage - 1) * JAV_STUDIO_PAGE_SIZE + (studioItems?.length || 0) < (studioTotal || 0)
+  const seriesWaterfallHasMore =
+    (seriesPage - 1) * JAV_STUDIO_PAGE_SIZE + (seriesItems?.length || 0) < (seriesTotal || 0)
   const javTagNameMap = useMemo(
     () => new Map((javTagOptions || []).map((tag) => [tag.id, tag.name])),
     [javTagOptions]
@@ -2184,6 +2230,11 @@ export default function App() {
               items={idolItems}
               javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
               onSelectIdol={handleSelectIdol}
+              waterfallMode={waterfallModes.idol}
+              onWaterfallModeChange={(enabled) => setWaterfallMode('idol', enabled)}
+              onLoadMore={loadMoreJavIdols}
+              loadingMore={idolLoadingMore}
+              hasMore={idolWaterfallHasMore}
             />
           ) : javTab === 'studio' ? (
             <JavStudioView
@@ -2214,6 +2265,11 @@ export default function App() {
               onLast={() => setStudioPage(studioLastPage)}
               items={studioItems}
               onSelectStudio={handleSelectStudio}
+              waterfallMode={waterfallModes.studio}
+              onWaterfallModeChange={(enabled) => setWaterfallMode('studio', enabled)}
+              onLoadMore={loadMoreJavStudios}
+              loadingMore={studioLoadingMore}
+              hasMore={studioWaterfallHasMore}
             />
           ) : javTab === 'series' ? (
             <JavSeriesView
@@ -2246,6 +2302,11 @@ export default function App() {
               items={seriesItems}
               onSelectSeries={handleSelectSeries}
               onSelectStudio={handleSelectStudio}
+              waterfallMode={waterfallModes.series}
+              onWaterfallModeChange={(enabled) => setWaterfallMode('series', enabled)}
+              onLoadMore={loadMoreJavSeries}
+              loadingMore={seriesLoadingMore}
+              hasMore={seriesWaterfallHasMore}
             />
           ) : (
             <JavView
@@ -2275,6 +2336,11 @@ export default function App() {
               onSeriesClick={handleSelectSeries}
               onTagClick={handleJavTagClick}
               onEditTags={openJavTagEditor}
+              waterfallMode={waterfallModes.jav}
+              onWaterfallModeChange={(enabled) => setWaterfallMode('jav', enabled)}
+              onLoadMore={loadMoreJavs}
+              loadingMore={javLoadingMore}
+              hasMore={javWaterfallHasMore}
             />
           )
         ) : (
@@ -2305,6 +2371,11 @@ export default function App() {
             setTagPickerFor={openTagEditor}
             onOpenScreenshots={setScreenshotsVideo}
             onTagClick={handleVideoTagClick}
+            waterfallMode={waterfallModes.video}
+            onWaterfallModeChange={(enabled) => setWaterfallMode('video', enabled)}
+            onLoadMore={loadMoreVideos}
+            loadingMore={videoLoadingMore}
+            hasMore={videoWaterfallHasMore}
           />
         )}
       </main>

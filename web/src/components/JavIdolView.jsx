@@ -1,5 +1,6 @@
 import JavIdolGrid from '@/components/JavIdolGrid'
 import Pagination from '@/components/Pagination'
+import WaterfallLoader from '@/components/WaterfallLoader'
 import { zh } from '@/utils/i18n'
 
 export default function JavIdolView({
@@ -18,6 +19,11 @@ export default function JavIdolView({
   onLast,
   items,
   onSelectIdol,
+  waterfallMode,
+  onWaterfallModeChange,
+  onLoadMore,
+  loadingMore,
+  hasMore,
 }) {
   return (
     <>
@@ -34,6 +40,8 @@ export default function JavIdolView({
           onGoToPage={onGoToPage}
           onNext={onNext}
           onLast={onLast}
+          waterfallMode={waterfallMode}
+          onWaterfallModeChange={onWaterfallModeChange}
         />
       </div>
       {loading ? (
@@ -48,6 +56,12 @@ export default function JavIdolView({
           javMetadataLanguage={javMetadataLanguage}
         />
       )}
+      <WaterfallLoader
+        enabled={waterfallMode && !loading}
+        hasMore={hasMore}
+        loading={loadingMore}
+        onLoadMore={onLoadMore}
+      />
     </>
   )
 }

@@ -24,18 +24,21 @@ export default function JavIdolGrid({ items, onSelectIdol, buildIdolUrl, javMeta
     )
   }
 
+  const renderIdol = (item) => (
+    <IdolCard
+      item={item}
+      onSelectIdol={onSelectIdol}
+      href={buildIdolUrl?.(item)}
+      bgWidthPercent={bgWidthPercent}
+      coverAspectPercent={coverAspectPercent}
+      javMetadataLanguage={javMetadataLanguage}
+    />
+  )
+
   return (
     <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
       {items.map((item) => (
-        <IdolCard
-          key={item.id || item.name}
-          item={item}
-          onSelectIdol={onSelectIdol}
-          href={buildIdolUrl?.(item)}
-          bgWidthPercent={bgWidthPercent}
-          coverAspectPercent={coverAspectPercent}
-          javMetadataLanguage={javMetadataLanguage}
-        />
+        <div key={item.id || item.name}>{renderIdol(item)}</div>
       ))}
     </div>
   )
