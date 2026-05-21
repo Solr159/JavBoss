@@ -16,7 +16,6 @@ type Jav struct {
 	SeriesEn    *JavSeries `json:"series_en,omitempty" gorm:"foreignKey:SeriesEnID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	ReleaseUnix int64      `json:"release_unix"`
 	DurationMin int        `json:"duration_min"`
-	Provider    int        `json:"provider" gorm:"not null;default:0"`
 	FetchedAt   time.Time  `json:"fetched_at"`
 	CreatedAt   time.Time  `json:"created_at"`
 	UpdatedAt   time.Time  `json:"updated_at"`

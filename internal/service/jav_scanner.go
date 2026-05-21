@@ -12,7 +12,7 @@ import (
 	"pornboss/internal/jav"
 )
 
-// StartJavMetadataScanner periodically fills missing JAV studio and series metadata.
+// StartJavMetadataScanner periodically fills missing JAV metadata.
 func StartJavMetadataScanner(ctx context.Context, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
@@ -30,19 +30,17 @@ func StartJavMetadataScanner(ctx context.Context, interval time.Duration) {
 	}()
 }
 
-// ScanJavMetadata scans JAV rows with missing studio or series data and queries metadata providers for it.
+// ScanJavMetadata scans JAV rows with missing English title, studio, or series data and queries metadata providers for it.
 func ScanJavMetadata(ctx context.Context) error {
 	if common.DB == nil {
 		return errors.New("nil db")
 	}
 
-	items, err := db.ListJavsMissingStudioOrSeries(ctx)
+	items, err := db.ListJavsMissingMetadata(ctx)
 	if err != nil {
 		return err
 	}
 	if len(items) > 0 {
-		logging.Info("found %d jav rows missing studio or series info", len(items))
-
 		for _, item := range items {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -61,13 +59,24 @@ func ScanJavMetadata(ctx context.Context) error {
 				continue
 			}
 
+			titleEn := ""
 			studio := ""
 			seriesEn := ""
 			if info != nil {
+				titleEn = strings.TrimSpace(info.Title)
 				studio = strings.TrimSpace(info.Studio)
 				seriesEn = strings.TrimSpace(info.Series)
 			}
-			if item.StudioID == nil && studio != "" {
+			updatedEnglishMetadata := false
+			if strings.TrimSpace(item.TitleEn) == "" && titleEn != "" {
+				if _, err := db.SaveJavInfo(ctx, info); err != nil {
+					logging.Error("update jav english metadata failed id=%d code=%s err=%v", item.ID, code, err)
+				} else {
+					updatedEnglishMetadata = true
+					logging.Info("jav english metadata updated id=%d code=%s title=%s", item.ID, code, titleEn)
+				}
+			}
+			if item.StudioID == nil && studio != "" && !updatedEnglishMetadata {
 				if err := db.UpdateJavStudio(ctx, item.ID, studio); err != nil {
 					logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
 				} else {
@@ -77,7 +86,9 @@ func ScanJavMetadata(ctx context.Context) error {
 
 			updatedEnglishSeries := false
 			if item.SeriesEnID == nil && seriesEn != "" {
-				if err := db.UpdateJavSeries(ctx, item.ID, seriesEn, true); err != nil {
+				if updatedEnglishMetadata {
+					updatedEnglishSeries = true
+				} else if err := db.UpdateJavSeries(ctx, item.ID, seriesEn, true); err != nil {
 					logging.Error("update jav english series failed id=%d code=%s err=%v", item.ID, code, err)
 				} else {
 					updatedEnglishSeries = true

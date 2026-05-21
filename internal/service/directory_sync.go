@@ -480,9 +480,9 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 }
 
 func processJavScanVideo(ctx context.Context, v db.JavScanVideo) error {
-	preferredProvider := jav.PreferredProvider()
+	const metadataProvider = jav.ProviderJavBus
 
-	if v.JavID != nil && jav.ParseProvider(v.JavProvider) == preferredProvider {
+	if v.JavID != nil {
 		return nil
 	}
 	if v.DurationSec > 0 && v.DurationSec < 3600 {
@@ -501,7 +501,7 @@ func processJavScanVideo(ctx context.Context, v db.JavScanVideo) error {
 			logging.Error("jav lookup existing failed location=%d code=%s err=%v", v.LocationID, code, err)
 			continue
 		}
-		if existJav == nil || jav.ParseProvider(existJav.Provider) != preferredProvider {
+		if existJav == nil {
 			continue
 		}
 		if err := db.SetVideoLocationJavID(ctx, v.LocationID, existJav.ID, v.UpdatedAt); err != nil {
@@ -513,7 +513,7 @@ func processJavScanVideo(ctx context.Context, v db.JavScanVideo) error {
 	}
 
 	for _, code := range possibleCodes {
-		info, err := jav.LookupJavByCode(code, preferredProvider)
+		info, err := jav.LookupJavByCode(code, metadataProvider)
 		if err != nil {
 			if errors.Is(err, jav.ResourceNotFonud) {
 				continue

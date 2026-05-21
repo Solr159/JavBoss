@@ -29,7 +29,6 @@ type JavScanVideo struct {
 	VideoID     int64     `gorm:"column:video_id"`
 	Filename    string    `gorm:"column:filename"`
 	JavID       *int64    `gorm:"column:jav_id"`
-	JavProvider int       `gorm:"column:jav_provider"`
 	UpdatedAt   time.Time `gorm:"column:updated_at"`
 	DurationSec int64     `gorm:"column:duration_sec"`
 }
@@ -38,6 +37,7 @@ type JavScanVideo struct {
 type JavMetadataScanItem struct {
 	ID         int64  `gorm:"column:id"`
 	Code       string `gorm:"column:code"`
+	TitleEn    string `gorm:"column:title_en"`
 	StudioID   *int64 `gorm:"column:studio_id"`
 	SeriesID   *int64 `gorm:"column:series_id"`
 	SeriesEnID *int64 `gorm:"column:series_en_id"`
@@ -1044,11 +1044,10 @@ func videosForJavScanQuery(ctx context.Context) *gorm.DB {
 		Table("video_location vl").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("JOIN video v ON v.id = vl.video_id").
-		Joins("LEFT JOIN jav ON jav.id = vl.jav_id").
 		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.missing, 0) = 0").
-		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, vl.updated_at, v.duration_sec, COALESCE(jav.provider, 0) AS jav_provider")
+		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, vl.updated_at, v.duration_sec")
 }
 
 // GetJavByCode fetches a jav record by code.
@@ -1081,6 +1080,26 @@ func SaveJavInfoAndLinkLocation(ctx context.Context, info *jav.JavInfo, location
 			return err
 		}
 		if err := setVideoLocationJavIDTx(tx, locationID, rec.ID, expectedUpdatedAt); err != nil {
+			return err
+		}
+		javRec = rec
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return javRec, nil
+}
+
+// SaveJavInfo upserts jav metadata without linking it to a video location.
+func SaveJavInfo(ctx context.Context, info *jav.JavInfo) (*models.Jav, error) {
+	if info == nil {
+		return nil, errors.New("jav info is nil")
+	}
+	var javRec *models.Jav
+	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rec, err := saveJavInfoTx(tx, info)
+		if err != nil {
 			return err
 		}
 		javRec = rec
@@ -1128,17 +1147,17 @@ func ListJavCodes(ctx context.Context) ([]string, error) {
 	return codes, nil
 }
 
-// ListJavsMissingStudioOrSeries returns JAV rows whose studio or series relation is empty.
-func ListJavsMissingStudioOrSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsMissingMetadata returns JAV rows whose English title, studio, or series relation is empty.
+func ListJavsMissingMetadata(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, studio_id, series_id, series_en_id").
+		Select("id, code, title_en, studio_id, series_id, series_en_id").
 		Where("COALESCE(code, '') <> ''").
-		Where("studio_id IS NULL OR series_id IS NULL OR series_en_id IS NULL").
+		Where("COALESCE(title_en, '') = '' OR studio_id IS NULL OR series_id IS NULL OR series_en_id IS NULL").
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing studio or series: %w", err)
+		return nil, fmt.Errorf("list javs missing metadata: %w", err)
 	}
 	return items, nil
 }
@@ -1271,7 +1290,6 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 	}
 	javRec.ReleaseUnix = info.ReleaseUnix
 	javRec.DurationMin = info.DurationMin
-	javRec.Provider = int(provider)
 	javRec.FetchedAt = ts
 	if studio := strings.TrimSpace(info.Studio); studio != "" {
 		studioRec, err := ensureStudioTx(tx, studio)

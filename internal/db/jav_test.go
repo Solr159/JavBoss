@@ -33,9 +33,9 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 		t.Fatalf("create group idol: %v", err)
 	}
 
-	soloJav := models.Jav{Code: "AAA-001", Title: "Solo Work", Provider: 1, FetchedAt: now}
-	groupJav := models.Jav{Code: "BBB-001", Title: "Group Work", Provider: 1, FetchedAt: now}
-	unavailableSoloJav := models.Jav{Code: "CCC-001", Title: "Unavailable Solo Work", Provider: 1, FetchedAt: now}
+	soloJav := models.Jav{Code: "AAA-001", Title: "Solo Work", FetchedAt: now}
+	groupJav := models.Jav{Code: "BBB-001", Title: "Group Work", FetchedAt: now}
+	unavailableSoloJav := models.Jav{Code: "CCC-001", Title: "Unavailable Solo Work", FetchedAt: now}
 	if err := db.Create(&soloJav).Error; err != nil {
 		t.Fatalf("create solo jav: %v", err)
 	}
@@ -137,9 +137,9 @@ func TestSearchJavFiltersByIdolIDs(t *testing.T) {
 	idolA, idolB, idolC = idols[0], idols[1], idols[2]
 
 	javs := []models.Jav{
-		{Code: "IDA-001", Title: "A and B", Provider: 1, FetchedAt: now},
-		{Code: "IDA-002", Title: "A only", Provider: 1, FetchedAt: now},
-		{Code: "IDC-001", Title: "C only", Provider: 1, FetchedAt: now},
+		{Code: "IDA-001", Title: "A and B", FetchedAt: now},
+		{Code: "IDA-002", Title: "A only", FetchedAt: now},
+		{Code: "IDC-001", Title: "C only", FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -195,9 +195,9 @@ func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	}
 
 	javs := []models.Jav{
-		{Code: "STA-001", Title: "Studio A One", StudioID: int64Ptr(studioA.ID), Provider: 1, FetchedAt: now},
-		{Code: "STA-002", Title: "Studio A Two", StudioID: int64Ptr(studioA.ID), Provider: 1, FetchedAt: now},
-		{Code: "STB-001", Title: "Studio B One", StudioID: int64Ptr(studioB.ID), Provider: 1, FetchedAt: now},
+		{Code: "STA-001", Title: "Studio A One", StudioID: int64Ptr(studioA.ID), FetchedAt: now},
+		{Code: "STA-002", Title: "Studio A Two", StudioID: int64Ptr(studioA.ID), FetchedAt: now},
+		{Code: "STB-001", Title: "Studio B One", StudioID: int64Ptr(studioB.ID), FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -273,9 +273,9 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	}
 
 	javs := []models.Jav{
-		{Code: "SRA-001", Title: "Series A One", SeriesID: int64Ptr(seriesA.ID), Provider: 1, FetchedAt: now},
-		{Code: "SRA-002", Title: "Series A Two", SeriesID: int64Ptr(seriesA.ID), Provider: 1, FetchedAt: now},
-		{Code: "SRB-001", Title: "Series B One", SeriesEnID: int64Ptr(seriesB.ID), Provider: 2, FetchedAt: now},
+		{Code: "SRA-001", Title: "Series A One", SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
+		{Code: "SRA-002", Title: "Series A Two", SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
+		{Code: "SRB-001", Title: "Series B One", SeriesEnID: int64Ptr(seriesB.ID), FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -584,7 +584,7 @@ func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
 	assertJavStudio(t, gdb, "STU-001", "Idea Pocket")
 	assertJavSeries(t, gdb, "STU-001", "Beautiful Girl Series", true)
 
-	plainJav := models.Jav{Code: "STU-002", Title: "Missing studio", Provider: int(jav.ProviderJavBus), FetchedAt: now}
+	plainJav := models.Jav{Code: "STU-002", Title: "Missing studio", FetchedAt: now}
 	if err := gdb.Create(&plainJav).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
@@ -643,10 +643,10 @@ func TestUpdateMissingJavSeriesStudios(t *testing.T) {
 	keptSeries = byName["Kept Series"]
 
 	javs := []models.Jav{
-		{Code: "SER-001", StudioID: &studioA.ID, SeriesID: &zhSeries.ID, Provider: 1, FetchedAt: now},
-		{Code: "SER-002", StudioID: &studioB.ID, SeriesEnID: &enSeries.ID, Provider: 2, FetchedAt: now},
-		{Code: "SER-003", SeriesID: &emptySeries.ID, Provider: 1, FetchedAt: now},
-		{Code: "SER-004", StudioID: &studioA.ID, SeriesID: &keptSeries.ID, Provider: 1, FetchedAt: now},
+		{Code: "SER-001", StudioID: &studioA.ID, SeriesID: &zhSeries.ID, FetchedAt: now},
+		{Code: "SER-002", StudioID: &studioB.ID, SeriesEnID: &enSeries.ID, FetchedAt: now},
+		{Code: "SER-003", SeriesID: &emptySeries.ID, FetchedAt: now},
+		{Code: "SER-004", StudioID: &studioA.ID, SeriesID: &keptSeries.ID, FetchedAt: now},
 	}
 	if err := gdb.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -701,8 +701,8 @@ func TestSetVideoLocationJavIDAllowsStaleNoop(t *testing.T) {
 	if err := gdb.Create(&video).Error; err != nil {
 		t.Fatalf("create video: %v", err)
 	}
-	currentJav := models.Jav{Code: "NOOP-001", Title: "Current", Provider: int(jav.ProviderJavBus), FetchedAt: now}
-	otherJav := models.Jav{Code: "NOOP-002", Title: "Other", Provider: int(jav.ProviderJavDatabase), FetchedAt: now}
+	currentJav := models.Jav{Code: "NOOP-001", Title: "Current", FetchedAt: now}
+	otherJav := models.Jav{Code: "NOOP-002", Title: "Other", FetchedAt: now}
 	if err := gdb.Create(&currentJav).Error; err != nil {
 		t.Fatalf("create current jav: %v", err)
 	}
@@ -743,7 +743,7 @@ func TestSearchJavPreloadsOnlyCurrentLanguageIdols(t *testing.T) {
 		t.Fatalf("create directory: %v", err)
 	}
 
-	javRec := models.Jav{Code: "LANG-001", Title: "Language Work", Provider: 1, FetchedAt: now}
+	javRec := models.Jav{Code: "LANG-001", Title: "Language Work", FetchedAt: now}
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
@@ -818,7 +818,6 @@ func TestSearchJavUsesCurrentLanguageTitleField(t *testing.T) {
 		Code:      "TITLE-001",
 		Title:     "日本語タイトル",
 		TitleEn:   "English Title",
-		Provider:  int(jav.ProviderJavDatabase),
 		FetchedAt: now,
 	}
 	if err := gdb.Create(&javRec).Error; err != nil {
@@ -885,7 +884,7 @@ func TestJavIdolAPIFiltersCurrentLanguageIdols(t *testing.T) {
 		t.Fatalf("create directory: %v", err)
 	}
 
-	javRec := models.Jav{Code: "IDOL-001", Title: "Idol Language Work", Provider: 1, FetchedAt: now}
+	javRec := models.Jav{Code: "IDOL-001", Title: "Idol Language Work", FetchedAt: now}
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
@@ -961,7 +960,7 @@ func TestListIdolsMissingProfileFiltersCurrentLanguage(t *testing.T) {
 	if err := gdb.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
 	}
-	javRec := models.Jav{Code: "MISS-001", Title: "Missing Profile Work", Provider: 1, FetchedAt: now}
+	javRec := models.Jav{Code: "MISS-001", Title: "Missing Profile Work", FetchedAt: now}
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
@@ -1044,8 +1043,8 @@ func TestJavBindingUsesVideoLocationsAndCountsTagWorks(t *testing.T) {
 		t.Fatalf("create video: %v", err)
 	}
 
-	javA := models.Jav{Code: "AAA-001", Title: "A", Provider: 1, FetchedAt: now}
-	javB := models.Jav{Code: "BBB-001", Title: "B", Provider: 1, FetchedAt: now}
+	javA := models.Jav{Code: "AAA-001", Title: "A", FetchedAt: now}
+	javB := models.Jav{Code: "BBB-001", Title: "B", FetchedAt: now}
 	if err := gdb.Create(&javA).Error; err != nil {
 		t.Fatalf("create jav a: %v", err)
 	}
@@ -1139,8 +1138,8 @@ func TestGetJavIdolSummaryReturnsSampleCodeAndWorkCount(t *testing.T) {
 		t.Fatalf("create idol: %v", err)
 	}
 
-	soloJav := models.Jav{Code: "DDD-001", Title: "Solo Work", Provider: 1, FetchedAt: now}
-	groupJav := models.Jav{Code: "EEE-001", Title: "Group Work", Provider: 1, FetchedAt: now}
+	soloJav := models.Jav{Code: "DDD-001", Title: "Solo Work", FetchedAt: now}
+	groupJav := models.Jav{Code: "EEE-001", Title: "Group Work", FetchedAt: now}
 	coIdol := models.JavIdol{Name: "Other Idol"}
 	if err := db.Create(&soloJav).Error; err != nil {
 		t.Fatalf("create solo jav: %v", err)
@@ -1221,14 +1220,12 @@ func TestSearchJavSortByDurationDesc(t *testing.T) {
 		Code:        "FFF-001",
 		Title:       "Short",
 		DurationMin: 90,
-		Provider:    1,
 		FetchedAt:   now,
 	}
 	longJav := models.Jav{
 		Code:        "GGG-001",
 		Title:       "Long",
 		DurationMin: 180,
-		Provider:    1,
 		FetchedAt:   now,
 	}
 	if err := db.Create(&shortJav).Error; err != nil {
@@ -1317,8 +1314,8 @@ func TestListJavIdolsSortByAgeDirections(t *testing.T) {
 		t.Fatalf("create young idol: %v", err)
 	}
 
-	oldJav := models.Jav{Code: "HHH-001", Title: "Old Solo", Provider: 1, FetchedAt: now}
-	youngJav := models.Jav{Code: "III-001", Title: "Young Solo", Provider: 1, FetchedAt: now}
+	oldJav := models.Jav{Code: "HHH-001", Title: "Old Solo", FetchedAt: now}
+	youngJav := models.Jav{Code: "III-001", Title: "Young Solo", FetchedAt: now}
 	if err := db.Create(&oldJav).Error; err != nil {
 		t.Fatalf("create old jav: %v", err)
 	}
