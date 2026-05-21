@@ -1,9 +1,16 @@
 package manager
 
 import (
+	"context"
+	"errors"
 	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"pornboss/internal/jav"
 )
 
 func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
@@ -22,5 +29,71 @@ func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
 	}
 	if got := req.Header.Get("User-Agent"); !strings.Contains(got, "Chrome/") {
 		t.Fatalf("User-Agent = %q, want browser user agent", got)
+	}
+}
+
+func TestDownloadCoverRejectsSmallFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		_, _ = w.Write([]byte(strings.Repeat("x", int(minValidCoverSizeBytes)-1)))
+	}))
+	defer server.Close()
+
+	manager := &CoverManager{coverDir: t.TempDir()}
+	err := manager.downloadCover(context.Background(), "ABC-001", server.URL+"/small.jpg")
+	if !errors.Is(err, errInvalidCover) {
+		t.Fatalf("downloadCover error = %v, want errInvalidCover", err)
+	}
+	if _, err := os.Stat(filepath.Join(manager.coverDir, "ABC-001.jpg")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("small cover should not be finalized, stat err=%v", err)
+	}
+}
+
+func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/jpeg")
+		switch r.URL.Path {
+		case "/small.jpg":
+			_, _ = w.Write([]byte(strings.Repeat("x", int(minValidCoverSizeBytes)-1)))
+		case "/valid.jpg":
+			_, _ = w.Write([]byte(strings.Repeat("y", int(minValidCoverSizeBytes))))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	originalLookup := lookupCoverURLByCode
+	calls := map[jav.Provider]int{}
+	lookupCoverURLByCode = func(code string, provider jav.Provider) (string, error) {
+		calls[provider]++
+		switch provider {
+		case jav.ProviderJavDatabase:
+			return server.URL + "/small.jpg", nil
+		case jav.ProviderJavBus:
+			return server.URL + "/valid.jpg", nil
+		default:
+			return "", jav.ResourceNotFonud
+		}
+	}
+	t.Cleanup(func() { lookupCoverURLByCode = originalLookup })
+
+	manager := &CoverManager{
+		coverDir:  t.TempDir(),
+		providers: []jav.Provider{jav.ProviderJavDatabase, jav.ProviderJavBus},
+	}
+	if err := manager.handleTask(context.Background(), "ABC-001"); err != nil {
+		t.Fatalf("handleTask: %v", err)
+	}
+
+	if calls[jav.ProviderJavDatabase] != 1 || calls[jav.ProviderJavBus] != 1 {
+		t.Fatalf("unexpected provider calls: %#v", calls)
+	}
+	info, err := os.Stat(filepath.Join(manager.coverDir, "abc-001.jpg"))
+	if err != nil {
+		t.Fatalf("stat final cover: %v", err)
+	}
+	if info.Size() != minValidCoverSizeBytes {
+		t.Fatalf("final cover size = %d, want %d", info.Size(), minValidCoverSizeBytes)
 	}
 }
