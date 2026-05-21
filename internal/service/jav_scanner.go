@@ -67,7 +67,7 @@ func ScanJavMetadata(ctx context.Context) error {
 				studio = strings.TrimSpace(info.Studio)
 				seriesEn = strings.TrimSpace(info.Series)
 			}
-			if studio != "" {
+			if item.StudioID == nil && studio != "" {
 				if err := db.UpdateJavStudio(ctx, item.ID, studio); err != nil {
 					logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
 				} else {
@@ -76,7 +76,7 @@ func ScanJavMetadata(ctx context.Context) error {
 			}
 
 			updatedEnglishSeries := false
-			if seriesEn != "" {
+			if item.SeriesEnID == nil && seriesEn != "" {
 				if err := db.UpdateJavSeries(ctx, item.ID, seriesEn, true); err != nil {
 					logging.Error("update jav english series failed id=%d code=%s err=%v", item.ID, code, err)
 				} else {
@@ -84,7 +84,7 @@ func ScanJavMetadata(ctx context.Context) error {
 					logging.Info("jav english series updated id=%d code=%s series=%s", item.ID, code, seriesEn)
 				}
 			}
-			if !updatedEnglishSeries {
+			if item.SeriesID != nil || (item.SeriesEnID == nil && !updatedEnglishSeries) {
 				continue
 			}
 

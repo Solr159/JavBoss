@@ -36,8 +36,11 @@ type JavScanVideo struct {
 
 // JavMetadataScanItem contains a JAV row that needs studio or series metadata.
 type JavMetadataScanItem struct {
-	ID   int64  `gorm:"column:id"`
-	Code string `gorm:"column:code"`
+	ID         int64  `gorm:"column:id"`
+	Code       string `gorm:"column:code"`
+	StudioID   *int64 `gorm:"column:studio_id"`
+	SeriesID   *int64 `gorm:"column:series_id"`
+	SeriesEnID *int64 `gorm:"column:series_en_id"`
 }
 
 // SearchJav lists Jav metadata filtered by idol IDs/tag IDs/search with pagination and sorting.
@@ -1130,7 +1133,7 @@ func ListJavsMissingStudioOrSeries(ctx context.Context) ([]JavMetadataScanItem, 
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code").
+		Select("id, code, studio_id, series_id, series_en_id").
 		Where("COALESCE(code, '') <> ''").
 		Where("studio_id IS NULL OR series_id IS NULL OR series_en_id IS NULL").
 		Order("created_at ASC, id ASC").
