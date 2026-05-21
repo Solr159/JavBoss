@@ -10,8 +10,8 @@ export const JAV_SORT_OPTIONS = [
     ascValue: 'recent_asc',
     descValue: 'recent',
     label: ['加入时间', 'Added time'],
-    asc: ['旧→新', 'old→new'],
-    desc: ['新→旧', 'new→old'],
+    asc: ['远→近', 'old→new'],
+    desc: ['近→远', 'new→old'],
   },
   {
     base: 'code',
@@ -37,8 +37,8 @@ export const JAV_SORT_OPTIONS = [
     ascValue: 'release_asc',
     descValue: 'release',
     label: ['发行时间', 'Release date'],
-    asc: ['旧→新', 'old→new'],
-    desc: ['新→旧', 'new→old'],
+    asc: ['远→近', 'old→new'],
+    desc: ['近→远', 'new→old'],
   },
   {
     base: 'play_count',
@@ -52,6 +52,15 @@ export const JAV_SORT_OPTIONS = [
 ]
 
 export const IDOL_SORT_OPTIONS = [
+  {
+    base: 'recent',
+    defaultValue: 'recent',
+    ascValue: 'recent_asc',
+    descValue: 'recent',
+    label: ['加入时间', 'Added time'],
+    asc: ['远→近', 'old→new'],
+    desc: ['近→远', 'new→old'],
+  },
   {
     base: 'work',
     defaultValue: 'work',
@@ -154,6 +163,10 @@ export function normalizeIdolSort(sort, fallback = 'work') {
     measurements: 'bust',
     measure: 'bust',
     bwh: 'bust',
+    recent_desc: 'recent',
+    added: 'recent',
+    created: 'recent',
+    created_at: 'recent',
     work_count: 'work',
     count: 'work',
     work_desc: 'work',

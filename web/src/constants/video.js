@@ -5,8 +5,8 @@ export const VIDEO_SORT_OPTIONS = [
     ascValue: 'recent_asc',
     descValue: 'recent',
     label: ['加入时间', 'Added time'],
-    asc: ['旧→新', 'old→new'],
-    desc: ['新→旧', 'new→old'],
+    asc: ['远→近', 'old→new'],
+    desc: ['近→远', 'new→old'],
   },
   {
     base: 'filename',

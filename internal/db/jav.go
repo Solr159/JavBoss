@@ -797,6 +797,10 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	var items []JavIdolSummary
 	order := "work_count DESC, ji.name ASC"
 	switch sort {
+	case "recent", "recent_desc", "added", "created", "created_at":
+		order = "ji.created_at DESC, ji.id DESC"
+	case "recent_asc", "added_asc", "created_asc", "created_at_asc":
+		order = "ji.created_at ASC, ji.id ASC"
 	case "birth", "birth_date", "age", "birth_desc", "birth_date_desc", "age_asc":
 		order = "ji.birth_date IS NULL, ji.birth_date DESC, ji.name ASC"
 	case "birth_asc", "birth_date_asc", "age_desc":

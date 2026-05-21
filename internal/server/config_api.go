@@ -155,7 +155,7 @@ func updateConfig(c *gin.Context) {
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.IdolSort)); s != "" {
 		switch s {
-		case "work", "work_asc", "birth", "birth_asc", "height", "height_desc", "bust", "bust_asc", "hips", "hips_asc", "waist", "waist_desc", "measurements", "cup", "cup_asc":
+		case "recent", "recent_asc", "work", "work_asc", "birth", "birth_asc", "height", "height_desc", "bust", "bust_asc", "hips", "hips_asc", "waist", "waist_desc", "measurements", "cup", "cup_asc":
 			entries["idol_sort"] = s
 		default:
 			// ignore invalid values
