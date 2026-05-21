@@ -136,7 +136,6 @@ func main() {
 	screenshotManager.Start(ctx)
 	coverManager.Start(ctx)
 	service.StartDirectoryScanner(ctx, time.Minute)
-	service.StartJavScanner(ctx, time.Minute)
 	service.StartJavMetadataScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
