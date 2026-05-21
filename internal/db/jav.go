@@ -1010,7 +1010,34 @@ func UpdateIdolProfile(ctx context.Context, idolID int64, info *jav.ActressInfo)
 // ListVideosForJavScan loads fields used by the jav scanner.
 func ListVideosForJavScan(ctx context.Context) ([]JavScanVideo, error) {
 	var videos []JavScanVideo
-	if err := common.DB.WithContext(ctx).
+	if err := videosForJavScanQuery(ctx).
+		Order("vl.updated_at DESC, vl.id DESC").
+		Find(&videos).Error; err != nil {
+		return nil, fmt.Errorf("list videos for jav scan: %w", err)
+	}
+	return videos, nil
+}
+
+// GetVideoForJavScan loads one active video location snapshot for a jav link task.
+func GetVideoForJavScan(ctx context.Context, locationID int64) (*JavScanVideo, error) {
+	if locationID <= 0 {
+		return nil, errors.New("location id cannot be zero")
+	}
+	var video JavScanVideo
+	err := videosForJavScanQuery(ctx).
+		Where("vl.id = ?", locationID).
+		Take(&video).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get video for jav scan: %w", err)
+	}
+	return &video, nil
+}
+
+func videosForJavScanQuery(ctx context.Context) *gorm.DB {
+	return common.DB.WithContext(ctx).
 		Table("video_location vl").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("JOIN video v ON v.id = vl.video_id").
@@ -1018,12 +1045,7 @@ func ListVideosForJavScan(ctx context.Context) ([]JavScanVideo, error) {
 		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.missing, 0) = 0").
-		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, vl.updated_at, v.duration_sec, COALESCE(jav.provider, 0) AS jav_provider").
-		Order("vl.updated_at DESC, vl.id DESC").
-		Find(&videos).Error; err != nil {
-		return nil, fmt.Errorf("list videos for jav scan: %w", err)
-	}
-	return videos, nil
+		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, vl.updated_at, v.duration_sec, COALESCE(jav.provider, 0) AS jav_provider")
 }
 
 // GetJavByCode fetches a jav record by code.
