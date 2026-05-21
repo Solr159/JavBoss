@@ -13,53 +13,40 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
+## What Is Pornboss?
+
+Pornboss is a local web app that provides full-featured, automated management for local adult video collections, with especially strong support for managing and searching Japanese AV.
+
+The browsing experience is somewhat similar to JavDb, JavBus, and JavLibrary, but Pornboss optimizes and extends that style for a more direct, powerful, and user-friendly local media library experience.
+
+If you do not want to deal with complex tools or configuration and just want to import your library and start browsing comfortably, Pornboss is the ideal choice.
+
 ## Quick Start
 
 ### 1. Download
 
-Download the latest release package for your system and extract it:
+Click the link for your system, download the latest release package, and extract it:
 
-- [Windows x86_64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-windows-x86_64.zip)
-- [Linux x86_64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-linux-x86_64.zip)
-- [macOS x86_64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-macos-x86_64.zip) for Intel-based macOS
-- [macOS arm64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-macos-arm64.zip) for Apple Silicon macOS
+- [Windows](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-macos-x86_64.zip) for Intel-based macOS
+- [macOS-arm64](https://github.com/Solr159/PornBoss/releases/download/v1.5.5/pornboss-v1.5.5-macos-arm64.zip) for Apple Silicon macOS
 
 You can also visit the [Releases](https://github.com/Solr159/pornboss/releases) page to view all versions.
 
 ### 2. Start The App
 
 - Windows: double-click `pornboss.exe`. If SmartScreen blocks it on first launch, click "More info" and continue.
-- macOS: double-click `pornboss.command`. If macOS cannot verify the file, open `System Settings` -> `Privacy & Security`, scroll to the bottom, and click `Open Anyway`.
-
+- macOS: open a terminal and run `pornboss.command`.
 - Linux: open a terminal and run `pornboss`.
 
 After launch, Pornboss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while Pornboss is running.
 
-The release package includes a `config.toml` file in its root directory. By default `port = 0`, so Pornboss uses a random startup port. To use a fixed port, set it like this:
-
-```text
-port = 17654
-```
-
 ### 3. Add Your Local Folders
 
-Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos. Scanning runs in the background, and indexed videos are available immediately without waiting for the full scan to finish. JAV mode updates may lag slightly behind video mode, so wait 1-5 minutes when importing new JAV titles.
-
-If needed, open `Global Settings` -> `JAV Metadata`, switch the metadata language to `English`, and save.
-
-### 4. Start Using It
-
-- Choose the folders you want to browse from the top folder dropdown or `Directory Management`.
-- Manage general adult videos, short clips, and compilations in `Video` mode.
-- Browse JAV titles by title, actress, maker, series, and tag in `JAV` mode.
-- Add custom tags such as `favorite`, `subtitled`, `uncensored`, or `must-watch`.
-- Use search, filters, sorting, and random browsing to find content quickly.
-
-## What Is Pornboss?
-
-Pornboss is a local web app that provides full-featured, automated management for local adult video collections, with especially strong support for managing and searching Japanese AV.
-
-The browsing experience is somewhat similar to JavDb, JavBus, and JavLibrary, but Pornboss optimizes and extends that style for a more direct, powerful, and user-friendly local media library experience.
+- Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
+- Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
+- In JAV mode, actress, maker, series, and other metadata will be completed automatically over time. Please be patient.
 
 ## Core Philosophy
 
@@ -181,6 +168,7 @@ After downloading and extracting a new version, copy the old version's `data/` d
 - Pornboss is a local media library manager, not an online streaming site.
 - Initial JAV metadata and cover fetching depend on external website availability. If access is restricted in your region, prepare a working network/proxy environment yourself.
 - When importing a large library for the first time, scanning, cover downloads, metadata completion, and thumbnail generation can take some time.
+- The release package includes a `config.toml` file in its root directory. By default `port = 0`, so Pornboss uses a random startup port. You can change it any time if you need a fixed port.
 
 ## Q&A
 
