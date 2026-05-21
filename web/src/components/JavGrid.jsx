@@ -140,34 +140,31 @@ export default function JavGrid({
     )
   }
 
-  const renderJav = (item) => (
-    <JavCard
-      item={item}
-      onPlay={onPlay}
-      buildJavUrl={buildJavUrl}
-      onIdolClick={onIdolClick}
-      onStudioClick={onStudioClick}
-      onSeriesClick={onSeriesClick}
-      onTagClick={onTagClick}
-      onEditTags={onEditTags}
-      onOpenFile={onOpenFile}
-      openFileLabel={openFileLabel}
-      onRevealFile={onRevealFile}
-      onOpenScreenshots={onOpenScreenshots}
-      loadIdolPreview={loadIdolPreview}
-      onOpenCoverPreview={setCoverPreview}
-      javMetadataLanguage={javMetadataLanguage}
-      titleMaxRows={titleMaxRows}
-      idolTagMaxRows={idolTagMaxRows}
-      tagMaxRows={tagMaxRows}
-    />
-  )
-
   return (
     <>
       <div className={gridClassName} style={gridStyle}>
         {items.map((item) => (
-          <div key={item.id || item.code}>{renderJav(item)}</div>
+          <JavCard
+            key={item.id || item.code}
+            item={item}
+            onPlay={onPlay}
+            buildJavUrl={buildJavUrl}
+            onIdolClick={onIdolClick}
+            onStudioClick={onStudioClick}
+            onSeriesClick={onSeriesClick}
+            onTagClick={onTagClick}
+            onEditTags={onEditTags}
+            onOpenFile={onOpenFile}
+            openFileLabel={openFileLabel}
+            onRevealFile={onRevealFile}
+            onOpenScreenshots={onOpenScreenshots}
+            loadIdolPreview={loadIdolPreview}
+            onOpenCoverPreview={setCoverPreview}
+            javMetadataLanguage={javMetadataLanguage}
+            titleMaxRows={titleMaxRows}
+            idolTagMaxRows={idolTagMaxRows}
+            tagMaxRows={tagMaxRows}
+          />
         ))}
       </div>
       {coverPreview ? (

@@ -78,19 +78,16 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }
     )
   }
 
-  const renderSeries = (item) => (
-    <SeriesCard
-      item={item}
-      href={buildSeriesUrl?.(item)}
-      onSelectSeries={onSelectSeries}
-      onSelectStudio={onSelectStudio}
-    />
-  )
-
   return (
     <div className="grid gap-4 bg-white sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
       {items.map((item) => (
-        <div key={item.id || item.name}>{renderSeries(item)}</div>
+        <SeriesCard
+          key={item.id || item.name}
+          item={item}
+          href={buildSeriesUrl?.(item)}
+          onSelectSeries={onSelectSeries}
+          onSelectStudio={onSelectStudio}
+        />
       ))}
     </div>
   )

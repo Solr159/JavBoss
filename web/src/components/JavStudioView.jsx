@@ -74,14 +74,15 @@ function JavStudioGrid({ items, onSelectStudio, buildStudioUrl }) {
     )
   }
 
-  const renderStudio = (item) => (
-    <StudioCard item={item} href={buildStudioUrl?.(item)} onSelectStudio={onSelectStudio} />
-  )
-
   return (
     <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
       {items.map((item) => (
-        <div key={item.id || item.name}>{renderStudio(item)}</div>
+        <StudioCard
+          key={item.id || item.name}
+          item={item}
+          href={buildStudioUrl?.(item)}
+          onSelectStudio={onSelectStudio}
+        />
       ))}
     </div>
   )
