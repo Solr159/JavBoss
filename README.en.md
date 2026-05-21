@@ -42,7 +42,11 @@ You can also visit the [Releases](https://github.com/Solr159/pornboss/releases) 
 
 After launch, Pornboss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while Pornboss is running.
 
-### 3. Add Your Local Folders
+### 3. Set JAV Metadata Language
+
+Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `English`, and save.
+
+### 4. Add Your Local Folders
 
 - Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
 - Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
@@ -53,7 +57,7 @@ After launch, Pornboss will try to open your browser automatically. If it does n
 - **Ready to use, with no external dependencies**: Pornboss includes all runtime dependencies it needs. Add your local folders, wait a short moment, and start using it right away.
 <br>
 
-- **Fully automated managed folder service**: Pornboss provides a managed service for local media folders. Data fetching, indexing, and updates after folder changes are all handled automatically by Pornboss.
+- **Fully automated managed folder service**: Pornboss provides a managed service for local media folders. Once folder contents change in any way, all data updates are handled automatically by Pornboss. You can think of Pornboss as maintaining a real-time, complete mapping of your folder contents. Data updates take time, so they are not zero-latency, but Pornboss guarantees eventual consistency.
 <br>
 
 - **Non-intrusive design**: Pornboss respects your media folders. It only reads folder contents and never modifies them, so you do not need to worry about generated junk such as `.nfo` files or cover images appearing inside your own folders. This also lets Pornboss work alongside other video managers without interfering with them.
