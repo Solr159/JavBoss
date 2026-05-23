@@ -248,10 +248,14 @@ func listJavTagsForProviders(ctx context.Context, directoryIDs []int64, provider
 	var tags []JavTagCount
 	activeLocationSQL := activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs)
 	isUser := outputProvider == int(jav.ProviderUser)
+	tagMapJoin := "JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
+	if isUser {
+		tagMapJoin = "LEFT JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
+	}
 	if err := common.DB.WithContext(ctx).
 		Table("jav_tag jt").
 		Select("jt.id, jt.name, ? AS provider, COUNT(DISTINCT CASE WHEN "+activeLocationSQL+" THEN jtm.jav_id END) AS count", outputProvider).
-		Joins("JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?", providers).
+		Joins(tagMapJoin, providers).
 		Joins("LEFT JOIN video_location vl ON vl.jav_id = jtm.jav_id").
 		Joins("LEFT JOIN directory d ON d.id = vl.directory_id").
 		Where("COALESCE(jt.is_user, 0) = ?", isUser).

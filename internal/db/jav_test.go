@@ -607,6 +607,31 @@ func TestUserJavTagNameDoesNotModifyScrapedTag(t *testing.T) {
 	}
 }
 
+func TestCreatedUserJavTagAppearsWithZeroCount(t *testing.T) {
+	openTestDB(t)
+	ctx := context.Background()
+
+	created, err := CreateJavTag(ctx, "Empty User Tag")
+	if err != nil {
+		t.Fatalf("CreateJavTag: %v", err)
+	}
+
+	tags, err := ListJavTags(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListJavTags: %v", err)
+	}
+	for _, tag := range tags {
+		if tag.ID != created.ID {
+			continue
+		}
+		if tag.Name != "Empty User Tag" || tag.Provider != int(jav.ProviderUser) || tag.Count != 0 {
+			t.Fatalf("unexpected created tag row: %#v", tag)
+		}
+		return
+	}
+	t.Fatalf("created user tag not listed: %#v", tags)
+}
+
 func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
