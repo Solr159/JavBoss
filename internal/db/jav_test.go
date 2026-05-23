@@ -915,11 +915,60 @@ func TestSetVideoLocationJavIDAllowsStaleNoop(t *testing.T) {
 	}
 
 	staleUpdatedAt := now.Add(-time.Hour)
-	if err := setVideoLocationJavIDTx(gdb, loc.ID, currentJav.ID, staleUpdatedAt); err != nil {
+	if err := setVideoLocationJavIDTx(gdb, loc.ID, 0, currentJav.ID, staleUpdatedAt); err != nil {
 		t.Fatalf("same jav id should be accepted as noop: %v", err)
 	}
-	if err := setVideoLocationJavIDTx(gdb, loc.ID, otherJav.ID, staleUpdatedAt); err == nil {
+	if err := setVideoLocationJavIDTx(gdb, loc.ID, 0, otherJav.ID, staleUpdatedAt); err == nil {
 		t.Fatal("different jav id with stale updated_at should fail")
+	}
+}
+
+func TestSetVideoLocationJavIDForVideoAllowsStaleTimestampWhenUnlinked(t *testing.T) {
+	gdb := openTestDB(t)
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	video := models.Video{
+		DirectoryID: dir.ID,
+		Path:        "stale.mp4",
+		Filename:    "stale.mp4",
+		Fingerprint: "fp-stale",
+		DurationSec: 7200,
+		ModifiedAt:  now,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	javRec := models.Jav{Code: "STALE-001", Title: "Stale", FetchedAt: now}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	loc := models.VideoLocation{
+		VideoID:      video.ID,
+		DirectoryID:  dir.ID,
+		RelativePath: "stale.mp4",
+		ModifiedAt:   now,
+		UpdatedAt:    now,
+	}
+	if err := gdb.Create(&loc).Error; err != nil {
+		t.Fatalf("create video location: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).Where("id = ?", loc.ID).Update("updated_at", now.Add(time.Minute)).Error; err != nil {
+		t.Fatalf("refresh video location updated_at: %v", err)
+	}
+
+	if err := setVideoLocationJavIDTx(gdb, loc.ID, video.ID, javRec.ID, now); err != nil {
+		t.Fatalf("same video with stale updated_at should be linked: %v", err)
+	}
+	var got models.VideoLocation
+	if err := gdb.First(&got, loc.ID).Error; err != nil {
+		t.Fatalf("load video location: %v", err)
+	}
+	if got.JavID == nil || *got.JavID != javRec.ID {
+		t.Fatalf("jav id not linked: %#v", got.JavID)
 	}
 }
 

@@ -1165,11 +1165,21 @@ func GetJavByCode(ctx context.Context, code string) (*models.Jav, error) {
 
 // SetVideoLocationJavID links a file location to a jav record, guarding against stale updates when expectedUpdatedAt is provided.
 func SetVideoLocationJavID(ctx context.Context, locationID, javID int64, expectedUpdatedAt time.Time) error {
-	return setVideoLocationJavIDTx(common.DB.WithContext(ctx), locationID, javID, expectedUpdatedAt)
+	return setVideoLocationJavIDTx(common.DB.WithContext(ctx), locationID, 0, javID, expectedUpdatedAt)
+}
+
+// SetVideoLocationJavIDForVideo links a file location to a jav record while ensuring the location still points at the scanned video.
+func SetVideoLocationJavIDForVideo(ctx context.Context, locationID, videoID, javID int64, expectedUpdatedAt time.Time) error {
+	return setVideoLocationJavIDTx(common.DB.WithContext(ctx), locationID, videoID, javID, expectedUpdatedAt)
 }
 
 // SaveJavInfoAndLinkLocation upserts jav metadata and associates the video location in one transaction.
 func SaveJavInfoAndLinkLocation(ctx context.Context, info *jav.JavInfo, locationID int64, expectedUpdatedAt time.Time) (*models.Jav, error) {
+	return SaveJavInfoAndLinkLocationForVideo(ctx, info, locationID, 0, expectedUpdatedAt)
+}
+
+// SaveJavInfoAndLinkLocationForVideo upserts jav metadata and associates the video location when it still belongs to the scanned video.
+func SaveJavInfoAndLinkLocationForVideo(ctx context.Context, info *jav.JavInfo, locationID, videoID int64, expectedUpdatedAt time.Time) (*models.Jav, error) {
 	if info == nil {
 		return nil, errors.New("jav info is nil")
 	}
@@ -1179,7 +1189,7 @@ func SaveJavInfoAndLinkLocation(ctx context.Context, info *jav.JavInfo, location
 		if err != nil {
 			return err
 		}
-		if err := setVideoLocationJavIDTx(tx, locationID, rec.ID, expectedUpdatedAt); err != nil {
+		if err := setVideoLocationJavIDTx(tx, locationID, videoID, rec.ID, expectedUpdatedAt); err != nil {
 			return err
 		}
 		javRec = rec
@@ -1614,20 +1624,23 @@ func ensureJavIdolsTx(tx *gorm.DB, names []string, isEnglish bool) ([]models.Jav
 	return idols, nil
 }
 
-func setVideoLocationJavIDTx(tx *gorm.DB, locationID, javID int64, expectedUpdatedAt time.Time) error {
+func setVideoLocationJavIDTx(tx *gorm.DB, locationID, expectedVideoID, javID int64, expectedUpdatedAt time.Time) error {
 	if tx == nil {
 		return errors.New("tx is nil")
 	}
 	q := tx.Model(&models.VideoLocation{}).Where("id = ?", locationID)
-	if !expectedUpdatedAt.IsZero() {
+	if expectedVideoID > 0 {
+		q = q.Where("video_id = ?", expectedVideoID).
+			Where("jav_id IS NULL OR jav_id = ?", javID)
+	} else if !expectedUpdatedAt.IsZero() {
 		q = q.Where("updated_at = ?", expectedUpdatedAt)
 	}
 	res := q.Update("jav_id", javID)
 	if res.Error != nil {
 		return res.Error
 	}
-	if res.RowsAffected == 0 && !expectedUpdatedAt.IsZero() {
-		ok, err := videoLocationHasJavIDTx(tx, locationID, javID)
+	if res.RowsAffected == 0 && (expectedVideoID > 0 || !expectedUpdatedAt.IsZero()) {
+		ok, err := videoLocationHasJavIDTx(tx, locationID, expectedVideoID, javID)
 		if err != nil {
 			return err
 		}
@@ -1639,17 +1652,20 @@ func setVideoLocationJavIDTx(tx *gorm.DB, locationID, javID int64, expectedUpdat
 	return nil
 }
 
-func videoLocationHasJavIDTx(tx *gorm.DB, locationID, javID int64) (bool, error) {
+func videoLocationHasJavIDTx(tx *gorm.DB, locationID, expectedVideoID, javID int64) (bool, error) {
 	if tx == nil {
 		return false, errors.New("tx is nil")
 	}
 	var loc models.VideoLocation
-	err := tx.Select("id", "jav_id").Where("id = ?", locationID).First(&loc).Error
+	err := tx.Select("id", "video_id", "jav_id").Where("id = ?", locationID).First(&loc).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
 		}
 		return false, fmt.Errorf("get video location jav id: %w", err)
+	}
+	if expectedVideoID > 0 && loc.VideoID != expectedVideoID {
+		return false, nil
 	}
 	return loc.JavID != nil && *loc.JavID == javID, nil
 }

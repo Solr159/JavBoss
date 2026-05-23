@@ -499,7 +499,7 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 		if existJav == nil {
 			continue
 		}
-		if err := db.SetVideoLocationJavID(ctx, v.LocationID, existJav.ID, v.UpdatedAt); err != nil {
+		if err := db.SetVideoLocationJavIDForVideo(ctx, v.LocationID, v.VideoID, existJav.ID, v.UpdatedAt); err != nil {
 			logging.Error("set video location jav failed location=%d code=%s err=%v", v.LocationID, code, err)
 		} else {
 			enqueueCover(existJav.Code)
@@ -530,7 +530,7 @@ func lookupAndLinkVideoLocationJav(ctx context.Context, v *db.JavScanVideo, file
 			continue
 		}
 
-		if _, err := db.SaveJavInfoAndLinkLocation(ctx, info, v.LocationID, v.UpdatedAt); err != nil {
+		if _, err := db.SaveJavInfoAndLinkLocationForVideo(ctx, info, v.LocationID, v.VideoID, v.UpdatedAt); err != nil {
 			logging.Error("link video location->jav failed provider=%s location=%s code=%s err=%v", provider.String(), filename, info.Code, err)
 		} else {
 			logging.Info("link video location->jav success provider=%s location=%s code=%s", provider.String(), filename, info.Code)
