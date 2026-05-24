@@ -185,7 +185,7 @@ export default function VideoView({
           </div>
         </div>
         {hasSelection && (
-          <div className="mt-3 flex items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap">
+          <div className="mt-1 flex items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap pb-1">
             <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium leading-5 text-sky-700">
               {zh(`已选 ${selectedCount} 项`, `${selectedCount} selected`)}
             </span>
