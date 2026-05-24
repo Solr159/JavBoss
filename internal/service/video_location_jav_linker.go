@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	javLinkWorkerCount = 32
+	javLinkWorkerCount = 4 // 增加worker数可能会导致首次扫描目录时jav相关查询接口严重阻塞
 	javLinkQueueSize   = 4096
 )
 
