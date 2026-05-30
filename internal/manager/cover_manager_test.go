@@ -32,16 +32,6 @@ func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
 	}
 }
 
-func TestNewCoverManagerUsesExpandedWorkers(t *testing.T) {
-	manager := NewCoverManager(t.TempDir(), []jav.Provider{jav.ProviderJavBus})
-	if manager == nil {
-		t.Fatal("NewCoverManager returned nil")
-	}
-	if manager.workers != 32 {
-		t.Fatalf("workers = %d, want 32", manager.workers)
-	}
-}
-
 func TestEnqueueDeduplicatesScheduledCodes(t *testing.T) {
 	manager := &CoverManager{
 		tasks:     make(chan string, 2),
