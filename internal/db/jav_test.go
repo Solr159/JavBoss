@@ -510,6 +510,40 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 	})
 }
 
+func TestAppendJavIdolsIfMissingForProvider(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	javRec := models.Jav{Code: "AVS-001", Title: "Kept Title", FetchedAt: now}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+
+	updated, err := AppendJavIdolsIfMissingForProvider(ctx, javRec.ID, []string{"小橋りえこ", "小橋りえこ"}, jav.ProviderAvsox)
+	if err != nil {
+		t.Fatalf("AppendJavIdolsIfMissingForProvider: %v", err)
+	}
+	if !updated {
+		t.Fatal("expected idol map update")
+	}
+	assertJavIdolMaps(t, gdb, "AVS-001", map[string]bool{
+		"小橋りえこ": false,
+	})
+	assertJavTitles(t, gdb, "AVS-001", "Kept Title", "")
+
+	updated, err = AppendJavIdolsIfMissingForProvider(ctx, javRec.ID, []string{"別の女優"}, jav.ProviderAvsox)
+	if err != nil {
+		t.Fatalf("AppendJavIdolsIfMissingForProvider second call: %v", err)
+	}
+	if updated {
+		t.Fatal("expected existing local idol map to be preserved")
+	}
+	assertJavIdolMaps(t, gdb, "AVS-001", map[string]bool{
+		"小橋りえこ": false,
+	})
+}
+
 func TestSaveJavInfoPersistsUncensoredState(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
@@ -890,7 +924,7 @@ func TestListJavsMissingUncensored(t *testing.T) {
 	}
 }
 
-func TestListUncensoredJavsMissingStudioOrSeries(t *testing.T) {
+func TestListUncensoredJavsMissingAvsoxMetadata(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -910,7 +944,8 @@ func TestListUncensoredJavsMissingStudioOrSeries(t *testing.T) {
 		{Code: "MISS-BOTH", IsUncensored: &uncensored, FetchedAt: now, CreatedAt: now},
 		{Code: "MISS-STUDIO", IsUncensored: &uncensored, SeriesID: &series.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
 		{Code: "MISS-SERIES", IsUncensored: &uncensored, StudioID: &studio.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
-		{Code: "HAVE-BOTH", IsUncensored: &uncensored, StudioID: &studio.ID, SeriesID: &series.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+		{Code: "MISS-IDOLS", IsUncensored: &uncensored, StudioID: &studio.ID, SeriesID: &series.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+		{Code: "HAVE-ALL", IsUncensored: &uncensored, StudioID: &studio.ID, SeriesID: &series.ID, FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
 		{Code: "CEN-MISS", IsUncensored: &censored, FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
 		{Code: "UNK-MISS", FetchedAt: now.Add(5 * time.Second), CreatedAt: now.Add(5 * time.Second)},
 		{Code: "", IsUncensored: &uncensored, FetchedAt: now.Add(6 * time.Second), CreatedAt: now.Add(6 * time.Second)},
@@ -918,16 +953,27 @@ func TestListUncensoredJavsMissingStudioOrSeries(t *testing.T) {
 	if err := gdb.Create(&rows).Error; err != nil {
 		t.Fatalf("create jav rows: %v", err)
 	}
+	haveAllIdol := models.JavIdol{Name: "Existing Idol"}
+	if err := gdb.Create(&haveAllIdol).Error; err != nil {
+		t.Fatalf("create idol: %v", err)
+	}
+	var haveAll models.Jav
+	if err := gdb.Where("code = ?", "HAVE-ALL").First(&haveAll).Error; err != nil {
+		t.Fatalf("load have all jav: %v", err)
+	}
+	if err := gdb.Create(&models.JavIdolMap{JavID: haveAll.ID, JavIdolID: haveAllIdol.ID}).Error; err != nil {
+		t.Fatalf("create idol map: %v", err)
+	}
 
-	items, err := ListUncensoredJavsMissingStudioOrSeries(ctx)
+	items, err := ListUncensoredJavsMissingAvsoxMetadata(ctx)
 	if err != nil {
-		t.Fatalf("ListUncensoredJavsMissingStudioOrSeries: %v", err)
+		t.Fatalf("ListUncensoredJavsMissingAvsoxMetadata: %v", err)
 	}
-	if len(items) != 3 {
-		t.Fatalf("unexpected item count: got %d want 3", len(items))
+	if len(items) != 4 {
+		t.Fatalf("unexpected item count: got %d want 4", len(items))
 	}
-	got := []string{items[0].Code, items[1].Code, items[2].Code}
-	want := []string{"MISS-BOTH", "MISS-STUDIO", "MISS-SERIES"}
+	got := []string{items[0].Code, items[1].Code, items[2].Code, items[3].Code}
+	want := []string{"MISS-BOTH", "MISS-STUDIO", "MISS-SERIES", "MISS-IDOLS"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Fatalf("unexpected codes: got %#v want %#v", got, want)

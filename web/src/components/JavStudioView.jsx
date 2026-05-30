@@ -1,3 +1,6 @@
+import { useState } from 'react'
+
+import { fetchJavStudioJavDBURL } from '@/api'
 import { getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import Pagination from '@/components/Pagination'
 import WaterfallLoader from '@/components/WaterfallLoader'
@@ -88,11 +91,16 @@ function JavStudioGrid({ items, onSelectStudio, buildStudioUrl }) {
   )
 }
 
-function StudioCard({ item, href, onSelectStudio }) {
+export function StudioCard({ item, href, onSelectStudio }) {
   const { bgWidthPercent, coverAspectPercent } = getIdolCardLayoutProps()
   const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
-  const workCount = item?.work_count || 0
+  const studioId = Number(item?.id)
+  const workCount = Number(item?.work_count)
+  const showWorkCount = Number.isFinite(workCount) && workCount > 0
+  const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
+  const [javdbOpening, setJavdbOpening] = useState(false)
+  const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(studioId) && studioId > 0))
 
   const handleClick = (e) => {
     const selection = window.getSelection?.()
@@ -106,6 +114,40 @@ function StudioCard({ item, href, onSelectStudio }) {
     }
     e.preventDefault()
     onSelectStudio?.(item)
+  }
+
+  const handleOpenJavDB = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!canOpenJavDB || javdbOpening) return
+
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      popup.opener = null
+    }
+
+    try {
+      setJavdbOpening(true)
+      let targetURL = javdbURL
+      if (!targetURL) {
+        targetURL = await fetchJavStudioJavDBURL({ studioId })
+        setJavdbURL(targetURL)
+      }
+      if (!targetURL) {
+        popup?.close()
+        return
+      }
+      if (popup) {
+        popup.location.replace(targetURL)
+      } else {
+        window.open(targetURL, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      popup?.close()
+      console.warn('open javdb studio failed', error)
+    } finally {
+      setJavdbOpening(false)
+    }
   }
 
   return (
@@ -141,12 +183,31 @@ function StudioCard({ item, href, onSelectStudio }) {
             {name}
           </div>
         )}
+        {showWorkCount ? (
+          <div className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
+            {zh(`作品 ${workCount}`, `${workCount} works`)}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
+            canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
+          }`}
+          title={zh('在 JavDB 中打开片商详情', 'Open studio profile in JavDB')}
+          aria-label={zh('在 JavDB 中打开片商详情', 'Open studio profile in JavDB')}
+          disabled={!canOpenJavDB || javdbOpening}
+          onClick={handleOpenJavDB}
+        >
+          <img
+            src="/ico/javdb.png"
+            alt="JavDB"
+            className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
+            loading="lazy"
+          />
+        </button>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <div className="line-clamp-2 text-sm font-semibold leading-tight">{name}</div>
-        <div className="text-xs text-gray-500">
-          {zh(`${workCount} 部作品`, `${workCount} works`)}
-        </div>
       </div>
     </a>
   )

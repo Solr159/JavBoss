@@ -188,9 +188,12 @@ type ActressInfo struct {
 // Return other error for retryable lookup failures.
 type lookupProvider interface {
 	LookupActressByCode(code string) (*ActressInfo, error)
-	LookupActressByJapaneseName(name string) (*ActressInfo, error)
+	LookupActressByName(name string) (*ActressInfo, error)
+	LookupActressURLByCodeAndName(code, name string) (string, error)
 	LookupCoverURLByCode(code string) (string, error)
 	LookupJavByCode(code string) (*JavInfo, error)
+	LookupSeriesURLByCode(code string) (string, error)
+	LookupStudioURLByCode(code string) (string, error)
 }
 
 func lookupProviderFor(provider Provider) (lookupProvider, error) {
@@ -248,9 +251,29 @@ func LookupActressByJapaneseName(name string, provider Provider) (info *ActressI
 		return cached, err
 	}
 	defer recoverUnsupportedProvider(&err)
-	info, err = lookup.LookupActressByJapaneseName(name)
+	info, err = lookup.LookupActressByName(name)
 	cacheableLookupResult(cacheKey, info, err)
 	return info, err
+}
+
+// LookupActressURLByCodeAndName fetches an actress profile URL using a movie code and actress name.
+func LookupActressURLByCodeAndName(code, name string, provider Provider) (actressURL string, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return "", err
+	}
+	cacheInput := strings.ToUpper(strings.TrimSpace(code)) + "|" + strings.Join(strings.Fields(name), " ")
+	cacheKey := lookupCacheKey(provider, "lookup_actress_url_code_name", cacheInput)
+	if cached, ok, err := lookupCacheGet[string](cacheKey); ok {
+		if cached == nil {
+			return "", err
+		}
+		return *cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	actressURL, err = lookup.LookupActressURLByCodeAndName(code, name)
+	cacheableLookupResult(cacheKey, actressURL, err)
+	return actressURL, err
 }
 
 // LookupCoverURLByCode fetches a cover image URL from the selected provider.
@@ -270,6 +293,44 @@ func LookupCoverURLByCode(code string, provider Provider) (coverURL string, err 
 	coverURL, err = lookup.LookupCoverURLByCode(code)
 	cacheableLookupResult(cacheKey, coverURL, err)
 	return coverURL, err
+}
+
+// LookupSeriesURLByCode fetches a series detail URL using a movie code.
+func LookupSeriesURLByCode(code string, provider Provider) (seriesURL string, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return "", err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_series_url", code)
+	if cached, ok, err := lookupCacheGet[string](cacheKey); ok {
+		if cached == nil {
+			return "", err
+		}
+		return *cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	seriesURL, err = lookup.LookupSeriesURLByCode(code)
+	cacheableLookupResult(cacheKey, seriesURL, err)
+	return seriesURL, err
+}
+
+// LookupStudioURLByCode fetches a studio detail URL using a movie code.
+func LookupStudioURLByCode(code string, provider Provider) (studioURL string, err error) {
+	lookup, err := lookupProviderFor(provider)
+	if err != nil {
+		return "", err
+	}
+	cacheKey := lookupCacheKey(provider, "lookup_studio_url", code)
+	if cached, ok, err := lookupCacheGet[string](cacheKey); ok {
+		if cached == nil {
+			return "", err
+		}
+		return *cached, err
+	}
+	defer recoverUnsupportedProvider(&err)
+	studioURL, err = lookup.LookupStudioURLByCode(code)
+	cacheableLookupResult(cacheKey, studioURL, err)
+	return studioURL, err
 }
 
 func recoverUnsupportedProvider(err *error) {

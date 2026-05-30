@@ -27,13 +27,28 @@ func (javModel) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javmodel: lookup actress not supported")
 }
 
+// LookupActressURLByCodeAndName implements lookupProvider.
+func (javModel) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	return "", errors.New("javmodel: lookup actress url not supported")
+}
+
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
 func (javModel) LookupCoverURLByCode(code string) (string, error) {
 	return "", errors.New("javmodel: lookup cover not supported")
 }
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupSeriesURLByCode implements lookupProvider.
+func (javModel) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("javmodel: lookup series url not supported")
+}
+
+// LookupStudioURLByCode implements lookupProvider.
+func (javModel) LookupStudioURLByCode(code string) (string, error) {
+	return "", errors.New("javmodel: lookup studio url not supported")
+}
+
+// LookupActressByName implements lookupProvider.
+func (javModel) LookupActressByName(name string) (*ActressInfo, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ResourceNotFonud
@@ -93,13 +108,10 @@ func (javModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
 	if info == nil {
 		return nil, ResourceNotFonud
 	}
-	if info.RomanName == "" && romanName != "" {
-		info.RomanName = romanName
+	info, err = finalizeJavModelActressInfo(name, romanName, detailURL, info)
+	if err != nil {
+		return nil, err
 	}
-	if info.JapaneseName == "" && containsJapaneseRunes(name) {
-		info.JapaneseName = name
-	}
-	info.ProfileURL = detailURL
 	logging.Info("javmodel: found actress profile name=%s roman=%s japanese=%s chinese=%s", name, info.RomanName, info.JapaneseName, info.ChineseName)
 	return info, nil
 }
@@ -294,6 +306,28 @@ func parseJavModelActressInfo(root *html.Node) *ActressInfo {
 	}
 
 	return info
+}
+
+func finalizeJavModelActressInfo(name, romanName, detailURL string, info *ActressInfo) (*ActressInfo, error) {
+	if info == nil {
+		return nil, ResourceNotFonud
+	}
+	name = strings.TrimSpace(name)
+	if info.RomanName == "" && romanName != "" {
+		info.RomanName = romanName
+	}
+	japaneseName := strings.TrimSpace(info.JapaneseName)
+	if japaneseName == "" {
+		logging.Info("javmodel: missing japanese name in profile input=%s roman=%s", name, info.RomanName)
+		return nil, ResourceNotFonud
+	}
+	if japaneseName != name {
+		logging.Info("javmodel: japanese name mismatch input=%s parsed=%s roman=%s", name, info.JapaneseName, info.RomanName)
+		return nil, ResourceNotFonud
+	}
+	info.JapaneseName = japaneseName
+	info.ProfileURL = detailURL
+	return info, nil
 }
 
 func extractJavModelProfileFields(root *html.Node) javModelProfileFields {

@@ -650,6 +650,35 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 	return items, total, nil
 }
 
+// GetJavStudioSummary returns one studio summary for hover preview usage.
+func GetJavStudioSummary(ctx context.Context, studioID int64, directoryIDs []int64) (*JavStudioSummary, error) {
+	if studioID <= 0 {
+		return nil, errors.New("studio id must be positive")
+	}
+
+	var item JavStudioSummary
+	query := common.DB.WithContext(ctx).
+		Table("jav_studio js").
+		Joins("JOIN jav j ON j.studio_id = js.id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("js.id = ?", studioID).
+		Where(activeLocationWhereSQL("vl", "d"))
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	tx := query.
+		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name").
+		Limit(1).
+		Scan(&item)
+	if tx.Error != nil {
+		return nil, fmt.Errorf("get jav studio summary: %w", tx.Error)
+	}
+	if tx.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &item, nil
+}
+
 // ListStudioCoverCodes returns a prioritized list of codes for a studio.
 func ListStudioCoverCodes(ctx context.Context, studioID int64, directoryIDs []int64) ([]string, error) {
 	if studioID <= 0 {
@@ -721,6 +750,39 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	}
 
 	return items, total, nil
+}
+
+// GetJavSeriesSummary returns one series summary for hover preview usage.
+func GetJavSeriesSummary(ctx context.Context, seriesID int64, directoryIDs []int64) (*JavSeriesSummary, error) {
+	if seriesID <= 0 {
+		return nil, errors.New("series id must be positive")
+	}
+
+	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
+	seriesColumn := javSeriesColumn()
+	var item JavSeriesSummary
+	query := common.DB.WithContext(ctx).
+		Table("jav_series js").
+		Joins("JOIN jav j ON j."+seriesColumn+" = js.id").
+		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("js.id = ?", seriesID).
+		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where(activeLocationWhereSQL("vl", "d"))
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	tx := query.
+		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Group("js.id, js.name, js.is_english, js.studio_id, jst.name").
+		Limit(1).
+		Scan(&item)
+	if tx.Error != nil {
+		return nil, fmt.Errorf("get jav series summary: %w", tx.Error)
+	}
+	if tx.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &item, nil
 }
 
 // ListSeriesCoverCodes returns a prioritized list of codes for a series.
@@ -1303,18 +1365,24 @@ func ListJavsMissingUncensored(ctx context.Context) ([]JavMetadataScanItem, erro
 	return items, nil
 }
 
-// ListUncensoredJavsMissingStudioOrSeries returns uncensored JAV rows missing studio or non-English series data.
-func ListUncensoredJavsMissingStudioOrSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListUncensoredJavsMissingAvsoxMetadata returns uncensored JAV rows missing fields avsox can fill.
+func ListUncensoredJavsMissingAvsoxMetadata(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
+	localIdols := common.DB.WithContext(ctx).
+		Table("jav_idol_map jim").
+		Select("1").
+		Joins("JOIN jav_idol ji ON ji.id = jim.jav_idol_id").
+		Where("jim.jav_id = jav.id").
+		Where("COALESCE(ji.is_english, 0) = ?", jav.ProviderIsEnglish(jav.ProviderAvsox))
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Select("id, code, studio_id, series_id").
 		Where("COALESCE(code, '') <> ''").
 		Where("COALESCE(is_uncensored, 0) <> 0").
-		Where("studio_id IS NULL OR series_id IS NULL").
+		Where("studio_id IS NULL OR series_id IS NULL OR NOT EXISTS (?)", localIdols).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list uncensored javs missing studio or series: %w", err)
+		return nil, fmt.Errorf("list uncensored javs missing avsox metadata: %w", err)
 	}
 	return items, nil
 }
@@ -1420,6 +1488,14 @@ func UpdateJavSeries(ctx context.Context, javID int64, series string, isEnglish 
 		}
 		return nil
 	})
+}
+
+// AppendJavIdolsIfMissingForProvider appends provider-language idol mappings when none exist yet.
+func AppendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names []string, provider jav.Provider) (bool, error) {
+	if javID == 0 {
+		return false, errors.New("jav id cannot be zero")
+	}
+	return appendJavIdolsIfMissingForProvider(ctx, javID, names, provider)
 }
 
 func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Jav, error) {
@@ -1657,6 +1733,50 @@ func appendJavIdolsForProviderLanguageTx(tx *gorm.DB, javRec *models.Jav, names 
 		return fmt.Errorf("append jav idols: %w", err)
 	}
 	return nil
+}
+
+func appendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names []string, provider jav.Provider) (bool, error) {
+	unique := normalizeNames(names)
+	if len(unique) == 0 {
+		return false, nil
+	}
+
+	var updated bool
+	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var javRec models.Jav
+		if err := tx.Select("id").Where("id = ?", javID).First(&javRec).Error; err != nil {
+			return fmt.Errorf("get jav for idol append: %w", err)
+		}
+		isEnglish := jav.ProviderIsEnglish(provider)
+		var existingCount int64
+		if err := tx.Model(&models.JavIdolMap{}).
+			Joins("JOIN jav_idol ji ON ji.id = jav_idol_map.jav_idol_id").
+			Where("jav_idol_map.jav_id = ?", javID).
+			Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
+			Count(&existingCount).Error; err != nil {
+			return fmt.Errorf("count jav idol maps: %w", err)
+		}
+		if existingCount > 0 {
+			return nil
+		}
+
+		idols, err := ensureJavIdolsTx(tx, unique, isEnglish)
+		if err != nil {
+			return err
+		}
+		if len(idols) == 0 {
+			return nil
+		}
+		if err := tx.Model(&javRec).Association("Idols").Append(idols); err != nil {
+			return fmt.Errorf("append jav idols: %w", err)
+		}
+		updated = true
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return updated, nil
 }
 
 func ensureJavIdolsTx(tx *gorm.DB, names []string, isEnglish bool) ([]models.JavIdol, error) {

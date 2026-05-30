@@ -156,6 +156,88 @@ func TestParseJavDBMovieInfo(t *testing.T) {
 	}
 }
 
+func TestParseJavDBActressURLByName(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>演員:</strong>
+      <span class="value">
+        <a href="/actors/QNen">岬ななみ</a><strong class="symbol female">♀</strong>
+        <a href="/actors/zXAE">吉村卓</a><strong class="symbol male">♂</strong>
+      </span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := parseJavDBActressURLByName(doc, "岬ななみ", "https://javdb.com/v/kKdRm")
+	if got != "https://javdb.com/actors/QNen" {
+		t.Fatalf("unexpected actress url: %q", got)
+	}
+
+	got = parseJavDBActressURLByName(doc, "吉村卓", "https://javdb.com/v/kKdRm")
+	if got != "" {
+		t.Fatalf("male actor url should be ignored, got %q", got)
+	}
+
+	got = parseJavDBActressURLByName(doc, "別の女優", "https://javdb.com/v/kKdRm")
+	if got != "" {
+		t.Fatalf("unexpected unmatched actress url: %q", got)
+	}
+}
+
+func TestParseJavDBSeriesURL(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>系列:</strong>
+      <span class="value"><a href="/series/w54b">中年オヤジ</a></span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := parseJavDBSeriesURL(doc, "https://javdb.com/v/kKdRm")
+	if got != "https://javdb.com/series/w54b" {
+		t.Fatalf("unexpected series url: %q", got)
+	}
+}
+
+func TestParseJavDBStudioURL(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>片商:</strong>
+      <span class="value"><a href="/makers/ZXX">IDEA POCKET</a></span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := parseJavDBStudioURL(doc, "https://javdb.com/v/kKdRm")
+	if got != "https://javdb.com/makers/ZXX" {
+		t.Fatalf("unexpected studio url: %q", got)
+	}
+}
+
 func TestParseJavDBCoverURL(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
 <!doctype html>

@@ -12,8 +12,10 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
-import { fetchJavIdolPreview } from '@/api'
+import { fetchJavIdolPreview, fetchJavSeriesPreview, fetchJavStudioPreview } from '@/api'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
+import { SeriesCard } from '@/components/JavSeriesView'
+import { StudioCard } from '@/components/JavStudioView'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { directoryQueryIds, useStore } from '@/store'
@@ -92,6 +94,10 @@ export default function JavGrid({
   )
   const idolPreviewCacheRef = useRef(new Map())
   const idolPreviewInflightRef = useRef(new Map())
+  const studioPreviewCacheRef = useRef(new Map())
+  const studioPreviewInflightRef = useRef(new Map())
+  const seriesPreviewCacheRef = useRef(new Map())
+  const seriesPreviewInflightRef = useRef(new Map())
   const [coverPreview, setCoverPreview] = useState(null)
   const hasItems = Array.isArray(items) && items.length > 0
   const columnCount = Number.isFinite(Number(columns)) ? Math.floor(Number(columns)) : 0
@@ -132,6 +138,64 @@ export default function JavGrid({
     return request
   }
 
+  const loadStudioPreview = async (studio) => {
+    const studioId = Number(studio?.id)
+    if (!Number.isFinite(studioId) || studioId <= 0) {
+      return studio || null
+    }
+
+    const cacheKey = `${studioId}|${(directoryIds || []).join(',')}`
+    const cached = studioPreviewCacheRef.current.get(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    const inflight = studioPreviewInflightRef.current.get(cacheKey)
+    if (inflight) {
+      return inflight
+    }
+
+    const request = fetchJavStudioPreview(studioId, { directoryIds })
+      .then((preview) => {
+        studioPreviewCacheRef.current.set(cacheKey, preview)
+        return preview
+      })
+      .finally(() => {
+        studioPreviewInflightRef.current.delete(cacheKey)
+      })
+    studioPreviewInflightRef.current.set(cacheKey, request)
+    return request
+  }
+
+  const loadSeriesPreview = async (series) => {
+    const seriesId = Number(series?.id)
+    if (!Number.isFinite(seriesId) || seriesId <= 0) {
+      return series || null
+    }
+
+    const cacheKey = `${seriesId}|${(directoryIds || []).join(',')}`
+    const cached = seriesPreviewCacheRef.current.get(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    const inflight = seriesPreviewInflightRef.current.get(cacheKey)
+    if (inflight) {
+      return inflight
+    }
+
+    const request = fetchJavSeriesPreview(seriesId, { directoryIds })
+      .then((preview) => {
+        seriesPreviewCacheRef.current.set(cacheKey, preview)
+        return preview
+      })
+      .finally(() => {
+        seriesPreviewInflightRef.current.delete(cacheKey)
+      })
+    seriesPreviewInflightRef.current.set(cacheKey, request)
+    return request
+  }
+
   if (!hasItems) {
     return (
       <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
@@ -159,6 +223,8 @@ export default function JavGrid({
             onRevealFile={onRevealFile}
             onOpenScreenshots={onOpenScreenshots}
             loadIdolPreview={loadIdolPreview}
+            loadStudioPreview={loadStudioPreview}
+            loadSeriesPreview={loadSeriesPreview}
             onOpenCoverPreview={setCoverPreview}
             javMetadataLanguage={javMetadataLanguage}
             titleMaxRows={titleMaxRows}
@@ -617,6 +683,8 @@ function JavCard({
   onRevealFile,
   onOpenScreenshots,
   loadIdolPreview,
+  loadStudioPreview,
+  loadSeriesPreview,
   onOpenCoverPreview,
   javMetadataLanguage,
   titleMaxRows,
@@ -746,10 +814,16 @@ function JavCard({
   }, [item?.tags])
   const showEditTags = typeof onEditTags === 'function'
   const [previewIdol, setPreviewIdol] = useState(null)
-  const [hoverAnchorEl, setHoverAnchorEl] = useState(null)
+  const [idolHoverAnchorEl, setIdolHoverAnchorEl] = useState(null)
+  const [previewStudio, setPreviewStudio] = useState(null)
+  const [studioHoverAnchorEl, setStudioHoverAnchorEl] = useState(null)
+  const [previewSeries, setPreviewSeries] = useState(null)
+  const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)
   const [externalAnchorEl, setExternalAnchorEl] = useState(null)
   const closeTimerRef = useRef(null)
-  const activeHoverIdRef = useRef(null)
+  const activeIdolHoverIdRef = useRef(null)
+  const activeStudioHoverIdRef = useRef(null)
+  const activeSeriesHoverIdRef = useRef(null)
   const externalMenuRef = useRef(null)
   const externalMenuOpen = Boolean(externalAnchorEl)
 
@@ -777,6 +851,46 @@ function JavCard({
         studioName: '',
         seriesId: null,
         seriesName: '',
+        random: false,
+        tempSort: '',
+      }) || '#'
+    )
+  }
+
+  const buildStudioFilterHref = (studio) => {
+    const id = Number(studio?.id)
+    if (!Number.isFinite(id) || id <= 0) return '#'
+    return (
+      buildJavUrl?.({
+        tab: 'list',
+        page: 1,
+        search: '',
+        idolIds: [],
+        tagIds: [],
+        studioId: id,
+        studioName: studio?.name || '',
+        seriesId: null,
+        seriesName: '',
+        random: false,
+        tempSort: '',
+      }) || '#'
+    )
+  }
+
+  const buildSeriesFilterHref = (series) => {
+    const id = Number(series?.id)
+    if (!Number.isFinite(id) || id <= 0) return '#'
+    return (
+      buildJavUrl?.({
+        tab: 'list',
+        page: 1,
+        search: '',
+        idolIds: [],
+        tagIds: [],
+        studioId: null,
+        studioName: '',
+        seriesId: id,
+        seriesName: series?.name || '',
         random: false,
         tempSort: '',
       }) || '#'
@@ -837,12 +951,22 @@ function JavCard({
     }
   }
 
+  const clearHoverPreview = () => {
+    activeIdolHoverIdRef.current = null
+    activeStudioHoverIdRef.current = null
+    activeSeriesHoverIdRef.current = null
+    setPreviewIdol(null)
+    setIdolHoverAnchorEl(null)
+    setPreviewStudio(null)
+    setStudioHoverAnchorEl(null)
+    setPreviewSeries(null)
+    setSeriesHoverAnchorEl(null)
+  }
+
   const scheduleHoverClose = () => {
     clearHoverCloseTimer()
     closeTimerRef.current = window.setTimeout(() => {
-      activeHoverIdRef.current = null
-      setPreviewIdol(null)
-      setHoverAnchorEl(null)
+      clearHoverPreview()
       closeTimerRef.current = null
     }, 120)
   }
@@ -850,20 +974,78 @@ function JavCard({
   const handleIdolHoverStart = (idol, event) => {
     clearHoverCloseTimer()
     const idolId = Number(idol?.id)
-    activeHoverIdRef.current = Number.isFinite(idolId) ? idolId : null
+    activeIdolHoverIdRef.current = Number.isFinite(idolId) ? idolId : null
+    activeStudioHoverIdRef.current = null
+    activeSeriesHoverIdRef.current = null
     setPreviewIdol(idol || null)
-    setHoverAnchorEl(event.currentTarget)
+    setIdolHoverAnchorEl(event.currentTarget)
+    setPreviewStudio(null)
+    setStudioHoverAnchorEl(null)
+    setPreviewSeries(null)
+    setSeriesHoverAnchorEl(null)
 
     void loadIdolPreview?.(idol)
       .then((loadedIdol) => {
         if (!loadedIdol) return
-        if (activeHoverIdRef.current !== Number(loadedIdol.id)) return
+        if (activeIdolHoverIdRef.current !== Number(loadedIdol.id)) return
         setPreviewIdol((current) =>
           current && current.id === loadedIdol.id ? { ...current, ...loadedIdol } : current
         )
       })
       .catch((error) => {
         console.warn('load idol preview failed', error)
+      })
+  }
+
+  const handleStudioHoverStart = (studio, event) => {
+    clearHoverCloseTimer()
+    const studioId = Number(studio?.id)
+    activeStudioHoverIdRef.current = Number.isFinite(studioId) ? studioId : null
+    activeIdolHoverIdRef.current = null
+    activeSeriesHoverIdRef.current = null
+    setPreviewStudio(studio || null)
+    setStudioHoverAnchorEl(event.currentTarget)
+    setPreviewIdol(null)
+    setIdolHoverAnchorEl(null)
+    setPreviewSeries(null)
+    setSeriesHoverAnchorEl(null)
+
+    void loadStudioPreview?.(studio)
+      .then((loadedStudio) => {
+        if (!loadedStudio) return
+        if (activeStudioHoverIdRef.current !== Number(loadedStudio.id)) return
+        setPreviewStudio((current) =>
+          current && current.id === loadedStudio.id ? { ...current, ...loadedStudio } : current
+        )
+      })
+      .catch((error) => {
+        console.warn('load studio preview failed', error)
+      })
+  }
+
+  const handleSeriesHoverStart = (series, event) => {
+    clearHoverCloseTimer()
+    const seriesId = Number(series?.id)
+    activeSeriesHoverIdRef.current = Number.isFinite(seriesId) ? seriesId : null
+    activeIdolHoverIdRef.current = null
+    activeStudioHoverIdRef.current = null
+    setPreviewSeries(series || null)
+    setSeriesHoverAnchorEl(event.currentTarget)
+    setPreviewIdol(null)
+    setIdolHoverAnchorEl(null)
+    setPreviewStudio(null)
+    setStudioHoverAnchorEl(null)
+
+    void loadSeriesPreview?.(series)
+      .then((loadedSeries) => {
+        if (!loadedSeries) return
+        if (activeSeriesHoverIdRef.current !== Number(loadedSeries.id)) return
+        setPreviewSeries((current) =>
+          current && current.id === loadedSeries.id ? { ...current, ...loadedSeries } : current
+        )
+      })
+      .catch((error) => {
+        console.warn('load series preview failed', error)
       })
   }
 
@@ -966,6 +1148,10 @@ function JavCard({
                 onClick={() => {
                   if (canFilterStudio) onStudioClick(item.studio)
                 }}
+                onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
+                onMouseLeave={scheduleHoverClose}
+                onFocus={(event) => handleStudioHoverStart(item.studio, event)}
+                onBlur={scheduleHoverClose}
                 disabled={!canFilterStudio}
               >
                 {studioText}
@@ -988,12 +1174,73 @@ function JavCard({
               onClick={() => {
                 if (canFilterSeries) onSeriesClick(preferredSeries)
               }}
+              onMouseEnter={(event) => handleSeriesHoverStart(preferredSeries, event)}
+              onMouseLeave={scheduleHoverClose}
+              onFocus={(event) => handleSeriesHoverStart(preferredSeries, event)}
+              onBlur={scheduleHoverClose}
               disabled={!canFilterSeries}
             >
               {seriesText}
             </button>
           </div>
         ) : null}
+        <Popper
+          open={Boolean(previewStudio && studioHoverAnchorEl)}
+          anchorEl={studioHoverAnchorEl}
+          placement="right-start"
+          className="z-[1400]"
+          modifiers={[
+            {
+              name: 'offset',
+              options: {
+                offset: [10, 0],
+              },
+            },
+          ]}
+        >
+          <div
+            className="w-[220px]"
+            onMouseEnter={clearHoverCloseTimer}
+            onMouseLeave={scheduleHoverClose}
+          >
+            {previewStudio ? (
+              <StudioCard
+                item={previewStudio}
+                href={buildStudioFilterHref(previewStudio)}
+                onSelectStudio={(studio) => onStudioClick?.(studio)}
+              />
+            ) : null}
+          </div>
+        </Popper>
+        <Popper
+          open={Boolean(previewSeries && seriesHoverAnchorEl)}
+          anchorEl={seriesHoverAnchorEl}
+          placement="right-start"
+          className="z-[1400]"
+          modifiers={[
+            {
+              name: 'offset',
+              options: {
+                offset: [10, 0],
+              },
+            },
+          ]}
+        >
+          <div
+            className="w-[260px]"
+            onMouseEnter={clearHoverCloseTimer}
+            onMouseLeave={scheduleHoverClose}
+          >
+            {previewSeries ? (
+              <SeriesCard
+                item={previewSeries}
+                href={buildSeriesFilterHref(previewSeries)}
+                onSelectSeries={(series) => onSeriesClick?.(series)}
+                onSelectStudio={(studio) => onStudioClick?.(studio)}
+              />
+            ) : null}
+          </div>
+        </Popper>
         {Array.isArray(item?.idols) && item.idols.length > 0 && (
           <>
             <IdolTagList
@@ -1006,8 +1253,8 @@ function JavCard({
               onIdolHoverEnd={scheduleHoverClose}
             />
             <Popper
-              open={Boolean(previewIdol && hoverAnchorEl)}
-              anchorEl={hoverAnchorEl}
+              open={Boolean(previewIdol && idolHoverAnchorEl)}
+              anchorEl={idolHoverAnchorEl}
               placement="right-start"
               className="z-[1400]"
               modifiers={[

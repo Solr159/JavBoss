@@ -30,8 +30,8 @@ var javBusRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javBus) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javBus) LookupActressByName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 
@@ -64,6 +64,11 @@ func (javBus) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javbus: lookup actress not supported")
 }
 
+// LookupActressURLByCodeAndName implements lookupProvider.
+func (javBus) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	return "", errors.New("javbus: lookup actress url not supported")
+}
+
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
 func (javBus) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.TrimSpace(code)
@@ -83,6 +88,16 @@ func (javBus) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 	return coverURL, nil
+}
+
+// LookupSeriesURLByCode implements lookupProvider.
+func (javBus) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("javbus: lookup series url not supported")
+}
+
+// LookupStudioURLByCode implements lookupProvider.
+func (javBus) LookupStudioURLByCode(code string) (string, error) {
+	return "", errors.New("javbus: lookup studio url not supported")
 }
 
 func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {

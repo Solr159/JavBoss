@@ -43,7 +43,7 @@ func ScanJavMetadata(ctx context.Context) error {
 	if err := scanMissingJavUncensored(ctx); err != nil {
 		return err
 	}
-	if err := scanMissingUncensoredJavStudioSeries(ctx); err != nil {
+	if err := scanMissingUncensoredJavInfoWithAvsox(ctx); err != nil {
 		return err
 	}
 
@@ -180,8 +180,8 @@ func scanMissingJavUncensored(ctx context.Context) error {
 	return nil
 }
 
-func scanMissingUncensoredJavStudioSeries(ctx context.Context) error {
-	items, err := db.ListUncensoredJavsMissingStudioOrSeries(ctx)
+func scanMissingUncensoredJavInfoWithAvsox(ctx context.Context) error {
+	items, err := db.ListUncensoredJavsMissingAvsoxMetadata(ctx)
 	if err != nil {
 		return err
 	}
@@ -221,6 +221,15 @@ func scanMissingUncensoredJavStudioSeries(ctx context.Context) error {
 				logging.Error("update uncensored jav series failed id=%d code=%s err=%v", item.ID, code, err)
 			} else {
 				logging.Info("uncensored jav series updated provider=%s id=%d code=%s series=%s", jav.ProviderAvsox.String(), item.ID, code, series)
+			}
+		}
+
+		if len(info.Actors) > 0 {
+			updated, err := db.AppendJavIdolsIfMissingForProvider(ctx, item.ID, info.Actors, jav.ProviderAvsox)
+			if err != nil {
+				logging.Error("update uncensored jav idols failed id=%d code=%s err=%v", item.ID, code, err)
+			} else if updated {
+				logging.Info("uncensored jav idols updated provider=%s id=%d code=%s count=%d", jav.ProviderAvsox.String(), item.ID, code, len(info.Actors))
 			}
 		}
 	}

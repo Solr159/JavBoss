@@ -43,7 +43,11 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/jav", searchJav)
 	router.GET("/jav/tags", listJavTags)
 	router.GET("/jav/studios", listJavStudios)
+	router.GET("/jav/studios/javdb-url", getJavStudioJavDBURL)
+	router.GET("/jav/studios/:id", getJavStudio)
 	router.GET("/jav/series", listJavSeries)
+	router.GET("/jav/series/javdb-url", getJavSeriesJavDBURL)
+	router.GET("/jav/series/:id", getJavSeries)
 	router.POST("/jav/tags", createJavTag)
 	router.PATCH("/jav/tags/:id", renameJavTag)
 	router.DELETE("/jav/tags/:id", deleteJavTag)
@@ -54,6 +58,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/jav/:code/cover", getJavCover)
 	router.GET("/jav/idols", listJavIdols)
 	router.GET("/jav/idols/resolve", resolveJavIdols)
+	router.GET("/jav/idols/javdb-url", getJavIdolJavDBURL)
 	router.GET("/jav/idols/:id", getJavIdol)
 }
 

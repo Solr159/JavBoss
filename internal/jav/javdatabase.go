@@ -35,14 +35,19 @@ var javDatabaseRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javDatabase) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javDatabase) LookupActressByName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 
 // LookupActressByCode resolves a solo movie code to its actress profile.
 func (javDatabase) LookupActressByCode(code string) (*ActressInfo, error) {
 	return lookupActressByCode(code)
+}
+
+// LookupActressURLByCodeAndName implements lookupProvider.
+func (javDatabase) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	return "", errors.New("javdatabase: lookup actress url not supported")
 }
 
 // LookupCoverURLByCode resolves the cover image URL for a given movie code.
@@ -71,6 +76,16 @@ func (javDatabase) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 	return coverURL, nil
+}
+
+// LookupSeriesURLByCode implements lookupProvider.
+func (javDatabase) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("javdatabase: lookup series url not supported")
+}
+
+// LookupStudioURLByCode implements lookupProvider.
+func (javDatabase) LookupStudioURLByCode(code string) (string, error) {
+	return "", errors.New("javdatabase: lookup studio url not supported")
 }
 
 // LookupJavByCode fetches metadata for a given code.

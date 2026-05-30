@@ -34,14 +34,19 @@ var avmooRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (avmoo) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (avmoo) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("avmoo: lookup actress not supported")
 }
 
 // LookupActressByCode implements lookupProvider.
 func (avmoo) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("avmoo: lookup actress not supported")
+}
+
+// LookupActressURLByCodeAndName implements lookupProvider.
+func (avmoo) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	return "", errors.New("avmoo: lookup actress url not supported")
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
@@ -63,6 +68,16 @@ func (avmoo) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 	return coverURL, nil
+}
+
+// LookupSeriesURLByCode implements lookupProvider.
+func (avmoo) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("avmoo: lookup series url not supported")
+}
+
+// LookupStudioURLByCode implements lookupProvider.
+func (avmoo) LookupStudioURLByCode(code string) (string, error) {
+	return "", errors.New("avmoo: lookup studio url not supported")
 }
 
 // LookupJavByCode fetches metadata for a given code.

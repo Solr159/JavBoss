@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { fetchJavIdolJavDBURL } from '@/api'
 import { isChineseLocale, zh } from '@/utils/i18n'
 
 const RIGHT_PORTION = 0.47
@@ -61,6 +63,9 @@ export function IdolCard({
   const height = typeof item?.height_cm === 'number' ? `${item.height_cm}cm` : ''
   const bwh = formatBwh(item)
   const cup = formatCup(item?.cup)
+  const sampleCode = String(item?.sample_code || '').trim()
+  const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
+  const [javdbOpening, setJavdbOpening] = useState(false)
   const { primaryName, secondaryName } = buildDisplayNames({
     name,
     romanName,
@@ -70,6 +75,7 @@ export function IdolCard({
     javMetadataLanguage,
   })
   const metaRows = buildMetaRows({ birthDate, height, bwh, cup, secondaryName })
+  const canOpenJavDB = Boolean(javdbURL || (sampleCode && name))
 
   const handleClick = (e) => {
     const selection = window.getSelection?.()
@@ -83,6 +89,40 @@ export function IdolCard({
     }
     e.preventDefault()
     onSelectIdol?.(item)
+  }
+
+  const handleOpenJavDB = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!canOpenJavDB || javdbOpening) return
+
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      popup.opener = null
+    }
+
+    try {
+      setJavdbOpening(true)
+      let targetURL = javdbURL
+      if (!targetURL) {
+        targetURL = await fetchJavIdolJavDBURL({ code: sampleCode, name })
+        setJavdbURL(targetURL)
+      }
+      if (!targetURL) {
+        popup?.close()
+        return
+      }
+      if (popup) {
+        popup.location.replace(targetURL)
+      } else {
+        window.open(targetURL, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      popup?.close()
+      console.warn('open javdb idol failed', error)
+    } finally {
+      setJavdbOpening(false)
+    }
   }
 
   return (
@@ -123,6 +163,23 @@ export function IdolCard({
             {zh(`作品 ${workCount}`, `${workCount} javs`)}
           </div>
         )}
+        <button
+          type="button"
+          className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
+            canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
+          }`}
+          title={zh('在 JavDB 中打开女优详情', 'Open idol profile in JavDB')}
+          aria-label={zh('在 JavDB 中打开女优详情', 'Open idol profile in JavDB')}
+          disabled={!canOpenJavDB || javdbOpening}
+          onClick={handleOpenJavDB}
+        >
+          <img
+            src="/ico/javdb.png"
+            alt="JavDB"
+            className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
+            loading="lazy"
+          />
+        </button>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">
         <div className="line-clamp-2 text-sm font-semibold leading-tight">{primaryName}</div>
@@ -240,8 +297,8 @@ function buildDisplayNames({
 }) {
   if (javMetadataLanguage === 'en') {
     const primaryName = firstNonEmpty(
-      romanName,
       name,
+      romanName,
       japaneseName,
       chineseName,
       zh('Unknown idol', 'Unknown idol')
@@ -254,8 +311,8 @@ function buildDisplayNames({
 
   if (chineseLocale) {
     const primaryName = firstNonEmpty(
-      japaneseName,
       name,
+      japaneseName,
       romanName,
       chineseName,
       zh('未知女优', 'Unknown idol')
@@ -266,8 +323,8 @@ function buildDisplayNames({
     }
   }
   const primaryName = firstNonEmpty(
-    romanName,
     name,
+    romanName,
     japaneseName,
     chineseName,
     zh('Unknown idol', 'Unknown idol')

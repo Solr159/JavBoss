@@ -28,9 +28,14 @@ func (thePornDB) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
 }
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (thePornDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (thePornDB) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
+}
+
+// LookupActressURLByCodeAndName implements lookupProvider.
+func (thePornDB) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	return "", errors.New("theporndb: lookup actress url not supported")
 }
 
 // LookupJavByCode implements lookupProvider.
@@ -84,6 +89,16 @@ func (thePornDB) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 	return coverURL, nil
+}
+
+// LookupSeriesURLByCode implements lookupProvider.
+func (thePornDB) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("theporndb: lookup series url not supported")
+}
+
+// LookupStudioURLByCode implements lookupProvider.
+func (thePornDB) LookupStudioURLByCode(code string) (string, error) {
+	return "", errors.New("theporndb: lookup studio url not supported")
 }
 
 func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBResponse, error) {

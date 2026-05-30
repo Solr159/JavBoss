@@ -13,6 +13,7 @@ import (
 	"pornboss/internal/common"
 	"pornboss/internal/common/logging"
 	dbpkg "pornboss/internal/db"
+	"pornboss/internal/jav"
 	"pornboss/internal/manager"
 )
 
@@ -74,6 +75,27 @@ func getJavIdol(c *gin.Context) {
 	items := []dbpkg.JavIdolSummary{*item}
 	enrichJavIdolSummaries(c.Request.Context(), items, directoryIDs)
 	c.JSON(http.StatusOK, items[0])
+}
+
+func getJavIdolJavDBURL(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	name := strings.TrimSpace(c.Query("name"))
+	if code == "" || name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code and name are required"})
+		return
+	}
+
+	profileURL, err := jav.LookupActressURLByCodeAndName(code, name, jav.ProviderJavDB)
+	if err != nil {
+		if errors.Is(err, jav.ResourceNotFonud) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "javdb actress url not found"})
+			return
+		}
+		logging.Error("lookup javdb actress url code=%s name=%s: %v", code, name, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": profileURL})
 }
 
 func enrichJavIdolSummaries(ctx context.Context, items []dbpkg.JavIdolSummary, directoryIDs []int64) {

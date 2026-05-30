@@ -38,14 +38,78 @@ var (
 	}{}
 )
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javDB) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("javdb: lookup actress not supported")
 }
 
 // LookupActressByCode implements lookupProvider.
 func (javDB) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("javdb: lookup actress not supported")
+}
+
+// LookupActressURLByCodeAndName resolves an actress profile URL from a movie detail page.
+func (javDB) LookupActressURLByCodeAndName(code, name string) (string, error) {
+	code = strings.TrimSpace(code)
+	name = strings.TrimSpace(name)
+	if code == "" || name == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	doc, detailURL, err := fetchJavDBDetailByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	actressURL := parseJavDBActressURLByName(doc, name, detailURL)
+	if actressURL == "" {
+		return "", ResourceNotFonud
+	}
+	return actressURL, nil
+}
+
+// LookupSeriesURLByCode resolves a series detail URL from a movie detail page.
+func (javDB) LookupSeriesURLByCode(code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	doc, detailURL, err := fetchJavDBDetailByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	seriesURL := parseJavDBSeriesURL(doc, detailURL)
+	if seriesURL == "" {
+		return "", ResourceNotFonud
+	}
+	return seriesURL, nil
+}
+
+// LookupStudioURLByCode resolves a studio detail URL from a movie detail page.
+func (javDB) LookupStudioURLByCode(code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	doc, detailURL, err := fetchJavDBDetailByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	studioURL := parseJavDBStudioURL(doc, detailURL)
+	if studioURL == "" {
+		return "", ResourceNotFonud
+	}
+	return studioURL, nil
 }
 
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
@@ -492,6 +556,91 @@ func collectJavDBActorTexts(root *html.Node) []string {
 	}
 	walk(root)
 	return texts
+}
+
+func parseJavDBActressURLByName(root *html.Node, name, pageURL string) string {
+	name = strings.TrimSpace(name)
+	if root == nil || name == "" {
+		return ""
+	}
+
+	var actressURL string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if actressURL != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "a" && !isJavDBMaleActorLink(n) {
+			text := strings.TrimSpace(flattenText(n))
+			href := strings.TrimSpace(attrValue(n, "href"))
+			if text == name && href != "" && isJavDBActorURL(href) {
+				actressURL = resolveURL(pageURL, href)
+				return
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return actressURL
+}
+
+func parseJavDBSeriesURL(root *html.Node, pageURL string) string {
+	return parseJavDBPanelURL(root, pageURL, "系列", isJavDBSeriesURL)
+}
+
+func parseJavDBStudioURL(root *html.Node, pageURL string) string {
+	return parseJavDBPanelURL(root, pageURL, "片商", isJavDBStudioURL)
+}
+
+func parseJavDBPanelURL(root *html.Node, pageURL, wantLabel string, matchHref func(string) bool) string {
+	if root == nil {
+		return ""
+	}
+
+	var matchedURL string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if matchedURL != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "panel-block") {
+			if strong := firstChildElementByTag(n, "strong"); strong != nil {
+				label := strings.TrimSpace(flattenText(strong))
+				label = strings.TrimSuffix(label, ":")
+				label = strings.TrimSuffix(label, "：")
+				if normalizeJavDBLabel(label) == wantLabel {
+					for _, href := range collectAnchorHrefs(n) {
+						if matchHref(href) {
+							matchedURL = resolveURL(pageURL, href)
+							return
+						}
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return matchedURL
+}
+
+func isJavDBActorURL(href string) bool {
+	href = strings.ToLower(strings.TrimSpace(href))
+	return strings.Contains(href, "/actors/")
+}
+
+func isJavDBSeriesURL(href string) bool {
+	href = strings.ToLower(strings.TrimSpace(href))
+	return strings.Contains(href, "/series/")
+}
+
+func isJavDBStudioURL(href string) bool {
+	href = strings.ToLower(strings.TrimSpace(href))
+	return strings.Contains(href, "/makers/")
 }
 
 func isJavDBMaleActorLink(anchor *html.Node) bool {
