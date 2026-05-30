@@ -90,6 +90,11 @@ func (javBus) LookupCoverURLByCode(code string) (string, error) {
 	return coverURL, nil
 }
 
+// LookupSeriesURLByCode implements lookupProvider.
+func (javBus) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("javbus: lookup series url not supported")
+}
+
 func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
 	doc, url, err := fetchJavBusDocument(ctx, code)
 	if err != nil {

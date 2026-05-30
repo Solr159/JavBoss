@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Tooltip } from '@mui/material'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
+import { fetchJavSeriesJavDBURL } from '@/api'
 import Pagination from '@/components/Pagination'
 import WaterfallLoader from '@/components/WaterfallLoader'
 import { zh } from '@/utils/i18n'
@@ -94,13 +96,17 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }
 }
 
 function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
-  const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
+  const sampleCode = String(item?.sample_code || '').trim()
+  const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知系列', 'Unknown series')
   const studioName = String(item?.studio_name || '').trim()
   const studioId = Number(item?.studio_id)
   const canFilterStudio =
     studioName && Number.isFinite(studioId) && studioId > 0 && typeof onSelectStudio === 'function'
   const workCount = item?.work_count || 0
+  const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
+  const [javdbOpening, setJavdbOpening] = useState(false)
+  const canOpenJavDB = Boolean(javdbURL || sampleCode)
 
   const handleClick = (e) => {
     const selection = window.getSelection?.()
@@ -121,6 +127,40 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
     e.preventDefault()
     if (!canFilterStudio) return
     onSelectStudio?.({ id: studioId, name: studioName })
+  }
+
+  const handleOpenJavDB = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!canOpenJavDB || javdbOpening) return
+
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      popup.opener = null
+    }
+
+    try {
+      setJavdbOpening(true)
+      let targetURL = javdbURL
+      if (!targetURL) {
+        targetURL = await fetchJavSeriesJavDBURL({ code: sampleCode })
+        setJavdbURL(targetURL)
+      }
+      if (!targetURL) {
+        popup?.close()
+        return
+      }
+      if (popup) {
+        popup.location.replace(targetURL)
+      } else {
+        window.open(targetURL, '_blank', 'noopener,noreferrer')
+      }
+    } catch (error) {
+      popup?.close()
+      console.warn('open javdb series failed', error)
+    } finally {
+      setJavdbOpening(false)
+    }
   }
 
   return (
@@ -148,6 +188,21 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
             {name}
           </div>
         )}
+        <button
+          type="button"
+          className="absolute bottom-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 opacity-0 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-0 group-focus-within:opacity-100 group-focus-within:disabled:opacity-40 group-hover:opacity-100 group-hover:disabled:opacity-40"
+          title={zh('在 JavDB 中打开系列详情', 'Open series profile in JavDB')}
+          aria-label={zh('在 JavDB 中打开系列详情', 'Open series profile in JavDB')}
+          disabled={!canOpenJavDB || javdbOpening}
+          onClick={handleOpenJavDB}
+        >
+          <img
+            src="/ico/javdb.png"
+            alt="JavDB"
+            className={`h-3.5 w-3.5 ${javdbOpening ? 'animate-pulse' : ''}`}
+            loading="lazy"
+          />
+        </button>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
         <div className="line-clamp-2 text-sm font-semibold leading-tight">{name}</div>

@@ -91,6 +91,11 @@ func (thePornDB) LookupCoverURLByCode(code string) (string, error) {
 	return coverURL, nil
 }
 
+// LookupSeriesURLByCode implements lookupProvider.
+func (thePornDB) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("theporndb: lookup series url not supported")
+}
+
 func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBResponse, error) {
 	code = strings.ToLower(strings.TrimSpace(code))
 	if code == "" {

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"pornboss/internal/common"
 	"pornboss/internal/common/logging"
 	dbpkg "pornboss/internal/db"
+	"pornboss/internal/jav"
 	"pornboss/internal/manager"
 )
 
@@ -53,6 +55,26 @@ func listJavSeries(c *gin.Context) {
 		"items": items,
 		"total": total,
 	})
+}
+
+func getJavSeriesJavDBURL(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		return
+	}
+
+	seriesURL, err := jav.LookupSeriesURLByCode(code, jav.ProviderJavDB)
+	if err != nil {
+		if errors.Is(err, jav.ResourceNotFonud) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "javdb series url not found"})
+			return
+		}
+		logging.Error("lookup javdb series url code=%s: %v", code, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": seriesURL})
 }
 
 func enrichJavStudioSummaries(ctx context.Context, items []dbpkg.JavStudioSummary, directoryIDs []int64) {

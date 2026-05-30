@@ -70,6 +70,27 @@ func (javDB) LookupActressURLByCodeAndName(code, name string) (string, error) {
 	return actressURL, nil
 }
 
+// LookupSeriesURLByCode resolves a series detail URL from a movie detail page.
+func (javDB) LookupSeriesURLByCode(code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	doc, detailURL, err := fetchJavDBDetailByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	seriesURL := parseJavDBSeriesURL(doc, detailURL)
+	if seriesURL == "" {
+		return "", ResourceNotFonud
+	}
+	return seriesURL, nil
+}
+
 // LookupCoverURLByCode resolves a cover image URL for a movie code.
 func (javDB) LookupCoverURLByCode(code string) (string, error) {
 	code = strings.TrimSpace(code)
@@ -544,9 +565,48 @@ func parseJavDBActressURLByName(root *html.Node, name, pageURL string) string {
 	return actressURL
 }
 
+func parseJavDBSeriesURL(root *html.Node, pageURL string) string {
+	if root == nil {
+		return ""
+	}
+
+	var seriesURL string
+	var walk func(*html.Node)
+	walk = func(n *html.Node) {
+		if seriesURL != "" {
+			return
+		}
+		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "panel-block") {
+			if strong := firstChildElementByTag(n, "strong"); strong != nil {
+				label := strings.TrimSpace(flattenText(strong))
+				label = strings.TrimSuffix(label, ":")
+				label = strings.TrimSuffix(label, "：")
+				if normalizeJavDBLabel(label) == "系列" {
+					for _, href := range collectAnchorHrefs(n) {
+						if isJavDBSeriesURL(href) {
+							seriesURL = resolveURL(pageURL, href)
+							return
+						}
+					}
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			walk(c)
+		}
+	}
+	walk(root)
+	return seriesURL
+}
+
 func isJavDBActorURL(href string) bool {
 	href = strings.ToLower(strings.TrimSpace(href))
 	return strings.Contains(href, "/actors/")
+}
+
+func isJavDBSeriesURL(href string) bool {
+	href = strings.ToLower(strings.TrimSpace(href))
+	return strings.Contains(href, "/series/")
 }
 
 func isJavDBMaleActorLink(anchor *html.Node) bool {

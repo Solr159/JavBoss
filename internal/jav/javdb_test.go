@@ -192,6 +192,29 @@ func TestParseJavDBActressURLByName(t *testing.T) {
 	}
 }
 
+func TestParseJavDBSeriesURL(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>系列:</strong>
+      <span class="value"><a href="/series/w54b">中年オヤジ</a></span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := parseJavDBSeriesURL(doc, "https://javdb.com/v/kKdRm")
+	if got != "https://javdb.com/series/w54b" {
+		t.Fatalf("unexpected series url: %q", got)
+	}
+}
+
 func TestParseJavDBCoverURL(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
 <!doctype html>

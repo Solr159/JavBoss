@@ -37,6 +37,11 @@ func (javModel) LookupCoverURLByCode(code string) (string, error) {
 	return "", errors.New("javmodel: lookup cover not supported")
 }
 
+// LookupSeriesURLByCode implements lookupProvider.
+func (javModel) LookupSeriesURLByCode(code string) (string, error) {
+	return "", errors.New("javmodel: lookup series url not supported")
+}
+
 // LookupActressByName implements lookupProvider.
 func (javModel) LookupActressByName(name string) (*ActressInfo, error) {
 	name = strings.TrimSpace(name)

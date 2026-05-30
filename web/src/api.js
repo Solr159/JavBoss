@@ -454,6 +454,18 @@ export async function fetchJavSeries({
   return res.json()
 }
 
+export async function fetchJavSeriesJavDBURL({ code = '' } = {}) {
+  const params = new URLSearchParams()
+  params.set('code', code)
+  const res = await fetch(`/jav/series/javdb-url?${params.toString()}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载 JavDB 系列链接失败', 'Failed to load JavDB series URL'))
+  }
+  const data = await res.json()
+  return data?.url || ''
+}
+
 export async function fetchJavIdolPreview(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
