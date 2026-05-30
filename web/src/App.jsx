@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   buildUrlFromState,
   generateRandomSeed,
@@ -61,6 +61,7 @@ const normalizeInitialViewMode = (value) =>
 
 export default function App() {
   const isPoppingRef = useRef(false)
+  const poppingUrlRef = useRef('')
   const lastUrlRef = useRef(window.location.pathname + window.location.search)
   const browserInitialCanGoBackRef = useRef(window.history.length > 1)
   const browserHistoryIndexRef = useRef(0)
@@ -818,6 +819,7 @@ export default function App() {
   const applyUrlState = useCallback(
     (parsed, { fromPopstate = false } = {}) => {
       isPoppingRef.current = fromPopstate
+      poppingUrlRef.current = fromPopstate ? buildUrlFromState(parsed) : ''
       lastUrlRef.current = window.location.pathname + window.location.search
       useStore.getState().setDirectoryFilterFromUrl(parsed.directoryIds)
       const mapTagIdsToNamesFromStore = (ids) => {
@@ -1098,19 +1100,29 @@ export default function App() {
     ]
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!hydrated) return
     const nextUrl = buildUrlFromState(currentUrlState)
     const currentUrl = window.location.pathname + window.location.search
     if (nextUrl === currentUrl) {
       lastUrlRef.current = nextUrl
       isPoppingRef.current = false
+      poppingUrlRef.current = ''
       return
     }
     if (isPoppingRef.current) {
-      lastUrlRef.current = nextUrl
+      const poppedUrl = poppingUrlRef.current
       isPoppingRef.current = false
-      return
+      poppingUrlRef.current = ''
+      if (poppedUrl === nextUrl) {
+        window.history.replaceState(
+          { ...(window.history.state || {}), [HISTORY_INDEX_KEY]: browserHistoryIndexRef.current },
+          '',
+          nextUrl
+        )
+        lastUrlRef.current = nextUrl
+        return
+      }
     }
     const nextIndex = browserHistoryIndexRef.current + 1
     window.history.pushState(
