@@ -191,7 +191,9 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
         )}
         <button
           type="button"
-          className="absolute bottom-2 left-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 opacity-0 transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-0 group-focus-within:opacity-100 group-focus-within:disabled:opacity-40 group-hover:opacity-100 group-hover:disabled:opacity-40"
+          className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
+            canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
+          }`}
           title={zh('在 JavDB 中打开系列详情', 'Open series profile in JavDB')}
           aria-label={zh('在 JavDB 中打开系列详情', 'Open series profile in JavDB')}
           disabled={!canOpenJavDB || javdbOpening}
@@ -200,7 +202,7 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
           <img
             src="/ico/javdb.png"
             alt="JavDB"
-            className={`h-3.5 w-3.5 ${javdbOpening ? 'animate-pulse' : ''}`}
+            className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
             loading="lazy"
           />
         </button>
