@@ -32,8 +32,8 @@ func (javModel) LookupCoverURLByCode(code string) (string, error) {
 	return "", errors.New("javmodel: lookup cover not supported")
 }
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javModel) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javModel) LookupActressByName(name string) (*ActressInfo, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ResourceNotFonud

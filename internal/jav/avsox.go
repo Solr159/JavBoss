@@ -33,8 +33,8 @@ var avsoxRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (avsox) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (avsox) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("avsox: lookup actress not supported")
 }
 

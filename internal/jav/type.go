@@ -188,7 +188,7 @@ type ActressInfo struct {
 // Return other error for retryable lookup failures.
 type lookupProvider interface {
 	LookupActressByCode(code string) (*ActressInfo, error)
-	LookupActressByJapaneseName(name string) (*ActressInfo, error)
+	LookupActressByName(name string) (*ActressInfo, error)
 	LookupCoverURLByCode(code string) (string, error)
 	LookupJavByCode(code string) (*JavInfo, error)
 }
@@ -248,7 +248,7 @@ func LookupActressByJapaneseName(name string, provider Provider) (info *ActressI
 		return cached, err
 	}
 	defer recoverUnsupportedProvider(&err)
-	info, err = lookup.LookupActressByJapaneseName(name)
+	info, err = lookup.LookupActressByName(name)
 	cacheableLookupResult(cacheKey, info, err)
 	return info, err
 }

@@ -35,8 +35,8 @@ var javDatabaseRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javDatabase) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javDatabase) LookupActressByName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 

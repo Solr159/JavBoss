@@ -169,7 +169,7 @@ func (p *countingLookupProvider) LookupActressByCode(string) (*ActressInfo, erro
 	return p.actress, p.err
 }
 
-func (p *countingLookupProvider) LookupActressByJapaneseName(string) (*ActressInfo, error) {
+func (p *countingLookupProvider) LookupActressByName(string) (*ActressInfo, error) {
 	return p.actress, p.err
 }
 

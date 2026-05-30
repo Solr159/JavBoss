@@ -38,8 +38,8 @@ var (
 	}{}
 )
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javDB) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("javdb: lookup actress not supported")
 }
 

@@ -28,8 +28,8 @@ func (thePornDB) LookupActressByCode(code string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
 }
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (thePornDB) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (thePornDB) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("theporndb: lookup actress not supported")
 }
 

@@ -34,8 +34,8 @@ var avmooRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (avmoo) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (avmoo) LookupActressByName(name string) (*ActressInfo, error) {
 	return nil, errors.New("avmoo: lookup actress not supported")
 }
 

@@ -30,8 +30,8 @@ var javBusRateLimiter = struct {
 	next time.Time
 }{}
 
-// LookupActressByJapaneseName implements lookupProvider.
-func (javBus) LookupActressByJapaneseName(name string) (*ActressInfo, error) {
+// LookupActressByName implements lookupProvider.
+func (javBus) LookupActressByName(name string) (*ActressInfo, error) {
 	panic("unimplemented")
 }
 
