@@ -100,13 +100,14 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知系列', 'Unknown series')
   const studioName = String(item?.studio_name || '').trim()
+  const seriesId = Number(item?.id)
   const studioId = Number(item?.studio_id)
   const canFilterStudio =
     studioName && Number.isFinite(studioId) && studioId > 0 && typeof onSelectStudio === 'function'
   const workCount = item?.work_count || 0
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
-  const canOpenJavDB = Boolean(javdbURL || sampleCode)
+  const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(seriesId) && seriesId > 0))
 
   const handleClick = (e) => {
     const selection = window.getSelection?.()
@@ -143,7 +144,7 @@ function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
       setJavdbOpening(true)
       let targetURL = javdbURL
       if (!targetURL) {
-        targetURL = await fetchJavSeriesJavDBURL({ code: sampleCode })
+        targetURL = await fetchJavSeriesJavDBURL({ seriesId })
         setJavdbURL(targetURL)
       }
       if (!targetURL) {

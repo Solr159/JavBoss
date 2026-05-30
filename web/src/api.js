@@ -454,9 +454,9 @@ export async function fetchJavSeries({
   return res.json()
 }
 
-export async function fetchJavSeriesJavDBURL({ code = '' } = {}) {
+export async function fetchJavSeriesJavDBURL({ seriesId = null } = {}) {
   const params = new URLSearchParams()
-  params.set('code', code)
+  params.set('series_id', String(seriesId || ''))
   const res = await fetch(`/jav/series/javdb-url?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

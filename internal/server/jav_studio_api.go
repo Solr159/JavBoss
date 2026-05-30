@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -58,23 +59,43 @@ func listJavSeries(c *gin.Context) {
 }
 
 func getJavSeriesJavDBURL(c *gin.Context) {
-	code := strings.TrimSpace(c.Query("code"))
-	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+	seriesID, err := strconv.ParseInt(strings.TrimSpace(c.Query("series_id")), 10, 64)
+	if err != nil || seriesID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "series_id is required"})
 		return
 	}
 
-	seriesURL, err := jav.LookupSeriesURLByCode(code, jav.ProviderJavDB)
+	codes, err := dbpkg.ListSeriesCoverCodes(c.Request.Context(), seriesID, nil)
 	if err != nil {
-		if errors.Is(err, jav.ResourceNotFonud) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "javdb series url not found"})
-			return
-		}
-		logging.Error("lookup javdb series url code=%s: %v", code, err)
+		logging.Error("list series codes id=%d: %v", seriesID, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"url": seriesURL})
+
+	var lastErr error
+	for i, code := range codes {
+		if i >= 3 {
+			break
+		}
+		code = strings.TrimSpace(code)
+		if code == "" {
+			continue
+		}
+		seriesURL, err := jav.LookupSeriesURLByCode(code, jav.ProviderJavDB)
+		if err == nil && strings.TrimSpace(seriesURL) != "" {
+			c.JSON(http.StatusOK, gin.H{"url": seriesURL})
+			return
+		}
+		if err != nil && !errors.Is(err, jav.ResourceNotFonud) {
+			lastErr = err
+			logging.Error("lookup javdb series url series_id=%d code=%s: %v", seriesID, code, err)
+		}
+	}
+	if lastErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	c.JSON(http.StatusNotFound, gin.H{"error": "javdb series url not found"})
 }
 
 func enrichJavStudioSummaries(ctx context.Context, items []dbpkg.JavStudioSummary, directoryIDs []int64) {
