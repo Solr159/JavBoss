@@ -96,7 +96,8 @@ export function StudioCard({ item, href, onSelectStudio }) {
   const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
   const studioId = Number(item?.id)
-  const workCount = item?.work_count || 0
+  const workCount = Number(item?.work_count)
+  const showWorkCount = Number.isFinite(workCount) && workCount > 0
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(studioId) && studioId > 0))
@@ -182,9 +183,11 @@ export function StudioCard({ item, href, onSelectStudio }) {
             {name}
           </div>
         )}
-        <div className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
-          {zh(`作品 ${workCount}`, `${workCount} works`)}
-        </div>
+        {showWorkCount ? (
+          <div className="absolute left-2 top-2 rounded bg-black/70 px-2 py-1 text-xs text-white">
+            {zh(`作品 ${workCount}`, `${workCount} works`)}
+          </div>
+        ) : null}
         <button
           type="button"
           className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
