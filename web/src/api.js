@@ -515,33 +515,8 @@ export async function removeJavIdolFavoriteGroupIdols(id, idolIds = []) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    if (res.status === 404) {
-      await removeJavIdolFavoriteGroupIdolsFallback(id, idolIds)
-      return
-    }
     throw new Error(err.error || zh('移除收藏夹女优失败', 'Failed to remove favorite idols'))
   }
-}
-
-async function removeJavIdolFavoriteGroupIdolsFallback(groupId, idolIds = []) {
-  const targetGroupId = Number(groupId)
-  const cleanIdolIds = Array.from(
-    new Set(
-      (idolIds || [])
-        .map((idolId) => Number(idolId))
-        .filter((idolId) => Number.isFinite(idolId) && idolId > 0)
-    )
-  )
-  if (!Number.isFinite(targetGroupId) || targetGroupId <= 0 || cleanIdolIds.length === 0) return
-  await Promise.all(
-    cleanIdolIds.map(async (idolId) => {
-      const currentGroupIds = await fetchJavIdolFavoriteSelection(idolId)
-      const nextGroupIds = currentGroupIds.filter(
-        (currentGroupId) => Number(currentGroupId) !== targetGroupId
-      )
-      await replaceJavIdolFavoriteGroups(idolId, nextGroupIds)
-    })
-  )
 }
 
 export async function fetchJavIdolFavoriteSelection(id) {
