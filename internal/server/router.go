@@ -14,9 +14,12 @@ import (
 )
 
 // NewRouter constructs a gin router with API routes and optional static file serving.
-func NewRouter(staticDir string) *gin.Engine {
+func NewRouter(staticDir string, apiToken string) *gin.Engine {
 	router := gin.New()
 	router.Use(ginLogger(), gin.Recovery())
+	if apiToken != "" {
+		router.Use(apiTokenMiddleware(apiToken))
+	}
 
 	RegisterRoutes(router)
 

@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -140,7 +142,15 @@ func main() {
 	service.StartJavMetadataScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
-	router := server.NewRouter(resolveStaticDir(*staticDir))
+	apiToken := ""
+	if buildMode == "release" {
+		apiToken, err = generateAPIToken()
+		if err != nil {
+			logger.Fatalf("generate API token: %v", err)
+		}
+	}
+
+	router := server.NewRouter(resolveStaticDir(*staticDir), apiToken)
 
 	srv := &http.Server{
 		Addr:         *addr,
@@ -169,12 +179,16 @@ func main() {
 			logger.Fatalf("listen on %s: %v", listenAddr, err)
 		}
 		actualPort := listener.Addr().(*net.TCPAddr).Port
-		url := fmt.Sprintf("http://localhost:%d", actualPort)
-		printReleaseStartupHint(url)
-		if err := util.OpenFile(url); err != nil {
+		displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
+		openURL := displayURL
+		if apiToken != "" {
+			openURL = fmt.Sprintf("%s/?token=%s", displayURL, apiToken)
+		}
+		printReleaseStartupHint(displayURL)
+		if err := util.OpenFile(openURL); err != nil {
 			logger.Printf("open browser failed: %v", err)
 		}
-		startReleaseKeyboardControls(ctx, stop, url, logger)
+		startReleaseKeyboardControls(ctx, stop, openURL, logger)
 		logger.Printf("server listening on %s", listener.Addr().String())
 		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logger.Fatalf("server error: %v", err)
@@ -369,4 +383,12 @@ func waitForUserExit() {
 	if _, err := reader.ReadString('\n'); err != nil {
 		select {}
 	}
+}
+
+func generateAPIToken() (string, error) {
+	var data [32]byte
+	if _, err := rand.Read(data[:]); err != nil {
+		return "", fmt.Errorf("read random bytes: %w", err)
+	}
+	return base64.RawURLEncoding.EncodeToString(data[:]), nil
 }

@@ -501,7 +501,7 @@ func deleteVideoLocation(c *gin.Context) {
 	} else if info.IsDir() {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "path is not a file"})
 		return
-	} else if err := os.Remove(fullPath); err != nil {
+	} else if err := util.MoveFileToTrash(fullPath); err != nil {
 		logging.Error("delete video file error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete file failed"})
 		return
@@ -793,7 +793,7 @@ func deleteVideoScreenshot(c *gin.Context) {
 	}
 
 	screenshotPath := filepath.Join(screenshotDir, name)
-	if err := os.Remove(screenshotPath); err != nil {
+	if err := util.MoveFileToTrash(screenshotPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			c.Status(http.StatusNotFound)
 			return

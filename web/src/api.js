@@ -1,7 +1,40 @@
 import { zh } from '@/utils/i18n'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
+const apiTokenStorageKey = 'pornboss_api_token'
 const javIdolResolveInFlight = new Map()
+
+function loadAPIToken() {
+  if (typeof window === 'undefined') return ''
+  const url = new URL(window.location.href)
+  const token = String(url.searchParams.get('token') || '').trim()
+  if (token) {
+    window.sessionStorage?.setItem(apiTokenStorageKey, token)
+    window.localStorage?.setItem(apiTokenStorageKey, token)
+    url.searchParams.delete('token')
+    const nextURL = `${url.pathname}${url.search}${url.hash}`
+    window.history.replaceState(window.history.state, '', nextURL || '/')
+    return token
+  }
+  return String(
+    window.sessionStorage?.getItem(apiTokenStorageKey) ||
+      window.localStorage?.getItem(apiTokenStorageKey) ||
+      ''
+  ).trim()
+}
+
+const apiToken = loadAPIToken()
+
+function apiFetch(input, init = {}) {
+  if (!apiToken) return fetch(input, init)
+  const method = String(init.method || 'GET').toUpperCase()
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+    return fetch(input, init)
+  }
+  const headers = new Headers(init.headers || {})
+  headers.set('X-Pornboss-Token', apiToken)
+  return fetch(input, { ...init, headers })
+}
 
 export async function fetchVideos({
   limit = 25,
@@ -22,7 +55,7 @@ export async function fetchVideos({
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   params.set('hide_jav', hideJav ? '1' : '0')
-  const res = await fetch(`/videos?${params.toString()}`)
+  const res = await apiFetch(`/videos?${params.toString()}`)
   if (!res.ok) throw new Error(zh('加载视频失败', 'Failed to load videos'))
   const data = await res.json()
   // Support both new shape {items,total} and legacy array for backward compatibility
@@ -37,13 +70,13 @@ export async function fetchTags({ directoryIds = [], hideJav = true } = {}) {
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   params.set('hide_jav', hideJav ? '1' : '0')
   const query = params.toString()
-  const res = await fetch(`/tags${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/tags${query ? `?${query}` : ''}`)
   if (!res.ok) throw new Error(zh('加载标签失败', 'Failed to load tags'))
   return res.json()
 }
 
 export async function createTag(name) {
-  const res = await fetch('/tags', {
+  const res = await apiFetch('/tags', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -56,13 +89,13 @@ export async function createTag(name) {
 }
 
 export async function fetchConfig() {
-  const res = await fetch('/config')
+  const res = await apiFetch('/config')
   if (!res.ok) throw new Error(zh('加载配置失败', 'Failed to load config'))
   return res.json()
 }
 
 export async function updateConfig(payload) {
-  const res = await fetch('/config', {
+  const res = await apiFetch('/config', {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify(payload),
@@ -75,7 +108,7 @@ export async function updateConfig(payload) {
 }
 
 export async function deleteTag(id) {
-  const res = await fetch(`/tags/${id}`, { method: 'DELETE' })
+  const res = await apiFetch(`/tags/${id}`, { method: 'DELETE' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('删除标签失败', 'Failed to delete tag'))
@@ -83,7 +116,7 @@ export async function deleteTag(id) {
 }
 
 export async function deleteTagsBatch(tagIds) {
-  const res = await fetch('/tags/batch_delete', {
+  const res = await apiFetch('/tags/batch_delete', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_ids: tagIds }),
@@ -95,7 +128,7 @@ export async function deleteTagsBatch(tagIds) {
 }
 
 export async function renameTag(id, name) {
-  const res = await fetch(`/tags/${id}`, {
+  const res = await apiFetch(`/tags/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -107,7 +140,7 @@ export async function renameTag(id, name) {
 }
 
 export async function addTagToVideos(tagId, videoIds) {
-  const res = await fetch('/videos/tags/add', {
+  const res = await apiFetch('/videos/tags/add', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_id: tagId, video_ids: videoIds }),
@@ -119,7 +152,7 @@ export async function addTagToVideos(tagId, videoIds) {
 }
 
 export async function removeTagFromVideos(tagId, videoIds) {
-  const res = await fetch('/videos/tags/remove', {
+  const res = await apiFetch('/videos/tags/remove', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_id: tagId, video_ids: videoIds }),
@@ -131,7 +164,7 @@ export async function removeTagFromVideos(tagId, videoIds) {
 }
 
 export async function replaceTagsForVideos(videoIds, tagIds) {
-  const res = await fetch('/videos/tags/replace', {
+  const res = await apiFetch('/videos/tags/replace', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ video_ids: videoIds, tag_ids: tagIds }),
@@ -143,7 +176,7 @@ export async function replaceTagsForVideos(videoIds, tagIds) {
 }
 
 export async function openVideoFile({ path, dirPath }) {
-  const res = await fetch('/videos/open', {
+  const res = await apiFetch('/videos/open', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ path, dir_path: dirPath }),
@@ -155,7 +188,7 @@ export async function openVideoFile({ path, dirPath }) {
 }
 
 export async function playVideoFile({ id, path, dirPath, startTime }) {
-  const res = await fetch('/videos/play', {
+  const res = await apiFetch('/videos/play', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ video_id: id, path, dir_path: dirPath, start_time: startTime }),
@@ -167,7 +200,7 @@ export async function playVideoFile({ id, path, dirPath, startTime }) {
 }
 
 export async function revealVideoLocation({ path, dirPath }) {
-  const res = await fetch('/videos/reveal', {
+  const res = await apiFetch('/videos/reveal', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ path, dir_path: dirPath }),
@@ -179,7 +212,7 @@ export async function revealVideoLocation({ path, dirPath }) {
 }
 
 export async function incrementVideoPlayCount(id) {
-  const res = await fetch(`/videos/${id}/play`, { method: 'POST' })
+  const res = await apiFetch(`/videos/${id}/play`, { method: 'POST' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('增加播放次数失败', 'Failed to increment play count'))
@@ -187,7 +220,7 @@ export async function incrementVideoPlayCount(id) {
 }
 
 export async function fetchPlaybackInfo(id) {
-  const res = await fetch(`/videos/${id}/streams`)
+  const res = await apiFetch(`/videos/${id}/streams`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载播放信息失败', 'Failed to load playback info'))
@@ -196,7 +229,7 @@ export async function fetchPlaybackInfo(id) {
 }
 
 export async function fetchVideoScreenshots(id) {
-  const res = await fetch(`/videos/${id}/screenshots`)
+  const res = await apiFetch(`/videos/${id}/screenshots`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载截图失败', 'Failed to load screenshots'))
@@ -206,7 +239,7 @@ export async function fetchVideoScreenshots(id) {
 }
 
 export async function deleteVideoScreenshot(videoId, name) {
-  const res = await fetch(`/videos/${videoId}/screenshots/${encodeURIComponent(name)}`, {
+  const res = await apiFetch(`/videos/${videoId}/screenshots/${encodeURIComponent(name)}`, {
     method: 'DELETE',
   })
   if (!res.ok) {
@@ -216,7 +249,7 @@ export async function deleteVideoScreenshot(videoId, name) {
 }
 
 export async function renameVideoLocation(videoId, locationId, filename) {
-  const res = await fetch(`/videos/${videoId}/locations/${locationId}`, {
+  const res = await apiFetch(`/videos/${videoId}/locations/${locationId}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify({ filename }),
@@ -229,7 +262,7 @@ export async function renameVideoLocation(videoId, locationId, filename) {
 }
 
 export async function deleteVideoLocation(videoId, locationId) {
-  const res = await fetch(`/videos/${videoId}/locations/${locationId}`, {
+  const res = await apiFetch(`/videos/${videoId}/locations/${locationId}`, {
     method: 'DELETE',
   })
   if (!res.ok) {
@@ -240,7 +273,7 @@ export async function deleteVideoLocation(videoId, locationId) {
 
 // Directories
 export async function fetchDirectories() {
-  const res = await fetch('/directories')
+  const res = await apiFetch('/directories')
   if (!res.ok) throw new Error(zh('加载目录失败', 'Failed to load directories'))
   const ct = res.headers.get('content-type') || ''
   if (!ct.includes('application/json')) {
@@ -254,7 +287,7 @@ export async function fetchDirectories() {
 }
 
 export async function createDirectory({ path }) {
-  const res = await fetch('/directories', {
+  const res = await apiFetch('/directories', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ path }),
@@ -267,7 +300,7 @@ export async function createDirectory({ path }) {
 }
 
 export async function pickDirectory() {
-  const res = await fetch('/directories/pick', {
+  const res = await apiFetch('/directories/pick', {
     method: 'POST',
   })
   if (!res.ok) {
@@ -278,7 +311,7 @@ export async function pickDirectory() {
 }
 
 export async function updateDirectory(id, payload) {
-  const res = await fetch(`/directories/${id}`, {
+  const res = await apiFetch(`/directories/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify(payload),
@@ -317,7 +350,7 @@ export async function fetchJavs({
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
-  const res = await fetch(`/jav?${params.toString()}`)
+  const res = await apiFetch(`/jav?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JAV 失败', 'Failed to load JAV'))
@@ -329,7 +362,7 @@ export async function fetchJavTags({ directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(`/jav/tags${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/tags${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JAV 标签失败', 'Failed to load JAV tags'))
@@ -338,7 +371,7 @@ export async function fetchJavTags({ directoryIds = [] } = {}) {
 }
 
 export async function createJavTag(name) {
-  const res = await fetch('/jav/tags', {
+  const res = await apiFetch('/jav/tags', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -351,7 +384,7 @@ export async function createJavTag(name) {
 }
 
 export async function renameJavTag(id, name) {
-  const res = await fetch(`/jav/tags/${id}`, {
+  const res = await apiFetch(`/jav/tags/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -363,7 +396,7 @@ export async function renameJavTag(id, name) {
 }
 
 export async function deleteJavTag(id) {
-  const res = await fetch(`/jav/tags/${id}`, { method: 'DELETE' })
+  const res = await apiFetch(`/jav/tags/${id}`, { method: 'DELETE' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('删除 JAV 标签失败', 'Failed to delete JAV tag'))
@@ -371,7 +404,7 @@ export async function deleteJavTag(id) {
 }
 
 export async function deleteJavTagsBatch(tagIds) {
-  const res = await fetch('/jav/tags/batch_delete', {
+  const res = await apiFetch('/jav/tags/batch_delete', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_ids: tagIds }),
@@ -383,7 +416,7 @@ export async function deleteJavTagsBatch(tagIds) {
 }
 
 export async function replaceJavTagsForItems(javIds, tagIds) {
-  const res = await fetch('/jav/tags/replace', {
+  const res = await apiFetch('/jav/tags/replace', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ jav_ids: javIds, tag_ids: tagIds }),
@@ -395,7 +428,7 @@ export async function replaceJavTagsForItems(javIds, tagIds) {
 }
 
 export async function addJavTagToJavs(tagId, javIds) {
-  const res = await fetch('/jav/tags/add', {
+  const res = await apiFetch('/jav/tags/add', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_id: tagId, jav_ids: javIds }),
@@ -407,7 +440,7 @@ export async function addJavTagToJavs(tagId, javIds) {
 }
 
 export async function removeJavTagFromJavs(tagId, javIds) {
-  const res = await fetch('/jav/tags/remove', {
+  const res = await apiFetch('/jav/tags/remove', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ tag_id: tagId, jav_ids: javIds }),
@@ -433,7 +466,7 @@ export async function fetchJavIdols({
   if (sort) params.set('sort', sort)
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   if (favoriteGroupId) params.set('favorite_group_id', String(favoriteGroupId))
-  const res = await fetch(`/jav/idols?${params.toString()}`)
+  const res = await apiFetch(`/jav/idols?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载女优失败', 'Failed to load idols'))
@@ -445,7 +478,7 @@ export async function fetchJavIdolFavoriteGroups({ directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(`/jav/idol-favorite-groups${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/idol-favorite-groups${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载女优收藏夹失败', 'Failed to load idol favorite groups'))
@@ -455,7 +488,7 @@ export async function fetchJavIdolFavoriteGroups({ directoryIds = [] } = {}) {
 }
 
 export async function createJavIdolFavoriteGroup(name) {
-  const res = await fetch('/jav/idol-favorite-groups', {
+  const res = await apiFetch('/jav/idol-favorite-groups', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -468,7 +501,7 @@ export async function createJavIdolFavoriteGroup(name) {
 }
 
 export async function renameJavIdolFavoriteGroup(id, name) {
-  const res = await fetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
@@ -480,7 +513,7 @@ export async function renameJavIdolFavoriteGroup(id, name) {
 }
 
 export async function deleteJavIdolFavoriteGroup(id) {
-  const res = await fetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
+  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
   if (!res.ok) {
@@ -490,7 +523,7 @@ export async function deleteJavIdolFavoriteGroup(id) {
 }
 
 export async function reorderJavIdolFavoriteGroups(groupIds = []) {
-  const res = await fetch('/jav/idol-favorite-groups/order', {
+  const res = await apiFetch('/jav/idol-favorite-groups/order', {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({ group_ids: groupIds }),
@@ -507,7 +540,7 @@ export async function fetchJavIdolFavoriteGroupIdols(id, { directoryIds = [] } =
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(
+  const res = await apiFetch(
     `/jav/idol-favorite-groups/${encodeURIComponent(id)}/idols${query ? `?${query}` : ''}`
   )
   if (!res.ok) {
@@ -519,7 +552,7 @@ export async function fetchJavIdolFavoriteGroupIdols(id, { directoryIds = [] } =
 }
 
 export async function reorderJavIdolFavoriteGroupIdols(id, idolIds = []) {
-  const res = await fetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idol-order`, {
+  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idol-order`, {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({ idol_ids: idolIds }),
@@ -531,7 +564,7 @@ export async function reorderJavIdolFavoriteGroupIdols(id, idolIds = []) {
 }
 
 export async function removeJavIdolFavoriteGroupIdols(id, idolIds = []) {
-  const res = await fetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idols/remove`, {
+  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idols/remove`, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ idol_ids: idolIds }),
@@ -543,7 +576,7 @@ export async function removeJavIdolFavoriteGroupIdols(id, idolIds = []) {
 }
 
 export async function fetchJavIdolFavoriteSelection(id) {
-  const res = await fetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`)
+  const res = await apiFetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载女优收藏夹选择失败', 'Failed to load idol favorites'))
@@ -553,7 +586,7 @@ export async function fetchJavIdolFavoriteSelection(id) {
 }
 
 export async function replaceJavIdolFavoriteGroups(id, groupIds = []) {
-  const res = await fetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`, {
+  const res = await apiFetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`, {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({ group_ids: groupIds }),
@@ -575,7 +608,7 @@ export async function fetchJavStudios({
   params.set('offset', String(offset))
   if (search) params.set('search', search)
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
-  const res = await fetch(`/jav/studios?${params.toString()}`)
+  const res = await apiFetch(`/jav/studios?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载片商失败', 'Failed to load studios'))
@@ -586,7 +619,7 @@ export async function fetchJavStudios({
 export async function fetchJavStudioJavDBURL({ studioId = null } = {}) {
   const params = new URLSearchParams()
   params.set('studio_id', String(studioId || ''))
-  const res = await fetch(`/jav/studios/javdb-url?${params.toString()}`)
+  const res = await apiFetch(`/jav/studios/javdb-url?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JavDB 片商链接失败', 'Failed to load JavDB studio URL'))
@@ -599,7 +632,7 @@ export async function fetchJavStudioPreview(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(`/jav/studios/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/studios/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载片商预览失败', 'Failed to load studio preview'))
@@ -618,7 +651,7 @@ export async function fetchJavSeries({
   params.set('offset', String(offset))
   if (search) params.set('search', search)
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
-  const res = await fetch(`/jav/series?${params.toString()}`)
+  const res = await apiFetch(`/jav/series?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载系列失败', 'Failed to load series'))
@@ -629,7 +662,7 @@ export async function fetchJavSeries({
 export async function fetchJavSeriesJavDBURL({ seriesId = null } = {}) {
   const params = new URLSearchParams()
   params.set('series_id', String(seriesId || ''))
-  const res = await fetch(`/jav/series/javdb-url?${params.toString()}`)
+  const res = await apiFetch(`/jav/series/javdb-url?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JavDB 系列链接失败', 'Failed to load JavDB series URL'))
@@ -642,7 +675,7 @@ export async function fetchJavSeriesPreview(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(`/jav/series/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/series/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载系列预览失败', 'Failed to load series preview'))
@@ -654,7 +687,7 @@ export async function fetchJavIdolPreview(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await fetch(`/jav/idols/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/idols/${encodeURIComponent(id)}${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载女优预览失败', 'Failed to load idol preview'))
@@ -666,7 +699,7 @@ export async function fetchJavIdolJavDBURL({ code = '', name = '' } = {}) {
   const params = new URLSearchParams()
   params.set('code', code)
   params.set('name', name)
-  const res = await fetch(`/jav/idols/javdb-url?${params.toString()}`)
+  const res = await apiFetch(`/jav/idols/javdb-url?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JavDB 女优链接失败', 'Failed to load JavDB idol URL'))
@@ -690,7 +723,7 @@ export async function resolveJavIdols(ids = []) {
   }
   const params = new URLSearchParams()
   params.set('ids', clean.join(','))
-  const request = fetch(`/jav/idols/resolve?${params.toString()}`)
+  const request = apiFetch(`/jav/idols/resolve?${params.toString()}`)
     .then(async (res) => {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
