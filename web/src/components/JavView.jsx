@@ -38,6 +38,7 @@ export default function JavView({
   javTagMaxRows,
   onPlay,
   onIdolClick,
+  onOpenFavorites,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -185,6 +186,7 @@ export default function JavView({
             buildJavUrl={buildJavUrl}
             onPlay={onPlay}
             onIdolClick={onIdolClick}
+            onOpenFavorites={onOpenFavorites}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}
             onTagClick={onTagClick}

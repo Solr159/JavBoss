@@ -79,6 +79,7 @@ export default function JavGrid({
   buildJavUrl,
   onPlay,
   onIdolClick,
+  onOpenFavorites,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -214,6 +215,7 @@ export default function JavGrid({
             onPlay={onPlay}
             buildJavUrl={buildJavUrl}
             onIdolClick={onIdolClick}
+            onOpenFavorites={onOpenFavorites}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}
             onTagClick={onTagClick}
@@ -674,6 +676,7 @@ function JavCard({
   onPlay,
   buildJavUrl,
   onIdolClick,
+  onOpenFavorites,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -1275,6 +1278,7 @@ function JavCard({
                   <IdolCard
                     item={previewIdol}
                     onSelectIdol={(idol) => onIdolClick?.(idol)}
+                    onOpenFavorites={onOpenFavorites}
                     href={buildIdolFilterHref(previewIdol)}
                     bgWidthPercent={bgWidthPercent}
                     coverAspectPercent={coverAspectPercent}
