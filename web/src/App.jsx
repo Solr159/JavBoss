@@ -535,7 +535,6 @@ export default function App() {
           }
           return { videos: nextVideos, selectedVideoMeta: nextMeta }
         })
-        showToast(zh('视频已重命名', 'Video renamed'))
       } catch (err) {
         console.error(zh('重命名视频失败', 'Failed to rename video'), err)
         showToast(err?.message || zh('重命名视频失败', 'Failed to rename video'))
@@ -576,7 +575,6 @@ export default function App() {
           }
         })
         await loadVideos({ force: true })
-        showToast(zh('视频已删除', 'Video deleted'))
       } catch (err) {
         console.error(zh('删除视频失败', 'Failed to delete video'), err)
         showToast(err?.message || zh('删除视频失败', 'Failed to delete video'))
