@@ -59,7 +59,7 @@ export default function JavIdolView({
           </div>
           <div className="hidden md:block" />
         </div>
-        <div className="mt-1">
+        <div className="mt-1 pl-2">
           <IdolFavoriteGroupRow
             groups={favoriteGroups}
             selectedGroupId={selectedFavoriteGroupId}
