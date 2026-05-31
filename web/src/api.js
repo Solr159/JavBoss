@@ -10,12 +10,17 @@ function loadAPIToken() {
   const token = String(url.searchParams.get('token') || '').trim()
   if (token) {
     window.sessionStorage?.setItem(apiTokenStorageKey, token)
+    window.localStorage?.setItem(apiTokenStorageKey, token)
     url.searchParams.delete('token')
     const nextURL = `${url.pathname}${url.search}${url.hash}`
     window.history.replaceState(window.history.state, '', nextURL || '/')
     return token
   }
-  return String(window.sessionStorage?.getItem(apiTokenStorageKey) || '').trim()
+  return String(
+    window.sessionStorage?.getItem(apiTokenStorageKey) ||
+      window.localStorage?.getItem(apiTokenStorageKey) ||
+      ''
+  ).trim()
 }
 
 const apiToken = loadAPIToken()
