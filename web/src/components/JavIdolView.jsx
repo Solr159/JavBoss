@@ -37,7 +37,7 @@ export default function JavIdolView({
 }) {
   return (
     <>
-      <div className="sticky-pagination mb-4">
+      <div className="sticky-pagination mb-2.5">
         <div className="relative grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
           <div />
           <div className="flex justify-center overflow-x-auto">
