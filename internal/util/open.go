@@ -8,6 +8,12 @@ import (
 
 // OpenFile opens a file with the system default application.
 func OpenFile(path string) error {
+	if handled, err := openFileDirect(path); handled {
+		if err != nil {
+			return fmt.Errorf("open file: %w", err)
+		}
+		return nil
+	}
 	cmd, err := buildOpenCommand(path, false)
 	if err != nil {
 		return err
