@@ -114,6 +114,85 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	}
 }
 
+func TestDeleteJavIdolFavoriteGroupCascadesMapsOnNewConnection(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+
+	group := models.JavIdolFavoriteGroup{Name: "Favorites"}
+	otherGroup := models.JavIdolFavoriteGroup{Name: "Other"}
+	if err := db.Create(&[]models.JavIdolFavoriteGroup{group, otherGroup}).Error; err != nil {
+		t.Fatalf("create favorite groups: %v", err)
+	}
+	var groups []models.JavIdolFavoriteGroup
+	if err := db.Order("name").Find(&groups).Error; err != nil {
+		t.Fatalf("load favorite groups: %v", err)
+	}
+	group = groups[0]
+	otherGroup = groups[1]
+
+	idolA := models.JavIdol{Name: "Idol A"}
+	idolB := models.JavIdol{Name: "Idol B"}
+	if err := db.Create(&[]models.JavIdol{idolA, idolB}).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+	var idols []models.JavIdol
+	if err := db.Order("name").Find(&idols).Error; err != nil {
+		t.Fatalf("load idols: %v", err)
+	}
+	idolA = idols[0]
+	idolB = idols[1]
+
+	rows := []models.JavIdolFavoriteMap{
+		{JavIdolFavoriteGroupID: group.ID, JavIdolID: idolA.ID},
+		{JavIdolFavoriteGroupID: group.ID, JavIdolID: idolB.ID},
+		{JavIdolFavoriteGroupID: otherGroup.ID, JavIdolID: idolA.ID},
+	}
+	if err := db.Create(&rows).Error; err != nil {
+		t.Fatalf("create favorite maps: %v", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatalf("get sql db: %v", err)
+	}
+	sqlDB.SetMaxIdleConns(0)
+	t.Cleanup(func() {
+		sqlDB.SetMaxIdleConns(2)
+	})
+
+	var foreignKeysEnabled int
+	if err := db.Raw("PRAGMA foreign_keys").Scan(&foreignKeysEnabled).Error; err != nil {
+		t.Fatalf("read foreign_keys pragma: %v", err)
+	}
+	if foreignKeysEnabled != 1 {
+		t.Fatalf("foreign_keys pragma = %d, want 1", foreignKeysEnabled)
+	}
+
+	if err := DeleteJavIdolFavoriteGroup(ctx, group.ID); err != nil {
+		t.Fatalf("DeleteJavIdolFavoriteGroup: %v", err)
+	}
+
+	var deletedGroupMaps int64
+	if err := db.Model(&models.JavIdolFavoriteMap{}).
+		Where("jav_idol_favorite_group_id = ?", group.ID).
+		Count(&deletedGroupMaps).Error; err != nil {
+		t.Fatalf("count deleted group maps: %v", err)
+	}
+	if deletedGroupMaps != 0 {
+		t.Fatalf("deleted group maps remain: got %d want 0", deletedGroupMaps)
+	}
+
+	var otherGroupMaps int64
+	if err := db.Model(&models.JavIdolFavoriteMap{}).
+		Where("jav_idol_favorite_group_id = ?", otherGroup.ID).
+		Count(&otherGroupMaps).Error; err != nil {
+		t.Fatalf("count other group maps: %v", err)
+	}
+	if otherGroupMaps != 1 {
+		t.Fatalf("unexpected other group maps: got %d want 1", otherGroupMaps)
+	}
+}
+
 func TestSearchJavFiltersByIdolIDs(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

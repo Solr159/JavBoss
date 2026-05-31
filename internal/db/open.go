@@ -28,6 +28,7 @@ func Open(path string) (*gorm.DB, error) {
 	if err := execDB(context.Background(), sqlDB, "PRAGMA journal_mode=WAL;"); err != nil {
 		return nil, fmt.Errorf("enable WAL: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(1)
 	if err := execDB(context.Background(), sqlDB, "PRAGMA foreign_keys=OFF;"); err != nil {
 		return nil, fmt.Errorf("disable foreign keys for migration: %w", err)
 	}
@@ -37,6 +38,7 @@ func Open(path string) (*gorm.DB, error) {
 	if err := execDB(context.Background(), sqlDB, "PRAGMA foreign_keys=ON;"); err != nil {
 		return nil, fmt.Errorf("enable foreign keys: %w", err)
 	}
+	sqlDB.SetMaxOpenConns(0)
 
 	db, err := gorm.Open(sqlite.New(sqlite.Config{Conn: sqlDB}), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),

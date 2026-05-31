@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
 	"sync"
 
 	"github.com/mattn/go-sqlite3"
@@ -15,6 +16,9 @@ func registerSQLiteFunctions() string {
 	registerOnce.Do(func() {
 		sql.Register(sqliteDriverName, &sqlite3.SQLiteDriver{
 			ConnectHook: func(conn *sqlite3.SQLiteConn) error {
+				if _, err := conn.Exec("PRAGMA foreign_keys=ON", []driver.Value{}); err != nil {
+					return err
+				}
 				if err := conn.RegisterFunc("splitmix64", splitmix64SQL, true); err != nil {
 					return err
 				}
