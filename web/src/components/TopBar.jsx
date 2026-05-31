@@ -148,7 +148,7 @@ export default function TopBar({
 
   return (
     <header ref={headerRef} className={headerClassName}>
-      <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 px-6 py-1.5">
+      <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 px-6 py-2">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
             <button
