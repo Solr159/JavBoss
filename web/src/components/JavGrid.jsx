@@ -779,10 +779,7 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
                 setCoverUrl(event.target.value)
                 if (error) setError('')
               }}
-              placeholder={zh(
-                '输入图片链接，保存后自动下载更新',
-                'Enter image URL to download on save'
-              )}
+              placeholder="https://..."
               className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
