@@ -21,6 +21,8 @@ func getJavCover(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "no-cache, must-revalidate")
+
 	if path, ok := manager.FindCoverPath(cfg.JavCoverDir, code); ok {
 		c.File(path)
 		return
