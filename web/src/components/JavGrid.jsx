@@ -863,22 +863,18 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
                 {zh('新增', 'Add')}
               </button>
             </div>
-            <div className="mt-2 flex min-h-10 flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2">
-              {selectedIdolOptions.length === 0 ? (
-                <span className="px-1 py-1 text-sm text-gray-500">
-                  {zh('暂无女优', 'No idols')}
-                </span>
-              ) : (
-                selectedIdolOptions.map((idol) => (
+            {selectedIdolOptions.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedIdolOptions.map((idol) => (
                   <SelectedChip
                     key={idol.id}
                     label={idol.name}
                     disabled={saving}
                     onRemove={() => toggleIdol(idol.id, false)}
                   />
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            ) : null}
             {idolPickerOpen ? (
               <div className="mt-2 rounded-md border border-gray-200 p-2">
                 <div className="mb-2 flex items-center gap-2">
@@ -939,20 +935,18 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
                 {zh('新增', 'Add')}
               </button>
             </div>
-            <div className="mt-2 flex min-h-10 flex-wrap gap-2 rounded-md border border-gray-200 bg-gray-50 p-2">
-              {selectedTagOptions.length === 0 ? (
-                <span className="px-1 py-1 text-sm text-gray-500">{zh('暂无标签', 'No tags')}</span>
-              ) : (
-                selectedTagOptions.map((tag) => (
+            {selectedTagOptions.length > 0 ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {selectedTagOptions.map((tag) => (
                   <SelectedChip
                     key={`${tag.id}-${tag.provider || 0}`}
                     label={tag.name}
                     disabled={saving}
                     onRemove={() => toggleTag(tag.id, false)}
                   />
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            ) : null}
             {tagPickerOpen ? (
               <div className="mt-2 rounded-md border border-gray-200 p-2">
                 <div className="mb-2 flex items-center gap-2">
