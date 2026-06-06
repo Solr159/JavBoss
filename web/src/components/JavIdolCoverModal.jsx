@@ -15,10 +15,9 @@ const IDOL_COVER_FRAME_ASPECT =
   (IDOL_COVER_SOURCE_WIDTH * IDOL_COVER_VISIBLE_RATIO) / IDOL_COVER_SOURCE_HEIGHT
 
 export function normalizeIdolCoverCropLeft(value) {
-  const max = IDOL_COVER_DEFAULT_CROP_LEFT
   const parsed = Number(value)
-  if (!Number.isFinite(parsed)) return max
-  return Math.min(Math.max(parsed, 0), max)
+  if (!Number.isFinite(parsed)) return IDOL_COVER_DEFAULT_CROP_LEFT
+  return Math.min(Math.max(parsed, 0), 1)
 }
 
 function getCoverVisibleRatio(size) {
