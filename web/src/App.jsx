@@ -57,6 +57,8 @@ import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 
 const JAV_STUDIO_PAGE_SIZE = 24
 const HISTORY_INDEX_KEY = '__pornbossHistoryIndex'
+const HISTORY_SCROLL_KEY = '__pornbossScroll'
+const SCROLL_RESTORE_MAX_ATTEMPTS = 30
 
 const normalizeDefaultPlayer = (value) =>
   String(value || '')
@@ -78,6 +80,10 @@ export default function App() {
   const browserInitialCanGoBackRef = useRef(window.history.length > 1)
   const browserHistoryIndexRef = useRef(0)
   const browserHistoryMaxRef = useRef(0)
+  const pendingScrollRestoreRef = useRef(null)
+  const scrollSaveFrameRef = useRef(null)
+  const scrollRestoreFrameRef = useRef(null)
+  const scrollRestoreTimerRef = useRef(null)
   const pendingVideoTagIdsRef = useRef(null)
   const {
     page,
@@ -244,27 +250,163 @@ export default function App() {
     return Number.isFinite(rawIndex) && rawIndex >= 0 ? Math.floor(rawIndex) : 0
   }, [])
 
+  const readWindowScrollPosition = useCallback(
+    () => ({
+      x: Math.max(0, Math.round(window.scrollX || window.pageXOffset || 0)),
+      y: Math.max(0, Math.round(window.scrollY || window.pageYOffset || 0)),
+    }),
+    []
+  )
+
+  const normalizeHistoryScrollPosition = useCallback((value) => {
+    const x = Number(value?.x)
+    const y = Number(value?.y)
+    return {
+      x: Number.isFinite(x) && x > 0 ? Math.round(x) : 0,
+      y: Number.isFinite(y) && y > 0 ? Math.round(y) : 0,
+    }
+  }, [])
+
+  const saveCurrentScrollPosition = useCallback(() => {
+    const currentState = window.history.state || {}
+    const currentScroll = readWindowScrollPosition()
+    const previousScroll = normalizeHistoryScrollPosition(currentState[HISTORY_SCROLL_KEY])
+    if (previousScroll.x === currentScroll.x && previousScroll.y === currentScroll.y) return
+    window.history.replaceState(
+      { ...currentState, [HISTORY_SCROLL_KEY]: currentScroll },
+      '',
+      window.location.pathname + window.location.search
+    )
+  }, [normalizeHistoryScrollPosition, readWindowScrollPosition])
+
   const ensureBrowserHistoryState = useCallback(() => {
     const currentState = window.history.state || {}
     const hasIndex = Number.isFinite(Number(currentState[HISTORY_INDEX_KEY]))
+    const hasScroll =
+      currentState[HISTORY_SCROLL_KEY] && typeof currentState[HISTORY_SCROLL_KEY] === 'object'
     const index = hasIndex ? readBrowserHistoryIndex(currentState) : browserHistoryIndexRef.current
-    if (!hasIndex) {
+    if (!hasIndex || !hasScroll) {
       window.history.replaceState(
-        { ...currentState, [HISTORY_INDEX_KEY]: index },
+        {
+          ...currentState,
+          [HISTORY_INDEX_KEY]: index,
+          [HISTORY_SCROLL_KEY]: hasScroll
+            ? normalizeHistoryScrollPosition(currentState[HISTORY_SCROLL_KEY])
+            : readWindowScrollPosition(),
+        },
         '',
         window.location.pathname + window.location.search
       )
     }
     setBrowserNavigationFromIndex(index, Math.max(browserHistoryMaxRef.current, index))
-  }, [readBrowserHistoryIndex, setBrowserNavigationFromIndex])
+  }, [
+    normalizeHistoryScrollPosition,
+    readBrowserHistoryIndex,
+    readWindowScrollPosition,
+    setBrowserNavigationFromIndex,
+  ])
 
   const handleBrowserBack = useCallback(() => {
+    saveCurrentScrollPosition()
     window.history.back()
-  }, [])
+  }, [saveCurrentScrollPosition])
 
   const handleBrowserForward = useCallback(() => {
+    saveCurrentScrollPosition()
     window.history.forward()
+  }, [saveCurrentScrollPosition])
+
+  useEffect(() => {
+    if (!('scrollRestoration' in window.history)) return undefined
+    const previousScrollRestoration = window.history.scrollRestoration
+    window.history.scrollRestoration = 'manual'
+    return () => {
+      window.history.scrollRestoration = previousScrollRestoration
+    }
   }, [])
+
+  useEffect(() => {
+    const flushScrollPosition = () => {
+      if (scrollSaveFrameRef.current) {
+        window.cancelAnimationFrame(scrollSaveFrameRef.current)
+        scrollSaveFrameRef.current = null
+      }
+      saveCurrentScrollPosition()
+    }
+    const handleScroll = () => {
+      if (scrollSaveFrameRef.current) return
+      scrollSaveFrameRef.current = window.requestAnimationFrame(() => {
+        scrollSaveFrameRef.current = null
+        saveCurrentScrollPosition()
+      })
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushScrollPosition()
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('pagehide', flushScrollPosition)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      window.removeEventListener('pagehide', flushScrollPosition)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      if (scrollSaveFrameRef.current) {
+        window.cancelAnimationFrame(scrollSaveFrameRef.current)
+        scrollSaveFrameRef.current = null
+      }
+    }
+  }, [saveCurrentScrollPosition])
+
+  const cancelScheduledScrollRestore = useCallback(() => {
+    if (scrollRestoreFrameRef.current) {
+      window.cancelAnimationFrame(scrollRestoreFrameRef.current)
+      scrollRestoreFrameRef.current = null
+    }
+    if (scrollRestoreTimerRef.current) {
+      window.clearTimeout(scrollRestoreTimerRef.current)
+      scrollRestoreTimerRef.current = null
+    }
+  }, [])
+
+  const schedulePendingScrollRestore = useCallback(() => {
+    if (!pendingScrollRestoreRef.current) return
+    cancelScheduledScrollRestore()
+
+    const restore = () => {
+      const pending = pendingScrollRestoreRef.current
+      if (!pending) return
+
+      const maxY = Math.max(
+        0,
+        Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) -
+          window.innerHeight
+      )
+      const targetX = Math.max(0, pending.x || 0)
+      const targetY = Math.max(0, pending.y || 0)
+      const nextY = Math.min(targetY, maxY)
+      window.scrollTo({ left: targetX, top: nextY, behavior: 'auto' })
+
+      const reached = Math.abs((window.scrollY || window.pageYOffset || 0) - targetY) <= 2
+      const canReach = targetY <= maxY + 2
+      if ((canReach && reached) || pending.attempts >= SCROLL_RESTORE_MAX_ATTEMPTS) {
+        pendingScrollRestoreRef.current = null
+        return
+      }
+
+      pending.attempts += 1
+      scrollRestoreTimerRef.current = window.setTimeout(() => {
+        scrollRestoreTimerRef.current = null
+        scrollRestoreFrameRef.current = window.requestAnimationFrame(restore)
+      }, 50)
+    }
+
+    scrollRestoreFrameRef.current = window.requestAnimationFrame(restore)
+  }, [cancelScheduledScrollRestore])
+
+  useEffect(() => cancelScheduledScrollRestore, [cancelScheduledScrollRestore])
   const selectedTagIds = useMemo(
     () =>
       tags
@@ -1025,6 +1167,11 @@ export default function App() {
     const onPop = (event) => {
       const index = readBrowserHistoryIndex(event.state)
       const max = Math.max(browserHistoryMaxRef.current, index)
+      pendingScrollRestoreRef.current = {
+        ...normalizeHistoryScrollPosition(event.state?.[HISTORY_SCROLL_KEY]),
+        attempts: 0,
+      }
+      cancelScheduledScrollRestore()
       setBrowserNavigationFromIndex(index, max)
       apply(true)
     }
@@ -1032,7 +1179,9 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop)
   }, [
     applyUrlState,
+    cancelScheduledScrollRestore,
     ensureBrowserHistoryState,
+    normalizeHistoryScrollPosition,
     readBrowserHistoryIndex,
     setBrowserNavigationFromIndex,
     configLoaded,
@@ -1255,15 +1404,30 @@ export default function App() {
       isPoppingRef.current = false
       return
     }
+    pendingScrollRestoreRef.current = null
+    cancelScheduledScrollRestore()
+    saveCurrentScrollPosition()
     const nextIndex = browserHistoryIndexRef.current + 1
+    const nextScroll = readWindowScrollPosition()
     window.history.pushState(
-      { ...(window.history.state || {}), [HISTORY_INDEX_KEY]: nextIndex },
+      {
+        ...(window.history.state || {}),
+        [HISTORY_INDEX_KEY]: nextIndex,
+        [HISTORY_SCROLL_KEY]: nextScroll,
+      },
       '',
       nextUrl
     )
     setBrowserNavigationFromIndex(nextIndex, nextIndex)
     lastUrlRef.current = nextUrl
-  }, [currentUrlState, hydrated, setBrowserNavigationFromIndex])
+  }, [
+    cancelScheduledScrollRestore,
+    currentUrlState,
+    hydrated,
+    readWindowScrollPosition,
+    saveCurrentScrollPosition,
+    setBrowserNavigationFromIndex,
+  ])
 
   const canPrev = page > 1
   const canNext = hasNext
@@ -2426,6 +2590,80 @@ export default function App() {
         : javTab === 'series'
           ? seriesLoading
           : javLoading
+  const activeLoadingMore = isJavMode
+    ? javTab === 'idol'
+      ? idolLoadingMore
+      : javTab === 'studio'
+        ? studioLoadingMore
+        : javTab === 'series'
+          ? seriesLoadingMore
+          : javLoadingMore
+    : videoLoadingMore
+  useEffect(() => {
+    if (!hydrated || !configLoaded || !pendingScrollRestoreRef.current) return
+    if ((isJavMode ? activeJavLoading : loading) || activeLoadingMore) return
+
+    const pending = pendingScrollRestoreRef.current
+    const maxY = Math.max(
+      0,
+      Math.max(document.documentElement.scrollHeight, document.body.scrollHeight) -
+        window.innerHeight
+    )
+    const needsMoreContent = (pending.y || 0) > maxY + 24
+    if (needsMoreContent) {
+      if (!isJavMode && waterfallModes.video && videoWaterfallHasMore) {
+        loadMoreVideos()
+        return
+      }
+      if (isJavMode && javTab === 'list' && waterfallModes.jav && javWaterfallHasMore) {
+        loadMoreJavs()
+        return
+      }
+      if (isJavMode && javTab === 'idol' && waterfallModes.idol && idolWaterfallHasMore) {
+        loadMoreJavIdols()
+        return
+      }
+      if (isJavMode && javTab === 'studio' && waterfallModes.studio && studioWaterfallHasMore) {
+        loadMoreJavStudios()
+        return
+      }
+      if (isJavMode && javTab === 'series' && waterfallModes.series && seriesWaterfallHasMore) {
+        loadMoreJavSeries()
+        return
+      }
+    }
+
+    schedulePendingScrollRestore()
+  }, [
+    activeJavLoading,
+    activeLoadingMore,
+    configLoaded,
+    hydrated,
+    idolItems.length,
+    idolWaterfallHasMore,
+    isJavMode,
+    javItems.length,
+    javTab,
+    javWaterfallHasMore,
+    loadMoreJavIdols,
+    loadMoreJavSeries,
+    loadMoreJavStudios,
+    loadMoreJavs,
+    loadMoreVideos,
+    loading,
+    schedulePendingScrollRestore,
+    seriesItems.length,
+    seriesWaterfallHasMore,
+    studioItems.length,
+    studioWaterfallHasMore,
+    videoWaterfallHasMore,
+    videos.length,
+    waterfallModes.idol,
+    waterfallModes.jav,
+    waterfallModes.series,
+    waterfallModes.studio,
+    waterfallModes.video,
+  ])
   const javVideoPickerTitle =
     javVideoPickerAction === 'open'
       ? alternatePlayer === 'mpv'
