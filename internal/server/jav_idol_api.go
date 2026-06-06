@@ -394,11 +394,7 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 	item.RomanName = strings.TrimSpace(item.RomanName)
 	item.JapaneseName = strings.TrimSpace(item.JapaneseName)
 	item.ChineseName = strings.TrimSpace(item.ChineseName)
-	item.SampleCode = strings.TrimSpace(item.SampleCode)
 	item.CoverCode = strings.TrimSpace(item.CoverCode)
-	if item.CoverCode == "" {
-		item.CoverCode = item.SampleCode
-	}
 
 	if coverDir == "" {
 		return
@@ -409,9 +405,10 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 		}
 		return
 	}
-	if _, ok := manager.FindCoverPath(coverDir, item.SampleCode); ok {
-		item.CoverCode = item.SampleCode
-		return
+	if item.CoverCode != "" {
+		if _, ok := manager.FindCoverPath(coverDir, item.CoverCode); ok {
+			return
+		}
 	}
 	codes, err := dbpkg.ListIdolCoverCodes(ctx, item.ID, directoryIDs)
 	if err != nil {
@@ -429,7 +426,6 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 		chosen = codes[0]
 	}
 	if chosen != "" {
-		item.SampleCode = chosen
 		item.CoverCode = chosen
 		if common.CoverManager != nil && !common.CoverManager.Exists(chosen) {
 			common.CoverManager.Enqueue(chosen)

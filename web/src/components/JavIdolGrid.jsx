@@ -99,7 +99,7 @@ export function IdolCard({
   javMetadataLanguage = 'zh',
 }) {
   const chineseLocale = isChineseLocale()
-  const coverCode = String(item?.cover_code || item?.sample_code || '').trim()
+  const coverCode = String(item?.cover_code || '').trim()
   const cover = coverCode ? `/jav/${encodeURIComponent(coverCode)}/cover` : null
   const coverCropLeft = normalizeIdolCoverCropLeft(
     item?.cover_crop_left ?? IDOL_COVER_DEFAULT_CROP_LEFT
@@ -117,7 +117,7 @@ export function IdolCard({
   const height = typeof item?.height_cm === 'number' ? `${item.height_cm}cm` : ''
   const bwh = formatBwh(item)
   const cup = formatCup(item?.cup)
-  const sampleCode = String(item?.sample_code || coverCode || '').trim()
+  const lookupCode = coverCode
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const { primaryName, secondaryName } = buildDisplayNames({
@@ -129,7 +129,7 @@ export function IdolCard({
     javMetadataLanguage,
   })
   const metaRows = buildMetaRows({ birthDate, height, bwh, cup, secondaryName })
-  const canOpenJavDB = Boolean(javdbURL || (sampleCode && name))
+  const canOpenJavDB = Boolean(javdbURL || (lookupCode && name))
   const renderedCoverWidth =
     coverImageSize?.height > 0 && coverFrame.height > 0
       ? coverFrame.height * (coverImageSize.width / coverImageSize.height)
@@ -191,7 +191,7 @@ export function IdolCard({
       setJavdbOpening(true)
       let targetURL = javdbURL
       if (!targetURL) {
-        targetURL = await fetchJavIdolJavDBURL({ code: sampleCode, name })
+        targetURL = await fetchJavIdolJavDBURL({ code: lookupCode, name })
         setJavdbURL(targetURL)
       }
       if (!targetURL) {

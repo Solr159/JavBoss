@@ -109,8 +109,8 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	if items[0].WorkCount != 2 {
 		t.Fatalf("unexpected work count: got %d want 2", items[0].WorkCount)
 	}
-	if items[0].SampleCode != soloJav.Code {
-		t.Fatalf("unexpected sample code: got %q want %q", items[0].SampleCode, soloJav.Code)
+	if items[0].CoverCode != soloJav.Code {
+		t.Fatalf("unexpected cover code: got %q want %q", items[0].CoverCode, soloJav.Code)
 	}
 }
 
@@ -1633,7 +1633,7 @@ func TestJavBindingUsesVideoLocationsAndCountsTagWorks(t *testing.T) {
 	}
 }
 
-func TestGetJavIdolSummaryReturnsSampleCodeAndWorkCount(t *testing.T) {
+func TestGetJavIdolSummaryReturnsCoverCodeAndWorkCount(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -1711,8 +1711,8 @@ func TestGetJavIdolSummaryReturnsSampleCodeAndWorkCount(t *testing.T) {
 	if item.WorkCount != 2 {
 		t.Fatalf("unexpected work count: got %d want 2", item.WorkCount)
 	}
-	if item.SampleCode != soloJav.Code {
-		t.Fatalf("unexpected sample code: got %q want %q", item.SampleCode, soloJav.Code)
+	if item.CoverCode != soloJav.Code {
+		t.Fatalf("unexpected cover code: got %q want %q", item.CoverCode, soloJav.Code)
 	}
 }
 

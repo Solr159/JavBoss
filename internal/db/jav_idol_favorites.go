@@ -34,10 +34,10 @@ func buildIdolFavoriteCountQuery(ctx context.Context) *gorm.DB {
 func ListJavIdolFavoriteGroups(ctx context.Context, directoryIDs []int64) ([]JavIdolFavoriteGroupSummary, error) {
 	var groups []JavIdolFavoriteGroupSummary
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	soloIdols := buildVisibleSoloIdolSampleQuery(ctx, directoryIDs, isEnglish)
+	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)
 	if err := common.DB.WithContext(ctx).
 		Table("jav_idol_favorite_group jifg").
-		Select("jifg.id, jifg.name, jifg.sort_order, COUNT(DISTINCT CASE WHEN solo_idols.sample_code IS NOT NULL AND COALESCE(ji.is_english, 0) = ? THEN jifm.jav_idol_id END) AS count", isEnglish).
+		Select("jifg.id, jifg.name, jifg.sort_order, COUNT(DISTINCT CASE WHEN solo_idols.cover_code IS NOT NULL AND COALESCE(ji.is_english, 0) = ? THEN jifm.jav_idol_id END) AS count", isEnglish).
 		Joins("LEFT JOIN jav_idol_favorite_map jifm ON jifm.jav_idol_favorite_group_id = jifg.id").
 		Joins("LEFT JOIN jav_idol ji ON ji.id = jifm.jav_idol_id").
 		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = jifm.jav_idol_id", soloIdols).

@@ -810,7 +810,7 @@ func ListSeriesCoverCodes(ctx context.Context, seriesID int64, directoryIDs []in
 	return codes, nil
 }
 
-// JavIdolSummary represents idol info with aggregated work count and a sample code for cover lookup.
+// JavIdolSummary represents idol info with aggregated work count and cover selection.
 type JavIdolSummary struct {
 	ID            int64      `json:"id"`
 	Name          string     `json:"name"`
@@ -824,7 +824,6 @@ type JavIdolSummary struct {
 	Hips          *int       `json:"hips"`
 	Cup           *int       `json:"cup"`
 	WorkCount     int64      `json:"work_count"`
-	SampleCode    string     `json:"sample_code"`
 	CoverJavID    *int64     `json:"cover_jav_id"`
 	CoverCode     string     `json:"cover_code"`
 	CoverCropLeft float64    `json:"cover_crop_left"`
@@ -855,7 +854,7 @@ func applyJavIdolSearch(q *gorm.DB, search string) *gorm.DB {
 	)
 }
 
-func buildVisibleSoloIdolSampleQuery(ctx context.Context, directoryIDs []int64, language ...bool) *gorm.DB {
+func buildVisibleSoloIdolCoverQuery(ctx context.Context, directoryIDs []int64, language ...bool) *gorm.DB {
 	soloJavs := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_count").
 		Select("jim_count.jav_id").
@@ -869,7 +868,7 @@ func buildVisibleSoloIdolSampleQuery(ctx context.Context, directoryIDs []int64, 
 
 	query := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_solo").
-		Select("jim_solo.jav_idol_id, MIN(j_solo.code) AS sample_code").
+		Select("jim_solo.jav_idol_id, MIN(j_solo.code) AS cover_code").
 		Joins("JOIN (?) solo_jav ON solo_jav.jav_id = jim_solo.jav_id", soloJavs).
 		Joins("JOIN jav j_solo ON j_solo.id = jim_solo.jav_id").
 		Joins("JOIN video_location vl_solo ON vl_solo.jav_id = jim_solo.jav_id").
@@ -907,14 +906,14 @@ func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) 
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 	tx := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
-		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, solo_idols.sample_code, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.sample_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
 		Joins("LEFT JOIN (?) idol_work_counts ON idol_work_counts.jav_idol_id = ji.id", buildVisibleIdolWorkCountQuery(ctx, directoryIDs)).
-		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolSampleQuery(ctx, directoryIDs, isEnglish)).
+		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)).
 		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.jav_idol_id = ji.id", buildIdolFavoriteCountQuery(ctx)).
 		Where("ji.id = ?", idolID).
 		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
-		Where("solo_idols.sample_code IS NOT NULL").
+		Where("solo_idols.cover_code IS NOT NULL").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {
@@ -956,7 +955,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	}
 	sort = strings.ToLower(strings.TrimSpace(sort))
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	soloIdols := buildVisibleSoloIdolSampleQuery(ctx, directoryIDs, isEnglish)
+	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)
 
 	countBase := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
@@ -1032,8 +1031,8 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	base = applyJavIdolSearch(base, search)
 	if err := base.
 		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
-		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COUNT(DISTINCT j.id) AS work_count, solo_idols.sample_code, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.sample_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, ji.cover_jav_id, cover_jav.code, ji.cover_crop_left, solo_idols.sample_code, favorite_counts.favorite_count").
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COUNT(DISTINCT j.id) AS work_count, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, ji.cover_jav_id, cover_jav.code, ji.cover_crop_left, solo_idols.cover_code, favorite_counts.favorite_count").
 		Order(order).
 		Limit(limit).
 		Offset(offset).
@@ -1246,7 +1245,7 @@ func FindIdolSoloCode(ctx context.Context, idolID int64) (string, error) {
 func ListIdolsMissingProfile(ctx context.Context) ([]models.JavIdol, error) {
 	var idols []models.JavIdol
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	soloIdols := buildVisibleSoloIdolSampleQuery(ctx, nil, isEnglish)
+	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, nil, isEnglish)
 	if err := common.DB.WithContext(ctx).
 		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = jav_idol.id", soloIdols).
 		Where("COALESCE(jav_idol.is_english, 0) = ?", isEnglish).

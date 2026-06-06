@@ -44,6 +44,10 @@ function normalizeDynamicCropLeft(value, maxCropLeft) {
   return Math.min(Math.max(parsed, 0), max)
 }
 
+function getIdolCoverCode(item) {
+  return String(item?.cover_code || '').trim()
+}
+
 export default function JavIdolCoverModal({
   open,
   item,
@@ -65,6 +69,7 @@ export default function JavIdolCoverModal({
 
   const idolId = Number(item?.id)
   const directoryKey = (directoryIds || []).join(',')
+  const itemCoverCode = getIdolCoverCode(item)
 
   useEffect(() => {
     if (!open || !Number.isFinite(idolId) || idolId <= 0) return undefined
@@ -80,8 +85,9 @@ export default function JavIdolCoverModal({
         setOptions(items)
         setSelectedJavId((current) => {
           if (current && items.some((option) => Number(option.id) === current)) return current
-          const coverCode = String(item?.cover_code || item?.sample_code || '').trim()
-          const matched = items.find((option) => String(option?.code || '').trim() === coverCode)
+          const matched = items.find(
+            (option) => String(option?.code || '').trim() === itemCoverCode
+          )
           return matched ? Number(matched.id) : 0
         })
       })
@@ -99,10 +105,9 @@ export default function JavIdolCoverModal({
     directoryIds,
     directoryKey,
     idolId,
-    item?.cover_code,
+    itemCoverCode,
     item?.cover_crop_left,
     item?.cover_jav_id,
-    item?.sample_code,
     open,
   ])
 
@@ -118,7 +123,7 @@ export default function JavIdolCoverModal({
     () => options.find((option) => Number(option?.id) === Number(selectedJavId)) || null,
     [options, selectedJavId]
   )
-  const previewCode = String(selectedOption?.code || item?.sample_code || '').trim()
+  const previewCode = String(selectedOption?.code || itemCoverCode).trim()
   const coverSrc = previewCode ? `/jav/${encodeURIComponent(previewCode)}/cover` : ''
   const title = selectedOption ? getJavDisplayTitle(selectedOption, javMetadataLanguage) : ''
   const visibleRatio = getCoverVisibleRatio(imageSize)
