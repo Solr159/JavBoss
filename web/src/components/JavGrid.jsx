@@ -13,6 +13,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
 import { fetchJavIdolPreview, fetchJavSeriesPreview, fetchJavStudioPreview } from '@/api'
+import JavIdolCoverModal from '@/components/JavIdolCoverModal'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
@@ -197,6 +198,16 @@ export default function JavGrid({
     return request
   }
 
+  const handleIdolPreviewUpdated = (updated) => {
+    const idolId = Number(updated?.id)
+    if (!Number.isFinite(idolId) || idolId <= 0) return
+    for (const [key, cached] of idolPreviewCacheRef.current.entries()) {
+      if (String(key).startsWith(`${idolId}|`)) {
+        idolPreviewCacheRef.current.set(key, { ...cached, ...updated })
+      }
+    }
+  }
+
   if (!hasItems) {
     return (
       <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
@@ -227,7 +238,9 @@ export default function JavGrid({
             loadIdolPreview={loadIdolPreview}
             loadStudioPreview={loadStudioPreview}
             loadSeriesPreview={loadSeriesPreview}
+            onIdolPreviewUpdated={handleIdolPreviewUpdated}
             onOpenCoverPreview={setCoverPreview}
+            directoryIds={directoryIds}
             javMetadataLanguage={javMetadataLanguage}
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}
@@ -688,14 +701,16 @@ function JavCard({
   loadIdolPreview,
   loadStudioPreview,
   loadSeriesPreview,
+  onIdolPreviewUpdated,
   onOpenCoverPreview,
+  directoryIds,
   javMetadataLanguage,
   titleMaxRows,
   idolTagMaxRows,
   tagMaxRows,
 }) {
   const primaryVideo = useMemo(() => (item?.videos || [])[0], [item])
-  const { bgWidthPercent, coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
+  const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
   const cover = item?.code ? `/jav/${encodeURIComponent(item.code)}/cover` : null
 
   const release =
@@ -822,6 +837,7 @@ function JavCard({
   const [studioHoverAnchorEl, setStudioHoverAnchorEl] = useState(null)
   const [previewSeries, setPreviewSeries] = useState(null)
   const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)
+  const [idolCoverEditorItem, setIdolCoverEditorItem] = useState(null)
   const [externalAnchorEl, setExternalAnchorEl] = useState(null)
   const closeTimerRef = useRef(null)
   const activeIdolHoverIdRef = useRef(null)
@@ -998,6 +1014,20 @@ function JavCard({
       .catch((error) => {
         console.warn('load idol preview failed', error)
       })
+  }
+
+  const handleOpenIdolCoverEditor = (idol) => {
+    clearHoverCloseTimer()
+    setIdolCoverEditorItem(idol)
+  }
+
+  const handleIdolCoverSaved = (updated) => {
+    const updatedId = Number(updated?.id)
+    if (!Number.isFinite(updatedId) || updatedId <= 0) return
+    onIdolPreviewUpdated?.(updated)
+    setPreviewIdol((current) =>
+      current && Number(current.id) === updatedId ? { ...current, ...updated } : current
+    )
   }
 
   const handleStudioHoverStart = (studio, event) => {
@@ -1279,8 +1309,8 @@ function JavCard({
                     item={previewIdol}
                     onSelectIdol={(idol) => onIdolClick?.(idol)}
                     onOpenFavorites={onOpenFavorites}
+                    onOpenCoverEditor={handleOpenIdolCoverEditor}
                     href={buildIdolFilterHref(previewIdol)}
-                    bgWidthPercent={bgWidthPercent}
                     coverAspectPercent={coverAspectPercent}
                     showWorkCount={showIdolWorkCount}
                     javMetadataLanguage={javMetadataLanguage}
@@ -1288,6 +1318,15 @@ function JavCard({
                 ) : null}
               </div>
             </Popper>
+            <JavIdolCoverModal
+              key={idolCoverEditorItem?.id || 'closed'}
+              open={Boolean(idolCoverEditorItem)}
+              item={idolCoverEditorItem}
+              directoryIds={directoryIds}
+              javMetadataLanguage={javMetadataLanguage}
+              onClose={() => setIdolCoverEditorItem(null)}
+              onSaved={handleIdolCoverSaved}
+            />
           </>
         )}
         {tags.length > 0 && (
