@@ -709,20 +709,28 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
     setError('')
     try {
       const trimmedCoverUrl = coverUrl.trim()
-      const updated = await updateJavItem(
-        item.id,
-        {
-          ...(trimmedCoverUrl ? { cover_url: trimmedCoverUrl } : {}),
-          tag_ids: selectedTagIds.map((id) => Number(id)).filter(Boolean),
-          idol_ids: selectedIdolIds.map((id) => Number(id)).filter(Boolean),
-          studio_id: selectedStudioId ? Number(selectedStudioId) : 0,
-          series_id: selectedSeriesId ? Number(selectedSeriesId) : 0,
-          release_date: releaseDate,
-          duration_min: duration,
-        },
-        { directoryIds }
-      )
-      onSaved?.(updated, Boolean(trimmedCoverUrl))
+      const payload = {
+        ...(trimmedCoverUrl ? { cover_url: trimmedCoverUrl } : {}),
+        tag_ids: selectedTagIds.map((id) => Number(id)).filter(Boolean),
+        idol_ids: selectedIdolIds.map((id) => Number(id)).filter(Boolean),
+        studio_id: selectedStudioId ? Number(selectedStudioId) : 0,
+        series_id: selectedSeriesId ? Number(selectedSeriesId) : 0,
+        release_date: releaseDate,
+        duration_min: duration,
+      }
+      const updated = await updateJavItem(item.id, payload, { directoryIds })
+      const normalizedUpdated = {
+        ...updated,
+        ...(payload.idol_ids.length === 0 ? { idols: [] } : {}),
+        ...(payload.tag_ids.length === 0 && !Array.isArray(updated?.tags) ? { tags: [] } : {}),
+        ...(payload.studio_id ? {} : { studio_id: null, studio: null }),
+        ...(payload.series_id
+          ? {}
+          : javMetadataLanguage === 'en'
+            ? { series_en_id: null, series_en: null }
+            : { series_id: null, series: null }),
+      }
+      onSaved?.(normalizedUpdated, Boolean(trimmedCoverUrl))
     } catch (err) {
       setError(err?.message || zh('保存 JAV 信息失败', 'Failed to save JAV info'))
     } finally {
