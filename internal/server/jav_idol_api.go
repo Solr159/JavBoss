@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -267,6 +268,71 @@ func resolveJavIdols(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
+func listJavIdolCoverOptions(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	options, err := dbpkg.ListIdolCoverOptions(
+		c.Request.Context(),
+		id,
+		parseDirectoryIDs(c.Query("directory_ids")),
+	)
+	if err != nil {
+		logging.Error("list jav idol cover options id=%d: %v", id, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if options == nil {
+		options = []dbpkg.JavIdolCoverOption{}
+	}
+	c.JSON(http.StatusOK, gin.H{"items": options})
+}
+
+func updateJavIdolCover(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req struct {
+		JavID    int64   `json:"jav_id"`
+		CropLeft float64 `json:"crop_left"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if math.IsNaN(req.CropLeft) || math.IsInf(req.CropLeft, 0) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid crop_left"})
+		return
+	}
+
+	item, err := dbpkg.UpdateJavIdolCoverSelection(
+		c.Request.Context(),
+		id,
+		req.JavID,
+		req.CropLeft,
+		parseDirectoryIDs(c.Query("directory_ids")),
+	)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "idol not found"})
+			return
+		}
+		logging.Error("update jav idol cover id=%d: %v", id, err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	items := []dbpkg.JavIdolSummary{*item}
+	enrichJavIdolSummaries(c.Request.Context(), items, parseDirectoryIDs(c.Query("directory_ids")))
+	c.JSON(http.StatusOK, items[0])
+}
+
 func getJavIdol(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -328,11 +394,23 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 	item.RomanName = strings.TrimSpace(item.RomanName)
 	item.JapaneseName = strings.TrimSpace(item.JapaneseName)
 	item.ChineseName = strings.TrimSpace(item.ChineseName)
+	item.SampleCode = strings.TrimSpace(item.SampleCode)
+	item.CoverCode = strings.TrimSpace(item.CoverCode)
+	if item.CoverCode == "" {
+		item.CoverCode = item.SampleCode
+	}
 
 	if coverDir == "" {
 		return
 	}
+	if item.CoverJavID != nil && item.CoverCode != "" {
+		if common.CoverManager != nil && !common.CoverManager.Exists(item.CoverCode) {
+			common.CoverManager.Enqueue(item.CoverCode)
+		}
+		return
+	}
 	if _, ok := manager.FindCoverPath(coverDir, item.SampleCode); ok {
+		item.CoverCode = item.SampleCode
 		return
 	}
 	codes, err := dbpkg.ListIdolCoverCodes(ctx, item.ID, directoryIDs)
@@ -352,6 +430,7 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 	}
 	if chosen != "" {
 		item.SampleCode = chosen
+		item.CoverCode = chosen
 		if common.CoverManager != nil && !common.CoverManager.Exists(chosen) {
 			common.CoverManager.Enqueue(chosen)
 		}

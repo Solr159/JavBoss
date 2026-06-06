@@ -1716,6 +1716,117 @@ func TestGetJavIdolSummaryReturnsSampleCodeAndWorkCount(t *testing.T) {
 	}
 }
 
+func TestUpdateJavIdolCoverSelection(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+
+	idol := models.JavIdol{Name: "Cover Idol"}
+	coIdol := models.JavIdol{Name: "Co Idol"}
+	otherIdol := models.JavIdol{Name: "Other Idol"}
+	if err := db.Create(&[]models.JavIdol{idol, coIdol, otherIdol}).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+	idol, coIdol, otherIdol = models.JavIdol{}, models.JavIdol{}, models.JavIdol{}
+	if err := db.Where("name = ?", "Cover Idol").First(&idol).Error; err != nil {
+		t.Fatalf("reload idol: %v", err)
+	}
+	if err := db.Where("name = ?", "Co Idol").First(&coIdol).Error; err != nil {
+		t.Fatalf("reload co idol: %v", err)
+	}
+	if err := db.Where("name = ?", "Other Idol").First(&otherIdol).Error; err != nil {
+		t.Fatalf("reload other idol: %v", err)
+	}
+
+	soloJav := models.Jav{Code: "COV-001", Title: "Solo Cover", FetchedAt: now}
+	groupJav := models.Jav{Code: "COV-002", Title: "Group Cover", FetchedAt: now}
+	otherJav := models.Jav{Code: "COV-003", Title: "Other Cover", FetchedAt: now}
+	if err := db.Create(&[]models.Jav{soloJav, groupJav, otherJav}).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+	soloJav, groupJav, otherJav = models.Jav{}, models.Jav{}, models.Jav{}
+	if err := db.Where("code = ?", "COV-001").First(&soloJav).Error; err != nil {
+		t.Fatalf("reload solo jav: %v", err)
+	}
+	if err := db.Where("code = ?", "COV-002").First(&groupJav).Error; err != nil {
+		t.Fatalf("reload group jav: %v", err)
+	}
+	if err := db.Where("code = ?", "COV-003").First(&otherJav).Error; err != nil {
+		t.Fatalf("reload other jav: %v", err)
+	}
+
+	maps := []models.JavIdolMap{
+		{JavID: soloJav.ID, JavIdolID: idol.ID},
+		{JavID: groupJav.ID, JavIdolID: idol.ID},
+		{JavID: groupJav.ID, JavIdolID: coIdol.ID},
+		{JavID: otherJav.ID, JavIdolID: otherIdol.ID},
+	}
+	if err := db.Create(&maps).Error; err != nil {
+		t.Fatalf("create idol maps: %v", err)
+	}
+
+	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "cov-001.mp4", Filename: "cov-001.mp4", Fingerprint: "fp-cov-001", JavID: int64Ptr(soloJav.ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "cov-002.mp4", Filename: "cov-002.mp4", Fingerprint: "fp-cov-002", JavID: int64Ptr(groupJav.ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "cov-003.mp4", Filename: "cov-003.mp4", Fingerprint: "fp-cov-003", JavID: int64Ptr(otherJav.ID), ModifiedAt: now},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	options, err := ListIdolCoverOptions(ctx, idol.ID, nil)
+	if err != nil {
+		t.Fatalf("ListIdolCoverOptions: %v", err)
+	}
+	if len(options) != 2 {
+		t.Fatalf("unexpected cover options: %#v", options)
+	}
+	if options[0].Code != soloJav.Code || !options[0].Solo {
+		t.Fatalf("unexpected first option: %#v", options[0])
+	}
+	if options[1].Code != groupJav.Code || options[1].Solo {
+		t.Fatalf("unexpected second option: %#v", options[1])
+	}
+
+	item, err := UpdateJavIdolCoverSelection(ctx, idol.ID, groupJav.ID, 0.25, nil)
+	if err != nil {
+		t.Fatalf("UpdateJavIdolCoverSelection: %v", err)
+	}
+	if item.CoverJavID == nil || *item.CoverJavID != groupJav.ID {
+		t.Fatalf("unexpected cover jav id: %#v want %d", item.CoverJavID, groupJav.ID)
+	}
+	if item.CoverCode != groupJav.Code {
+		t.Fatalf("unexpected cover code: got %q want %q", item.CoverCode, groupJav.Code)
+	}
+	if item.CoverCropLeft != 0.25 {
+		t.Fatalf("unexpected crop left: got %v want 0.25", item.CoverCropLeft)
+	}
+
+	if _, err := UpdateJavIdolCoverSelection(ctx, idol.ID, otherJav.ID, 0.2, nil); err == nil {
+		t.Fatalf("expected invalid cover jav error")
+	}
+
+	item, err = UpdateJavIdolCoverSelection(ctx, idol.ID, 0, 0, nil)
+	if err != nil {
+		t.Fatalf("reset cover selection: %v", err)
+	}
+	if item.CoverJavID != nil {
+		t.Fatalf("cover jav id after reset = %#v, want nil", item.CoverJavID)
+	}
+	if item.CoverCode != soloJav.Code {
+		t.Fatalf("cover code after reset = %q, want %q", item.CoverCode, soloJav.Code)
+	}
+	if item.CoverCropLeft != 0.53 {
+		t.Fatalf("crop left after reset = %v, want 0.53", item.CoverCropLeft)
+	}
+}
+
 func TestSearchJavSortByDurationDesc(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

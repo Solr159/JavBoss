@@ -14,6 +14,7 @@ export default function JavIdolView({
   buildPageUrl,
   buildGroupUrl,
   buildIdolUrl,
+  directoryIds = [],
   javMetadataLanguage,
   onFirst,
   onPrev,
@@ -81,6 +82,7 @@ export default function JavIdolView({
           onSelectIdol={onSelectIdol}
           onOpenFavorites={onOpenFavorites}
           buildIdolUrl={buildIdolUrl}
+          directoryIds={directoryIds}
           javMetadataLanguage={javMetadataLanguage}
         />
       )}

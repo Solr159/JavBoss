@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -824,7 +825,19 @@ type JavIdolSummary struct {
 	Cup           *int       `json:"cup"`
 	WorkCount     int64      `json:"work_count"`
 	SampleCode    string     `json:"sample_code"`
+	CoverJavID    *int64     `json:"cover_jav_id"`
+	CoverCode     string     `json:"cover_code"`
+	CoverCropLeft float64    `json:"cover_crop_left"`
 	FavoriteCount int64      `json:"favorite_count"`
+}
+
+// JavIdolCoverOption represents one visible JAV work that can be used as an idol card cover.
+type JavIdolCoverOption struct {
+	ID      int64  `json:"id"`
+	Code    string `json:"code"`
+	Title   string `json:"title"`
+	TitleEn string `json:"title_en"`
+	Solo    bool   `json:"solo"`
 }
 
 func applyJavIdolSearch(q *gorm.DB, search string) *gorm.DB {
@@ -894,9 +907,10 @@ func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) 
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 	tx := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
-		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, solo_idols.sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, solo_idols.sample_code, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.sample_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
 		Joins("LEFT JOIN (?) idol_work_counts ON idol_work_counts.jav_idol_id = ji.id", buildVisibleIdolWorkCountQuery(ctx, directoryIDs)).
 		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolSampleQuery(ctx, directoryIDs, isEnglish)).
+		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.jav_idol_id = ji.id", buildIdolFavoriteCountQuery(ctx)).
 		Where("ji.id = ?", idolID).
 		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
@@ -1017,8 +1031,9 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavIdolSearch(base, search)
 	if err := base.
-		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COUNT(DISTINCT j.id) AS work_count, solo_idols.sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, solo_idols.sample_code, favorite_counts.favorite_count").
+		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COUNT(DISTINCT j.id) AS work_count, solo_idols.sample_code, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.sample_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, ji.cover_jav_id, cover_jav.code, ji.cover_crop_left, solo_idols.sample_code, favorite_counts.favorite_count").
 		Order(order).
 		Limit(limit).
 		Offset(offset).
@@ -1068,6 +1083,128 @@ func ListIdolCoverCodes(ctx context.Context, idolID int64, directoryIDs []int64)
 		}
 	}
 	return codes, nil
+}
+
+// ListIdolCoverOptions returns visible works that can be selected as an idol cover.
+func ListIdolCoverOptions(ctx context.Context, idolID int64, directoryIDs []int64) ([]JavIdolCoverOption, error) {
+	if idolID <= 0 {
+		return nil, errors.New("idol id must be positive")
+	}
+
+	sub := common.DB.WithContext(ctx).
+		Table("jav_idol_map jim_count").
+		Select("jim_count.jav_id, COUNT(*) as c").
+		Joins("JOIN jav_idol ji_count ON ji_count.id = jim_count.jav_idol_id").
+		Where("COALESCE(ji_count.is_english, 0) = (SELECT COALESCE(is_english, 0) FROM jav_idol WHERE id = ?)", idolID).
+		Group("jim_count.jav_id")
+
+	var rows []struct {
+		ID      int64
+		Code    string
+		Title   string
+		TitleEn string
+		Solo    int
+	}
+	query := common.DB.WithContext(ctx).
+		Table("jav_idol_map jim").
+		Select("j.id, j.code, j.title, j.title_en, CASE WHEN s.c = 1 THEN 1 ELSE 0 END AS solo").
+		Joins("JOIN jav j ON j.id = jim.jav_id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Joins("LEFT JOIN (?) s ON s.jav_id = jim.jav_id", sub).
+		Where("jim.jav_idol_id = ?", idolID).
+		Where(activeLocationWhereSQL("vl", "d"))
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	if err := query.
+		Group("j.id, j.code, j.title, j.title_en, solo").
+		Order("solo DESC, j.code ASC").
+		Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list idol cover options: %w", err)
+	}
+
+	options := make([]JavIdolCoverOption, 0, len(rows))
+	for _, row := range rows {
+		code := strings.TrimSpace(row.Code)
+		if row.ID <= 0 || code == "" {
+			continue
+		}
+		options = append(options, JavIdolCoverOption{
+			ID:      row.ID,
+			Code:    code,
+			Title:   strings.TrimSpace(row.Title),
+			TitleEn: strings.TrimSpace(row.TitleEn),
+			Solo:    row.Solo == 1,
+		})
+	}
+	return options, nil
+}
+
+// UpdateJavIdolCoverSelection persists a custom idol card cover. javID <= 0 resets to automatic selection.
+func UpdateJavIdolCoverSelection(ctx context.Context, idolID, javID int64, cropLeft float64, directoryIDs []int64) (*JavIdolSummary, error) {
+	if idolID <= 0 {
+		return nil, errors.New("idol id must be positive")
+	}
+	cropLeft = normalizeCoverCropLeft(cropLeft)
+
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&models.JavIdol{}).Where("id = ?", idolID).Count(&count).Error; err != nil {
+			return fmt.Errorf("find jav idol: %w", err)
+		}
+		if count == 0 {
+			return gorm.ErrRecordNotFound
+		}
+
+		updates := map[string]any{
+			"cover_crop_left": cropLeft,
+		}
+		if javID <= 0 {
+			updates["cover_jav_id"] = nil
+			updates["cover_crop_left"] = normalizeCoverCropLeft(0.53)
+			if err := tx.Model(&models.JavIdol{}).Where("id = ?", idolID).Updates(updates).Error; err != nil {
+				return fmt.Errorf("reset jav idol cover selection: %w", err)
+			}
+			return nil
+		}
+
+		visible := tx.Table("jav_idol_map jim").
+			Joins("JOIN jav j ON j.id = jim.jav_id").
+			Joins("JOIN video_location vl ON vl.jav_id = j.id").
+			Joins("JOIN directory d ON d.id = vl.directory_id").
+			Where("jim.jav_idol_id = ? AND jim.jav_id = ?", idolID, javID).
+			Where(activeLocationWhereSQL("vl", "d"))
+		visible = applyDirectoryFilter(visible, "vl", directoryIDs)
+		if err := visible.Count(&count).Error; err != nil {
+			return fmt.Errorf("validate idol cover jav: %w", err)
+		}
+		if count == 0 {
+			return errors.New("cover jav is not available for idol")
+		}
+
+		updates["cover_jav_id"] = javID
+		if err := tx.Model(&models.JavIdol{}).Where("id = ?", idolID).Updates(updates).Error; err != nil {
+			return fmt.Errorf("update jav idol cover selection: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return GetJavIdolSummary(ctx, idolID, directoryIDs)
+}
+
+func normalizeCoverCropLeft(value float64) float64 {
+	if value < 0 || !isFiniteFloat(value) {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
+}
+
+func isFiniteFloat(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0)
 }
 
 // FindIdolSoloCode returns one solo work code for the idol, when available.

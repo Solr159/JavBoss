@@ -1,10 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { fetchJavIdolJavDBURL } from '@/api'
+import JavIdolCoverModal, {
+  IDOL_COVER_DEFAULT_CROP_LEFT,
+  IDOL_COVER_VISIBLE_RATIO,
+  idolCoverBackgroundPosition,
+  normalizeIdolCoverCropLeft,
+} from '@/components/JavIdolCoverModal'
 import { isChineseLocale, zh } from '@/utils/i18n'
 
-const RIGHT_PORTION = 0.47
+const RIGHT_PORTION = IDOL_COVER_VISIBLE_RATIO
 
 export function getIdolCardLayoutProps() {
   const visibleRatio = Math.min(Math.max(RIGHT_PORTION, 0.01), 1)
@@ -22,10 +29,21 @@ export default function JavIdolGrid({
   onOpenFavorites,
   buildIdolUrl,
   javMetadataLanguage,
+  directoryIds = [],
 }) {
   const { bgWidthPercent, coverAspectPercent } = getIdolCardLayoutProps()
+  const [coverEditorItem, setCoverEditorItem] = useState(null)
+  const [coverOverrides, setCoverOverrides] = useState(() => new Map())
+  const displayItems = useMemo(() => {
+    if (!Array.isArray(items)) return []
+    return items.map((item) => {
+      const id = Number(item?.id)
+      const override = Number.isFinite(id) ? coverOverrides.get(id) : null
+      return override ? { ...item, ...override } : item
+    })
+  }, [coverOverrides, items])
 
-  const hasItems = Array.isArray(items) && items.length > 0
+  const hasItems = displayItems.length > 0
   if (!hasItems) {
     return (
       <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
@@ -35,20 +53,39 @@ export default function JavIdolGrid({
   }
 
   return (
-    <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-      {items.map((item) => (
-        <IdolCard
-          key={item.id || item.name}
-          item={item}
-          onSelectIdol={onSelectIdol}
-          onOpenFavorites={onOpenFavorites}
-          href={buildIdolUrl?.(item)}
-          bgWidthPercent={bgWidthPercent}
-          coverAspectPercent={coverAspectPercent}
-          javMetadataLanguage={javMetadataLanguage}
-        />
-      ))}
-    </div>
+    <>
+      <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+        {displayItems.map((item) => (
+          <IdolCard
+            key={item.id || item.name}
+            item={item}
+            onSelectIdol={onSelectIdol}
+            onOpenFavorites={onOpenFavorites}
+            onOpenCoverEditor={setCoverEditorItem}
+            href={buildIdolUrl?.(item)}
+            bgWidthPercent={bgWidthPercent}
+            coverAspectPercent={coverAspectPercent}
+            javMetadataLanguage={javMetadataLanguage}
+          />
+        ))}
+      </div>
+      <JavIdolCoverModal
+        open={Boolean(coverEditorItem)}
+        item={coverEditorItem}
+        directoryIds={directoryIds}
+        javMetadataLanguage={javMetadataLanguage}
+        onClose={() => setCoverEditorItem(null)}
+        onSaved={(updated) => {
+          const id = Number(updated?.id)
+          if (!Number.isFinite(id) || id <= 0) return
+          setCoverOverrides((current) => {
+            const next = new Map(current)
+            next.set(id, updated)
+            return next
+          })
+        }}
+      />
+    </>
   )
 }
 
@@ -56,6 +93,7 @@ export function IdolCard({
   item,
   onSelectIdol,
   onOpenFavorites,
+  onOpenCoverEditor,
   href,
   bgWidthPercent,
   coverAspectPercent,
@@ -63,7 +101,11 @@ export function IdolCard({
   javMetadataLanguage = 'zh',
 }) {
   const chineseLocale = isChineseLocale()
-  const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
+  const coverCode = String(item?.cover_code || item?.sample_code || '').trim()
+  const cover = coverCode ? `/jav/${encodeURIComponent(coverCode)}/cover` : null
+  const coverCropLeft = normalizeIdolCoverCropLeft(
+    item?.cover_crop_left ?? IDOL_COVER_DEFAULT_CROP_LEFT
+  )
   const workCount = item?.work_count || 0
   const favoriteCount = Number(item?.favorite_count) || 0
   const name = item?.name || zh('未知女优', 'Unknown idol')
@@ -74,7 +116,7 @@ export function IdolCard({
   const height = typeof item?.height_cm === 'number' ? `${item.height_cm}cm` : ''
   const bwh = formatBwh(item)
   const cup = formatCup(item?.cup)
-  const sampleCode = String(item?.sample_code || '').trim()
+  const sampleCode = String(item?.sample_code || coverCode || '').trim()
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const { primaryName, secondaryName } = buildDisplayNames({
@@ -142,6 +184,12 @@ export function IdolCard({
     onOpenFavorites?.(item)
   }
 
+  const handleOpenCoverEditor = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenCoverEditor?.(item)
+  }
+
   return (
     <a
       href={href || '#'}
@@ -164,7 +212,7 @@ export function IdolCard({
             style={{
               backgroundImage: `url(${cover})`,
               backgroundSize: `${bgWidthPercent}% 100%`, // 根据 RIGHT_PORTION 自动计算
-              backgroundPosition: '100% 50%',
+              backgroundPosition: idolCoverBackgroundPosition(coverCropLeft),
               backgroundRepeat: 'no-repeat',
             }}
             role="img"
@@ -213,6 +261,15 @@ export function IdolCard({
             className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
             loading="lazy"
           />
+        </button>
+        <button
+          type="button"
+          className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-focus-within:opacity-100 group-hover:opacity-100"
+          title={zh('编辑女优封面', 'Edit idol cover')}
+          aria-label={zh('编辑女优封面', 'Edit idol cover')}
+          onClick={handleOpenCoverEditor}
+        >
+          <PhotoCameraRoundedIcon sx={{ fontSize: 16 }} />
         </button>
       </div>
       <div className="flex flex-1 flex-col gap-2 p-3">

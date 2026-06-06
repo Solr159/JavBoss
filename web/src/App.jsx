@@ -2493,6 +2493,7 @@ export default function App() {
               onNext: () => idolHasNext && setIdolPage(idolPage + 1),
               onLast: () => setIdolPage(idolLastPage),
               items: idolItems,
+              directoryIds: javQueryDirectoryIds,
               favoriteGroups: idolFavoriteGroups,
               selectedFavoriteGroupId: idolFavoriteGroupId,
               favoriteGroupsLoading: idolFavoriteGroupsLoading,

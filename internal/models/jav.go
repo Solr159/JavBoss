@@ -52,20 +52,22 @@ type JavTag struct {
 }
 
 type JavIdol struct {
-	ID           int64      `json:"id" gorm:"primaryKey"`
-	Name         string     `json:"name" gorm:"uniqueIndex:idx_jav_idol_name_language"`
-	IsEnglish    bool       `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_idol_name_language"`
-	RomanName    string     `json:"roman_name"`
-	JapaneseName string     `json:"japanese_name"`
-	ChineseName  string     `json:"chinese_name"`
-	HeightCM     *int       `json:"height_cm"`
-	BirthDate    *time.Time `json:"birth_date"`
-	Bust         *int       `json:"bust"`
-	Waist        *int       `json:"waist"`
-	Hips         *int       `json:"hips"`
-	Cup          *int       `json:"cup"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID            int64      `json:"id" gorm:"primaryKey"`
+	Name          string     `json:"name" gorm:"uniqueIndex:idx_jav_idol_name_language"`
+	IsEnglish     bool       `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_idol_name_language"`
+	RomanName     string     `json:"roman_name"`
+	JapaneseName  string     `json:"japanese_name"`
+	ChineseName   string     `json:"chinese_name"`
+	HeightCM      *int       `json:"height_cm"`
+	BirthDate     *time.Time `json:"birth_date"`
+	Bust          *int       `json:"bust"`
+	Waist         *int       `json:"waist"`
+	Hips          *int       `json:"hips"`
+	Cup           *int       `json:"cup"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+	CoverJavID    *int64     `json:"cover_jav_id" gorm:"index"`
+	CoverCropLeft float64    `json:"cover_crop_left" gorm:"not null;default:0.53"`
 }
 
 type JavIdolFavoriteGroup struct {

@@ -6,6 +6,7 @@ import JavView from '@/components/JavView'
 function JavIdolRoute({
   buildJavUrl,
   config,
+  directoryIds,
   favoriteGroups,
   favoriteGroupsError,
   favoriteGroupsLoading,
@@ -62,6 +63,7 @@ function JavIdolRoute({
       selectedFavoriteGroupId={selectedFavoriteGroupId}
       favoriteGroupsLoading={favoriteGroupsLoading}
       favoriteGroupsError={favoriteGroupsError}
+      directoryIds={directoryIds}
       javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
       onSelectIdol={onSelectIdol}
       onFavoriteGroupSelect={onFavoriteGroupSelect}
