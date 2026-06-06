@@ -68,6 +68,7 @@ export default function JavIdolGrid({
         ))}
       </div>
       <JavIdolCoverModal
+        key={coverEditorItem?.id || 'closed'}
         open={Boolean(coverEditorItem)}
         item={coverEditorItem}
         directoryIds={directoryIds}
