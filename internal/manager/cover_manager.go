@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -198,6 +199,10 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 }
 
 func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string) error {
+	code = normalizeCode(code)
+	if code == "" {
+		return errors.New("empty code")
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, coverURL, nil)
 	if err != nil {
 		return fmt.Errorf("build cover request: %w", err)
@@ -250,11 +255,23 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: size %d below minimum %d", errInvalidCover, written, minValidCoverSizeBytes)
 	}
+	removeCoverFiles(m.coverDir, code)
 	if err := os.Rename(tmp, target); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("finalize cover: %w", err)
 	}
 	return nil
+}
+
+func removeCoverFiles(coverDir, code string) {
+	code = normalizeCode(code)
+	if coverDir == "" || code == "" {
+		return
+	}
+	for _, ext := range knownExts {
+		p := filepath.Join(coverDir, code+ext)
+		_ = os.Remove(p)
+	}
 }
 
 func setCoverDownloadHeaders(req *http.Request) {
@@ -273,6 +290,32 @@ func setCoverDownloadHeaders(req *http.Request) {
 }
 
 var knownExts = []string{".jpg", ".jpeg", ".png", ".webp"}
+
+// DownloadCoverFromURL downloads a user-provided cover URL and replaces any existing cover for code.
+func DownloadCoverFromURL(ctx context.Context, coverDir, code, coverURL string) error {
+	coverDir = strings.TrimSpace(coverDir)
+	code = normalizeCode(code)
+	coverURL = strings.TrimSpace(coverURL)
+	if coverDir == "" {
+		return errors.New("cover dir is not configured")
+	}
+	if code == "" {
+		return errors.New("empty code")
+	}
+	if coverURL == "" {
+		return errors.New("cover url is required")
+	}
+	u, err := url.Parse(coverURL)
+	if err != nil || u == nil || u.Hostname() == "" {
+		return errors.New("invalid cover url")
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return errors.New("cover url must be http or https")
+	}
+
+	manager := &CoverManager{coverDir: coverDir}
+	return manager.downloadCover(ctx, code, coverURL)
+}
 
 func normalizeCode(code string) string {
 	return strings.ToLower(strings.TrimSpace(code))

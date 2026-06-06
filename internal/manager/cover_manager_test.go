@@ -72,8 +72,37 @@ func TestDownloadCoverRejectsSmallFile(t *testing.T) {
 	if !errors.Is(err, errInvalidCover) {
 		t.Fatalf("downloadCover error = %v, want errInvalidCover", err)
 	}
-	if _, err := os.Stat(filepath.Join(manager.coverDir, "ABC-001.jpg")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(manager.coverDir, "abc-001.jpg")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("small cover should not be finalized, stat err=%v", err)
+	}
+}
+
+func TestDownloadCoverFromURLReplacesExistingCover(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = w.Write([]byte(strings.Repeat("p", int(minValidCoverSizeBytes))))
+	}))
+	defer server.Close()
+
+	coverDir := t.TempDir()
+	oldPath := filepath.Join(coverDir, "abc-001.jpg")
+	if err := os.WriteFile(oldPath, []byte(strings.Repeat("j", int(minValidCoverSizeBytes))), 0o644); err != nil {
+		t.Fatalf("write old cover: %v", err)
+	}
+
+	if err := DownloadCoverFromURL(context.Background(), coverDir, "ABC-001", server.URL+"/cover"); err != nil {
+		t.Fatalf("DownloadCoverFromURL: %v", err)
+	}
+
+	if _, err := os.Stat(oldPath); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("old cover should be removed, stat err=%v", err)
+	}
+	path, ok := FindCoverPath(coverDir, "ABC-001")
+	if !ok {
+		t.Fatal("new cover was not found")
+	}
+	if filepath.Base(path) != "abc-001.png" {
+		t.Fatalf("new cover path = %q, want abc-001.png", path)
 	}
 }
 

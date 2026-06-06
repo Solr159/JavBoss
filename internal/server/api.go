@@ -58,6 +58,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/jav/tags/remove", removeJavTagsFromItems)
 	router.POST("/jav/tags/replace", replaceJavTagsForItems)
 	router.GET("/jav/:code/cover", getJavCover)
+	router.PUT("/jav/:code/cover", updateJavCover)
 	router.GET("/jav/idol-favorite-groups", listJavIdolFavoriteGroups)
 	router.POST("/jav/idol-favorite-groups", createJavIdolFavoriteGroup)
 	router.PUT("/jav/idol-favorite-groups/order", reorderJavIdolFavoriteGroups)

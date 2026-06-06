@@ -370,6 +370,19 @@ export async function fetchJavTags({ directoryIds = [] } = {}) {
   return res.json()
 }
 
+export async function updateJavCover(code, url) {
+  const res = await apiFetch(`/jav/${encodeURIComponent(code)}/cover`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ url }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('保存 JAV 封面失败', 'Failed to save JAV cover'))
+  }
+  return res.json()
+}
+
 export async function createJavTag(name) {
   const res = await apiFetch('/jav/tags', {
     method: 'POST',
