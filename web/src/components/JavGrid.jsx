@@ -779,10 +779,19 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
                 setCoverUrl(event.target.value)
                 if (error) setError('')
               }}
-              placeholder="https://..."
+              placeholder={zh(
+                '输入图片链接，保存后自动下载更新',
+                'Enter image URL to download on save'
+              )}
               className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
+            <div className="mt-1 text-xs text-gray-500">
+              {zh(
+                '当封面缺失或显示错误时，可手动输入封面图片链接；保存后会自动下载到本地并完成更新。',
+                'If the cover is missing or incorrect, enter an image URL; saving downloads it locally and updates the cover.'
+              )}
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block text-sm font-medium text-gray-700">
