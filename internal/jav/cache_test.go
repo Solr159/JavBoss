@@ -119,6 +119,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			input:    "abc-001",
 			want:     "v1:jav:javdatabase:lookup_cover:ABC-001",
 		},
+		{
+			name:     "javdb actress url uses fallback version",
+			provider: ProviderJavDB,
+			method:   "lookup_actress_url_code_name",
+			input:    "HEYZO-1867|美月アンジェリア",
+			want:     "v3:jav:javdb:lookup_actress_url_code_name:HEYZO-1867|美月アンジェリア",
+		},
 	}
 
 	for _, tc := range cases {

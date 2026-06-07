@@ -183,3 +183,38 @@ func TestParseJavDatabaseActressInfoTrimsTrailingDashFromJapaneseName(t *testing
 		t.Fatalf("unexpected japanese name: %q", info.JapaneseName)
 	}
 }
+
+func TestFindJavDatabaseActressLinkIgnoresGenreNames(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="movietable">
+    <p class="mb-1"><b>Genre(s): </b>
+      <span><a href="https://www.javdatabase.com/genres/beautiful-girl/" rel="tag">Beautiful Girl</a></span>
+      <span><a href="https://www.javdatabase.com/genres/creampie/" rel="tag">Creampie</a></span>
+      <span><a href="https://www.javdatabase.com/genres/debut/" rel="tag">Debut</a></span>
+      <span><a href="https://www.javdatabase.com/genres/digital-mosaic/" rel="tag">Digital Mosaic</a></span>
+      <span><a href="https://www.javdatabase.com/genres/featured-actress/" rel="tag">Featured Actress</a></span>
+      <span><a href="https://www.javdatabase.com/genres/hi-def/" rel="tag">Hi-Def</a></span>
+      <span><a href="https://www.javdatabase.com/genres/idol-celebrity/" rel="tag">Idol &amp; Celebrity</a></span>
+      <span><a href="https://www.javdatabase.com/genres/shotacon/" rel="tag">Shotacon</a></span>
+    </p>
+    <p class="mb-1"><b>Idol(s)/Actress(es): </b>
+      <span><a href="https://www.javdatabase.com/idols/sora-inoue/">Sora Inoue</a></span>
+    </p>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	link, err := findJavDatabaseActressLink(doc)
+	if err != nil {
+		t.Fatalf("findJavDatabaseActressLink() error = %v", err)
+	}
+	if link != "https://www.javdatabase.com/idols/sora-inoue/" {
+		t.Fatalf("unexpected actress link: %q", link)
+	}
+}

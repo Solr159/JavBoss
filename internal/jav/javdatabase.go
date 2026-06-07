@@ -340,14 +340,15 @@ func findActressLinkFromIdolSection(root *html.Node) (string, error) {
 }
 
 func isIdolSection(n *html.Node) bool {
-	text := strings.ToLower(strings.TrimSpace(flattenText(n)))
-	if text == "" {
+	bold := firstChildElementByTag(n, "b")
+	if bold == nil {
 		return false
 	}
-	if strings.Contains(text, "idol(s)/actress(es)") {
-		return true
-	}
-	return strings.Contains(text, "idol") && strings.Contains(text, "actress")
+	label := strings.TrimSpace(flattenText(bold))
+	label = strings.TrimSuffix(label, ":")
+	label = strings.TrimSuffix(label, "：")
+	label = normalizeLabel(label)
+	return labelHasAny(label, []string{"idol actress", "idol s actress es", "actress", "actresses", "idol", "idols"})
 }
 
 func collectIdolSectionLinks(n *html.Node) []string {

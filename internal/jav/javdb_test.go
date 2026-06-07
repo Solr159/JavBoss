@@ -45,6 +45,64 @@ func TestFindJavDBSearchResultURLMatchesFirstExactCode(t *testing.T) {
 	}
 }
 
+func TestFindSingleJavDBSearchResultURLRejectsAmbiguousExactCodes(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="movie-list h cols-4 vcols-8">
+    <div class="item">
+      <a href="/v/first" class="box">
+        <div class="video-title"><strong>IPX-228</strong> First</div>
+      </a>
+    </div>
+    <div class="item">
+      <a href="/v/second" class="box">
+        <div class="video-title"><strong>IPX228</strong> Second</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findSingleJavDBSearchResultURL(doc, "ipx-228", "https://javdb.com/search?q=ipx-228&f=all")
+	if got != "" {
+		t.Fatalf("ambiguous exact matches should not choose detail url: %q", got)
+	}
+}
+
+func TestFindSingleJavDBSearchResultURLReturnsUniqueExactCode(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="movie-list h cols-4 vcols-8">
+    <div class="item">
+      <a href="/v/first" class="box">
+        <div class="video-title"><strong>IPX-228</strong> First</div>
+      </a>
+    </div>
+    <div class="item">
+      <a href="/v/other" class="box">
+        <div class="video-title"><strong>IPX-128</strong> Other</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findSingleJavDBSearchResultURL(doc, "ipx228", "https://javdb.com/search?q=ipx-228&f=all")
+	if got != "https://javdb.com/v/first" {
+		t.Fatalf("unexpected detail url: %q", got)
+	}
+}
+
 func TestParseJavDBMovieInfo(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
 <!doctype html>
@@ -182,13 +240,150 @@ func TestParseJavDBActressURLByName(t *testing.T) {
 	}
 
 	got = parseJavDBActressURLByName(doc, "吉村卓", "https://javdb.com/v/kKdRm")
-	if got != "" {
-		t.Fatalf("male actor url should be ignored, got %q", got)
+	if got != "https://javdb.com/actors/QNen" {
+		t.Fatalf("single actress url should be used as alias, got %q", got)
+	}
+}
+
+func TestParseJavDBActressURLByNameRequiresMatchForMultipleActresses(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>演員:</strong>
+      <span class="value">
+        <a href="/actors/first">第一女優</a><strong class="symbol female">♀</strong>
+        <a href="/actors/second">第二女優</a><strong class="symbol female">♀</strong>
+      </span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
 	}
 
-	got = parseJavDBActressURLByName(doc, "別の女優", "https://javdb.com/v/kKdRm")
+	got := parseJavDBActressURLByName(doc, "別の女優", "https://javdb.com/v/kKdRm")
 	if got != "" {
 		t.Fatalf("unexpected unmatched actress url: %q", got)
+	}
+
+	got = parseJavDBActressURLByName(doc, "第二女優", "https://javdb.com/v/kKdRm")
+	if got != "https://javdb.com/actors/second" {
+		t.Fatalf("unexpected matched actress url: %q", got)
+	}
+}
+
+func TestParseJavDBActressURLByNameUsesSingleActressAsAlias(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <nav class="panel movie-panel-info">
+    <div class="panel-block">
+      <strong>演員:</strong>
+      <span class="value">
+        <a href="/actors/A1JK">別名の女優</a><strong class="symbol female">♀</strong>
+      </span>
+    </div>
+  </nav>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := parseJavDBActressURLByName(doc, "美月アンジェリア", "https://javdb.com/v/56Kdp")
+	if got != "https://javdb.com/actors/A1JK" {
+		t.Fatalf("unexpected actress url: %q", got)
+	}
+}
+
+func TestFindJavDBActorSearchResultURLsExactName(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div id="actors" class="actors">
+    <div class="box actor-box">
+      <a href="/actors/A1JK" title="美月アンジェリア">
+        <figure class="image"></figure>
+        <strong>美月アンジェリア</strong>
+      </a>
+    </div>
+    <div class="box actor-box">
+      <a href="/actors/other" title="美月アンジェリア別名">
+        <strong>美月アンジェリア別名</strong>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findJavDBActorSearchResultURLs(doc, "美月アンジェリア", "https://javdb.com/search?q=x&f=actor")
+	if len(got) != 1 || got[0] != "https://javdb.com/actors/A1JK" {
+		t.Fatalf("unexpected actor urls: %#v", got)
+	}
+}
+
+func TestFindJavDBActorSearchResultURLsMatchesTitleAliasList(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div id="actors" class="actors">
+    <div class="box actor-box">
+      <a href="/actors/7qzR" title="満月ひかり, 初芽里奈, 桃井りん, 葵かな, 新見リナ, 桃居りん, 初芽里菜, 初咲里奈">
+        <figure class="image"></figure>
+        <strong>満月ひかり</strong>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findJavDBActorSearchResultURLs(doc, "初芽里奈", "https://javdb.com/search?q=x&f=actor")
+	if len(got) != 1 || got[0] != "https://javdb.com/actors/7qzR" {
+		t.Fatalf("unexpected actor urls: %#v", got)
+	}
+}
+
+func TestFindJavDBActorSearchResultURLsReturnsAllExactMatches(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div id="actors" class="actors">
+    <div class="box actor-box">
+      <a href="/actors/A1JK" title="美月アンジェリア"><strong>美月アンジェリア</strong></a>
+    </div>
+    <div class="box actor-box">
+      <a href="/actors/RGp8" title="美月アンジェリア"><strong>美月アンジェリア</strong></a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findJavDBActorSearchResultURLs(doc, "美月アンジェリア", "https://javdb.com/search?q=x&f=actor")
+	want := []string{"https://javdb.com/actors/A1JK", "https://javdb.com/actors/RGp8"}
+	if len(got) != len(want) {
+		t.Fatalf("unexpected actor url count: got %#v want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("unexpected actor url at %d: got %q want %q", i, got[i], want[i])
+		}
 	}
 }
 
