@@ -787,6 +787,18 @@ export async function fetchJavIdolJavDBURL({ code = '', name = '' } = {}) {
   return data?.url || ''
 }
 
+export async function fetchJavJavDBURL({ code = '' } = {}) {
+  const params = new URLSearchParams()
+  params.set('code', code)
+  const res = await apiFetch(`/jav/javdb-url?${params.toString()}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载 JavDB 影片链接失败', 'Failed to load JavDB movie URL'))
+  }
+  const data = await res.json()
+  return data?.url || ''
+}
+
 export async function resolveJavIdols(ids = []) {
   const clean = Array.from(
     new Set(

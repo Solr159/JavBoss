@@ -45,6 +45,64 @@ func TestFindJavDBSearchResultURLMatchesFirstExactCode(t *testing.T) {
 	}
 }
 
+func TestFindSingleJavDBSearchResultURLRejectsAmbiguousExactCodes(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="movie-list h cols-4 vcols-8">
+    <div class="item">
+      <a href="/v/first" class="box">
+        <div class="video-title"><strong>IPX-228</strong> First</div>
+      </a>
+    </div>
+    <div class="item">
+      <a href="/v/second" class="box">
+        <div class="video-title"><strong>IPX228</strong> Second</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findSingleJavDBSearchResultURL(doc, "ipx-228", "https://javdb.com/search?q=ipx-228&f=all")
+	if got != "" {
+		t.Fatalf("ambiguous exact matches should not choose detail url: %q", got)
+	}
+}
+
+func TestFindSingleJavDBSearchResultURLReturnsUniqueExactCode(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="movie-list h cols-4 vcols-8">
+    <div class="item">
+      <a href="/v/first" class="box">
+        <div class="video-title"><strong>IPX-228</strong> First</div>
+      </a>
+    </div>
+    <div class="item">
+      <a href="/v/other" class="box">
+        <div class="video-title"><strong>IPX-128</strong> Other</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	got := findSingleJavDBSearchResultURL(doc, "ipx228", "https://javdb.com/search?q=ipx-228&f=all")
+	if got != "https://javdb.com/v/first" {
+		t.Fatalf("unexpected detail url: %q", got)
+	}
+}
+
 func TestParseJavDBMovieInfo(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
 <!doctype html>

@@ -15,6 +15,7 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import {
   fetchJavIdolPreview,
   fetchJavIdolOptions,
+  fetchJavJavDBURL,
   fetchJavSeriesPreview,
   fetchJavSeries,
   fetchJavStudioPreview,
@@ -1418,6 +1419,8 @@ function JavCard({
   const code = item?.code?.trim()
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [javdbURL, setJavdbURL] = useState('')
+  const [javdbOpening, setJavdbOpening] = useState(false)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
   const cover = coverBase ? `${coverBase}${coverVersion ? `?v=${coverVersion}` : ''}` : null
 
@@ -1453,6 +1456,51 @@ function JavCard({
   )
   const canOpen = openableVideos.length > 0
   const encodedCode = code ? encodeURIComponent(code) : ''
+  const javdbSearchURL = encodedCode ? `https://javdb.com/search?q=${encodedCode}&f=all` : ''
+
+  useEffect(() => {
+    setJavdbURL('')
+    setJavdbOpening(false)
+  }, [code])
+
+  const openExternalURL = (popup, targetURL) => {
+    if (!targetURL) {
+      popup?.close()
+      return
+    }
+    if (popup) {
+      popup.location.replace(targetURL)
+    } else {
+      window.open(targetURL, '_blank', 'noopener,noreferrer')
+    }
+  }
+
+  const handleOpenJavDB = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!code || !javdbSearchURL || javdbOpening) return
+
+    const popup = window.open('about:blank', '_blank')
+    if (popup) {
+      popup.opener = null
+    }
+
+    try {
+      setJavdbOpening(true)
+      let targetURL = javdbURL
+      if (!targetURL) {
+        targetURL = await fetchJavJavDBURL({ code })
+        setJavdbURL(targetURL)
+      }
+      openExternalURL(popup, targetURL || javdbSearchURL)
+    } catch (error) {
+      console.warn('open javdb movie failed', error)
+      openExternalURL(popup, javdbSearchURL)
+    } finally {
+      setJavdbOpening(false)
+    }
+  }
+
   const externalLinks = encodedCode
     ? [
         {
@@ -1470,8 +1518,10 @@ function JavCard({
         {
           key: 'javdb',
           name: 'JavDB',
-          href: `https://javdb.com/search?q=${encodedCode}&f=all`,
+          href: javdbURL || javdbSearchURL,
           icon: '/ico/javdb.png',
+          onClick: handleOpenJavDB,
+          loading: javdbOpening,
         },
         {
           key: 'missav',
@@ -1824,9 +1874,14 @@ function JavCard({
                     rel="noopener noreferrer"
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/70 shadow-lg shadow-black/60 transition hover:bg-black/85"
                     aria-label={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
-                    onClick={(event) => event.stopPropagation()}
+                    onClick={site.onClick || ((event) => event.stopPropagation())}
                   >
-                    <img src={site.icon} alt={site.name} className="h-4 w-4" loading="lazy" />
+                    <img
+                      src={site.icon}
+                      alt={site.name}
+                      className={`h-4 w-4 ${site.loading ? 'animate-pulse' : ''}`}
+                      loading="lazy"
+                    />
                   </a>
                 </Tooltip>
               ))}

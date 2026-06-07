@@ -43,6 +43,7 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/videos/tags/replace", replaceTagsForVideos)
 
 	router.GET("/jav", searchJav)
+	router.GET("/jav/javdb-url", getJavJavDBURL)
 	router.GET("/jav/tags", listJavTags)
 	router.GET("/jav/studios", listJavStudios)
 	router.GET("/jav/studios/javdb-url", getJavStudioJavDBURL)

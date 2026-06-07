@@ -158,8 +158,36 @@ func (javDB) LookupJavByCode(code string) (*JavInfo, error) {
 	return info, nil
 }
 
+// LookupJavDBURLByCode resolves a movie code to a JavDB detail URL when the
+// search results contain exactly one precise code match. Ambiguous or missing
+// precise matches return the search URL so the user can choose manually.
+func LookupJavDBURLByCode(code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	searchURL := javDBSearchURL(code)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	searchDoc, status, err := fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
+	if err != nil {
+		return "", err
+	}
+	if status == http.StatusNotFound || searchDoc == nil {
+		return searchURL, nil
+	}
+
+	detailURL := findSingleJavDBSearchResultURL(searchDoc, code, searchURL)
+	if detailURL == "" {
+		return searchURL, nil
+	}
+	return detailURL, nil
+}
+
 func fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	searchURL := fmt.Sprintf("%s/search?q=%s&f=all", javDBBaseURL, url.QueryEscape(code))
+	searchURL := javDBSearchURL(code)
 	searchDoc, status, err := fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
 	if err != nil {
 		return nil, "", err
@@ -181,6 +209,10 @@ func fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, strin
 		return nil, "", ResourceNotFonud
 	}
 	return detailDoc, detailURL, nil
+}
+
+func javDBSearchURL(code string) string {
+	return fmt.Sprintf("%s/search?q=%s&f=all", javDBBaseURL, url.QueryEscape(strings.TrimSpace(code)))
 }
 
 func fetchJavDBHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
@@ -286,13 +318,30 @@ func buildJavDBRequest(ctx context.Context, targetURL, referer string) (*http.Re
 }
 
 func findJavDBSearchResultURL(root *html.Node, code, pageURL string) string {
-	list := findJavDBMovieList(root)
-	if list == nil {
+	urls := findJavDBSearchResultURLs(root, code, pageURL)
+	if len(urls) == 0 {
 		return ""
 	}
+	return urls[0]
+}
 
-	var detailURL string
+func findSingleJavDBSearchResultURL(root *html.Node, code, pageURL string) string {
+	urls := findJavDBSearchResultURLs(root, code, pageURL)
+	if len(urls) != 1 {
+		return ""
+	}
+	return urls[0]
+}
+
+func findJavDBSearchResultURLs(root *html.Node, code, pageURL string) []string {
+	list := findJavDBMovieList(root)
+	if list == nil {
+		return nil
+	}
+
 	wantCode := normalizeJavDBCode(code)
+	seen := make(map[string]struct{})
+	var urls []string
 	for item := list.FirstChild; item != nil; item = item.NextSibling {
 		if item.Type != html.ElementNode || item.Data != "div" || !hasClass(item, "item") {
 			continue
@@ -302,11 +351,18 @@ func findJavDBSearchResultURL(root *html.Node, code, pageURL string) string {
 			continue
 		}
 		if href := firstAnchorHref(item); href != "" {
-			detailURL = resolveURL(pageURL, href)
+			detailURL := resolveURL(pageURL, href)
+			if detailURL == "" {
+				continue
+			}
+			if _, ok := seen[detailURL]; ok {
+				continue
+			}
+			seen[detailURL] = struct{}{}
+			urls = append(urls, detailURL)
 		}
-		break
 	}
-	return detailURL
+	return urls
 }
 
 func findJavDBMovieList(root *html.Node) *html.Node {
