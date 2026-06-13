@@ -8,8 +8,8 @@
 
 html {
   min-height: 100%;
-  overflow-y: auto;
-  scrollbar-gutter: stable; /* 预留滚动条占位，避免布局抖动又不重复显示 */
+  overflow-y: scroll;
+  scrollbar-gutter: stable; /* 始终保留原生滚动条空间，避免跳转加载时滚动条闪现 */
 }
 
 body {
