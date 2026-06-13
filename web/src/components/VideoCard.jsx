@@ -16,11 +16,13 @@ export default function VideoCard({
   video,
   checked,
   onToggle,
+  showSelection = true,
   onPlay,
   onOpenFile,
   onRevealFile,
   openFileLabel,
   onOpenTagPicker,
+  showTagEditor = true,
   onOpenScreenshots,
   onOpenScrapeSettings,
   onRenameVideo,
@@ -108,20 +110,22 @@ export default function VideoCard({
         checked ? 'border-sky-400 ring-2 ring-sky-200' : 'border-gray-200 hover:border-gray-300'
       }`}
     >
-      <div className={`video-card-select ${checked ? 'is-visible' : ''}`}>
-        <input
-          id={inputId}
-          type="checkbox"
-          checked={checked}
-          onChange={onToggle}
-          className="video-select-check"
-          onClick={(e) => e.stopPropagation()}
-          onPointerUp={(e) => {
-            e.currentTarget.blur()
-          }}
-          aria-label={zh(`选择 ${displayName}`, `Select ${displayName}`)}
-        />
-      </div>
+      {showSelection ? (
+        <div className={`video-card-select ${checked ? 'is-visible' : ''}`}>
+          <input
+            id={inputId}
+            type="checkbox"
+            checked={checked}
+            onChange={onToggle}
+            className="video-select-check"
+            onClick={(e) => e.stopPropagation()}
+            onPointerUp={(e) => {
+              e.currentTarget.blur()
+            }}
+            aria-label={zh(`选择 ${displayName}`, `Select ${displayName}`)}
+          />
+        </div>
+      ) : null}
       <div className="relative aspect-video w-full overflow-hidden bg-gray-200">
         <img
           src={`/videos/${video.id}/thumbnail`}
@@ -195,19 +199,21 @@ export default function VideoCard({
                 </button>
               ))
             : null}
-          <Tooltip title={zh('修改标签', 'Edit tags')}>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenTagPicker()
-              }}
-              aria-label={zh('修改标签', 'Edit tags')}
-              className="h-6 w-6"
-            >
-              <LocalOfferOutlinedIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
+          {showTagEditor ? (
+            <Tooltip title={zh('修改标签', 'Edit tags')}>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenTagPicker()
+                }}
+                aria-label={zh('修改标签', 'Edit tags')}
+                className="h-6 w-6"
+              >
+                <LocalOfferOutlinedIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
           <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
             <IconButton
               size="small"

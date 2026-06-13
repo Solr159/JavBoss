@@ -5,11 +5,13 @@ export default function VideoGrid({
   videos,
   selectedIds,
   onToggleSelect,
+  showSelection = true,
   onPlay,
   onOpenFile,
   onRevealFile,
   openFileLabel,
   onOpenTagPicker,
+  showTagEditor = true,
   onOpenScreenshots,
   onOpenScrapeSettings,
   onRenameVideo,
@@ -24,11 +26,13 @@ export default function VideoGrid({
           video={v}
           checked={selectedIds.has(videoSelectionKey(v))}
           onToggle={() => onToggleSelect(v)}
+          showSelection={showSelection}
           onPlay={onPlay}
           onOpenFile={onOpenFile}
           onRevealFile={onRevealFile}
           openFileLabel={openFileLabel}
           onOpenTagPicker={() => onOpenTagPicker(v.id)}
+          showTagEditor={showTagEditor}
           onOpenScreenshots={onOpenScreenshots}
           onOpenScrapeSettings={onOpenScrapeSettings}
           onRenameVideo={onRenameVideo}

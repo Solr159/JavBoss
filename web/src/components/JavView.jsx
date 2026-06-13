@@ -46,6 +46,15 @@ export default function JavView({
   openFileLabel,
   onRevealFile,
   onOpenScreenshots,
+  onManageVideoPlay,
+  onManageVideoOpenFile,
+  onManageVideoRevealFile,
+  onManageVideoOpenTagPicker,
+  onManageVideoOpenScreenshots,
+  onManageVideoOpenScrapeSettings,
+  onManageVideoRename,
+  onManageVideoDelete,
+  onManageVideoTagClick,
   waterfallMode,
   onWaterfallModeChange,
   onLoadMore,
@@ -193,6 +202,15 @@ export default function JavView({
             openFileLabel={openFileLabel}
             onRevealFile={onRevealFile}
             onOpenScreenshots={onOpenScreenshots}
+            onManageVideoPlay={onManageVideoPlay}
+            onManageVideoOpenFile={onManageVideoOpenFile}
+            onManageVideoRevealFile={onManageVideoRevealFile}
+            onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}
+            onManageVideoOpenScreenshots={onManageVideoOpenScreenshots}
+            onManageVideoOpenScrapeSettings={onManageVideoOpenScrapeSettings}
+            onManageVideoRename={onManageVideoRename}
+            onManageVideoDelete={onManageVideoDelete}
+            onManageVideoTagClick={onManageVideoTagClick}
           />
         </div>
       )}

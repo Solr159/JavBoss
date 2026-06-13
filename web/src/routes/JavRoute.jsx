@@ -216,6 +216,15 @@ function JavListRoute({
   onOpenFavorites,
   onOpenFile,
   onOpenScreenshots,
+  onManageVideoPlay,
+  onManageVideoOpenFile,
+  onManageVideoRevealFile,
+  onManageVideoOpenTagPicker,
+  onManageVideoOpenScreenshots,
+  onManageVideoOpenScrapeSettings,
+  onManageVideoRename,
+  onManageVideoDelete,
+  onManageVideoTagClick,
   onPlay,
   onRevealFile,
   onSeriesClick,
@@ -249,6 +258,15 @@ function JavListRoute({
       openFileLabel={alternatePlayerLabel}
       onRevealFile={onRevealFile}
       onOpenScreenshots={onOpenScreenshots}
+      onManageVideoPlay={onManageVideoPlay}
+      onManageVideoOpenFile={onManageVideoOpenFile}
+      onManageVideoRevealFile={onManageVideoRevealFile}
+      onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}
+      onManageVideoOpenScreenshots={onManageVideoOpenScreenshots}
+      onManageVideoOpenScrapeSettings={onManageVideoOpenScrapeSettings}
+      onManageVideoRename={onManageVideoRename}
+      onManageVideoDelete={onManageVideoDelete}
+      onManageVideoTagClick={onManageVideoTagClick}
       onIdolClick={onIdolClick}
       onOpenFavorites={onOpenFavorites}
       onStudioClick={onStudioClick}

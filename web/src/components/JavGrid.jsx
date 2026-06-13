@@ -7,10 +7,10 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import MovieCreationIcon from '@mui/icons-material/MovieCreation'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
+import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 
 import {
   fetchJavIdolPreview,
@@ -26,9 +26,10 @@ import JavIdolCoverModal from '@/components/JavIdolCoverModal'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
+import VideoGrid from '@/components/VideoGrid'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
-import { directoryQueryIds, useStore } from '@/store'
+import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
 
 function DurationIcon() {
@@ -95,8 +96,16 @@ export default function JavGrid({
   onTagClick,
   onOpenFile,
   openFileLabel,
-  onRevealFile,
   onOpenScreenshots,
+  onManageVideoPlay,
+  onManageVideoOpenFile,
+  onManageVideoRevealFile,
+  onManageVideoOpenTagPicker,
+  onManageVideoOpenScreenshots,
+  onManageVideoOpenScrapeSettings,
+  onManageVideoRename,
+  onManageVideoDelete,
+  onManageVideoTagClick,
 }) {
   const directoryIds = useStore(directoryQueryIds)
   const javMetadataLanguage = useStore((state) =>
@@ -109,6 +118,7 @@ export default function JavGrid({
   const seriesPreviewCacheRef = useRef(new Map())
   const seriesPreviewInflightRef = useRef(new Map())
   const [coverPreview, setCoverPreview] = useState(null)
+  const [videoManagerItem, setVideoManagerItem] = useState(null)
   const hasItems = Array.isArray(items) && items.length > 0
   const columnCount = Number.isFinite(Number(columns)) ? Math.floor(Number(columns)) : 0
   const fixedColumnCount = columnCount > 0 ? Math.min(columnCount, 12) : 0
@@ -240,8 +250,8 @@ export default function JavGrid({
             onTagClick={onTagClick}
             onOpenFile={onOpenFile}
             openFileLabel={openFileLabel}
-            onRevealFile={onRevealFile}
             onOpenScreenshots={onOpenScreenshots}
+            onOpenVideoManager={setVideoManagerItem}
             loadIdolPreview={loadIdolPreview}
             loadStudioPreview={loadStudioPreview}
             loadSeriesPreview={loadSeriesPreview}
@@ -258,6 +268,21 @@ export default function JavGrid({
       {coverPreview ? (
         <CoverPreviewModal preview={coverPreview} onClose={() => setCoverPreview(null)} />
       ) : null}
+      <JavVideoManagerModal
+        open={Boolean(videoManagerItem)}
+        item={videoManagerItem}
+        openFileLabel={openFileLabel}
+        onClose={() => setVideoManagerItem(null)}
+        onPlay={onManageVideoPlay}
+        onOpenFile={onManageVideoOpenFile}
+        onRevealFile={onManageVideoRevealFile}
+        onOpenTagPicker={onManageVideoOpenTagPicker}
+        onOpenScreenshots={onManageVideoOpenScreenshots}
+        onOpenScrapeSettings={onManageVideoOpenScrapeSettings}
+        onRenameVideo={onManageVideoRename}
+        onDeleteVideo={onManageVideoDelete}
+        onTagClick={onManageVideoTagClick}
+      />
     </>
   )
 }
@@ -1401,8 +1426,8 @@ function JavCard({
   onTagClick,
   onOpenFile,
   openFileLabel,
-  onRevealFile,
   onOpenScreenshots,
+  onOpenVideoManager,
   loadIdolPreview,
   loadStudioPreview,
   loadSeriesPreview,
@@ -1544,16 +1569,15 @@ function JavCard({
     onOpenFile?.(openableVideos[0] || primaryVideo, item)
   }
 
-  const handleRevealFile = (event) => {
-    event.stopPropagation()
-    if (!canOpen) return
-    onRevealFile?.(openableVideos[0] || primaryVideo, item)
-  }
-
   const handleOpenScreenshots = (event) => {
     event.stopPropagation()
     if (!canOpen) return
     onOpenScreenshots?.(openableVideos[0] || primaryVideo, item)
+  }
+
+  const handleOpenVideoManager = (event) => {
+    event.stopPropagation()
+    onOpenVideoManager?.(item)
   }
 
   const handleOpenCoverPreview = (event) => {
@@ -2110,44 +2134,46 @@ function JavCard({
               onFilterLinkClick={handleFilterLinkClick}
             />
           )}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
+                <IconButton
+                  size="small"
+                  onClick={handleOpenFile}
+                  disabled={!canOpen}
+                  aria-label={openFileLabel || zh('打开文件', 'Open file')}
+                  className="h-6 w-6"
+                >
+                  <PlayArrowIcon fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
+                <IconButton
+                  size="small"
+                  onClick={handleOpenEditor}
+                  aria-label={zh('编辑 JAV', 'Edit JAV')}
+                  className="h-6 w-6"
+                >
+                  <MovieEdit fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={zh('视频管理', 'Manage videos')}>
+                <IconButton
+                  size="small"
+                  onClick={handleOpenVideoManager}
+                  disabled={!Array.isArray(item?.videos) || item.videos.length === 0}
+                  aria-label={zh('视频管理', 'Manage videos')}
+                  className="h-6 w-6"
+                >
+                  <VideoLibraryOutlinedIcon fontSize="inherit" />
+                </IconButton>
+              </Tooltip>
+            </div>
             {Array.isArray(item?.videos) && item.videos.length > 1 && (
-              <span className="text-xs text-gray-500">
+              <span className="shrink-0 text-xs text-gray-500">
                 {zh(`共 ${item.videos.length} 个视频`, `${item.videos.length} video files`)}
               </span>
             )}
-            <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
-              <IconButton
-                size="small"
-                onClick={handleOpenFile}
-                disabled={!canOpen}
-                aria-label={openFileLabel || zh('打开文件', 'Open file')}
-                className="h-6 w-6"
-              >
-                <PlayArrowIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={zh('打开所在位置', 'Reveal in folder')}>
-              <IconButton
-                size="small"
-                onClick={handleRevealFile}
-                disabled={!canOpen}
-                aria-label={zh('打开所在位置', 'Reveal in folder')}
-                className="h-6 w-6"
-              >
-                <FolderOpenIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
-              <IconButton
-                size="small"
-                onClick={handleOpenEditor}
-                aria-label={zh('编辑 JAV', 'Edit JAV')}
-                className="h-6 w-6"
-              >
-                <MovieEdit fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
           </div>
         </div>
       </div>
@@ -2160,5 +2186,100 @@ function JavCard({
         onSaved={handleEditorSaved}
       />
     </>
+  )
+}
+
+function JavVideoManagerModal({
+  open,
+  item,
+  openFileLabel,
+  onClose,
+  onPlay,
+  onOpenFile,
+  onRevealFile,
+  onOpenTagPicker,
+  onOpenScreenshots,
+  onOpenScrapeSettings,
+  onRenameVideo,
+  onDeleteVideo,
+  onTagClick,
+}) {
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+
+  useEffect(() => {
+    if (open) setSelectedIds(new Set())
+  }, [item?.id, open])
+
+  if (!open) return null
+
+  const videos = Array.isArray(item?.videos) ? item.videos : []
+  const title = getJavDisplayTitle(item)
+  const toggleSelectVideo = (video) => {
+    const key = videoSelectionKey(video)
+    if (!key) return
+    setSelectedIds((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+      <div className="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-lg bg-white p-4 shadow-xl">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold">{zh('视频管理', 'Manage videos')}</h2>
+            <div className="mt-1 truncate text-xs text-gray-500">
+              {item?.code || zh('未知番号', 'Unknown code')}
+              {title && title !== item?.code ? ` · ${title}` : ''}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+            aria-label={zh('关闭视频管理', 'Close video manager')}
+          >
+            ✕
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          {videos.length > 0 ? (
+            <VideoGrid
+              videos={videos}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelectVideo}
+              showSelection={false}
+              onPlay={onPlay}
+              onOpenFile={onOpenFile}
+              onRevealFile={onRevealFile}
+              openFileLabel={openFileLabel}
+              onOpenTagPicker={onOpenTagPicker}
+              showTagEditor={false}
+              onOpenScreenshots={onOpenScreenshots}
+              onOpenScrapeSettings={onOpenScrapeSettings}
+              onRenameVideo={onRenameVideo}
+              onDeleteVideo={onDeleteVideo}
+              onTagClick={onTagClick}
+            />
+          ) : (
+            <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
+              {zh('暂无关联视频', 'No linked videos')}
+            </div>
+          )}
+        </div>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+          >
+            {zh('关闭', 'Close')}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
