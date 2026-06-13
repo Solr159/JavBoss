@@ -84,7 +84,7 @@ export default function VideoSettingsModal({
               onChange={(event) => onHideJavChange?.(event.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span>{zh('不显示已刮削的视频', 'Hide scraped videos')}</span>
+            <span>{zh('隐藏已刮削的视频', 'Hide scraped videos')}</span>
           </label>
           <label className="flex items-center justify-between gap-3 text-sm font-medium text-gray-700">
             <span>{zh('每页视频数量', 'Videos per page')}</span>
