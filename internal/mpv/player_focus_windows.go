@@ -40,7 +40,14 @@ var (
 	procSetForegroundWindow    = moduser32.NewProc("SetForegroundWindow")
 	procShowWindow             = moduser32.NewProc("ShowWindow")
 	procGetCurrentThreadID     = modkernel32.NewProc("GetCurrentThreadId")
+
+	enumWindowsFindProcessWindowCallback = windows.NewCallback(enumWindowsFindProcessWindow)
 )
+
+type findProcessWindowState struct {
+	pid   uint32
+	found windows.Handle
+}
 
 func focusStartedProcessWindow(pid int, label string) {
 	if pid <= 0 {
@@ -72,16 +79,22 @@ func waitForProcessWindow(pid uint32, timeout time.Duration) windows.Handle {
 }
 
 func findProcessWindow(pid uint32) windows.Handle {
-	var found windows.Handle
-	cb := windows.NewCallback(func(hwnd windows.Handle, lparam uintptr) uintptr {
-		if windowProcessID(hwnd) == pid && isUsableTopLevelWindow(hwnd) {
-			found = hwnd
-			return 0
-		}
-		return 1
-	})
-	procEnumWindows.Call(cb, 0)
-	return found
+	state := findProcessWindowState{pid: pid}
+	procEnumWindows.Call(enumWindowsFindProcessWindowCallback, uintptr(unsafe.Pointer(&state)))
+	runtime.KeepAlive(&state)
+	return state.found
+}
+
+func enumWindowsFindProcessWindow(hwnd windows.Handle, lparam uintptr) uintptr {
+	state := (*findProcessWindowState)(unsafe.Pointer(lparam))
+	if state == nil {
+		return 0
+	}
+	if windowProcessID(hwnd) == state.pid && isUsableTopLevelWindow(hwnd) {
+		state.found = hwnd
+		return 0
+	}
+	return 1
 }
 
 func isUsableTopLevelWindow(hwnd windows.Handle) bool {
