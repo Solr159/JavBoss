@@ -11,6 +11,7 @@ export default function VideoRoute({
   loading,
   onDeleteVideo,
   onOpenScreenshots,
+  onOpenScrapeSettings,
   onRenameVideo,
   onTagClick,
   onToggleSelectPage,
@@ -62,6 +63,7 @@ export default function VideoRoute({
       alternatePlayerLabel={alternatePlayerLabel}
       setTagPickerFor={setTagPickerFor}
       onOpenScreenshots={onOpenScreenshots}
+      onOpenScrapeSettings={onOpenScrapeSettings}
       onRenameVideo={onRenameVideo}
       onDeleteVideo={onDeleteVideo}
       onTagClick={onTagClick}

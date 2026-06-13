@@ -192,7 +192,7 @@ export const useStore = create((set, get) => ({
   searchTerm: '',
   sortOrder: 'recent',
   videoTempSort: '',
-  videoHideJav: true,
+  videoHideJav: false,
   javSort: 'recent',
   javTempSort: '',
   randomMode: false,
@@ -548,7 +548,7 @@ export const useStore = create((set, get) => ({
       const updates = { config: cfg }
       const videoSize = clamp(cfg?.video_page_size)
       const videoSort = normalizeVideoSort((cfg?.video_sort || '').toLowerCase(), '')
-      const videoHideJav = String(cfg?.video_hide_jav || '').toLowerCase() !== 'false'
+      const videoHideJav = String(cfg?.video_hide_jav || '').toLowerCase() === 'true'
       const javSize = clamp(cfg?.jav_page_size)
       const javGridColumnsRaw = parseInt(cfg?.jav_grid_columns, 10)
       const javGridColumns =

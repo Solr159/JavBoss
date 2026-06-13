@@ -69,10 +69,10 @@ func RenameTag(ctx context.Context, id int64, newName string) error {
 }
 
 // ListTags returns all tags ordered by name with attached active location counts.
-// By default it hides locations already associated with JAV metadata.
+// By default it includes locations already associated with JAV metadata.
 func ListTags(ctx context.Context, directoryIDs []int64, hideJav ...bool) ([]TagCount, error) {
 	var tags []TagCount
-	hideRecognizedJav := true
+	hideRecognizedJav := false
 	if len(hideJav) > 0 {
 		hideRecognizedJav = hideJav[0]
 	}

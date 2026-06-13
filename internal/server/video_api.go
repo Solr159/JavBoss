@@ -30,7 +30,7 @@ func listVideos(c *gin.Context) {
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	search := strings.TrimSpace(c.Query("search"))
 	sort := strings.TrimSpace(c.Query("sort"))
-	hideJav := queryBool(c, "hide_jav", true)
+	hideJav := queryBool(c, "hide_jav", false)
 	seedParam := strings.TrimSpace(c.Query("seed"))
 	var seed *int64
 	if seedParam != "" {
@@ -118,6 +118,11 @@ type videoScreenshotInfo struct {
 
 type renameVideoLocationRequest struct {
 	Filename string `json:"filename"`
+}
+
+type videoJavScrapeSettingsRequest struct {
+	Mode string `json:"mode"`
+	Code string `json:"code"`
 }
 
 func getVideoStreams(c *gin.Context) {
@@ -467,6 +472,68 @@ func renameVideoLocation(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, video)
+}
+
+func updateVideoJavScrapeSettings(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+
+	var req videoJavScrapeSettingsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	override, ok := normalizeVideoJavScrapeOverride(req)
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jav scrape settings"})
+		return
+	}
+
+	video, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, override)
+	if err != nil {
+		logging.Error("update video jav scrape settings error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if video == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.JSON(http.StatusOK, video)
+}
+
+func normalizeVideoJavScrapeOverride(req videoJavScrapeSettingsRequest) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(req.Mode)) {
+	case "", "auto":
+		return "", true
+	case "skip":
+		return models.JavScrapeOverrideSkip, true
+	case "code":
+		code, ok := normalizeForcedJavScrapeCode(req.Code)
+		return code, ok
+	default:
+		return "", false
+	}
+}
+
+func normalizeForcedJavScrapeCode(raw string) (string, bool) {
+	code := strings.ToUpper(strings.TrimSpace(raw))
+	if code == "" || len(code) > 64 {
+		return "", false
+	}
+	for _, r := range code {
+		switch {
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_':
+		default:
+			return "", false
+		}
+	}
+	return code, true
 }
 
 func deleteVideoLocation(c *gin.Context) {

@@ -107,6 +107,9 @@ func IsVideo(path string) bool {
 		return false
 	}
 	buf := header[:n]
+	if isRealMediaExtension(ext) && isRealMediaHeader(buf) {
+		return true
+	}
 	kind, err := filetype.Match(buf)
 	if err != nil {
 		return false
@@ -116,6 +119,19 @@ func IsVideo(path string) bool {
 	}
 	// Accept any MIME with top-level type "video"
 	return strings.HasPrefix(kind.MIME.Value, "video/") || kind.MIME.Type == "video"
+}
+
+func isRealMediaExtension(ext string) bool {
+	switch ext {
+	case ".rmvb", ".rm":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRealMediaHeader(buf []byte) bool {
+	return bytes.HasPrefix(buf, []byte(".RMF"))
 }
 
 var (
@@ -385,6 +401,8 @@ func detectContainer(formatName, path string) string {
 		return "wmv"
 	case ".flv":
 		return "flv"
+	case ".rmvb", ".rm":
+		return "rmvb"
 	case ".ts":
 		return "ts"
 	case ".m2ts", ".mts":

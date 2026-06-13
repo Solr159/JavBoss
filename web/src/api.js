@@ -44,7 +44,7 @@ export async function fetchVideos({
   sort = '',
   seed = null,
   directoryIds = [],
-  hideJav = true,
+  hideJav = false,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
@@ -65,7 +65,7 @@ export async function fetchVideos({
   return data
 }
 
-export async function fetchTags({ directoryIds = [], hideJav = true } = {}) {
+export async function fetchTags({ directoryIds = [], hideJav = false } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   params.set('hide_jav', hideJav ? '1' : '0')
@@ -269,6 +269,19 @@ export async function deleteVideoLocation(videoId, locationId) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('删除视频失败', 'Failed to delete video'))
   }
+}
+
+export async function updateVideoJavScrapeSettings(videoId, { mode = 'auto', code = '' } = {}) {
+  const res = await apiFetch(`/videos/${videoId}/jav-scrape`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify({ mode, code }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('保存刮削设置失败', 'Failed to save scrape settings'))
+  }
+  return res.json()
 }
 
 // Directories

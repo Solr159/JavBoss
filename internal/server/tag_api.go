@@ -28,7 +28,7 @@ func listTags(c *gin.Context) {
 	tags, err := dbpkg.ListTags(
 		c.Request.Context(),
 		parseDirectoryIDs(c.Query("directory_ids")),
-		queryBool(c, "hide_jav", true),
+		queryBool(c, "hide_jav", false),
 	)
 	if err != nil {
 		logging.Error("list tags error: %v", err)

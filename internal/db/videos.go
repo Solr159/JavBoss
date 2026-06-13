@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"pornboss/internal/common"
 	"pornboss/internal/models"
@@ -15,7 +16,7 @@ import (
 )
 
 // ListVideos returns paginated active video locations as video-like rows.
-// By default it hides locations already associated with JAV metadata.
+// By default it includes locations already associated with JAV metadata.
 func ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
 	if limit <= 0 {
 		limit = 100
@@ -23,7 +24,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	if offset < 0 {
 		offset = 0
 	}
-	hideRecognizedJav := true
+	hideRecognizedJav := false
 	if len(hideJav) > 0 {
 		hideRecognizedJav = hideJav[0]
 	}
@@ -103,6 +104,9 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	if err := query.Find(&locations).Error; err != nil {
 		return nil, fmt.Errorf("list videos: %w", err)
 	}
+	if err := hydrateLocationJavs(ctx, locations); err != nil {
+		return nil, err
+	}
 	videos := make([]models.Video, 0, len(locations))
 	for _, loc := range locations {
 		if loc.Video.ID == 0 {
@@ -114,11 +118,11 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 }
 
 // CountVideos returns the total number of active locations that match optional filters.
-// By default it hides locations already associated with JAV metadata.
+// By default it includes locations already associated with JAV metadata.
 func CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
 	cleanedTags := normalizeTagNames(tagNames)
 	cleanedSearch := strings.TrimSpace(search)
-	hideRecognizedJav := true
+	hideRecognizedJav := false
 	if len(hideJav) > 0 {
 		hideRecognizedJav = hideJav[0]
 	}
@@ -179,6 +183,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 func videoFromLocation(loc models.VideoLocation) models.Video {
 	video := loc.Video
 	applyLocationFields(&video, loc)
+	video.Jav = loc.Jav
 	video.Locations = []models.VideoLocation{{
 		ID:           loc.ID,
 		VideoID:      loc.VideoID,
@@ -191,8 +196,113 @@ func videoFromLocation(loc models.VideoLocation) models.Video {
 		CreatedAt:    loc.CreatedAt,
 		UpdatedAt:    loc.UpdatedAt,
 		DirectoryRef: loc.DirectoryRef,
+		Jav:          loc.Jav,
 	}}
 	return video
+}
+
+// UpdateVideoJavScrapeOverride stores the user's per-video JAV scrape override.
+// Non-empty overrides intentionally clear existing location links so the next scan
+// honors the new skip or forced-code decision.
+func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override string) (*models.Video, error) {
+	if videoID <= 0 {
+		return nil, errors.New("video id cannot be zero")
+	}
+	override = strings.TrimSpace(override)
+
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Model(&models.Video{}).
+			Where("id = ?", videoID).
+			Update("jav_scrape_override", override)
+		if res.Error != nil {
+			return fmt.Errorf("update video jav scrape override: %w", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		if override == "" {
+			return nil
+		}
+		clearLinks := tx.Model(&models.VideoLocation{}).
+			Where("video_id = ?", videoID)
+		if override != models.JavScrapeOverrideSkip {
+			clearLinks = clearLinks.
+				Where("jav_id IS NOT NULL").
+				Where(`NOT EXISTS (
+					SELECT 1 FROM jav
+					WHERE jav.id = video_location.jav_id
+						AND UPPER(jav.code) = ?
+				)`, strings.ToUpper(override))
+		}
+		if err := clearLinks.UpdateColumn("jav_id", nil).Error; err != nil {
+			return fmt.Errorf("clear video location jav links: %w", err)
+		}
+		return nil
+	}); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return GetVideo(ctx, videoID)
+}
+
+// ClearVideoLocationJavIDForVideo clears one active scan target before a forced
+// scrape relink, while guarding that the row still belongs to the scanned video.
+func ClearVideoLocationJavIDForVideo(ctx context.Context, locationID, videoID int64, expectedUpdatedAt time.Time) error {
+	if locationID <= 0 || videoID <= 0 {
+		return errors.New("location id and video id are required")
+	}
+	q := common.DB.WithContext(ctx).
+		Model(&models.VideoLocation{}).
+		Where("id = ?", locationID).
+		Where("video_id = ?", videoID)
+	if !expectedUpdatedAt.IsZero() {
+		q = q.Where("updated_at = ?", expectedUpdatedAt)
+	}
+	res := q.UpdateColumn("jav_id", nil)
+	if res.Error != nil {
+		return fmt.Errorf("clear video location jav id: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("video location %d stale or missing", locationID)
+	}
+	return nil
+}
+
+func hydrateLocationJavs(ctx context.Context, locations []models.VideoLocation) error {
+	javIDs := make([]int64, 0)
+	seen := make(map[int64]struct{})
+	for _, loc := range locations {
+		if loc.JavID == nil || *loc.JavID <= 0 {
+			continue
+		}
+		if _, ok := seen[*loc.JavID]; ok {
+			continue
+		}
+		seen[*loc.JavID] = struct{}{}
+		javIDs = append(javIDs, *loc.JavID)
+	}
+	if len(javIDs) == 0 {
+		return nil
+	}
+
+	var javs []models.Jav
+	if err := common.DB.WithContext(ctx).Where("id IN ?", javIDs).Find(&javs).Error; err != nil {
+		return fmt.Errorf("load location javs: %w", err)
+	}
+	byID := make(map[int64]*models.Jav, len(javs))
+	for i := range javs {
+		byID[javs[i].ID] = &javs[i]
+	}
+	for i := range locations {
+		if locations[i].JavID == nil {
+			continue
+		}
+		locations[i].Jav = byID[*locations[i].JavID]
+	}
+	return nil
 }
 
 func applyPrimaryLocationFields(video *models.Video) {
@@ -215,6 +325,7 @@ func applyLocationFields(video *models.Video, loc models.VideoLocation) {
 	}
 	video.ModifiedAt = loc.ModifiedAt
 	video.JavID = loc.JavID
+	video.Jav = loc.Jav
 	video.DirectoryRef = loc.DirectoryRef
 }
 

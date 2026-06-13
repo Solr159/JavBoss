@@ -10,6 +10,7 @@ import {
   playVideoFile,
   openVideoFile,
   revealVideoLocation,
+  updateVideoJavScrapeSettings,
   createJavTag,
   renameJavTag,
   deleteJavTag,
@@ -37,6 +38,7 @@ import TagPickerModal from '@/components/TagPickerModal'
 import Toast from '@/components/Toast'
 import TopBar from '@/components/TopBar'
 import VideoSettingsModal from '@/components/VideoSettingsModal'
+import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
 import VideoTagModal from '@/components/VideoTagModal'
 import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
@@ -49,6 +51,7 @@ import { isChineseLocale, zh } from '@/utils/i18n'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 
 const JAV_STUDIO_PAGE_SIZE = 24
+const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
 
 const normalizeDefaultPlayer = (value) =>
   String(value || '')
@@ -63,6 +66,26 @@ const normalizeInitialViewMode = (value) =>
     .toLowerCase() === 'jav'
     ? 'jav'
     : 'video'
+
+function applyScrapeOverrideToVideo(video, override) {
+  const nextOverride = String(override || '').trim()
+  const next = { ...video, jav_scrape_override: nextOverride }
+  if (!nextOverride) return next
+  const linkedCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '')
+    .trim()
+    .toUpperCase()
+  if (nextOverride !== JAV_SCRAPE_OVERRIDE_SKIP && linkedCode === nextOverride.toUpperCase()) {
+    return next
+  }
+  return {
+    ...next,
+    jav_id: null,
+    jav: null,
+    locations: Array.isArray(video?.locations)
+      ? video.locations.map((location) => ({ ...location, jav_id: null, jav: null }))
+      : video?.locations,
+  }
+}
 
 export default function App() {
   const pendingVideoTagIdsRef = useRef(null)
@@ -198,6 +221,8 @@ export default function App() {
   const [locationPickerChoices, setLocationPickerChoices] = useState([])
   const [locationPickerAction, setLocationPickerAction] = useState('play')
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
+  const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
+  const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
   const [searchInput, setSearchInput] = useState('')
   const [javSearchInput, setJavSearchInput] = useState('')
   const [waterfallModes, setWaterfallModes] = useState({
@@ -530,6 +555,47 @@ export default function App() {
       }
     },
     [loadVideos, showToast]
+  )
+
+  const handleOpenScrapeSettings = useCallback((video) => {
+    setScrapeSettingsVideo(video)
+  }, [])
+
+  const handleSaveScrapeSettings = useCallback(
+    async ({ mode, code }) => {
+      const video = scrapeSettingsVideo
+      if (!video?.id) return
+      setScrapeSettingsSaving(true)
+      try {
+        const updated = await updateVideoJavScrapeSettings(video.id, { mode, code })
+        let override = ''
+        if (typeof updated?.jav_scrape_override === 'string') {
+          override = updated.jav_scrape_override
+        } else if (mode === 'skip') {
+          override = JAV_SCRAPE_OVERRIDE_SKIP
+        } else if (mode === 'code') {
+          override = String(code || '')
+            .trim()
+            .toUpperCase()
+        }
+        useStore.setState((state) => ({
+          videos: Array.isArray(state.videos)
+            ? state.videos.map((item) =>
+                item?.id === video.id ? applyScrapeOverrideToVideo(item, override) : item
+              )
+            : state.videos,
+        }))
+        setScrapeSettingsVideo(null)
+        await loadVideos({ force: true })
+        showToast(zh('刮削设置已保存', 'Scrape settings saved'))
+      } catch (err) {
+        console.error(zh('保存刮削设置失败', 'Failed to save scrape settings'), err)
+        showToast(err?.message || zh('保存刮削设置失败', 'Failed to save scrape settings'))
+      } finally {
+        setScrapeSettingsSaving(false)
+      }
+    },
+    [loadVideos, scrapeSettingsVideo, showToast]
   )
 
   const closeJavVideoPicker = useCallback(() => {
@@ -2510,6 +2576,7 @@ export default function App() {
             alternatePlayerLabel={alternatePlayerLabel}
             setTagPickerFor={openTagEditor}
             onOpenScreenshots={setScreenshotsVideo}
+            onOpenScrapeSettings={handleOpenScrapeSettings}
             onRenameVideo={handleRenameVideo}
             onDeleteVideo={handleDeleteVideo}
             onTagClick={handleVideoTagClick}
@@ -2555,6 +2622,16 @@ export default function App() {
         playerHotkeys={config?.player_hotkeys}
         onClose={() => setScreenshotsVideo(null)}
         onPlayAtTime={playVideoFromTime}
+      />
+
+      <VideoScrapeSettingsModal
+        open={Boolean(scrapeSettingsVideo)}
+        video={scrapeSettingsVideo}
+        saving={scrapeSettingsSaving}
+        onClose={() => {
+          if (!scrapeSettingsSaving) setScrapeSettingsVideo(null)
+        }}
+        onSave={handleSaveScrapeSettings}
       />
 
       <JavSettingsModal

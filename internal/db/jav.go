@@ -26,12 +26,14 @@ type JavTagCount struct {
 
 // JavScanVideo contains the fields the scanner needs to resolve or refresh JAV metadata.
 type JavScanVideo struct {
-	LocationID  int64     `gorm:"column:location_id"`
-	VideoID     int64     `gorm:"column:video_id"`
-	Filename    string    `gorm:"column:filename"`
-	JavID       *int64    `gorm:"column:jav_id"`
-	UpdatedAt   time.Time `gorm:"column:updated_at"`
-	DurationSec int64     `gorm:"column:duration_sec"`
+	LocationID        int64     `gorm:"column:location_id"`
+	VideoID           int64     `gorm:"column:video_id"`
+	Filename          string    `gorm:"column:filename"`
+	JavID             *int64    `gorm:"column:jav_id"`
+	JavCode           string    `gorm:"column:jav_code"`
+	UpdatedAt         time.Time `gorm:"column:updated_at"`
+	DurationSec       int64     `gorm:"column:duration_sec"`
+	JavScrapeOverride string    `gorm:"column:jav_scrape_override"`
 }
 
 // JavUpdateInput contains user-editable JAV metadata fields.
@@ -1510,10 +1512,11 @@ func videosForJavScanQuery(ctx context.Context) *gorm.DB {
 		Table("video_location vl").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("JOIN video v ON v.id = vl.video_id").
+		Joins("LEFT JOIN jav j ON j.id = vl.jav_id").
 		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.missing, 0) = 0").
-		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, vl.updated_at, v.duration_sec")
+		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, j.code AS jav_code, vl.updated_at, v.duration_sec, v.jav_scrape_override")
 }
 
 // GetJavByCode fetches a jav record by code.

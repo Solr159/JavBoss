@@ -5,6 +5,7 @@ import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutli
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
+import ManageSearchIcon from '@mui/icons-material/ManageSearch'
 import { revealVideoLocation } from '@/api'
 import { formatBytes, getVideoDisplayName, parseVideoFingerprint } from '@/utils/display'
 import { zh } from '@/utils/i18n'
@@ -21,6 +22,7 @@ export default function VideoCard({
   openFileLabel,
   onOpenTagPicker,
   onOpenScreenshots,
+  onOpenScrapeSettings,
   onRenameVideo,
   onDeleteVideo,
   onTagClick,
@@ -42,6 +44,8 @@ export default function VideoCard({
   const videoPath = video?.path || ''
   const canOpen = Boolean(directoryPath && videoPath)
   const inputId = `check-${video?.location_id || video.id}`
+  const javCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '').trim()
+  const hasScrapeOverride = Boolean(String(video?.jav_scrape_override || '').trim())
 
   const handleOpenFile = async (event) => {
     event.stopPropagation()
@@ -70,6 +74,11 @@ export default function VideoCard({
   const handleOpenScreenshots = (event) => {
     event.stopPropagation()
     onOpenScreenshots?.(video)
+  }
+
+  const handleOpenScrapeSettings = (event) => {
+    event.stopPropagation()
+    onOpenScrapeSettings?.(video)
   }
 
   const openEditMenu = (event) => {
@@ -123,6 +132,14 @@ export default function VideoCard({
             e.currentTarget.style.display = 'none'
           }}
         />
+        {javCode ? (
+          <div
+            className="absolute right-2 top-2 z-10 max-w-[calc(100%-1rem)] truncate rounded bg-black/70 px-2 py-1 text-xs text-white"
+            title={zh(`已刮削：${javCode}`, `Scraped: ${javCode}`)}
+          >
+            {zh(`已刮削 ${javCode}`, `Scraped ${javCode}`)}
+          </div>
+        ) : null}
         <div className="absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             type="button"
@@ -221,6 +238,16 @@ export default function VideoCard({
               className="h-6 w-6"
             >
               <MovieEdit fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={zh('刮削设置', 'Scrape settings')}>
+            <IconButton
+              size="small"
+              onClick={handleOpenScrapeSettings}
+              aria-label={zh('刮削设置', 'Scrape settings')}
+              className={`h-6 w-6 ${hasScrapeOverride ? 'text-blue-700' : ''}`}
+            >
+              <ManageSearchIcon fontSize="inherit" />
             </IconButton>
           </Tooltip>
           <Popover

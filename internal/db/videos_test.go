@@ -72,7 +72,7 @@ func TestListVideosSortByDurationDirections(t *testing.T) {
 	}
 }
 
-func TestListVideosCanIncludeRecognizedJav(t *testing.T) {
+func TestListVideosCanHideRecognizedJav(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -127,44 +127,103 @@ func TestListVideosCanIncludeRecognizedJav(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListVideos default: %v", err)
 	}
-	if len(defaultItems) != 1 || defaultItems[0].ID != plainVideo.ID {
-		t.Fatalf("default list should hide recognized jav: %#v", defaultItems)
+	if len(defaultItems) != 2 {
+		t.Fatalf("default list should include recognized jav: got %d", len(defaultItems))
+	}
+	var recognized *models.Video
+	for i := range defaultItems {
+		if defaultItems[i].ID == javVideo.ID {
+			recognized = &defaultItems[i]
+			break
+		}
+	}
+	if recognized == nil {
+		t.Fatalf("default list should include recognized jav video: %#v", defaultItems)
+	}
+	if recognized.Jav == nil || recognized.Jav.Code != "ABC-001" {
+		t.Fatalf("recognized video should include jav code: %#v", recognized.Jav)
 	}
 	defaultCount, err := CountVideos(ctx, nil, "", nil)
 	if err != nil {
 		t.Fatalf("CountVideos default: %v", err)
 	}
-	if defaultCount != 1 {
-		t.Fatalf("default count should hide recognized jav: got %d want 1", defaultCount)
+	if defaultCount != 2 {
+		t.Fatalf("default count should include recognized jav: got %d want 2", defaultCount)
 	}
 	defaultTags, err := ListTags(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTags default: %v", err)
 	}
-	if len(defaultTags) != 1 || defaultTags[0].Count != 1 {
-		t.Fatalf("default tag count should hide recognized jav: %#v", defaultTags)
+	if len(defaultTags) != 1 || defaultTags[0].Count != 2 {
+		t.Fatalf("default tag count should include recognized jav: %#v", defaultTags)
 	}
 
-	allItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, false)
+	hiddenItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, true)
 	if err != nil {
-		t.Fatalf("ListVideos include jav: %v", err)
+		t.Fatalf("ListVideos hide jav: %v", err)
 	}
-	if len(allItems) != 2 {
-		t.Fatalf("include jav list should return both videos: got %d", len(allItems))
+	if len(hiddenItems) != 1 || hiddenItems[0].ID != plainVideo.ID {
+		t.Fatalf("hide jav list should return only plain videos: %#v", hiddenItems)
 	}
-	allCount, err := CountVideos(ctx, nil, "", nil, false)
+	hiddenCount, err := CountVideos(ctx, nil, "", nil, true)
 	if err != nil {
-		t.Fatalf("CountVideos include jav: %v", err)
+		t.Fatalf("CountVideos hide jav: %v", err)
 	}
-	if allCount != 2 {
-		t.Fatalf("include jav count should return both videos: got %d want 2", allCount)
+	if hiddenCount != 1 {
+		t.Fatalf("hide jav count should return only plain videos: got %d want 1", hiddenCount)
 	}
-	allTags, err := ListTags(ctx, nil, false)
+	hiddenTags, err := ListTags(ctx, nil, true)
 	if err != nil {
-		t.Fatalf("ListTags include jav: %v", err)
+		t.Fatalf("ListTags hide jav: %v", err)
 	}
-	if len(allTags) != 1 || allTags[0].Count != 2 {
-		t.Fatalf("include jav tag count should return both videos: %#v", allTags)
+	if len(hiddenTags) != 1 || hiddenTags[0].Count != 1 {
+		t.Fatalf("hide jav tag count should return only plain videos: %#v", hiddenTags)
+	}
+}
+
+func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	video := models.Video{
+		Fingerprint: "video-fp-scrape-override",
+		DurationSec: 1800,
+		CreatedAt:   now,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
+	if err != nil {
+		t.Fatalf("upsert video location: %v", err)
+	}
+	javRec := models.Jav{Code: "ABC-001", Title: "recognized"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	if err := SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
+		t.Fatalf("set jav id: %v", err)
+	}
+
+	updated, err := UpdateVideoJavScrapeOverride(ctx, video.ID, models.JavScrapeOverrideSkip)
+	if err != nil {
+		t.Fatalf("update scrape override: %v", err)
+	}
+	if updated == nil || updated.JavScrapeOverride != models.JavScrapeOverrideSkip {
+		t.Fatalf("unexpected updated video: %#v", updated)
+	}
+
+	var reloaded models.VideoLocation
+	if err := gdb.First(&reloaded, loc.ID).Error; err != nil {
+		t.Fatalf("reload location: %v", err)
+	}
+	if reloaded.JavID != nil {
+		t.Fatalf("jav link should be cleared: %#v", reloaded.JavID)
 	}
 }
 
@@ -441,7 +500,7 @@ func assertVideoContentSchema(t *testing.T, db *gorm.DB) {
 		t.Fatalf("iterate video columns: %v", err)
 	}
 
-	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at"}
+	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at", "jav_scrape_override"}
 	if len(columns) != len(wantColumns) {
 		t.Fatalf("unexpected video columns: got %#v want %v", columns, wantColumns)
 	}

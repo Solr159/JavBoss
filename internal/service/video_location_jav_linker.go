@@ -11,6 +11,7 @@ import (
 	"pornboss/internal/common/logging"
 	"pornboss/internal/db"
 	"pornboss/internal/jav"
+	"pornboss/internal/models"
 	"pornboss/internal/util"
 )
 
@@ -106,19 +107,58 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 		return err
 	}
 
-	if v.JavID != nil {
-		return nil
-	}
-	if v.DurationSec > 0 && v.DurationSec < 900 {
+	override := normalizeJavScrapeOverride(v.JavScrapeOverride)
+	if override == models.JavScrapeOverrideSkip {
 		return nil
 	}
 
 	filename := filepath.Base(filepath.FromSlash(v.Filename))
-	possibleCodes := util.ExtractCodeFromName(filename)
+	forcedCode := forcedJavScrapeCode(override)
+	if forcedCode == "" {
+		if v.JavID != nil {
+			return nil
+		}
+		if v.DurationSec > 0 && v.DurationSec < 900 {
+			return nil
+		}
+	} else if v.JavID != nil {
+		if strings.EqualFold(strings.TrimSpace(v.JavCode), forcedCode) {
+			return nil
+		}
+		if err := db.ClearVideoLocationJavIDForVideo(ctx, v.LocationID, v.VideoID, v.UpdatedAt); err != nil {
+			logging.Error("clear video location jav before forced scrape failed location=%d code=%s err=%v", v.LocationID, forcedCode, err)
+			return err
+		}
+		v.JavID = nil
+		v.JavCode = ""
+	}
+
+	possibleCodes := javScrapeCodesForVideo(filename, forcedCode)
 	if len(possibleCodes) == 0 {
 		return nil
 	}
 
+	if linked := linkExistingJav(ctx, v, possibleCodes); linked {
+		return nil
+	}
+
+	for _, provider := range javLinkProviders() {
+		if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, possibleCodes, provider); err != nil || linked {
+			return err
+		}
+	}
+
+	uncensoredPossibleCodes := util.ExtractUncensoredCodesFromName(filename)
+	if forcedCode != "" {
+		uncensoredPossibleCodes = possibleCodes
+	}
+	if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, uncensoredPossibleCodes, jav.ProviderAvsox); err != nil || linked {
+		return err
+	}
+	return nil
+}
+
+func linkExistingJav(ctx context.Context, v *db.JavScanVideo, possibleCodes []string) bool {
 	for _, code := range possibleCodes {
 		existJav, err := db.GetJavByCode(ctx, code)
 		if err != nil {
@@ -133,20 +173,37 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 		} else {
 			enqueueCover(existJav.Code)
 		}
-		return nil
+		return true
 	}
+	return false
+}
 
-	if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, possibleCodes, jav.ProviderJavBus); err != nil || linked {
-		return err
+func javScrapeCodesForVideo(filename, forcedCode string) []string {
+	forcedCode = strings.TrimSpace(forcedCode)
+	if forcedCode != "" {
+		return []string{forcedCode}
 	}
-	if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, possibleCodes, jav.ProviderJavDatabase); err != nil || linked {
-		return err
+	return util.ExtractCodeFromName(filename)
+}
+
+func javLinkProviders() []jav.Provider {
+	return []jav.Provider{jav.ProviderJavBus, jav.ProviderJavDatabase}
+}
+
+func normalizeJavScrapeOverride(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.EqualFold(raw, models.JavScrapeOverrideSkip) {
+		return models.JavScrapeOverrideSkip
 	}
-	uncensoredPossibleCodes := util.ExtractUncensoredCodesFromName(filename)
-	if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, uncensoredPossibleCodes, jav.ProviderAvsox); err != nil || linked {
-		return err
+	return strings.ToUpper(raw)
+}
+
+func forcedJavScrapeCode(override string) string {
+	override = normalizeJavScrapeOverride(override)
+	if override == "" || override == models.JavScrapeOverrideSkip {
+		return ""
 	}
-	return nil
+	return override
 }
 
 func lookupAndLinkVideoLocationJav(ctx context.Context, v *db.JavScanVideo, filename string, possibleCodes []string, provider jav.Provider) (bool, error) {
