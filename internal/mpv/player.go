@@ -121,6 +121,7 @@ func startCommand(cmd *exec.Cmd, label string) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	focusStartedProcessWindow(cmd.Process.Pid, label)
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			logging.Error("%s command exited with error: %v", label, err)
