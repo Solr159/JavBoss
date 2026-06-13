@@ -2134,7 +2134,7 @@ function JavCard({
               onFilterLinkClick={handleFilterLinkClick}
             />
           )}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
                 <IconButton
@@ -2170,8 +2170,8 @@ function JavCard({
               </Tooltip>
             </div>
             {Array.isArray(item?.videos) && item.videos.length > 1 && (
-              <span className="shrink-0 text-xs text-gray-500">
-                {zh(`共 ${item.videos.length} 个视频`, `${item.videos.length} video files`)}
+              <span className="text-xs text-gray-500">
+                {zh(`${item.videos.length} 个视频`, `${item.videos.length} video files`)}
               </span>
             )}
           </div>
