@@ -290,7 +290,11 @@ export default function VideoCard({
         <button
           onClick={(e) => {
             e.stopPropagation()
+            e.currentTarget.blur()
             onPlay(video)
+          }}
+          onPointerUp={(e) => {
+            e.currentTarget.blur()
           }}
           className="pointer-events-auto rounded-full bg-black/60 p-3 hover:bg-black/80"
           aria-label={zh('播放', 'Play')}
