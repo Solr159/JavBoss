@@ -1555,10 +1555,10 @@ function JavCard({
           icon: '/ico/missav.ico',
         },
         {
-          key: 'javmost',
-          name: 'JavMost',
-          href: `https://www.javmost.ws/search/${encodedCode}/`,
-          icon: '/ico/javmost.ico',
+          key: 'jabel',
+          name: 'Jabel',
+          href: `https://jable.tv/videos/${encodedCode}/`,
+          icon: '/ico/jabel.ico',
         },
       ]
     : []
