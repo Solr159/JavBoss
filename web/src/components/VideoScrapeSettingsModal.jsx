@@ -63,7 +63,7 @@ export default function VideoScrapeSettingsModal({ open, video, saving = false, 
               onChange={() => setMode('auto')}
               disabled={saving}
             />
-            <span>{zh('自动刮削', 'Automatic scraping')}</span>
+            <span>{zh('自动刮削（根据文件名）', 'Automatic scraping (by filename)')}</span>
           </label>
           <label className="flex cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:border-blue-500">
             <input
