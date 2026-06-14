@@ -2,7 +2,9 @@ package jav
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -116,6 +118,92 @@ func TestParseAvmooCoverURLFromFixture(t *testing.T) {
 	}
 }
 
+func TestAvmooMovieInfoFromAPI(t *testing.T) {
+	var movie avmooAPIMovie
+	if err := json.Unmarshal([]byte(avmooAPIMovieFixture), &movie); err != nil {
+		t.Fatalf("unmarshal avmoo api fixture: %v", err)
+	}
+
+	info := avmooMovieInfoFromAPI(&movie)
+	if info == nil {
+		t.Fatal("expected info, got nil")
+	}
+	if info.Provider != ProviderAvmoo {
+		t.Fatalf("unexpected provider: %s", info.Provider.String())
+	}
+	if info.Code != "IPX-228" {
+		t.Fatalf("unexpected code: %q", info.Code)
+	}
+	if info.Title != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ" {
+		t.Fatalf("unexpected title: %q", info.Title)
+	}
+	if info.Studio != "アイデアポケット" {
+		t.Fatalf("unexpected studio: %q", info.Studio)
+	}
+	if info.Series != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交" {
+		t.Fatalf("unexpected series: %q", info.Series)
+	}
+	wantRelease := time.Date(2018, 11, 10, 0, 0, 0, 0, time.UTC).Unix()
+	if info.ReleaseUnix != wantRelease {
+		t.Fatalf("unexpected release unix: got %d want %d", info.ReleaseUnix, wantRelease)
+	}
+	if info.DurationMin != 171 {
+		t.Fatalf("unexpected duration: %d", info.DurationMin)
+	}
+
+	wantTags := []string{"花癡", "接吻", "流汗", "美少女", "校服", "單體作品", "DMM獨家", "數位馬賽克", "高畫質"}
+	if len(info.Tags) != len(wantTags) {
+		t.Fatalf("unexpected tags length: got %d want %d %#v", len(info.Tags), len(wantTags), info.Tags)
+	}
+	for i, tag := range wantTags {
+		if info.Tags[i] != tag {
+			t.Fatalf("unexpected tag at %d: got %q want %q", i, info.Tags[i], tag)
+		}
+	}
+	wantActors := []string{"岬ななみ"}
+	if len(info.Actors) != len(wantActors) {
+		t.Fatalf("unexpected actors length: got %d want %d", len(info.Actors), len(wantActors))
+	}
+	for i, actor := range wantActors {
+		if info.Actors[i] != actor {
+			t.Fatalf("unexpected actor at %d: got %q want %q", i, info.Actors[i], actor)
+		}
+	}
+}
+
+func TestFindAvmooAPISearchResultMatchesExactCode(t *testing.T) {
+	results := []avmooAPIMovie{
+		{MovieID: "wrong", MovieFanHao: "IPX-228R"},
+		{MovieID: "want", MovieFanHao: "IPX-228"},
+		{MovieID: "other", MovieFanHao: "IPX-229"},
+	}
+
+	got := findAvmooAPISearchResult(results, "ipx228")
+	if got == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if got.MovieID != "want" {
+		t.Fatalf("unexpected movie id: %q", got.MovieID)
+	}
+}
+
+func TestExtractAvmooCSRFToken(t *testing.T) {
+	body := `<meta name="csrf-param" content="_csrf"><meta name="csrf-token" content="abc123">`
+	if got := extractAvmooCSRFToken(body); got != "abc123" {
+		t.Fatalf("unexpected token: %q", got)
+	}
+}
+
+func TestAvmooCookieHeader(t *testing.T) {
+	got := avmooCookieHeader([]*http.Cookie{
+		{Name: "_csrf", Value: "token"},
+		{Name: "session", Value: "abc"},
+	})
+	if got != "_csrf=token; session=abc" {
+		t.Fatalf("unexpected cookie header: %q", got)
+	}
+}
+
 func TestAvmooRateLimiterSpacesRequests(t *testing.T) {
 	resetAvmooRateLimiterForTest()
 	t.Cleanup(resetAvmooRateLimiterForTest)
@@ -195,3 +283,37 @@ const avmooDetailFixture = `
   </div>
 </body>
 </html>`
+
+const avmooAPIMovieFixture = `{
+  "movieId": "kjgjdmv",
+  "movieFanHao": "IPX-228",
+  "title_ja": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ",
+  "releaseDate": "2018-11-10",
+  "length": 171,
+  "posterSmall": "https://jp.netcdn.space/digital/video/ipx00228/ipx00228ps.jpg",
+  "posterLarge": "https://jp.netcdn.space/digital/video/ipx00228/ipx00228pl.jpg",
+  "title": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ",
+  "series": {
+    "seriesName_ja": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交",
+    "seriesName": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交"
+  },
+  "studio": {
+    "studioName_ja": "アイデアポケット",
+    "studioName_en": "Idea Pocket",
+    "studioName": "アイデアポケット"
+  },
+  "genre": [
+    {"genreName_ja": "淫乱・ハード系", "genreName_en": "Nymphomaniac", "genreName_cn": "花痴", "genreName_tw": "花癡", "genreName": "花癡"},
+    {"genreName_ja": "キス・接吻", "genreName_en": "Kiss Kiss", "genreName_cn": "接吻", "genreName_tw": "接吻", "genreName": "接吻"},
+    {"genreName_ja": "汗だく", "genreName_en": "Sweating", "genreName_cn": "流汗", "genreName_tw": "流汗", "genreName": "流汗"},
+    {"genreName_ja": "美少女", "genreName_en": "Beautiful Girl", "genreName_cn": "美少女", "genreName_tw": "美少女", "genreName": "美少女"},
+    {"genreName_ja": "学生服", "genreName_en": "School Uniform", "genreName_cn": "校服", "genreName_tw": "校服", "genreName": "校服"},
+    {"genreName_ja": "単体作品", "genreName_en": "Featured Actress", "genreName_cn": "单体作品", "genreName_tw": "單體作品", "genreName": "單體作品"},
+    {"genreName_ja": "独占配信", "genreName_en": "DMM Exclusive", "genreName_cn": "DMM独家", "genreName_tw": "DMM獨家", "genreName": "DMM獨家"},
+    {"genreName_ja": "デジモ", "genreName_en": "Digital Mosaic", "genreName_cn": "数位马赛克", "genreName_tw": "數位馬賽克", "genreName": "數位馬賽克"},
+    {"genreName_ja": "ハイビジョン", "genreName_en": "Hi-Def", "genreName_cn": "高画质", "genreName_tw": "高畫質", "genreName": "高畫質"}
+  ],
+  "star": [
+    {"starName_ja": "岬ななみ", "starName": "岬ななみ"}
+  ]
+}`

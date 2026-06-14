@@ -1,10 +1,14 @@
 package jav
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -27,12 +31,98 @@ const (
 	avmooBaseURL         = "https://avmoo.shop"
 	avmooUserAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	avmooRequestInterval = 1500 * time.Millisecond
+	avmooAPILanguage     = "tw"
+	avmooAPISearchLimit  = 30
+	avmooLookupTimeout   = 90 * time.Second
+	avmooHTTPTimeout     = 30 * time.Second
+	avmooAPITries        = 3
+	avmooAPIRetryDelay   = 2 * time.Second
 )
 
 var avmooRateLimiter = struct {
 	sync.Mutex
 	next time.Time
 }{}
+
+var (
+	avmooHTTPClientOnce sync.Once
+	avmooHTTPClient     *http.Client
+)
+
+type avmooSession struct {
+	csrfToken string
+	cookie    string
+	referer   string
+}
+
+type avmooAPIEnvelope struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type avmooStatusError struct {
+	source  string
+	status  int
+	message string
+}
+
+func (e avmooStatusError) Error() string {
+	if strings.TrimSpace(e.message) != "" {
+		return fmt.Sprintf("avmoo: %s code %d: %s", e.source, e.status, e.message)
+	}
+	return fmt.Sprintf("avmoo: %s code %d", e.source, e.status)
+}
+
+type avmooAPIMovie struct {
+	MovieID     string          `json:"movieId"`
+	MovieFanHao string          `json:"movieFanHao"`
+	Title       string          `json:"title"`
+	TitleJA     string          `json:"title_ja"`
+	TitleEN     string          `json:"title_en"`
+	TitleCN     string          `json:"title_cn"`
+	TitleTW     string          `json:"title_tw"`
+	ReleaseDate string          `json:"releaseDate"`
+	Length      int             `json:"length"`
+	PosterSmall string          `json:"posterSmall"`
+	PosterLarge string          `json:"posterLarge"`
+	Studio      *avmooAPIStudio `json:"studio"`
+	Series      *avmooAPISeries `json:"series"`
+	Genre       []avmooAPIGenre `json:"genre"`
+	Star        []avmooAPIStar  `json:"star"`
+}
+
+type avmooAPIStudio struct {
+	StudioName   string `json:"studioName"`
+	StudioNameJA string `json:"studioName_ja"`
+	StudioNameEN string `json:"studioName_en"`
+	StudioNameCN string `json:"studioName_cn"`
+	StudioNameTW string `json:"studioName_tw"`
+}
+
+type avmooAPISeries struct {
+	SeriesName   string `json:"seriesName"`
+	SeriesNameJA string `json:"seriesName_ja"`
+	SeriesNameEN string `json:"seriesName_en"`
+	SeriesNameCN string `json:"seriesName_cn"`
+	SeriesNameTW string `json:"seriesName_tw"`
+}
+
+type avmooAPIGenre struct {
+	GenreName   string `json:"genreName"`
+	GenreNameJA string `json:"genreName_ja"`
+	GenreNameEN string `json:"genreName_en"`
+	GenreNameCN string `json:"genreName_cn"`
+	GenreNameTW string `json:"genreName_tw"`
+}
+
+type avmooAPIStar struct {
+	StarName   string `json:"starName"`
+	StarNameJA string `json:"starName_ja"`
+	StarNameEN string `json:"starName_en"`
+	StarNameCN string `json:"starName_cn"`
+	StarNameTW string `json:"starName_tw"`
+}
 
 // LookupActressByName implements lookupProvider.
 func (avmoo) LookupActressByName(name string) (*ActressInfo, error) {
@@ -56,14 +146,14 @@ func (avmoo) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), avmooLookupTimeout)
 	defer cancel()
 
-	doc, detailURL, err := fetchAvmooDetailByCode(ctx, code)
+	movie, err := fetchAvmooMovieByCode(ctx, code)
 	if err != nil {
 		return "", err
 	}
-	coverURL := parseAvmooCoverURL(doc, detailURL)
+	coverURL := firstNonEmpty(movie.PosterLarge, movie.PosterSmall)
 	if coverURL == "" {
 		return "", ResourceNotFonud
 	}
@@ -87,23 +177,276 @@ func (avmoo) LookupJavByCode(code string) (*JavInfo, error) {
 		return nil, ResourceNotFonud
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), avmooLookupTimeout)
 	defer cancel()
 
-	doc, detailURL, err := fetchAvmooDetailByCode(ctx, code)
+	movie, err := fetchAvmooMovieByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
-	info := parseAvmooMovieInfo(doc)
+	info := avmooMovieInfoFromAPI(movie)
 	if info == nil {
 		return nil, ResourceNotFonud
 	}
 	if info.Code == "" {
 		info.Code = code
 	}
-	info.CoverURL = parseAvmooCoverURL(doc, detailURL)
 	return info, nil
+}
+
+func fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, error) {
+	session, err := fetchAvmooSession(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	searchPayload := []any{
+		map[string]string{
+			"search": code,
+			"lang":   avmooAPILanguage,
+		},
+		avmooAPISearchLimit,
+		1,
+	}
+	var searchResults []avmooAPIMovie
+	if err := postAvmooAPI(ctx, session, "/jav/data/api/search", searchPayload, &searchResults); err != nil {
+		return nil, err
+	}
+
+	result := findAvmooAPISearchResult(searchResults, code)
+	if result == nil {
+		return nil, ResourceNotFonud
+	}
+	if strings.TrimSpace(result.MovieID) == "" {
+		return nil, ResourceNotFonud
+	}
+	detailPayload := []any{result.MovieID, avmooAPILanguage}
+	var movie avmooAPIMovie
+	if err := postAvmooAPI(ctx, session, "/jav/data/api/getMovie", detailPayload, &movie); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(movie.MovieFanHao) == "" {
+		movie.MovieFanHao = result.MovieFanHao
+	}
+	if strings.TrimSpace(movie.MovieID) == "" {
+		movie.MovieID = result.MovieID
+	}
+	return &movie, nil
+}
+
+func findAvmooAPISearchResult(results []avmooAPIMovie, code string) *avmooAPIMovie {
+	wantCode := normalizeAvmooCode(code)
+	for i := range results {
+		result := &results[i]
+		if normalizeAvmooCode(result.MovieFanHao) != wantCode {
+			continue
+		}
+		if strings.TrimSpace(result.MovieID) == "" {
+			continue
+		}
+		return result
+	}
+	return nil
+}
+
+func fetchAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+	pageURL := fmt.Sprintf("%s/%s/search/%s", avmooBaseURL, avmooAPILanguage, url.PathEscape(code))
+	req, err := buildAvmooRequest(ctx, pageURL, avmooBaseURL)
+	if err != nil {
+		return avmooSession{}, err
+	}
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+
+	logging.Info("avmoo request: %s", pageURL)
+	resp, err := doAvmooRequest(req)
+	if err != nil {
+		return avmooSession{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return avmooSession{}, err
+	}
+	logging.Info("avmoo response status: %s, length: %d bytes", resp.Status, len(body))
+
+	if resp.StatusCode == http.StatusNotFound {
+		return avmooSession{}, ResourceNotFonud
+	}
+	if resp.StatusCode != http.StatusOK {
+		return avmooSession{}, fmt.Errorf("avmoo: http %d", resp.StatusCode)
+	}
+
+	token := extractAvmooCSRFToken(string(body))
+	cookie := avmooCookieHeader(resp.Cookies())
+	if token == "" || cookie == "" {
+		return avmooSession{}, errors.New("avmoo: missing csrf session")
+	}
+	return avmooSession{
+		csrfToken: token,
+		cookie:    cookie,
+		referer:   pageURL,
+	}, nil
+}
+
+func postAvmooAPI(ctx context.Context, session avmooSession, path string, payload any, out any) error {
+	var lastErr error
+	for attempt := 1; attempt <= avmooAPITries; attempt++ {
+		err := postAvmooAPIOnce(ctx, session, path, payload, out)
+		if err == nil || errors.Is(err, ResourceNotFonud) {
+			return err
+		}
+		lastErr = err
+		if attempt == avmooAPITries || !shouldRetryAvmooAPIError(err) {
+			break
+		}
+		logging.Info("avmoo api retry after error: %v", err)
+		timer := time.NewTimer(avmooAPIRetryDelay)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return lastErr
+}
+
+func shouldRetryAvmooAPIError(err error) bool {
+	if err == nil || errors.Is(err, ResourceNotFonud) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	var statusErr avmooStatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.status == http.StatusTooManyRequests || statusErr.status >= http.StatusInternalServerError
+	}
+	return false
+}
+
+func postAvmooAPIOnce(ctx context.Context, session avmooSession, path string, payload any, out any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	targetURL := avmooBaseURL + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", avmooUserAgent)
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "zh-TW,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", avmooBaseURL)
+	req.Header.Set("Referer", session.referer)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("X-CSRF-Token", session.csrfToken)
+	req.Header.Set("Cookie", session.cookie)
+
+	logging.Info("avmoo request: %s", targetURL)
+	resp, err := doAvmooRequest(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	logging.Info("avmoo response status: %s, length: %d bytes", resp.Status, len(raw))
+
+	if resp.StatusCode == http.StatusNotFound {
+		return ResourceNotFonud
+	}
+	if resp.StatusCode != http.StatusOK {
+		return avmooStatusError{source: "http", status: resp.StatusCode}
+	}
+
+	var envelope avmooAPIEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return fmt.Errorf("avmoo: parse api response: %w", err)
+	}
+	if envelope.Code == http.StatusNotFound {
+		return ResourceNotFonud
+	}
+	if envelope.Code != http.StatusOK {
+		return avmooStatusError{source: "api", status: envelope.Code, message: envelope.Message}
+	}
+	if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
+		return ResourceNotFonud
+	}
+	if err := json.Unmarshal(envelope.Data, out); err != nil {
+		return fmt.Errorf("avmoo: parse api data: %w", err)
+	}
+	return nil
+}
+
+func avmooMovieInfoFromAPI(movie *avmooAPIMovie) *JavInfo {
+	if movie == nil {
+		return nil
+	}
+	info := &JavInfo{
+		Title:       firstNonEmpty(movie.Title, movie.TitleTW, movie.TitleCN, movie.TitleJA, movie.TitleEN),
+		Code:        strings.TrimSpace(movie.MovieFanHao),
+		ReleaseUnix: parseDateUnix(movie.ReleaseDate),
+		DurationMin: movie.Length,
+		CoverURL:    firstNonEmpty(movie.PosterLarge, movie.PosterSmall),
+		Provider:    ProviderAvmoo,
+	}
+	if movie.Studio != nil {
+		info.Studio = firstNonEmpty(movie.Studio.StudioName, movie.Studio.StudioNameTW, movie.Studio.StudioNameCN, movie.Studio.StudioNameJA, movie.Studio.StudioNameEN)
+	}
+	if movie.Series != nil {
+		info.Series = firstNonEmpty(movie.Series.SeriesName, movie.Series.SeriesNameTW, movie.Series.SeriesNameCN, movie.Series.SeriesNameJA, movie.Series.SeriesNameEN)
+	}
+	for _, genre := range movie.Genre {
+		info.Tags = append(info.Tags, firstNonEmpty(genre.GenreName, genre.GenreNameTW, genre.GenreNameCN, genre.GenreNameJA, genre.GenreNameEN))
+	}
+	for _, star := range movie.Star {
+		info.Actors = append(info.Actors, firstNonEmpty(star.StarName, star.StarNameTW, star.StarNameCN, star.StarNameJA, star.StarNameEN))
+	}
+	info.Tags = dedupeNonEmpty(info.Tags)
+	info.Actors = dedupeNonEmpty(info.Actors)
+	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+		return nil
+	}
+	return info
+}
+
+func extractAvmooCSRFToken(body string) string {
+	re := regexp.MustCompile(`<meta\s+name=["']csrf-token["']\s+content=["']([^"']+)["']`)
+	match := re.FindStringSubmatch(body)
+	if len(match) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(match[1])
+}
+
+func avmooCookieHeader(cookies []*http.Cookie) string {
+	var parts []string
+	for _, cookie := range cookies {
+		if cookie == nil || strings.TrimSpace(cookie.Name) == "" {
+			continue
+		}
+		parts = append(parts, cookie.Name+"="+cookie.Value)
+	}
+	return strings.Join(parts, "; ")
 }
 
 func fetchAvmooDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
@@ -171,7 +514,21 @@ func doAvmooRequest(req *http.Request) (*http.Response, error) {
 	if err := waitForAvmooRateLimit(req.Context()); err != nil {
 		return nil, err
 	}
-	return util.DoRequest(req)
+	return defaultAvmooHTTPClient().Do(req)
+}
+
+func defaultAvmooHTTPClient() *http.Client {
+	avmooHTTPClientOnce.Do(func() {
+		avmooHTTPClient = util.NewHTTPClientWithTransport(avmooHTTPTimeout, func(t *http.Transport) {
+			t.ForceAttemptHTTP2 = false
+			t.DisableCompression = true
+			t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
+			t.MaxIdleConns = 50
+			t.MaxIdleConnsPerHost = 5
+			t.MaxConnsPerHost = 5
+		})
+	})
+	return avmooHTTPClient
 }
 
 func waitForAvmooRateLimit(ctx context.Context) error {

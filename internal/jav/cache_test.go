@@ -127,6 +127,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			want:     "v1:jav:javdatabase:lookup_cover:ABC-001",
 		},
 		{
+			name:     "avmoo cover uses provider version",
+			provider: ProviderAvmoo,
+			method:   "lookup_cover",
+			input:    "abc-001",
+			want:     "v2:jav:avmoo:lookup_cover:ABC-001",
+		},
+		{
 			name:     "javdb actress url uses fallback version",
 			provider: ProviderJavDB,
 			method:   "lookup_actress_url_code_name",
