@@ -396,7 +396,7 @@ func acquireSingleInstanceLock(path string, logger *log.Logger) (*util.FileLock,
 	lock, err := util.AcquireFileLock(path)
 	if err != nil {
 		if errors.Is(err, util.ErrLockHeld) {
-			fmt.Println("JavBoss/PornBoss 已在运行，无法重复启动。")
+			fmt.Println("JavBoss 已在运行，无法重复启动。")
 			waitForUserExit()
 			return nil, false
 		}
