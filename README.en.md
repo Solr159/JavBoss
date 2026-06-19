@@ -3,9 +3,9 @@
 <p align="center">An all-in-one solution for local adult video collections: automatically scan folders, generate cover screenshots, detect JAV titles and fetch metadata, provide powerful search for videos and JAV titles, and play videos quickly through the bundled mpv player.</p>
 
 <p align="center">
-  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/javboss?display_name=tag"></a>
-  <a href="https://github.com/JavBoss/javboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/javboss?style=social"></a>
-  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/Solr159/JavBoss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/JavBoss?display_name=tag"></a>
+  <a href="https://github.com/Solr159/JavBoss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/JavBoss?style=social"></a>
+  <a href="https://github.com/Solr159/JavBoss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
