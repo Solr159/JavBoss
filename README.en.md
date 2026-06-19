@@ -1,11 +1,11 @@
-<h1 align="center">Pornboss</h1>
+<h1 align="center">JavBoss</h1>
 
 <p align="center">An all-in-one solution for local adult video collections: automatically scan folders, generate cover screenshots, detect JAV titles and fetch metadata, provide powerful search for videos and JAV titles, and play videos quickly through the bundled mpv player.</p>
 
 <p align="center">
-  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/pornboss?display_name=tag"></a>
-  <a href="https://github.com/Solr159/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/pornboss?style=social"></a>
-  <a href="https://github.com/Solr159/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/javboss?display_name=tag"></a>
+  <a href="https://github.com/JavBoss/javboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/javboss?style=social"></a>
+  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
@@ -13,13 +13,13 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
-## What Is Pornboss?
+## What Is JavBoss?
 
-Pornboss is a local web app that provides full-featured, automated management for local adult video collections, with especially strong support for managing and searching Japanese AV.
+JavBoss is a local web app that provides full-featured, automated management for local adult video collections, with especially strong support for managing and searching Japanese AV.
 
-The browsing experience is somewhat similar to JavDb, JavBus, and JavLibrary, but Pornboss optimizes and extends that style for a more direct, powerful, and user-friendly local media library experience.
+The browsing experience is somewhat similar to JavDb, JavBus, and JavLibrary, but JavBoss optimizes and extends that style for a more direct, powerful, and user-friendly local media library experience.
 
-If you do not want to deal with complex tools or configuration and just want to import your library and start browsing comfortably, Pornboss is the ideal choice.
+If you do not want to deal with complex tools or configuration and just want to import your library and start browsing comfortably, JavBoss is the ideal choice.
 
 ## Quick Start
 
@@ -27,20 +27,20 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 Click the link for your system, download the latest release package, and extract it:
 
-- [Windows](https://github.com/Solr159/PornBoss/releases/download/v1.6.2/pornboss-v1.6.2-windows-x86_64.zip)
-- [Linux](https://github.com/Solr159/PornBoss/releases/download/v1.6.2/pornboss-v1.6.2-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/Solr159/PornBoss/releases/download/v1.6.2/pornboss-v1.6.2-macos-x86_64.zip) for Intel-based macOS
-- [macOS-arm64](https://github.com/Solr159/PornBoss/releases/download/v1.6.2/pornboss-v1.6.2-macos-arm64.zip) for Apple Silicon macOS
+- [Windows](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-windows-x86_64.zip)
+- [Linux](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-macos-x86_64.zip) for Intel-based macOS
+- [macOS-arm64](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-macos-arm64.zip) for Apple Silicon macOS
 
-You can also visit the [Releases](https://github.com/Solr159/pornboss/releases) page to view all versions.
+You can also visit the [Releases](https://github.com/JavBoss/javboss/releases) page to view all versions.
 
 ### 2. Start The App
 
-- Windows: double-click `pornboss.exe`. If SmartScreen blocks it on first launch, click "More info" and continue.
-- macOS: open a terminal and run `pornboss.command`.
-- Linux: open a terminal and run `pornboss`.
+- Windows: double-click `javboss.exe`. If SmartScreen blocks it on first launch, click "More info" and continue.
+- macOS: open a terminal and run `javboss.command`.
+- Linux: open a terminal and run `javboss`.
 
-After launch, Pornboss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while Pornboss is running.
+After launch, JavBoss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while JavBoss is running.
 
 ### 3. Set JAV Metadata Language
 
@@ -54,22 +54,22 @@ Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `Engli
 
 ## Core Philosophy
 
-- **Ready to use, with no external dependencies**: Pornboss includes all runtime dependencies it needs. Add your local folders, wait a short moment, and start using it right away.
+- **Ready to use, with no external dependencies**: JavBoss includes all runtime dependencies it needs. Add your local folders, wait a short moment, and start using it right away.
 <br>
 
-- **Fully automated managed folder service**: Pornboss provides a managed service for local media folders. Once folder contents change in any way, all data updates are handled automatically by Pornboss. You can think of Pornboss as maintaining a real-time, complete mapping of your folder contents. Data updates take time, so they are not zero-latency, but Pornboss guarantees eventual consistency.
+- **Fully automated managed folder service**: JavBoss provides a managed service for local media folders. Once folder contents change in any way, all data updates are handled automatically by JavBoss. You can think of JavBoss as maintaining a real-time, complete mapping of your folder contents. Data updates take time, so they are not zero-latency, but JavBoss guarantees eventual consistency.
 <br>
 
-- **Non-intrusive design**: Pornboss respects your media folders. It only reads folder contents and never modifies them, so you do not need to worry about generated junk such as `.nfo` files or cover images appearing inside your own folders. This also lets Pornboss work alongside other video managers without interfering with them.
+- **Non-intrusive design**: JavBoss respects your media folders. It only reads folder contents and never modifies them, so you do not need to worry about generated junk such as `.nfo` files or cover images appearing inside your own folders. This also lets JavBoss work alongside other video managers without interfering with them.
 <br>
 
-- **Data that stays safe**: All Pornboss data is stored in the project's `data/` directory. As long as you keep `data/` safe, your library data remains available when upgrading or moving to another computer.
+- **Data that stays safe**: All JavBoss data is stored in the project's `data/` directory. As long as you keep `data/` safe, your library data remains available when upgrading or moving to another computer.
 
 ## ✨ Features
 
 ### 1. 🔎 Powerful JAV Metadata Collection And Search
 
-Pornboss extracts JAV codes from filenames, including common patterns such as `IPX-633`, `SSIS-001`, and `ipx633_ch`, then places recognized videos into the JAV library.
+JavBoss extracts JAV codes from filenames, including common patterns such as `IPX-633`, `SSIS-001`, and `ipx633_ch`, then places recognized videos into the JAV library.
 
 - Integrates multiple data sources internally, including javbus, avmoo, theporndb, and javdatabase, and fetches each type of information from the most suitable source.
 - Automatically fetches title, release date, cover art, actresses, tags, and other basic metadata.
@@ -82,7 +82,7 @@ Pornboss extracts JAV codes from filenames, including common patterns such as `I
 
 ### 2. 📁 Smart Folder Management And Portable Data
 
-After you add local media folders, Pornboss continuously syncs their contents in the background. Folder changes are detected and refreshed promptly, so newly added, removed, or moved files are reflected in the media library. Indexed videos can be browsed immediately while scanning and metadata completion continue in the background.
+After you add local media folders, JavBoss continuously syncs their contents in the background. Folder changes are detected and refreshed promptly, so newly added, removed, or moved files are reflected in the media library. Indexed videos can be browsed immediately while scanning and metadata completion continue in the background.
 
 - Supports multiple media folders, including local disks, NAS mounts, and removable drives.
 - Automatically generates video cover screenshots, stores video fingerprints, and tries to associate videos with JAV codes based on filenames.
@@ -93,7 +93,7 @@ After you add local media folders, Pornboss continuously syncs their contents in
 
 ### 3. ⏯️ Built-In mpv Playback
 
-Pornboss integrates [mpv](https://github.com/mpv-player/mpv) playback, so clicking a video can launch a lightweight, high-performance local player that handles large files, high bitrates, and many common video formats.
+JavBoss integrates [mpv](https://github.com/mpv-player/mpv) playback, so clicking a video can launch a lightweight, high-performance local player that handles large files, high bitrates, and many common video formats.
 
 - Plays the original local file through mpv, avoiding browser playback format limitations.
 - Supports playback options such as default volume, window size, and always-on-top behavior.
@@ -169,14 +169,14 @@ After downloading and extracting a new version, copy the old version's `data/` d
 
 ## Notes
 
-- Pornboss is a local media library manager, not an online streaming site.
+- JavBoss is a local media library manager, not an online streaming site.
 - Initial JAV metadata and cover fetching depend on external website availability. If access is restricted in your region, prepare a working network/proxy environment yourself.
 - When importing a large library for the first time, scanning, cover downloads, metadata completion, and thumbnail generation can take some time.
-- The release package includes a `config.toml` file in its root directory. By default `port = 0`, so Pornboss uses a random startup port. You can change it any time if you need a fixed port.
+- The release package includes a `config.toml` file in its root directory. By default `port = 0`, so JavBoss uses a random startup port. You can change it any time if you need a fixed port.
 
 ## Q&A
 
-- Q: Why is Pornboss a local web app instead of a desktop app?
+- Q: Why is JavBoss a local web app instead of a desktop app?
 - A: This is not a technical limitation. It is mainly a user experience choice. For example, browsers have several unique advantages:
   1. If you want to view JAV titles from actress A and actress B while searching for videos containing keyword C, you can simply open multiple browser tabs.
   2. If you want to open a new page without losing the current page, use Ctrl + click or right-click and choose to open it in a new tab.
@@ -185,13 +185,13 @@ After downloading and extracting a new version, copy the old version's `data/` d
 
 <br>
 
-- Q: Do I need to keep external network access available while using Pornboss?
-- A: No. Pornboss reads all existing information from the `data/` directory, and anything you have already seen remains available offline. Without external network access, Pornboss cannot continue fetching or updating JAV information, but already indexed information is not affected.
+- Q: Do I need to keep external network access available while using JavBoss?
+- A: No. JavBoss reads all existing information from the `data/` directory, and anything you have already seen remains available offline. Without external network access, JavBoss cannot continue fetching or updating JAV information, but already indexed information is not affected.
 
 <br>
 
 - Q: After adding a folder, how do I know when scanning is finished? Do I need to wait?
-- A: No. Pornboss scans and completes metadata in the background, so you can start using it right after adding a folder. You can also close the app at any time; scanning will continue the next time it starts.
+- A: No. JavBoss scans and completes metadata in the background, so you can start using it right after adding a folder. You can also close the app at any time; scanning will continue the next time it starts.
 
 <br>
 
@@ -201,22 +201,22 @@ After downloading and extracting a new version, copy the old version's `data/` d
 <br>
 
 - Q: How do I add newly downloaded videos or remove videos I no longer want?
-- A: Move videos into or out of a managed folder. Pornboss syncs folder state, so additions, moves, and removals are reflected in the library.
+- A: Move videos into or out of a managed folder. JavBoss syncs folder state, so additions, moves, and removals are reflected in the library.
 
 <br>
 
-- Q: My video folder is on a removable drive. Will data be lost if I start Pornboss without the drive connected?
-- A: No. When a folder is unavailable, Pornboss keeps the indexed data. The library will reappear after the drive is connected again.
+- Q: My video folder is on a removable drive. Will data be lost if I start JavBoss without the drive connected?
+- A: No. When a folder is unavailable, JavBoss keeps the indexed data. The library will reappear after the drive is connected again.
 
 <br>
 
 - Q: One removable drive is running out of space. What should I do if I need to move the folder to a new drive?
-- A: Move the folder directly, then update its path in `Directory Management`. You do not need to worry about data loss; Pornboss will handle it.
+- A: Move the folder directly, then update its path in `Directory Management`. You do not need to worry about data loss; JavBoss will handle it.
 
 <br>
 
 - Q: How do I migrate to another computer?
-- A: For the same operating system, copy the entire Pornboss directory to the new computer and run it directly. For cross-platform migration, download the matching Pornboss package on the new computer, then copy the old computer's `data/` directory into the new Pornboss directory. If your video folder paths also changed, update them manually in `Directory Management`.
+- A: For the same operating system, copy the entire JavBoss directory to the new computer and run it directly. For cross-platform migration, download the matching JavBoss package on the new computer, then copy the old computer's `data/` directory into the new JavBoss directory. If your video folder paths also changed, update them manually in `Directory Management`.
 
 ## Developer Notes
 
