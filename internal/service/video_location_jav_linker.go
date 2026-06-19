@@ -195,6 +195,13 @@ func normalizeJavScrapeOverride(raw string) string {
 	if strings.EqualFold(raw, models.JavScrapeOverrideSkip) {
 		return models.JavScrapeOverrideSkip
 	}
+	if strings.HasPrefix(strings.ToLower(raw), models.JavScrapeOverrideManualPrefix) {
+		code := strings.TrimSpace(raw[len(models.JavScrapeOverrideManualPrefix):])
+		if code == "" {
+			return ""
+		}
+		return models.JavScrapeOverrideManualPrefix + strings.ToUpper(code)
+	}
 	return strings.ToUpper(raw)
 }
 
@@ -202,6 +209,9 @@ func forcedJavScrapeCode(override string) string {
 	override = normalizeJavScrapeOverride(override)
 	if override == "" || override == models.JavScrapeOverrideSkip {
 		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(override), models.JavScrapeOverrideManualPrefix) {
+		return strings.TrimSpace(override[len(models.JavScrapeOverrideManualPrefix):])
 	}
 	return override
 }

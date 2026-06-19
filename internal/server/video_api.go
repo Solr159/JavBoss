@@ -605,7 +605,8 @@ func manualVideoJavScrape(c *gin.Context) {
 		return
 	}
 
-	if _, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, info.Code); err != nil {
+	manualOverride := models.JavScrapeOverrideManualPrefix + info.Code
+	if _, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, manualOverride); err != nil {
 		logging.Error("manual jav scrape update override failed video=%d code=%s: %v", id, info.Code, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return

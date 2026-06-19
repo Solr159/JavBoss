@@ -227,6 +227,53 @@ func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
 	}
 }
 
+func TestUpdateVideoJavScrapeOverrideManualPrefixKeepsMatchingLinks(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	video := models.Video{
+		Fingerprint: "video-fp-manual-scrape-override",
+		DurationSec: 1800,
+		CreatedAt:   now,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
+	if err != nil {
+		t.Fatalf("upsert video location: %v", err)
+	}
+	javRec := models.Jav{Code: "ABC-001", Title: "recognized"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	if err := SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
+		t.Fatalf("set jav id: %v", err)
+	}
+
+	override := models.JavScrapeOverrideManualPrefix + "ABC-001"
+	updated, err := UpdateVideoJavScrapeOverride(ctx, video.ID, override)
+	if err != nil {
+		t.Fatalf("update scrape override: %v", err)
+	}
+	if updated == nil || updated.JavScrapeOverride != override {
+		t.Fatalf("unexpected updated video: %#v", updated)
+	}
+
+	var reloaded models.VideoLocation
+	if err := gdb.First(&reloaded, loc.ID).Error; err != nil {
+		t.Fatalf("reload location: %v", err)
+	}
+	if reloaded.JavID == nil || *reloaded.JavID != javRec.ID {
+		t.Fatalf("jav link should be kept: %#v", reloaded.JavID)
+	}
+}
+
 func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

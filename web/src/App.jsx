@@ -54,6 +54,7 @@ import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 
 const JAV_STUDIO_PAGE_SIZE = 24
 const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
+const JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX = ':manual:'
 
 const normalizeDefaultPlayer = (value) =>
   String(value || '')
@@ -73,10 +74,13 @@ function applyScrapeOverrideToVideo(video, override) {
   const nextOverride = String(override || '').trim()
   const next = { ...video, jav_scrape_override: nextOverride }
   if (!nextOverride) return next
+  const effectiveOverride = nextOverride.toLowerCase().startsWith(JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX)
+    ? nextOverride.slice(JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX.length).trim()
+    : nextOverride
   const linkedCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '')
     .trim()
     .toUpperCase()
-  if (nextOverride !== JAV_SCRAPE_OVERRIDE_SKIP && linkedCode === nextOverride.toUpperCase()) {
+  if (nextOverride !== JAV_SCRAPE_OVERRIDE_SKIP && linkedCode === effectiveOverride.toUpperCase()) {
     return next
   }
   return {

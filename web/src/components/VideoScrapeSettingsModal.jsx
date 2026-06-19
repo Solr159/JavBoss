@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { zh } from '@/utils/i18n'
 
 const SKIP_OVERRIDE = ':skip'
+const MANUAL_OVERRIDE_PREFIX = ':manual:'
 
 const emptyManualInfo = {
   code: '',
@@ -20,6 +21,9 @@ function initialState(video) {
   const override = String(video?.jav_scrape_override || '').trim()
   if (override === SKIP_OVERRIDE) {
     return { mode: 'skip', code: '' }
+  }
+  if (override.toLowerCase().startsWith(MANUAL_OVERRIDE_PREFIX)) {
+    return { mode: 'manual', code: override.slice(MANUAL_OVERRIDE_PREFIX.length).trim() }
   }
   if (override) {
     return { mode: 'code', code: override }

@@ -26,3 +26,4 @@ type Video struct {
 }
 
 const JavScrapeOverrideSkip = ":skip"
+const JavScrapeOverrideManualPrefix = ":manual:"

@@ -22,3 +22,10 @@ func TestJavLinkProvidersExcludesJavDB(t *testing.T) {
 		t.Fatalf("javLinkProviders() = %#v, want %#v", got, want)
 	}
 }
+
+func TestForcedJavScrapeCodeSupportsManualOverride(t *testing.T) {
+	got := forcedJavScrapeCode(":manual:abc-001")
+	if got != "ABC-001" {
+		t.Fatalf("forcedJavScrapeCode() = %q, want ABC-001", got)
+	}
+}

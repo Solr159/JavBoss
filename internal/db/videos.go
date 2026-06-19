@@ -209,6 +209,7 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 		return nil, errors.New("video id cannot be zero")
 	}
 	override = strings.TrimSpace(override)
+	overrideCode := javScrapeOverrideCode(override)
 
 	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&models.Video{}).
@@ -232,7 +233,7 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 					SELECT 1 FROM jav
 					WHERE jav.id = video_location.jav_id
 						AND UPPER(jav.code) = ?
-				)`, strings.ToUpper(override))
+				)`, strings.ToUpper(overrideCode))
 		}
 		if err := clearLinks.UpdateColumn("jav_id", nil).Error; err != nil {
 			return fmt.Errorf("clear video location jav links: %w", err)
@@ -246,6 +247,17 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 	}
 
 	return GetVideo(ctx, videoID)
+}
+
+func javScrapeOverrideCode(override string) string {
+	override = strings.TrimSpace(override)
+	if strings.EqualFold(override, models.JavScrapeOverrideSkip) {
+		return ""
+	}
+	if strings.HasPrefix(strings.ToLower(override), models.JavScrapeOverrideManualPrefix) {
+		return strings.TrimSpace(override[len(models.JavScrapeOverrideManualPrefix):])
+	}
+	return override
 }
 
 // ClearVideoLocationJavIDForVideo clears one active scan target before a forced
