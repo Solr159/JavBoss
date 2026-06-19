@@ -1,7 +1,9 @@
 package jav
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -188,6 +190,71 @@ func TestAvsoxMovieInfoFromAPI(t *testing.T) {
 		if info.Actors[i] != actor {
 			t.Fatalf("unexpected actor at %d: got %q want %q", i, info.Actors[i], actor)
 		}
+	}
+}
+
+func TestAvsoxSessionAuthErrorDetection(t *testing.T) {
+	authErrors := []error{
+		avsoxStatusError{source: "http", status: http.StatusBadRequest},
+		avsoxStatusError{source: "http", status: http.StatusUnauthorized},
+		avsoxStatusError{source: "http", status: http.StatusForbidden},
+		avsoxStatusError{source: "api", status: 419},
+	}
+	for _, err := range authErrors {
+		if !isAvsoxSessionAuthError(err) {
+			t.Fatalf("expected auth error for %v", err)
+		}
+	}
+
+	nonAuthErrors := []error{
+		nil,
+		ResourceNotFonud,
+		avsoxStatusError{source: "http", status: http.StatusTooManyRequests},
+		avsoxStatusError{source: "http", status: http.StatusInternalServerError},
+	}
+	for _, err := range nonAuthErrors {
+		if isAvsoxSessionAuthError(err) {
+			t.Fatalf("unexpected auth error for %v", err)
+		}
+	}
+}
+
+func TestAvsoxSessionCacheReuseAndInvalidate(t *testing.T) {
+	session := avsoxSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avsox.click/cn/search/030919_047"}
+	avsoxSessionCache.Lock()
+	avsoxSessionCache.session = session
+	avsoxSessionCache.expiresAt = time.Now().Add(time.Minute)
+	avsoxSessionCache.Unlock()
+	t.Cleanup(func() {
+		avsoxSessionCache.Lock()
+		avsoxSessionCache.session = avsoxSession{}
+		avsoxSessionCache.expiresAt = time.Time{}
+		avsoxSessionCache.Unlock()
+	})
+
+	got, err := cachedAvsoxSession(context.Background(), "030919_048")
+	if err != nil {
+		t.Fatalf("cachedAvsoxSession: %v", err)
+	}
+	if got != session {
+		t.Fatalf("unexpected cached session: %#v", got)
+	}
+
+	invalidateCachedAvsoxSession(avsoxSession{csrfToken: "other", cookie: "cookie=value"})
+	avsoxSessionCache.Lock()
+	stillCached := avsoxSessionCache.session
+	avsoxSessionCache.Unlock()
+	if stillCached != session {
+		t.Fatalf("session was invalidated by non-matching token: %#v", stillCached)
+	}
+
+	invalidateCachedAvsoxSession(session)
+	avsoxSessionCache.Lock()
+	cleared := avsoxSessionCache.session
+	expiresAt := avsoxSessionCache.expiresAt
+	avsoxSessionCache.Unlock()
+	if cleared != (avsoxSession{}) || !expiresAt.IsZero() {
+		t.Fatalf("session cache was not cleared: session=%#v expires=%s", cleared, expiresAt)
 	}
 }
 

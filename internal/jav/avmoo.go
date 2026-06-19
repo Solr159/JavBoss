@@ -37,6 +37,7 @@ const (
 	avmooHTTPTimeout     = 30 * time.Second
 	avmooAPITries        = 3
 	avmooAPIRetryDelay   = 2 * time.Second
+	avmooSessionTTL      = 30 * time.Minute
 )
 
 var avmooRateLimiter = struct {
@@ -48,6 +49,12 @@ var (
 	avmooHTTPClientOnce sync.Once
 	avmooHTTPClient     *http.Client
 )
+
+var avmooSessionCache = struct {
+	sync.Mutex
+	session   avmooSession
+	expiresAt time.Time
+}{}
 
 type avmooSession struct {
 	csrfToken string
@@ -196,11 +203,25 @@ func (avmoo) LookupJavByCode(code string) (*JavInfo, error) {
 }
 
 func fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, error) {
-	session, err := fetchAvmooSession(ctx, code)
+	session, err := cachedAvmooSession(ctx, code)
 	if err != nil {
 		return nil, err
 	}
+	movie, err := fetchAvmooMovieWithSession(ctx, session, code)
+	if !isAvmooSessionAuthError(err) {
+		return movie, err
+	}
 
+	invalidateCachedAvmooSession(session)
+	logging.Info("avmoo session expired, refreshing")
+	session, err = refreshAvmooSession(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	return fetchAvmooMovieWithSession(ctx, session, code)
+}
+
+func fetchAvmooMovieWithSession(ctx context.Context, session avmooSession, code string) (*avmooAPIMovie, error) {
 	searchPayload := []any{
 		map[string]string{
 			"search": code,
@@ -233,6 +254,52 @@ func fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, er
 		movie.MovieID = result.MovieID
 	}
 	return &movie, nil
+}
+
+func cachedAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+	now := time.Now()
+	avmooSessionCache.Lock()
+	session := avmooSessionCache.session
+	if session.csrfToken != "" && session.cookie != "" && now.Before(avmooSessionCache.expiresAt) {
+		avmooSessionCache.Unlock()
+		return session, nil
+	}
+	avmooSessionCache.Unlock()
+	return refreshAvmooSession(ctx, code)
+}
+
+func refreshAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+	session, err := fetchAvmooSession(ctx, code)
+	if err != nil {
+		return avmooSession{}, err
+	}
+	avmooSessionCache.Lock()
+	avmooSessionCache.session = session
+	avmooSessionCache.expiresAt = time.Now().Add(avmooSessionTTL)
+	avmooSessionCache.Unlock()
+	return session, nil
+}
+
+func invalidateCachedAvmooSession(session avmooSession) {
+	avmooSessionCache.Lock()
+	if avmooSessionCache.session.csrfToken == session.csrfToken && avmooSessionCache.session.cookie == session.cookie {
+		avmooSessionCache.session = avmooSession{}
+		avmooSessionCache.expiresAt = time.Time{}
+	}
+	avmooSessionCache.Unlock()
+}
+
+func isAvmooSessionAuthError(err error) bool {
+	var statusErr avmooStatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	switch statusErr.status {
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, 419:
+		return true
+	default:
+		return false
+	}
 }
 
 func findAvmooAPISearchResult(results []avmooAPIMovie, code string) *avmooAPIMovie {

@@ -36,6 +36,7 @@ const (
 	avsoxHTTPTimeout     = 30 * time.Second
 	avsoxAPITries        = 3
 	avsoxAPIRetryDelay   = 2 * time.Second
+	avsoxSessionTTL      = 30 * time.Minute
 )
 
 var avsoxRateLimiter = struct {
@@ -47,6 +48,12 @@ var (
 	avsoxHTTPClientOnce sync.Once
 	avsoxHTTPClient     *http.Client
 )
+
+var avsoxSessionCache = struct {
+	sync.Mutex
+	session   avsoxSession
+	expiresAt time.Time
+}{}
 
 type avsoxSession struct {
 	csrfToken string
@@ -195,11 +202,25 @@ func (avsox) LookupJavByCode(code string) (*JavInfo, error) {
 }
 
 func fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
-	session, err := fetchAvsoxSession(ctx, code)
+	session, err := cachedAvsoxSession(ctx, code)
 	if err != nil {
 		return nil, err
 	}
+	movie, err := fetchAvsoxMovieWithSession(ctx, session, code)
+	if !isAvsoxSessionAuthError(err) {
+		return movie, err
+	}
 
+	invalidateCachedAvsoxSession(session)
+	logging.Info("avsox session expired, refreshing")
+	session, err = refreshAvsoxSession(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	return fetchAvsoxMovieWithSession(ctx, session, code)
+}
+
+func fetchAvsoxMovieWithSession(ctx context.Context, session avsoxSession, code string) (*avsoxAPIMovie, error) {
 	searchPayload := []any{
 		map[string]string{
 			"search": code,
@@ -232,6 +253,52 @@ func fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, er
 		movie.MovieID = result.MovieID
 	}
 	return &movie, nil
+}
+
+func cachedAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+	now := time.Now()
+	avsoxSessionCache.Lock()
+	session := avsoxSessionCache.session
+	if session.csrfToken != "" && session.cookie != "" && now.Before(avsoxSessionCache.expiresAt) {
+		avsoxSessionCache.Unlock()
+		return session, nil
+	}
+	avsoxSessionCache.Unlock()
+	return refreshAvsoxSession(ctx, code)
+}
+
+func refreshAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+	session, err := fetchAvsoxSession(ctx, code)
+	if err != nil {
+		return avsoxSession{}, err
+	}
+	avsoxSessionCache.Lock()
+	avsoxSessionCache.session = session
+	avsoxSessionCache.expiresAt = time.Now().Add(avsoxSessionTTL)
+	avsoxSessionCache.Unlock()
+	return session, nil
+}
+
+func invalidateCachedAvsoxSession(session avsoxSession) {
+	avsoxSessionCache.Lock()
+	if avsoxSessionCache.session.csrfToken == session.csrfToken && avsoxSessionCache.session.cookie == session.cookie {
+		avsoxSessionCache.session = avsoxSession{}
+		avsoxSessionCache.expiresAt = time.Time{}
+	}
+	avsoxSessionCache.Unlock()
+}
+
+func isAvsoxSessionAuthError(err error) bool {
+	var statusErr avsoxStatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	switch statusErr.status {
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, 419:
+		return true
+	default:
+		return false
+	}
 }
 
 func findAvsoxAPISearchResult(results []avsoxAPIMovie, code string) *avsoxAPIMovie {

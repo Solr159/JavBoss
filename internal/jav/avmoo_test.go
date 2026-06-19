@@ -187,6 +187,71 @@ func TestFindAvmooAPISearchResultMatchesExactCode(t *testing.T) {
 	}
 }
 
+func TestAvmooSessionAuthErrorDetection(t *testing.T) {
+	authErrors := []error{
+		avmooStatusError{source: "http", status: http.StatusBadRequest},
+		avmooStatusError{source: "http", status: http.StatusUnauthorized},
+		avmooStatusError{source: "http", status: http.StatusForbidden},
+		avmooStatusError{source: "api", status: 419},
+	}
+	for _, err := range authErrors {
+		if !isAvmooSessionAuthError(err) {
+			t.Fatalf("expected auth error for %v", err)
+		}
+	}
+
+	nonAuthErrors := []error{
+		nil,
+		ResourceNotFonud,
+		avmooStatusError{source: "http", status: http.StatusTooManyRequests},
+		avmooStatusError{source: "http", status: http.StatusInternalServerError},
+	}
+	for _, err := range nonAuthErrors {
+		if isAvmooSessionAuthError(err) {
+			t.Fatalf("unexpected auth error for %v", err)
+		}
+	}
+}
+
+func TestAvmooSessionCacheReuseAndInvalidate(t *testing.T) {
+	session := avmooSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avmoo.shop/tw/search/IPX-228"}
+	avmooSessionCache.Lock()
+	avmooSessionCache.session = session
+	avmooSessionCache.expiresAt = time.Now().Add(time.Minute)
+	avmooSessionCache.Unlock()
+	t.Cleanup(func() {
+		avmooSessionCache.Lock()
+		avmooSessionCache.session = avmooSession{}
+		avmooSessionCache.expiresAt = time.Time{}
+		avmooSessionCache.Unlock()
+	})
+
+	got, err := cachedAvmooSession(context.Background(), "IPX-229")
+	if err != nil {
+		t.Fatalf("cachedAvmooSession: %v", err)
+	}
+	if got != session {
+		t.Fatalf("unexpected cached session: %#v", got)
+	}
+
+	invalidateCachedAvmooSession(avmooSession{csrfToken: "other", cookie: "cookie=value"})
+	avmooSessionCache.Lock()
+	stillCached := avmooSessionCache.session
+	avmooSessionCache.Unlock()
+	if stillCached != session {
+		t.Fatalf("session was invalidated by non-matching token: %#v", stillCached)
+	}
+
+	invalidateCachedAvmooSession(session)
+	avmooSessionCache.Lock()
+	cleared := avmooSessionCache.session
+	expiresAt := avmooSessionCache.expiresAt
+	avmooSessionCache.Unlock()
+	if cleared != (avmooSession{}) || !expiresAt.IsZero() {
+		t.Fatalf("session cache was not cleared: session=%#v expires=%s", cleared, expiresAt)
+	}
+}
+
 func TestExtractAvmooCSRFToken(t *testing.T) {
 	body := `<meta name="csrf-param" content="_csrf"><meta name="csrf-token" content="abc123">`
 	if got := extractAvmooCSRFToken(body); got != "abc123" {
