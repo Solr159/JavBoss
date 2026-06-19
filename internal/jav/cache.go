@@ -21,8 +21,13 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 	ProviderJavBus:      "v3",
 	ProviderJavDatabase: "v3",
 	ProviderJavDB:       "v3",
-	ProviderAvmoo:       "v3",
-	ProviderAvsox:       "v2",
+	ProviderAvmoo:       "v4",
+	ProviderAvsox:       "v3",
+}
+
+var lookupCoverCacheKeyVersionByProvider = map[Provider]string{
+	ProviderAvmoo: "v2",
+	ProviderAvsox: "v2",
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.
@@ -147,6 +152,11 @@ func lookupCacheKeyVersion(provider Provider, method string) string {
 	}
 	if method == "lookup_jav" {
 		if version, ok := lookupJavCacheKeyVersionByProvider[provider]; ok {
+			return version
+		}
+	}
+	if method == "lookup_cover" {
+		if version, ok := lookupCoverCacheKeyVersionByProvider[provider]; ok {
 			return version
 		}
 	}

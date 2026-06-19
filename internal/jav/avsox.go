@@ -1,10 +1,14 @@
 package jav
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -26,12 +30,105 @@ const (
 	avsoxBaseURL         = "https://avsox.click"
 	avsoxUserAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	avsoxRequestInterval = 1500 * time.Millisecond
+	avsoxAPILanguage     = "cn"
+	avsoxAPISearchLimit  = 60
+	avsoxLookupTimeout   = 90 * time.Second
+	avsoxHTTPTimeout     = 30 * time.Second
+	avsoxAPITries        = 3
+	avsoxAPIRetryDelay   = 2 * time.Second
+	avsoxSessionTTL      = 30 * time.Minute
 )
 
 var avsoxRateLimiter = struct {
 	sync.Mutex
 	next time.Time
 }{}
+
+var (
+	avsoxHTTPClientOnce sync.Once
+	avsoxHTTPClient     *http.Client
+)
+
+var avsoxSessionCache = struct {
+	sync.Mutex
+	session   avsoxSession
+	expiresAt time.Time
+}{}
+
+type avsoxSession struct {
+	csrfToken string
+	cookie    string
+	referer   string
+}
+
+type avsoxAPIEnvelope struct {
+	Code    int             `json:"code"`
+	Message string          `json:"message"`
+	Data    json.RawMessage `json:"data"`
+}
+
+type avsoxStatusError struct {
+	source  string
+	status  int
+	message string
+}
+
+func (e avsoxStatusError) Error() string {
+	if strings.TrimSpace(e.message) != "" {
+		return fmt.Sprintf("avsox: %s code %d: %s", e.source, e.status, e.message)
+	}
+	return fmt.Sprintf("avsox: %s code %d", e.source, e.status)
+}
+
+type avsoxAPIMovie struct {
+	MovieID     string          `json:"movieId"`
+	MovieFanHao string          `json:"movieFanHao"`
+	Title       string          `json:"title"`
+	TitleJA     string          `json:"title_ja"`
+	TitleEN     string          `json:"title_en"`
+	TitleCN     string          `json:"title_cn"`
+	TitleTW     string          `json:"title_tw"`
+	ReleaseDate string          `json:"releaseDate"`
+	Length      int             `json:"length"`
+	PosterSmall string          `json:"posterSmall"`
+	PosterLarge string          `json:"posterLarge"`
+	Studio      *avsoxAPIStudio `json:"studio"`
+	Series      *avsoxAPISeries `json:"series"`
+	Genre       []avsoxAPIGenre `json:"genre"`
+	Star        []avsoxAPIStar  `json:"star"`
+}
+
+type avsoxAPIStudio struct {
+	StudioName   string `json:"studioName"`
+	StudioNameJA string `json:"studioName_ja"`
+	StudioNameEN string `json:"studioName_en"`
+	StudioNameCN string `json:"studioName_cn"`
+	StudioNameTW string `json:"studioName_tw"`
+}
+
+type avsoxAPISeries struct {
+	SeriesName   string `json:"seriesName"`
+	SeriesNameJA string `json:"seriesName_ja"`
+	SeriesNameEN string `json:"seriesName_en"`
+	SeriesNameCN string `json:"seriesName_cn"`
+	SeriesNameTW string `json:"seriesName_tw"`
+}
+
+type avsoxAPIGenre struct {
+	GenreName   string `json:"genreName"`
+	GenreNameJA string `json:"genreName_ja"`
+	GenreNameEN string `json:"genreName_en"`
+	GenreNameCN string `json:"genreName_cn"`
+	GenreNameTW string `json:"genreName_tw"`
+}
+
+type avsoxAPIStar struct {
+	StarName   string `json:"starName"`
+	StarNameJA string `json:"starName_ja"`
+	StarNameEN string `json:"starName_en"`
+	StarNameCN string `json:"starName_cn"`
+	StarNameTW string `json:"starName_tw"`
+}
 
 // LookupActressByName implements lookupProvider.
 func (avsox) LookupActressByName(name string) (*ActressInfo, error) {
@@ -55,14 +152,14 @@ func (avsox) LookupCoverURLByCode(code string) (string, error) {
 		return "", ResourceNotFonud
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), avsoxLookupTimeout)
 	defer cancel()
 
-	doc, detailURL, err := fetchAvsoxDetailByCode(ctx, code)
+	movie, err := fetchAvsoxMovieByCode(ctx, code)
 	if err != nil {
 		return "", err
 	}
-	coverURL := parseAvsoxCoverURL(doc, detailURL)
+	coverURL := firstNonEmpty(movie.PosterLarge, movie.PosterSmall)
 	if coverURL == "" {
 		return "", ResourceNotFonud
 	}
@@ -86,15 +183,15 @@ func (avsox) LookupJavByCode(code string) (*JavInfo, error) {
 		return nil, ResourceNotFonud
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), avsoxLookupTimeout)
 	defer cancel()
 
-	doc, _, err := fetchAvsoxDetailByCode(ctx, code)
+	movie, err := fetchAvsoxMovieByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
-	info := parseAvsoxMovieInfo(doc)
+	info := avsoxMovieInfoFromAPI(movie)
 	if info == nil {
 		return nil, ResourceNotFonud
 	}
@@ -102,6 +199,302 @@ func (avsox) LookupJavByCode(code string) (*JavInfo, error) {
 		info.Code = code
 	}
 	return info, nil
+}
+
+func fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
+	session, err := cachedAvsoxSession(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	movie, err := fetchAvsoxMovieWithSession(ctx, session, code)
+	if !isAvsoxSessionAuthError(err) {
+		return movie, err
+	}
+
+	invalidateCachedAvsoxSession(session)
+	logging.Info("avsox session expired, refreshing")
+	session, err = refreshAvsoxSession(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+	return fetchAvsoxMovieWithSession(ctx, session, code)
+}
+
+func fetchAvsoxMovieWithSession(ctx context.Context, session avsoxSession, code string) (*avsoxAPIMovie, error) {
+	searchPayload := []any{
+		map[string]string{
+			"search": code,
+			"lang":   avsoxAPILanguage,
+		},
+		avsoxAPISearchLimit,
+		1,
+	}
+	var searchResults []avsoxAPIMovie
+	if err := postAvsoxAPI(ctx, session, "/javu/data/api/search", searchPayload, &searchResults); err != nil {
+		return nil, err
+	}
+
+	result := findAvsoxAPISearchResult(searchResults, code)
+	if result == nil {
+		return nil, ResourceNotFonud
+	}
+	if strings.TrimSpace(result.MovieID) == "" {
+		return nil, ResourceNotFonud
+	}
+	detailPayload := []any{result.MovieID, avsoxAPILanguage}
+	var movie avsoxAPIMovie
+	if err := postAvsoxAPI(ctx, session, "/javu/data/api/getMovie", detailPayload, &movie); err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(movie.MovieFanHao) == "" {
+		movie.MovieFanHao = result.MovieFanHao
+	}
+	if strings.TrimSpace(movie.MovieID) == "" {
+		movie.MovieID = result.MovieID
+	}
+	return &movie, nil
+}
+
+func cachedAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+	now := time.Now()
+	avsoxSessionCache.Lock()
+	session := avsoxSessionCache.session
+	if session.csrfToken != "" && session.cookie != "" && now.Before(avsoxSessionCache.expiresAt) {
+		avsoxSessionCache.Unlock()
+		return session, nil
+	}
+	avsoxSessionCache.Unlock()
+	return refreshAvsoxSession(ctx, code)
+}
+
+func refreshAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+	session, err := fetchAvsoxSession(ctx, code)
+	if err != nil {
+		return avsoxSession{}, err
+	}
+	avsoxSessionCache.Lock()
+	avsoxSessionCache.session = session
+	avsoxSessionCache.expiresAt = time.Now().Add(avsoxSessionTTL)
+	avsoxSessionCache.Unlock()
+	return session, nil
+}
+
+func invalidateCachedAvsoxSession(session avsoxSession) {
+	avsoxSessionCache.Lock()
+	if avsoxSessionCache.session.csrfToken == session.csrfToken && avsoxSessionCache.session.cookie == session.cookie {
+		avsoxSessionCache.session = avsoxSession{}
+		avsoxSessionCache.expiresAt = time.Time{}
+	}
+	avsoxSessionCache.Unlock()
+}
+
+func isAvsoxSessionAuthError(err error) bool {
+	var statusErr avsoxStatusError
+	if !errors.As(err, &statusErr) {
+		return false
+	}
+	switch statusErr.status {
+	case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, 419:
+		return true
+	default:
+		return false
+	}
+}
+
+func findAvsoxAPISearchResult(results []avsoxAPIMovie, code string) *avsoxAPIMovie {
+	wantCode := normalizeAvsoxCodeForCompare(code)
+	for i := range results {
+		result := &results[i]
+		if normalizeAvsoxCodeForCompare(result.MovieFanHao) != wantCode {
+			continue
+		}
+		if strings.TrimSpace(result.MovieID) == "" {
+			continue
+		}
+		return result
+	}
+	return nil
+}
+
+func fetchAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+	pageURL := fmt.Sprintf("%s/%s/search/%s", avsoxBaseURL, avsoxAPILanguage, url.PathEscape(code))
+	req, err := buildAvsoxRequest(ctx, pageURL, avsoxBaseURL)
+	if err != nil {
+		return avsoxSession{}, err
+	}
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+
+	logging.Info("avsox request: %s", pageURL)
+	resp, err := doAvsoxRequest(req)
+	if err != nil {
+		return avsoxSession{}, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return avsoxSession{}, err
+	}
+	logging.Info("avsox response status: %s, length: %d bytes", resp.Status, len(body))
+
+	if resp.StatusCode == http.StatusNotFound {
+		return avsoxSession{}, ResourceNotFonud
+	}
+	if resp.StatusCode != http.StatusOK {
+		return avsoxSession{}, fmt.Errorf("avsox: http %d", resp.StatusCode)
+	}
+
+	token := extractAvmooCSRFToken(string(body))
+	cookie := avmooCookieHeader(resp.Cookies())
+	if token == "" || cookie == "" {
+		return avsoxSession{}, errors.New("avsox: missing csrf session")
+	}
+	return avsoxSession{
+		csrfToken: token,
+		cookie:    cookie,
+		referer:   pageURL,
+	}, nil
+}
+
+func postAvsoxAPI(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
+	var lastErr error
+	for attempt := 1; attempt <= avsoxAPITries; attempt++ {
+		err := postAvsoxAPIOnce(ctx, session, path, payload, out)
+		if err == nil || errors.Is(err, ResourceNotFonud) {
+			return err
+		}
+		lastErr = err
+		if attempt == avsoxAPITries || !shouldRetryAvsoxAPIError(err) {
+			break
+		}
+		logging.Info("avsox api retry after error: %v", err)
+		timer := time.NewTimer(avsoxAPIRetryDelay)
+		select {
+		case <-ctx.Done():
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
+	return lastErr
+}
+
+func shouldRetryAvsoxAPIError(err error) bool {
+	if err == nil || errors.Is(err, ResourceNotFonud) {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return true
+	}
+	var statusErr avsoxStatusError
+	if errors.As(err, &statusErr) {
+		return statusErr.status == http.StatusTooManyRequests || statusErr.status >= http.StatusInternalServerError
+	}
+	return false
+}
+
+func postAvsoxAPIOnce(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	targetURL := avsoxBaseURL + path
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", avsoxUserAgent)
+	req.Header.Set("Accept", "application/json, text/plain, */*")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", avsoxBaseURL)
+	req.Header.Set("Referer", session.referer)
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("X-CSRF-Token", session.csrfToken)
+	req.Header.Set("Cookie", session.cookie)
+
+	logging.Info("avsox request: %s", targetURL)
+	resp, err := doAvsoxRequest(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	logging.Info("avsox response status: %s, length: %d bytes", resp.Status, len(raw))
+
+	if resp.StatusCode == http.StatusNotFound {
+		return ResourceNotFonud
+	}
+	if resp.StatusCode != http.StatusOK {
+		return avsoxStatusError{source: "http", status: resp.StatusCode}
+	}
+
+	var envelope avsoxAPIEnvelope
+	if err := json.Unmarshal(raw, &envelope); err != nil {
+		return fmt.Errorf("avsox: parse api response: %w", err)
+	}
+	if envelope.Code == http.StatusNotFound {
+		return ResourceNotFonud
+	}
+	if envelope.Code != http.StatusOK {
+		return avsoxStatusError{source: "api", status: envelope.Code, message: envelope.Message}
+	}
+	if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
+		return ResourceNotFonud
+	}
+	if err := json.Unmarshal(envelope.Data, out); err != nil {
+		return fmt.Errorf("avsox: parse api data: %w", err)
+	}
+	return nil
+}
+
+func avsoxMovieInfoFromAPI(movie *avsoxAPIMovie) *JavInfo {
+	if movie == nil {
+		return nil
+	}
+	isUncensored := true
+	info := &JavInfo{
+		Title:        firstNonEmpty(movie.Title, movie.TitleCN, movie.TitleTW, movie.TitleJA, movie.TitleEN),
+		Code:         strings.TrimSpace(movie.MovieFanHao),
+		ReleaseUnix:  parseDateUnix(movie.ReleaseDate),
+		DurationMin:  movie.Length,
+		CoverURL:     firstNonEmpty(movie.PosterLarge, movie.PosterSmall),
+		IsUncensored: &isUncensored,
+		Provider:     ProviderAvsox,
+	}
+	if movie.Studio != nil {
+		info.Studio = firstNonEmpty(movie.Studio.StudioName, movie.Studio.StudioNameCN, movie.Studio.StudioNameTW, movie.Studio.StudioNameJA, movie.Studio.StudioNameEN)
+	}
+	if movie.Series != nil {
+		info.Series = firstNonEmpty(movie.Series.SeriesName, movie.Series.SeriesNameCN, movie.Series.SeriesNameTW, movie.Series.SeriesNameJA, movie.Series.SeriesNameEN)
+	}
+	for _, genre := range movie.Genre {
+		info.Tags = append(info.Tags, firstNonEmpty(genre.GenreName, genre.GenreNameCN, genre.GenreNameTW, genre.GenreNameJA, genre.GenreNameEN))
+	}
+	for _, star := range movie.Star {
+		info.Actors = append(info.Actors, firstNonEmpty(star.StarName, star.StarNameCN, star.StarNameTW, star.StarNameJA, star.StarNameEN))
+	}
+	info.Tags = dedupeNonEmpty(info.Tags)
+	info.Actors = dedupeNonEmpty(info.Actors)
+	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+		return nil
+	}
+	return info
 }
 
 func fetchAvsoxDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
@@ -169,7 +562,21 @@ func doAvsoxRequest(req *http.Request) (*http.Response, error) {
 	if err := waitForAvsoxRateLimit(req.Context()); err != nil {
 		return nil, err
 	}
-	return util.DoRequest(req)
+	return defaultAvsoxHTTPClient().Do(req)
+}
+
+func defaultAvsoxHTTPClient() *http.Client {
+	avsoxHTTPClientOnce.Do(func() {
+		avsoxHTTPClient = util.NewHTTPClientWithTransport(avsoxHTTPTimeout, func(t *http.Transport) {
+			t.ForceAttemptHTTP2 = false
+			t.DisableCompression = true
+			t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
+			t.MaxIdleConns = 50
+			t.MaxIdleConnsPerHost = 5
+			t.MaxConnsPerHost = 5
+		})
+	})
+	return avsoxHTTPClient
 }
 
 func waitForAvsoxRateLimit(ctx context.Context) error {

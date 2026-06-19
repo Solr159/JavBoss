@@ -110,14 +110,21 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderAvmoo,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v3:jav:avmoo:lookup_jav:ABC-001",
+			want:     "v4:jav:avmoo:lookup_jav:ABC-001",
 		},
 		{
 			name:     "avsox lookup jav uses provider version",
 			provider: ProviderAvsox,
 			method:   "lookup_jav",
 			input:    "030919_047",
-			want:     "v2:jav:avsox:lookup_jav:030919_047",
+			want:     "v3:jav:avsox:lookup_jav:030919_047",
+		},
+		{
+			name:     "avsox cover uses provider version",
+			provider: ProviderAvsox,
+			method:   "lookup_cover",
+			input:    "030919_047",
+			want:     "v2:jav:avsox:lookup_cover:030919_047",
 		},
 		{
 			name:     "javdatabase cover keeps default version",
@@ -125,6 +132,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			method:   "lookup_cover",
 			input:    "abc-001",
 			want:     "v1:jav:javdatabase:lookup_cover:ABC-001",
+		},
+		{
+			name:     "avmoo cover uses provider version",
+			provider: ProviderAvmoo,
+			method:   "lookup_cover",
+			input:    "abc-001",
+			want:     "v2:jav:avmoo:lookup_cover:ABC-001",
 		},
 		{
 			name:     "javdb actress url uses fallback version",
