@@ -38,6 +38,7 @@ type JavScanVideo struct {
 
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
+	Title       *string
 	StudioID    *int64
 	SeriesID    *int64
 	IdolIDs     *[]int64
@@ -282,6 +283,13 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 		}
 
 		updates := map[string]any{}
+		if input.Title != nil {
+			titleColumn := "title"
+			if isEnglish {
+				titleColumn = "title_en"
+			}
+			updates[titleColumn] = strings.TrimSpace(*input.Title)
+		}
 		if input.ReleaseUnix != nil {
 			releaseUnix := *input.ReleaseUnix
 			if releaseUnix < 0 {

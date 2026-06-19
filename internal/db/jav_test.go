@@ -444,6 +444,44 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 	}
 }
 
+func TestUpdateJavEditsTitleForCurrentMetadataLanguage(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	prevLang := jav.CurrentMetadataLanguage()
+	t.Cleanup(func() {
+		jav.SetMetadataLanguage(string(prevLang))
+	})
+
+	javRec := models.Jav{Code: "TITLE-EDIT", Title: "旧标题", TitleEn: "Old Title", FetchedAt: now}
+	if err := db.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+
+	jav.SetMetadataLanguage("zh")
+	zhTitle := "新标题"
+	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{Title: &zhTitle}, nil)
+	if err != nil {
+		t.Fatalf("UpdateJav zh title: %v", err)
+	}
+	if updated.Title != zhTitle || updated.TitleEn != "Old Title" {
+		t.Fatalf("unexpected zh update titles: title=%q title_en=%q", updated.Title, updated.TitleEn)
+	}
+	assertJavTitles(t, db, javRec.Code, zhTitle, "Old Title")
+
+	jav.SetMetadataLanguage("en")
+	enTitle := "New English Title"
+	updated, err = UpdateJav(ctx, javRec.ID, JavUpdateInput{Title: &enTitle}, nil)
+	if err != nil {
+		t.Fatalf("UpdateJav en title: %v", err)
+	}
+	if updated.Title != zhTitle || updated.TitleEn != enTitle {
+		t.Fatalf("unexpected en update titles: title=%q title_en=%q", updated.Title, updated.TitleEn)
+	}
+	assertJavTitles(t, db, javRec.Code, zhTitle, enTitle)
+}
+
 func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

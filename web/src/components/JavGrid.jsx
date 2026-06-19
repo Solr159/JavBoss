@@ -526,9 +526,14 @@ function SelectedChip({ label, onRemove, disabled }) {
   )
 }
 
+function editableJavTitle(item, javMetadataLanguage) {
+  return String(javMetadataLanguage === 'en' ? item?.title_en || '' : item?.title || '')
+}
+
 function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, onSaved }) {
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
+  const [title, setTitle] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
   const [selectedIdolIds, setSelectedIdolIds] = useState([])
@@ -630,6 +635,7 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
 
   useEffect(() => {
     if (!open) return
+    setTitle(editableJavTitle(item, javMetadataLanguage))
     setCoverUrl('')
     setSelectedTagIds(
       Array.isArray(item?.tags)
@@ -660,7 +666,7 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
     setError('')
     setSaving(false)
     void loadJavTags?.({ skipUnchanged: true })
-  }, [currentSeries?.id, item, loadJavTags, open])
+  }, [currentSeries?.id, item, javMetadataLanguage, loadJavTags, open])
 
   useEffect(() => {
     if (!open) return undefined
@@ -736,6 +742,7 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
     const trimmedCoverUrl = coverUrl.trim()
     try {
       const payload = {
+        title: title.trim(),
         ...(trimmedCoverUrl ? { cover_url: trimmedCoverUrl } : {}),
         tag_ids: selectedTagIds.map((id) => Number(id)).filter(Boolean),
         idol_ids: selectedIdolIds.map((id) => Number(id)).filter(Boolean),
@@ -801,6 +808,25 @@ function JavEditModal({ open, item, directoryIds, javMetadataLanguage, onClose, 
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
+          <div>
+            <label
+              className="block text-sm font-medium text-gray-700"
+              htmlFor={`jav-title-${item?.id || 'new'}`}
+            >
+              {zh('标题', 'Title')}
+            </label>
+            <textarea
+              id={`jav-title-${item?.id || 'new'}`}
+              rows={3}
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value)
+                if (error) setError('')
+              }}
+              className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={saving}
+            />
+          </div>
           <div>
             <label
               className="block text-sm font-medium text-gray-700"

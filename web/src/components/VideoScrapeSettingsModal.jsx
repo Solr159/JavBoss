@@ -534,8 +534,8 @@ export default function VideoScrapeSettingsModal({
             </div>
             <p className="mb-3 text-sm leading-6 text-gray-600">
               {zh(
-                '自动刮削会依次尝试以下番号进行刮削。如果结果不符合预期，可以修改文件名，或在刮削设置中修改为 不刮削/指定番号刮削。',
-                'Automatic scraping will try the following codes in order. If the result is not expected, rename the file or change the scrape setting to Do not scrape / Force scrape code.'
+                '自动刮削会依次尝试以下番号进行刮削。如果一直未刮削或者刮削错误，可以修改文件名或修改刮削设置为：不刮削/指定番号刮削。',
+                'Automatic scraping will try the following codes in order. If scraping keeps failing or matches the wrong item, rename the file or change the scrape setting to: Do not scrape / Force scrape code.'
               )}
             </p>
             {possibleCodesResult?.filename ? (

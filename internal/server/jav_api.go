@@ -100,6 +100,7 @@ func listJavTags(c *gin.Context) {
 }
 
 type javItemUpdateRequest struct {
+	Title       *string  `json:"title"`
 	CoverURL    *string  `json:"cover_url"`
 	TagIDs      *[]int64 `json:"tag_ids"`
 	IdolIDs     *[]int64 `json:"idol_ids"`
@@ -156,6 +157,7 @@ func updateJavItem(c *gin.Context) {
 	}
 
 	updated, err := dbpkg.UpdateJav(c.Request.Context(), id, dbpkg.JavUpdateInput{
+		Title:       req.Title,
 		StudioID:    req.StudioID,
 		SeriesID:    req.SeriesID,
 		IdolIDs:     req.IdolIDs,
