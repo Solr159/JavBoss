@@ -73,7 +73,8 @@ func main() {
 	logging.SetColorEnabled(false)
 
 	if buildMode == "release" {
-		locks, err := acquireReleaseLocks(filepath.Dir(cfg.DatabasePath))
+		lockPath := filepath.Join(filepath.Dir(cfg.DatabasePath), "javboss.lock")
+		lock, err := util.AcquireFileLock(lockPath)
 		if err != nil {
 			if errors.Is(err, util.ErrLockHeld) {
 				fmt.Println("JavBoss 已在运行，无法重复启动。")
@@ -83,7 +84,9 @@ func main() {
 			logger.Fatalf("acquire lock: %v", err)
 		}
 		defer func() {
-			releaseLocks(logger, locks)
+			if err := lock.Release(); err != nil {
+				logger.Printf("release lock failed: %v", err)
+			}
 		}()
 	}
 
@@ -200,32 +203,6 @@ func main() {
 	logger.Printf("server listening on %s", *addr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Fatalf("server error: %v", err)
-	}
-}
-
-func acquireReleaseLocks(dataDir string) ([]*util.FileLock, error) {
-	lockNames := []string{"javboss.lock", "pornboss.lock"}
-	locks := make([]*util.FileLock, 0, len(lockNames))
-	for _, lockName := range lockNames {
-		lockPath := filepath.Join(dataDir, lockName)
-		lock, err := util.AcquireFileLock(lockPath)
-		if err != nil {
-			releaseLocks(nil, locks)
-			if errors.Is(err, util.ErrLockHeld) {
-				return nil, err
-			}
-			return nil, fmt.Errorf("acquire %s: %w", lockName, err)
-		}
-		locks = append(locks, lock)
-	}
-	return locks, nil
-}
-
-func releaseLocks(logger *log.Logger, locks []*util.FileLock) {
-	for i := len(locks) - 1; i >= 0; i-- {
-		if err := locks[i].Release(); err != nil && logger != nil {
-			logger.Printf("release lock failed: %v", err)
-		}
 	}
 }
 
