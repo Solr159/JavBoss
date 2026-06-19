@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"pornboss/internal/jav"
+	"javboss/internal/jav"
 )
 
 func TestJavScrapeCodesForVideoUsesForcedCodeOnly(t *testing.T) {

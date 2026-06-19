@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-const modernZEnvDir = "PORNBOSS_MODERNZ_DIR"
+const modernZEnvDir = "JAVBOSS_MODERNZ_DIR"
 
 var modernZRequiredFiles = []struct {
 	source string

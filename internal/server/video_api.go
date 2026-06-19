@@ -14,14 +14,14 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	dbpkg "pornboss/internal/db"
-	"pornboss/internal/jav"
-	"pornboss/internal/manager"
-	"pornboss/internal/models"
-	"pornboss/internal/mpv"
-	"pornboss/internal/util"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	dbpkg "javboss/internal/db"
+	"javboss/internal/jav"
+	"javboss/internal/manager"
+	"javboss/internal/models"
+	"javboss/internal/mpv"
+	"javboss/internal/util"
 )
 
 func listVideos(c *gin.Context) {

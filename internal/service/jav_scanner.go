@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	"pornboss/internal/db"
-	"pornboss/internal/jav"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	"javboss/internal/db"
+	"javboss/internal/jav"
 )
 
 // StartJavMetadataScanner periodically fills missing JAV metadata.

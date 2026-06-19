@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/pressly/goose/v3"
-	_ "pornboss/internal/db/migrations"
+	_ "javboss/internal/db/migrations"
 )
 
 const migrationDir = "."

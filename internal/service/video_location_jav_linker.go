@@ -7,12 +7,12 @@ import (
 	"strings"
 	"sync"
 
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	"pornboss/internal/db"
-	"pornboss/internal/jav"
-	"pornboss/internal/models"
-	"pornboss/internal/util"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	"javboss/internal/db"
+	"javboss/internal/jav"
+	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 const (

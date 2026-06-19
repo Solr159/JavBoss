@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"pornboss/internal/common"
-	dbpkg "pornboss/internal/db"
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
 )
 
 func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {

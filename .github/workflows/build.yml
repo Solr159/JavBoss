@@ -71,5 +71,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: pornboss-${{ inputs.version }}-${{ inputs.platform }}
-          path: release/pornboss-${{ inputs.version }}-${{ inputs.platform }}
+          name: javboss-${{ inputs.version }}-${{ inputs.platform }}
+          path: release/javboss-${{ inputs.version }}-${{ inputs.platform }}

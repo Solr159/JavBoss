@@ -9,9 +9,9 @@ import (
 	"strings"
 	"sync"
 
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	dbpkg "pornboss/internal/db"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	dbpkg "javboss/internal/db"
 )
 
 const playerHotkeysConfigKey = "player_hotkeys"

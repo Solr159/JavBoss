@@ -13,11 +13,11 @@ import (
 	"sync"
 	"time"
 
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	"pornboss/internal/db"
-	"pornboss/internal/models"
-	"pornboss/internal/util"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	"javboss/internal/db"
+	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 type FileEntry struct {

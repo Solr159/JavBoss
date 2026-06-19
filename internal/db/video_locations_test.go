@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"pornboss/internal/models"
+	"javboss/internal/models"
 )
 
 func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {

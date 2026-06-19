@@ -10,7 +10,7 @@ import {
 } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
 
-const VOLUME_STORAGE_KEY = 'pornboss.player.volume'
+const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 
 export default function PlayerModal({ video, onClose, hotkeys = [] }) {
   const videoRef = useRef(null)

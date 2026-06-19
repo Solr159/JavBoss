@@ -5,7 +5,7 @@ trap 'printf "\e[?25h"' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI_ROOT="$SCRIPT_DIR/cli"
-CLI_BIN="$CLI_ROOT/build/pornboss-cli.cjs"
+CLI_BIN="$CLI_ROOT/build/javboss-cli.cjs"
 NEED_BUILD=0
 
 if [[ ! -f "$CLI_BIN" ]]; then

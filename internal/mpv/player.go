@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 )
 
 const playbackScreenshotTemplate = "mpv_%wH-%wM-%wS.%wT"
@@ -51,7 +51,7 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	}
 	args := make([]string, 0, 8)
 	args = append(args, "--config-dir="+modernZ.ConfigDir)
-	if runtime.GOOS == "linux" && os.Getenv("PORNBOSS_BUILD_MODE") != "release" {
+	if runtime.GOOS == "linux" && os.Getenv("JAVBOSS_BUILD_MODE") != "release" {
 		args = append(args, "--vo=x11")
 	}
 	args = append(args, "--load-scripts=no")

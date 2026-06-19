@@ -14,8 +14,8 @@ import (
 
 	"golang.org/x/net/html"
 
-	"pornboss/internal/common/logging"
-	"pornboss/internal/util"
+	"javboss/internal/common/logging"
+	"javboss/internal/util"
 )
 
 // javMenu implements lookupProvider.

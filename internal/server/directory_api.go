@@ -10,11 +10,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"pornboss/internal/common/logging"
-	dbpkg "pornboss/internal/db"
-	"pornboss/internal/models"
-	"pornboss/internal/service"
-	"pornboss/internal/util/dirpicker"
+	"javboss/internal/common/logging"
+	dbpkg "javboss/internal/db"
+	"javboss/internal/models"
+	"javboss/internal/service"
+	"javboss/internal/util/dirpicker"
 )
 
 func listDirectories(c *gin.Context) {

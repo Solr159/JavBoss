@@ -8,7 +8,7 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
-const sqliteDriverName = "sqlite3_pornboss"
+const sqliteDriverName = "sqlite3_javboss"
 
 var registerOnce sync.Once
 

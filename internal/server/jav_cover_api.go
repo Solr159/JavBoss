@@ -8,8 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"pornboss/internal/common"
-	"pornboss/internal/manager"
+	"javboss/internal/common"
+	"javboss/internal/manager"
 )
 
 // getJavCover serves a downloaded JAV cover if present; otherwise enqueues and returns 404.

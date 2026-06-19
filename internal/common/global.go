@@ -1,7 +1,7 @@
 package common
 
 import (
-	"pornboss/internal/manager"
+	"javboss/internal/manager"
 
 	"gorm.io/gorm"
 )

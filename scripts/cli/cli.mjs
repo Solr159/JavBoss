@@ -391,7 +391,7 @@ async function buildBackendRelease(choice, outDir) {
     }
   }
 
-  const binName = choice.goos === "windows" ? "pornboss.exe" : "pornboss";
+  const binName = choice.goos === "windows" ? "javboss.exe" : "javboss";
   const binPath = path.join(outDir, binName);
   const env = {
     ...process.env,
@@ -451,7 +451,7 @@ async function copyModernZAssets(outDir) {
 }
 
 async function createMacCommandLauncher(outDir) {
-  const launcherPath = path.join(outDir, "pornboss.command");
+  const launcherPath = path.join(outDir, "javboss.command");
   const launcherContent = [
     "#!/bin/bash",
     "set -u",
@@ -463,7 +463,7 @@ async function createMacCommandLauncher(outDir) {
     '  xattr -dr "$QUARANTINE_ATTR" "$SCRIPT_DIR" >/dev/null 2>&1 || true',
     "fi",
     "",
-    '"$SCRIPT_DIR/pornboss" "$@"',
+    '"$SCRIPT_DIR/javboss" "$@"',
     "status=$?",
     'if [ "$status" -ne 0 ]; then',
     '  echo',
@@ -528,7 +528,7 @@ async function runRelease(choice, version) {
     return;
   }
 
-  const outDir = path.join(ROOT_DIR, "release", `pornboss-${version}-${choice.label}`);
+  const outDir = path.join(ROOT_DIR, "release", `javboss-${version}-${choice.label}`);
   await fsp.rm(outDir, { recursive: true, force: true });
   await fsp.mkdir(outDir, { recursive: true });
 
@@ -558,7 +558,7 @@ async function runRelease(choice, version) {
   const zipPath = path.join(
     ROOT_DIR,
     "release",
-    `pornboss-${version}-${choice.label}.zip`,
+    `javboss-${version}-${choice.label}.zip`,
   );
   console.log("[release] 打包 zip");
   await createZip(outDir, zipPath);
@@ -967,7 +967,7 @@ async function downloadFfprobe(choice) {
   }
 
   await fsp.mkdir(platformBinDir(choice), { recursive: true });
-  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "pornboss-ffprobe-"));
+  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-ffprobe-"));
   try {
     let installed = false;
     for (const url of urls) {
@@ -1017,7 +1017,7 @@ async function downloadFfmpeg(choice) {
   }
 
   await fsp.mkdir(platformBinDir(choice), { recursive: true });
-  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "pornboss-ffmpeg-"));
+  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-ffmpeg-"));
   try {
     let installed = false;
     for (const url of urls) {
@@ -1066,7 +1066,7 @@ async function downloadMpv(choice) {
   }
 
   await fsp.mkdir(platformBinDir(choice), { recursive: true });
-  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "pornboss-mpv-"));
+  const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-mpv-"));
   try {
     let installed = false;
     for (const url of urls) {

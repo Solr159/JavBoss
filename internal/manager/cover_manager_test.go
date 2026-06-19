@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"pornboss/internal/jav"
+	"javboss/internal/jav"
 )
 
 func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {

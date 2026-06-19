@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"pornboss/internal/models"
+	"javboss/internal/models"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"pornboss/internal/common/logging"
-	"pornboss/internal/jav"
-	"pornboss/internal/util"
+	"javboss/internal/common/logging"
+	"javboss/internal/jav"
+	"javboss/internal/util"
 )
 
 // CoverManager coordinates background cover downloads.

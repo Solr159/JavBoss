@@ -1,4 +1,4 @@
-module pornboss
+module javboss
 
 go 1.25.1
 

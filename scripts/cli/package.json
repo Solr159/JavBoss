@@ -1,5 +1,5 @@
 {
-  "name": "pornboss-cli",
+  "name": "javboss-cli",
   "private": true,
   "type": "module",
   "dependencies": {
@@ -9,6 +9,6 @@
     "esbuild": "^0.20.0"
   },
   "scripts": {
-    "build": "esbuild cli.mjs --bundle --platform=node --format=cjs --outfile=build/pornboss-cli.cjs"
+    "build": "esbuild cli.mjs --bundle --platform=node --format=cjs --outfile=build/javboss-cli.cjs"
   }
 }

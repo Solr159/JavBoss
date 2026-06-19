@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"pornboss/internal/common"
-	"pornboss/internal/models"
+	"javboss/internal/common"
+	"javboss/internal/models"
 
 	"gorm.io/gorm/clause"
 )

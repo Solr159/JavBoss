@@ -14,7 +14,7 @@
 - Dev helper: `scripts/cli.sh dev backend|frontend` (flags: `WITH_STATIC=1`, `SKIP_NPM_INSTALL=1`, etc.).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./...` (no Go tests yet—keep it green).
 - Frontend (in `web/`): `npm install`; `npm run dev` for Vite, `npm run lint`, `npm run build` for prod bundle.
-- CLI build: `cd scripts/cli && npm install && npm run build` (outputs `scripts/cli/build/pornboss-cli.cjs`).
+- CLI build: `cd scripts/cli && npm install && npm run build` (outputs `scripts/cli/build/javboss-cli.cjs`).
 - Release: `scripts/cli.sh release linux-x86_64 v0.1.0` builds backend + `web/dist` and archives to `release/`.
 
 ## Coding Style & Naming Conventions

@@ -1,6 +1,6 @@
 package mpv
 
-import "pornboss/internal/util"
+import "javboss/internal/util"
 
 // ResolvePath returns the path to the mpv binary.
 func ResolvePath() (string, error) {

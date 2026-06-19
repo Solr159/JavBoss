@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { buildUrlFromState, parseUrlState } from '@/utils/urlState'
 
-const HISTORY_INDEX_KEY = '__pornbossHistoryIndex'
-const HISTORY_SCROLL_KEY = '__pornbossScroll'
+const HISTORY_INDEX_KEY = '__javbossHistoryIndex'
+const HISTORY_SCROLL_KEY = '__javbossScroll'
 const SCROLL_RESTORE_MAX_ATTEMPTS = 30
 
 const getHistoryUserState = (state) =>

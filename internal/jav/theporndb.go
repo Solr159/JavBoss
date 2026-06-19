@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"pornboss/internal/common/logging"
-	"pornboss/internal/util"
+	"javboss/internal/common/logging"
+	"javboss/internal/util"
 )
 
 // thePornDB implements lookupProvider.
@@ -114,7 +114,7 @@ func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBRespon
 	}
 	req.Header.Set("Authorization", "Bearer "+thePornDBBearerToken)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; PornBoss/1.0)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; JavBoss/1.0)")
 
 	logging.Info("theporndb request: %s", targetURL)
 	resp, err := util.DoRequest(req)

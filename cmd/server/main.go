@@ -20,17 +20,17 @@ import (
 	"syscall"
 	"time"
 
-	"pornboss/internal/cache"
-	"pornboss/internal/common"
-	"pornboss/internal/common/logging"
-	"pornboss/internal/db"
-	"pornboss/internal/jav"
-	"pornboss/internal/models"
-	"pornboss/internal/server"
-	"pornboss/internal/service"
-	"pornboss/internal/util"
+	"javboss/internal/cache"
+	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	"javboss/internal/db"
+	"javboss/internal/jav"
+	"javboss/internal/models"
+	"javboss/internal/server"
+	"javboss/internal/service"
+	"javboss/internal/util"
 
-	"pornboss/internal/manager"
+	"javboss/internal/manager"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pelletier/go-toml/v2"
@@ -45,7 +45,7 @@ func main() {
 	staticDir := flag.String("static", "web/dist", "Path to built frontend assets")
 	flag.Parse()
 
-	_ = os.Setenv("PORNBOSS_BUILD_MODE", buildMode)
+	_ = os.Setenv("JAVBOSS_BUILD_MODE", buildMode)
 
 	if buildMode == "release" && os.Getenv("GIN_MODE") == "" {
 		gin.SetMode(gin.ReleaseMode)
@@ -73,7 +73,7 @@ func main() {
 	logging.SetColorEnabled(false)
 
 	if buildMode == "release" {
-		lockPath := filepath.Join(filepath.Dir(cfg.DatabasePath), "pornboss.lock")
+		lockPath := filepath.Join(filepath.Dir(cfg.DatabasePath), "javboss.lock")
 		lock, err := util.AcquireFileLock(lockPath)
 		if err != nil {
 			if errors.Is(err, util.ErrLockHeld) {
@@ -224,7 +224,7 @@ func buildLogger(baseDir string) (*log.Logger, func(), error) {
 	}
 
 	rotator := &lumberjack.Logger{
-		Filename:   filepath.Join(logsDir, "pornboss.log"),
+		Filename:   filepath.Join(logsDir, "javboss.log"),
 		MaxSize:    20, // megabytes
 		MaxBackups: 7,
 		MaxAge:     14, // days

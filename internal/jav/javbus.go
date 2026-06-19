@@ -5,15 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"javboss/internal/util"
 	"net/http"
-	"pornboss/internal/util"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 
 	"golang.org/x/net/html"
 )

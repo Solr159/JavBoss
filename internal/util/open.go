@@ -2,8 +2,8 @@ package util
 
 import (
 	"fmt"
+	"javboss/internal/common/logging"
 	"os/exec"
-	"pornboss/internal/common/logging"
 )
 
 // OpenFile opens a file with the system default application.

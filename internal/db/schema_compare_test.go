@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"pornboss/internal/models"
+	"javboss/internal/models"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

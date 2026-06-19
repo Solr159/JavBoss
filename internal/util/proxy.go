@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 
 	"github.com/mattn/go-ieproxy"
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 )
 
 var (

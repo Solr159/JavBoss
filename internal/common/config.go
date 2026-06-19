@@ -14,7 +14,7 @@ type Config struct {
 }
 
 const (
-	defaultDatabasePath  = "data/pornboss.db"
+	defaultDatabasePath  = "data/javboss.db"
 	defaultThumbnailsDir = "data/thumbnails"
 	defaultJavCoverDir   = "data/cover"
 )

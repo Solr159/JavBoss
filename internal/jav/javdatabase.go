@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"pornboss/internal/util"
+	"javboss/internal/util"
 
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 
 	"golang.org/x/net/html"
 )

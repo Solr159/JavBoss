@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"pornboss/internal/common"
-	"pornboss/internal/jav"
-	"pornboss/internal/models"
+	"javboss/internal/common"
+	"javboss/internal/jav"
+	"javboss/internal/models"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"

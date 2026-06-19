@@ -71,8 +71,8 @@ jobs:
       - name: Upload release asset
         uses: actions/upload-artifact@v6
         with:
-          name: pornboss-${{ inputs.version }}-${{ matrix.platform }}-zip
-          path: release/pornboss-${{ inputs.version }}-${{ matrix.platform }}.zip
+          name: javboss-${{ inputs.version }}-${{ matrix.platform }}-zip
+          path: release/javboss-${{ inputs.version }}-${{ matrix.platform }}.zip
 
   publish:
     needs: build
@@ -103,5 +103,5 @@ jobs:
             --repo "$GH_REPO" \
             --target "${{ github.sha }}" \
             --draft \
-            --title "pornboss ${{ inputs.version }}" \
+            --title "javboss ${{ inputs.version }}" \
             --generate-notes

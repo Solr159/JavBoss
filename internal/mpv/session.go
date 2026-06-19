@@ -15,7 +15,7 @@ var (
 
 func sessionDir() (string, error) {
 	sessionDirOnce.Do(func() {
-		dir, err := os.MkdirTemp("", fmt.Sprintf("pornboss-mpv-%d-", os.Getpid()))
+		dir, err := os.MkdirTemp("", fmt.Sprintf("javboss-mpv-%d-", os.Getpid()))
 		if err != nil {
 			sessionDirErr = fmt.Errorf("create mpv session dir: %w", err)
 			return

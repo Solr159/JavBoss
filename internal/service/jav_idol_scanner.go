@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"pornboss/internal/common/logging"
-	"pornboss/internal/db"
-	"pornboss/internal/jav"
-	"pornboss/internal/util"
+	"javboss/internal/common/logging"
+	"javboss/internal/db"
+	"javboss/internal/jav"
+	"javboss/internal/util"
 )
 
 // StartIdolProfileScanner periodically scans JAV idols with incomplete profile data.

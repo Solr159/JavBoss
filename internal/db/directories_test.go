@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"pornboss/internal/models"
+	"javboss/internal/models"
 )
 
 func TestUpdateDirectoryPathHidesExistingVideoLocations(t *testing.T) {

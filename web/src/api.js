@@ -1,7 +1,7 @@
 import { zh } from '@/utils/i18n'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
-const apiTokenStorageKey = 'pornboss_api_token'
+const apiTokenStorageKey = 'javboss_api_token'
 const javIdolResolveInFlight = new Map()
 
 function loadAPIToken() {

@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"pornboss/internal/common/logging"
-	dbpkg "pornboss/internal/db"
+	"javboss/internal/common/logging"
+	dbpkg "javboss/internal/db"
 )
 
 type videoTagRequest struct {

@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"pornboss/internal/common/logging"
-	"pornboss/internal/models"
-	"pornboss/internal/util"
+	"javboss/internal/common/logging"
+	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 // Task represents a request to capture a screenshot for a specific video.

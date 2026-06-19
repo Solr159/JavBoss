@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"pornboss/internal/jav"
+	"javboss/internal/jav"
 )
 
 type methodOption struct {

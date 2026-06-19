@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 )
 
 // NewRouter constructs a gin router with API routes and optional static file serving.

@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         PornBoss Privacy Frost
-// @namespace    https://github.com/pornboss
+// @name         JavBoss Privacy Frost
+// @namespace    https://github.com/javboss
 // @version      0.1.0
-// @description  Adds a frosted privacy blur to PornBoss thumbnails, covers, and screenshots while leaving small icons untouched.
-// @author       PornBoss
+// @description  Adds a frosted privacy blur to JavBoss thumbnails, covers, and screenshots while leaving small icons untouched.
+// @author       JavBoss
 // @match        http://localhost/*
 // @match        http://127.0.0.1/*
 // @match        http://0.0.0.0/*
@@ -26,7 +26,7 @@
     minRenderedHeight: 72,
     minRenderedArea: 9000,
     rescanDelayMs: 120,
-    storageKey: 'pornboss-privacy-frost-enabled',
+    storageKey: 'javboss-privacy-frost-enabled',
   }
 
   const CONTENT_IMAGE_URLS = [
@@ -131,11 +131,11 @@
 
   function registerControls() {
     if (typeof GM_registerMenuCommand === 'function') {
-      GM_registerMenuCommand('PornBoss 隐私毛玻璃：开启/关闭', () => {
+      GM_registerMenuCommand('JavBoss 隐私毛玻璃：开启/关闭', () => {
         setEnabled(!enabled)
         scan()
       })
-      GM_registerMenuCommand('PornBoss 隐私毛玻璃：重新扫描', () => scan())
+      GM_registerMenuCommand('JavBoss 隐私毛玻璃：重新扫描', () => scan())
     }
 
     window.addEventListener('keydown', (event) => {

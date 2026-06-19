@@ -9,7 +9,7 @@ import (
 
 	"golang.org/x/sys/windows"
 
-	"pornboss/internal/common/logging"
+	"javboss/internal/common/logging"
 )
 
 const (

@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"pornboss/internal/util"
+	"javboss/internal/util"
 )
 
 func TestExtractCodeFromName(t *testing.T) {
