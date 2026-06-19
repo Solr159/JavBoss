@@ -3,9 +3,9 @@
 <p align="center">An all-in-one solution for local adult video collections: automatically scan folders, generate cover screenshots, detect JAV titles and fetch metadata, provide powerful search for videos and JAV titles, and play videos quickly through the bundled mpv player.</p>
 
 <p align="center">
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/Solr159/javboss?display_name=tag"></a>
-  <a href="https://github.com/JavBoss/pornboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/javboss?style=social"></a>
-  <a href="https://github.com/JavBoss/pornboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
+  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Release" src="https://img.shields.io/github/v/release/JavBoss/javboss?display_name=tag"></a>
+  <a href="https://github.com/JavBoss/javboss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/JavBoss/javboss?style=social"></a>
+  <a href="https://github.com/JavBoss/javboss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
@@ -27,12 +27,12 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 Click the link for your system, download the latest release package, and extract it:
 
-- [Windows](https://github.com/JavBoss/pornboss/releases/download/v1.6.2/javboss-v1.6.2-windows-x86_64.zip)
-- [Linux](https://github.com/JavBoss/pornboss/releases/download/v1.6.2/javboss-v1.6.2-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/JavBoss/pornboss/releases/download/v1.6.2/javboss-v1.6.2-macos-x86_64.zip) for Intel-based macOS
-- [macOS-arm64](https://github.com/JavBoss/pornboss/releases/download/v1.6.2/javboss-v1.6.2-macos-arm64.zip) for Apple Silicon macOS
+- [Windows](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-windows-x86_64.zip)
+- [Linux](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-macos-x86_64.zip) for Intel-based macOS
+- [macOS-arm64](https://github.com/JavBoss/javboss/releases/download/v1.8.0/javboss-v1.8.0-macos-arm64.zip) for Apple Silicon macOS
 
-You can also visit the [Releases](https://github.com/JavBoss/pornboss/releases) page to view all versions.
+You can also visit the [Releases](https://github.com/JavBoss/javboss/releases) page to view all versions.
 
 ### 2. Start The App
 
