@@ -3,6 +3,8 @@ import { zh } from '@/utils/i18n'
 
 const SKIP_OVERRIDE = ':skip'
 const MANUAL_OVERRIDE_PREFIX = ':manual:'
+const CODE_SCRAPE_AUTO = 'auto'
+const CODE_SCRAPE_MANUAL = 'manual'
 
 const emptyManualInfo = {
   code: '',
@@ -20,15 +22,19 @@ const emptyManualInfo = {
 function initialState(video) {
   const override = String(video?.jav_scrape_override || '').trim()
   if (override === SKIP_OVERRIDE) {
-    return { mode: 'skip', code: '' }
+    return { mode: 'skip', code: '', codeScrapeMode: CODE_SCRAPE_AUTO }
   }
   if (override.toLowerCase().startsWith(MANUAL_OVERRIDE_PREFIX)) {
-    return { mode: 'manual', code: override.slice(MANUAL_OVERRIDE_PREFIX.length).trim() }
+    return {
+      mode: 'code',
+      code: override.slice(MANUAL_OVERRIDE_PREFIX.length).trim(),
+      codeScrapeMode: CODE_SCRAPE_MANUAL,
+    }
   }
   if (override) {
-    return { mode: 'code', code: override }
+    return { mode: 'code', code: override, codeScrapeMode: CODE_SCRAPE_AUTO }
   }
-  return { mode: 'auto', code: '' }
+  return { mode: 'auto', code: '', codeScrapeMode: CODE_SCRAPE_AUTO }
 }
 
 function dateFromUnix(value) {
@@ -122,6 +128,7 @@ export default function VideoScrapeSettingsModal({
   onManualScrape,
 }) {
   const [mode, setMode] = useState('auto')
+  const [codeScrapeMode, setCodeScrapeMode] = useState(CODE_SCRAPE_AUTO)
   const [code, setCode] = useState('')
   const [manualInfo, setManualInfo] = useState(emptyManualInfo)
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -131,6 +138,7 @@ export default function VideoScrapeSettingsModal({
     if (!open) return
     const next = initialState(video)
     setMode(next.mode)
+    setCodeScrapeMode(next.codeScrapeMode)
     setCode(next.code)
     setManualInfo(initialManualInfo(video))
     setLookupLoading(false)
@@ -141,9 +149,6 @@ export default function VideoScrapeSettingsModal({
 
   const displayName = String(video?.filename || video?.path || `#${video?.id || ''}`).trim()
   const normalizedCode = code.trim().toUpperCase()
-  const manualCode = String(manualInfo.code || '')
-    .trim()
-    .toUpperCase()
   const manualDuration = String(manualInfo.duration_min || '').trim()
   const manualDurationValid =
     manualDuration === '' ||
@@ -152,19 +157,26 @@ export default function VideoScrapeSettingsModal({
   const canSave =
     !saving &&
     !lookupLoading &&
-    (mode === 'manual'
-      ? manualCode.length > 0 && manualDurationValid
-      : mode !== 'code' || normalizedCode.length > 0)
+    (mode !== 'code' ||
+      (normalizedCode.length > 0 && (codeScrapeMode !== CODE_SCRAPE_MANUAL || manualDurationValid)))
 
   const updateManual = (patch) => setManualInfo((current) => ({ ...current, ...patch }))
 
+  const updateCode = (value) => {
+    const nextCode = value.toUpperCase()
+    setCode(nextCode)
+    setManualInfo((current) => ({ ...current, code: nextCode }))
+  }
+
   const lookupJavDB = async () => {
-    if (!manualCode || lookupLoading || saving) return
+    if (!normalizedCode || lookupLoading || saving) return
     setLookupLoading(true)
     setLookupError('')
     try {
-      const data = await onLookupJavDB?.(manualCode)
-      setManualInfo((current) => ({ ...current, ...infoFromJavDB(data, manualCode) }))
+      const data = await onLookupJavDB?.(normalizedCode)
+      const nextInfo = infoFromJavDB(data, normalizedCode)
+      setCode(nextInfo.code)
+      setManualInfo((current) => ({ ...current, ...nextInfo }))
     } catch (err) {
       setLookupError(
         err?.message || zh('从 JavDB 获取信息失败', 'Failed to fetch metadata from JavDB')
@@ -176,8 +188,8 @@ export default function VideoScrapeSettingsModal({
 
   const submit = () => {
     if (!canSave) return
-    if (mode === 'manual') {
-      onManualScrape?.(manualPayload({ ...manualInfo, code: manualCode }))
+    if (mode === 'code' && codeScrapeMode === CODE_SCRAPE_MANUAL) {
+      onManualScrape?.(manualPayload({ ...manualInfo, code: normalizedCode }))
       return
     }
     onSave?.({ mode, code: normalizedCode })
@@ -228,8 +240,8 @@ export default function VideoScrapeSettingsModal({
             />
             <span>{zh('不刮削此视频', 'Do not scrape this video')}</span>
           </label>
-          <div className="flex flex-col gap-2 rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:border-blue-500">
-            <label className="flex cursor-pointer items-center gap-2">
+          <div className="flex flex-col gap-2 rounded border px-3 py-2 text-sm text-gray-700 hover:border-blue-500">
+            <label className="flex cursor-pointer items-center gap-2 font-medium">
               <input
                 type="radio"
                 name="video-scrape-mode"
@@ -244,167 +256,175 @@ export default function VideoScrapeSettingsModal({
               type="text"
               value={code}
               onFocus={() => setMode('code')}
-              onChange={(event) => setCode(event.target.value.toUpperCase())}
+              onChange={(event) => updateCode(event.target.value)}
               disabled={saving || lookupLoading || mode !== 'code'}
               placeholder="ABC-001"
               aria-label={zh('指定刮削番号', 'Force scrape code')}
               className="w-full rounded border px-3 py-1.5 text-sm uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
             />
-          </div>
-          <div className="rounded border px-3 py-2 text-sm text-gray-700 hover:border-blue-500">
-            <label className="flex cursor-pointer items-center gap-2 font-medium">
-              <input
-                type="radio"
-                name="video-scrape-mode"
-                value="manual"
-                checked={mode === 'manual'}
-                onChange={() => setMode('manual')}
-                disabled={saving || lookupLoading}
-              />
-              <span>{zh('手动刮削', 'Manual scrape')}</span>
-            </label>
-            {mode === 'manual' ? (
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('番号', 'Code')}
-                  </label>
-                  <div className="flex gap-2">
+            {mode === 'code' ? (
+              <div className="space-y-3">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <label className="flex cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:border-blue-500">
                     <input
-                      type="text"
-                      value={manualInfo.code}
-                      onChange={(event) => updateManual({ code: event.target.value.toUpperCase() })}
+                      type="radio"
+                      name="video-code-scrape-mode"
+                      value={CODE_SCRAPE_AUTO}
+                      checked={codeScrapeMode === CODE_SCRAPE_AUTO}
+                      onChange={() => {
+                        setMode('code')
+                        setCodeScrapeMode(CODE_SCRAPE_AUTO)
+                      }}
                       disabled={saving || lookupLoading}
-                      placeholder="ABC-001"
-                      className="min-w-0 flex-1 rounded border px-3 py-1.5 text-sm uppercase focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                     />
-                    <button
-                      type="button"
-                      onClick={lookupJavDB}
-                      disabled={!manualCode || saving || lookupLoading}
-                      className="shrink-0 rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {lookupLoading
-                        ? zh('填充中…', 'Filling...')
-                        : zh('JavDB填充', 'Fill from JavDB')}
-                    </button>
+                    <span>{zh('自动刮削', 'Automatic scrape')}</span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:border-blue-500">
+                    <input
+                      type="radio"
+                      name="video-code-scrape-mode"
+                      value={CODE_SCRAPE_MANUAL}
+                      checked={codeScrapeMode === CODE_SCRAPE_MANUAL}
+                      onChange={() => {
+                        setMode('code')
+                        setCodeScrapeMode(CODE_SCRAPE_MANUAL)
+                      }}
+                      disabled={saving || lookupLoading}
+                    />
+                    <span>{zh('手动刮削', 'Manual scrape')}</span>
+                  </label>
+                </div>
+                {codeScrapeMode === CODE_SCRAPE_MANUAL ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <button
+                        type="button"
+                        onClick={lookupJavDB}
+                        disabled={!normalizedCode || saving || lookupLoading}
+                        className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {lookupLoading
+                          ? zh('填充中…', 'Filling...')
+                          : zh('JavDB填充', 'Fill from JavDB')}
+                      </button>
+                      {lookupError ? (
+                        <div className="mt-1 text-xs text-red-600">{lookupError}</div>
+                      ) : null}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('标题', 'Title')}
+                      </label>
+                      <input
+                        type="text"
+                        value={manualInfo.title}
+                        onChange={(event) => updateManual({ title: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('片商', 'Studio')}
+                      </label>
+                      <input
+                        type="text"
+                        value={manualInfo.studio}
+                        onChange={(event) => updateManual({ studio: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('系列', 'Series')}
+                      </label>
+                      <input
+                        type="text"
+                        value={manualInfo.series}
+                        onChange={(event) => updateManual({ series: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('发行日期', 'Release Date')}
+                      </label>
+                      <input
+                        type="date"
+                        value={manualInfo.release_date}
+                        onChange={(event) => updateManual({ release_date: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('时长（分钟）', 'Duration (min)')}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={manualInfo.duration_min}
+                        onChange={(event) => updateManual({ duration_min: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('类别', 'Tags')}
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={manualInfo.tags_text}
+                        onChange={(event) => updateManual({ tags_text: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('女优', 'Actors')}
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={manualInfo.actors_text}
+                        onChange={(event) => updateManual({ actors_text: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('封面链接', 'Cover URL')}
+                      </label>
+                      <input
+                        type="url"
+                        value={manualInfo.cover_url}
+                        onChange={(event) => updateManual({ cover_url: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-500">
+                        {zh('有码状态', 'Censor State')}
+                      </label>
+                      <select
+                        value={manualInfo.is_uncensored}
+                        onChange={(event) => updateManual({ is_uncensored: event.target.value })}
+                        disabled={saving || lookupLoading}
+                        className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                      >
+                        <option value="">{zh('未知', 'Unknown')}</option>
+                        <option value="false">{zh('有码', 'Censored')}</option>
+                        <option value="true">{zh('无码', 'Uncensored')}</option>
+                      </select>
+                    </div>
                   </div>
-                  {lookupError ? (
-                    <div className="mt-1 text-xs text-red-600">{lookupError}</div>
-                  ) : null}
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('标题', 'Title')}
-                  </label>
-                  <input
-                    type="text"
-                    value={manualInfo.title}
-                    onChange={(event) => updateManual({ title: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('片商', 'Studio')}
-                  </label>
-                  <input
-                    type="text"
-                    value={manualInfo.studio}
-                    onChange={(event) => updateManual({ studio: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('系列', 'Series')}
-                  </label>
-                  <input
-                    type="text"
-                    value={manualInfo.series}
-                    onChange={(event) => updateManual({ series: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('发行日期', 'Release Date')}
-                  </label>
-                  <input
-                    type="date"
-                    value={manualInfo.release_date}
-                    onChange={(event) => updateManual({ release_date: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('时长（分钟）', 'Duration (min)')}
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={manualInfo.duration_min}
-                    onChange={(event) => updateManual({ duration_min: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('类别', 'Tags')}
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={manualInfo.tags_text}
-                    onChange={(event) => updateManual({ tags_text: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('女优', 'Actors')}
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={manualInfo.actors_text}
-                    onChange={(event) => updateManual({ actors_text: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('封面链接', 'Cover URL')}
-                  </label>
-                  <input
-                    type="url"
-                    value={manualInfo.cover_url}
-                    onChange={(event) => updateManual({ cover_url: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('有码状态', 'Censor State')}
-                  </label>
-                  <select
-                    value={manualInfo.is_uncensored}
-                    onChange={(event) => updateManual({ is_uncensored: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                  >
-                    <option value="">{zh('未知', 'Unknown')}</option>
-                    <option value="false">{zh('有码', 'Censored')}</option>
-                    <option value="true">{zh('无码', 'Uncensored')}</option>
-                  </select>
-                </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -426,7 +446,7 @@ export default function VideoScrapeSettingsModal({
           >
             {saving
               ? zh('保存中…', 'Saving...')
-              : mode === 'manual'
+              : mode === 'code' && codeScrapeMode === CODE_SCRAPE_MANUAL
                 ? zh('手动刮削', 'Manual Scrape')
                 : zh('保存', 'Save')}
           </button>
