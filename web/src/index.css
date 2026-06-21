@@ -20,6 +20,11 @@ body {
   position: sticky;
   top: var(--topbar-height);
   z-index: 30;
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
   background: #fff;
 }
 
