@@ -1,8 +1,6 @@
 package jav
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -65,11 +63,38 @@ func TestParseJavMenuMovieInfoFromFixture(t *testing.T) {
 func mustParseJavMenuFixture(t *testing.T) *html.Node {
 	t.Helper()
 
-	data, err := os.ReadFile(filepath.Join("..", "..", "temp", "javmenu.html"))
-	if err != nil {
-		t.Fatalf("read fixture: %v", err)
-	}
-	doc, err := html.Parse(strings.NewReader(string(data)))
+	doc, err := html.Parse(strings.NewReader(`
+		<html>
+			<head>
+				<title>IPX-228 中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ 免費AV在線看</title>
+			</head>
+			<body>
+				<h1>IPX-228 中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ</h1>
+				<div class="card rounded">
+					<div class="card-body">
+						<h2>影片資料</h2>
+						<div><span>番號:</span> IPX-228</div>
+						<div><span>發佈於:</span> 2018-11-13</div>
+						<div><span>時長:</span> 170分鐘</div>
+						<div><span>出版:</span> <a href="/studio/tissue">ティッシュ</a></div>
+						<div><span>系列:</span> <a href="/series/ipx">中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交</a></div>
+						<div>
+							<span>類別:</span>
+							<a class="genre" href="/genre/1">美少女</a>
+							<a class="genre" href="/genre/2">淫亂，真實</a>
+							<a class="genre" href="/genre/3">數位馬賽克</a>
+							<a class="genre" href="/genre/4">接吻</a>
+							<a class="genre" href="/genre/5">校服</a>
+							<a class="genre" href="/genre/6">流汗</a>
+						</div>
+						<div>
+							<span>女優:</span>
+							<a class="actress" href="/actress/nanami-misaki">岬奈奈美</a>
+						</div>
+					</div>
+				</div>
+			</body>
+		</html>`))
 	if err != nil {
 		t.Fatalf("parse fixture: %v", err)
 	}
