@@ -18,7 +18,7 @@ body {
 
 .sticky-pagination {
   position: sticky;
-  top: var(--topbar-height);
+  top: calc(var(--topbar-height) - 1px);
   z-index: 30;
   width: 100vw;
   margin-left: calc(50% - 50vw);
@@ -26,6 +26,10 @@ body {
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   background: #fff;
+}
+
+body.has-page-scroll .sticky-pagination {
+  box-shadow: 0 8px 18px -13px rgba(15, 23, 42, 0.38);
 }
 
 .directory-setup-hint {

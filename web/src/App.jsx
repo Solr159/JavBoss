@@ -292,6 +292,20 @@ export default function App() {
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
   const [javResolvedIdols, setJavResolvedIdols] = useState({})
   const [toastMessage, setToastMessage] = useState('')
+
+  useEffect(() => {
+    const updateScrolledState = () => {
+      document.body.classList.toggle('has-page-scroll', window.scrollY > 0)
+    }
+
+    updateScrolledState()
+    window.addEventListener('scroll', updateScrolledState, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', updateScrolledState)
+      document.body.classList.remove('has-page-scroll')
+    }
+  }, [])
+
   const javVideoChoices = javVideoPickerItem?.videos || []
   const locationPickerItem = locationPickerVideo
     ? {
