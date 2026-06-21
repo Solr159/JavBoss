@@ -227,19 +227,27 @@ export default function TopBar({
                         <SearchIcon fontSize="small" />
                       </Button>
                     </form>
-                    <Button
-                      component="a"
-                      href={javRandomHref}
-                      startIcon={<ShuffleOutlinedIcon fontSize="small" />}
-                      variant="outlined"
-                      onClick={(e) => {
-                        if (isModifiedClick(e)) return
-                        e.preventDefault()
-                        onJavRandomClick?.()
-                      }}
-                    >
-                      {zh('随机', 'Random')}
-                    </Button>
+                    <Tooltip title={zh('随机', 'Random')} arrow>
+                      <Button
+                        component="a"
+                        href={javRandomHref}
+                        variant="outlined"
+                        aria-label={zh('随机', 'Random')}
+                        onClick={(e) => {
+                          if (isModifiedClick(e)) return
+                          e.preventDefault()
+                          onJavRandomClick?.()
+                        }}
+                        sx={{
+                          minWidth: 36,
+                          width: 36,
+                          height: 36,
+                          p: 0,
+                        }}
+                      >
+                        <ShuffleOutlinedIcon fontSize="small" />
+                      </Button>
+                    </Tooltip>
                     <Tooltip title={zh('标签管理', 'Tag management')} arrow>
                       <Button
                         variant="outlined"
@@ -291,19 +299,27 @@ export default function TopBar({
                       </Button>
                     </form>
                     <div className="flex items-center gap-2">
-                      <Button
-                        component="a"
-                        href={randomHref}
-                        startIcon={<ShuffleOutlinedIcon fontSize="small" />}
-                        variant="outlined"
-                        onClick={(e) => {
-                          if (isModifiedClick(e)) return
-                          e.preventDefault()
-                          onRandomClick()
-                        }}
-                      >
-                        {zh('随机', 'Random')}
-                      </Button>
+                      <Tooltip title={zh('随机', 'Random')} arrow>
+                        <Button
+                          component="a"
+                          href={randomHref}
+                          variant="outlined"
+                          aria-label={zh('随机', 'Random')}
+                          onClick={(e) => {
+                            if (isModifiedClick(e)) return
+                            e.preventDefault()
+                            onRandomClick()
+                          }}
+                          sx={{
+                            minWidth: 36,
+                            width: 36,
+                            height: 36,
+                            p: 0,
+                          }}
+                        >
+                          <ShuffleOutlinedIcon fontSize="small" />
+                        </Button>
+                      </Tooltip>
                     </div>
                     <Button
                       startIcon={<LocalOfferOutlinedIcon fontSize="small" />}

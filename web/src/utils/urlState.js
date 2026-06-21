@@ -70,6 +70,7 @@ export const parseUrlState = (searchString = window.location.search, options = {
     studioName: (sp.get('studio_name') || '').trim(),
     seriesId: parsePositiveInt(sp.get('series_id')),
     seriesName: (sp.get('series_name') || '').trim(),
+    soloOnly: sp.get('solo') === '1',
     idolFavoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
     tempSort: javTempSort,
     random: sp.get('random') === '1',
@@ -105,6 +106,9 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     if (state.jav.tab === 'list' && state.jav.seriesId) {
       sp.set('series_id', String(state.jav.seriesId))
       if (state.jav.seriesName) sp.set('series_name', state.jav.seriesName)
+    }
+    if (state.jav.tab === 'list' && state.jav.soloOnly) {
+      sp.set('solo', '1')
     }
     if (state.jav.tab === 'idol' && state.jav.idolFavoriteGroupId) {
       sp.set('favorite_group_id', String(state.jav.idolFavoriteGroupId))
@@ -211,6 +215,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       studioName: (store.javStudioName || '').trim(),
       seriesId: store.javSeriesId || null,
       seriesName: (store.javSeriesName || '').trim(),
+      soloOnly: Boolean(store.javSoloOnly),
       idolFavoriteGroupId: store.javTab === 'idol' ? store.idolFavoriteGroupId || null : null,
       tempSort: store.javTab === 'list' && !store.javRandomMode ? store.javTempSort || '' : '',
       random: store.javTab === 'list' && store.javRandomMode,
