@@ -28,6 +28,10 @@ body {
   background: #fff;
 }
 
+body.has-page-scroll .sticky-pagination {
+  box-shadow: 0 8px 18px -13px rgba(15, 23, 42, 0.38);
+}
+
 .directory-setup-hint {
   position: relative;
 }
