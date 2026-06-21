@@ -100,11 +100,11 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 	search = strings.TrimSpace(search)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
-	studioID, seriesID := javFilterIDs(filterIDs)
-	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID)
+	studioID, seriesID, soloOnly := javFilterOptions(filterIDs)
+	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID)
+	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -639,7 +639,7 @@ func replaceJavUserTagsTx(tx *gorm.DB, javIDs, tagIDs []int64) error {
 	return nil
 }
 
-func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -665,6 +665,16 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	if seriesID > 0 {
 		q = q.Where(javSeriesColumn()+" = ?", seriesID)
 	}
+	if soloOnly {
+		soloJavs := common.DB.WithContext(ctx).
+			Table("jav_idol_map jim_solo_count").
+			Select("jim_solo_count.jav_id").
+			Joins("JOIN jav_idol ji_solo_count ON ji_solo_count.id = jim_solo_count.jav_idol_id").
+			Where("COALESCE(ji_solo_count.is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
+			Group("jim_solo_count.jav_id").
+			Having("COUNT(DISTINCT jim_solo_count.jav_idol_id) = 1")
+		q = q.Where("jav.id IN (?)", soloJavs)
+	}
 	if len(tagIDs) > 0 {
 		q = q.
 			Joins("JOIN jav_tag_map jtm ON jtm.jav_id = jav.id").
@@ -683,16 +693,20 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	return q
 }
 
-func javFilterIDs(values []int64) (int64, int64) {
+func javFilterOptions(values []int64) (int64, int64, bool) {
 	studioID := int64(0)
 	seriesID := int64(0)
+	soloOnly := false
 	if len(values) > 0 && values[0] > 0 {
 		studioID = values[0]
 	}
 	if len(values) > 1 && values[1] > 0 {
 		seriesID = values[1]
 	}
-	return studioID, seriesID
+	if len(values) > 2 && values[2] > 0 {
+		soloOnly = true
+	}
+	return studioID, seriesID, soloOnly
 }
 
 func javSeriesColumn() string {

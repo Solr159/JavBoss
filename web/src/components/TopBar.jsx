@@ -56,7 +56,7 @@ export default function TopBar({
   const headerRef = useRef(null)
   const directoryMenuRef = useRef(null)
   const [directoryMenuOpen, setDirectoryMenuOpen] = useState(false)
-  const headerClassName = ['sticky top-0 z-40 border-b bg-white/80 backdrop-blur']
+  const headerClassName = ['sticky top-0 z-40 border-b bg-white/80 backdrop-blur', 'relative']
     .filter(Boolean)
     .join(' ')
   const activeDirectories = useMemo(
@@ -146,18 +146,140 @@ export default function TopBar({
     onEnabledDirectoryIdsChange?.(Array.from(next))
   }
 
+  const searchForm = isJavMode ? (
+    <form
+      onSubmit={onSubmitJavSearch}
+      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
+    >
+      <input
+        value={javSearchInput}
+        onChange={(e) => onJavSearchInputChange(e.target.value)}
+        placeholder={
+          javTab === 'idol'
+            ? zh('搜索女优名称', 'Search idol name')
+            : javTab === 'studio'
+              ? zh('搜索片商名称', 'Search studio name')
+              : javTab === 'series'
+                ? zh('搜索系列名称', 'Search series name')
+                : zh('搜索番号或标题', 'Search code or title')
+        }
+        className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label={zh('搜索JAV', 'Search JAV')}
+      />
+      <Button
+        component="a"
+        href={javSearchHref}
+        aria-label={zh('搜索JAV', 'Search JAV')}
+        variant="contained"
+        size="medium"
+        onClick={(e) => {
+          if (isModifiedClick(e)) return
+          onSubmitJavSearch(e)
+        }}
+        sx={{
+          borderTopLeftRadius: 0,
+          borderBottomLeftRadius: 0,
+          minWidth: 40,
+          minHeight: '40px',
+          height: '40px',
+          px: 1.25,
+        }}
+      >
+        <SearchIcon fontSize="small" />
+      </Button>
+    </form>
+  ) : (
+    <form
+      onSubmit={onSubmitVideoSearch}
+      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
+    >
+      <input
+        value={videoSearchInput}
+        onChange={(e) => onVideoSearchInputChange(e.target.value)}
+        placeholder={zh('搜索文件名', 'Search filename')}
+        className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label={zh('搜索视频', 'Search videos')}
+      />
+      <Button
+        component="a"
+        href={videoSearchHref}
+        aria-label={zh('搜索视频', 'Search videos')}
+        variant="contained"
+        size="medium"
+        onClick={(e) => {
+          if (isModifiedClick(e)) return
+          onSubmitVideoSearch(e)
+        }}
+        sx={{
+          borderTopLeftRadius: 0,
+          borderBottomLeftRadius: 0,
+          minWidth: 40,
+          minHeight: '40px',
+          height: '40px',
+          px: 1.25,
+        }}
+      >
+        <SearchIcon fontSize="small" />
+      </Button>
+    </form>
+  )
+
   return (
     <header ref={headerRef} className={headerClassName}>
-      <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 px-6 py-2">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      {!showDirectorySetupHint ? (
+        <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
+          <Button
+            type="button"
+            variant="text"
+            onClick={onBrowserBack}
+            disabled={!canGoBack}
+            title={zh('浏览器后退', 'Browser back')}
+            aria-label={zh('浏览器后退', 'Browser back')}
+            sx={{
+              minWidth: 30,
+              width: 30,
+              height: 30,
+              p: 0,
+              borderRadius: 0,
+              color: 'text.secondary',
+            }}
+          >
+            <ArrowBackRoundedIcon fontSize="small" />
+          </Button>
+          <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
+          <Button
+            type="button"
+            variant="text"
+            onClick={onBrowserForward}
+            disabled={!canGoForward}
+            title={zh('浏览器前进', 'Browser forward')}
+            aria-label={zh('浏览器前进', 'Browser forward')}
+            sx={{
+              minWidth: 30,
+              width: 30,
+              height: 30,
+              p: 0,
+              borderRadius: 0,
+              color: 'text.secondary',
+            }}
+          >
+            <ArrowForwardRoundedIcon fontSize="small" />
+          </Button>
+        </div>
+      ) : null}
+      <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1536px)_minmax(0,1fr)] py-2">
+        <div className="col-start-2 row-start-1 flex min-w-0 flex-wrap items-start gap-3 px-6">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={onHome}
-              className="cursor-pointer select-none rounded text-left text-xl font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-              JavBoss
-            </button>
+            <div className="relative flex min-w-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onHome}
+                className="cursor-pointer select-none rounded text-left text-xl font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                JavBoss
+              </button>
+              {searchForm}
+            </div>
 
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <div className="flex flex-wrap items-center gap-2">
@@ -187,59 +309,27 @@ export default function TopBar({
                     >
                       {zh('系列', 'Series')}
                     </Button>
-                    <form
-                      onSubmit={onSubmitJavSearch}
-                      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
-                    >
-                      <input
-                        value={javSearchInput}
-                        onChange={(e) => onJavSearchInputChange(e.target.value)}
-                        placeholder={
-                          javTab === 'idol'
-                            ? zh('搜索女优名称', 'Search idol name')
-                            : javTab === 'studio'
-                              ? zh('搜索片商名称', 'Search studio name')
-                              : javTab === 'series'
-                                ? zh('搜索系列名称', 'Search series name')
-                                : zh('搜索番号或标题', 'Search code or title')
-                        }
-                        className="h-10 flex-1 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        aria-label={zh('搜索JAV', 'Search JAV')}
-                      />
+                    <Tooltip title={zh('随机', 'Random')} arrow>
                       <Button
                         component="a"
-                        href={javSearchHref}
-                        aria-label={zh('搜索JAV', 'Search JAV')}
-                        variant="contained"
-                        size="medium"
+                        href={javRandomHref}
+                        variant="outlined"
+                        aria-label={zh('随机', 'Random')}
                         onClick={(e) => {
                           if (isModifiedClick(e)) return
-                          onSubmitJavSearch(e)
+                          e.preventDefault()
+                          onJavRandomClick?.()
                         }}
                         sx={{
-                          borderTopLeftRadius: 0,
-                          borderBottomLeftRadius: 0,
-                          minHeight: '40px',
-                          height: '40px',
-                          px: 2.5,
+                          minWidth: 36,
+                          width: 36,
+                          height: 36,
+                          p: 0,
                         }}
                       >
-                        <SearchIcon fontSize="small" />
+                        <ShuffleOutlinedIcon fontSize="small" />
                       </Button>
-                    </form>
-                    <Button
-                      component="a"
-                      href={javRandomHref}
-                      startIcon={<ShuffleOutlinedIcon fontSize="small" />}
-                      variant="outlined"
-                      onClick={(e) => {
-                        if (isModifiedClick(e)) return
-                        e.preventDefault()
-                        onJavRandomClick?.()
-                      }}
-                    >
-                      {zh('随机', 'Random')}
-                    </Button>
+                    </Tooltip>
                     <Tooltip title={zh('标签管理', 'Tag management')} arrow>
                       <Button
                         variant="outlined"
@@ -258,38 +348,6 @@ export default function TopBar({
                   </div>
                 ) : (
                   <>
-                    <form
-                      onSubmit={onSubmitVideoSearch}
-                      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
-                    >
-                      <input
-                        value={videoSearchInput}
-                        onChange={(e) => onVideoSearchInputChange(e.target.value)}
-                        placeholder={zh('搜索文件名', 'Search filename')}
-                        className="h-10 flex-1 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        aria-label={zh('搜索视频', 'Search videos')}
-                      />
-                      <Button
-                        component="a"
-                        href={videoSearchHref}
-                        aria-label={zh('搜索视频', 'Search videos')}
-                        variant="contained"
-                        size="medium"
-                        onClick={(e) => {
-                          if (isModifiedClick(e)) return
-                          onSubmitVideoSearch(e)
-                        }}
-                        sx={{
-                          borderTopLeftRadius: 0,
-                          borderBottomLeftRadius: 0,
-                          minHeight: '40px',
-                          height: '40px',
-                          px: 2.5,
-                        }}
-                      >
-                        <SearchIcon fontSize="small" />
-                      </Button>
-                    </form>
                     <div className="flex items-center gap-2">
                       <Button
                         component="a"
@@ -409,44 +467,10 @@ export default function TopBar({
               ) : null}
             </div>
           </div>
+        </div>
 
-          <div className="mt-0.5 flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
-            {!showDirectorySetupHint ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  onClick={onBrowserBack}
-                  disabled={!canGoBack}
-                  title={zh('浏览器后退', 'Browser back')}
-                  aria-label={zh('浏览器后退', 'Browser back')}
-                  sx={{
-                    minWidth: 36,
-                    width: 36,
-                    height: 36,
-                    p: 0,
-                  }}
-                >
-                  <ArrowBackRoundedIcon fontSize="small" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outlined"
-                  onClick={onBrowserForward}
-                  disabled={!canGoForward}
-                  title={zh('浏览器前进', 'Browser forward')}
-                  aria-label={zh('浏览器前进', 'Browser forward')}
-                  sx={{
-                    minWidth: 36,
-                    width: 36,
-                    height: 36,
-                    p: 0,
-                  }}
-                >
-                  <ArrowForwardRoundedIcon fontSize="small" />
-                </Button>
-              </>
-            ) : null}
+        <div className="pointer-events-none col-span-full row-start-1 flex justify-end px-6">
+          <div className="pointer-events-auto mt-0.5 flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {showDirectorySetupHint ? (
               <div
                 className="directory-setup-hint flex max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm"
@@ -573,14 +597,26 @@ export default function TopBar({
                 </div>
               ) : null}
             </div>
-            <Button
-              variant="contained"
-              color={isJavMode ? 'secondary' : 'primary'}
-              startIcon={<SwapHorizOutlinedIcon fontSize="small" />}
-              onClick={onToggleMode}
+            <Tooltip
+              title={
+                isJavMode ? zh('切换到视频', 'Switch to Video') : zh('切换到 JAV', 'Switch to JAV')
+              }
+              arrow
             >
-              {isJavMode ? zh('切换到视频', 'To Video') : zh('切换到 JAV', 'To JAV')}
-            </Button>
+              <Button
+                variant="contained"
+                color={isJavMode ? 'secondary' : 'primary'}
+                startIcon={<SwapHorizOutlinedIcon fontSize="small" />}
+                onClick={onToggleMode}
+                aria-label={
+                  isJavMode
+                    ? zh('切换到视频', 'Switch to Video')
+                    : zh('切换到 JAV', 'Switch to JAV')
+                }
+              >
+                {isJavMode ? zh('视频', 'Video') : 'JAV'}
+              </Button>
+            </Tooltip>
           </div>
         </div>
       </div>

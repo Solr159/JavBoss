@@ -275,6 +275,79 @@ func TestSearchJavFiltersByIdolIDs(t *testing.T) {
 	}
 }
 
+func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+	prevLang := jav.CurrentMetadataLanguage()
+	t.Cleanup(func() {
+		jav.SetMetadataLanguage(string(prevLang))
+	})
+	jav.SetMetadataLanguage("zh")
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+
+	idolA := models.JavIdol{Name: "Idol A"}
+	idolB := models.JavIdol{Name: "Idol B"}
+	englishIdol := models.JavIdol{Name: "English Idol", IsEnglish: true}
+	if err := db.Create(&[]models.JavIdol{idolA, idolB, englishIdol}).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+	var idols []models.JavIdol
+	if err := db.Order("name").Find(&idols).Error; err != nil {
+		t.Fatalf("load idols: %v", err)
+	}
+	idolByName := make(map[string]models.JavIdol, len(idols))
+	for _, idol := range idols {
+		idolByName[idol.Name] = idol
+	}
+
+	javs := []models.Jav{
+		{Code: "SOLO-001", Title: "One idol", FetchedAt: now},
+		{Code: "GROUP-001", Title: "Two idols", FetchedAt: now},
+		{Code: "EN-001", Title: "English idol only", FetchedAt: now},
+	}
+	if err := db.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+	javByCode := make(map[string]models.Jav, len(javs))
+	for _, item := range javs {
+		javByCode[item.Code] = item
+	}
+	maps := []models.JavIdolMap{
+		{JavID: javByCode["SOLO-001"].ID, JavIdolID: idolByName["Idol A"].ID},
+		{JavID: javByCode["GROUP-001"].ID, JavIdolID: idolByName["Idol A"].ID},
+		{JavID: javByCode["GROUP-001"].ID, JavIdolID: idolByName["Idol B"].ID},
+		{JavID: javByCode["EN-001"].ID, JavIdolID: idolByName["English Idol"].ID},
+	}
+	if err := db.Create(&maps).Error; err != nil {
+		t.Fatalf("create idol maps: %v", err)
+	}
+	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "solo-001.mp4", Filename: "solo-001.mp4", Fingerprint: "fp-solo-001", JavID: int64Ptr(javByCode["SOLO-001"].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "group-001.mp4", Filename: "group-001.mp4", Fingerprint: "fp-group-001", JavID: int64Ptr(javByCode["GROUP-001"].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "en-001.mp4", Filename: "en-001.mp4", Fingerprint: "fp-en-001", JavID: int64Ptr(javByCode["EN-001"].ID), ModifiedAt: now},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	items, total, err := SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil, 0, 0, 1)
+	if err != nil {
+		t.Fatalf("SearchJav solo only: %v", err)
+	}
+	if total != 1 || len(items) != 1 {
+		t.Fatalf("unexpected solo filtered javs: total=%d len=%d", total, len(items))
+	}
+	if items[0].Code != "SOLO-001" {
+		t.Fatalf("unexpected jav code: got %q want SOLO-001", items[0].Code)
+	}
+}
+
 func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

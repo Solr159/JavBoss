@@ -147,6 +147,7 @@ export default function App() {
     javStudioName,
     javSeriesId,
     javSeriesName,
+    javSoloOnly,
     javSort,
     javTempSort,
     javRandomMode,
@@ -841,6 +842,7 @@ export default function App() {
           javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
           javSeriesId: jav.tab === 'list' ? jav.seriesId : null,
           javSeriesName: jav.tab === 'list' && jav.seriesId ? jav.seriesName : '',
+          javSoloOnly: jav.tab === 'list' ? jav.soloOnly : false,
           javPage: jav.random ? 1 : jav.page,
           idolPage: jav.tab === 'idol' ? jav.page : 1,
           idolFavoriteGroupId: jav.tab === 'idol' ? jav.idolFavoriteGroupId : null,
@@ -901,6 +903,7 @@ export default function App() {
           javStudioName,
           javSeriesId,
           javSeriesName,
+          javSoloOnly,
           javTempSort,
           javRandomMode,
           javRandomSeed,
@@ -925,6 +928,7 @@ export default function App() {
       javIdolIds,
       javStudioId,
       javSeriesId,
+      javSoloOnly,
       javPage,
       javRandomMode,
       javRandomSeed,
@@ -1033,6 +1037,7 @@ export default function App() {
         studioName: studioNameOverride,
         seriesId: seriesIdOverride,
         seriesName: seriesNameOverride,
+        soloOnly: soloOnlyOverride,
         favoriteGroupId: favoriteGroupIdOverride,
         tagIds: tagIdsOverride,
         random: randomOverride,
@@ -1076,6 +1081,11 @@ export default function App() {
         if (seriesName) {
           sp.set('series_name', seriesName)
         }
+      }
+      const hasSoloOnlyOverride = Object.prototype.hasOwnProperty.call(options, 'soloOnly')
+      const soloOnly = hasSoloOnlyOverride ? Boolean(soloOnlyOverride) : Boolean(javSoloOnly)
+      if (tab === 'list' && soloOnly) {
+        sp.set('solo', '1')
       }
       const hasFavoriteGroupIdOverride = Object.prototype.hasOwnProperty.call(
         options,
@@ -1127,6 +1137,7 @@ export default function App() {
       javStudioName,
       javSeriesId,
       javSeriesName,
+      javSoloOnly,
       javPage,
       javTempSort,
       javSearchTerm,
@@ -1159,6 +1170,7 @@ export default function App() {
         javStudioName: '',
         javSeriesId: null,
         javSeriesName: '',
+        javSoloOnly: false,
         idolFavoriteGroupId: null,
         javTags: clean,
         javSearchTerm: '',
@@ -1393,6 +1405,7 @@ export default function App() {
       javTags.length > 0 ||
       Boolean(javStudioId) ||
       Boolean(javSeriesId) ||
+      Boolean(javSoloOnly) ||
       Boolean((javSearchTerm || '').trim()))
   useEffect(() => {
     setJavResolvedIdols({})
@@ -1443,6 +1456,7 @@ export default function App() {
     tagIds: [],
     studioId: null,
     seriesId: null,
+    soloOnly: false,
     random: false,
     tempSort: '',
   })
@@ -1454,6 +1468,7 @@ export default function App() {
     tagIds: [],
     studioId: null,
     seriesId: null,
+    soloOnly: false,
     search: '',
   })
   const handleJavRandomClick = useCallback(() => {
@@ -1469,6 +1484,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
       javPage: 1,
@@ -1553,6 +1569,9 @@ export default function App() {
           const label = javSeriesName || loadedSeriesName || `#${javSeriesId}`
           parts.push(zh(`系列: ${label}`, `Series: ${label}`))
         }
+        if (javSoloOnly) {
+          parts.push(zh('单体作品', 'Solo works'))
+        }
       }
       const searchLabel = (javSearchTerm || '').trim()
       if (searchLabel) parts.push(zh(`搜索: ${searchLabel}`, `Search: ${searchLabel}`))
@@ -1580,6 +1599,7 @@ export default function App() {
     javStudioName,
     javSeriesId,
     javSeriesName,
+    javSoloOnly,
     javItems,
     javTagNameMap,
     javSearchTerm,
@@ -1645,6 +1665,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javSoloOnly: false,
       javSearchTerm: (javSearchInput || '').trim(),
       javPage: 1,
       idolPage: 1,
@@ -2047,6 +2068,7 @@ export default function App() {
         javStudioName: '',
         javSeriesId: null,
         javSeriesName: '',
+        javSoloOnly: false,
         idolFavoriteGroupId: null,
         javSearchTerm: '',
         javPage: 1,
@@ -2098,6 +2120,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javSoloOnly: false,
       idolFavoriteGroupId: null,
       javRandomMode: nextRandomMode,
       javRandomSeed: nextRandomSeed,
@@ -2142,6 +2165,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
       javPage: 1,
@@ -2317,6 +2341,7 @@ export default function App() {
         javStudioName: '',
         javSeriesId: null,
         javSeriesName: '',
+        javSoloOnly: false,
         idolFavoriteGroupId: null,
         javSearchTerm: '',
         javPage: 1,
@@ -2345,6 +2370,7 @@ export default function App() {
       javStudioName: String(studio?.name || '').trim(),
       javSeriesId: null,
       javSeriesName: '',
+      javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
       javPage: 1,
@@ -2371,6 +2397,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: id,
       javSeriesName: String(series?.name || '').trim(),
+      javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
       javPage: 1,
@@ -2433,6 +2460,7 @@ export default function App() {
         javStudioName: nextStudioName,
         javSeriesId: hasSeries ? nextSeriesId : null,
         javSeriesName: nextSeriesName,
+        javSoloOnly: Boolean(query?.soloOnly),
         idolFavoriteGroupId: null,
         javPage: 1,
         idolPage: 1,
@@ -2783,6 +2811,7 @@ export default function App() {
         studioName={javStudioName}
         seriesId={javSeriesId}
         seriesName={javSeriesName}
+        soloOnly={javSoloOnly}
         directoryIds={javQueryDirectoryIds}
       />
 

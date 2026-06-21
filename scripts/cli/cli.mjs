@@ -206,10 +206,7 @@ async function isBundledFfmpegReady(choice) {
 async function isBundledMpvReady(choice) {
   if (!(await exists(binMpvPath(choice)))) return false;
   if (choice.goos === "linux") {
-    return (
-      (await exists(path.join(binMpvDir(choice), "bin", "mpv-bin"))) &&
-      (await exists(path.join(binMpvDir(choice), "lib", "ld-linux-x86-64.so.2")))
-    );
+    return isLinuxMpvBundleReady(binMpvDir(choice), choice);
   }
   return true;
 }
@@ -759,8 +756,66 @@ async function indexLibraryFiles(dir, index = new Map()) {
 }
 
 async function readElfNeeded(filePath) {
-  const { stdout } = await runCommandCapture("readelf", ["-d", filePath]);
-  return Array.from(stdout.matchAll(/Shared library: \[([^\]]+)\]/g), (match) => match[1]);
+  const { stdout } = await runCommandCapture("readelf", ["-d", filePath], {
+    env: {
+      ...process.env,
+      LANG: "C",
+      LC_ALL: "C",
+      LC_MESSAGES: "C",
+    },
+  });
+  return Array.from(stdout.matchAll(/\(NEEDED\)[^\[]*\[([^\]]+)\]/g), (match) => match[1]);
+}
+
+async function isLinuxMpvBundleReady(baseDir, choice) {
+  const mpvPath = mpvExecutablePath(baseDir, choice);
+  const mpvBin = path.join(baseDir, "bin", "mpv-bin");
+  const libDir = path.join(baseDir, "lib");
+  const loader = path.join(libDir, "ld-linux-x86-64.so.2");
+  if (!(await exists(mpvPath)) || !(await exists(mpvBin)) || !(await exists(loader))) {
+    return false;
+  }
+
+  const current = currentPlatformChoice();
+  if (current?.label === choice.label) {
+    try {
+      await runCommandCapture(mpvPath, ["--version"]);
+    } catch {
+      return false;
+    }
+  }
+
+  if (!(await commandExists("readelf"))) {
+    return true;
+  }
+
+  const queue = [mpvBin, loader];
+  const sdl3 = path.join(libDir, "libSDL3.so.0");
+  if (await exists(sdl3)) queue.push(sdl3);
+  const seen = new Set();
+
+  while (queue.length) {
+    const currentFile = queue.shift();
+    if (seen.has(currentFile)) continue;
+    seen.add(currentFile);
+
+    let neededLibraries;
+    try {
+      neededLibraries = await readElfNeeded(currentFile);
+    } catch {
+      return false;
+    }
+
+    for (const needed of neededLibraries) {
+      const depPath = path.join(libDir, path.basename(needed));
+      if (!(await exists(depPath))) {
+        return false;
+      }
+      if (!seen.has(depPath)) queue.push(depPath);
+    }
+  }
+
+  return true;
 }
 
 async function rewriteAbsoluteNeeded(binaryPath, neededPath) {
@@ -1057,6 +1112,10 @@ async function downloadMpv(choice) {
   if (await isBundledMpvReady(choice)) {
     console.log(`[mpv] 已存在：${binMpvDir(choice)}`);
     return;
+  }
+  if (await exists(binMpvDir(choice))) {
+    console.log(`[mpv] 已存在的 ${choice.label} mpv 不完整，重新下载`);
+    await fsp.rm(binMpvDir(choice), { recursive: true, force: true });
   }
 
   const { urls } = mpvUrls(choice);

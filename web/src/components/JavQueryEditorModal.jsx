@@ -92,6 +92,7 @@ export default function JavQueryEditorModal({
   studioName = '',
   seriesId = null,
   seriesName = '',
+  soloOnly = false,
   directoryIds = [],
 }) {
   const studioInputRef = useRef(null)
@@ -113,6 +114,7 @@ export default function JavQueryEditorModal({
   const [studioLoading, setStudioLoading] = useState(false)
   const [studioError, setStudioError] = useState('')
   const [selectedSeries, setSelectedSeries] = useState(null)
+  const [selectedSoloOnly, setSelectedSoloOnly] = useState(false)
   const [seriesSearch, setSeriesSearch] = useState('')
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false)
   const [allSeries, setAllSeries] = useState([])
@@ -146,10 +148,11 @@ export default function JavQueryEditorModal({
         ? { id: parsedSeriesId, name: trimmedSeriesName || `#${parsedSeriesId}` }
         : null
     )
+    setSelectedSoloOnly(Boolean(soloOnly))
     setSeriesSearch('')
     setSeriesPickerOpen(false)
     setSeriesError('')
-  }, [idolIds, open, search, seriesId, seriesName, studioId, studioName, tagIds])
+  }, [idolIds, open, search, seriesId, seriesName, soloOnly, studioId, studioName, tagIds])
 
   useEffect(() => {
     if (!open) return
@@ -377,6 +380,7 @@ export default function JavQueryEditorModal({
     setStudioSearch('')
     setStudioPickerOpen(false)
     setSelectedSeries(null)
+    setSelectedSoloOnly(false)
     setSeriesSearch('')
     setSeriesPickerOpen(false)
   }
@@ -388,6 +392,7 @@ export default function JavQueryEditorModal({
       tagIds: selectedTagIds,
       studio: selectedStudio,
       series: selectedSeries,
+      soloOnly: selectedSoloOnly,
     })
   }
 
@@ -420,6 +425,21 @@ export default function JavQueryEditorModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          <section className="space-y-2">
+            <div className="text-sm font-semibold text-slate-800">
+              {zh('作品类型', 'Work Type')}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={selectedSoloOnly}
+                onChange={(event) => setSelectedSoloOnly(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <span>{zh('只看单体作品', 'Solo works only')}</span>
+            </label>
+          </section>
+
           <section className="space-y-2">
             <label className="text-sm font-semibold text-slate-800" htmlFor="jav-query-keyword">
               {zh('关键词', 'Keyword')}

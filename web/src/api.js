@@ -381,6 +381,7 @@ export async function fetchJavs({
   tagIds = [],
   studioId = null,
   seriesId = null,
+  soloOnly = false,
   sort = '',
   seed = null,
   directoryIds = [],
@@ -393,6 +394,7 @@ export async function fetchJavs({
   if (tagIds.length) params.set('tag_ids', tagIds.join(','))
   if (studioId) params.set('studio_id', String(studioId))
   if (seriesId) params.set('series_id', String(seriesId))
+  if (soloOnly) params.set('solo', '1')
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))

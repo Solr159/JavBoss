@@ -3,8 +3,6 @@ package jav
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -98,11 +96,22 @@ func TestParseJavBusMovieInfoIncludesCoverURL(t *testing.T) {
 }
 
 func TestParseJavBusUncensoredFromFixture(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "temp", "javbus-uncensor.html"))
-	if err != nil {
-		t.Fatalf("read fixture: %v", err)
-	}
-	doc, err := html.Parse(strings.NewReader(string(data)))
+	doc, err := html.Parse(strings.NewReader(`
+		<html>
+			<head>
+				<title>051526-001 Test Title - JavBus</title>
+			</head>
+			<body>
+				<ul class="nav navbar-nav">
+					<li><a href="https://www.javbus.com/">有碼</a></li>
+					<li class="active"><a href="https://www.javbus.com/uncensored">無碼</a></li>
+				</ul>
+				<div class="movie row">
+					<h3>051526-001 Test Title</h3>
+					<p><span>識別碼:</span><span>051526-001</span></p>
+				</div>
+			</body>
+		</html>`))
 	if err != nil {
 		t.Fatalf("parse fixture: %v", err)
 	}
