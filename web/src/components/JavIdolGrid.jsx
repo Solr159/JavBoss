@@ -53,7 +53,10 @@ export default function JavIdolGrid({
 
   return (
     <>
-      <div className="grid gap-3 bg-white sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      <div
+        className="grid gap-3 bg-white"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(11rem, 1fr))' }}
+      >
         {displayItems.map((item) => (
           <IdolCard
             key={item.id || item.name}

@@ -83,7 +83,10 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }
   }
 
   return (
-    <div className="grid gap-4 bg-white sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+    <div
+      className="grid gap-4 bg-white"
+      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))' }}
+    >
       {items.map((item) => (
         <SeriesCard
           key={item.id || item.name}

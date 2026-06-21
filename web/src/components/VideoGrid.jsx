@@ -19,7 +19,10 @@ export default function VideoGrid({
   onTagClick,
 }) {
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+    <div
+      className="grid gap-8"
+      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(18rem, 1fr))' }}
+    >
       {videos.map((v) => (
         <VideoCard
           key={videoSelectionKey(v)}
