@@ -149,7 +149,7 @@ export default function TopBar({
   const searchForm = isJavMode ? (
     <form
       onSubmit={onSubmitJavSearch}
-      className="flex w-24 max-w-full items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm transition-[width] duration-200 ease-out focus-within:w-64 sm:w-28 md:w-32"
+      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
     >
       <input
         value={javSearchInput}
@@ -163,7 +163,7 @@ export default function TopBar({
                 ? zh('搜索系列名称', 'Search series name')
                 : zh('搜索番号或标题', 'Search code or title')
         }
-        className="h-10 min-w-0 flex-1 border-0 bg-white px-4 text-sm placeholder:text-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 focus:placeholder:text-gray-400"
+        className="h-10 flex-1 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label={zh('搜索JAV', 'Search JAV')}
       />
       <Button
