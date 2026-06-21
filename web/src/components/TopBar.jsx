@@ -267,7 +267,7 @@ export default function TopBar({
           </Button>
         </div>
       ) : null}
-      <div className="flex w-full flex-wrap items-start gap-3 py-2 pl-[7rem] pr-6">
+      <div className="flex w-full flex-wrap items-start gap-3 py-2 pl-[7rem] pr-[18rem]">
         <div className="flex min-w-0 flex-wrap items-center gap-3">
             <div className="relative flex min-w-0 items-center gap-1.5">
               <button
@@ -466,7 +466,7 @@ export default function TopBar({
               ) : null}
             </div>
           </div>
-        <div className="mt-0.5 flex flex-shrink-0 flex-wrap items-center justify-start gap-2">
+        <div className="absolute right-6 top-1/2 z-10 flex -translate-y-1/2 flex-shrink-0 flex-wrap items-center justify-end gap-2">
             {showDirectorySetupHint ? (
               <div
                 className="directory-setup-hint flex max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm"
