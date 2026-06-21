@@ -125,7 +125,7 @@ export default function JavGrid({
   const gridClassName = 'grid gap-4'
   const gridStyle = fixedColumnCount
     ? { gridTemplateColumns: `repeat(${fixedColumnCount}, minmax(0, 1fr))` }
-    : { gridTemplateColumns: 'repeat(auto-fill, minmax(20rem, 1fr))' }
+    : { gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }
 
   const loadIdolPreview = async (idol) => {
     const idolId = Number(idol?.id)
