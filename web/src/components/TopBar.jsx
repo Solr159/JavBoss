@@ -191,13 +191,13 @@ export default function TopBar({
   ) : (
     <form
       onSubmit={onSubmitVideoSearch}
-      className="flex w-24 max-w-full items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm transition-[width] duration-200 ease-out focus-within:w-64 sm:w-28 md:w-32"
+      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
     >
       <input
         value={videoSearchInput}
         onChange={(e) => onVideoSearchInputChange(e.target.value)}
         placeholder={zh('搜索文件名', 'Search filename')}
-        className="h-10 min-w-0 flex-1 border-0 bg-white px-4 text-sm placeholder:text-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 focus:placeholder:text-gray-400"
+        className="h-10 flex-1 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label={zh('搜索视频', 'Search videos')}
       />
       <Button
@@ -308,27 +308,19 @@ export default function TopBar({
                 ) : (
                   <>
                     <div className="flex items-center gap-2">
-                      <Tooltip title={zh('随机', 'Random')} arrow>
-                        <Button
-                          component="a"
-                          href={randomHref}
-                          variant="outlined"
-                          aria-label={zh('随机', 'Random')}
-                          onClick={(e) => {
-                            if (isModifiedClick(e)) return
-                            e.preventDefault()
-                            onRandomClick()
-                          }}
-                          sx={{
-                            minWidth: 36,
-                            width: 36,
-                            height: 36,
-                            p: 0,
-                          }}
-                        >
-                          <ShuffleOutlinedIcon fontSize="small" />
-                        </Button>
-                      </Tooltip>
+                      <Button
+                        component="a"
+                        href={randomHref}
+                        startIcon={<ShuffleOutlinedIcon fontSize="small" />}
+                        variant="outlined"
+                        onClick={(e) => {
+                          if (isModifiedClick(e)) return
+                          e.preventDefault()
+                          onRandomClick()
+                        }}
+                      >
+                        {zh('随机', 'Random')}
+                      </Button>
                     </div>
                     <Button
                       startIcon={<LocalOfferOutlinedIcon fontSize="small" />}
