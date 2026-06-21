@@ -122,12 +122,10 @@ export default function JavGrid({
   const hasItems = Array.isArray(items) && items.length > 0
   const columnCount = Number.isFinite(Number(columns)) ? Math.floor(Number(columns)) : 0
   const fixedColumnCount = columnCount > 0 ? Math.min(columnCount, 12) : 0
-  const gridClassName = fixedColumnCount
-    ? 'grid gap-4'
-    : 'grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4'
+  const gridClassName = 'grid gap-4'
   const gridStyle = fixedColumnCount
     ? { gridTemplateColumns: `repeat(${fixedColumnCount}, minmax(0, 1fr))` }
-    : undefined
+    : { gridTemplateColumns: 'repeat(auto-fill, minmax(20rem, 1fr))' }
 
   const loadIdolPreview = async (idol) => {
     const idolId = Number(idol?.id)

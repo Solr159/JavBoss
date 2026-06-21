@@ -2630,7 +2630,7 @@ export default function App() {
         onEnabledDirectoryIdsChange={setEnabledDirectoryIds}
       />
 
-      <main className="mx-auto max-w-screen-2xl px-6 pb-6 pt-0">
+      <main className="w-full px-3 pb-6 pt-0">
         {activeError && (
           <div
             role="alert"
