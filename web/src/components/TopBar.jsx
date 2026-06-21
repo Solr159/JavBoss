@@ -231,7 +231,7 @@ export default function TopBar({
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
             <div className="relative flex min-w-0 items-center gap-1.5">
               {!showDirectorySetupHint ? (
-                <div className="absolute right-full top-1/2 mr-2 flex -translate-y-1/2 items-center overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm">
+                <div className="absolute right-full top-1/2 mr-4 flex -translate-y-1/2 items-center overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
                   <Button
                     type="button"
                     variant="text"
@@ -240,9 +240,9 @@ export default function TopBar({
                     title={zh('浏览器后退', 'Browser back')}
                     aria-label={zh('浏览器后退', 'Browser back')}
                     sx={{
-                      minWidth: 36,
-                      width: 36,
-                      height: 36,
+                      minWidth: 30,
+                      width: 30,
+                      height: 30,
                       p: 0,
                       borderRadius: 0,
                       color: 'text.secondary',
@@ -250,7 +250,7 @@ export default function TopBar({
                   >
                     <ArrowBackRoundedIcon fontSize="small" />
                   </Button>
-                  <span className="h-5 w-px bg-gray-200" aria-hidden="true" />
+                  <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
                   <Button
                     type="button"
                     variant="text"
@@ -259,9 +259,9 @@ export default function TopBar({
                     title={zh('浏览器前进', 'Browser forward')}
                     aria-label={zh('浏览器前进', 'Browser forward')}
                     sx={{
-                      minWidth: 36,
-                      width: 36,
-                      height: 36,
+                      minWidth: 30,
+                      width: 30,
+                      height: 30,
                       p: 0,
                       borderRadius: 0,
                       color: 'text.secondary',
