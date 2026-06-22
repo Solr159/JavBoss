@@ -727,7 +727,7 @@ function IdolFavoriteGroupMenu({
     <div
       role="dialog"
       aria-label={zh('女优收藏夹', 'Idol favorites')}
-      className="absolute left-0 top-full z-50 mt-2 flex max-h-[70vh] w-[24rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded border border-gray-200 bg-white text-left shadow-xl"
+      className="absolute left-0 top-full z-50 mt-2 flex max-h-[70vh] w-[38rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded border border-gray-200 bg-white text-left shadow-xl"
     >
       <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
         <div className="min-w-0">
@@ -758,7 +758,7 @@ function IdolFavoriteGroupMenu({
             {String(error)}
           </div>
         ) : null}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(6.75rem,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
           <FavoriteGroupTile
             active={!selected}
             href={buildGroupUrl?.(null)}
@@ -835,7 +835,7 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
         }`}
         aria-hidden="true"
       />
-      <span className="relative flex h-full flex-col justify-between p-2.5 pt-6">
+      <span className="relative flex h-full px-2.5 pt-6">
         <span className="flex items-start gap-1">
           <FolderRoundedIcon
             sx={{ fontSize: 15 }}
@@ -848,9 +848,6 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
           >
             {label}
           </span>
-        </span>
-        <span className={`truncate text-xs ${active ? 'text-blue-800/80' : 'text-amber-900/75'}`}>
-          {Number.isFinite(count) ? zh(`${count} 位女优`, `${count} idols`) : zh('全部', 'All')}
         </span>
       </span>
       {Number.isFinite(count) ? (
