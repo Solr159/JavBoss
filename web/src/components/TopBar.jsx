@@ -727,7 +727,7 @@ function IdolFavoriteGroupMenu({
     <div
       role="dialog"
       aria-label={zh('女优收藏夹', 'Idol favorites')}
-      className="absolute left-0 top-full z-50 mt-2 flex max-h-[70vh] w-[38rem] max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded border border-gray-200 bg-white text-left shadow-xl"
+      className="absolute left-1/2 top-full z-50 mt-2 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-hidden rounded border border-gray-200 bg-white text-left shadow-xl"
     >
       <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
         <div className="min-w-0">
@@ -758,7 +758,7 @@ function IdolFavoriteGroupMenu({
             {String(error)}
           </div>
         ) : null}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(6.5rem,1fr))] gap-2">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] gap-2">
           <FavoriteGroupTile
             active={!selected}
             href={buildGroupUrl?.(null)}
@@ -814,7 +814,7 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
       title={label}
     >
       <span
-        className={`absolute left-2.5 top-2 h-3.5 w-12 rounded-t-md border border-b-0 ${
+        className={`absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 ${
           active
             ? 'border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300'
             : 'border-amber-200 bg-gradient-to-b from-amber-100 to-amber-200'
@@ -822,7 +822,7 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
         aria-hidden="true"
       />
       <span
-        className={`absolute inset-x-1.5 bottom-2 top-[1.125rem] rounded-md border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_7px_12px_rgba(15,23,42,0.12)] ${
+        className={`absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)] ${
           active
             ? 'border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300'
             : 'border-amber-200 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200'
@@ -830,19 +830,19 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
         aria-hidden="true"
       />
       <span
-        className={`absolute inset-x-2.5 bottom-1 h-1.5 rounded-b-md ${
+        className={`absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md ${
           active ? 'bg-blue-400/40' : 'bg-amber-300/45'
         }`}
         aria-hidden="true"
       />
-      <span className="relative flex h-full px-2.5 pt-6">
+      <span className="relative flex h-full px-2 pt-5">
         <span className="flex items-start gap-1">
           <FolderRoundedIcon
-            sx={{ fontSize: 15 }}
+            sx={{ fontSize: 14 }}
             className={active ? 'shrink-0 text-blue-700' : 'shrink-0 text-amber-700'}
           />
           <span
-            className={`min-w-0 flex-1 truncate text-xs font-semibold ${
+            className={`min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 ${
               active ? 'text-blue-950' : 'text-amber-950'
             }`}
           >
@@ -852,7 +852,7 @@ function FavoriteGroupTile({ active, href, label, count, onClick }) {
       </span>
       {Number.isFinite(count) ? (
         <span
-          className={`absolute right-2 top-2 rounded-full border px-1.5 text-[10px] leading-4 shadow-sm ${
+          className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 text-[10px] leading-4 shadow-sm ${
             active
               ? 'border-blue-200 bg-white/80 text-blue-700'
               : 'border-amber-200 bg-white/80 text-amber-800'
