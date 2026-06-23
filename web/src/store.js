@@ -13,7 +13,6 @@ import {
   deleteDirectory as deleteDirectoryApi,
   fetchJavs,
   fetchJavIdols,
-  fetchJavIdolFavoriteGroups,
   fetchJavFavoriteGroups,
   fetchJavStudios,
   fetchJavSeries,
@@ -974,14 +973,14 @@ export const useStore = create((set, get) => ({
   },
   loadJavIdolFavoriteGroups: async (options = {}) => {
     const directoryIds = directoryQueryIds(get())
-    const key = `idol-favorite-groups|${directoryIds.join(',')}`
+    const key = `jav-favorite-groups|idol|${directoryIds.join(',')}`
     if (!options.force && key === lastIdolFavoriteGroupFetchKey) {
       return get().idolFavoriteGroups || []
     }
     lastIdolFavoriteGroupFetchKey = key
     set({ idolFavoriteGroupsLoading: true, idolFavoriteGroupsError: null })
     try {
-      const groups = await fetchJavIdolFavoriteGroups({ directoryIds })
+      const groups = await fetchJavFavoriteGroups('idol', { directoryIds })
       set((state) => ({
         idolFavoriteGroups: groups || [],
         favoriteGroupsByType: { ...(state.favoriteGroupsByType || {}), idol: groups || [] },

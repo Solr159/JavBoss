@@ -736,22 +736,6 @@ export async function replaceJavFavoriteGroups(entityType = 'idol', id, groupIds
   }
 }
 
-export const fetchJavIdolFavoriteGroups = (options = {}) => fetchJavFavoriteGroups('idol', options)
-export const createJavIdolFavoriteGroup = (name) => createJavFavoriteGroup('idol', name)
-export const renameJavIdolFavoriteGroup = (id, name) => renameJavFavoriteGroup('idol', id, name)
-export const deleteJavIdolFavoriteGroup = (id) => deleteJavFavoriteGroup('idol', id)
-export const reorderJavIdolFavoriteGroups = (groupIds = []) =>
-  reorderJavFavoriteGroups('idol', groupIds)
-export const fetchJavIdolFavoriteGroupIdols = (id, options = {}) =>
-  fetchJavFavoriteGroupItems('idol', id, options)
-export const reorderJavIdolFavoriteGroupIdols = (id, idolIds = []) =>
-  reorderJavFavoriteGroupItems('idol', id, idolIds)
-export const removeJavIdolFavoriteGroupIdols = (id, idolIds = []) =>
-  removeJavFavoriteGroupItems('idol', id, idolIds)
-export const fetchJavIdolFavoriteSelection = (id) => fetchJavFavoriteSelection('idol', id)
-export const replaceJavIdolFavoriteGroups = (id, groupIds = []) =>
-  replaceJavFavoriteGroups('idol', id, groupIds)
-
 export async function fetchJavIdolCoverOptions(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))

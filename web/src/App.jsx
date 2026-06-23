@@ -19,20 +19,13 @@ import {
   deleteJavTag,
   resolveJavIdols,
   createJavFavoriteGroup,
-  createJavIdolFavoriteGroup,
   deleteJavFavoriteGroup,
-  deleteJavIdolFavoriteGroup,
   fetchJavFavoriteGroupItems,
-  fetchJavIdolFavoriteGroupIdols,
   fetchJavFavoriteSelection,
   renameJavFavoriteGroup,
-  renameJavIdolFavoriteGroup,
   removeJavFavoriteGroupItems,
-  removeJavIdolFavoriteGroupIdols,
   reorderJavFavoriteGroupItems,
-  reorderJavIdolFavoriteGroupIdols,
   reorderJavFavoriteGroups,
-  reorderJavIdolFavoriteGroups,
   replaceJavFavoriteGroups,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
@@ -2365,10 +2358,7 @@ export default function App() {
   const handleCreateFavoriteGroup = useCallback(
     async (name, entityType = favoriteModalEntityType) => {
       const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
-      const group =
-        type === 'idol'
-          ? await createJavIdolFavoriteGroup(name)
-          : await createJavFavoriteGroup(type, name)
+      const group = await createJavFavoriteGroup(type, name)
       useStore.setState((state) => {
         const current =
           type === 'idol'
@@ -2424,11 +2414,10 @@ export default function App() {
   const handleReorderIdolFavoriteGroups = useCallback(
     async (groupIds) => {
       const type = favoriteManageEntityType || 'idol'
+      await reorderJavFavoriteGroups(type, groupIds)
       if (type === 'idol') {
-        await reorderJavIdolFavoriteGroups(groupIds)
         await loadJavIdolFavoriteGroups({ force: true })
       } else {
-        await reorderJavFavoriteGroups(type, groupIds)
         await loadJavFavoriteGroups(type, { force: true })
       }
     },
@@ -2438,8 +2427,7 @@ export default function App() {
   const handleRenameIdolFavoriteGroup = useCallback(
     async (groupId, name) => {
       const type = favoriteManageEntityType || 'idol'
-      if (type === 'idol') await renameJavIdolFavoriteGroup(groupId, name)
-      else await renameJavFavoriteGroup(type, groupId, name)
+      await renameJavFavoriteGroup(type, groupId, name)
       useStore.setState((state) => ({
         ...(type === 'idol'
           ? {
@@ -2464,8 +2452,7 @@ export default function App() {
   const handleDeleteIdolFavoriteGroup = useCallback(
     async (groupId) => {
       const type = favoriteManageEntityType || 'idol'
-      if (type === 'idol') await deleteJavIdolFavoriteGroup(groupId)
-      else await deleteJavFavoriteGroup(type, groupId)
+      await deleteJavFavoriteGroup(type, groupId)
       if (Number(activeFavoriteGroupId(type)) === Number(groupId)) {
         setActiveFavoriteGroupId(type, null)
       }
@@ -2477,9 +2464,7 @@ export default function App() {
   const handleLoadIdolFavoriteGroupIdols = useCallback(
     (groupId) => {
       const type = favoriteManageEntityType || 'idol'
-      return type === 'idol'
-        ? fetchJavIdolFavoriteGroupIdols(groupId, { directoryIds: javQueryDirectoryIds })
-        : fetchJavFavoriteGroupItems(type, groupId, { directoryIds: javQueryDirectoryIds })
+      return fetchJavFavoriteGroupItems(type, groupId, { directoryIds: javQueryDirectoryIds })
     },
     [favoriteManageEntityType, javQueryDirectoryIds]
   )
@@ -2487,8 +2472,7 @@ export default function App() {
   const handleReorderIdolFavoriteGroupIdols = useCallback(
     async (groupId, idolIds) => {
       const type = favoriteManageEntityType || 'idol'
-      if (type === 'idol') await reorderJavIdolFavoriteGroupIdols(groupId, idolIds)
-      else await reorderJavFavoriteGroupItems(type, groupId, idolIds)
+      await reorderJavFavoriteGroupItems(type, groupId, idolIds)
       if (Number(activeFavoriteGroupId(type)) === Number(groupId)) await reloadFavoriteData(type)
     },
     [favoriteManageEntityType, activeFavoriteGroupId, reloadFavoriteData]
@@ -2497,8 +2481,7 @@ export default function App() {
   const handleRemoveIdolFavoriteGroupIdols = useCallback(
     async (groupId, idolIds) => {
       const type = favoriteManageEntityType || 'idol'
-      if (type === 'idol') await removeJavIdolFavoriteGroupIdols(groupId, idolIds)
-      else await removeJavFavoriteGroupItems(type, groupId, idolIds)
+      await removeJavFavoriteGroupItems(type, groupId, idolIds)
       await reloadFavoriteData(type)
     },
     [favoriteManageEntityType, reloadFavoriteData]
