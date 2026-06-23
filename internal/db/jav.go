@@ -83,6 +83,9 @@ func GetJav(ctx context.Context, javID int64, directoryIDs []int64) (*models.Jav
 	if err := attachVisibleJavTags(ctx, items); err != nil {
 		return nil, err
 	}
+	if err := attachJavFavoriteCounts(ctx, items); err != nil {
+		return nil, err
+	}
 	return &items[0], nil
 }
 
@@ -100,11 +103,11 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 	search = strings.TrimSpace(search)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
-	studioID, seriesID, soloOnly := javFilterOptions(filterIDs)
-	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly)
+	studioID, seriesID, soloOnly, favoriteGroupID := javFilterOptions(filterIDs)
+	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly)
+	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -171,6 +174,9 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 		return nil, 0, err
 	}
 	if err := attachVisibleJavTags(ctx, items); err != nil {
+		return nil, 0, err
+	}
+	if err := attachJavFavoriteCounts(ctx, items); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
@@ -639,7 +645,7 @@ func replaceJavUserTagsTx(tx *gorm.DB, javIDs, tagIDs []int64) error {
 	return nil
 }
 
-func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool, favoriteGroupID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -664,6 +670,9 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	}
 	if seriesID > 0 {
 		q = q.Where(javSeriesColumn()+" = ?", seriesID)
+	}
+	if favoriteGroupID > 0 {
+		q = q.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = jav.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntityJav, favoriteGroupID)
 	}
 	if soloOnly {
 		soloJavs := common.DB.WithContext(ctx).
@@ -693,10 +702,11 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	return q
 }
 
-func javFilterOptions(values []int64) (int64, int64, bool) {
+func javFilterOptions(values []int64) (int64, int64, bool, int64) {
 	studioID := int64(0)
 	seriesID := int64(0)
 	soloOnly := false
+	favoriteGroupID := int64(0)
 	if len(values) > 0 && values[0] > 0 {
 		studioID = values[0]
 	}
@@ -706,7 +716,10 @@ func javFilterOptions(values []int64) (int64, int64, bool) {
 	if len(values) > 2 && values[2] > 0 {
 		soloOnly = true
 	}
-	return studioID, seriesID, soloOnly
+	if len(values) > 3 && values[3] > 0 {
+		favoriteGroupID = values[3]
+	}
+	return studioID, seriesID, soloOnly, favoriteGroupID
 }
 
 func javSeriesColumn() string {
@@ -718,21 +731,23 @@ func javSeriesColumn() string {
 
 // JavStudioSummary represents studio info with aggregated work count and a sample code for cover lookup.
 type JavStudioSummary struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	WorkCount  int64  `json:"work_count"`
-	SampleCode string `json:"sample_code"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	WorkCount     int64  `json:"work_count"`
+	SampleCode    string `json:"sample_code"`
+	FavoriteCount int64  `json:"favorite_count"`
 }
 
 // JavSeriesSummary represents series info with aggregated work count and a sample code for cover lookup.
 type JavSeriesSummary struct {
-	ID         int64  `json:"id"`
-	Name       string `json:"name"`
-	IsEnglish  bool   `json:"is_english"`
-	StudioID   *int64 `json:"studio_id"`
-	StudioName string `json:"studio_name"`
-	WorkCount  int64  `json:"work_count"`
-	SampleCode string `json:"sample_code"`
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	IsEnglish     bool   `json:"is_english"`
+	StudioID      *int64 `json:"studio_id"`
+	StudioName    string `json:"studio_name"`
+	WorkCount     int64  `json:"work_count"`
+	SampleCode    string `json:"sample_code"`
+	FavoriteCount int64  `json:"favorite_count"`
 }
 
 func applyJavStudioSearch(q *gorm.DB, search string) *gorm.DB {
@@ -754,12 +769,16 @@ func applyJavSeriesSearch(q *gorm.DB, search string) *gorm.DB {
 }
 
 // ListJavStudios returns studios ordered by visible work count descending.
-func ListJavStudios(ctx context.Context, search string, limit, offset int, directoryIDs []int64) ([]JavStudioSummary, int64, error) {
+func ListJavStudios(ctx context.Context, search string, limit, offset int, directoryIDs []int64, favoriteGroupIDs ...int64) ([]JavStudioSummary, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	if offset < 0 {
 		offset = 0
+	}
+	favoriteGroupID := int64(0)
+	if len(favoriteGroupIDs) > 0 && favoriteGroupIDs[0] > 0 {
+		favoriteGroupID = favoriteGroupIDs[0]
 	}
 
 	countBase := common.DB.WithContext(ctx).
@@ -770,6 +789,9 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 		Where(activeLocationWhereSQL("vl", "d"))
 	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
 	countBase = applyJavStudioSearch(countBase, search)
+	if favoriteGroupID > 0 {
+		countBase = countBase.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = js.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntityStudio, favoriteGroupID)
+	}
 
 	var total int64
 	if err := countBase.Distinct("js.id").Count(&total).Error; err != nil {
@@ -785,10 +807,18 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 		Where(activeLocationWhereSQL("vl", "d"))
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavStudioSearch(base, search)
+	if favoriteGroupID > 0 {
+		base = base.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = js.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntityStudio, favoriteGroupID)
+	}
+	order := "work_count DESC, js.name ASC"
+	if favoriteGroupID > 0 {
+		order = "jfm_filter.sort_order ASC, js.name ASC, js.id ASC"
+	}
 	if err := base.
-		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name").
-		Order("work_count DESC, js.name ASC").
+		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntityStudio)).
+		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, favorite_counts.favorite_count").
+		Order(order).
 		Limit(limit).
 		Offset(offset).
 		Scan(&items).Error; err != nil {
@@ -814,8 +844,9 @@ func GetJavStudioSummary(ctx context.Context, studioID int64, directoryIDs []int
 		Where(activeLocationWhereSQL("vl", "d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
-		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name").
+		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntityStudio)).
+		Select("js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, favorite_counts.favorite_count").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {
@@ -851,12 +882,16 @@ func ListStudioCoverCodes(ctx context.Context, studioID int64, directoryIDs []in
 }
 
 // ListJavSeries returns series ordered by visible work count descending.
-func ListJavSeries(ctx context.Context, search string, limit, offset int, directoryIDs []int64) ([]JavSeriesSummary, int64, error) {
+func ListJavSeries(ctx context.Context, search string, limit, offset int, directoryIDs []int64, favoriteGroupIDs ...int64) ([]JavSeriesSummary, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	if offset < 0 {
 		offset = 0
+	}
+	favoriteGroupID := int64(0)
+	if len(favoriteGroupIDs) > 0 && favoriteGroupIDs[0] > 0 {
+		favoriteGroupID = favoriteGroupIDs[0]
 	}
 	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 	seriesColumn := javSeriesColumn()
@@ -870,6 +905,9 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 		Where(activeLocationWhereSQL("vl", "d"))
 	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
 	countBase = applyJavSeriesSearch(countBase, search)
+	if favoriteGroupID > 0 {
+		countBase = countBase.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = js.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntitySeries, favoriteGroupID)
+	}
 
 	var total int64
 	if err := countBase.Distinct("js.id").Count(&total).Error; err != nil {
@@ -887,10 +925,18 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 		Where(activeLocationWhereSQL("vl", "d"))
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavSeriesSearch(base, search)
+	if favoriteGroupID > 0 {
+		base = base.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = js.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntitySeries, favoriteGroupID)
+	}
+	order := "work_count DESC, js.name ASC"
+	if favoriteGroupID > 0 {
+		order = "jfm_filter.sort_order ASC, js.name ASC, js.id ASC"
+	}
 	if err := base.
-		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name, js.is_english, js.studio_id, jst.name").
-		Order("work_count DESC, js.name ASC").
+		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
+		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Order(order).
 		Limit(limit).
 		Offset(offset).
 		Scan(&items).Error; err != nil {
@@ -920,8 +966,9 @@ func GetJavSeriesSummary(ctx context.Context, seriesID int64, directoryIDs []int
 		Where(activeLocationWhereSQL("vl", "d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
-		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
-		Group("js.id, js.name, js.is_english, js.studio_id, jst.name").
+		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
+		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {
@@ -1141,7 +1188,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols).
 		Where("COALESCE(ji.is_english, 0) = ?", isEnglish)
 	if favoriteGroupID > 0 {
-		countBase = countBase.Joins("JOIN jav_idol_favorite_map jifm_filter ON jifm_filter.jav_idol_id = ji.id AND jifm_filter.jav_idol_favorite_group_id = ?", favoriteGroupID)
+		countBase = countBase.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
 	countBase = applyJavIdolSearch(countBase, search)
 
@@ -1204,7 +1251,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 		Where(activeLocationWhereSQL("vl", "d"))
 	if favoriteGroupID > 0 {
-		base = base.Joins("JOIN jav_idol_favorite_map jifm_filter ON jifm_filter.jav_idol_id = ji.id AND jifm_filter.jav_idol_favorite_group_id = ?", favoriteGroupID)
+		base = base.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavIdolSearch(base, search)

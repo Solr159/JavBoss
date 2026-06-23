@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 
 import { fetchJavStudioJavDBURL } from '@/api'
 import { getIdolCardLayoutProps } from '@/components/JavIdolGrid'
@@ -22,6 +24,7 @@ export default function JavStudioView({
   onLast,
   items,
   onSelectStudio,
+  onOpenFavorites,
   waterfallMode,
   onWaterfallModeChange,
   onLoadMore,
@@ -56,6 +59,7 @@ export default function JavStudioView({
         <JavStudioGrid
           items={items}
           onSelectStudio={onSelectStudio}
+          onOpenFavorites={onOpenFavorites}
           buildStudioUrl={buildStudioUrl}
         />
       )}
@@ -69,7 +73,7 @@ export default function JavStudioView({
   )
 }
 
-function JavStudioGrid({ items, onSelectStudio, buildStudioUrl }) {
+function JavStudioGrid({ items, onSelectStudio, onOpenFavorites, buildStudioUrl }) {
   const hasItems = Array.isArray(items) && items.length > 0
   if (!hasItems) {
     return (
@@ -90,19 +94,21 @@ function JavStudioGrid({ items, onSelectStudio, buildStudioUrl }) {
           item={item}
           href={buildStudioUrl?.(item)}
           onSelectStudio={onSelectStudio}
+          onOpenFavorites={onOpenFavorites}
         />
       ))}
     </div>
   )
 }
 
-export function StudioCard({ item, href, onSelectStudio }) {
+export function StudioCard({ item, href, onSelectStudio, onOpenFavorites }) {
   const { bgWidthPercent, coverAspectPercent } = getIdolCardLayoutProps()
   const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
   const studioId = Number(item?.id)
   const workCount = Number(item?.work_count)
   const showWorkCount = Number.isFinite(workCount) && workCount > 0
+  const favoriteCount = Number(item?.favorite_count) || 0
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(studioId) && studioId > 0))
@@ -155,6 +161,12 @@ export function StudioCard({ item, href, onSelectStudio }) {
     }
   }
 
+  const handleOpenFavorites = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenFavorites?.(item)
+  }
+
   return (
     <a
       href={href || '#'}
@@ -193,6 +205,23 @@ export function StudioCard({ item, href, onSelectStudio }) {
             {zh(`作品 ${workCount}`, `${workCount} works`)}
           </div>
         ) : null}
+        <button
+          type="button"
+          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+            favoriteCount > 0
+              ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+          }`}
+          title={zh('加入片商收藏夹', 'Add to studio favorite groups')}
+          aria-label={zh('加入片商收藏夹', 'Add to studio favorite groups')}
+          onClick={handleOpenFavorites}
+        >
+          {favoriteCount > 0 ? (
+            <StarRoundedIcon sx={{ fontSize: 18 }} />
+          ) : (
+            <StarBorderRoundedIcon sx={{ fontSize: 18 }} />
+          )}
+        </button>
         <button
           type="button"
           className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${

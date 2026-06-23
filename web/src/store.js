@@ -14,6 +14,7 @@ import {
   fetchJavs,
   fetchJavIdols,
   fetchJavIdolFavoriteGroups,
+  fetchJavFavoriteGroups,
   fetchJavStudios,
   fetchJavSeries,
   fetchJavTags,
@@ -44,6 +45,7 @@ let lastVideoFetchKey = null
 let lastJavFetchKey = null
 let lastIdolFetchKey = null
 let lastIdolFavoriteGroupFetchKey = null
+const lastFavoriteGroupFetchKeys = {}
 let lastStudioFetchKey = null
 let lastSeriesFetchKey = null
 let lastTagFetchKey = null
@@ -144,6 +146,7 @@ const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
     state.javStudioId || '',
     state.javSeriesId || '',
     state.javSoloOnly ? 'solo' : '',
+    state.javFavoriteGroupId || '',
     effectiveSort,
     state.javRandomMode ? state.javRandomSeed || '' : '',
     directoryIds.join(','),
@@ -167,6 +170,7 @@ const studioListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
     state.studioPage,
     JAV_STUDIO_PAGE_SIZE,
     state.javSearchTerm || '',
+    state.studioFavoriteGroupId || '',
     directoryIds.join(','),
   ].join('|')
 
@@ -176,6 +180,7 @@ const seriesListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
     state.seriesPage,
     JAV_STUDIO_PAGE_SIZE,
     state.javSearchTerm || '',
+    state.seriesFavoriteGroupId || '',
     directoryIds.join(','),
   ].join('|')
 
@@ -231,6 +236,7 @@ export const useStore = create((set, get) => ({
   javSeriesId: null,
   javSeriesName: '',
   javSoloOnly: false,
+  javFavoriteGroupId: null,
   javItems: [],
   javTotal: 0,
   javLoading: false,
@@ -248,13 +254,23 @@ export const useStore = create((set, get) => ({
   idolFavoriteGroups: [],
   idolFavoriteGroupsLoading: false,
   idolFavoriteGroupsError: null,
+  favoriteGroupsByType: {
+    jav: [],
+    idol: [],
+    studio: [],
+    series: [],
+  },
+  favoriteGroupsLoadingByType: {},
+  favoriteGroupsErrorByType: {},
   studioPage: 1,
+  studioFavoriteGroupId: null,
   studioItems: [],
   studioTotal: 0,
   studioLoading: false,
   studioLoadingMore: false,
   studioError: null,
   seriesPage: 1,
+  seriesFavoriteGroupId: null,
   seriesItems: [],
   seriesTotal: 0,
   seriesLoading: false,
@@ -275,6 +291,21 @@ export const useStore = create((set, get) => ({
   },
   setIdolFavoriteGroups: (groups) => {
     set({ idolFavoriteGroups: Array.isArray(groups) ? groups : [] })
+  },
+  setJavFavoriteGroupId: (id) => {
+    const parsed = Number(id)
+    const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null
+    set({ javFavoriteGroupId: next, javPage: 1, javRandomMode: false, javRandomSeed: null })
+  },
+  setStudioFavoriteGroupId: (id) => {
+    const parsed = Number(id)
+    const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null
+    set({ studioFavoriteGroupId: next, studioPage: 1 })
+  },
+  setSeriesFavoriteGroupId: (id) => {
+    const parsed = Number(id)
+    const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null
+    set({ seriesFavoriteGroupId: next, seriesPage: 1 })
   },
 
   // data
@@ -755,6 +786,7 @@ export const useStore = create((set, get) => ({
       javStudioId,
       javSeriesId,
       javSoloOnly,
+      javFavoriteGroupId,
       javSort,
       javTempSort,
       javRandomMode,
@@ -780,6 +812,7 @@ export const useStore = create((set, get) => ({
         studioId: javStudioId,
         seriesId: javSeriesId,
         soloOnly: javSoloOnly,
+        favoriteGroupId: javFavoriteGroupId,
         sort: javRandomMode ? 'random' : effectiveSort,
         seed: javRandomMode ? javRandomSeed : null,
         directoryIds,
@@ -824,6 +857,7 @@ export const useStore = create((set, get) => ({
         studioId: state.javStudioId,
         seriesId: state.javSeriesId,
         soloOnly: state.javSoloOnly,
+        favoriteGroupId: state.javFavoriteGroupId,
         sort: effectiveSort,
         directoryIds,
       })
@@ -948,7 +982,10 @@ export const useStore = create((set, get) => ({
     set({ idolFavoriteGroupsLoading: true, idolFavoriteGroupsError: null })
     try {
       const groups = await fetchJavIdolFavoriteGroups({ directoryIds })
-      set({ idolFavoriteGroups: groups || [] })
+      set((state) => ({
+        idolFavoriteGroups: groups || [],
+        favoriteGroupsByType: { ...(state.favoriteGroupsByType || {}), idol: groups || [] },
+      }))
       return groups || []
     } catch (e) {
       set({
@@ -960,8 +997,44 @@ export const useStore = create((set, get) => ({
       set({ idolFavoriteGroupsLoading: false })
     }
   },
+  loadJavFavoriteGroups: async (entityType = 'idol', options = {}) => {
+    const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
+    const directoryIds = directoryQueryIds(get())
+    const key = `${type}-favorite-groups|${directoryIds.join(',')}`
+    if (!options.force && key === lastFavoriteGroupFetchKeys[type]) {
+      return get().favoriteGroupsByType?.[type] || []
+    }
+    lastFavoriteGroupFetchKeys[type] = key
+    set((state) => ({
+      favoriteGroupsLoadingByType: { ...(state.favoriteGroupsLoadingByType || {}), [type]: true },
+      favoriteGroupsErrorByType: { ...(state.favoriteGroupsErrorByType || {}), [type]: null },
+    }))
+    try {
+      const groups = await fetchJavFavoriteGroups(type, { directoryIds })
+      set((state) => ({
+        favoriteGroupsByType: { ...(state.favoriteGroupsByType || {}), [type]: groups || [] },
+        ...(type === 'idol' ? { idolFavoriteGroups: groups || [] } : {}),
+      }))
+      return groups || []
+    } catch (e) {
+      set((state) => ({
+        favoriteGroupsErrorByType: {
+          ...(state.favoriteGroupsErrorByType || {}),
+          [type]: e.message || zh('加载收藏夹失败', 'Failed to load favorite groups'),
+        },
+      }))
+      return get().favoriteGroupsByType?.[type] || []
+    } finally {
+      set((state) => ({
+        favoriteGroupsLoadingByType: {
+          ...(state.favoriteGroupsLoadingByType || {}),
+          [type]: false,
+        },
+      }))
+    }
+  },
   loadJavStudios: async (options = {}) => {
-    const { studioPage, javSearchTerm } = get()
+    const { studioPage, javSearchTerm, studioFavoriteGroupId } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const key = studioListRequestKey(get(), directoryIds)
@@ -977,6 +1050,7 @@ export const useStore = create((set, get) => ({
         offset: (studioPage - 1) * JAV_STUDIO_PAGE_SIZE,
         search,
         directoryIds,
+        favoriteGroupId: studioFavoriteGroupId,
       })
       if (reqId !== studioLoadSeq || key !== studioListRequestKey(get())) return
       set({
@@ -1012,6 +1086,7 @@ export const useStore = create((set, get) => ({
         offset: baseOffset + loaded,
         search,
         directoryIds,
+        favoriteGroupId: state.studioFavoriteGroupId,
       })
       if (
         loadReqId !== studioLoadSeq ||
@@ -1041,7 +1116,7 @@ export const useStore = create((set, get) => ({
     }
   },
   loadJavSeries: async (options = {}) => {
-    const { seriesPage, javSearchTerm } = get()
+    const { seriesPage, javSearchTerm, seriesFavoriteGroupId } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const key = seriesListRequestKey(get(), directoryIds)
@@ -1057,6 +1132,7 @@ export const useStore = create((set, get) => ({
         offset: (seriesPage - 1) * JAV_STUDIO_PAGE_SIZE,
         search,
         directoryIds,
+        favoriteGroupId: seriesFavoriteGroupId,
       })
       if (reqId !== seriesLoadSeq || key !== seriesListRequestKey(get())) return
       set({
@@ -1092,6 +1168,7 @@ export const useStore = create((set, get) => ({
         offset: baseOffset + loaded,
         search,
         directoryIds,
+        favoriteGroupId: state.seriesFavoriteGroupId,
       })
       if (
         loadReqId !== seriesLoadSeq ||

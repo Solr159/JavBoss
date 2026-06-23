@@ -9,6 +9,8 @@ import MovieCreationIcon from '@mui/icons-material/MovieCreation'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import SearchIcon from '@mui/icons-material/Search'
+import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 
@@ -91,6 +93,7 @@ export default function JavGrid({
   onPlay,
   onIdolClick,
   onOpenFavorites,
+  onOpenJavFavorites,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -243,6 +246,7 @@ export default function JavGrid({
             buildJavUrl={buildJavUrl}
             onIdolClick={onIdolClick}
             onOpenFavorites={onOpenFavorites}
+            onOpenJavFavorites={onOpenJavFavorites}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}
             onTagClick={onTagClick}
@@ -1445,6 +1449,7 @@ function JavCard({
   buildJavUrl,
   onIdolClick,
   onOpenFavorites,
+  onOpenJavFavorites,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -1506,6 +1511,7 @@ function JavCard({
   const canOpen = openableVideos.length > 0
   const encodedCode = code ? encodeURIComponent(code) : ''
   const javdbSearchURL = encodedCode ? `https://javdb.com/search?q=${encodedCode}&f=all` : ''
+  const favoriteCount = Number(item?.favorite_count) || 0
 
   useEffect(() => {
     setJavdbURL('')
@@ -1613,6 +1619,12 @@ function JavCard({
   const handleOpenEditor = (event) => {
     event.stopPropagation()
     setEditorOpen(true)
+  }
+
+  const handleOpenJavFavorites = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenJavFavorites?.(item)
   }
 
   const handleEditorSaved = (updated, coverUpdated) => {
@@ -1935,6 +1947,23 @@ function JavCard({
               ))}
             </div>
           ) : null}
+          <button
+            type="button"
+            className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+              favoriteCount > 0
+                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+                : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+            }`}
+            title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
+            aria-label={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
+            onClick={handleOpenJavFavorites}
+          >
+            {favoriteCount > 0 ? (
+              <StarRoundedIcon sx={{ fontSize: 18 }} />
+            ) : (
+              <StarBorderRoundedIcon sx={{ fontSize: 18 }} />
+            )}
+          </button>
           {cover || canOpen ? (
             <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
               {cover ? (

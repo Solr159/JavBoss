@@ -22,8 +22,17 @@ func listJavStudios(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
+	favoriteGroupID := int64(0)
+	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
+		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
+		if err != nil || parsed <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid favorite_group_id"})
+			return
+		}
+		favoriteGroupID = parsed
+	}
 
-	items, total, err := dbpkg.ListJavStudios(c.Request.Context(), search, limit, offset, directoryIDs)
+	items, total, err := dbpkg.ListJavStudios(c.Request.Context(), search, limit, offset, directoryIDs, favoriteGroupID)
 	if err != nil {
 		logging.Error("list jav studios: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -66,8 +75,17 @@ func listJavSeries(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
+	favoriteGroupID := int64(0)
+	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
+		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
+		if err != nil || parsed <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid favorite_group_id"})
+			return
+		}
+		favoriteGroupID = parsed
+	}
 
-	items, total, err := dbpkg.ListJavSeries(c.Request.Context(), search, limit, offset, directoryIDs)
+	items, total, err := dbpkg.ListJavSeries(c.Request.Context(), search, limit, offset, directoryIDs, favoriteGroupID)
 	if err != nil {
 		logging.Error("list jav series: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})

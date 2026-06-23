@@ -8,6 +8,7 @@ import { zh } from '@/utils/i18n'
 
 export default function JavIdolFavoriteManageModal({
   open,
+  entityType = 'idol',
   groups,
   selectedGroupId,
   initialEditGroupId = null,
@@ -32,6 +33,7 @@ export default function JavIdolFavoriteManageModal({
     const id = Number(initialEditGroupId)
     return Number.isFinite(id) && id > 0
   })()
+  const labels = favoriteManageLabels(entityType)
 
   useEffect(() => {
     if (!open) {
@@ -110,9 +112,7 @@ export default function JavIdolFavoriteManageModal({
         <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="pointer-events-auto flex max-h-[82vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-base font-semibold text-gray-950">
-                {zh('管理女优收藏夹', 'Manage idol favorites')}
-              </h2>
+              <h2 className="text-base font-semibold text-gray-950">{labels.manageTitle}</h2>
               <IconButton
                 type="button"
                 size="small"
@@ -135,6 +135,7 @@ export default function JavIdolFavoriteManageModal({
                 groups={localGroups}
                 selectedGroupId={selectedGroupId}
                 emptyText={loading ? zh('加载中…', 'Loading...') : zh('暂无收藏夹', 'No favorites')}
+                labels={labels}
                 onReorder={setLocalGroups}
                 onReorderCommit={commitGroupOrder}
                 onEdit={(group) => setEditingGroup(group)}
@@ -162,6 +163,7 @@ export default function JavIdolFavoriteManageModal({
         onLoadGroupIdols={onLoadGroupIdols}
         onReorderGroupIdols={onReorderGroupIdols}
         onRemoveGroupIdols={onRemoveGroupIdols}
+        labels={labels}
       />
 
       <CreateGroupModal
@@ -229,6 +231,7 @@ function GroupOrderList({
   onReorder,
   onReorderCommit,
   onEdit,
+  labels,
 }) {
   if (!groups.length) {
     return (
@@ -244,7 +247,7 @@ function GroupOrderList({
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
       getLabel={(group) => group.name}
-      getMeta={(group) => zh(`${group.count || 0} 位`, `${group.count || 0} idols`)}
+      getMeta={(group) => labels.groupMeta(group.count || 0)}
       isActive={(group) => Number(group.id) === Number(selectedGroupId)}
       renderLeading={(group) => (
         <IconButton
@@ -270,6 +273,7 @@ function FavoriteGroupEditModal({
   onLoadGroupIdols,
   onReorderGroupIdols,
   onRemoveGroupIdols,
+  labels = favoriteManageLabels('idol'),
 }) {
   const [groupName, setGroupName] = useState('')
   const [idols, setIdols] = useState([])
@@ -302,7 +306,7 @@ function FavoriteGroupEditModal({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message || zh('加载收藏夹女优失败', 'Failed to load favorite group idols'))
+          setError(err.message || labels.loadItemsError)
         }
       })
       .finally(() => {
@@ -311,7 +315,7 @@ function FavoriteGroupEditModal({
     return () => {
       cancelled = true
     }
-  }, [group, groupId, onLoadGroupIdols])
+  }, [group, groupId, labels.loadItemsError, onLoadGroupIdols])
 
   if (!groupId) return null
 
@@ -354,7 +358,7 @@ function FavoriteGroupEditModal({
         nextIdols.map((idol) => Number(idol.id))
       )
     } catch (err) {
-      setError(err.message || zh('保存女优顺序失败', 'Failed to save idol order'))
+      setError(err.message || labels.saveOrderError)
     } finally {
       setSaving(false)
     }
@@ -376,8 +380,8 @@ function FavoriteGroupEditModal({
     if (
       !window.confirm(
         zh(
-          `将选中的 ${selectedIds.length} 位女优移出收藏夹？`,
-          `Remove ${selectedIds.length} selected idols from favorite?`
+          `将选中的 ${selectedIds.length} 个${labels.itemNameZh}移出收藏夹？`,
+          `Remove ${selectedIds.length} selected ${labels.itemNameEn} from favorite?`
         )
       )
     ) {
@@ -391,7 +395,7 @@ function FavoriteGroupEditModal({
       setIdols((current) => current.filter((idol) => !removed.has(Number(idol.id))))
       setSelectedIds([])
     } catch (err) {
-      setError(err.message || zh('批量移除女优失败', 'Failed to remove selected idols'))
+      setError(err.message || labels.removeItemsError)
     } finally {
       setSaving(false)
     }
@@ -459,6 +463,7 @@ function FavoriteGroupEditModal({
             onToggleSelected={toggleSelected}
             onReorder={setIdols}
             onReorderCommit={commitIdolOrder}
+            labels={labels}
           />
         </div>
 
@@ -487,13 +492,12 @@ function IdolOrderList({
   onToggleSelected,
   onReorder,
   onReorderCommit,
+  labels = favoriteManageLabels('idol'),
 }) {
   if (!idols.length) {
     return (
       <div className="rounded border border-dashed border-gray-200 px-3 py-8 text-center text-sm text-gray-500">
-        {loading
-          ? zh('加载中…', 'Loading...')
-          : zh('该收藏夹暂无女优', 'No idols in this favorite')}
+        {loading ? zh('加载中…', 'Loading...') : labels.emptyItemsText}
       </div>
     )
   }
@@ -502,17 +506,15 @@ function IdolOrderList({
       items={idols}
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
-      getLabel={(idol) => idol.name || zh('未知女优', 'Unknown idol')}
-      getMeta={(idol) =>
-        zh(`${Number(idol?.work_count) || 0} 部`, `${Number(idol?.work_count) || 0} works`)
-      }
+      getLabel={(idol) => favoriteItemLabel(labels.entityType, idol)}
+      getMeta={(idol) => labels.itemMeta(idol)}
       renderLeading={(idol) => (
         <input
           type="checkbox"
           checked={selectedIds.includes(Number(idol.id))}
           onChange={(event) => onToggleSelected?.(idol.id, event.target.checked)}
           className="h-4 w-4 shrink-0 accent-blue-600"
-          aria-label={zh('选择女优', 'Select idol')}
+          aria-label={labels.selectAria}
         />
       )}
     />
@@ -719,4 +721,83 @@ function normalizeGroups(groups) {
     if (orderA !== orderB) return orderA - orderB
     return String(a?.name || '').localeCompare(String(b?.name || ''))
   })
+}
+
+function favoriteManageLabels(entityType) {
+  switch (entityType) {
+    case 'jav':
+      return {
+        entityType,
+        itemNameZh: '作品',
+        itemNameEn: 'JAV items',
+        manageTitle: zh('管理作品收藏夹', 'Manage JAV favorites'),
+        loadItemsError: zh('加载收藏夹作品失败', 'Failed to load favorite group JAV'),
+        saveOrderError: zh('保存作品顺序失败', 'Failed to save JAV order'),
+        removeItemsError: zh('批量移除作品失败', 'Failed to remove selected JAV'),
+        emptyItemsText: zh('该收藏夹暂无作品', 'No JAV in this favorite'),
+        selectAria: zh('选择作品', 'Select JAV'),
+        groupMeta: (count) => zh(`${count} 部`, `${count} JAV`),
+        itemMeta: () => '',
+      }
+    case 'studio':
+      return {
+        entityType,
+        itemNameZh: '片商',
+        itemNameEn: 'studios',
+        manageTitle: zh('管理片商收藏夹', 'Manage studio favorites'),
+        loadItemsError: zh('加载收藏夹片商失败', 'Failed to load favorite group studios'),
+        saveOrderError: zh('保存片商顺序失败', 'Failed to save studio order'),
+        removeItemsError: zh('批量移除片商失败', 'Failed to remove selected studios'),
+        emptyItemsText: zh('该收藏夹暂无片商', 'No studios in this favorite'),
+        selectAria: zh('选择片商', 'Select studio'),
+        groupMeta: (count) => zh(`${count} 个`, `${count} studios`),
+        itemMeta: (item) =>
+          zh(`${Number(item?.work_count) || 0} 部`, `${Number(item?.work_count) || 0} works`),
+      }
+    case 'series':
+      return {
+        entityType,
+        itemNameZh: '系列',
+        itemNameEn: 'series',
+        manageTitle: zh('管理系列收藏夹', 'Manage series favorites'),
+        loadItemsError: zh('加载收藏夹系列失败', 'Failed to load favorite group series'),
+        saveOrderError: zh('保存系列顺序失败', 'Failed to save series order'),
+        removeItemsError: zh('批量移除系列失败', 'Failed to remove selected series'),
+        emptyItemsText: zh('该收藏夹暂无系列', 'No series in this favorite'),
+        selectAria: zh('选择系列', 'Select series'),
+        groupMeta: (count) => zh(`${count} 个`, `${count} series`),
+        itemMeta: (item) =>
+          zh(`${Number(item?.work_count) || 0} 部`, `${Number(item?.work_count) || 0} works`),
+      }
+    case 'idol':
+    default:
+      return {
+        entityType: 'idol',
+        itemNameZh: '女优',
+        itemNameEn: 'idols',
+        manageTitle: zh('管理女优收藏夹', 'Manage idol favorites'),
+        loadItemsError: zh('加载收藏夹女优失败', 'Failed to load favorite group idols'),
+        saveOrderError: zh('保存女优顺序失败', 'Failed to save idol order'),
+        removeItemsError: zh('批量移除女优失败', 'Failed to remove selected idols'),
+        emptyItemsText: zh('该收藏夹暂无女优', 'No idols in this favorite'),
+        selectAria: zh('选择女优', 'Select idol'),
+        groupMeta: (count) => zh(`${count} 位`, `${count} idols`),
+        itemMeta: (item) =>
+          zh(`${Number(item?.work_count) || 0} 部`, `${Number(item?.work_count) || 0} works`),
+      }
+  }
+}
+
+function favoriteItemLabel(entityType, item) {
+  const name = String(item?.name || '').trim()
+  if (name) return name
+  if (entityType === 'jav') {
+    return (
+      [item?.code, item?.title || item?.title_en].filter(Boolean).join(' ') ||
+      zh('未知作品', 'Unknown JAV')
+    )
+  }
+  if (entityType === 'studio') return zh('未知片商', 'Unknown studio')
+  if (entityType === 'series') return zh('未知系列', 'Unknown series')
+  return zh('未知女优', 'Unknown idol')
 }

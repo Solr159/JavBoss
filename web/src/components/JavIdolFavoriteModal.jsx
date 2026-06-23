@@ -7,6 +7,7 @@ import { zh } from '@/utils/i18n'
 export default function JavIdolFavoriteModal({
   open,
   idol,
+  entityType = 'idol',
   groups,
   selectedIds,
   loading,
@@ -41,7 +42,8 @@ export default function JavIdolFavoriteModal({
   if (!open) return null
 
   const selectedSet = new Set(localSelectedIds)
-  const idolName = String(idol?.name || '').trim() || zh('未知女优', 'Unknown idol')
+  const entityLabel = favoriteEntityLabel(entityType)
+  const itemName = favoriteItemName(entityType, idol)
 
   const toggleGroup = (id, checked) => {
     const parsed = Number(id)
@@ -85,7 +87,7 @@ export default function JavIdolFavoriteModal({
             <h2 className="truncate text-base font-semibold text-gray-950">
               {zh('选择收藏夹', 'Choose favorite groups')}
             </h2>
-            <div className="mt-0.5 truncate text-sm text-gray-500">{idolName}</div>
+            <div className="mt-0.5 truncate text-sm text-gray-500">{itemName}</div>
           </div>
           <IconButton
             type="button"
@@ -109,7 +111,7 @@ export default function JavIdolFavoriteModal({
             <input
               value={newGroupName}
               onChange={(event) => setNewGroupName(event.target.value)}
-              placeholder={zh('新建收藏夹', 'New favorite group')}
+              placeholder={zh(`新建${entityLabel}收藏夹`, `New ${entityLabel} favorite group`)}
               className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={creating || saving}
             />
@@ -183,4 +185,32 @@ function cleanIds(ids) {
   return Array.from(
     new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
   ).sort((a, b) => a - b)
+}
+
+function favoriteEntityLabel(entityType) {
+  switch (entityType) {
+    case 'jav':
+      return zh('作品', 'JAV')
+    case 'studio':
+      return zh('片商', 'studio')
+    case 'series':
+      return zh('系列', 'series')
+    case 'idol':
+    default:
+      return zh('女优', 'idol')
+  }
+}
+
+function favoriteItemName(entityType, item) {
+  const name = String(item?.name || '').trim()
+  if (name) return name
+  if (entityType === 'jav') {
+    return (
+      [item?.code, item?.title || item?.title_en].filter(Boolean).join(' ') ||
+      zh('未知作品', 'Unknown JAV')
+    )
+  }
+  if (entityType === 'studio') return zh('未知片商', 'Unknown studio')
+  if (entityType === 'series') return zh('未知系列', 'Unknown series')
+  return zh('未知女优', 'Unknown idol')
 }

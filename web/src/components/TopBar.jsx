@@ -49,6 +49,7 @@ export default function TopBar({
   isModifiedClick,
   javTab,
   onSwitchJavTab,
+  favoriteEntityType = 'idol',
   idolFavoriteGroups = [],
   idolFavoriteGroupsLoading = false,
   idolFavoriteGroupsError = null,
@@ -98,6 +99,32 @@ export default function TopBar({
     const group = (idolFavoriteGroups || []).find((item) => Number(item?.id) === selectedId)
     return String(group?.name || '').trim()
   }, [idolFavoriteGroups, idolSelectedFavoriteGroupId])
+  const favoriteLabel = useMemo(() => {
+    switch (favoriteEntityType) {
+      case 'jav':
+        return zh('作品收藏夹', 'JAV favorites')
+      case 'studio':
+        return zh('片商收藏夹', 'Studio favorites')
+      case 'series':
+        return zh('系列收藏夹', 'Series favorites')
+      case 'idol':
+      default:
+        return zh('女优收藏夹', 'Idol favorites')
+    }
+  }, [favoriteEntityType])
+  const favoriteAllLabel = useMemo(() => {
+    switch (favoriteEntityType) {
+      case 'jav':
+        return zh('全部作品', 'All JAV')
+      case 'studio':
+        return zh('全部片商', 'All studios')
+      case 'series':
+        return zh('全部系列', 'All series')
+      case 'idol':
+      default:
+        return zh('全部女优', 'All idols')
+    }
+  }, [favoriteEntityType])
   const directorySummary =
     activeDirectories.length === 0
       ? zh('无目录', 'No directories')
@@ -394,14 +421,14 @@ export default function TopBar({
                       <LocalOfferOutlinedIcon fontSize="small" />
                     </Button>
                   </Tooltip>
-                  {javTab === 'idol' ? (
+                  {isJavMode ? (
                     <div ref={idolFavoriteMenuRef} className="relative">
-                      <Tooltip title={zh('女优收藏夹', 'Idol favorites')} arrow>
+                      <Tooltip title={favoriteLabel} arrow>
                         <Button
                           type="button"
                           variant="outlined"
                           onClick={handleIdolFavoriteMenuToggle}
-                          aria-label={zh('女优收藏夹', 'Idol favorites')}
+                          aria-label={favoriteLabel}
                           aria-haspopup="dialog"
                           aria-expanded={idolFavoriteMenuOpen}
                           sx={{
@@ -424,6 +451,8 @@ export default function TopBar({
                       </Tooltip>
                       {idolFavoriteMenuOpen ? (
                         <IdolFavoriteGroupMenu
+                          title={favoriteLabel}
+                          allLabel={favoriteAllLabel}
                           groups={idolFavoriteGroups}
                           selectedGroupId={idolSelectedFavoriteGroupId}
                           loading={idolFavoriteGroupsLoading}
@@ -714,6 +743,8 @@ export default function TopBar({
 }
 
 function IdolFavoriteGroupMenu({
+  title,
+  allLabel,
   groups,
   selectedGroupId,
   loading,
@@ -728,7 +759,7 @@ function IdolFavoriteGroupMenu({
   return (
     <div
       role="dialog"
-      aria-label={zh('女优收藏夹', 'Idol favorites')}
+      aria-label={title || zh('女优收藏夹', 'Idol favorites')}
       className="absolute left-1/2 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
     >
       <span
@@ -742,7 +773,7 @@ function IdolFavoriteGroupMenu({
       <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-gray-700">
-            {zh('女优收藏夹', 'Idol favorites')}
+            {title || zh('女优收藏夹', 'Idol favorites')}
           </div>
           <div className="truncate text-xs text-gray-500">
             {loading
@@ -750,12 +781,12 @@ function IdolFavoriteGroupMenu({
               : zh(`${list.length} 个收藏夹`, `${list.length} favorites`)}
           </div>
         </div>
-        <Tooltip title={zh('管理女优收藏夹', 'Manage idol favorites')} arrow>
+        <Tooltip title={zh('管理收藏夹', 'Manage favorites')} arrow>
           <IconButton
             type="button"
             size="small"
             onClick={() => onOpenManager?.()}
-            aria-label={zh('管理女优收藏夹', 'Manage idol favorites')}
+            aria-label={zh('管理收藏夹', 'Manage favorites')}
             sx={{ width: 30, height: 30 }}
           >
             <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
@@ -772,7 +803,7 @@ function IdolFavoriteGroupMenu({
           <FavoriteGroupTile
             active={!selected}
             href={buildGroupUrl?.(null)}
-            label={zh('全部女优', 'All idols')}
+            label={allLabel || zh('全部女优', 'All idols')}
             onClick={() => onSelect?.(null)}
           />
           {list.map((group) => {

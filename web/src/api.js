@@ -385,6 +385,7 @@ export async function fetchJavs({
   sort = '',
   seed = null,
   directoryIds = [],
+  favoriteGroupId = null,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
@@ -398,6 +399,7 @@ export async function fetchJavs({
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  if (favoriteGroupId) params.set('favorite_group_id', String(favoriteGroupId))
   const res = await apiFetch(`/jav?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -564,56 +566,89 @@ export async function fetchJavIdolOptions({ limit = 25, offset = 0, search = '' 
   return res.json()
 }
 
-export async function fetchJavIdolFavoriteGroups({ directoryIds = [] } = {}) {
+const JAV_FAVORITE_ENTITY_ROUTES = {
+  jav: 'jav',
+  idol: 'idol',
+  studio: 'studio',
+  series: 'series',
+}
+
+function javFavoriteEntityRoute(entityType = 'idol') {
+  return JAV_FAVORITE_ENTITY_ROUTES[String(entityType || '').trim()] || 'idol'
+}
+
+function javFavoriteEntityLabel(entityType = 'idol') {
+  switch (javFavoriteEntityRoute(entityType)) {
+    case 'jav':
+      return zh('作品', 'JAV')
+    case 'studio':
+      return zh('片商', 'studio')
+    case 'series':
+      return zh('系列', 'series')
+    case 'idol':
+    default:
+      return zh('女优', 'idol')
+  }
+}
+
+export async function fetchJavFavoriteGroups(entityType = 'idol', { directoryIds = [] } = {}) {
+  const route = javFavoriteEntityRoute(entityType)
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
-  const res = await apiFetch(`/jav/idol-favorite-groups${query ? `?${query}` : ''}`)
+  const res = await apiFetch(`/jav/${route}-favorite-groups${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('加载女优收藏夹失败', 'Failed to load idol favorite groups'))
+    const label = javFavoriteEntityLabel(route)
+    throw new Error(
+      err.error || zh(`加载${label}收藏夹失败`, `Failed to load ${label} favorite groups`)
+    )
   }
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []
 }
 
-export async function createJavIdolFavoriteGroup(name) {
-  const res = await apiFetch('/jav/idol-favorite-groups', {
+export async function createJavFavoriteGroup(entityType = 'idol', name) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(`/jav/${route}-favorite-groups`, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('创建女优收藏夹失败', 'Failed to create idol favorite group'))
+    throw new Error(err.error || zh('创建收藏夹失败', 'Failed to create favorite group'))
   }
   return res.json()
 }
 
-export async function renameJavIdolFavoriteGroup(id, name) {
-  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
+export async function renameJavFavoriteGroup(entityType = 'idol', id, name) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(`/jav/${route}-favorite-groups/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: jsonHeaders,
     body: JSON.stringify({ name }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('重命名女优收藏夹失败', 'Failed to rename idol favorite group'))
+    throw new Error(err.error || zh('重命名收藏夹失败', 'Failed to rename favorite group'))
   }
 }
 
-export async function deleteJavIdolFavoriteGroup(id) {
-  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}`, {
+export async function deleteJavFavoriteGroup(entityType = 'idol', id) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(`/jav/${route}-favorite-groups/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('删除女优收藏夹失败', 'Failed to delete idol favorite group'))
+    throw new Error(err.error || zh('删除收藏夹失败', 'Failed to delete favorite group'))
   }
 }
 
-export async function reorderJavIdolFavoriteGroups(groupIds = []) {
-  const res = await apiFetch('/jav/idol-favorite-groups/order', {
+export async function reorderJavFavoriteGroups(entityType = 'idol', groupIds = []) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(`/jav/${route}-favorite-groups/order`, {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({ group_ids: groupIds }),
@@ -626,66 +661,96 @@ export async function reorderJavIdolFavoriteGroups(groupIds = []) {
   }
 }
 
-export async function fetchJavIdolFavoriteGroupIdols(id, { directoryIds = [] } = {}) {
+export async function fetchJavFavoriteGroupItems(
+  entityType = 'idol',
+  id,
+  { directoryIds = [] } = {}
+) {
+  const route = javFavoriteEntityRoute(entityType)
   const params = new URLSearchParams()
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const query = params.toString()
   const res = await apiFetch(
-    `/jav/idol-favorite-groups/${encodeURIComponent(id)}/idols${query ? `?${query}` : ''}`
+    `/jav/${route}-favorite-groups/${encodeURIComponent(id)}/items${query ? `?${query}` : ''}`
   )
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('加载收藏夹女优失败', 'Failed to load favorite group idols'))
+    throw new Error(err.error || zh('加载收藏夹内容失败', 'Failed to load favorite group items'))
   }
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []
 }
 
-export async function reorderJavIdolFavoriteGroupIdols(id, idolIds = []) {
-  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idol-order`, {
+export async function reorderJavFavoriteGroupItems(entityType = 'idol', id, entityIds = []) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(`/jav/${route}-favorite-groups/${encodeURIComponent(id)}/item-order`, {
     method: 'PUT',
     headers: jsonHeaders,
-    body: JSON.stringify({ idol_ids: idolIds }),
+    body: JSON.stringify({ entity_ids: entityIds }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('保存收藏夹女优顺序失败', 'Failed to save favorite idol order'))
+    throw new Error(err.error || zh('保存收藏夹顺序失败', 'Failed to save favorite item order'))
   }
 }
 
-export async function removeJavIdolFavoriteGroupIdols(id, idolIds = []) {
-  const res = await apiFetch(`/jav/idol-favorite-groups/${encodeURIComponent(id)}/idols/remove`, {
-    method: 'POST',
-    headers: jsonHeaders,
-    body: JSON.stringify({ idol_ids: idolIds }),
-  })
+export async function removeJavFavoriteGroupItems(entityType = 'idol', id, entityIds = []) {
+  const route = javFavoriteEntityRoute(entityType)
+  const res = await apiFetch(
+    `/jav/${route}-favorite-groups/${encodeURIComponent(id)}/items/remove`,
+    {
+      method: 'POST',
+      headers: jsonHeaders,
+      body: JSON.stringify({ entity_ids: entityIds }),
+    }
+  )
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('移除收藏夹女优失败', 'Failed to remove favorite idols'))
+    throw new Error(err.error || zh('移除收藏夹内容失败', 'Failed to remove favorite items'))
   }
 }
 
-export async function fetchJavIdolFavoriteSelection(id) {
-  const res = await apiFetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`)
+export async function fetchJavFavoriteSelection(entityType = 'idol', id) {
+  const route = javFavoriteEntityRoute(entityType)
+  const itemPath = route === 'jav' ? 'items' : route === 'series' ? 'series' : `${route}s`
+  const res = await apiFetch(`/jav/${itemPath}/${encodeURIComponent(id)}/favorite-groups`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('加载女优收藏夹选择失败', 'Failed to load idol favorites'))
+    throw new Error(err.error || zh('加载收藏夹选择失败', 'Failed to load favorites'))
   }
   const data = await res.json()
   return Array.isArray(data?.selected_group_ids) ? data.selected_group_ids : []
 }
 
-export async function replaceJavIdolFavoriteGroups(id, groupIds = []) {
-  const res = await apiFetch(`/jav/idols/${encodeURIComponent(id)}/favorite-groups`, {
+export async function replaceJavFavoriteGroups(entityType = 'idol', id, groupIds = []) {
+  const route = javFavoriteEntityRoute(entityType)
+  const itemPath = route === 'jav' ? 'items' : route === 'series' ? 'series' : `${route}s`
+  const res = await apiFetch(`/jav/${itemPath}/${encodeURIComponent(id)}/favorite-groups`, {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify({ group_ids: groupIds }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || zh('保存女优收藏夹失败', 'Failed to save idol favorites'))
+    throw new Error(err.error || zh('保存收藏夹失败', 'Failed to save favorites'))
   }
 }
+
+export const fetchJavIdolFavoriteGroups = (options = {}) => fetchJavFavoriteGroups('idol', options)
+export const createJavIdolFavoriteGroup = (name) => createJavFavoriteGroup('idol', name)
+export const renameJavIdolFavoriteGroup = (id, name) => renameJavFavoriteGroup('idol', id, name)
+export const deleteJavIdolFavoriteGroup = (id) => deleteJavFavoriteGroup('idol', id)
+export const reorderJavIdolFavoriteGroups = (groupIds = []) =>
+  reorderJavFavoriteGroups('idol', groupIds)
+export const fetchJavIdolFavoriteGroupIdols = (id, options = {}) =>
+  fetchJavFavoriteGroupItems('idol', id, options)
+export const reorderJavIdolFavoriteGroupIdols = (id, idolIds = []) =>
+  reorderJavFavoriteGroupItems('idol', id, idolIds)
+export const removeJavIdolFavoriteGroupIdols = (id, idolIds = []) =>
+  removeJavFavoriteGroupItems('idol', id, idolIds)
+export const fetchJavIdolFavoriteSelection = (id) => fetchJavFavoriteSelection('idol', id)
+export const replaceJavIdolFavoriteGroups = (id, groupIds = []) =>
+  replaceJavFavoriteGroups('idol', id, groupIds)
 
 export async function fetchJavIdolCoverOptions(id, { directoryIds = [] } = {}) {
   const params = new URLSearchParams()
@@ -729,12 +794,14 @@ export async function fetchJavStudios({
   offset = 0,
   search = '',
   directoryIds = [],
+  favoriteGroupId = null,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
   params.set('offset', String(offset))
   if (search) params.set('search', search)
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  if (favoriteGroupId) params.set('favorite_group_id', String(favoriteGroupId))
   const res = await apiFetch(`/jav/studios?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -772,12 +839,14 @@ export async function fetchJavSeries({
   offset = 0,
   search = '',
   directoryIds = [],
+  favoriteGroupId = null,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
   params.set('offset', String(offset))
   if (search) params.set('search', search)
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  if (favoriteGroupId) params.set('favorite_group_id', String(favoriteGroupId))
   const res = await apiFetch(`/jav/series?${params.toString()}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

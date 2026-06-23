@@ -65,6 +65,9 @@ func RegisterRoutes(router *gin.Engine) {
 	router.POST("/jav/tags/replace", replaceJavTagsForItems)
 	router.GET("/jav/:code/cover", getJavCover)
 	router.PUT("/jav/:code/cover", updateJavCover)
+	registerJavFavoriteRoutes(router, "jav", dbFavoriteEntityJav)
+	registerJavFavoriteRoutes(router, "studio", dbFavoriteEntityStudio)
+	registerJavFavoriteRoutes(router, "series", dbFavoriteEntitySeries)
 	router.GET("/jav/idol-favorite-groups", listJavIdolFavoriteGroups)
 	router.POST("/jav/idol-favorite-groups", createJavIdolFavoriteGroup)
 	router.PUT("/jav/idol-favorite-groups/order", reorderJavIdolFavoriteGroups)
@@ -82,6 +85,37 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/jav/idols/:id/favorite-groups", listJavIdolFavoriteGroupIDs)
 	router.PUT("/jav/idols/:id/favorite-groups", replaceJavIdolFavoriteGroups)
 	router.GET("/jav/idols/:id", getJavIdol)
+}
+
+const (
+	dbFavoriteEntityJav    = "jav"
+	dbFavoriteEntityIdol   = "idol"
+	dbFavoriteEntityStudio = "studio"
+	dbFavoriteEntitySeries = "series"
+)
+
+func registerJavFavoriteRoutes(router *gin.Engine, routeEntity string, dbEntity string) {
+	base := "/jav/" + routeEntity + "-favorite-groups"
+	router.GET(base, listJavFavoriteGroupsFor(dbEntity))
+	router.POST(base, createJavFavoriteGroupFor(dbEntity))
+	router.PUT(base+"/order", reorderJavFavoriteGroupsFor(dbEntity))
+	router.PATCH(base+"/:id", renameJavFavoriteGroupFor(dbEntity))
+	router.DELETE(base+"/:id", deleteJavFavoriteGroupFor(dbEntity))
+	router.GET(base+"/:id/items", listJavFavoriteGroupItemsFor(dbEntity))
+	router.PUT(base+"/:id/item-order", reorderJavFavoriteGroupItemsFor(dbEntity))
+	router.POST(base+"/:id/items/remove", removeJavFavoriteGroupItemsFor(dbEntity))
+	if routeEntity == "jav" {
+		router.GET("/jav/items/:id/favorite-groups", listJavFavoriteGroupIDsFor(dbEntity))
+		router.PUT("/jav/items/:id/favorite-groups", replaceJavFavoriteGroupsFor(dbEntity))
+		return
+	}
+	if routeEntity == "series" {
+		router.GET("/jav/series/:id/favorite-groups", listJavFavoriteGroupIDsFor(dbEntity))
+		router.PUT("/jav/series/:id/favorite-groups", replaceJavFavoriteGroupsFor(dbEntity))
+		return
+	}
+	router.GET("/jav/"+routeEntity+"s/:id/favorite-groups", listJavFavoriteGroupIDsFor(dbEntity))
+	router.PUT("/jav/"+routeEntity+"s/:id/favorite-groups", replaceJavFavoriteGroupsFor(dbEntity))
 }
 
 func handleHealth(c *gin.Context) {

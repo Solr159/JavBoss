@@ -79,6 +79,7 @@ function JavStudioRoute({
   onLast,
   onLoadMore,
   onNext,
+  onOpenFavorites,
   onPrev,
   onSelectStudio,
   onWaterfallModeChange,
@@ -114,6 +115,7 @@ function JavStudioRoute({
       onLast={onLast}
       items={items}
       onSelectStudio={onSelectStudio}
+      onOpenFavorites={onOpenFavorites}
       waterfallMode={waterfallMode}
       onWaterfallModeChange={onWaterfallModeChange}
       onLoadMore={onLoadMore}
@@ -137,6 +139,7 @@ function JavSeriesRoute({
   onLast,
   onLoadMore,
   onNext,
+  onOpenFavorites,
   onPrev,
   onSelectSeries,
   onSelectStudio,
@@ -175,6 +178,7 @@ function JavSeriesRoute({
       items={items}
       onSelectSeries={onSelectSeries}
       onSelectStudio={onSelectStudio}
+      onOpenFavorites={onOpenFavorites}
       waterfallMode={waterfallMode}
       onWaterfallModeChange={onWaterfallModeChange}
       onLoadMore={onLoadMore}
@@ -206,6 +210,7 @@ function JavListRoute({
   onIdolClick,
   onLoadMore,
   onOpenFavorites,
+  onOpenJavFavorites,
   onOpenFile,
   onOpenScreenshots,
   onManageVideoPlay,
@@ -262,6 +267,7 @@ function JavListRoute({
       onManageVideoTagClick={onManageVideoTagClick}
       onIdolClick={onIdolClick}
       onOpenFavorites={onOpenFavorites}
+      onOpenJavFavorites={onOpenJavFavorites}
       onStudioClick={onStudioClick}
       onSeriesClick={onSeriesClick}
       onTagClick={onTagClick}

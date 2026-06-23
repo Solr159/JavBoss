@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Tooltip } from '@mui/material'
+import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
 import { fetchJavSeriesJavDBURL } from '@/api'
@@ -24,6 +26,7 @@ export default function JavSeriesView({
   items,
   onSelectSeries,
   onSelectStudio,
+  onOpenFavorites,
   waterfallMode,
   onWaterfallModeChange,
   onLoadMore,
@@ -59,6 +62,7 @@ export default function JavSeriesView({
           items={items}
           onSelectSeries={onSelectSeries}
           onSelectStudio={onSelectStudio}
+          onOpenFavorites={onOpenFavorites}
           buildSeriesUrl={buildSeriesUrl}
         />
       )}
@@ -72,7 +76,7 @@ export default function JavSeriesView({
   )
 }
 
-function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }) {
+function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites, buildSeriesUrl }) {
   const hasItems = Array.isArray(items) && items.length > 0
   if (!hasItems) {
     return (
@@ -94,13 +98,14 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, buildSeriesUrl }
           href={buildSeriesUrl?.(item)}
           onSelectSeries={onSelectSeries}
           onSelectStudio={onSelectStudio}
+          onOpenFavorites={onOpenFavorites}
         />
       ))}
     </div>
   )
 }
 
-export function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
+export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenFavorites }) {
   const sampleCode = String(item?.sample_code || '').trim()
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知系列', 'Unknown series')
@@ -111,6 +116,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
     studioName && Number.isFinite(studioId) && studioId > 0 && typeof onSelectStudio === 'function'
   const workCount = Number(item?.work_count)
   const showWorkCount = Number.isFinite(workCount) && workCount > 0
+  const favoriteCount = Number(item?.favorite_count) || 0
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(seriesId) && seriesId > 0))
@@ -170,6 +176,12 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
     }
   }
 
+  const handleOpenFavorites = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenFavorites?.(item)
+  }
+
   return (
     <a
       href={href || '#'}
@@ -200,6 +212,23 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio }) {
             {zh(`作品 ${workCount}`, `${workCount} works`)}
           </div>
         ) : null}
+        <button
+          type="button"
+          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+            favoriteCount > 0
+              ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+          }`}
+          title={zh('加入系列收藏夹', 'Add to series favorite groups')}
+          aria-label={zh('加入系列收藏夹', 'Add to series favorite groups')}
+          onClick={handleOpenFavorites}
+        >
+          {favoriteCount > 0 ? (
+            <StarRoundedIcon sx={{ fontSize: 18 }} />
+          ) : (
+            <StarBorderRoundedIcon sx={{ fontSize: 18 }} />
+          )}
+        </button>
         <button
           type="button"
           className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
