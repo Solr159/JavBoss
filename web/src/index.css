@@ -4,6 +4,7 @@
 
 :root {
   --topbar-height: 72px; /* fallback, real height measured in TopBar */
+  --page-x-padding: clamp(2.5rem, 6vw, 7rem);
 }
 
 html {
@@ -16,6 +17,11 @@ body {
   min-height: 100%;
 }
 
+.page-main {
+  padding-left: var(--page-x-padding);
+  padding-right: var(--page-x-padding);
+}
+
 .sticky-pagination {
   position: sticky;
   top: var(--topbar-height);
@@ -23,8 +29,8 @@ body {
   width: 100vw;
   margin-left: calc(50% - 50vw);
   margin-right: calc(50% - 50vw);
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  padding-left: var(--page-x-padding);
+  padding-right: var(--page-x-padding);
   background: #fff;
 }
 
