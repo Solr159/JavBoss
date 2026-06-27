@@ -23,7 +23,23 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 ## Quick Start
 
-### 1. Download
+### Option 1: One-line Install (Recommended)
+
+Linux / macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 | iex
+```
+
+The installer downloads the latest release package for your system and starts JavBoss. Run the same command again to upgrade; existing `data/`, `logs/`, and customized `config.toml` files are preserved. If JavBoss is already running, the installer asks you to exit it first to avoid replacing files while the app is active.
+
+### Option 2: Manual Download
 
 Click the link for your system, download the latest release package, and extract it:
 
