@@ -74,6 +74,7 @@ Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `Engli
 - Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
 - Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
 - In JAV mode, actress, maker, series, and other metadata will be completed automatically over time. Please be patient.
+
 </br>
 
 ## How To Upgrade Versions
@@ -87,6 +88,7 @@ Exit JavBoss first, then run the one-line install command again to upgrade.
 Download and extract the new version, copy the old manual-download directory's `data/` folder into the new version directory, then start the new version.
 
 Copy `data/` before starting the new version. If you start it first, JavBoss will automatically create a `data/` directory; exit JavBoss, delete that generated `data/` directory, then copy your old `data/` directory over.
+
 </br>
 
 ## Migrating From Manual Download To One-line Install
@@ -100,6 +102,7 @@ Default one-line install directories:
 - macOS: `~/Applications/JavBoss`
 
 After that, upgrade by running the one-line install command again.
+
 </br>
 
 ## Core Philosophy
