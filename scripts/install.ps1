@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-$ProgressPreference = "SilentlyContinue"
+$ProgressPreference = "Continue"
 
 $Version = if ($env:JAVBOSS_VERSION) { $env:JAVBOSS_VERSION } else { "latest" }
 $Dir = $env:JAVBOSS_INSTALL_DIR
@@ -26,6 +26,69 @@ function Fail {
   param([string]$Message)
   Write-Error "[javboss] ERROR: $Message"
   exit 1
+}
+
+function Format-Bytes {
+  param([double]$Bytes)
+
+  if ($Bytes -ge 1GB) {
+    return "{0:N1} GB" -f ($Bytes / 1GB)
+  }
+  if ($Bytes -ge 1MB) {
+    return "{0:N1} MB" -f ($Bytes / 1MB)
+  }
+  if ($Bytes -ge 1KB) {
+    return "{0:N1} KB" -f ($Bytes / 1KB)
+  }
+  return "$Bytes B"
+}
+
+function Download-FileWithProgress {
+  param([string]$Url, [string]$OutFile)
+
+  Add-Type -AssemblyName System.Net.Http
+
+  $client = [System.Net.Http.HttpClient]::new()
+  $client.DefaultRequestHeaders.UserAgent.ParseAdd("JavBoss-Installer")
+  $response = $null
+  $inputStream = $null
+  $outputStream = $null
+
+  try {
+    $response = $client.GetAsync($Url, [System.Net.Http.HttpCompletionOption]::ResponseHeadersRead).GetAwaiter().GetResult()
+    $response.EnsureSuccessStatusCode() | Out-Null
+
+    $total = $response.Content.Headers.ContentLength
+    $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
+    $outputStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+    $buffer = New-Object byte[] 1048576
+    [long]$downloaded = 0
+
+    while (($read = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+      $outputStream.Write($buffer, 0, $read)
+      $downloaded += $read
+
+      if ($total) {
+        $percent = [Math]::Min(100, [Math]::Floor(($downloaded * 100) / $total))
+        Write-Progress -Activity "Downloading JavBoss" -Status "$(Format-Bytes $downloaded) / $(Format-Bytes $total)" -PercentComplete $percent
+      } else {
+        Write-Progress -Activity "Downloading JavBoss" -Status "$(Format-Bytes $downloaded)" -PercentComplete 0
+      }
+    }
+
+    Write-Progress -Activity "Downloading JavBoss" -Completed
+  } finally {
+    if ($outputStream) {
+      $outputStream.Dispose()
+    }
+    if ($inputStream) {
+      $inputStream.Dispose()
+    }
+    if ($response) {
+      $response.Dispose()
+    }
+    $client.Dispose()
+  }
 }
 
 function Get-LatestTag {
@@ -258,7 +321,7 @@ try {
   New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
 
   Write-Log "downloading $url"
-  Invoke-WebRequest -Uri $url -OutFile $zipPath -Headers @{ "User-Agent" = "JavBoss-Installer" }
+  Download-FileWithProgress -Url $url -OutFile $zipPath
 
   Write-Log "extracting release package"
   Expand-Archive -LiteralPath $zipPath -DestinationPath $extractDir -Force
