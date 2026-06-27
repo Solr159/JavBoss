@@ -61,7 +61,7 @@ function Download-FileWithProgress {
     $total = $response.Content.Headers.ContentLength
     $inputStream = $response.Content.ReadAsStreamAsync().GetAwaiter().GetResult()
     $outputStream = [System.IO.File]::Open($OutFile, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
-    $buffer = New-Object byte[] 1048576
+    $buffer = New-Object byte[] 4194304
     [long]$downloaded = 0
 
     while (($read = $inputStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
