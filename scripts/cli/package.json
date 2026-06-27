@@ -1,6 +1,7 @@
 {
   "name": "javboss-cli",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "module",
   "dependencies": {
     "inquirer": "^9.2.20"

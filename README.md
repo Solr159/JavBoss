@@ -15,6 +15,11 @@
   <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
 </p>
 
+<p>
+  <img alt="Telegram" src="https://cdn.simpleicons.org/telegram/26A5E4" width="18" height="18" align="absmiddle">
+  <a href="https://t.me/+4dje8gAi2dI2ZTE1">官方交流群</a>
+</p>
+
 
 ## JavBoss 是什么？
 
