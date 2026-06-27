@@ -268,6 +268,10 @@ start_javboss() {
       return
     fi
   fi
+  if [[ -r /dev/tty ]]; then
+    "$install_dir/javboss" </dev/tty
+    return
+  fi
   "$install_dir/javboss"
 }
 
