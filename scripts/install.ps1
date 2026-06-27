@@ -1,12 +1,8 @@
-param(
-  [string]$Version = $(if ($env:JAVBOSS_VERSION) { $env:JAVBOSS_VERSION } else { "latest" }),
-  [string]$Dir = $env:JAVBOSS_INSTALL_DIR,
-  [string]$Repo = $(if ($env:JAVBOSS_REPO) { $env:JAVBOSS_REPO } else { "Solr159/JavBoss" }),
-  [switch]$NoStart
-)
-
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+$Repo = "Solr159/JavBoss"
+$Version = "v1.8.1"
 
 function Test-PrefersChinese {
   if ($env:JAVBOSS_LANG -like "zh*") {
@@ -30,41 +26,16 @@ function Fail {
   exit 1
 }
 
-function Get-LatestTag {
-  param([string]$Repository)
-  $uri = "https://api.github.com/repos/$Repository/releases/latest"
-  try {
-    $release = Invoke-RestMethod -Uri $uri -Headers @{ "User-Agent" = "JavBoss-Installer" }
-    if (-not $release.tag_name) {
-      Fail "failed to read latest release tag from GitHub"
-    }
-    return [string]$release.tag_name
-  } catch {
-    Fail "failed to read latest release tag from GitHub: $($_.Exception.Message)"
-  }
-}
-
-function Normalize-Tag {
-  param([string]$InputVersion, [string]$Repository)
-  if ($InputVersion -eq "latest") {
-    return Get-LatestTag -Repository $Repository
-  }
-  if ($InputVersion.StartsWith("v")) {
-    return $InputVersion
-  }
-  return "v$InputVersion"
-}
-
 function Get-PlatformLabel {
-  if (-not $IsWindows -and $PSVersionTable.PSEdition -eq "Core") {
+  $isWindowsValue = Get-Variable -Name IsWindows -ValueOnly -ErrorAction SilentlyContinue
+  if (($PSVersionTable.PSEdition -eq "Core" -and $isWindowsValue -eq $false) -or ($env:OS -and $env:OS -ne "Windows_NT")) {
     Fail "scripts/install.ps1 is for Windows. Use scripts/install.sh on Linux or macOS"
   }
 
-  $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  switch ($arch) {
-    "X64" { return "windows-x86_64" }
-    default { Fail "unsupported Windows architecture: $arch" }
+  if ([Environment]::Is64BitOperatingSystem) {
+    return "windows-x86_64"
   }
+  Fail "unsupported Windows architecture"
 }
 
 function Save-ExistingConfig {
@@ -85,6 +56,31 @@ function Restore-ExistingConfig {
   }
   Copy-Item -LiteralPath $SavedConfig -Destination (Join-Path $InstallDir "config.toml") -Force
   Remove-Item -LiteralPath $SavedConfig -Force -ErrorAction SilentlyContinue
+}
+
+function Get-VersionFilePath {
+  param([string]$InstallDir)
+  return Join-Path $InstallDir ".version"
+}
+
+function Get-InstalledVersion {
+  param([string]$InstallDir)
+
+  $exe = Join-Path $InstallDir "javboss.exe"
+  $versionFile = Get-VersionFilePath -InstallDir $InstallDir
+  if ((Test-Path -LiteralPath $exe) -and (Test-Path -LiteralPath $versionFile)) {
+    $line = Get-Content -LiteralPath $versionFile -TotalCount 1
+    if ($line) {
+      return "$line".Trim()
+    }
+  }
+  return ""
+}
+
+function Set-InstalledVersion {
+  param([string]$InstallDir, [string]$Tag)
+
+  Set-Content -LiteralPath (Get-VersionFilePath -InstallDir $InstallDir) -Value $Tag -Encoding UTF8
 }
 
 function Copy-ReleaseFiles {
@@ -151,41 +147,70 @@ function Assert-JavBossNotRunning {
   Fail "JavBoss is already running from $InstallDir (pid: $ids). Please exit JavBoss before installing or upgrading."
 }
 
-function New-StartMenuShortcut {
-  param([string]$InstallDir)
+function New-JavBossShortcut {
+  param([string]$ShortcutPath, [string]$InstallDir)
 
-  $programs = [Environment]::GetFolderPath("Programs")
-  if (-not $programs) {
+  if (-not $ShortcutPath) {
     return
   }
-  $shortcutPath = Join-Path $programs "JavBoss.lnk"
+
   $target = Join-Path $InstallDir "javboss.exe"
+  $shortcutDir = Split-Path -Parent $ShortcutPath
+  if ($shortcutDir) {
+    New-Item -ItemType Directory -Path $shortcutDir -Force | Out-Null
+  }
 
   $shell = New-Object -ComObject WScript.Shell
-  $shortcut = $shell.CreateShortcut($shortcutPath)
+  $shortcut = $shell.CreateShortcut($ShortcutPath)
   $shortcut.TargetPath = $target
   $shortcut.WorkingDirectory = $InstallDir
   $shortcut.IconLocation = "$target,0"
   $shortcut.Save()
-  Write-Log "shortcut installed: $shortcutPath"
+  Write-Log "shortcut installed: $ShortcutPath"
+}
+
+function New-JavBossShortcuts {
+  param([string]$InstallDir)
+
+  $programs = [Environment]::GetFolderPath("Programs")
+  if ($programs) {
+    New-JavBossShortcut -ShortcutPath (Join-Path $programs "JavBoss.lnk") -InstallDir $InstallDir
+  }
+
+  $desktop = [Environment]::GetFolderPath("Desktop")
+  if ($desktop) {
+    New-JavBossShortcut -ShortcutPath (Join-Path $desktop "JavBoss.lnk") -InstallDir $InstallDir
+  }
 }
 
 function Start-JavBoss {
   param([string]$InstallDir)
   $exe = Join-Path $InstallDir "javboss.exe"
-  Start-Process -FilePath $exe -WorkingDirectory $InstallDir | Out-Null
+  Push-Location $InstallDir
+  try {
+    & $exe
+  } finally {
+    Pop-Location
+  }
 }
 
-if (-not $Dir) {
-  $Dir = Join-Path $env:LOCALAPPDATA "JavBoss"
+$baseDir = $env:LOCALAPPDATA
+if (-not $baseDir) {
+  $baseDir = Join-Path $HOME "AppData\Local"
 }
+$Dir = Join-Path $baseDir "JavBoss"
 $Dir = [System.IO.Path]::GetFullPath($Dir)
 Assert-JavBossNotRunning -InstallDir $Dir
 
 $platform = Get-PlatformLabel
-$tag = Normalize-Tag -InputVersion $Version -Repository $Repo
+$tag = $Version
 $fileName = "javboss-$tag-$platform.zip"
 $url = "https://github.com/$Repo/releases/download/$tag/$fileName"
+
+if ((Get-InstalledVersion -InstallDir $Dir) -eq $tag) {
+  Write-Log "JavBoss $tag is already installed; no update needed"
+  return
+}
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("javboss-install-" + [System.Guid]::NewGuid().ToString())
 $zipPath = Join-Path $tempRoot $fileName
@@ -206,15 +231,12 @@ try {
 
   Write-Log "installing to $Dir"
   Copy-ReleaseFiles -SourceDir $releaseDir.FullName -InstallDir $Dir
-  New-StartMenuShortcut -InstallDir $Dir
+  New-JavBossShortcuts -InstallDir $Dir
+  Set-InstalledVersion -InstallDir $Dir -Tag $tag
 
   Write-Log "installed JavBoss $tag"
-  if (-not $NoStart) {
-    Write-Log "starting JavBoss"
-    Start-JavBoss -InstallDir $Dir
-  } else {
-    Write-Log "start later with: $(Join-Path $Dir "javboss.exe")"
-  }
+  Write-Log "starting JavBoss"
+  Start-JavBoss -InstallDir $Dir
 } finally {
   Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }

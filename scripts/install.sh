@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${JAVBOSS_REPO:-Solr159/JavBoss}"
-VERSION="${JAVBOSS_VERSION:-latest}"
-INSTALL_DIR="${JAVBOSS_INSTALL_DIR:-}"
-START_AFTER_INSTALL=1
+REPO="Solr159/JavBoss"
+VERSION="v1.8.1"
+INSTALL_DIR=""
 TMP_DIR=""
 
 prefers_chinese() {
@@ -14,20 +13,6 @@ prefers_chinese() {
     *zh*|*ZH*) return 0 ;;
     *) return 1 ;;
   esac
-}
-
-usage() {
-  cat <<'EOF'
-JavBoss installer for Linux and macOS.
-
-Usage:
-  install.sh [--version latest|v1.8.1] [--dir PATH] [--repo OWNER/REPO] [--no-start]
-
-Environment:
-  JAVBOSS_VERSION      Release tag to install. Default: latest
-  JAVBOSS_INSTALL_DIR  Install directory.
-  JAVBOSS_REPO         GitHub repository. Default: Solr159/JavBoss
-EOF
 }
 
 log() {
@@ -45,52 +30,8 @@ cleanup() {
   fi
 }
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --version)
-      [[ $# -ge 2 ]] || die "--version requires a value"
-      VERSION="$2"
-      shift 2
-      ;;
-    --dir)
-      [[ $# -ge 2 ]] || die "--dir requires a value"
-      INSTALL_DIR="$2"
-      shift 2
-      ;;
-    --repo)
-      [[ $# -ge 2 ]] || die "--repo requires a value"
-      REPO="$2"
-      shift 2
-      ;;
-    --no-start)
-      START_AFTER_INSTALL=0
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      die "unknown argument: $1"
-      ;;
-  esac
-done
-
 command_exists() {
   command -v "$1" >/dev/null 2>&1
-}
-
-http_get() {
-  local url="$1"
-  if command_exists curl; then
-    curl -fsSL "$url"
-    return
-  fi
-  if command_exists wget; then
-    wget -qO- "$url"
-    return
-  fi
-  die "curl or wget is required"
 }
 
 download_file() {
@@ -132,33 +73,30 @@ detect_platform() {
   esac
 }
 
-latest_tag() {
-  local api json tag
-  api="https://api.github.com/repos/${REPO}/releases/latest"
-  json="$(http_get "$api")"
-  tag="$(printf '%s' "$json" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-  [[ -n "$tag" ]] || die "failed to read latest release tag from GitHub"
-  printf '%s' "$tag"
-}
-
-normalize_tag() {
-  local tag="$1"
-  if [[ "$tag" == "latest" ]]; then
-    latest_tag
-    return
-  fi
-  if [[ "$tag" == v* ]]; then
-    printf '%s' "$tag"
-  else
-    printf 'v%s' "$tag"
-  fi
-}
-
 default_install_dir() {
   case "$(uname -s)" in
     Darwin) printf '%s/Applications/JavBoss' "$HOME" ;;
     *) printf '%s/.local/share/javboss' "$HOME" ;;
   esac
+}
+
+version_file_path() {
+  printf '%s/.version' "$1"
+}
+
+installed_version() {
+  local install_dir="$1"
+  local version_file
+  version_file="$(version_file_path "$install_dir")"
+  if [[ -f "$install_dir/javboss" && -f "$version_file" ]]; then
+    head -n 1 "$version_file" | tr -d '[:space:]'
+  fi
+}
+
+write_installed_version() {
+  local install_dir="$1"
+  local tag="$2"
+  printf '%s\n' "$tag" >"$(version_file_path "$install_dir")"
 }
 
 canonical_path() {
@@ -249,6 +187,10 @@ start_javboss() {
       return
     fi
   fi
+  if [[ -e /dev/tty ]] && { : </dev/tty; } 2>/dev/null; then
+    "$install_dir/javboss" </dev/tty
+    return
+  fi
   "$install_dir/javboss"
 }
 
@@ -257,12 +199,17 @@ main() {
 
   local platform tag filename url zip_file extract_dir release_dir
   platform="$(detect_platform)"
-  INSTALL_DIR="${INSTALL_DIR:-$(default_install_dir)}"
+  INSTALL_DIR="$(default_install_dir)"
   ensure_not_running "$INSTALL_DIR"
 
-  tag="$(normalize_tag "$VERSION")"
+  tag="$VERSION"
   filename="javboss-${tag}-${platform}.zip"
   url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
+
+  if [[ "$(installed_version "$INSTALL_DIR")" == "$tag" ]]; then
+    log "JavBoss $tag is already installed; no update needed"
+    return
+  fi
 
   TMP_DIR="$(mktemp -d)"
   trap cleanup EXIT
@@ -289,14 +236,11 @@ main() {
   fi
 
   create_command_link "$INSTALL_DIR"
+  write_installed_version "$INSTALL_DIR" "$tag"
 
   log "installed JavBoss $tag"
-  if [[ "$START_AFTER_INSTALL" == "1" ]]; then
-    log "starting JavBoss"
-    start_javboss "$INSTALL_DIR"
-  else
-    log "start later with: $INSTALL_DIR/javboss"
-  fi
+  log "starting JavBoss"
+  start_javboss "$INSTALL_DIR"
 }
 
 main "$@"
