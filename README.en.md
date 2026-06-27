@@ -25,18 +25,18 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 ### 1. Choose An Install Method
 
-#### Option 1: One-line Install (Recommended)
-
-Linux / macOS:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.sh | bash
-```
+#### Option 1: Command-line One-line Install (Recommended)
 
 Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 | iex
+```
+
+Linux / macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.sh | bash
 ```
 
 The installer downloads the latest release package for your system, installs it, and starts JavBoss.
@@ -74,32 +74,33 @@ Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `Engli
 - Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
 - Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
 - In JAV mode, actress, maker, series, and other metadata will be completed automatically over time. Please be patient.
+</br>
 
 ## How To Upgrade Versions
 
-### One-line Install Users
+#### One-line Install Users
 
 Exit JavBoss first, then run the one-line install command again to upgrade.
 
-The installer preserves existing `data/`, `logs/`, and customized `config.toml` files. If JavBoss is still running, the script asks you to exit it first.
+#### Manual Download Users
 
-### Manual Download Users
+Download and extract the new version, copy the old manual-download directory's `data/` folder into the new version directory, then start the new version.
 
-Download and extract the new version, copy the old version's `data/` directory into the new version directory, then start the new version.
-
-Keep the old version and a data backup until you confirm the new version runs correctly.
+Copy `data/` before starting the new version. If you start it first, JavBoss will automatically create a `data/` directory; exit JavBoss, delete that generated `data/` directory, then copy your old `data/` directory over.
+</br>
 
 ## Migrating From Manual Download To One-line Install
 
-Run the one-line install command first, then copy the old version's `data/` directory into the one-line install directory.
+Run the one-line install command first, then copy the manual-download directory's `data/` folder into the one-line install directory. Before copying, delete the `data/` folder already created in the one-line install directory.
 
 Default one-line install directories:
 
-- Windows: `C:\Users\your-username\AppData\Local\JavBoss`
+- Windows: `C:\Users\your-username\AppData\Local\JavBoss` (right-click the desktop shortcut -> Properties -> Open File Location to locate it quickly)
 - Linux: `~/.local/share/javboss`
 - macOS: `~/Applications/JavBoss`
 
 After that, upgrade by running the one-line install command again.
+</br>
 
 ## Core Philosophy
 
