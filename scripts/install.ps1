@@ -1,12 +1,10 @@
-param(
-  [string]$Version = $(if ($env:JAVBOSS_VERSION) { $env:JAVBOSS_VERSION } else { "latest" }),
-  [string]$Dir = $env:JAVBOSS_INSTALL_DIR,
-  [string]$Repo = $(if ($env:JAVBOSS_REPO) { $env:JAVBOSS_REPO } else { "Solr159/JavBoss" }),
-  [switch]$NoStart
-)
-
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+$Version = if ($env:JAVBOSS_VERSION) { $env:JAVBOSS_VERSION } else { "latest" }
+$Dir = $env:JAVBOSS_INSTALL_DIR
+$Repo = if ($env:JAVBOSS_REPO) { $env:JAVBOSS_REPO } else { "Solr159/JavBoss" }
+$NoStart = $env:JAVBOSS_NO_START -eq "1"
 
 function Test-PrefersChinese {
   if ($env:JAVBOSS_LANG -like "zh*") {
@@ -52,22 +50,22 @@ function Normalize-Tag {
   if ($InputVersion -eq "latest") {
     return Get-LatestTag -Repository $Repository
   }
-  if ($InputVersion.StartsWith("v")) {
+  if ($InputVersion -like "v*") {
     return $InputVersion
   }
   return "v$InputVersion"
 }
 
 function Get-PlatformLabel {
-  if (-not $IsWindows -and $PSVersionTable.PSEdition -eq "Core") {
+  $isWindowsValue = Get-Variable -Name IsWindows -ValueOnly -ErrorAction SilentlyContinue
+  if (($PSVersionTable.PSEdition -eq "Core" -and $isWindowsValue -eq $false) -or ($env:OS -and $env:OS -ne "Windows_NT")) {
     Fail "scripts/install.ps1 is for Windows. Use scripts/install.sh on Linux or macOS"
   }
 
-  $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-  switch ($arch) {
-    "X64" { return "windows-x86_64" }
-    default { Fail "unsupported Windows architecture: $arch" }
+  if ([Environment]::Is64BitOperatingSystem) {
+    return "windows-x86_64"
   }
+  Fail "unsupported Windows architecture"
 }
 
 function Save-ExistingConfig {
