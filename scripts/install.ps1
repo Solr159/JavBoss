@@ -174,7 +174,12 @@ function New-StartMenuShortcut {
 function Start-JavBoss {
   param([string]$InstallDir)
   $exe = Join-Path $InstallDir "javboss.exe"
-  Start-Process -FilePath $exe -WorkingDirectory $InstallDir | Out-Null
+  Push-Location $InstallDir
+  try {
+    & $exe
+  } finally {
+    Pop-Location
+  }
 }
 
 if (-not $Dir) {
