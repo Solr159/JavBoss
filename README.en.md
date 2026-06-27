@@ -23,7 +23,9 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 ## Quick Start
 
-### Option 1: One-line Install (Recommended)
+### 1. Choose An Install Method
+
+#### Option 1: One-line Install (Recommended)
 
 Linux / macOS:
 
@@ -37,9 +39,14 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 | iex
 ```
 
-The installer downloads the latest release package for your system and starts JavBoss. Run the same command again to upgrade; existing `data/`, `logs/`, and customized `config.toml` files are preserved. If JavBoss is already running, the installer asks you to exit it first to avoid replacing files while the app is active.
+The installer downloads the latest release package for your system, installs it, and starts JavBoss.
 
-### Option 2: Manual Download
+To open JavBoss later:
+
+- Windows: double-click the `JavBoss` desktop shortcut, or search for `JavBoss` in the Start menu.
+- Linux / macOS: open a terminal and run `javboss`.
+
+#### Option 2: Manual Download
 
 Click the link for your system, download the latest release package, and extract it:
 
@@ -50,7 +57,7 @@ Click the link for your system, download the latest release package, and extract
 
 You can also visit the [Releases](https://github.com/Solr159/JavBoss/releases) page to view all versions.
 
-### 2. Start The App
+After extracting the package, start the app:
 
 - Windows: double-click `javboss.exe`. If SmartScreen blocks it on first launch, click "More info" and continue.
 - macOS: open a terminal and run `javboss.command`.
@@ -58,15 +65,41 @@ You can also visit the [Releases](https://github.com/Solr159/JavBoss/releases) p
 
 After launch, JavBoss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while JavBoss is running.
 
-### 3. Set JAV Metadata Language
+### 2. Set JAV Metadata Language
 
 Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `English`, and save.
 
-### 4. Add Your Local Folders
+### 3. Add Your Local Folders
 
 - Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
 - Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
 - In JAV mode, actress, maker, series, and other metadata will be completed automatically over time. Please be patient.
+
+## How To Upgrade Versions
+
+### One-line Install Users
+
+Exit JavBoss first, then run the one-line install command again to upgrade.
+
+The installer preserves existing `data/`, `logs/`, and customized `config.toml` files. If JavBoss is still running, the script asks you to exit it first.
+
+### Manual Download Users
+
+Download and extract the new version, copy the old version's `data/` directory into the new version directory, then start the new version.
+
+Keep the old version and a data backup until you confirm the new version runs correctly.
+
+## Migrating From Manual Download To One-line Install
+
+Run the one-line install command first, then copy the old version's `data/` directory into the one-line install directory.
+
+Default one-line install directories:
+
+- Windows: `C:\Users\your-username\AppData\Local\JavBoss`
+- Linux: `~/.local/share/javboss`
+- macOS: `~/Applications/JavBoss`
+
+After that, upgrade by running the one-line install command again.
 
 ## Core Philosophy
 
@@ -178,10 +211,6 @@ The frontend is designed around finding the right video quickly. Common operatio
 <p align="center">
   <img src="screenshot/en/image1_12.png" style="width: 100%; height: auto;">
 </p>
-
-## How To Upgrade Versions
-
-After downloading and extracting a new version, copy the old version's `data/` directory into the new version directory. Keep the old version and a data backup until you confirm the new version runs correctly.
 
 ## Notes
 

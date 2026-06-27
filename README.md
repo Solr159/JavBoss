@@ -44,6 +44,11 @@ irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 |
 
 安装脚本会自动下载对应系统的最新版发布包，完成安装后启动 JavBoss。
 
+以后每次打开：
+
+- Windows：双击桌面的 `JavBoss` 快捷方式，或在开始菜单中搜索 `JavBoss`。
+- Linux / macOS：打开终端运行 `javboss`。
+
 #### 方式二：手动下载
 
 点击下载对应系统的最新版发布包并解压：
@@ -55,7 +60,7 @@ irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 |
 
 也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
 
-### 2. 启动程序
+下载解压后启动程序：
 
 - Windows：双击 `javboss.exe`。首次运行可能会被 SmartScreen 阻止，点击“更多信息” -> “仍要运行”。
 - macOS：打开终端运行 `javboss.command`。
@@ -63,7 +68,7 @@ irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 |
 
 启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
 
-### 3. 添加本地目录
+### 2. 添加本地目录
 
 进入“全局设置” -> “目录管理”，添加存放视频的本地文件夹。
 
