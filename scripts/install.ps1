@@ -46,6 +46,9 @@ function Get-LatestTag {
 
 function Normalize-Tag {
   param([string]$InputVersion, [string]$Repository)
+  if ([string]::IsNullOrWhiteSpace($InputVersion)) {
+    $InputVersion = "latest"
+  }
   if ($InputVersion -eq "latest") {
     return Get-LatestTag -Repository $Repository
   }
@@ -177,7 +180,11 @@ function Start-JavBoss {
 }
 
 if (-not $Dir) {
-  $Dir = Join-Path $env:LOCALAPPDATA "JavBoss"
+  $baseDir = $env:LOCALAPPDATA
+  if (-not $baseDir) {
+    $baseDir = Join-Path $HOME "AppData\Local"
+  }
+  $Dir = Join-Path $baseDir "JavBoss"
 }
 $Dir = [System.IO.Path]::GetFullPath($Dir)
 Assert-JavBossNotRunning -InstallDir $Dir
