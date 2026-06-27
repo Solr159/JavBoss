@@ -162,7 +162,7 @@ default_install_dir() {
 }
 
 version_file_path() {
-  printf '%s/.javboss-version' "$1"
+  printf '%s/.version' "$1"
 }
 
 installed_version() {

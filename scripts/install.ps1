@@ -90,7 +90,7 @@ function Restore-ExistingConfig {
 
 function Get-VersionFilePath {
   param([string]$InstallDir)
-  return Join-Path $InstallDir ".javboss-version"
+  return Join-Path $InstallDir ".version"
 }
 
 function Get-InstalledVersion {
