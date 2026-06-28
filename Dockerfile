@@ -1,11 +1,13 @@
-FROM node:24-bookworm-slim AS web-build
+# syntax=docker/dockerfile:1.7
+
+FROM --platform=$BUILDPLATFORM node:24-bookworm-slim AS web-build
 
 ARG NPM_CONFIG_REGISTRY=https://registry.npmmirror.com
 ENV NPM_CONFIG_REGISTRY=${NPM_CONFIG_REGISTRY}
 
 WORKDIR /src/web
 COPY web/package*.json ./
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci --prefer-offline
 COPY web/ ./
 RUN npm run build
 
@@ -18,10 +20,12 @@ ENV GOPROXY=${GOPROXY} \
 
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 COPY --from=web-build /src/web/dist ./web/dist
-RUN go build -trimpath -ldflags="-s -w" -o /out/javboss ./cmd/server
+RUN --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  go build -trimpath -ldflags="-s -w" -o /out/javboss ./cmd/server
 
 FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg-build
 

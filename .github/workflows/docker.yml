@@ -66,6 +66,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.image.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             GOPROXY=https://goproxy.cn,direct
             GOSUMDB=sum.golang.org
