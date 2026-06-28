@@ -11,7 +11,10 @@ import (
 
 	"github.com/mattn/go-ieproxy"
 	"javboss/internal/common/logging"
+	"javboss/internal/runtimeconfig"
 )
+
+const dockerHostGateway = "host.docker.internal"
 
 var (
 	proxyOnce     sync.Once
@@ -40,6 +43,7 @@ func SetProxy(host string, port int) {
 		host = "127.0.0.1"
 	}
 	u := &url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}
+	u = mapProxyURLForContainer(u)
 	proxyOverride.Store(u)
 	logging.Info("proxy: using configured proxy %s", u.Redacted())
 }
@@ -76,10 +80,40 @@ func resolveProxy() func(*http.Request) (*url.URL, error) {
 			return u, nil
 		}
 		if systemProxy != nil {
-			return systemProxy(req)
+			u, err := systemProxy(req)
+			if err != nil {
+				return nil, err
+			}
+			return mapProxyURLForContainer(u), nil
 		}
 		return nil, nil
 	}
+}
+
+func mapProxyURLForContainer(u *url.URL) *url.URL {
+	if u == nil || !runtimeconfig.ProxyHostGatewayEnabled() {
+		return u
+	}
+	host := strings.TrimSpace(u.Hostname())
+	if !isLoopbackProxyHost(host) {
+		return u
+	}
+
+	mapped := *u
+	if port := u.Port(); port != "" {
+		mapped.Host = net.JoinHostPort(dockerHostGateway, port)
+	} else {
+		mapped.Host = dockerHostGateway
+	}
+	return &mapped
+}
+
+func isLoopbackProxyHost(host string) bool {
+	if strings.EqualFold(host, "localhost") || host == "::1" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 func loadProxyOverride() *url.URL {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { pickDirectory } from '@/api'
+import { apiHostPath, displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
 
 function isWindowsPlatform() {
@@ -20,6 +21,8 @@ export default function DirectoryManager({
   onCreate,
   onUpdate,
   onDelete,
+  directoryPickerEnabled = true,
+  useHostPaths = false,
 }) {
   const [path, setPath] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -34,12 +37,25 @@ export default function DirectoryManager({
   const [savingId, setSavingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const windowsPlatform = isWindowsPlatform()
-  const pathPlaceholder = windowsPlatform
-    ? zh('输入目录路径，例如 D:\\Videos', 'Enter a folder path, e.g. D:\\Videos')
-    : zh('输入目录路径，例如 /Volumes/Videos', 'Enter a folder path, e.g. /Volumes/Videos')
+  const pathPlaceholder = useHostPaths
+    ? zh(
+        '输入宿主机目录路径，例如 /mnt/disk1/videos',
+        'Enter a host folder path, e.g. /mnt/disk1/videos'
+      )
+    : windowsPlatform
+      ? zh('输入目录路径，例如 D:\\Videos', 'Enter a folder path, e.g. D:\\Videos')
+      : zh('输入目录路径，例如 /Volumes/Videos', 'Enter a folder path, e.g. /Volumes/Videos')
   const pathHelperText = zh(
-    '建议优先使用“选择目录”，也可以手动输入完整目录路径。',
-    'Use "Choose directory" when possible, or enter the full folder path manually.'
+    directoryPickerEnabled
+      ? '建议优先使用“选择目录”，也可以手动输入完整目录路径。'
+      : useHostPaths
+        ? '请输入宿主机上的完整目录路径，Docker 部署会自动映射到容器内路径。'
+        : '请输入容器内可访问的完整目录路径，例如 /media。',
+    directoryPickerEnabled
+      ? 'Use "Choose directory" when possible, or enter the full folder path manually.'
+      : useHostPaths
+        ? 'Enter the full host path. Docker deployments map it to the container path automatically.'
+        : 'Enter a full path that is accessible inside the container, for example /media.'
   )
   const enabledSet = new Set((enabledDirectoryIds || []).map((id) => Number(id)))
   const activeDirectoryIds = directories.filter((d) => !d.is_delete).map((d) => d.id)
@@ -56,6 +72,9 @@ export default function DirectoryManager({
     }
     onEnabledDirectoryIdsChange?.(Array.from(next))
   }
+
+  const displayPath = (value) => displayHostPath(value, useHostPaths)
+  const apiPath = (value) => apiHostPath(value, useHostPaths)
 
   useEffect(() => {
     if (open) {
@@ -78,7 +97,7 @@ export default function DirectoryManager({
       if (!picked) {
         throw new Error(zh('未获取到目录路径', 'No directory path returned'))
       }
-      setValue?.(picked)
+      setValue?.(displayPath(picked))
     } catch (err) {
       if (setErr) {
         setErr(err.message || zh('选择目录失败', 'Directory selection failed'))
@@ -102,7 +121,7 @@ export default function DirectoryManager({
     }
     setSubmitting(true)
     try {
-      await onCreate?.({ path: path.trim() })
+      await onCreate?.({ path: apiPath(path) })
       setPath('')
       setAdding(false)
     } catch (err) {
@@ -114,7 +133,7 @@ export default function DirectoryManager({
 
   const startEdit = (dir) => {
     setEditId(dir.id)
-    setEditPath(dir.path || '')
+    setEditPath(displayPath(dir.path))
     setRowErrorId(null)
     setRowErrorMsg('')
   }
@@ -139,7 +158,7 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
-      await onUpdate?.(editId, { path: trimmed })
+      await onUpdate?.(editId, { path: apiPath(trimmed) })
       cancelEdit()
     } catch (err) {
       setRowErrorId(editId)
@@ -230,12 +249,15 @@ export default function DirectoryManager({
                     onChange={(e) => setDirectoryEnabled(d.id, e.target.checked)}
                     disabled={d.is_delete}
                     className="h-4 w-4 rounded border-gray-300 text-blue-600"
-                    aria-label={zh(`启用目录 ${d.path}`, `Enable directory ${d.path}`)}
+                    aria-label={zh(
+                      `启用目录 ${displayPath(d.path)}`,
+                      `Enable directory ${displayPath(d.path)}`
+                    )}
                   />
                   <span className="text-xs text-gray-500">{zh('启用此目录', 'Enabled')}</span>
                 </label>
                 {!isEditing ? (
-                  <div className="truncate text-sm font-medium">{d.path}</div>
+                  <div className="truncate text-sm font-medium">{displayPath(d.path)}</div>
                 ) : (
                   <form onSubmit={handleEditSubmit} className="space-y-2">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -245,22 +267,26 @@ export default function DirectoryManager({
                         className="w-full rounded border px-3 py-2 text-sm sm:min-w-[420px] sm:flex-1"
                         placeholder={pathPlaceholder}
                       />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRowErrorId(null)
-                          setRowErrorMsg('')
-                          handlePick({
-                            setValue: setEditPath,
-                            setErr: setRowErrorMsg,
-                            setRowId: () => setRowErrorId(editId),
-                          })
-                        }}
-                        disabled={picking || working}
-                        className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
-                      >
-                        {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
-                      </button>
+                      {directoryPickerEnabled ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRowErrorId(null)
+                            setRowErrorMsg('')
+                            handlePick({
+                              setValue: setEditPath,
+                              setErr: setRowErrorMsg,
+                              setRowId: () => setRowErrorId(editId),
+                            })
+                          }}
+                          disabled={picking || working}
+                          className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
+                        >
+                          {picking
+                            ? zh('选择中…', 'Picking...')
+                            : zh('选择目录', 'Choose directory')}
+                        </button>
+                      ) : null}
                     </div>
                     <div className="text-xs text-blue-700">{pathHelperText}</div>
                   </form>
@@ -336,14 +362,16 @@ export default function DirectoryManager({
               placeholder={pathPlaceholder}
               className="flex-1 rounded border px-3 py-2"
             />
-            <button
-              type="button"
-              onClick={() => handlePick({ setValue: setPath, setErr: setError })}
-              disabled={picking || submitting}
-              className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
-            >
-              {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
-            </button>
+            {directoryPickerEnabled ? (
+              <button
+                type="button"
+                onClick={() => handlePick({ setValue: setPath, setErr: setError })}
+                disabled={picking || submitting}
+                className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
+              >
+                {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
+              </button>
+            ) : null}
           </div>
           <div className="text-xs text-blue-700">{pathHelperText}</div>
           {error && <div className="text-sm text-red-600">{error}</div>}

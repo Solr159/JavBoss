@@ -13,6 +13,7 @@ import (
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/models"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/service"
 	"javboss/internal/util/dirpicker"
 )
@@ -59,6 +60,10 @@ func createDirectory(c *gin.Context) {
 }
 
 func pickDirectory(c *gin.Context) {
+	if runtimeconfig.DisableDirectoryPicker() {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "directory picker is disabled"})
+		return
+	}
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Now().Add(10 * time.Minute)); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		logging.Error("set directory picker write deadline failed: %v", err)
 	}

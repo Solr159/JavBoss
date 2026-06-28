@@ -15,6 +15,7 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import { displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
 
 export default function TopBar({
@@ -65,6 +66,7 @@ export default function TopBar({
   directories = [],
   enabledDirectoryIds = [],
   onEnabledDirectoryIdsChange,
+  hostPathPrefixEnabled = false,
 }) {
   const headerRef = useRef(null)
   const directoryMenuRef = useRef(null)
@@ -692,6 +694,7 @@ export default function TopBar({
                     activeDirectories.map((directory) => {
                       const id = Number(directory.id)
                       const checked = enabledDirectorySet.has(id)
+                      const directoryPath = displayHostPath(directory.path, hostPathPrefixEnabled)
                       return (
                         <label
                           key={directory.id}
@@ -703,12 +706,12 @@ export default function TopBar({
                             onChange={(event) => setDirectoryEnabled(id, event.target.checked)}
                             className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600"
                             aria-label={zh(
-                              `启用目录 ${directory.path}`,
-                              `Enable directory ${directory.path}`
+                              `启用目录 ${directoryPath}`,
+                              `Enable directory ${directoryPath}`
                             )}
                           />
                           <span className="min-w-0 flex-1 break-all text-gray-700">
-                            {directory.path}
+                            {directoryPath}
                           </span>
                         </label>
                       )

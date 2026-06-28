@@ -23,8 +23,8 @@ const SETTINGS_SECTIONS = [
   },
   {
     id: 'player',
-    title: { zh: 'MPV播放器', en: 'MPV Player' },
-    summary: { zh: 'mpv 快捷键与播放控制', en: 'mpv shortcuts and playback controls' },
+    title: { zh: '播放器', en: 'Player' },
+    summary: { zh: '播放器快捷键与播放控制', en: 'Player shortcuts and playback controls' },
   },
 ]
 
@@ -43,6 +43,10 @@ export default function GlobalSettingsModal({
   open,
   onClose,
   directories,
+  browserPlaybackOnly = false,
+  directoryPickerEnabled = true,
+  hostPathPrefixEnabled = false,
+  mpvEnabled = true,
   enabledDirectoryIds,
   onEnabledDirectoryIdsChange,
   onCreateDirectory,
@@ -83,7 +87,7 @@ export default function GlobalSettingsModal({
   const [initialViewModeInput, setInitialViewModeInput] = useState('video')
   const [initialViewModeError, setInitialViewModeError] = useState('')
   const [savingInitialViewMode, setSavingInitialViewMode] = useState(false)
-  const [playerTab, setPlayerTab] = useState('basic')
+  const [playerTab, setPlayerTab] = useState('mpv')
   const [playerBasicError, setPlayerBasicError] = useState('')
   const [playerBasicSuccess, setPlayerBasicSuccess] = useState('')
   const [savingPlayerBasic, setSavingPlayerBasic] = useState(false)
@@ -120,7 +124,7 @@ export default function GlobalSettingsModal({
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
       setInitialViewModeError('')
-      setPlayerTab('basic')
+      setPlayerTab(mpvEnabled && !browserPlaybackOnly ? 'mpv' : 'hotkeys')
       setPlayerBasicError('')
       setPlayerBasicSuccess('')
       setPlayerWindowWidthInput(String(playerWindowWidth ?? PLAYER_BASIC_DEFAULTS.windowWidth))
@@ -145,6 +149,8 @@ export default function GlobalSettingsModal({
     playerOntop,
     playerVolume,
     playerShowHotkeyHint,
+    mpvEnabled,
+    browserPlaybackOnly,
   ])
 
   if (!open) return null
@@ -193,7 +199,11 @@ export default function GlobalSettingsModal({
   const proxyUnchanged = desiredHostText === currentHostText && desiredPortText === currentPortText
   const proxyHostMissing = proxyEnabledInput && proxyHostInputTrimmed === ''
   const proxyInputMissing = proxyEnabledInput && proxyInputTrimmed === ''
-  const activeTitle = SETTINGS_SECTIONS.find((item) => item.id === activeSection)?.title || {
+  const visibleSections = SETTINGS_SECTIONS
+  const currentSection = visibleSections.some((section) => section.id === activeSection)
+    ? activeSection
+    : 'directories'
+  const activeTitle = visibleSections.find((item) => item.id === currentSection)?.title || {
     zh: '全局设置',
     en: 'Global Settings',
   }
@@ -234,49 +244,67 @@ export default function GlobalSettingsModal({
       <div className="space-y-5">
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <h4 className="text-sm font-semibold text-zinc-800">
-                {zh('默认播放器', 'Default Player')}
-              </h4>
-              <span className="relative inline-block">
-                <select
-                  value={defaultPlayerInput}
-                  onChange={(event) => {
-                    setDefaultPlayerInput(event.target.value === 'system' ? 'system' : 'mpv')
-                    setDefaultPlayerError('')
-                  }}
-                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
-                >
-                  <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
-                  <option value="system">{zh('系统播放器', 'System Player')}</option>
-                </select>
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
-                />
-              </span>
-            </div>
-            <div>
-              <p className="mt-1 text-sm text-zinc-500">
-                {zh(
-                  '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
-                  'The primary play button uses the selected player, while the bottom play button uses the other player.'
-                )}
-              </p>
-            </div>
+            {browserPlaybackOnly ? (
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-800">
+                  {zh('默认播放器', 'Default Player')}
+                </h4>
+                <p className="mt-1 text-sm text-zinc-500">
+                  {zh(
+                    '当前部署模式使用浏览器播放视频。',
+                    'This deployment mode plays videos in the browser.'
+                  )}
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h4 className="text-sm font-semibold text-zinc-800">
+                    {zh('默认播放器', 'Default Player')}
+                  </h4>
+                  <span className="relative inline-block">
+                    <select
+                      value={defaultPlayerInput}
+                      onChange={(event) => {
+                        setDefaultPlayerInput(event.target.value === 'system' ? 'system' : 'mpv')
+                        setDefaultPlayerError('')
+                      }}
+                      className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
+                    >
+                      <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
+                      <option value="system">{zh('系统播放器', 'System Player')}</option>
+                    </select>
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
+                    />
+                  </span>
+                </div>
+                <div>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {zh(
+                      '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
+                      'The primary play button uses the selected player, while the bottom play button uses the other player.'
+                    )}
+                  </p>
+                </div>
+              </>
+            )}
 
             {defaultPlayerError && <div className="text-sm text-red-600">{defaultPlayerError}</div>}
 
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSaveDefaultPlayer}
-                disabled={savingDefaultPlayer || defaultPlayerUnchanged}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
-            </div>
+            {!browserPlaybackOnly ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleSaveDefaultPlayer}
+                  disabled={savingDefaultPlayer || defaultPlayerUnchanged}
+                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                >
+                  {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+                </button>
+              </div>
+            ) : null}
           </div>
         </section>
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -506,265 +534,272 @@ export default function GlobalSettingsModal({
     )
   }
 
-  const renderPlayerPanel = () => (
-    <div className="space-y-5">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setPlayerTab('basic')}
-            className={`rounded-xl px-3 py-1.5 text-sm ${
-              playerTab === 'basic'
-                ? 'bg-zinc-900 text-white'
-                : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-            }`}
-          >
-            {zh('基础设置', 'Basic Settings')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPlayerTab('hotkeys')}
-            className={`rounded-xl px-3 py-1.5 text-sm ${
-              playerTab === 'hotkeys'
-                ? 'bg-zinc-900 text-white'
-                : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-            }`}
-          >
-            {zh('快捷键设置', 'Shortcut Settings')}
-          </button>
-        </div>
+  const renderPlayerPanel = () => {
+    const showMPVSettings = mpvEnabled && !browserPlaybackOnly
+    const currentPlayerTab = showMPVSettings && playerTab === 'mpv' ? 'mpv' : 'hotkeys'
 
-        {playerTab === 'basic' ? (
-          <div>
-            <div className="space-y-6">
-              <section className="space-y-3">
-                <h4 className="text-sm font-semibold text-zinc-800">
-                  {zh('初始窗口大小', 'Initial Window Size')}
-                </h4>
-                <div className="flex flex-col gap-3">
-                  <div className="grid gap-3 md:max-w-xl md:grid-cols-2">
-                    <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                      <span className="shrink-0">{zh('宽度', 'Width')}</span>
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
+    return (
+      <div className="space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap gap-2">
+            {showMPVSettings ? (
+              <button
+                type="button"
+                onClick={() => setPlayerTab('mpv')}
+                className={`rounded-xl px-3 py-1.5 text-sm ${
+                  currentPlayerTab === 'mpv'
+                    ? 'bg-zinc-900 text-white'
+                    : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                }`}
+              >
+                {zh('MPV播放器', 'MPV Player')}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setPlayerTab('hotkeys')}
+              className={`rounded-xl px-3 py-1.5 text-sm ${
+                currentPlayerTab === 'hotkeys'
+                  ? 'bg-zinc-900 text-white'
+                  : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+              }`}
+            >
+              {zh('快捷键', 'Shortcuts')}
+            </button>
+          </div>
+
+          {currentPlayerTab === 'mpv' ? (
+            <div>
+              <div className="space-y-6">
+                <section className="space-y-3">
+                  <h4 className="text-sm font-semibold text-zinc-800">
+                    {zh('初始窗口大小', 'Initial Window Size')}
+                  </h4>
+                  <div className="flex flex-col gap-3">
+                    <div className="grid gap-3 md:max-w-xl md:grid-cols-2">
+                      <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                        <span className="shrink-0">{zh('宽度', 'Width')}</span>
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <input
+                            value={playerWindowWidthInput}
+                            onChange={(e) => {
+                              setPlayerWindowWidthInput(e.target.value)
+                              setPlayerBasicError('')
+                              setPlayerBasicSuccess('')
+                            }}
+                            inputMode="numeric"
+                            className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                          />
+                          <span className="text-sm text-zinc-500">%</span>
+                        </div>
+                      </label>
+
+                      <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
+                        <span className="shrink-0">{zh('高度', 'Height')}</span>
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <input
+                            value={playerWindowHeightInput}
+                            onChange={(e) => {
+                              setPlayerWindowHeightInput(e.target.value)
+                              setPlayerBasicError('')
+                              setPlayerBasicSuccess('')
+                            }}
+                            inputMode="numeric"
+                            className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                          />
+                          <span className="text-sm text-zinc-500">%</span>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <label className="flex items-center gap-3 text-sm font-medium text-zinc-600">
                         <input
-                          value={playerWindowWidthInput}
+                          type="checkbox"
+                          checked={playerWindowUseAutofitInput}
                           onChange={(e) => {
-                            setPlayerWindowWidthInput(e.target.value)
+                            setPlayerWindowUseAutofitInput(e.target.checked)
                             setPlayerBasicError('')
                             setPlayerBasicSuccess('')
                           }}
-                          inputMode="numeric"
-                          className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                          className="h-4 w-4 rounded"
                         />
-                        <span className="text-sm text-zinc-500">%</span>
-                      </div>
-                    </label>
-
-                    <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-                      <span className="shrink-0">{zh('高度', 'Height')}</span>
-                      <div className="flex min-w-0 flex-1 items-center gap-2">
-                        <input
-                          value={playerWindowHeightInput}
-                          onChange={(e) => {
-                            setPlayerWindowHeightInput(e.target.value)
-                            setPlayerBasicError('')
-                            setPlayerBasicSuccess('')
-                          }}
-                          inputMode="numeric"
-                          className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
-                        />
-                        <span className="text-sm text-zinc-500">%</span>
-                      </div>
-                    </label>
+                        <span>{zh('自动调节窗口大小', 'Automatically adjust window size')}</span>
+                      </label>
+                      <span className="text-xs text-zinc-500">
+                        {playerWindowUseAutofitInput
+                          ? zh(
+                              '开启后按最大宽高限制窗口，并保持视频纵横比。',
+                              'When enabled, the window is limited by max width and height while preserving aspect ratio.'
+                            )
+                          : zh(
+                              '默认关闭，强制使用指定宽高。',
+                              'Disabled by default and forces the specified width and height.'
+                            )}
+                      </span>
+                    </div>
                   </div>
+                </section>
 
+                <section className="space-y-3 border-t border-zinc-200 pt-5">
                   <div className="flex flex-wrap items-center gap-3">
-                    <label className="flex items-center gap-3 text-sm font-medium text-zinc-600">
+                    <h4 className="text-sm font-semibold text-zinc-800">
+                      {zh('初始音量', 'Initial Volume')}
+                    </h4>
+                    <div className="flex w-full items-center gap-2 md:max-w-sm">
                       <input
-                        type="checkbox"
-                        checked={playerWindowUseAutofitInput}
+                        value={playerVolumeInput}
                         onChange={(e) => {
-                          setPlayerWindowUseAutofitInput(e.target.checked)
+                          setPlayerVolumeInput(e.target.value)
                           setPlayerBasicError('')
                           setPlayerBasicSuccess('')
                         }}
-                        className="h-4 w-4 rounded"
+                        inputMode="numeric"
+                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                       />
-                      <span>{zh('自动调节窗口大小', 'Automatically adjust window size')}</span>
-                    </label>
-                    <span className="text-xs text-zinc-500">
-                      {playerWindowUseAutofitInput
-                        ? zh(
-                            '开启后按最大宽高限制窗口，并保持视频纵横比。',
-                            'When enabled, the window is limited by max width and height while preserving aspect ratio.'
-                          )
-                        : zh(
-                            '默认关闭，强制使用指定宽高。',
-                            'Disabled by default and forces the specified width and height.'
-                          )}
-                    </span>
+                      <span className="text-sm text-zinc-500">%</span>
+                    </div>
                   </div>
-                </div>
-              </section>
+                  <p className="text-xs text-zinc-500">
+                    {zh(
+                      '控制 mpv 启动时的默认音量，范围 0-130。',
+                      'Controls the default mpv startup volume, range 0-130.'
+                    )}
+                  </p>
+                </section>
 
-              <section className="space-y-3 border-t border-zinc-200 pt-5">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h4 className="text-sm font-semibold text-zinc-800">
-                    {zh('初始音量', 'Initial Volume')}
-                  </h4>
-                  <div className="flex w-full items-center gap-2 md:max-w-sm">
+                <section className="space-y-3 border-t border-zinc-200 pt-5">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
                     <input
-                      value={playerVolumeInput}
+                      type="checkbox"
+                      checked={playerOntopInput}
                       onChange={(e) => {
-                        setPlayerVolumeInput(e.target.value)
+                        setPlayerOntopInput(e.target.checked)
                         setPlayerBasicError('')
                         setPlayerBasicSuccess('')
                       }}
-                      inputMode="numeric"
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                      className="h-4 w-4 rounded"
                     />
-                    <span className="text-sm text-zinc-500">%</span>
-                  </div>
-                </div>
-                <p className="text-xs text-zinc-500">
+                    <span>{zh('播放器强行置顶', 'Keep Player On Top')}</span>
+                  </label>
+                  <p className="text-xs text-zinc-500">
+                    {zh(
+                      '默认开启，使 mpv 播放器窗口保持置顶。',
+                      'Enabled by default to keep the mpv player window on top.'
+                    )}
+                  </p>
+                </section>
+
+                <section className="space-y-3 border-t border-zinc-200 pt-5">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                    <input
+                      type="checkbox"
+                      checked={playerShowHotkeyHintInput}
+                      onChange={(e) => {
+                        setPlayerShowHotkeyHintInput(e.target.checked)
+                        setPlayerBasicError('')
+                        setPlayerBasicSuccess('')
+                      }}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span>{zh('启动时显示快捷键配置', 'Show Shortcuts on Startup')}</span>
+                  </label>
+                  <p className="text-xs text-zinc-500">
+                    {zh(
+                      '默认开启，在 mpv 打开视频时显示当前快捷键说明。',
+                      'Enabled by default to show the current shortcut guide when mpv opens a video.'
+                    )}
+                  </p>
+                </section>
+              </div>
+
+              {playerBasicError && (
+                <div className="mt-3 text-sm text-red-600">{playerBasicError}</div>
+              )}
+              {playerBasicSuccess && (
+                <div className="mt-3 text-sm text-emerald-600">{playerBasicSuccess}</div>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={resetPlayerBasicInputs}
+                  disabled={savingPlayerBasic}
+                  className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+                >
+                  {zh('恢复默认', 'Restore Defaults')}
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setPlayerBasicError('')
+                    setPlayerBasicSuccess('')
+                    const width = Number.parseInt(playerWindowWidthInput, 10)
+                    const height = Number.parseInt(playerWindowHeightInput, 10)
+                    const volume = Number.parseInt(playerVolumeInput, 10)
+                    if (!Number.isFinite(width) || width < 10 || width > 100) {
+                      setPlayerBasicError(
+                        zh('初始宽度请输入 10-100', 'Initial width must be between 10 and 100')
+                      )
+                      return
+                    }
+                    if (!Number.isFinite(height) || height < 10 || height > 100) {
+                      setPlayerBasicError(
+                        zh('初始高度请输入 10-100', 'Initial height must be between 10 and 100')
+                      )
+                      return
+                    }
+                    if (!Number.isFinite(volume) || volume < 0 || volume > 130) {
+                      setPlayerBasicError(
+                        zh('初始音量请输入 0-130', 'Initial volume must be between 0 and 130')
+                      )
+                      return
+                    }
+
+                    setSavingPlayerBasic(true)
+                    try {
+                      await onSavePlayerBasicSettings?.({
+                        player_window_width: width,
+                        player_window_height: height,
+                        player_window_use_autofit: playerWindowUseAutofitInput,
+                        player_ontop: playerOntopInput,
+                        player_volume: volume,
+                        player_show_hotkey_hint: playerShowHotkeyHintInput,
+                      })
+                      setPlayerBasicSuccess(
+                        zh('MPV播放器设置保存成功', 'MPV player settings saved')
+                      )
+                    } catch (err) {
+                      setPlayerBasicError(err.message || zh('保存失败', 'Save failed'))
+                    } finally {
+                      setSavingPlayerBasic(false)
+                    }
+                  }}
+                  disabled={savingPlayerBasic}
+                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                >
+                  {savingPlayerBasic ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-zinc-800">{zh('快捷键', 'Shortcuts')}</h4>
+                <p className="mt-1 text-xs text-zinc-500">
                   {zh(
-                    '控制 mpv 启动时的默认音量，范围 0-130。',
-                    'Controls the default mpv startup volume, range 0-130.'
+                    '正数表示增加，负数表示减少。`Space` 和 `Escape` 仍固定用于播放/暂停和关闭播放器。',
+                    'Positive numbers increase, negative numbers decrease. `Space` and `Escape` remain reserved for play/pause and close.'
                   )}
                 </p>
-              </section>
-
-              <section className="space-y-3 border-t border-zinc-200 pt-5">
-                <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
-                  <input
-                    type="checkbox"
-                    checked={playerOntopInput}
-                    onChange={(e) => {
-                      setPlayerOntopInput(e.target.checked)
-                      setPlayerBasicError('')
-                      setPlayerBasicSuccess('')
-                    }}
-                    className="h-4 w-4 rounded"
-                  />
-                  <span>{zh('播放器强行置顶', 'Keep Player On Top')}</span>
-                </label>
-                <p className="text-xs text-zinc-500">
-                  {zh(
-                    '默认开启，使 mpv 播放器窗口保持置顶。',
-                    'Enabled by default to keep the mpv player window on top.'
-                  )}
-                </p>
-              </section>
-
-              <section className="space-y-3 border-t border-zinc-200 pt-5">
-                <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
-                  <input
-                    type="checkbox"
-                    checked={playerShowHotkeyHintInput}
-                    onChange={(e) => {
-                      setPlayerShowHotkeyHintInput(e.target.checked)
-                      setPlayerBasicError('')
-                      setPlayerBasicSuccess('')
-                    }}
-                    className="h-4 w-4 rounded"
-                  />
-                  <span>{zh('启动时显示快捷键配置', 'Show Shortcuts on Startup')}</span>
-                </label>
-                <p className="text-xs text-zinc-500">
-                  {zh(
-                    '默认开启，在 mpv 打开视频时显示当前快捷键说明。',
-                    'Enabled by default to show the current shortcut guide when mpv opens a video.'
-                  )}
-                </p>
-              </section>
-            </div>
-
-            {playerBasicError && (
-              <div className="mt-3 text-sm text-red-600">{playerBasicError}</div>
-            )}
-            {playerBasicSuccess && (
-              <div className="mt-3 text-sm text-emerald-600">{playerBasicSuccess}</div>
-            )}
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={resetPlayerBasicInputs}
-                disabled={savingPlayerBasic}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-              >
-                {zh('恢复默认', 'Restore Defaults')}
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  setPlayerBasicError('')
-                  setPlayerBasicSuccess('')
-                  const width = Number.parseInt(playerWindowWidthInput, 10)
-                  const height = Number.parseInt(playerWindowHeightInput, 10)
-                  const volume = Number.parseInt(playerVolumeInput, 10)
-                  if (!Number.isFinite(width) || width < 10 || width > 100) {
-                    setPlayerBasicError(
-                      zh('初始宽度请输入 10-100', 'Initial width must be between 10 and 100')
-                    )
-                    return
-                  }
-                  if (!Number.isFinite(height) || height < 10 || height > 100) {
-                    setPlayerBasicError(
-                      zh('初始高度请输入 10-100', 'Initial height must be between 10 and 100')
-                    )
-                    return
-                  }
-                  if (!Number.isFinite(volume) || volume < 0 || volume > 130) {
-                    setPlayerBasicError(
-                      zh('初始音量请输入 0-130', 'Initial volume must be between 0 and 130')
-                    )
-                    return
-                  }
-
-                  setSavingPlayerBasic(true)
-                  try {
-                    await onSavePlayerBasicSettings?.({
-                      player_window_width: width,
-                      player_window_height: height,
-                      player_window_use_autofit: playerWindowUseAutofitInput,
-                      player_ontop: playerOntopInput,
-                      player_volume: volume,
-                      player_show_hotkey_hint: playerShowHotkeyHintInput,
-                    })
-                    setPlayerBasicSuccess(zh('基础设置保存成功', 'Basic settings saved'))
-                  } catch (err) {
-                    setPlayerBasicError(err.message || zh('保存失败', 'Save failed'))
-                  } finally {
-                    setSavingPlayerBasic(false)
-                  }
-                }}
-                disabled={savingPlayerBasic}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingPlayerBasic ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-zinc-800">
-                {zh('快捷键设置', 'Shortcut Settings')}
-              </h4>
-              <p className="mt-1 text-xs text-zinc-500">
-                {zh(
-                  '正数表示增加，负数表示减少。`Space` 和 `Escape` 仍固定用于播放/暂停和关闭播放器。',
-                  'Positive numbers increase, negative numbers decrease. `Space` and `Escape` remain reserved for play/pause and close.'
-                )}
-              </p>
-            </div>
-            <PlayerSettingsModal hotkeys={normalizedPlayerHotkeys} onSave={onSavePlayerHotkeys} />
-          </>
-        )}
-      </section>
-    </div>
-  )
+              </div>
+              <PlayerSettingsModal hotkeys={normalizedPlayerHotkeys} onSave={onSavePlayerHotkeys} />
+            </>
+          )}
+        </section>
+      </div>
+    )
+  }
 
   const renderDirectoriesPanel = () => (
     <div className="space-y-5">
@@ -777,6 +812,8 @@ export default function GlobalSettingsModal({
           onCreate={onCreateDirectory}
           onUpdate={onUpdateDirectory}
           onDelete={onDeleteDirectory}
+          directoryPickerEnabled={directoryPickerEnabled}
+          useHostPaths={hostPathPrefixEnabled}
         />
       </section>
     </div>
@@ -803,8 +840,8 @@ export default function GlobalSettingsModal({
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <aside className="border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:border-b-0 md:border-r">
             <div className="flex gap-2 overflow-x-auto md:flex-col">
-              {SETTINGS_SECTIONS.map((section) => {
-                const selected = activeSection === section.id
+              {visibleSections.map((section) => {
+                const selected = currentSection === section.id
                 const badgeText =
                   section.id === 'jav'
                     ? javMetadataLanguage === 'en'
@@ -846,10 +883,10 @@ export default function GlobalSettingsModal({
           </aside>
 
           <section className="min-h-0 flex-1 overflow-y-auto px-4 py-4 md:px-6 md:py-6">
-            {activeSection === 'basic' && renderBasicPanel()}
-            {activeSection === 'jav' && renderJavPanel()}
-            {activeSection === 'player' && renderPlayerPanel()}
-            {activeSection === 'directories' && renderDirectoriesPanel()}
+            {currentSection === 'basic' && renderBasicPanel()}
+            {currentSection === 'jav' && renderJavPanel()}
+            {currentSection === 'player' && renderPlayerPanel()}
+            {currentSection === 'directories' && renderDirectoriesPanel()}
           </section>
         </div>
       </div>

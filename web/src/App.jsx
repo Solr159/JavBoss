@@ -40,6 +40,7 @@ import SelectionTagsModal from '@/components/SelectionTagsModal'
 import TagPickerModal from '@/components/TagPickerModal'
 import Toast from '@/components/Toast'
 import TopBar from '@/components/TopBar'
+import PlayerModal from '@/components/PlayerModal'
 import VideoSettingsModal from '@/components/VideoSettingsModal'
 import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
@@ -63,6 +64,11 @@ const normalizeDefaultPlayer = (value) =>
     .toLowerCase() === 'system'
     ? 'system'
     : 'mpv'
+
+const configFlag = (value, fallback = false) => {
+  if (value == null || value === '') return fallback
+  return !['0', 'false', 'no', 'off'].includes(String(value).trim().toLowerCase())
+}
 
 const normalizeInitialViewMode = (value) =>
   String(value || '')
@@ -241,6 +247,8 @@ export default function App() {
   const [locationPickerVideo, setLocationPickerVideo] = useState(null)
   const [locationPickerChoices, setLocationPickerChoices] = useState([])
   const [locationPickerAction, setLocationPickerAction] = useState('play')
+  const [playerVideo, setPlayerVideo] = useState(null)
+  const [playerStartTime, setPlayerStartTime] = useState(0)
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
   const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
   const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
@@ -329,13 +337,23 @@ export default function App() {
         title: zh('选择文件位置', 'Choose file location'),
       }
     : null
-  const defaultPlayer = normalizeDefaultPlayer(config?.default_player)
+  const browserPlaybackOnly = configFlag(config?.browser_playback_only)
+  const containerMode = configFlag(config?.runtime_container)
+  const hostPathPrefixEnabled = configFlag(config?.host_path_prefix_enabled, containerMode)
+  const desktopIntegrationEnabled = configFlag(config?.desktop_integration_enabled, true)
+  const directoryPickerEnabled = configFlag(config?.directory_picker_enabled, true)
+  const mpvEnabled = configFlag(config?.mpv_enabled, true)
+  const defaultPlayer = browserPlaybackOnly
+    ? 'browser'
+    : normalizeDefaultPlayer(config?.default_player)
   const initialViewMode = normalizeInitialViewMode(config?.initial_view_mode)
-  const alternatePlayer = defaultPlayer === 'system' ? 'mpv' : 'system'
+  const alternatePlayer = browserPlaybackOnly ? '' : defaultPlayer === 'system' ? 'mpv' : 'system'
   const alternatePlayerLabel =
     alternatePlayer === 'mpv'
       ? zh('使用MPV播放器播放', 'Play with MPV player')
-      : zh('用默认程序打开', 'Open with default app')
+      : alternatePlayer === 'system'
+        ? zh('用默认程序打开', 'Open with default app')
+        : ''
   const showToast = useCallback((message) => {
     setToastMessage(String(message || '').trim())
   }, [])
@@ -426,6 +444,11 @@ export default function App() {
   const playVideoWith = useCallback(
     (video, player) => {
       if (!video || !isVideoOpenable(video)) return
+      if (player === 'browser') {
+        setPlayerStartTime(0)
+        setPlayerVideo(video)
+        return
+      }
       const payload = {
         id: video.id,
         path: getVideoRelPath(video),
@@ -459,6 +482,11 @@ export default function App() {
   const playVideoFromTime = useCallback(
     (video, startTime) => {
       if (!video || !isVideoOpenable(video)) return
+      if (browserPlaybackOnly) {
+        setPlayerStartTime(startTime || 0)
+        setPlayerVideo(video)
+        return
+      }
       playVideoFile({
         id: video.id,
         path: getVideoRelPath(video),
@@ -466,7 +494,7 @@ export default function App() {
         startTime,
       }).catch((err) => console.error(zh('播放文件失败', 'Failed to play file'), err))
     },
-    [getVideoDirPath, getVideoRelPath, isVideoOpenable]
+    [browserPlaybackOnly, getVideoDirPath, getVideoRelPath, isVideoOpenable]
   )
 
   const handleOpenPlayer = useCallback(
@@ -483,6 +511,7 @@ export default function App() {
 
   const handleOpenAlternatePlayer = useCallback(
     (video) => {
+      if (!alternatePlayer) return
       const choices = getVideoLocationChoices(video)
       if (choices.length > 1) {
         openLocationPicker(video, 'open', choices)
@@ -2733,14 +2762,18 @@ export default function App() {
     javVideoPickerAction === 'open'
       ? alternatePlayer === 'mpv'
         ? zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
-        : zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
+        : alternatePlayer === 'system'
+          ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
+          : zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
       : javVideoPickerAction === 'screenshots'
         ? zh('选择查看截图的文件', 'Choose a file to view screenshots')
         : javVideoPickerAction === 'reveal'
           ? zh('选择定位文件', 'Choose a file to reveal')
           : defaultPlayer === 'system'
             ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
-            : zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
+            : defaultPlayer === 'browser'
+              ? zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
+              : zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
   const javVideoPickerEmptyText =
     javVideoPickerAction === 'play'
       ? zh('暂无可播放文件', 'No playable files')
@@ -2841,6 +2874,7 @@ export default function App() {
         directories={directories}
         enabledDirectoryIds={enabledDirectoryIds}
         onEnabledDirectoryIdsChange={setEnabledDirectoryIds}
+        hostPathPrefixEnabled={hostPathPrefixEnabled}
       />
 
       <main className="page-main w-full pb-6 pt-0">
@@ -2990,8 +3024,8 @@ export default function App() {
             toggleSelectVideo={toggleSelectVideo}
             onToggleSelectPage={handleToggleSelectPage}
             openPlayer={handleOpenPlayer}
-            openAlternatePlayer={handleOpenAlternatePlayer}
-            revealFile={handleRevealVideoFile}
+            openAlternatePlayer={alternatePlayer ? handleOpenAlternatePlayer : null}
+            revealFile={desktopIntegrationEnabled ? handleRevealVideoFile : null}
             alternatePlayerLabel={alternatePlayerLabel}
             setTagPickerFor={openTagEditor}
             onOpenScreenshots={setScreenshotsVideo}
@@ -3042,6 +3076,16 @@ export default function App() {
         playerHotkeys={config?.player_hotkeys}
         onClose={() => setScreenshotsVideo(null)}
         onPlayAtTime={playVideoFromTime}
+      />
+
+      <PlayerModal
+        video={playerVideo}
+        startTime={playerStartTime}
+        hotkeys={config?.player_hotkeys}
+        onClose={() => {
+          setPlayerVideo(null)
+          setPlayerStartTime(0)
+        }}
       />
 
       <VideoScrapeSettingsModal
@@ -3158,10 +3202,14 @@ export default function App() {
             : locationPickerAction === 'open'
               ? alternatePlayer === 'mpv'
                 ? zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
-                : zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
+                : alternatePlayer === 'system'
+                  ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
+                  : zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
               : defaultPlayer === 'system'
                 ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
-                : zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
+                : defaultPlayer === 'browser'
+                  ? zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
+                  : zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
         }
         onClose={closeLocationPicker}
         item={locationPickerItem}
@@ -3319,6 +3367,10 @@ export default function App() {
         open={globalSettingsOpen}
         onClose={() => setGlobalSettingsOpen(false)}
         directories={directories}
+        browserPlaybackOnly={browserPlaybackOnly}
+        directoryPickerEnabled={directoryPickerEnabled}
+        hostPathPrefixEnabled={hostPathPrefixEnabled}
+        mpvEnabled={mpvEnabled}
         enabledDirectoryIds={enabledDirectoryIds}
         onEnabledDirectoryIdsChange={setEnabledDirectoryIds}
         onCreateDirectory={async (payload) => {

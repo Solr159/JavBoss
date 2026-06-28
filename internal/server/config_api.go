@@ -14,6 +14,7 @@ import (
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/mpv"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
 )
 
@@ -27,6 +28,7 @@ func getConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
+	applyRuntimeConfigFields(cfg)
 	c.JSON(http.StatusOK, cfg)
 }
 
@@ -323,7 +325,18 @@ func updateConfig(c *gin.Context) {
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
 	jav.SetMetadataLanguage(cfg["jav_metadata_language"])
+	applyRuntimeConfigFields(cfg)
 	c.JSON(http.StatusOK, cfg)
+}
+
+func applyRuntimeConfigFields(cfg map[string]string) {
+	cfg["runtime_container"] = strconv.FormatBool(runtimeconfig.ContainerMode())
+	cfg["api_token_disabled"] = strconv.FormatBool(runtimeconfig.DisableAPIToken())
+	cfg["directory_picker_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDirectoryPicker())
+	cfg["desktop_integration_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDesktopIntegration())
+	cfg["mpv_enabled"] = strconv.FormatBool(!runtimeconfig.DisableMPVPlayback())
+	cfg["browser_playback_only"] = strconv.FormatBool(runtimeconfig.DisableMPVPlayback() && runtimeconfig.DisableDesktopIntegration())
+	cfg["host_path_prefix_enabled"] = strconv.FormatBool(runtimeconfig.HostPathPrefixEnabled())
 }
 
 func normalizeProxyHost(host string) (string, bool) {

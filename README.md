@@ -73,6 +73,40 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
 
+#### 方式三：Docker 部署
+
+docker-compose.yaml：
+
+```yaml
+services:
+  javboss:
+    image: ghcr.io/solr159/javboss:latest
+    container_name: javboss
+    ports:
+      - "8655:17654"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data
+      - /:/host:ro
+    restart: unless-stopped
+```
+
+启动：
+
+```bash
+docker compose up -d
+```
+
+访问：
+
+```text
+http://localhost:8655 
+```
+如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
+
+Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
+
 ### 2. 添加本地目录
 
 进入“全局设置” -> “目录管理”，添加存放视频的本地文件夹。
@@ -95,6 +129,17 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 下载并解压新版本后，将旧版本目录中的 `data/` 文件夹复制到新版本目录，然后启动新版本。
 
 （注意要先复制再启动。如果直接启动，程序会自动生成 `data/` 目录，你需要先退出程序，手动删除掉 `data/` 目录再复制）。
+
+#### Docker 用户
+
+进入 `docker-compose.yaml` 所在目录，拉取新镜像并重启：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+升级时请保留 `./data` 目录，它保存了数据库、封面、截图等运行数据。
 
 ## 手动下载老用户迁移一键安装
 
@@ -298,6 +343,14 @@ npm install
 ```bash
 ./scripts/cli.sh dev backend
 ```
+
+按 Docker 运行时配置启动本地后端（用于调试容器模式行为）：
+
+```bash
+DOCKER_MODE=1 ./scripts/cli.sh dev backend
+```
+
+该模式会启用 `JAVBOSS_CONTAINER=1`，禁用 API token、目录选择器、桌面集成和 mpv 播放，并使用 ffmpeg 生成截图。需要本机可通过 `FFMPEG_PATH`、`internal/bin/ffmpeg` 或系统 `PATH` 找到 `ffmpeg`。本地调试默认不会把前端输入的目录自动加上 `/host` 前缀，也不会把 `127.0.0.1` 代理改写为 `host.docker.internal`；如需测试 Docker 宿主机路径映射，可使用 `DOCKER_MODE=1 JAVBOSS_HOST_PATH_PREFIX=1 ./scripts/cli.sh dev backend`，如需测试 Docker 代理网关映射，可额外设置 `JAVBOSS_PROXY_HOST_GATEWAY=1`。
 
 启动前端：
 

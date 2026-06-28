@@ -3,6 +3,8 @@ package server
 import (
 	"testing"
 	"time"
+
+	"javboss/internal/models"
 )
 
 func TestIsScreenshotImageName(t *testing.T) {
@@ -70,5 +72,40 @@ func TestManualScrapeRequestToJavInfo(t *testing.T) {
 	}
 	if info.IsUncensored == nil || !*info.IsUncensored {
 		t.Fatalf("unexpected uncensored state: %#v", info.IsUncensored)
+	}
+}
+
+func TestHLSStreamHelpersPreserveLocationID(t *testing.T) {
+	video := &models.Video{ID: 42}
+
+	if got, want := buildHLSStreamURL(video, 7), "/videos/42/stream.m3u8?location_id=7"; got != want {
+		t.Fatalf("buildHLSStreamURL() = %q, want %q", got, want)
+	}
+	if got, want := streamCacheKey(42, 7), "42_location_7"; got != want {
+		t.Fatalf("streamCacheKey() = %q, want %q", got, want)
+	}
+	if got, want := buildHLSStreamURL(video, 0), "/videos/42/stream.m3u8"; got != want {
+		t.Fatalf("buildHLSStreamURL() without location = %q, want %q", got, want)
+	}
+	if got, want := streamCacheKey(42, 0), "42"; got != want {
+		t.Fatalf("streamCacheKey() without location = %q, want %q", got, want)
+	}
+}
+
+func TestPlaybackScreenshotName(t *testing.T) {
+	tests := []struct {
+		second float64
+		want   string
+	}{
+		{second: 0, want: "mpv_00-00-00.jpg"},
+		{second: 1.234, want: "mpv_00-00-01.234.jpg"},
+		{second: 65, want: "mpv_00-01-05.jpg"},
+		{second: 3661.5, want: "mpv_01-01-01.500.jpg"},
+	}
+
+	for _, tt := range tests {
+		if got := playbackScreenshotName(tt.second); got != tt.want {
+			t.Fatalf("playbackScreenshotName(%v) = %q, want %q", tt.second, got, tt.want)
+		}
 	}
 }

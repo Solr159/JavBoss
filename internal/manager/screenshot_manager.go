@@ -14,6 +14,7 @@ import (
 
 	"javboss/internal/common/logging"
 	"javboss/internal/models"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
 )
 
@@ -110,6 +111,14 @@ func (m *ScreenshotManager) ScreenshotPath(videoID int64, second int) string {
 		return ""
 	}
 	return ScreenshotPath(m.dataDir, videoID, second)
+}
+
+// CaptureFile captures a screenshot for videoPath at second into outputPath.
+func (m *ScreenshotManager) CaptureFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
+	if m == nil {
+		return errors.New("screenshot manager is not configured")
+	}
+	return m.capture(ctx, videoPath, second, outputPath)
 }
 
 // ScreenshotPath builds the on-disk screenshot path for a video ID and second.
@@ -237,14 +246,14 @@ func (m *ScreenshotManager) processTask(parent context.Context, task Task) error
 	ctx, cancel := context.WithTimeout(parent, 2*time.Minute)
 	defer cancel()
 
-	return m.capture(ctx, videoPath, task.Second, screenshotPath)
+	return m.capture(ctx, videoPath, float64(task.Second), screenshotPath)
 }
 
-func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, second int, outputPath string) error {
+func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, second float64, outputPath string) error {
 	if videoPath == "" {
 		return errors.New("video path is required")
 	}
-	if second <= 0 {
+	if second < 0 {
 		return errors.New("second is required")
 	}
 	if outputPath == "" {
@@ -262,7 +271,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	shotPath := filepath.Join(tempDir, "00000001.jpg")
 
-	if runtime.GOOS == "darwin" {
+	if runtime.GOOS == "darwin" || runtimeconfig.UseFFmpegScreenshots() {
 		ffmpegPath, err := util.ResolveFFmpegPath()
 		if err != nil {
 			return fmt.Errorf("resolve ffmpeg path: %w", err)
@@ -305,7 +314,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	return moveScreenshot(shotPath, outputPath)
 }
 
-func runFFmpegScreenshot(ctx context.Context, ffmpegPath string, videoPath string, second int, outputPath string) error {
+func runFFmpegScreenshot(ctx context.Context, ffmpegPath string, videoPath string, second float64, outputPath string) error {
 	args := buildFFmpegScreenshotArgs(second, outputPath, videoPath)
 	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
 	out, err := cmd.CombinedOutput()
@@ -336,13 +345,13 @@ func moveScreenshot(shotPath string, outputPath string) error {
 	return nil
 }
 
-func buildFFmpegScreenshotArgs(second int, outputPath string, videoPath string) []string {
+func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath string) []string {
 	return []string{
 		"-nostdin",
 		"-hide_banner",
 		"-loglevel", "error",
 		"-y",
-		"-ss", strconv.Itoa(second),
+		"-ss", formatScreenshotSecond(second),
 		"-i", videoPath,
 		"-map", "0:v:0",
 		"-frames:v", "1",
@@ -351,20 +360,27 @@ func buildFFmpegScreenshotArgs(second int, outputPath string, videoPath string) 
 	}
 }
 
-func buildMPVScreenshotArgs(second int, tempDir string, videoPath string) []string {
+func buildMPVScreenshotArgs(second float64, tempDir string, videoPath string) []string {
 	return []string{
 		"--no-config",
 		"--really-quiet",
 		"--msg-level=all=error",
 		"--ao=null",
 		"--hr-seek=yes",
-		"--start=" + strconv.Itoa(second),
+		"--start=" + formatScreenshotSecond(second),
 		"--frames=1",
 		"--vo=image",
 		"--vo-image-format=jpg",
 		"--vo-image-outdir=" + tempDir,
 		videoPath,
 	}
+}
+
+func formatScreenshotSecond(second float64) string {
+	if second == float64(int64(second)) {
+		return strconv.FormatInt(int64(second), 10)
+	}
+	return strconv.FormatFloat(second, 'f', 3, 64)
 }
 
 func resolveVideoPath(video *models.Video) (string, error) {

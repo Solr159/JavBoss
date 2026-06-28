@@ -183,6 +183,11 @@ async function exists(filePath) {
   }
 }
 
+function envBool(name) {
+  const value = String(process.env[name] || "").trim().toLowerCase();
+  return value === "1" || value === "true" || value === "yes" || value === "on";
+}
+
 async function isExecutable(filePath) {
   if (process.platform === "win32") {
     return exists(filePath);
@@ -254,6 +259,13 @@ function commandExists(cmd) {
     child.on("close", (code) => resolve(code === 0));
     child.on("error", () => resolve(false));
   });
+}
+
+async function resolveDevBinaryPath(envKey, bundledPath, commandName) {
+  if (process.env[envKey]) return process.env[envKey];
+  if (await isExecutable(bundledPath)) return bundledPath;
+  if (await commandExists(commandName)) return commandName;
+  return "";
 }
 
 async function ensureNpmDeps(cwd) {
@@ -350,6 +362,27 @@ async function startBackendDevChild() {
     ...process.env,
     GOCACHE: path.join(ROOT_DIR, ".gocache"),
   };
+  if (envBool("DOCKER_MODE")) {
+    env.JAVBOSS_CONTAINER = env.JAVBOSS_CONTAINER || "1";
+    env.JAVBOSS_DISABLE_API_TOKEN = env.JAVBOSS_DISABLE_API_TOKEN || "1";
+    env.JAVBOSS_DISABLE_DIRECTORY_PICKER = env.JAVBOSS_DISABLE_DIRECTORY_PICKER || "1";
+    env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION =
+      env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION || "1";
+    env.JAVBOSS_DISABLE_MPV = env.JAVBOSS_DISABLE_MPV || "1";
+    env.JAVBOSS_USE_FFMPEG_SCREENSHOTS = env.JAVBOSS_USE_FFMPEG_SCREENSHOTS || "1";
+    env.FFPROBE_PATH =
+      (await resolveDevBinaryPath("FFPROBE_PATH", ffprobePath(current), "ffprobe")) ||
+      env.FFPROBE_PATH;
+    env.FFMPEG_PATH =
+      (await resolveDevBinaryPath("FFMPEG_PATH", ffmpegPath(current), "ffmpeg")) ||
+      env.FFMPEG_PATH;
+    if (!env.FFMPEG_PATH) {
+      console.error("[dev] DOCKER_MODE=1 需要 ffmpeg，请设置 FFMPEG_PATH 或安装 ffmpeg。");
+      process.exitCode = 1;
+      return null;
+    }
+    console.log("[dev] Docker 模式配置已启用");
+  }
   const child = spawn("go", ["run", ...args], { cwd: ROOT_DIR, env, stdio: "inherit" });
   return child;
 }

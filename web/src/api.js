@@ -219,8 +219,11 @@ export async function incrementVideoPlayCount(id) {
   }
 }
 
-export async function fetchPlaybackInfo(id) {
-  const res = await apiFetch(`/videos/${id}/streams`)
+export async function fetchPlaybackInfo(id, { locationId } = {}) {
+  const params = new URLSearchParams()
+  if (locationId) params.set('location_id', String(locationId))
+  const query = params.toString()
+  const res = await apiFetch(`/videos/${id}/streams${query ? `?${query}` : ''}`)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载播放信息失败', 'Failed to load playback info'))
@@ -236,6 +239,22 @@ export async function fetchVideoScreenshots(id) {
   }
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []
+}
+
+export async function createVideoScreenshot(id, { second = 0, locationId } = {}) {
+  const params = new URLSearchParams()
+  if (locationId) params.set('location_id', String(locationId))
+  const query = params.toString()
+  const res = await apiFetch(`/videos/${id}/screenshots${query ? `?${query}` : ''}`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ second }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('截图失败', 'Failed to capture screenshot'))
+  }
+  return res.json()
 }
 
 export async function deleteVideoScreenshot(videoId, name) {

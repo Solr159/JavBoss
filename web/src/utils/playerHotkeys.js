@@ -18,6 +18,10 @@ export const DEFAULT_PLAYER_HOTKEYS = [
   { key: 'e', action: PLAYER_HOTKEY_ACTIONS.SCREENSHOT, amount: 0 },
 ]
 
+function cloneDefaultPlayerHotkeys() {
+  return DEFAULT_PLAYER_HOTKEYS.map((item) => ({ ...item }))
+}
+
 const INVALID_SINGLE_KEYS = new Set([''])
 const MODIFIER_KEYS = new Set([
   'Alt',
@@ -94,6 +98,7 @@ export function normalizePlayerHotkey(entry) {
 
 export function normalizePlayerHotkeysList(entries) {
   if (!Array.isArray(entries)) return []
+  if (entries.length === 0) return cloneDefaultPlayerHotkeys()
   const normalized = []
   const seen = new Set()
   for (const entry of entries) {
@@ -112,16 +117,19 @@ export function normalizePlayerHotkeysList(entries) {
 }
 
 export function parsePlayerHotkeys(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return normalizePlayerHotkeysList(rawValue)
+  }
   if (rawValue == null || String(rawValue).trim() === '') {
-    return DEFAULT_PLAYER_HOTKEYS.map((item) => ({ ...item }))
+    return cloneDefaultPlayerHotkeys()
   }
   try {
     const parsed = JSON.parse(String(rawValue))
     if (!Array.isArray(parsed)) {
-      return DEFAULT_PLAYER_HOTKEYS.map((item) => ({ ...item }))
+      return cloneDefaultPlayerHotkeys()
     }
     return normalizePlayerHotkeysList(parsed)
   } catch {
-    return DEFAULT_PLAYER_HOTKEYS.map((item) => ({ ...item }))
+    return cloneDefaultPlayerHotkeys()
   }
 }

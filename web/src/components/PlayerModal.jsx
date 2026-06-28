@@ -1,25 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
-import { fetchPlaybackInfo } from '@/api'
+import { createVideoScreenshot, fetchPlaybackInfo } from '@/api'
 import { getVideoDisplayName } from '@/utils/display'
 import {
   PLAYER_HOTKEY_ACTIONS,
   normalizePlayerHotkeyKey,
-  normalizePlayerHotkeysList,
+  parsePlayerHotkeys,
 } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 
-export default function PlayerModal({ video, onClose, hotkeys = [] }) {
+export default function PlayerModal({ video, startTime = 0, onClose, hotkeys = null }) {
   const videoRef = useRef(null)
   const playerRef = useRef(null)
   const hotkeyMapRef = useRef(new Map())
+  const screenshotInFlightRef = useRef(false)
+  const screenshotNoticeTimerRef = useRef(null)
   const [playbackInfo, setPlaybackInfo] = useState(null)
   const [playbackError, setPlaybackError] = useState('')
   const [loadingPlayback, setLoadingPlayback] = useState(false)
-  const normalizedHotkeys = useMemo(() => normalizePlayerHotkeysList(hotkeys), [hotkeys])
+  const [screenshotNotice, setScreenshotNotice] = useState(false)
+  const normalizedHotkeys = useMemo(() => parsePlayerHotkeys(hotkeys), [hotkeys])
   const selectedSource = useMemo(() => {
     if (!playbackInfo?.sources?.length) return null
     return (
@@ -33,10 +36,19 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
   }, [normalizedHotkeys])
 
   useEffect(() => {
+    return () => {
+      if (screenshotNoticeTimerRef.current) {
+        window.clearTimeout(screenshotNoticeTimerRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (!video?.id) {
       setPlaybackInfo(null)
       setPlaybackError('')
       setLoadingPlayback(false)
+      setScreenshotNotice(false)
       return
     }
 
@@ -44,8 +56,9 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
     setLoadingPlayback(true)
     setPlaybackError('')
     setPlaybackInfo(null)
+    setScreenshotNotice(false)
 
-    fetchPlaybackInfo(video.id)
+    fetchPlaybackInfo(video.id, { locationId: video.location_id })
       .then((info) => {
         if (cancelled) return
         setPlaybackInfo(info)
@@ -119,10 +132,33 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
       player.volume(next)
     }
 
+    const captureScreenshot = () => {
+      if (!video?.id || screenshotInFlightRef.current) return
+      const second = Math.max(0, Number(player.currentTime()) || 0)
+      screenshotInFlightRef.current = true
+      createVideoScreenshot(video.id, { second, locationId: video.location_id })
+        .then(() => {
+          if (screenshotNoticeTimerRef.current) {
+            window.clearTimeout(screenshotNoticeTimerRef.current)
+          }
+          setScreenshotNotice(true)
+          screenshotNoticeTimerRef.current = window.setTimeout(() => {
+            setScreenshotNotice(false)
+            screenshotNoticeTimerRef.current = null
+          }, 1600)
+        })
+        .catch((err) => {
+          console.error(zh('截图失败', 'Failed to capture screenshot'), err)
+        })
+        .finally(() => {
+          screenshotInFlightRef.current = false
+        })
+    }
+
     const handleKeyDown = (event) => {
       const target = event.target
       if (
-        target instanceof HTMLElement &&
+        target instanceof Element &&
         (target.isContentEditable ||
           target.closest('input, textarea, select, [contenteditable="true"]'))
       ) {
@@ -130,24 +166,30 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
       }
       const key = normalizePlayerHotkeyKey(event.key || '')
       const configured = hotkeyMapRef.current.get(key)
+      const markHandled = () => {
+        event.preventDefault()
+        event.stopPropagation()
+      }
       if (
         configured &&
         (configured.action === PLAYER_HOTKEY_ACTIONS.SEEK ||
-          configured.action === PLAYER_HOTKEY_ACTIONS.VOLUME)
+          configured.action === PLAYER_HOTKEY_ACTIONS.VOLUME ||
+          configured.action === PLAYER_HOTKEY_ACTIONS.SCREENSHOT)
       ) {
-        event.preventDefault()
+        markHandled()
         if (configured.action === PLAYER_HOTKEY_ACTIONS.SEEK) {
           seekBy(configured.amount)
         } else if (configured.action === PLAYER_HOTKEY_ACTIONS.VOLUME) {
           adjustVolume(configured.amount / 100)
+        } else if (configured.action === PLAYER_HOTKEY_ACTIONS.SCREENSHOT) {
+          captureScreenshot()
         }
-        event.stopPropagation()
         return
       }
       switch (key) {
         case ' ':
         case 'Spacebar': {
-          event.preventDefault()
+          markHandled()
           if (player.paused()) {
             player.play()
           } else {
@@ -156,17 +198,21 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
           break
         }
         case 'Escape':
-          event.preventDefault()
+          markHandled()
           onClose()
           break
         default:
           return
       }
-      event.stopPropagation()
     }
 
     const focusPlayer = () => {
       playerEl?.focus({ preventScroll: true })
+    }
+    const applyStartTime = () => {
+      const nextStartTime = Number(startTime)
+      if (!Number.isFinite(nextStartTime) || nextStartTime <= 0) return
+      player.currentTime(nextStartTime)
     }
 
     if (playerEl && !playerEl.hasAttribute('tabindex')) {
@@ -183,7 +229,10 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
       }
     }
 
-    player.ready(focusPlayer)
+    player.ready(() => {
+      applyStartTime()
+      focusPlayer()
+    })
     player.on('fullscreenchange', focusPlayer)
     player.on('volumechange', handleVolumeChange)
 
@@ -194,7 +243,7 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
       playerRef.current?.dispose()
       playerRef.current = null
     }
-  }, [video, onClose, selectedSource])
+  }, [video, startTime, onClose, selectedSource])
 
   if (!video) return null
 
@@ -215,6 +264,11 @@ export default function PlayerModal({ video, onClose, hotkeys = [] }) {
             {displayName}
           </h2>
           <div className="player-shell relative w-full bg-black">
+            {screenshotNotice ? (
+              <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
+                {zh('截图成功', 'Screenshot saved')}
+              </div>
+            ) : null}
             {loadingPlayback ? (
               <div className="flex aspect-video items-center justify-center text-sm text-white">
                 {zh('加载播放信息中…', 'Loading playback info...')}

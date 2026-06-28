@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"javboss/internal/manager"
 	"javboss/internal/models"
 	"javboss/internal/mpv"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
 )
 
@@ -160,7 +162,7 @@ type videoJavPossibleCodesResponse struct {
 }
 
 func getVideoStreams(c *gin.Context) {
-	video, fullPath, err := resolveVideoStreamTarget(c)
+	video, fullPath, locationID, err := resolveVideoStreamTarget(c)
 	if err != nil {
 		respondPlaybackError(c, err)
 		return
@@ -174,35 +176,105 @@ func getVideoStreams(c *gin.Context) {
 	}
 
 	info := playbackInfo{
-		VideoID: video.ID,
+		VideoID:       video.ID,
+		PreferredKind: "hls",
+		Sources:       []playbackSource{},
 	}
-	if !probe.SupportsDirect {
-		c.JSON(http.StatusUnprocessableEntity, gin.H{
-			"error": "browser playback is not supported for this file format",
+	if probe.SupportsDirect {
+		info.PreferredKind = "direct"
+		info.Sources = append(info.Sources, playbackSource{
+			Kind:     "direct",
+			Src:      buildDirectStreamURL(video, locationID),
+			MimeType: directMimeType(probe.Container),
+			Label:    "Direct",
 		})
-		return
 	}
-	info.PreferredKind = "direct"
-	info.Sources = []playbackSource{{
-		Kind:     "direct",
-		Src:      buildDirectStreamURL(video),
-		MimeType: directMimeType(probe.Container),
-		Label:    "Direct",
-	}}
+	info.Sources = append(info.Sources, playbackSource{
+		Kind:     "hls",
+		Src:      buildHLSStreamURL(video, locationID),
+		MimeType: manager.MimeHLS,
+		Label:    "HLS",
+	})
 
 	c.JSON(http.StatusOK, info)
 }
 
 func streamVideo(c *gin.Context) {
-	fullPath, err := resolveStreamPathFromQuery(c)
+	var fullPath string
+	var err error
+	if strings.TrimSpace(c.Query("location_id")) != "" {
+		fullPath, err = resolveStreamPathFromLocationQuery(c)
+	} else {
+		fullPath, err = resolveStreamPathFromQuery(c)
+	}
 	if err != nil {
-		_, fullPath, err = resolveVideoStreamTarget(c)
+		_, fullPath, _, err = resolveVideoStreamTarget(c)
 		if err != nil {
 			respondPlaybackError(c, err)
 			return
 		}
 	}
 	serveVideoFile(c, fullPath)
+}
+
+func streamHLSManifest(c *gin.Context) {
+	video, fullPath, _, err := resolveVideoStreamTarget(c)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
+	}
+	if common.StreamManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "stream manager unavailable"})
+		return
+	}
+
+	resolution := strings.TrimSpace(c.Query("resolution"))
+	c.Header("Cache-Control", "no-cache")
+	common.StreamManager.ServeManifest(c.Writer, c.Request, fullPath, float64(video.DurationSec), resolution)
+}
+
+func streamHLSSegment(c *gin.Context) {
+	video, fullPath, locationID, err := resolveVideoStreamTarget(c)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
+	}
+	if common.StreamManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "stream manager unavailable"})
+		return
+	}
+
+	segment := strings.TrimSpace(c.Param("segment"))
+	resolution := strings.TrimSpace(c.Query("resolution"))
+	c.Header("Cache-Control", "no-cache")
+	common.StreamManager.ServeSegment(c.Writer, c.Request, manager.StreamOptions{
+		StreamType: manager.StreamTypeHLS,
+		SourcePath: fullPath,
+		Duration:   float64(video.DurationSec),
+		Resolution: resolution,
+		Key:        streamCacheKey(video.ID, locationID),
+		Segment:    segment,
+	})
+}
+
+func resolveStreamPathFromLocationQuery(c *gin.Context) (string, error) {
+	videoID, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || videoID <= 0 {
+		return "", errors.New("invalid id")
+	}
+	locationID, err := parseLocationIDQuery(c)
+	if err != nil || locationID <= 0 {
+		return "", err
+	}
+	loc, err := dbpkg.GetActiveVideoLocation(c.Request.Context(), videoID, locationID)
+	if err != nil {
+		return "", err
+	}
+	if loc == nil {
+		return "", os.ErrNotExist
+	}
+	fullPath, _, err := resolveVideoPath(loc.RelativePath, loc.DirectoryRef.Path)
+	return fullPath, err
 }
 
 func resolveStreamPathFromQuery(c *gin.Context) (string, error) {
@@ -212,32 +284,54 @@ func resolveStreamPathFromQuery(c *gin.Context) (string, error) {
 	return fullPath, err
 }
 
-func resolveVideoStreamTarget(c *gin.Context) (*models.Video, string, error) {
+func resolveVideoStreamTarget(c *gin.Context) (*models.Video, string, int64, error) {
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {
-		return nil, "", errors.New("invalid id")
+		return nil, "", 0, errors.New("invalid id")
 	}
 
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 	if video == nil {
-		return nil, "", os.ErrNotExist
+		return nil, "", 0, os.ErrNotExist
 	}
 
-	fullPath, err := resolveVideoPrimaryPath(c.Request.Context(), video)
+	locationID, err := parseLocationIDQuery(c)
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
+	}
+
+	var fullPath string
+	if locationID > 0 {
+		fullPath, err = resolveStreamPathFromLocationQuery(c)
+	} else {
+		fullPath, err = resolveVideoPrimaryPath(c.Request.Context(), video)
+	}
+	if err != nil {
+		return nil, "", 0, err
 	}
 	if _, err := os.Stat(fullPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, "", err
+			return nil, "", 0, err
 		}
-		return nil, "", err
+		return nil, "", 0, err
 	}
 
-	return video, fullPath, nil
+	return video, fullPath, locationID, nil
+}
+
+func parseLocationIDQuery(c *gin.Context) (int64, error) {
+	raw := strings.TrimSpace(c.Query("location_id"))
+	if raw == "" {
+		return 0, nil
+	}
+	id, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || id <= 0 {
+		return 0, errors.New("invalid location_id")
+	}
+	return id, nil
 }
 
 func respondPlaybackError(c *gin.Context, err error) {
@@ -248,11 +342,11 @@ func respondPlaybackError(c *gin.Context, err error) {
 		c.Status(http.StatusNotFound)
 	case errors.Is(err, context.Canceled):
 		c.Status(499)
-	case strings.Contains(err.Error(), "ffprobe not found"):
+	case strings.Contains(err.Error(), "ffmpeg not found"), strings.Contains(err.Error(), "ffprobe not found"):
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
 	case strings.Contains(err.Error(), "browser playback is not supported"):
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
-	case strings.Contains(err.Error(), "invalid id"), strings.Contains(err.Error(), "invalid path"):
+	case strings.Contains(err.Error(), "invalid segment"), strings.Contains(err.Error(), "invalid id"), strings.Contains(err.Error(), "invalid location_id"), strings.Contains(err.Error(), "invalid path"):
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	default:
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -268,11 +362,33 @@ func directMimeType(container string) string {
 	}
 }
 
-func buildDirectStreamURL(video *models.Video) string {
+func buildDirectStreamURL(video *models.Video, locationID int64) string {
 	if video == nil {
 		return ""
 	}
-	return "/videos/" + strconv.FormatInt(video.ID, 10) + "/stream"
+	streamURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/stream"
+	if locationID > 0 {
+		streamURL += "?location_id=" + strconv.FormatInt(locationID, 10)
+	}
+	return streamURL
+}
+
+func buildHLSStreamURL(video *models.Video, locationID int64) string {
+	if video == nil {
+		return ""
+	}
+	streamURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/stream.m3u8"
+	if locationID > 0 {
+		streamURL += "?location_id=" + strconv.FormatInt(locationID, 10)
+	}
+	return streamURL
+}
+
+func streamCacheKey(videoID int64, locationID int64) string {
+	if locationID > 0 {
+		return fmt.Sprintf("%d_location_%d", videoID, locationID)
+	}
+	return strconv.FormatInt(videoID, 10)
 }
 
 func resolveVideoPrimaryPath(ctx context.Context, video *models.Video) (string, error) {
@@ -304,6 +420,10 @@ func serveVideoFile(c *gin.Context, fullPath string) {
 }
 
 func openVideoFile(c *gin.Context) {
+	if runtimeconfig.DisableDesktopIntegration() {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "desktop file opening is disabled"})
+		return
+	}
 	fullPath, dirPath, err := resolveVideoPathFromBody(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -322,6 +442,10 @@ func openVideoFile(c *gin.Context) {
 }
 
 func playVideoFile(c *gin.Context) {
+	if runtimeconfig.DisableMPVPlayback() {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "mpv playback is disabled"})
+		return
+	}
 	req, fullPath, dirPath, err := resolveVideoPathRequestFromBody(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -357,6 +481,10 @@ func playVideoFile(c *gin.Context) {
 }
 
 func revealVideoLocation(c *gin.Context) {
+	if runtimeconfig.DisableDesktopIntegration() {
+		c.JSON(http.StatusNotImplemented, gin.H{"error": "desktop file revealing is disabled"})
+		return
+	}
 	fullPath, _, err := resolveVideoPathFromBody(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -1070,6 +1198,69 @@ func listVideoScreenshots(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"items": items})
 }
 
+func createVideoScreenshot(c *gin.Context) {
+	if common.ScreenshotManager == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "screenshot manager unavailable"})
+		return
+	}
+	video, fullPath, _, err := resolveVideoStreamTarget(c)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
+	}
+	if common.AppConfig == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	var req struct {
+		Second float64 `json:"second"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if req.Second < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid second"})
+		return
+	}
+	if video.DurationSec > 0 && req.Second > float64(video.DurationSec)+1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid second"})
+		return
+	}
+
+	dataDir := filepath.Dir(common.AppConfig.DatabasePath)
+	screenshotDir := filepath.Join(dataDir, "video", strconv.FormatInt(video.ID, 10), "screenshot")
+	name := playbackScreenshotName(req.Second)
+	screenshotPath := filepath.Join(screenshotDir, name)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Minute)
+	defer cancel()
+	if err := common.ScreenshotManager.CaptureFile(ctx, fullPath, req.Second, screenshotPath); err != nil {
+		logging.Error("create video screenshot error: %v", err)
+		if strings.Contains(err.Error(), "ffmpeg not found") || strings.Contains(err.Error(), "mpv not found") {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "screenshot failed"})
+		return
+	}
+
+	info, err := os.Stat(screenshotPath)
+	if err != nil {
+		logging.Error("stat created video screenshot error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	imageURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/screenshots/" + url.PathEscape(name)
+	imageURL += "?mtime=" + strconv.FormatInt(info.ModTime().UnixNano(), 10)
+	c.JSON(http.StatusCreated, videoScreenshotInfo{
+		Name:       name,
+		URL:        imageURL,
+		Size:       info.Size(),
+		ModifiedAt: info.ModTime(),
+	})
+}
+
 func getVideoScreenshot(c *gin.Context) {
 	_, screenshotDir, ok := resolveVideoScreenshotDir(c)
 	if !ok {
@@ -1146,6 +1337,22 @@ func resolveVideoScreenshotDir(c *gin.Context) (int64, string, bool) {
 
 	dataDir := filepath.Dir(common.AppConfig.DatabasePath)
 	return id, filepath.Join(dataDir, "video", strconv.FormatInt(id, 10), "screenshot"), true
+}
+
+func playbackScreenshotName(second float64) string {
+	totalMillis := int64(second*1000 + 0.5)
+	if totalMillis < 0 {
+		totalMillis = 0
+	}
+	totalSeconds := totalMillis / 1000
+	millis := totalMillis % 1000
+	hours := totalSeconds / 3600
+	minutes := (totalSeconds % 3600) / 60
+	seconds := totalSeconds % 60
+	if millis > 0 {
+		return fmt.Sprintf("mpv_%02d-%02d-%02d.%03d.jpg", hours, minutes, seconds, millis)
+	}
+	return fmt.Sprintf("mpv_%02d-%02d-%02d.jpg", hours, minutes, seconds)
 }
 
 func isScreenshotImageName(name string) bool {

@@ -48,6 +48,8 @@ export default function VideoCard({
   const inputId = `check-${video?.location_id || video.id}`
   const javCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '').trim()
   const hasScrapeOverride = Boolean(String(video?.jav_scrape_override || '').trim())
+  const canOpenFile = Boolean(onOpenFile)
+  const canRevealFile = Boolean(onRevealFile)
 
   const handleOpenFile = async (event) => {
     event.stopPropagation()
@@ -214,28 +216,32 @@ export default function VideoCard({
               </IconButton>
             </Tooltip>
           ) : null}
-          <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
-            <IconButton
-              size="small"
-              onClick={handleOpenFile}
-              disabled={!canOpen}
-              aria-label={openFileLabel || zh('打开文件', 'Open file')}
-              className="h-6 w-6"
-            >
-              <PlayArrowIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={zh('打开所在位置', 'Reveal in folder')}>
-            <IconButton
-              size="small"
-              onClick={handleRevealFile}
-              disabled={!canOpen}
-              aria-label={zh('打开所在位置', 'Reveal in folder')}
-              className="h-6 w-6"
-            >
-              <FolderOpenIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
+          {canOpenFile ? (
+            <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
+              <IconButton
+                size="small"
+                onClick={handleOpenFile}
+                disabled={!canOpen}
+                aria-label={openFileLabel || zh('打开文件', 'Open file')}
+                className="h-6 w-6"
+              >
+                <PlayArrowIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+          {canRevealFile ? (
+            <Tooltip title={zh('打开所在位置', 'Reveal in folder')}>
+              <IconButton
+                size="small"
+                onClick={handleRevealFile}
+                disabled={!canOpen}
+                aria-label={zh('打开所在位置', 'Reveal in folder')}
+                className="h-6 w-6"
+              >
+                <FolderOpenIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
           <Tooltip title={zh('编辑视频', 'Edit video')}>
             <IconButton
               size="small"

@@ -26,6 +26,7 @@ import (
 	"javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/models"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/server"
 	"javboss/internal/service"
 	"javboss/internal/util"
@@ -123,6 +124,7 @@ func main() {
 
 	dataDir := filepath.Dir(cfg.DatabasePath)
 	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
+	streamManager := manager.NewStreamManager(filepath.Join(dataDir, "cache", "streams"))
 	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
 		jav.ProviderJavDatabase,
 		jav.ProviderJavBus,
@@ -133,6 +135,7 @@ func main() {
 	common.AppConfig = cfg
 	common.ScreenshotManager = screenshotManager
 	common.CoverManager = coverManager
+	common.StreamManager = streamManager
 
 	javCache, err := cache.OpenSQLiteKV(filepath.Join(dataDir, "cache", "jav_cache.db"))
 	if err != nil {
@@ -145,12 +148,13 @@ func main() {
 
 	screenshotManager.Start(ctx)
 	coverManager.Start(ctx)
+	streamManager.Start(ctx)
 	service.StartDirectoryScanner(ctx, time.Minute)
 	service.StartJavMetadataScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
 	apiToken := ""
-	if buildMode == "release" {
+	if buildMode == "release" && !runtimeconfig.DisableAPIToken() {
 		apiToken, err = generateAPIToken()
 		if err != nil {
 			logger.Fatalf("generate API token: %v", err)
@@ -176,7 +180,7 @@ func main() {
 		}
 	}()
 
-	if gin.Mode() == gin.ReleaseMode {
+	if buildMode == "release" {
 		listenAddr, err := releaseListenAddr(*addr, baseDir)
 		if err != nil {
 			logger.Fatalf("resolve release listen address: %v", err)

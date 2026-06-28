@@ -1,0 +1,18 @@
+services:
+  javboss:
+    build:
+      context: .
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+        GOSUMDB: ${GOSUMDB:-sum.golang.org}
+        NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmmirror.com}
+    image: javboss:latest
+    container_name: javboss
+    ports:
+      - "8655:17654"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /opt/javboss/data:/app/data
+      - /:/host:ro
+    restart: unless-stopped

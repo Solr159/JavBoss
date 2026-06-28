@@ -1,0 +1,14 @@
+.git
+.gocache
+bin
+internal/bin
+modernz
+data
+release
+screenshot
+temp
+web/dist
+web/node_modules
+scripts/cli/build
+scripts/cli/node_modules
+**/*.log
