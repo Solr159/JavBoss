@@ -65,6 +65,41 @@ After extracting the package, start the app:
 
 After launch, JavBoss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while JavBoss is running.
 
+#### Option 3: Docker Deployment
+
+docker-compose.yaml:
+
+```yaml
+services:
+  javboss:
+    image: ghcr.io/solr159/javboss:latest
+    container_name: javboss
+    ports:
+      - "8655:17654"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data
+      - /:/host:ro
+    restart: unless-stopped
+```
+
+Start:
+
+```bash
+docker compose up -d
+```
+
+Open:
+
+```text
+http://localhost:8655
+```
+
+To access JavBoss over your LAN, replace the host with the LAN IP address of the server where JavBoss is deployed.
+
+Docker deployments use browser video playback and do not call mpv on the host. When adding a folder, enter the host path directly, such as `/mnt/disk1/videos`; JavBoss maps it to a container-readable path automatically.
+
 ### 2. Set JAV Metadata Language
 
 Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `English`, and save.
@@ -86,6 +121,17 @@ Exit JavBoss first, then run the one-line install command again to upgrade.
 Download and extract the new version, copy the old manual-download directory's `data/` folder into the new version directory, then start the new version.
 
 Copy `data/` before starting the new version. If you start it first, JavBoss will automatically create a `data/` directory; exit JavBoss, delete that generated `data/` directory, then copy your old `data/` directory over.
+
+#### Docker Users
+
+Enter the directory that contains `docker-compose.yaml`, pull the new image, and restart:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Keep the `./data` directory when upgrading. It stores the database, covers, screenshots, and other runtime data.
 
 ## Migrating From Manual Download To One-line Install
 

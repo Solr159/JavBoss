@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 #### 方式三：Docker 部署
 
-新建 `docker-compose.yaml`：
+docker-compose.yaml：
 
 ```yaml
 services:
@@ -101,8 +101,9 @@ docker compose up -d
 访问：
 
 ```text
-http://127.0.0.1:8655
+http://localhost:8655 
 ```
+如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
 
 Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
