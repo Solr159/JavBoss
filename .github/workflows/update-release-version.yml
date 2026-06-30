@@ -1,0 +1,71 @@
+name: update-release-version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example v1.8.2"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_VERSION: "23.11.0"
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Update release version
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+        run: node scripts/update-release-version.mjs "$VERSION_INPUT"
+
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION_INPUT: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet; then
+            echo "No version changes to publish."
+            exit 0
+          fi
+
+          branch="release-version/${VERSION_INPUT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin "refs/heads/${branch}:refs/remotes/origin/${branch}" || true
+          git checkout -b "$branch"
+          git add scripts/install.sh scripts/install.ps1 README.md README.en.md
+          git commit -m "chore: update release version to ${VERSION_INPUT}"
+          git push --force-with-lease origin "$branch"
+
+          if gh pr view "$branch" --repo "$GH_REPO" >/dev/null 2>&1; then
+            gh pr edit "$branch" \
+              --repo "$GH_REPO" \
+              --title "chore: update release version to ${VERSION_INPUT}" \
+              --body "Updates installer scripts and README download links to ${VERSION_INPUT}."
+          else
+            gh pr create \
+              --repo "$GH_REPO" \
+              --head "$branch" \
+              --base "${GITHUB_REF_NAME}" \
+              --title "chore: update release version to ${VERSION_INPUT}" \
+              --body "Updates installer scripts and README download links to ${VERSION_INPUT}."
+          fi
