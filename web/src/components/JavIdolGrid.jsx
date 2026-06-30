@@ -718,7 +718,7 @@ function JavIdolMergeModal({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const sourceId = Number(item?.id)
-  const sourceName = displayIdolOptionName(item, javMetadataLanguage, preferChineseName)
+  const sourceName = rawIdolName(item)
 
   useEffect(() => {
     if (!open) {
@@ -758,9 +758,7 @@ function JavIdolMergeModal({
   if (!open || !item) return null
 
   const selected = options.find((option) => Number(option?.id) === selectedId)
-  const selectedName = selected
-    ? displayIdolOptionName(selected, javMetadataLanguage, preferChineseName)
-    : ''
+  const selectedName = selected ? rawIdolName(selected) : ''
   const canSubmit =
     Number.isFinite(sourceId) && sourceId > 0 && Number.isFinite(selectedId) && selectedId > 0
 
@@ -905,6 +903,10 @@ function JavIdolMergeModal({
 
 function displayIdolOptionName(item, javMetadataLanguage, preferChineseName = false) {
   return getIdolDisplayNames(item, javMetadataLanguage, preferChineseName).primaryName
+}
+
+function rawIdolName(item) {
+  return String(item?.name || '').trim() || zh('未知女优', 'Unknown idol')
 }
 
 function buildMergeOptionMeta(item) {
