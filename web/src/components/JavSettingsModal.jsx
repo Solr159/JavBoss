@@ -239,7 +239,7 @@ export default function JavSettingsModal({
                 />
               </label>
               <div className="text-sm font-medium text-gray-700">
-                {zh('女优排序', 'Idol sorting')}
+                {zh('默认排序', 'Default sort')}
               </div>
               {IDOL_SORT_OPTIONS.map((option) => (
                 <SortOptionRow
