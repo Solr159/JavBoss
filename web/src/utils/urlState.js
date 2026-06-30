@@ -1,4 +1,4 @@
-import { normalizeJavSort } from '@/constants/jav'
+import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 
 const RANDOM_SEED_MAX = 2147483646
@@ -50,18 +50,21 @@ export const parseUrlState = (searchString = window.location.search, options = {
     seed: clampSeed(sp.get('seed')),
   }
 
-  const javTempSort = normalizeJavSort((sp.get('temp_sort') || '').trim(), '')
-
   const rawJavTab = sp.get('tab')
+  const javTab =
+    rawJavTab === 'idol'
+      ? 'idol'
+      : rawJavTab === 'studio'
+        ? 'studio'
+        : rawJavTab === 'series'
+          ? 'series'
+          : 'list'
+  const rawJavTempSort = (sp.get('temp_sort') || '').trim()
+  const javTempSort =
+    javTab === 'idol' ? normalizeIdolSort(rawJavTempSort, '') : normalizeJavSort(rawJavTempSort, '')
+
   const jav = {
-    tab:
-      rawJavTab === 'idol'
-        ? 'idol'
-        : rawJavTab === 'studio'
-          ? 'studio'
-          : rawJavTab === 'series'
-            ? 'series'
-            : 'list',
+    tab: javTab,
     page: parseIntSafe(sp.get('page'), 1),
     search: (sp.get('search') || '').trim(),
     idolIds: parseIds(sp.get('idol_ids')),
@@ -120,7 +123,11 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     ) {
       sp.set('favorite_group_id', String(state.jav.favoriteGroupId))
     }
-    if (state.jav.tab === 'list' && !state.jav.random && state.jav.tempSort) {
+    if (
+      (state.jav.tab === 'list' || state.jav.tab === 'idol') &&
+      !state.jav.random &&
+      state.jav.tempSort
+    ) {
       sp.set('temp_sort', state.jav.tempSort)
     }
     if (state.jav.tab === 'list' && state.jav.random) {
@@ -232,7 +239,12 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
               ? store.seriesFavoriteGroupId || null
               : store.javFavoriteGroupId || null,
       idolFavoriteGroupId: store.javTab === 'idol' ? store.idolFavoriteGroupId || null : null,
-      tempSort: store.javTab === 'list' && !store.javRandomMode ? store.javTempSort || '' : '',
+      tempSort:
+        store.javTab === 'list' && !store.javRandomMode
+          ? store.javTempSort || ''
+          : store.javTab === 'idol'
+            ? store.idolTempSort || ''
+            : '',
       random: store.javTab === 'list' && store.javRandomMode,
       seed: store.javTab === 'list' && store.javRandomMode ? store.javRandomSeed : null,
     },

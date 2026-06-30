@@ -251,6 +251,22 @@ func TestListJavFavoriteGroupsCountsOnlyVisibleItems(t *testing.T) {
 	}
 	emptySeries, visibleSeries = series[0], series[1]
 
+	visibleIdol := models.JavIdol{
+		Name:         "Visible Idol",
+		RomanName:    "Visible Roman",
+		JapaneseName: "可視女优",
+		ChineseName:  "可见女优",
+	}
+	emptyIdol := models.JavIdol{Name: "Empty Idol", ChineseName: "空女优"}
+	if err := db.Create(&[]models.JavIdol{visibleIdol, emptyIdol}).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+	var idols []models.JavIdol
+	if err := db.Order("name").Find(&idols).Error; err != nil {
+		t.Fatalf("load idols: %v", err)
+	}
+	emptyIdol, visibleIdol = idols[0], idols[1]
+
 	visibleJav := models.Jav{
 		Code:      "FAV-001",
 		Title:     "Visible Work",
@@ -281,8 +297,16 @@ func TestListJavFavoriteGroupsCountsOnlyVisibleItems(t *testing.T) {
 	}
 	createVideoLocationsForVideos(t, db, video)
 
+	if err := db.Create(&[]models.JavIdolMap{
+		{JavID: visibleJav.ID, JavIdolID: visibleIdol.ID},
+		{JavID: noLocationJav.ID, JavIdolID: emptyIdol.ID},
+	}).Error; err != nil {
+		t.Fatalf("create idol maps: %v", err)
+	}
+
 	groups := []models.JavFavoriteGroup{
 		{EntityType: JavFavoriteEntityJav, Name: "JAV Favorites"},
+		{EntityType: JavFavoriteEntityIdol, Name: "Idol Favorites"},
 		{EntityType: JavFavoriteEntityStudio, Name: "Studio Favorites"},
 		{EntityType: JavFavoriteEntitySeries, Name: "Series Favorites"},
 	}
@@ -293,16 +317,18 @@ func TestListJavFavoriteGroupsCountsOnlyVisibleItems(t *testing.T) {
 	maps := []models.JavFavoriteMap{
 		{JavFavoriteGroupID: groups[0].ID, EntityType: JavFavoriteEntityJav, EntityID: visibleJav.ID},
 		{JavFavoriteGroupID: groups[0].ID, EntityType: JavFavoriteEntityJav, EntityID: noLocationJav.ID},
-		{JavFavoriteGroupID: groups[1].ID, EntityType: JavFavoriteEntityStudio, EntityID: visibleStudio.ID},
-		{JavFavoriteGroupID: groups[1].ID, EntityType: JavFavoriteEntityStudio, EntityID: emptyStudio.ID},
-		{JavFavoriteGroupID: groups[2].ID, EntityType: JavFavoriteEntitySeries, EntityID: visibleSeries.ID},
-		{JavFavoriteGroupID: groups[2].ID, EntityType: JavFavoriteEntitySeries, EntityID: emptySeries.ID},
+		{JavFavoriteGroupID: groups[1].ID, EntityType: JavFavoriteEntityIdol, EntityID: visibleIdol.ID},
+		{JavFavoriteGroupID: groups[1].ID, EntityType: JavFavoriteEntityIdol, EntityID: emptyIdol.ID},
+		{JavFavoriteGroupID: groups[2].ID, EntityType: JavFavoriteEntityStudio, EntityID: visibleStudio.ID},
+		{JavFavoriteGroupID: groups[2].ID, EntityType: JavFavoriteEntityStudio, EntityID: emptyStudio.ID},
+		{JavFavoriteGroupID: groups[3].ID, EntityType: JavFavoriteEntitySeries, EntityID: visibleSeries.ID},
+		{JavFavoriteGroupID: groups[3].ID, EntityType: JavFavoriteEntitySeries, EntityID: emptySeries.ID},
 	}
 	if err := db.Create(&maps).Error; err != nil {
 		t.Fatalf("create favorite maps: %v", err)
 	}
 
-	assertFavoriteGroupCount := func(entityType string, want int64) {
+	assertFavoriteGroupCount := func(entityType string, want int64) []JavFavoriteItemSummary {
 		t.Helper()
 		got, err := ListJavFavoriteGroups(ctx, entityType, nil)
 		if err != nil {
@@ -322,9 +348,14 @@ func TestListJavFavoriteGroupsCountsOnlyVisibleItems(t *testing.T) {
 		if int64(len(items)) != want {
 			t.Fatalf("ListJavFavoriteGroupItems(%s) length = %d, want %d", entityType, len(items), want)
 		}
+		return items
 	}
 
 	assertFavoriteGroupCount(JavFavoriteEntityJav, 1)
+	idolItems := assertFavoriteGroupCount(JavFavoriteEntityIdol, 1)
+	if idolItems[0].RomanName != "Visible Roman" || idolItems[0].JapaneseName != "可視女优" || idolItems[0].ChineseName != "可见女优" {
+		t.Fatalf("ListJavFavoriteGroupItems(%s) names = roman %q japanese %q chinese %q", JavFavoriteEntityIdol, idolItems[0].RomanName, idolItems[0].JapaneseName, idolItems[0].ChineseName)
+	}
 	assertFavoriteGroupCount(JavFavoriteEntityStudio, 1)
 	assertFavoriteGroupCount(JavFavoriteEntitySeries, 1)
 }

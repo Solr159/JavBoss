@@ -10,6 +10,8 @@ function JavIdolRoute({
   hasMore,
   hasNext,
   hasPrev,
+  idolGlobalSort,
+  idolTempSort,
   items,
   lastPage,
   loading,
@@ -25,6 +27,7 @@ function JavIdolRoute({
   onSelectIdol,
   onWaterfallModeChange,
   page,
+  setIdolTempSort,
   totalItems,
   waterfallMode,
 }) {
@@ -36,6 +39,9 @@ function JavIdolRoute({
       hasPrev={hasPrev}
       hasNext={hasNext}
       loading={loading}
+      idolTempSort={idolTempSort}
+      idolGlobalSort={idolGlobalSort}
+      setIdolTempSort={setIdolTempSort}
       buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'idol' })}
       buildIdolUrl={(idol) =>
         buildJavUrl({

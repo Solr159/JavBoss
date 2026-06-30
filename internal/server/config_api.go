@@ -47,6 +47,8 @@ func updateConfig(c *gin.Context) {
 		JavIdolTagMaxRows      *int                  `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows          *int                  `json:"jav_tag_max_rows"`
 		IdolPageSize           *int                  `json:"idol_page_size"`
+		StudioPageSize         *int                  `json:"studio_page_size"`
+		SeriesPageSize         *int                  `json:"series_page_size"`
 		VideoHideJav           *bool                 `json:"video_hide_jav"`
 		VideoSort              string                `json:"video_sort"`
 		JavSort                string                `json:"jav_sort"`
@@ -135,6 +137,16 @@ func updateConfig(c *gin.Context) {
 	if req.IdolPageSize != nil {
 		if v, ok := clampSize(*req.IdolPageSize); ok {
 			entries["idol_page_size"] = v
+		}
+	}
+	if req.StudioPageSize != nil {
+		if v, ok := clampSize(*req.StudioPageSize); ok {
+			entries["studio_page_size"] = v
+		}
+	}
+	if req.SeriesPageSize != nil {
+		if v, ok := clampSize(*req.SeriesPageSize); ok {
+			entries["series_page_size"] = v
 		}
 	}
 	if req.VideoHideJav != nil {

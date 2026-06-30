@@ -126,6 +126,8 @@ export const IDOL_SORT_OPTIONS = [
   },
 ]
 
+export const IDOL_FAVORITE_ORDER_SORT = 'favorite_order'
+
 const buildSortMap = (options) => {
   const entries = new Map()
   for (const option of options) {

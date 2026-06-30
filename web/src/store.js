@@ -26,6 +26,7 @@ import { zh } from '@/utils/i18n'
 const VIDEO_PAGE_SIZE = 25
 const JAV_PAGE_SIZE = 24
 const JAV_STUDIO_PAGE_SIZE = 24
+const JAV_SERIES_PAGE_SIZE = 25
 const JAV_GRID_COLUMNS_AUTO = 0
 const JAV_TITLE_MAX_ROWS_DEFAULT = 2
 const JAV_IDOL_TAG_MAX_ROWS_DEFAULT = 2
@@ -152,22 +153,30 @@ const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
   ].join('|')
 }
 
-const idolListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
-  [
+const idolListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
+  const effectiveSort = effectiveIdolSort(state)
+  return [
     'idol',
     state.idolPage,
     state.idolPageSize,
     state.javSearchTerm || '',
-    state.idolSort,
+    effectiveSort,
     state.idolFavoriteGroupId || '',
     directoryIds.join(','),
   ].join('|')
+}
+
+const effectiveIdolSort = (state) => {
+  if (state.idolTempSort) return state.idolTempSort
+  if (state.idolFavoriteGroupId) return ''
+  return state.idolSort
+}
 
 const studioListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
   [
     'studio',
     state.studioPage,
-    JAV_STUDIO_PAGE_SIZE,
+    state.studioPageSize,
     state.javSearchTerm || '',
     state.studioFavoriteGroupId || '',
     directoryIds.join(','),
@@ -177,7 +186,7 @@ const seriesListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
   [
     'series',
     state.seriesPage,
-    JAV_STUDIO_PAGE_SIZE,
+    state.seriesPageSize,
     state.javSearchTerm || '',
     state.seriesFavoriteGroupId || '',
     directoryIds.join(','),
@@ -244,6 +253,7 @@ export const useStore = create((set, get) => ({
   idolPage: 1,
   idolPageSize: JAV_PAGE_SIZE,
   idolSort: 'work',
+  idolTempSort: '',
   idolFavoriteGroupId: null,
   idolItems: [],
   idolTotal: 0,
@@ -262,6 +272,7 @@ export const useStore = create((set, get) => ({
   favoriteGroupsLoadingByType: {},
   favoriteGroupsErrorByType: {},
   studioPage: 1,
+  studioPageSize: JAV_STUDIO_PAGE_SIZE,
   studioFavoriteGroupId: null,
   studioItems: [],
   studioTotal: 0,
@@ -269,6 +280,7 @@ export const useStore = create((set, get) => ({
   studioLoadingMore: false,
   studioError: null,
   seriesPage: 1,
+  seriesPageSize: JAV_SERIES_PAGE_SIZE,
   seriesFavoriteGroupId: null,
   seriesItems: [],
   seriesTotal: 0,
@@ -279,14 +291,26 @@ export const useStore = create((set, get) => ({
     const next = Math.max(1, Math.floor(Number(size) || JAV_PAGE_SIZE))
     set({ idolPageSize: next, idolPage: 1, studioPage: 1, seriesPage: 1 })
   },
+  setStudioPageSize: (size) => {
+    const next = Math.max(1, Math.floor(Number(size) || JAV_STUDIO_PAGE_SIZE))
+    set({ studioPageSize: next, studioPage: 1 })
+  },
+  setSeriesPageSize: (size) => {
+    const next = Math.max(1, Math.floor(Number(size) || JAV_SERIES_PAGE_SIZE))
+    set({ seriesPageSize: next, seriesPage: 1 })
+  },
   setIdolSort: (sort) => {
     const normalized = normalizeIdolSort(sort)
-    set({ idolSort: normalized, idolPage: 1 })
+    set({ idolSort: normalized, idolTempSort: '', idolPage: 1 })
+  },
+  setIdolTempSort: (sort) => {
+    const normalized = normalizeIdolSort(sort, '')
+    set({ idolTempSort: normalized })
   },
   setIdolFavoriteGroupId: (id) => {
     const parsed = Number(id)
     const next = Number.isFinite(parsed) && parsed > 0 ? parsed : null
-    set({ idolFavoriteGroupId: next, idolPage: 1 })
+    set({ idolFavoriteGroupId: next, idolTempSort: '', idolPage: 1 })
   },
   setIdolFavoriteGroups: (groups) => {
     set({ idolFavoriteGroups: Array.isArray(groups) ? groups : [] })
@@ -404,11 +428,14 @@ export const useStore = create((set, get) => ({
   clearJavRandom: () => set({ javTempSort: '', javRandomMode: false, javRandomSeed: null }),
   setViewMode: (mode) => {
     if (mode !== 'video' && mode !== 'jav') return
-    set({ viewMode: mode, ...(mode === 'jav' ? { videoTempSort: '' } : { javTempSort: '' }) })
+    set({
+      viewMode: mode,
+      ...(mode === 'jav' ? { videoTempSort: '' } : { javTempSort: '', idolTempSort: '' }),
+    })
   },
   setJavTab: (tab) => {
     if (tab !== 'list' && tab !== 'idol' && tab !== 'studio' && tab !== 'series') return
-    set({ javTab: tab, javTempSort: '' })
+    set({ javTab: tab, javTempSort: '', idolTempSort: '' })
   },
   setJavIdolIds: (idolIds) => {
     const clean = Array.from(
@@ -499,11 +526,18 @@ export const useStore = create((set, get) => ({
     const state = get()
     if (trimmed === state.javSearchTerm) {
       if (resetPage && state.javPage !== 1) {
-        set({ javTempSort: '', javPage: 1, idolPage: 1, studioPage: 1, seriesPage: 1 })
+        set({
+          javTempSort: '',
+          idolTempSort: '',
+          javPage: 1,
+          idolPage: 1,
+          studioPage: 1,
+          seriesPage: 1,
+        })
       }
       return
     }
-    const next = { javSearchTerm: trimmed, javTempSort: '' }
+    const next = { javSearchTerm: trimmed, javTempSort: '', idolTempSort: '' }
     if (resetPage) {
       next.javPage = 1
       next.idolPage = 1
@@ -605,6 +639,8 @@ export const useStore = create((set, get) => ({
           ? Math.min(javTagMaxRowsRaw, 12)
           : JAV_TAG_MAX_ROWS_DEFAULT
       const idolSize = clamp(cfg?.idol_page_size)
+      const studioSize = clamp(cfg?.studio_page_size)
+      const seriesSize = clamp(cfg?.series_page_size)
       const javSort = normalizeJavSort((cfg?.jav_sort || '').toLowerCase(), '')
       const idolSort = normalizeIdolSort((cfg?.idol_sort || '').toLowerCase(), '')
       if (videoSize && videoSize !== state.pageSize) {
@@ -639,6 +675,12 @@ export const useStore = create((set, get) => ({
       }
       if (idolSize && idolSize !== state.idolPageSize) {
         updates.idolPageSize = idolSize
+      }
+      if (studioSize && studioSize !== state.studioPageSize) {
+        updates.studioPageSize = studioSize
+      }
+      if (seriesSize && seriesSize !== state.seriesPageSize) {
+        updates.seriesPageSize = seriesSize
       }
       set(updates)
       return cfg
@@ -888,7 +930,7 @@ export const useStore = create((set, get) => ({
     }
   },
   loadJavIdols: async (options = {}) => {
-    const { idolPage, idolPageSize, javSearchTerm, idolSort, idolFavoriteGroupId } = get()
+    const { idolPage, idolPageSize, javSearchTerm, idolFavoriteGroupId } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const key = idolListRequestKey(get(), directoryIds)
@@ -903,7 +945,7 @@ export const useStore = create((set, get) => ({
         limit: idolPageSize,
         offset: (idolPage - 1) * idolPageSize,
         search,
-        sort: idolSort,
+        sort: effectiveIdolSort(get()),
         directoryIds,
         favoriteGroupId: idolFavoriteGroupId,
       })
@@ -940,7 +982,7 @@ export const useStore = create((set, get) => ({
         limit: state.idolPageSize,
         offset: baseOffset + loaded,
         search,
-        sort: state.idolSort,
+        sort: effectiveIdolSort(state),
         directoryIds,
         favoriteGroupId: state.idolFavoriteGroupId,
       })
@@ -1033,7 +1075,7 @@ export const useStore = create((set, get) => ({
     }
   },
   loadJavStudios: async (options = {}) => {
-    const { studioPage, javSearchTerm, studioFavoriteGroupId } = get()
+    const { studioPage, studioPageSize, javSearchTerm, studioFavoriteGroupId } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const key = studioListRequestKey(get(), directoryIds)
@@ -1045,8 +1087,8 @@ export const useStore = create((set, get) => ({
     set({ studioLoading: true, studioLoadingMore: false, studioError: null })
     try {
       const resp = await fetchJavStudios({
-        limit: JAV_STUDIO_PAGE_SIZE,
-        offset: (studioPage - 1) * JAV_STUDIO_PAGE_SIZE,
+        limit: studioPageSize,
+        offset: (studioPage - 1) * studioPageSize,
         search,
         directoryIds,
         favoriteGroupId: studioFavoriteGroupId,
@@ -1070,7 +1112,7 @@ export const useStore = create((set, get) => ({
     if (state.studioLoading || state.studioLoadingMore) return
     const loaded = Array.isArray(state.studioItems) ? state.studioItems.length : 0
     const total = state.studioTotal || 0
-    const baseOffset = (state.studioPage - 1) * JAV_STUDIO_PAGE_SIZE
+    const baseOffset = (state.studioPage - 1) * state.studioPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
     const directoryIds = directoryQueryIds(state)
@@ -1081,7 +1123,7 @@ export const useStore = create((set, get) => ({
     set({ studioLoadingMore: true, studioError: null })
     try {
       const resp = await fetchJavStudios({
-        limit: JAV_STUDIO_PAGE_SIZE,
+        limit: state.studioPageSize,
         offset: baseOffset + loaded,
         search,
         directoryIds,
@@ -1115,7 +1157,7 @@ export const useStore = create((set, get) => ({
     }
   },
   loadJavSeries: async (options = {}) => {
-    const { seriesPage, javSearchTerm, seriesFavoriteGroupId } = get()
+    const { seriesPage, seriesPageSize, javSearchTerm, seriesFavoriteGroupId } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const key = seriesListRequestKey(get(), directoryIds)
@@ -1127,8 +1169,8 @@ export const useStore = create((set, get) => ({
     set({ seriesLoading: true, seriesLoadingMore: false, seriesError: null })
     try {
       const resp = await fetchJavSeries({
-        limit: JAV_STUDIO_PAGE_SIZE,
-        offset: (seriesPage - 1) * JAV_STUDIO_PAGE_SIZE,
+        limit: seriesPageSize,
+        offset: (seriesPage - 1) * seriesPageSize,
         search,
         directoryIds,
         favoriteGroupId: seriesFavoriteGroupId,
@@ -1152,7 +1194,7 @@ export const useStore = create((set, get) => ({
     if (state.seriesLoading || state.seriesLoadingMore) return
     const loaded = Array.isArray(state.seriesItems) ? state.seriesItems.length : 0
     const total = state.seriesTotal || 0
-    const baseOffset = (state.seriesPage - 1) * JAV_STUDIO_PAGE_SIZE
+    const baseOffset = (state.seriesPage - 1) * state.seriesPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
     const directoryIds = directoryQueryIds(state)
@@ -1163,7 +1205,7 @@ export const useStore = create((set, get) => ({
     set({ seriesLoadingMore: true, seriesError: null })
     try {
       const resp = await fetchJavSeries({
-        limit: JAV_STUDIO_PAGE_SIZE,
+        limit: state.seriesPageSize,
         offset: baseOffset + loaded,
         search,
         directoryIds,
@@ -1296,6 +1338,7 @@ export const useStore = create((set, get) => ({
       seriesPage: 1,
       videoTempSort: '',
       javTempSort: '',
+      idolTempSort: '',
       randomMode: false,
       randomSeed: null,
       javRandomMode: false,

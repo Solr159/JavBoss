@@ -45,7 +45,7 @@ import VideoSettingsModal from '@/components/VideoSettingsModal'
 import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
 import VideoTagModal from '@/components/VideoTagModal'
-import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
+import { IDOL_FAVORITE_ORDER_SORT, normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 import useScrollRestoration from '@/hooks/useScrollRestoration'
 import useUrlStateSync from '@/hooks/useUrlStateSync'
@@ -55,7 +55,6 @@ import { isChineseLocale, zh } from '@/utils/i18n'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 
-const JAV_STUDIO_PAGE_SIZE = 24
 const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
 const JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX = ':manual:'
 
@@ -163,6 +162,8 @@ export default function App() {
     javRandomSeed,
     idolSort,
     setJavTempSort,
+    idolTempSort,
+    setIdolTempSort,
     loadJavs,
     loadMoreJavs,
     javItems,
@@ -191,6 +192,7 @@ export default function App() {
     loadJavIdolFavoriteGroups,
     studioPage,
     setStudioPage,
+    studioPageSize,
     studioFavoriteGroupId,
     setStudioFavoriteGroupId,
     studioItems,
@@ -202,6 +204,7 @@ export default function App() {
     loadMoreJavStudios,
     seriesPage,
     setSeriesPage,
+    seriesPageSize,
     seriesFavoriteGroupId,
     setSeriesFavoriteGroupId,
     seriesItems,
@@ -310,6 +313,8 @@ export default function App() {
   const [javIdolTagMaxRowsInput, setJavIdolTagMaxRowsInput] = useState(javIdolTagMaxRows)
   const [javTagMaxRowsInput, setJavTagMaxRowsInput] = useState(javTagMaxRows)
   const [idolPageSizeInput, setIdolPageSizeInput] = useState(idolPageSize)
+  const [studioPageSizeInput, setStudioPageSizeInput] = useState(studioPageSize)
+  const [seriesPageSizeInput, setSeriesPageSizeInput] = useState(seriesPageSize)
   const [javSortInput, setJavSortInput] = useState(javSort)
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
   const [javIdolPreferChineseNameInput, setJavIdolPreferChineseNameInput] = useState(
@@ -889,6 +894,12 @@ export default function App() {
       }
       if (parsed.view === 'jav') {
         const { jav } = parsed
+        const current = useStore.getState()
+        const sameIdolFavoriteGroup =
+          jav.tab === 'idol' &&
+          Number(jav.favoriteGroupId || 0) > 0 &&
+          current.javTab === 'idol' &&
+          Number(current.idolFavoriteGroupId || 0) === Number(jav.favoriteGroupId || 0)
         useStore.setState({
           viewMode: 'jav',
           videoTempSort: '',
@@ -912,6 +923,10 @@ export default function App() {
           seriesPage: jav.tab === 'series' ? jav.page : 1,
           seriesFavoriteGroupId: jav.tab === 'series' ? jav.favoriteGroupId : null,
           javTempSort: jav.tab !== 'list' || jav.random ? '' : jav.tempSort,
+          idolTempSort:
+            jav.tab === 'idol' && (!jav.favoriteGroupId || sameIdolFavoriteGroup || jav.tempSort)
+              ? jav.tempSort
+              : '',
         })
         setJavSearchInput(jav.search)
         if (jav.tab === 'list' && jav.random) {
@@ -925,6 +940,7 @@ export default function App() {
       useStore.setState({
         viewMode: 'video',
         javTempSort: '',
+        idolTempSort: '',
         videoTempSort: video.random ? '' : video.tempSort,
         randomMode: video.random,
         randomSeed: video.random ? video.seed : null,
@@ -969,6 +985,7 @@ export default function App() {
           javSoloOnly,
           javFavoriteGroupId,
           javTempSort,
+          idolTempSort,
           javRandomMode,
           javRandomSeed,
           idolPage,
@@ -988,6 +1005,7 @@ export default function App() {
       directoryFilterMode,
       enabledDirectoryIds,
       idolFavoriteGroupId,
+      idolTempSort,
       javFavoriteGroupId,
       idolPage,
       studioPage,
@@ -1176,7 +1194,13 @@ export default function App() {
         sp.set('favorite_group_id', String(favoriteGroupId))
       }
       const hasTempSortOverride = Object.prototype.hasOwnProperty.call(options, 'tempSort')
-      const tempSortVal = hasTempSortOverride ? normalizeJavSort(tempSortOverride, '') : javTempSort
+      const tempSortVal = hasTempSortOverride
+        ? tab === 'idol'
+          ? normalizeIdolSort(tempSortOverride, '')
+          : normalizeJavSort(tempSortOverride, '')
+        : tab === 'idol'
+          ? idolTempSort
+          : javTempSort
       const randomFlag = randomOverride ?? javRandomMode
       if (tab === 'list' && randomFlag) {
         sp.set('random', '1')
@@ -1185,7 +1209,7 @@ export default function App() {
           sp.set('seed', String(seedValue))
         }
       } else {
-        if (tab === 'list' && tempSortVal) {
+        if ((tab === 'list' || tab === 'idol') && tempSortVal) {
           sp.set('temp_sort', tempSortVal)
         }
         sp.delete('random')
@@ -1207,6 +1231,7 @@ export default function App() {
     [
       idolPage,
       idolFavoriteGroupId,
+      idolTempSort,
       javFavoriteGroupId,
       pathname,
       studioFavoriteGroupId,
@@ -1244,6 +1269,7 @@ export default function App() {
         videoTempSort: '',
         javTab: 'list',
         javTempSort: '',
+        idolTempSort: '',
         javRandomMode: false,
         javRandomSeed: null,
         javIdolIds: [],
@@ -1342,13 +1368,16 @@ export default function App() {
     javRandomMode,
     javRandomSeed,
     idolSort,
+    idolTempSort,
     idolPage,
     idolPageSize,
     idolFavoriteGroupId,
     studioFavoriteGroupId,
     seriesFavoriteGroupId,
     studioPage,
+    studioPageSize,
     seriesPage,
+    seriesPageSize,
     enabledDirectoryIds,
     directoryFilterMode,
     loadJavs,
@@ -1451,10 +1480,10 @@ export default function App() {
   const idolLastPage = Math.max(1, Math.ceil((idolTotal || 0) / idolPageSize))
   const idolHasPrev = idolPage > 1
   const idolHasNext = idolPage < idolLastPage
-  const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
+  const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / studioPageSize))
   const studioHasPrev = studioPage > 1
   const studioHasNext = studioPage < studioLastPage
-  const seriesLastPage = Math.max(1, Math.ceil((seriesTotal || 0) / JAV_STUDIO_PAGE_SIZE))
+  const seriesLastPage = Math.max(1, Math.ceil((seriesTotal || 0) / seriesPageSize))
   const seriesHasPrev = seriesPage > 1
   const seriesHasNext = seriesPage < seriesLastPage
   const videoWaterfallHasMore =
@@ -1464,9 +1493,9 @@ export default function App() {
   const idolWaterfallHasMore =
     (idolPage - 1) * idolPageSize + (idolItems?.length || 0) < (idolTotal || 0)
   const studioWaterfallHasMore =
-    (studioPage - 1) * JAV_STUDIO_PAGE_SIZE + (studioItems?.length || 0) < (studioTotal || 0)
+    (studioPage - 1) * studioPageSize + (studioItems?.length || 0) < (studioTotal || 0)
   const seriesWaterfallHasMore =
-    (seriesPage - 1) * JAV_STUDIO_PAGE_SIZE + (seriesItems?.length || 0) < (seriesTotal || 0)
+    (seriesPage - 1) * seriesPageSize + (seriesItems?.length || 0) < (seriesTotal || 0)
   const javTagNameMap = useMemo(
     () => new Map((javTagOptions || []).map((tag) => [tag.id, tag.name])),
     [javTagOptions]
@@ -1570,6 +1599,7 @@ export default function App() {
       videoTempSort: '',
       javTab: 'list',
       javTempSort: '',
+      idolTempSort: '',
       javIdolIds: [],
       javTags: [],
       javStudioId: null,
@@ -1605,6 +1635,7 @@ export default function App() {
   const handleCancelJavFilterRandom = useCallback(() => {
     useStore.setState({
       javTempSort: '',
+      idolTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
       javPage: 1,
@@ -1724,6 +1755,8 @@ export default function App() {
     setJavIdolTagMaxRowsInput(javIdolTagMaxRows)
     setJavTagMaxRowsInput(javTagMaxRows)
     setIdolPageSizeInput(idolPageSize)
+    setStudioPageSizeInput(studioPageSize)
+    setSeriesPageSizeInput(seriesPageSize)
     setJavSortInput(javSort)
     setIdolSortInput(idolSort)
     setJavSettingsOpen(true)
@@ -1734,6 +1767,8 @@ export default function App() {
     javIdolTagMaxRows,
     javTagMaxRows,
     idolPageSize,
+    studioPageSize,
+    seriesPageSize,
     javSort,
     idolSort,
   ])
@@ -1758,6 +1793,7 @@ export default function App() {
       viewMode: 'jav',
       videoTempSort: '',
       javTempSort: '',
+      idolTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
       javIdolIds: [],
@@ -1824,6 +1860,8 @@ export default function App() {
     const javTagRows =
       Number.isFinite(javTagRowsRaw) && javTagRowsRaw >= 0 ? Math.min(javTagRowsRaw, 12) : 2
     const idolSize = Math.max(1, parseInt(idolPageSizeInput, 10) || idolPageSize)
+    const studioSize = Math.max(1, parseInt(studioPageSizeInput, 10) || studioPageSize)
+    const seriesSize = Math.max(1, parseInt(seriesPageSizeInput, 10) || seriesPageSize)
     const normalizedSort = normalizeJavSort(javSortInput)
     const normalizedIdolSort = normalizeIdolSort(idolSortInput)
     try {
@@ -1834,6 +1872,8 @@ export default function App() {
         jav_idol_tag_max_rows: javIdolTagRows,
         jav_tag_max_rows: javTagRows,
         idol_page_size: idolSize,
+        studio_page_size: studioSize,
+        series_page_size: seriesSize,
         jav_sort: normalizedSort,
         idol_sort: normalizedIdolSort,
         jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
@@ -1844,8 +1884,8 @@ export default function App() {
       const prevSeriesPage = seriesPage
       const javLast = Math.max(1, Math.ceil((javTotal || 0) / javSize))
       const idolLast = Math.max(1, Math.ceil((idolTotal || 0) / idolSize))
-      const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / JAV_STUDIO_PAGE_SIZE))
-      const seriesLast = Math.max(1, Math.ceil((seriesTotal || 0) / JAV_STUDIO_PAGE_SIZE))
+      const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / studioSize))
+      const seriesLast = Math.max(1, Math.ceil((seriesTotal || 0) / seriesSize))
       useStore.setState({
         javPageSize: javSize,
         javGridColumns: javColumns,
@@ -1853,9 +1893,12 @@ export default function App() {
         javIdolTagMaxRows: javIdolTagRows,
         javTagMaxRows: javTagRows,
         idolPageSize: idolSize,
+        studioPageSize: studioSize,
+        seriesPageSize: seriesSize,
         javSort: normalizedSort,
         javTempSort: '',
         idolSort: normalizedIdolSort,
+        idolTempSort: '',
         javPage: Math.min(prevJavPage, javLast),
         idolPage: Math.min(prevIdolPage, idolLast),
         studioPage: Math.min(prevStudioPage, studioLast),
@@ -1886,6 +1929,8 @@ export default function App() {
       setJavIdolTagMaxRowsInput(javIdolTagMaxRows)
       setJavTagMaxRowsInput(javTagMaxRows)
       setIdolPageSizeInput(idolPageSize)
+      setStudioPageSizeInput(studioPageSize)
+      setSeriesPageSizeInput(seriesPageSize)
       setJavSortInput(javSort)
       setIdolSortInput(idolSort)
       setJavIdolPreferChineseNameInput(configFlag(config?.jav_idol_prefer_chinese_name))
@@ -1899,6 +1944,8 @@ export default function App() {
     javIdolTagMaxRows,
     javTagMaxRows,
     idolPageSize,
+    studioPageSize,
+    seriesPageSize,
     javSort,
     idolSort,
   ])
@@ -2164,6 +2211,7 @@ export default function App() {
         javTab: 'list',
         videoTempSort: '',
         javTempSort: '',
+        idolTempSort: '',
         javRandomMode: false,
         javRandomSeed: null,
         javIdolIds: [],
@@ -2204,7 +2252,13 @@ export default function App() {
     const targetTab =
       javTab === 'idol' || javTab === 'studio' || javTab === 'series' ? javTab : 'list'
     saveScrollBeforeUrlStateChange()
-    useStore.setState({ viewMode: 'jav', videoTempSort: '', javTab: targetTab, javTempSort: '' })
+    useStore.setState({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: targetTab,
+      javTempSort: '',
+      idolTempSort: '',
+    })
     forceReloadJavByTab(targetTab)
   }
 
@@ -2218,6 +2272,7 @@ export default function App() {
     const updates = {
       javTab: nextTab,
       javTempSort: '',
+      idolTempSort: '',
       javIdolIds: [],
       javTags: [],
       javStudioId: null,
@@ -2261,6 +2316,7 @@ export default function App() {
       videoTempSort: '',
       javTab: 'list',
       javTempSort: '',
+      idolTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
       javIdolIds: [id],
@@ -2542,6 +2598,7 @@ export default function App() {
         videoTempSort: '',
         javTab: 'list',
         javTempSort: '',
+        idolTempSort: '',
         javRandomMode: false,
         javRandomSeed: null,
         javIdolIds: [id],
@@ -2571,6 +2628,7 @@ export default function App() {
       videoTempSort: '',
       javTab: 'list',
       javTempSort: '',
+      idolTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
       javIdolIds: [],
@@ -2598,6 +2656,7 @@ export default function App() {
       videoTempSort: '',
       javTab: 'list',
       javTempSort: '',
+      idolTempSort: '',
       javRandomMode: false,
       javRandomSeed: null,
       javIdolIds: [],
@@ -2660,6 +2719,7 @@ export default function App() {
         videoTempSort: '',
         javTab: 'list',
         javTempSort: '',
+        idolTempSort: '',
         javRandomMode: false,
         javRandomSeed: null,
         javSearchTerm: nextSearch,
@@ -2865,6 +2925,7 @@ export default function App() {
             tab: javTab,
             favoriteGroupId: groupId || null,
             random: false,
+            tempSort: '',
           })
         }
         onOpenIdolFavoriteGroups={() =>
@@ -2915,6 +2976,9 @@ export default function App() {
               hasPrev: idolHasPrev,
               hasNext: idolHasNext,
               loading: idolLoading,
+              idolTempSort,
+              idolGlobalSort: idolFavoriteGroupId ? IDOL_FAVORITE_ORDER_SORT : idolSort,
+              setIdolTempSort,
               onFirst: () => setIdolPage(1),
               onPrev: () => idolHasPrev && setIdolPage(idolPage - 1),
               onGoToPage: (p) => setIdolPage(p),
@@ -3124,7 +3188,9 @@ export default function App() {
       />
 
       <JavSettingsModal
+        key={`${javSettingsOpen ? 'open' : 'closed'}-${javTab === 'list' ? 'jav' : javTab}`}
         open={javSettingsOpen}
+        initialTab={javTab === 'list' ? 'jav' : javTab}
         onClose={() => setJavSettingsOpen(false)}
         javPageSizeInput={javPageSizeInput}
         onJavPageSizeChange={setJavPageSizeInput}
@@ -3138,6 +3204,10 @@ export default function App() {
         onJavTagMaxRowsChange={setJavTagMaxRowsInput}
         idolPageSizeInput={idolPageSizeInput}
         onIdolPageSizeChange={setIdolPageSizeInput}
+        studioPageSizeInput={studioPageSizeInput}
+        onStudioPageSizeChange={setStudioPageSizeInput}
+        seriesPageSizeInput={seriesPageSizeInput}
+        onSeriesPageSizeChange={setSeriesPageSizeInput}
         javSortInput={javSortInput}
         onJavSortChange={setJavSortInput}
         idolSortInput={idolSortInput}
@@ -3436,6 +3506,7 @@ export default function App() {
           useStore.setState({
             config: cfg,
             javTempSort: '',
+            idolTempSort: '',
             javTags: [],
             javPage: 1,
             javRandomMode: false,
