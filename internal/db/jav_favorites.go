@@ -32,14 +32,17 @@ type JavFavoriteGroupSummary struct {
 }
 
 type JavFavoriteItemSummary struct {
-	ID         int64  `json:"id"`
-	EntityType string `json:"entity_type"`
-	Name       string `json:"name"`
-	Code       string `json:"code"`
-	Title      string `json:"title"`
-	TitleEn    string `json:"title_en"`
-	WorkCount  int64  `json:"work_count"`
-	SampleCode string `json:"sample_code"`
+	ID           int64  `json:"id"`
+	EntityType   string `json:"entity_type"`
+	Name         string `json:"name"`
+	RomanName    string `json:"roman_name"`
+	JapaneseName string `json:"japanese_name"`
+	ChineseName  string `json:"chinese_name"`
+	Code         string `json:"code"`
+	Title        string `json:"title"`
+	TitleEn      string `json:"title_en"`
+	WorkCount    int64  `json:"work_count"`
+	SampleCode   string `json:"sample_code"`
 }
 
 func normalizeJavFavoriteEntityType(entityType string) (string, error) {
@@ -438,7 +441,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 	case JavFavoriteEntityIdol:
 		isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 		query = query.
-			Select("'idol' AS entity_type, ji.id, ji.name, COUNT(DISTINCT j.id) AS work_count, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS sample_code").
+			Select("'idol' AS entity_type, ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, COUNT(DISTINCT j.id) AS work_count, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS sample_code").
 			Joins("JOIN jav_idol ji ON ji.id = jfm.entity_id").
 			Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)).
 			Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
@@ -448,7 +451,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 			Joins("JOIN directory d ON d.id = vl.directory_id").
 			Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 			Where(activeLocationWhereSQL("vl", "d")).
-			Group("jfm.sort_order, ji.id, ji.name, cover_jav.code, solo_idols.cover_code")
+			Group("jfm.sort_order, ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, cover_jav.code, solo_idols.cover_code")
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	case JavFavoriteEntityStudio:
 		query = query.
