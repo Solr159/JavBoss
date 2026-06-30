@@ -50,10 +50,10 @@ To open JavBoss later:
 
 Click the link for your system, download the latest release package, and extract it:
 
-- [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.1/javboss-v1.8.1-windows-x86_64.zip)
-- [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.1/javboss-v1.8.1-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.1/javboss-v1.8.1-macos-x86_64.zip) for Intel-based macOS
-- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.1/javboss-v1.8.1-macos-arm64.zip) for Apple Silicon macOS
+- [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-macos-x86_64.zip) for Intel-based macOS
+- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-macos-arm64.zip) for Apple Silicon macOS
 
 You can also visit the [Releases](https://github.com/Solr159/JavBoss/releases) page to view all versions.
 
