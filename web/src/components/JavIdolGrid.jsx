@@ -267,6 +267,7 @@ export function IdolCard({
     <a
       href={href || '#'}
       className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
+      draggable={false}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === ' ') {
@@ -359,7 +360,7 @@ export function IdolCard({
           <EditRoundedIcon sx={{ fontSize: 16 }} />
         </button>
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-3">
+      <div className="flex flex-1 cursor-text select-text flex-col gap-2 p-3">
         <div className="flex min-w-0 items-baseline gap-1.5 leading-tight">
           <span
             className="min-w-0 max-w-[70%] truncate text-sm font-semibold text-gray-950"
