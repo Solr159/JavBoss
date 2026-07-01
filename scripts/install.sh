@@ -34,6 +34,54 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+path_has_dir() {
+  case ":$PATH:" in
+    *":$1:"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+command_link_dir() {
+  if [[ -n "${JAVBOSS_LINK_DIR:-}" ]]; then
+    printf '%s' "$JAVBOSS_LINK_DIR"
+    return
+  fi
+
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    printf '/usr/local/bin'
+    return
+  fi
+
+  printf '%s/.local/bin' "$HOME"
+}
+
+path_profile_file() {
+  if [[ -n "${JAVBOSS_PROFILE:-}" ]]; then
+    printf '%s' "$JAVBOSS_PROFILE"
+    return
+  fi
+
+  case "$(basename "${SHELL:-}")" in
+    zsh) printf '%s/.zprofile' "$HOME" ;;
+    bash)
+      if [[ "$(uname -s)" == "Darwin" ]]; then
+        printf '%s/.bash_profile' "$HOME"
+      else
+        printf '%s/.bashrc' "$HOME"
+      fi
+      ;;
+    *) printf '%s/.profile' "$HOME" ;;
+  esac
+}
+
+path_entry_for_profile() {
+  local link_dir="$1"
+  case "$link_dir" in
+    "$HOME"/*) printf '$HOME/%s' "${link_dir#"$HOME/"}" ;;
+    *) printf '%s' "$link_dir" ;;
+  esac
+}
+
 download_file() {
   local url="$1"
   local dest="$2"
@@ -170,28 +218,81 @@ copy_release_files() {
 
 create_command_link() {
   local install_dir="$1"
-  local link_dir="$HOME/.local/bin"
-  mkdir -p "$link_dir"
-  ln -sf "$install_dir/javboss" "$link_dir/javboss"
-  log "command installed: $link_dir/javboss"
-  case ":$PATH:" in
-    *":$link_dir:"*) ;;
-    *) log "add $link_dir to PATH if the javboss command is not found" ;;
-  esac
+  local link_dir
+  link_dir="$(command_link_dir)"
+  local link_path="$link_dir/javboss"
+  local wrapper
+
+  wrapper="$(printf '#!/usr/bin/env bash\ncd %q || exit 1\nexec ./javboss "$@"\n' "$install_dir")"
+
+  if ! mkdir -p "$link_dir" 2>/dev/null; then
+    command_exists sudo || die "cannot create command directory: $link_dir"
+    log "permission is required to create command directory: $link_dir"
+    sudo mkdir -p "$link_dir" || die "cannot create command directory: $link_dir"
+  fi
+
+  if ! {
+    rm -f "$link_path" &&
+      printf '%s\n' "$wrapper" >"$link_path" &&
+      chmod 0755 "$link_path"
+  } 2>/dev/null; then
+    command_exists sudo || die "cannot create command link: $link_path"
+    log "permission is required to create command link: $link_path"
+    sudo rm -f "$link_path" || die "cannot replace command link: $link_path"
+    printf '%s\n' "$wrapper" | sudo tee "$link_path" >/dev/null || die "cannot create command link: $link_path"
+    sudo chmod 0755 "$link_path" || die "cannot make command link executable: $link_path"
+  fi
+
+  log "command installed: $link_path"
+}
+
+ensure_command_on_path() {
+  local link_dir
+  local profile
+  local profile_dir
+  local path_entry
+  local marker
+  link_dir="$(command_link_dir)"
+  profile="$(path_profile_file)"
+  profile_dir="$(dirname "$profile")"
+  path_entry="$(path_entry_for_profile "$link_dir")"
+  marker="# Added by JavBoss installer: $path_entry"
+
+  if path_has_dir "$link_dir"; then
+    log "command directory already on PATH: $link_dir"
+    return
+  fi
+
+  export PATH="$link_dir:$PATH"
+
+  if [[ -f "$profile" ]] && grep -Fq "$path_entry" "$profile"; then
+    log "PATH already configured in $profile"
+    return
+  fi
+
+  mkdir -p "$profile_dir" || die "cannot create profile directory: $profile_dir"
+  if [[ ! -e "$profile" ]]; then
+    touch "$profile" || die "cannot create profile: $profile"
+  fi
+
+  {
+    printf '\n%s\n' "$marker"
+    printf 'case ":$PATH:" in\n'
+    printf '  *":%s:"*) ;;\n' "$path_entry"
+    printf '  *) export PATH="%s:$PATH" ;;\n' "$path_entry"
+    printf 'esac\n'
+  } >>"$profile" || die "cannot update PATH in $profile"
+
+  log "PATH configured in $profile"
 }
 
 start_javboss() {
   local install_dir="$1"
-  if [[ "$(uname -s)" == "Darwin" && -f "$install_dir/javboss.command" ]]; then
-    if open "$install_dir/javboss.command" >/dev/null 2>&1; then
-      return
-    fi
-  fi
   if [[ -e /dev/tty ]] && { : </dev/tty; } 2>/dev/null; then
-    "$install_dir/javboss" </dev/tty
+    (cd "$install_dir" && ./javboss) </dev/tty
     return
   fi
-  "$install_dir/javboss"
+  (cd "$install_dir" && ./javboss)
 }
 
 main() {
@@ -200,16 +301,19 @@ main() {
   local platform tag filename url zip_file extract_dir release_dir
   platform="$(detect_platform)"
   INSTALL_DIR="$(default_install_dir)"
-  ensure_not_running "$INSTALL_DIR"
 
   tag="$VERSION"
-  filename="javboss-${tag}-${platform}.zip"
-  url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
-
   if [[ "$(installed_version "$INSTALL_DIR")" == "$tag" ]]; then
+    create_command_link "$INSTALL_DIR"
+    ensure_command_on_path
     log "JavBoss $tag is already installed; no update needed"
     return
   fi
+
+  ensure_not_running "$INSTALL_DIR"
+
+  filename="javboss-${tag}-${platform}.zip"
+  url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
 
   TMP_DIR="$(mktemp -d)"
   trap cleanup EXIT
@@ -236,6 +340,7 @@ main() {
   fi
 
   create_command_link "$INSTALL_DIR"
+  ensure_command_on_path
   write_installed_version "$INSTALL_DIR" "$tag"
 
   log "installed JavBoss $tag"
