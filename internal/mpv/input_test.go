@@ -24,6 +24,9 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "keep-open=yes\n") {
 		t.Fatalf("expected keep-open=yes in mpv config, got %q", content)
 	}
+	if !strings.Contains(content, "keepaspect-window=no\n") {
+		t.Fatalf("expected keepaspect-window=no in mpv config, got %q", content)
+	}
 	if !strings.Contains(content, "osc=no\n") {
 		t.Fatalf("expected osc=no in mpv config, got %q", content)
 	}
