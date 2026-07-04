@@ -33,7 +33,7 @@ const PLAYER_BASIC_DEFAULTS = {
   windowHeight: 80,
   ontop: false,
   reuseWindow: true,
-  resumePlayback: false,
+  resumePlayback: true,
   volume: 70,
   showHotkeyHint: true,
 }
@@ -97,7 +97,7 @@ export default function GlobalSettingsModal({
   const [playerWindowHeightInput, setPlayerWindowHeightInput] = useState('')
   const [playerOntopInput, setPlayerOntopInput] = useState(false)
   const [playerReuseWindowInput, setPlayerReuseWindowInput] = useState(true)
-  const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(false)
+  const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(true)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
 
@@ -580,10 +580,10 @@ export default function GlobalSettingsModal({
                     {zh('初始窗口大小', 'Initial Window Size')}
                   </h4>
                   <div className="flex flex-col gap-3">
-                    <div className="grid gap-3 md:max-w-xl md:grid-cols-2">
+                    <div className="flex flex-wrap gap-4">
                       <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
                         <span className="shrink-0">{zh('宽度', 'Width')}</span>
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <input
                             value={playerWindowWidthInput}
                             onChange={(e) => {
@@ -592,7 +592,7 @@ export default function GlobalSettingsModal({
                               setPlayerBasicSuccess('')
                             }}
                             inputMode="numeric"
-                            className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                            className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                           />
                           <span className="text-sm text-zinc-500">%</span>
                         </div>
@@ -600,7 +600,7 @@ export default function GlobalSettingsModal({
 
                       <label className="flex items-center gap-2 text-xs font-medium text-zinc-500">
                         <span className="shrink-0">{zh('高度', 'Height')}</span>
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <div className="flex items-center gap-2">
                           <input
                             value={playerWindowHeightInput}
                             onChange={(e) => {
@@ -609,7 +609,7 @@ export default function GlobalSettingsModal({
                               setPlayerBasicSuccess('')
                             }}
                             inputMode="numeric"
-                            className="w-full min-w-0 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                            className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                           />
                           <span className="text-sm text-zinc-500">%</span>
                         </div>
@@ -618,8 +618,8 @@ export default function GlobalSettingsModal({
 
                     <p className="text-xs text-zinc-500">
                       {zh(
-                        'mpv 启动时使用指定宽高，范围 10-100。',
-                        'mpv starts with the specified width and height, range 10-100.'
+                        '设置 mpv 启动时的宽高占据屏幕宽高的比例。',
+                        'Set the percentage of screen width and height used by the mpv window on startup.'
                       )}
                     </p>
                   </div>
@@ -630,7 +630,7 @@ export default function GlobalSettingsModal({
                     <h4 className="text-sm font-semibold text-zinc-800">
                       {zh('初始音量', 'Initial Volume')}
                     </h4>
-                    <div className="flex w-full items-center gap-2 md:max-w-sm">
+                    <div className="flex items-center gap-2">
                       <input
                         value={playerVolumeInput}
                         onChange={(e) => {
@@ -639,7 +639,7 @@ export default function GlobalSettingsModal({
                           setPlayerBasicSuccess('')
                         }}
                         inputMode="numeric"
-                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                        className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                       />
                       <span className="text-sm text-zinc-500">%</span>
                     </div>
@@ -717,8 +717,8 @@ export default function GlobalSettingsModal({
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认关闭。开启后，mpv 会记住每个视频的播放位置，下次播放同一文件时自动恢复。',
-                      'Disabled by default. When enabled, mpv remembers each video position and resumes the same file automatically.'
+                      '默认开启。mpv 会记住每个视频的播放位置，下次播放同一文件时自动恢复。',
+                      'Enabled by default. mpv remembers each video position and resumes the same file automatically.'
                     )}
                   </p>
                 </section>

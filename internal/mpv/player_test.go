@@ -81,6 +81,7 @@ func TestBuildBeforeLoadCommandsRestoreWindowAndConfigureScreenshots(t *testing.
 
 	expectedDir := filepath.Join(dataDir, "video", "42", "screenshot")
 	expected := [][]any{
+		{"write-watch-later-config"},
 		{"set_property", "window-minimized", false},
 		{"set_property", "pause", false},
 		{"set_property", "screenshot-template", playbackScreenshotTemplate},
@@ -91,7 +92,7 @@ func TestBuildBeforeLoadCommandsRestoreWindowAndConfigureScreenshots(t *testing.
 	}
 }
 
-func TestBuildBeforeLoadCommandsWritesWatchLaterWhenResumeEnabled(t *testing.T) {
+func TestBuildBeforeLoadCommandsSkipsWatchLaterWhenResumeDisabled(t *testing.T) {
 	prevDB := common.DB
 	db, err := dbpkg.Open(t.TempDir() + "/test.db")
 	if err != nil {
@@ -106,7 +107,7 @@ func TestBuildBeforeLoadCommandsWritesWatchLaterWhenResumeEnabled(t *testing.T) 
 		}
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		playerResumePlaybackConfigKey: "true",
+		playerResumePlaybackConfigKey: "false",
 	}); err != nil {
 		t.Fatalf("upsert config: %v", err)
 	}
@@ -116,8 +117,8 @@ func TestBuildBeforeLoadCommandsWritesWatchLaterWhenResumeEnabled(t *testing.T) 
 		t.Fatalf("buildBeforeLoadCommands returned error: %v", err)
 	}
 
-	if len(commands) == 0 || commands[0][0] != "write-watch-later-config" {
-		t.Fatalf("expected first before-load command to write watch-later, got %v", commands)
+	if len(commands) == 0 || commands[0][0] == "write-watch-later-config" {
+		t.Fatalf("expected before-load commands to skip watch-later write, got %v", commands)
 	}
 }
 
@@ -127,11 +128,11 @@ func TestBuildBeforeLoadCommandsUsesFallbackScreenshotDirWithoutVideoID(t *testi
 		t.Fatalf("buildBeforeLoadCommands returned error: %v", err)
 	}
 
-	if len(commands) != 4 {
+	if len(commands) != 5 {
 		t.Fatalf("expected fallback screenshot directory command, got %v", commands)
 	}
-	if commands[3][0] != "set_property" || commands[3][1] != "screenshot-directory" {
-		t.Fatalf("expected fallback screenshot directory command, got %v", commands[3])
+	if commands[4][0] != "set_property" || commands[4][1] != "screenshot-directory" {
+		t.Fatalf("expected fallback screenshot directory command, got %v", commands[4])
 	}
 }
 

@@ -30,7 +30,7 @@ const (
 	defaultVolume       = 70
 	defaultOntop        = false
 	defaultReuseWindow  = true
-	defaultResume       = false
+	defaultResume       = true
 	startupHintDuration = 5000
 )
 

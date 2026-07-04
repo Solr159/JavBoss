@@ -3551,7 +3551,7 @@ export default function App() {
         }
         playerResumePlayback={
           config?.player_resume_playback == null
-            ? false
+            ? true
             : !['0', 'false', 'no', 'off'].includes(
                 String(config.player_resume_playback).trim().toLowerCase()
               )

@@ -27,8 +27,8 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "keepaspect-window=no\n") {
 		t.Fatalf("expected keepaspect-window=no in mpv config, got %q", content)
 	}
-	if !strings.Contains(content, "save-position-on-quit=no\n") {
-		t.Fatalf("expected save-position-on-quit=no in mpv config, got %q", content)
+	if !strings.Contains(content, "save-position-on-quit=yes\n") {
+		t.Fatalf("expected save-position-on-quit=yes in mpv config, got %q", content)
 	}
 	if !strings.Contains(content, "osc=no\n") {
 		t.Fatalf("expected osc=no in mpv config, got %q", content)
@@ -83,8 +83,8 @@ func TestBuildInputConfContentIncludesDefaultScreenshotKey(t *testing.T) {
 	if !strings.Contains(content, "SPACE cycle pause\n") {
 		t.Fatalf("expected SPACE cycle pause in mpv input config, got %q", content)
 	}
-	if !strings.Contains(content, "ESC stop; set window-minimized yes\n") {
-		t.Fatalf("expected ESC stop and minimize in mpv input config, got %q", content)
+	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes\n") {
+		t.Fatalf("expected ESC to write watch-later before stop in mpv input config, got %q", content)
 	}
 }
 
@@ -124,6 +124,27 @@ func TestBuildInputConfContentWritesWatchLaterWhenResumeEnabled(t *testing.T) {
 
 	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes\n") {
 		t.Fatalf("expected ESC to write watch-later before stop, got %q", content)
+	}
+}
+
+func TestBuildInputConfContentSkipsWatchLaterWhenResumeDisabled(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerResumePlaybackConfigKey: "false",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildInputConfContent()
+	if err != nil {
+		t.Fatalf("buildInputConfContent returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "ESC stop; set window-minimized yes\n") {
+		t.Fatalf("expected ESC stop/minimize without watch-later, got %q", content)
+	}
+	if strings.Contains(content, "write-watch-later-config") {
+		t.Fatalf("expected watch-later write to be disabled, got %q", content)
 	}
 }
 
