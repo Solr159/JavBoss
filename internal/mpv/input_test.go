@@ -275,30 +275,6 @@ func TestBuildConfigContentCentersConfiguredWindowSize(t *testing.T) {
 	}
 }
 
-func TestBuildConfigContentUsesOnlyAutofitForAutomaticWindowSize(t *testing.T) {
-	openConfigTestDB(t)
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		playerWindowUseAutofitConfigKey: "true",
-	}); err != nil {
-		t.Fatalf("upsert config: %v", err)
-	}
-
-	content, err := buildConfigContent()
-	if err != nil {
-		t.Fatalf("buildConfigContent returned error: %v", err)
-	}
-
-	if !strings.Contains(content, "autofit=80%x80%\n") {
-		t.Fatalf("expected default autofit size in mpv config, got %q", content)
-	}
-	if strings.Contains(content, "auto-window-resize=no\n") {
-		t.Fatalf("expected autofit mpv config to leave automatic window resize enabled, got %q", content)
-	}
-	if strings.Contains(content, "geometry=") {
-		t.Fatalf("expected autofit mpv config to omit fixed geometry, got %q", content)
-	}
-}
-
 func openConfigTestDB(t *testing.T) {
 	t.Helper()
 

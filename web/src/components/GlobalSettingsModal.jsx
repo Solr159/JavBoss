@@ -31,7 +31,6 @@ const SETTINGS_SECTIONS = [
 const PLAYER_BASIC_DEFAULTS = {
   windowWidth: 80,
   windowHeight: 80,
-  windowUseAutofit: false,
   ontop: false,
   reuseWindow: true,
   resumePlayback: false,
@@ -65,7 +64,6 @@ export default function GlobalSettingsModal({
   onSaveInitialViewMode,
   playerWindowWidth,
   playerWindowHeight,
-  playerWindowUseAutofit,
   playerOntop,
   playerReuseWindow,
   playerResumePlayback,
@@ -97,7 +95,6 @@ export default function GlobalSettingsModal({
   const [savingPlayerBasic, setSavingPlayerBasic] = useState(false)
   const [playerWindowWidthInput, setPlayerWindowWidthInput] = useState('')
   const [playerWindowHeightInput, setPlayerWindowHeightInput] = useState('')
-  const [playerWindowUseAutofitInput, setPlayerWindowUseAutofitInput] = useState(false)
   const [playerOntopInput, setPlayerOntopInput] = useState(false)
   const [playerReuseWindowInput, setPlayerReuseWindowInput] = useState(true)
   const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(false)
@@ -109,7 +106,6 @@ export default function GlobalSettingsModal({
   const resetPlayerBasicInputs = () => {
     setPlayerWindowWidthInput(String(PLAYER_BASIC_DEFAULTS.windowWidth))
     setPlayerWindowHeightInput(String(PLAYER_BASIC_DEFAULTS.windowHeight))
-    setPlayerWindowUseAutofitInput(PLAYER_BASIC_DEFAULTS.windowUseAutofit)
     setPlayerOntopInput(PLAYER_BASIC_DEFAULTS.ontop)
     setPlayerReuseWindowInput(PLAYER_BASIC_DEFAULTS.reuseWindow)
     setPlayerResumePlaybackInput(PLAYER_BASIC_DEFAULTS.resumePlayback)
@@ -137,9 +133,6 @@ export default function GlobalSettingsModal({
       setPlayerBasicSuccess('')
       setPlayerWindowWidthInput(String(playerWindowWidth ?? PLAYER_BASIC_DEFAULTS.windowWidth))
       setPlayerWindowHeightInput(String(playerWindowHeight ?? PLAYER_BASIC_DEFAULTS.windowHeight))
-      setPlayerWindowUseAutofitInput(
-        playerWindowUseAutofit ?? PLAYER_BASIC_DEFAULTS.windowUseAutofit
-      )
       setPlayerOntopInput(playerOntop ?? PLAYER_BASIC_DEFAULTS.ontop)
       setPlayerReuseWindowInput(playerReuseWindow ?? PLAYER_BASIC_DEFAULTS.reuseWindow)
       setPlayerResumePlaybackInput(playerResumePlayback ?? PLAYER_BASIC_DEFAULTS.resumePlayback)
@@ -155,7 +148,6 @@ export default function GlobalSettingsModal({
     initialViewMode,
     playerWindowWidth,
     playerWindowHeight,
-    playerWindowUseAutofit,
     playerOntop,
     playerReuseWindow,
     playerResumePlayback,
@@ -624,32 +616,12 @@ export default function GlobalSettingsModal({
                       </label>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
-                      <label className="flex items-center gap-3 text-sm font-medium text-zinc-600">
-                        <input
-                          type="checkbox"
-                          checked={playerWindowUseAutofitInput}
-                          onChange={(e) => {
-                            setPlayerWindowUseAutofitInput(e.target.checked)
-                            setPlayerBasicError('')
-                            setPlayerBasicSuccess('')
-                          }}
-                          className="h-4 w-4 rounded"
-                        />
-                        <span>{zh('自动调节窗口大小', 'Automatically adjust window size')}</span>
-                      </label>
-                      <span className="text-xs text-zinc-500">
-                        {playerWindowUseAutofitInput
-                          ? zh(
-                              '开启后按最大宽高限制窗口，并保持视频纵横比。',
-                              'When enabled, the window is limited by max width and height while preserving aspect ratio.'
-                            )
-                          : zh(
-                              '默认关闭，强制使用指定宽高。',
-                              'Disabled by default and forces the specified width and height.'
-                            )}
-                      </span>
-                    </div>
+                    <p className="text-xs text-zinc-500">
+                      {zh(
+                        'mpv 启动时使用指定宽高，范围 10-100。',
+                        'mpv starts with the specified width and height, range 10-100.'
+                      )}
+                    </p>
                   </div>
                 </section>
 
@@ -822,7 +794,6 @@ export default function GlobalSettingsModal({
                       await onSavePlayerBasicSettings?.({
                         player_window_width: width,
                         player_window_height: height,
-                        player_window_use_autofit: playerWindowUseAutofitInput,
                         player_ontop: playerOntopInput,
                         player_reuse_window: playerReuseWindowInput,
                         player_resume_playback: playerResumePlaybackInput,

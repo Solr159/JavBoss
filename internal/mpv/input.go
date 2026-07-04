@@ -18,7 +18,6 @@ const playerHotkeysConfigKey = "player_hotkeys"
 const playerWindowSizeConfigKey = "player_window_size"
 const playerWindowWidthConfigKey = "player_window_width"
 const playerWindowHeightConfigKey = "player_window_height"
-const playerWindowUseAutofitConfigKey = "player_window_use_autofit"
 const playerVolumeConfigKey = "player_volume"
 const playerOntopConfigKey = "player_ontop"
 const playerReuseWindowConfigKey = "player_reuse_window"
@@ -396,7 +395,7 @@ func writeConfig() (string, error) {
 }
 
 func buildConfigContent() (string, error) {
-	windowWidth, windowHeight, useAutofit, volume, ontop, err := loadConfiguredPlayerBaseSettings()
+	windowWidth, windowHeight, volume, ontop, err := loadConfiguredPlayerBaseSettings()
 	if err != nil {
 		return "", err
 	}
@@ -414,14 +413,10 @@ func buildConfigContent() (string, error) {
 		"video-margin-ratio-bottom=0.125",
 		"watch-later-options-remove=sub-pos,osd-margin-y",
 	}
-	if useAutofit {
-		lines = append(lines, fmt.Sprintf("autofit=%d%%x%d%%", windowWidth, windowHeight))
-	} else {
-		lines = append(lines,
-			"auto-window-resize=no",
-			"geometry="+centeredWindowGeometry(windowWidth, windowHeight),
-		)
-	}
+	lines = append(lines,
+		"auto-window-resize=no",
+		"geometry="+centeredWindowGeometry(windowWidth, windowHeight),
+	)
 	lines = append(lines, fmt.Sprintf("volume=%d", volume))
 
 	return strings.Join(lines, "\n") + "\n", nil
@@ -431,15 +426,15 @@ func centeredWindowGeometry(width, height int) string {
 	return fmt.Sprintf("%d%%x%d%%+50%%+50%%", width, height)
 }
 
-func loadConfiguredPlayerBaseSettings() (int, int, bool, int, bool, error) {
+func loadConfiguredPlayerBaseSettings() (int, int, int, bool, error) {
 	if common.DB == nil {
-		return defaultWindowWidth, defaultWindowHeight, false, defaultVolume, defaultOntop, nil
+		return defaultWindowWidth, defaultWindowHeight, defaultVolume, defaultOntop, nil
 	}
 
 	cfg, err := dbpkg.ListConfig(context.Background())
 	if err != nil {
 		logging.Error("list player base config failed, using defaults: %v", err)
-		return defaultWindowWidth, defaultWindowHeight, false, defaultVolume, defaultOntop, nil
+		return defaultWindowWidth, defaultWindowHeight, defaultVolume, defaultOntop, nil
 	}
 
 	windowWidth := defaultWindowWidth
@@ -461,16 +456,6 @@ func loadConfiguredPlayerBaseSettings() (int, int, bool, int, bool, error) {
 		}
 	}
 
-	useAutofit := false
-	if raw := strings.TrimSpace(cfg[playerWindowUseAutofitConfigKey]); raw != "" {
-		switch strings.ToLower(raw) {
-		case "0", "false", "no", "off":
-			useAutofit = false
-		case "1", "true", "yes", "on":
-			useAutofit = true
-		}
-	}
-
 	volume := defaultVolume
 	if raw := strings.TrimSpace(cfg[playerVolumeConfigKey]); raw != "" {
 		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 0 && parsed <= 130 {
@@ -488,7 +473,7 @@ func loadConfiguredPlayerBaseSettings() (int, int, bool, int, bool, error) {
 		}
 	}
 
-	return windowWidth, windowHeight, useAutofit, volume, ontop, nil
+	return windowWidth, windowHeight, volume, ontop, nil
 }
 
 func loadConfiguredPlayerReuseWindow() bool {

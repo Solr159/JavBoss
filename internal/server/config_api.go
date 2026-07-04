@@ -40,35 +40,34 @@ func updateConfig(c *gin.Context) {
 	}
 
 	var req struct {
-		VideoPageSize          *int                  `json:"video_page_size"`
-		JavPageSize            *int                  `json:"jav_page_size"`
-		JavGridColumns         *int                  `json:"jav_grid_columns"`
-		JavTitleMaxRows        *int                  `json:"jav_title_max_rows"`
-		JavIdolTagMaxRows      *int                  `json:"jav_idol_tag_max_rows"`
-		JavTagMaxRows          *int                  `json:"jav_tag_max_rows"`
-		IdolPageSize           *int                  `json:"idol_page_size"`
-		StudioPageSize         *int                  `json:"studio_page_size"`
-		SeriesPageSize         *int                  `json:"series_page_size"`
-		VideoHideJav           *bool                 `json:"video_hide_jav"`
-		VideoSort              string                `json:"video_sort"`
-		JavSort                string                `json:"jav_sort"`
-		IdolSort               string                `json:"idol_sort"`
-		JavMetadataLanguage    string                `json:"jav_metadata_language"`
-		JavIdolPreferChinese   *bool                 `json:"jav_idol_prefer_chinese_name"`
-		DefaultPlayer          string                `json:"default_player"`
-		InitialViewMode        string                `json:"initial_view_mode"`
-		ProxyHost              *string               `json:"proxy_host"`
-		ProxyPort              *int                  `json:"proxy_port"`
-		PlayerWindowSize       *int                  `json:"player_window_size"`
-		PlayerWindowWidth      *int                  `json:"player_window_width"`
-		PlayerWindowHeight     *int                  `json:"player_window_height"`
-		PlayerWindowUseAutofit *bool                 `json:"player_window_use_autofit"`
-		PlayerVolume           *int                  `json:"player_volume"`
-		PlayerOntop            *bool                 `json:"player_ontop"`
-		PlayerReuseWindow      *bool                 `json:"player_reuse_window"`
-		PlayerResumePlayback   *bool                 `json:"player_resume_playback"`
-		PlayerShowHotkeyHint   *bool                 `json:"player_show_hotkey_hint"`
-		PlayerHotkeys          []playerHotkeyPayload `json:"player_hotkeys"`
+		VideoPageSize        *int                  `json:"video_page_size"`
+		JavPageSize          *int                  `json:"jav_page_size"`
+		JavGridColumns       *int                  `json:"jav_grid_columns"`
+		JavTitleMaxRows      *int                  `json:"jav_title_max_rows"`
+		JavIdolTagMaxRows    *int                  `json:"jav_idol_tag_max_rows"`
+		JavTagMaxRows        *int                  `json:"jav_tag_max_rows"`
+		IdolPageSize         *int                  `json:"idol_page_size"`
+		StudioPageSize       *int                  `json:"studio_page_size"`
+		SeriesPageSize       *int                  `json:"series_page_size"`
+		VideoHideJav         *bool                 `json:"video_hide_jav"`
+		VideoSort            string                `json:"video_sort"`
+		JavSort              string                `json:"jav_sort"`
+		IdolSort             string                `json:"idol_sort"`
+		JavMetadataLanguage  string                `json:"jav_metadata_language"`
+		JavIdolPreferChinese *bool                 `json:"jav_idol_prefer_chinese_name"`
+		DefaultPlayer        string                `json:"default_player"`
+		InitialViewMode      string                `json:"initial_view_mode"`
+		ProxyHost            *string               `json:"proxy_host"`
+		ProxyPort            *int                  `json:"proxy_port"`
+		PlayerWindowSize     *int                  `json:"player_window_size"`
+		PlayerWindowWidth    *int                  `json:"player_window_width"`
+		PlayerWindowHeight   *int                  `json:"player_window_height"`
+		PlayerVolume         *int                  `json:"player_volume"`
+		PlayerOntop          *bool                 `json:"player_ontop"`
+		PlayerReuseWindow    *bool                 `json:"player_reuse_window"`
+		PlayerResumePlayback *bool                 `json:"player_resume_playback"`
+		PlayerShowHotkeyHint *bool                 `json:"player_show_hotkey_hint"`
+		PlayerHotkeys        []playerHotkeyPayload `json:"player_hotkeys"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -253,9 +252,6 @@ func updateConfig(c *gin.Context) {
 		}
 		entries["player_window_height"] = strconv.Itoa(height)
 	}
-	if req.PlayerWindowUseAutofit != nil {
-		entries["player_window_use_autofit"] = strconv.FormatBool(*req.PlayerWindowUseAutofit)
-	}
 	if req.PlayerVolume != nil {
 		volume := *req.PlayerVolume
 		if volume < 0 || volume > 130 {
@@ -345,7 +341,6 @@ func updateConfig(c *gin.Context) {
 	if req.PlayerWindowSize != nil ||
 		req.PlayerWindowWidth != nil ||
 		req.PlayerWindowHeight != nil ||
-		req.PlayerWindowUseAutofit != nil ||
 		req.PlayerVolume != nil ||
 		req.PlayerOntop != nil ||
 		req.PlayerReuseWindow != nil ||

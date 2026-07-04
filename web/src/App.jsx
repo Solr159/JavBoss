@@ -3535,13 +3535,6 @@ export default function App() {
           Number.parseInt(config?.player_window_size, 10) ||
           80
         }
-        playerWindowUseAutofit={
-          config?.player_window_use_autofit == null
-            ? false
-            : !['0', 'false', 'no', 'off'].includes(
-                String(config.player_window_use_autofit).trim().toLowerCase()
-              )
-        }
         playerOntop={
           config?.player_ontop == null
             ? false
