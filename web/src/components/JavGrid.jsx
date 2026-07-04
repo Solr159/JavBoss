@@ -126,6 +126,19 @@ export default function JavGrid({
   const seriesPreviewInflightRef = useRef(new Map())
   const [coverPreview, setCoverPreview] = useState(null)
   const [videoManagerItem, setVideoManagerItem] = useState(null)
+  const activeVideoManagerItem = useMemo(() => {
+    if (!videoManagerItem) return null
+    const managerID = Number(videoManagerItem?.id)
+    const managerCode = String(videoManagerItem?.code || '').trim()
+    return (
+      (items || []).find((item) => {
+        if (Number.isFinite(managerID) && managerID > 0 && Number(item?.id) === managerID) {
+          return true
+        }
+        return managerCode && String(item?.code || '').trim() === managerCode
+      }) || videoManagerItem
+    )
+  }, [items, videoManagerItem])
   const hasItems = Array.isArray(items) && items.length > 0
   const columnCount = Number.isFinite(Number(columns)) ? Math.floor(Number(columns)) : 0
   const fixedColumnCount = columnCount > 0 ? Math.min(columnCount, 12) : 0
@@ -277,7 +290,7 @@ export default function JavGrid({
       ) : null}
       <JavVideoManagerModal
         open={Boolean(videoManagerItem)}
-        item={videoManagerItem}
+        item={activeVideoManagerItem}
         openFileLabel={openFileLabel}
         onClose={() => setVideoManagerItem(null)}
         onPlay={onManageVideoPlay}
