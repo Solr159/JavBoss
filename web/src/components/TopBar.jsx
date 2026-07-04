@@ -51,10 +51,10 @@ export default function TopBar({
   javTab,
   onSwitchJavTab,
   favoriteEntityType = 'idol',
-  idolFavoriteGroups = [],
-  idolFavoriteGroupsLoading = false,
-  idolFavoriteGroupsError = null,
-  idolSelectedFavoriteGroupId = null,
+  favoriteGroups = [],
+  favoriteGroupsLoading = false,
+  favoriteGroupsError = null,
+  selectedFavoriteGroupId = null,
   idolFavoriteEditorOpen = false,
   buildIdolFavoriteGroupUrl,
   onOpenIdolFavoriteGroups,
@@ -106,11 +106,11 @@ export default function TopBar({
     hasVideoSelection ? 'pr-[27rem]' : 'pr-[18rem]',
   ].join(' ')
   const idolSelectedFavoriteGroupName = useMemo(() => {
-    const selectedId = Number(idolSelectedFavoriteGroupId)
+    const selectedId = Number(selectedFavoriteGroupId)
     if (!Number.isFinite(selectedId) || selectedId <= 0) return ''
-    const group = (idolFavoriteGroups || []).find((item) => Number(item?.id) === selectedId)
+    const group = (favoriteGroups || []).find((item) => Number(item?.id) === selectedId)
     return String(group?.name || '').trim()
-  }, [idolFavoriteGroups, idolSelectedFavoriteGroupId])
+  }, [favoriteGroups, selectedFavoriteGroupId])
   const favoriteLabel = useMemo(() => {
     switch (favoriteEntityType) {
       case 'jav':
@@ -465,10 +465,10 @@ export default function TopBar({
                         <IdolFavoriteGroupMenu
                           title={favoriteLabel}
                           allLabel={favoriteAllLabel}
-                          groups={idolFavoriteGroups}
-                          selectedGroupId={idolSelectedFavoriteGroupId}
-                          loading={idolFavoriteGroupsLoading}
-                          error={idolFavoriteGroupsError}
+                          groups={favoriteGroups}
+                          selectedGroupId={selectedFavoriteGroupId}
+                          loading={favoriteGroupsLoading}
+                          error={favoriteGroupsError}
                           buildGroupUrl={buildIdolFavoriteGroupUrl}
                           onSelect={(groupId) => {
                             onIdolFavoriteGroupSelect?.(groupId)

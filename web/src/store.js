@@ -259,9 +259,6 @@ export const useStore = create((set, get) => ({
   idolLoading: false,
   idolLoadingMore: false,
   idolError: null,
-  idolFavoriteGroups: [],
-  idolFavoriteGroupsLoading: false,
-  idolFavoriteGroupsError: null,
   favoriteGroupsByType: {
     jav: [],
     idol: [],
@@ -1020,15 +1017,11 @@ export const useStore = create((set, get) => ({
     set((state) => ({
       favoriteGroupsLoadingByType: { ...(state.favoriteGroupsLoadingByType || {}), [type]: true },
       favoriteGroupsErrorByType: { ...(state.favoriteGroupsErrorByType || {}), [type]: null },
-      ...(type === 'idol'
-        ? { idolFavoriteGroupsLoading: true, idolFavoriteGroupsError: null }
-        : {}),
     }))
     try {
       const groups = await fetchJavFavoriteGroups(type, { directoryIds })
       set((state) => ({
         favoriteGroupsByType: { ...(state.favoriteGroupsByType || {}), [type]: groups || [] },
-        ...(type === 'idol' ? { idolFavoriteGroups: groups || [] } : {}),
       }))
       return groups || []
     } catch (e) {
@@ -1038,7 +1031,6 @@ export const useStore = create((set, get) => ({
           ...(state.favoriteGroupsErrorByType || {}),
           [type]: message,
         },
-        ...(type === 'idol' ? { idolFavoriteGroupsError: message } : {}),
       }))
       return get().favoriteGroupsByType?.[type] || []
     } finally {
@@ -1047,7 +1039,6 @@ export const useStore = create((set, get) => ({
           ...(state.favoriteGroupsLoadingByType || {}),
           [type]: false,
         },
-        ...(type === 'idol' ? { idolFavoriteGroupsLoading: false } : {}),
       }))
     }
   },
