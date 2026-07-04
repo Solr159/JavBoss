@@ -3556,6 +3556,13 @@ export default function App() {
                 String(config.player_reuse_window).trim().toLowerCase()
               )
         }
+        playerResumePlayback={
+          config?.player_resume_playback == null
+            ? false
+            : !['0', 'false', 'no', 'off'].includes(
+                String(config.player_resume_playback).trim().toLowerCase()
+              )
+        }
         playerVolume={
           config?.player_volume === '0' ? 0 : Number.parseInt(config?.player_volume, 10) || 70
         }

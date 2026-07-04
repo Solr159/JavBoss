@@ -34,6 +34,7 @@ const PLAYER_BASIC_DEFAULTS = {
   windowUseAutofit: false,
   ontop: false,
   reuseWindow: true,
+  resumePlayback: false,
   volume: 70,
   showHotkeyHint: true,
 }
@@ -67,6 +68,7 @@ export default function GlobalSettingsModal({
   playerWindowUseAutofit,
   playerOntop,
   playerReuseWindow,
+  playerResumePlayback,
   playerVolume,
   playerShowHotkeyHint,
   onSavePlayerBasicSettings,
@@ -98,6 +100,7 @@ export default function GlobalSettingsModal({
   const [playerWindowUseAutofitInput, setPlayerWindowUseAutofitInput] = useState(false)
   const [playerOntopInput, setPlayerOntopInput] = useState(false)
   const [playerReuseWindowInput, setPlayerReuseWindowInput] = useState(true)
+  const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(false)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
 
@@ -109,6 +112,7 @@ export default function GlobalSettingsModal({
     setPlayerWindowUseAutofitInput(PLAYER_BASIC_DEFAULTS.windowUseAutofit)
     setPlayerOntopInput(PLAYER_BASIC_DEFAULTS.ontop)
     setPlayerReuseWindowInput(PLAYER_BASIC_DEFAULTS.reuseWindow)
+    setPlayerResumePlaybackInput(PLAYER_BASIC_DEFAULTS.resumePlayback)
     setPlayerVolumeInput(String(PLAYER_BASIC_DEFAULTS.volume))
     setPlayerShowHotkeyHintInput(PLAYER_BASIC_DEFAULTS.showHotkeyHint)
     setPlayerBasicError('')
@@ -138,6 +142,7 @@ export default function GlobalSettingsModal({
       )
       setPlayerOntopInput(playerOntop ?? PLAYER_BASIC_DEFAULTS.ontop)
       setPlayerReuseWindowInput(playerReuseWindow ?? PLAYER_BASIC_DEFAULTS.reuseWindow)
+      setPlayerResumePlaybackInput(playerResumePlayback ?? PLAYER_BASIC_DEFAULTS.resumePlayback)
       setPlayerVolumeInput(String(playerVolume ?? PLAYER_BASIC_DEFAULTS.volume))
       setPlayerShowHotkeyHintInput(playerShowHotkeyHint ?? PLAYER_BASIC_DEFAULTS.showHotkeyHint)
     }
@@ -153,6 +158,7 @@ export default function GlobalSettingsModal({
     playerWindowUseAutofit,
     playerOntop,
     playerReuseWindow,
+    playerResumePlayback,
     playerVolume,
     playerShowHotkeyHint,
     mpvEnabled,
@@ -727,6 +733,28 @@ export default function GlobalSettingsModal({
                   <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
                     <input
                       type="checkbox"
+                      checked={playerResumePlaybackInput}
+                      onChange={(e) => {
+                        setPlayerResumePlaybackInput(e.target.checked)
+                        setPlayerBasicError('')
+                        setPlayerBasicSuccess('')
+                      }}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span>{zh('从上次结束位置播放', 'Resume From Last Position')}</span>
+                  </label>
+                  <p className="text-xs text-zinc-500">
+                    {zh(
+                      '默认关闭。开启后，mpv 会记住每个视频的播放位置，下次播放同一文件时自动恢复。',
+                      'Disabled by default. When enabled, mpv remembers each video position and resumes the same file automatically.'
+                    )}
+                  </p>
+                </section>
+
+                <section className="space-y-3 border-t border-zinc-200 pt-5">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                    <input
+                      type="checkbox"
                       checked={playerShowHotkeyHintInput}
                       onChange={(e) => {
                         setPlayerShowHotkeyHintInput(e.target.checked)
@@ -797,6 +825,7 @@ export default function GlobalSettingsModal({
                         player_window_use_autofit: playerWindowUseAutofitInput,
                         player_ontop: playerOntopInput,
                         player_reuse_window: playerReuseWindowInput,
+                        player_resume_playback: playerResumePlaybackInput,
                         player_volume: volume,
                         player_show_hotkey_hint: playerShowHotkeyHintInput,
                       })

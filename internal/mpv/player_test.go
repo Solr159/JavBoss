@@ -1,9 +1,13 @@
 package mpv
 
 import (
+	"context"
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
 )
 
 func TestEnsurePlaybackScreenshotDirUsesVideoDataDirectory(t *testing.T) {
@@ -84,6 +88,36 @@ func TestBuildBeforeLoadCommandsRestoreWindowAndConfigureScreenshots(t *testing.
 	}
 	if !reflect.DeepEqual(commands, expected) {
 		t.Fatalf("expected before-load commands %v, got %v", expected, commands)
+	}
+}
+
+func TestBuildBeforeLoadCommandsWritesWatchLaterWhenResumeEnabled(t *testing.T) {
+	prevDB := common.DB
+	db, err := dbpkg.Open(t.TempDir() + "/test.db")
+	if err != nil {
+		t.Fatalf("open test db: %v", err)
+	}
+	common.DB = db
+	t.Cleanup(func() {
+		common.DB = prevDB
+		sqlDB, err := db.DB()
+		if err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerResumePlaybackConfigKey: "true",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	commands, err := buildBeforeLoadCommands(PlayOptions{})
+	if err != nil {
+		t.Fatalf("buildBeforeLoadCommands returned error: %v", err)
+	}
+
+	if len(commands) == 0 || commands[0][0] != "write-watch-later-config" {
+		t.Fatalf("expected first before-load command to write watch-later, got %v", commands)
 	}
 }
 

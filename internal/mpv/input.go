@@ -22,6 +22,7 @@ const playerWindowUseAutofitConfigKey = "player_window_use_autofit"
 const playerVolumeConfigKey = "player_volume"
 const playerOntopConfigKey = "player_ontop"
 const playerReuseWindowConfigKey = "player_reuse_window"
+const playerResumePlaybackConfigKey = "player_resume_playback"
 const playerShowHotkeyHintConfigKey = "player_show_hotkey_hint"
 
 const (
@@ -30,6 +31,7 @@ const (
 	defaultVolume       = 70
 	defaultOntop        = false
 	defaultReuseWindow  = true
+	defaultResume       = false
 	startupHintDuration = 5000
 )
 
@@ -152,6 +154,9 @@ func buildInputConfContent() (string, error) {
 
 func buildEscapeHotkeyBinding() string {
 	if loadConfiguredPlayerReuseWindow() {
+		if loadConfiguredPlayerResumePlayback() {
+			return "ESC write-watch-later-config; stop; set window-minimized yes"
+		}
 		return "ESC stop; set window-minimized yes"
 	}
 	return "ESC quit"
@@ -395,12 +400,14 @@ func buildConfigContent() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	resumePlayback := loadConfiguredPlayerResumePlayback()
 
 	lines := []string{
 		"osc=no",
 		"input-default-bindings=no",
 		"keep-open=yes",
 		"keepaspect-window=no",
+		fmt.Sprintf("save-position-on-quit=%s", mpvBool(resumePlayback)),
 		fmt.Sprintf("ontop=%s", mpvBool(ontop)),
 		fmt.Sprintf("osd-playing-msg-duration=%d", startupHintDuration),
 		"video-align-y=0",
@@ -506,6 +513,31 @@ func loadConfiguredPlayerReuseWindow() bool {
 		return true
 	default:
 		return defaultReuseWindow
+	}
+}
+
+func loadConfiguredPlayerResumePlayback() bool {
+	if common.DB == nil {
+		return defaultResume
+	}
+
+	cfg, err := dbpkg.ListConfig(context.Background())
+	if err != nil {
+		logging.Error("list player resume playback config failed, using default: %v", err)
+		return defaultResume
+	}
+
+	raw := strings.TrimSpace(cfg[playerResumePlaybackConfigKey])
+	if raw == "" {
+		return defaultResume
+	}
+	switch strings.ToLower(raw) {
+	case "0", "false", "no", "off":
+		return false
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return defaultResume
 	}
 }
 

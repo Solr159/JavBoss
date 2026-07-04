@@ -298,11 +298,15 @@ func playbackIPCPath() (string, error) {
 }
 
 func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
-	commands := [][]any{
-		{"set_property", "window-minimized", false},
-		{"set_property", "pause", false},
-		{"set_property", "screenshot-template", playbackScreenshotTemplate},
+	commands := make([][]any, 0, 5)
+	if loadConfiguredPlayerResumePlayback() {
+		commands = append(commands, []any{"write-watch-later-config"})
 	}
+	commands = append(commands,
+		[]any{"set_property", "window-minimized", false},
+		[]any{"set_property", "pause", false},
+		[]any{"set_property", "screenshot-template", playbackScreenshotTemplate},
+	)
 
 	dir, err := ensurePlaybackScreenshotDir(options)
 	if err != nil {
@@ -321,10 +325,16 @@ func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
 }
 
 func isOptionalBeforeLoadCommand(command []any) bool {
-	if len(command) < 2 {
+	if len(command) == 0 {
 		return false
 	}
 	name, _ := command[0].(string)
+	if name == "write-watch-later-config" {
+		return true
+	}
+	if len(command) < 2 {
+		return false
+	}
 	property, _ := command[1].(string)
 	return name == "set_property" && property == "window-minimized"
 }

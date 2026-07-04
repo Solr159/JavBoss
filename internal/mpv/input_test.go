@@ -27,6 +27,9 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "keepaspect-window=no\n") {
 		t.Fatalf("expected keepaspect-window=no in mpv config, got %q", content)
 	}
+	if !strings.Contains(content, "save-position-on-quit=no\n") {
+		t.Fatalf("expected save-position-on-quit=no in mpv config, got %q", content)
+	}
 	if !strings.Contains(content, "osc=no\n") {
 		t.Fatalf("expected osc=no in mpv config, got %q", content)
 	}
@@ -103,6 +106,24 @@ func TestBuildInputConfContentQuitsWhenReuseWindowDisabled(t *testing.T) {
 	}
 	if strings.Contains(content, "ESC stop; set window-minimized yes\n") {
 		t.Fatalf("expected ESC stop/minimize to be disabled, got %q", content)
+	}
+}
+
+func TestBuildInputConfContentWritesWatchLaterWhenResumeEnabled(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerResumePlaybackConfigKey: "true",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildInputConfContent()
+	if err != nil {
+		t.Fatalf("buildInputConfContent returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes\n") {
+		t.Fatalf("expected ESC to write watch-later before stop, got %q", content)
 	}
 }
 
@@ -189,6 +210,24 @@ func TestBuildConfigContentRespectsConfiguredOntop(t *testing.T) {
 
 	if !strings.Contains(content, "ontop=yes\n") {
 		t.Fatalf("expected ontop=yes in mpv config, got %q", content)
+	}
+}
+
+func TestBuildConfigContentEnablesResumePlayback(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerResumePlaybackConfigKey: "true",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildConfigContent()
+	if err != nil {
+		t.Fatalf("buildConfigContent returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "save-position-on-quit=yes\n") {
+		t.Fatalf("expected save-position-on-quit=yes in mpv config, got %q", content)
 	}
 }
 
