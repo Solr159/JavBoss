@@ -321,8 +321,10 @@ func updateConfig(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
+	playerSessionResetNeeded := false
 	if req.PlayerHotkeys != nil {
 		mpv.InvalidateHotkeysCache()
+		playerSessionResetNeeded = true
 	}
 	if req.PlayerWindowSize != nil ||
 		req.PlayerWindowWidth != nil ||
@@ -331,6 +333,13 @@ func updateConfig(c *gin.Context) {
 		req.PlayerVolume != nil ||
 		req.PlayerOntop != nil {
 		mpv.InvalidatePlayerConfigCache()
+		playerSessionResetNeeded = true
+	}
+	if req.PlayerShowHotkeyHint != nil {
+		playerSessionResetNeeded = true
+	}
+	if playerSessionResetNeeded {
+		mpv.ResetPlayerSession()
 	}
 
 	cfg, err := dbpkg.ListConfig(c.Request.Context())

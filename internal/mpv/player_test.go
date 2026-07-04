@@ -2,6 +2,7 @@ package mpv
 
 import (
 	"path/filepath"
+	"reflect"
 	"testing"
 )
 
@@ -52,6 +53,51 @@ func TestBuildPlaybackStartArgsIncludesStartTime(t *testing.T) {
 	args := buildPlaybackStartArgs(PlayOptions{StartTimeSec: 12.345})
 	if len(args) != 1 || args[0] != "--start=12.345" {
 		t.Fatalf("expected start args, got %v", args)
+	}
+}
+
+func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
+	command := buildLoadFileCommand("/videos/a.mp4", PlayOptions{StartTimeSec: 12.345})
+	expected := []any{"loadfile", "/videos/a.mp4", "replace", "start=12.345"}
+	if !reflect.DeepEqual(command, expected) {
+		t.Fatalf("expected loadfile command %v, got %v", expected, command)
+	}
+}
+
+func TestBuildBeforeLoadCommandsRestoreWindowAndConfigureScreenshots(t *testing.T) {
+	dataDir := t.TempDir()
+
+	commands, err := buildBeforeLoadCommands(PlayOptions{
+		DataDir: dataDir,
+		VideoID: 42,
+	})
+	if err != nil {
+		t.Fatalf("buildBeforeLoadCommands returned error: %v", err)
+	}
+
+	expectedDir := filepath.Join(dataDir, "video", "42", "screenshot")
+	expected := [][]any{
+		{"set_property", "window-minimized", false},
+		{"set_property", "pause", false},
+		{"set_property", "screenshot-template", playbackScreenshotTemplate},
+		{"set_property", "screenshot-directory", expectedDir},
+	}
+	if !reflect.DeepEqual(commands, expected) {
+		t.Fatalf("expected before-load commands %v, got %v", expected, commands)
+	}
+}
+
+func TestBuildBeforeLoadCommandsUsesFallbackScreenshotDirWithoutVideoID(t *testing.T) {
+	commands, err := buildBeforeLoadCommands(PlayOptions{})
+	if err != nil {
+		t.Fatalf("buildBeforeLoadCommands returned error: %v", err)
+	}
+
+	if len(commands) != 4 {
+		t.Fatalf("expected fallback screenshot directory command, got %v", commands)
+	}
+	if commands[3][0] != "set_property" || commands[3][1] != "screenshot-directory" {
+		t.Fatalf("expected fallback screenshot directory command, got %v", commands[3])
 	}
 }
 

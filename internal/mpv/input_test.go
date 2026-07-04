@@ -77,8 +77,8 @@ func TestBuildInputConfContentIncludesDefaultScreenshotKey(t *testing.T) {
 	if !strings.Contains(content, "SPACE cycle pause\n") {
 		t.Fatalf("expected SPACE cycle pause in mpv input config, got %q", content)
 	}
-	if !strings.Contains(content, "ESC quit\n") {
-		t.Fatalf("expected ESC quit in mpv input config, got %q", content)
+	if !strings.Contains(content, "ESC stop; set window-minimized yes\n") {
+		t.Fatalf("expected ESC stop and minimize in mpv input config, got %q", content)
 	}
 }
 
@@ -101,7 +101,7 @@ func TestBuildStartupHotkeyHintIncludesDefaultHotkeys(t *testing.T) {
 		"w：音量 +5%",
 		"e：截图",
 		"空格：暂停/继续",
-		"ESC：退出",
+		"ESC：停止播放并最小化",
 		"你可在「全局设置 → MPV播放器 → 基础设置」里关闭此信息显示",
 	}
 	for _, line := range expected {
