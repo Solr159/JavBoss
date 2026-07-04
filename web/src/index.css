@@ -38,6 +38,192 @@ body.has-page-scroll .sticky-pagination {
   box-shadow: 0 8px 18px -13px rgba(15, 23, 42, 0.38);
 }
 
+.pagination-toolbar-grid {
+  gap: 10.8px;
+}
+
+.pagination-root {
+  min-height: 29px;
+  gap: 3.6px;
+  padding-top: 3.6px;
+  padding-bottom: 3.6px;
+  font-size: 13px;
+}
+
+.pagination-waterfall {
+  left: 22px;
+  top: calc(var(--topbar-height) + 0.9rem);
+  height: 25px;
+  gap: 3.6px;
+  font-size: 11px;
+}
+
+.pagination-waterfall-total {
+  margin-left: 3.6px;
+}
+
+.pagination-waterfall-action {
+  margin-left: 3.6px;
+}
+
+.pagination-waterfall-switch.MuiSwitch-root {
+  width: 36px !important;
+  height: 22px !important;
+  padding: 5px !important;
+}
+
+.pagination-waterfall-switch .MuiSwitch-switchBase {
+  padding: 4px !important;
+}
+
+.pagination-waterfall-switch .MuiSwitch-switchBase.Mui-checked {
+  transform: translateX(14px) !important;
+}
+
+.pagination-waterfall-switch .MuiSwitch-thumb {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+.pagination-waterfall-switch .MuiSwitch-track {
+  border-radius: 11px !important;
+}
+
+.pagination-controls {
+  gap: 5.4px;
+}
+
+.pagination-button {
+  border-radius: 4px;
+  border-width: 1px;
+  padding: 1.8px 7.2px;
+  line-height: 1.25;
+}
+
+.pagination-page-button {
+  padding-left: 9px;
+  padding-right: 9px;
+}
+
+.pagination-jump-panel {
+  max-width: 504px;
+  gap: 10.8px;
+  padding: 10.8px;
+}
+
+.pagination-jump-title {
+  font-size: 11px;
+}
+
+.pagination-jump-grid {
+  max-height: 259px;
+  gap: 7.2px;
+  padding-right: 7.2px;
+}
+
+.pagination-jump-button {
+  border-radius: 4px;
+  border-width: 1px;
+  padding: 3.6px 7.2px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.pagination-sort-group {
+  gap: 7.2px;
+  margin-top: 3.6px;
+  margin-bottom: 3.6px;
+}
+
+.pagination-sort-label {
+  font-size: 11px;
+}
+
+.pagination-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5.4px;
+  border-radius: 5.4px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  padding: 3.6px 7.2px;
+  font-size: 11px;
+  line-height: 14px;
+  color: #374151;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.pagination-sort-button:hover {
+  border-color: #9ca3af;
+}
+
+.pagination-sort-caret {
+  display: block;
+  width: 5.4px;
+  height: 5.4px;
+  transform: rotate(45deg);
+  border-right: 1px solid #9ca3af;
+  border-bottom: 1px solid #9ca3af;
+}
+
+.pagination-sort-menu {
+  display: flex;
+  min-width: 162px;
+  flex-direction: column;
+  padding: 3.6px;
+}
+
+.pagination-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 3.6px;
+  border-radius: 3.6px;
+}
+
+.pagination-sort-option {
+  min-width: 0;
+  padding: 3.6px 7.2px;
+  text-align: left;
+  font-size: 11px;
+}
+
+.pagination-sort-row .pagination-sort-option {
+  flex: 1 1 0%;
+}
+
+.pagination-sort-reverse {
+  margin-right: 3.6px;
+  display: inline-flex;
+  width: 21.6px;
+  height: 21.6px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  color: #6b7280;
+}
+
+.pagination-sort-reverse:hover {
+  background: #fff;
+  color: #1d4ed8;
+}
+
+.pagination-selection-action.MuiButton-root {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 1.8px 7.2px !important;
+  font-size: 11px !important;
+  line-height: 18px !important;
+}
+
+.topbar-selection-action.MuiButton-root {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 2px 8px !important;
+  font-size: 12px !important;
+  line-height: 20px !important;
+}
+
 .directory-setup-hint {
   position: relative;
 }

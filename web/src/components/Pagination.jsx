@@ -16,6 +16,7 @@ export default function Pagination({
   waterfallMode = false,
   onWaterfallModeChange,
   totalItems = null,
+  totalItemsAction = null,
 }) {
   const isModifiedClick = (e) =>
     e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)
@@ -32,7 +33,7 @@ export default function Pagination({
   const paginationDisabled = Boolean(waterfallMode)
   const [jumpAnchorEl, setJumpAnchorEl] = useState(null)
   const jumpColumnCount = Math.min(6, totalPages)
-  const jumpPanelWidth = Math.min(560, Math.max(180, jumpColumnCount * 56 + 24))
+  const jumpPanelWidth = Math.min(504, Math.max(162, jumpColumnCount * 50.4 + 21.6))
   const normalizedTotalItems = Number(totalItems)
   const totalItemsLabel =
     Number.isFinite(normalizedTotalItems) && normalizedTotalItems >= 0
@@ -61,22 +62,28 @@ export default function Pagination({
   }
 
   return (
-    <div className="relative flex min-h-8 w-full flex-col items-center gap-1 py-1 text-sm">
+    <div className="pagination-root relative flex w-full flex-col items-center">
       {onWaterfallModeChange ? (
-        <label className="fixed left-6 top-[calc(var(--topbar-height)+1rem)] z-30 inline-flex h-7 shrink-0 -translate-y-1/2 items-center gap-1 text-xs text-gray-600">
+        <label className="pagination-waterfall fixed z-30 inline-flex shrink-0 -translate-y-1/2 items-center text-gray-600">
           <span>{zh('瀑布流', 'Waterfall')}</span>
           <Switch
+            className="pagination-waterfall-switch"
             size="small"
             checked={waterfallMode}
             onChange={(event) => onWaterfallModeChange(event.target.checked)}
             inputProps={{ 'aria-label': zh('切换瀑布流模式', 'Toggle waterfall mode') }}
           />
           {totalItemsLabel ? (
-            <span className="ml-1 whitespace-nowrap text-gray-500">{totalItemsLabel}</span>
+            <span className="pagination-waterfall-total whitespace-nowrap text-gray-500">
+              {totalItemsLabel}
+            </span>
+          ) : null}
+          {totalItemsAction ? (
+            <span className="pagination-waterfall-action inline-flex">{totalItemsAction}</span>
           ) : null}
         </label>
       ) : null}
-      <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <div className="pagination-controls flex flex-wrap items-center justify-center">
         {!waterfallMode ? (
           <>
             <a
@@ -86,7 +93,7 @@ export default function Pagination({
                 e.preventDefault()
                 onFirst()
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasPrev ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasPrev}
@@ -101,7 +108,7 @@ export default function Pagination({
                 e.preventDefault()
                 onGoToPage(prevTenPage)
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasPrevTen ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasPrevTen}
@@ -116,7 +123,7 @@ export default function Pagination({
                 e.preventDefault()
                 onPrev()
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasPrev ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasPrev}
@@ -134,7 +141,7 @@ export default function Pagination({
                   e.preventDefault()
                   onGoToPage(p)
                 }}
-                className={`rounded border px-2.5 py-0.5 leading-tight ${
+                className={`pagination-button pagination-page-button border ${
                   paginationDisabled
                     ? 'pointer-events-none opacity-50'
                     : p === page
@@ -155,7 +162,7 @@ export default function Pagination({
                 e.preventDefault()
                 onNext()
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasNext ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasNext}
@@ -170,7 +177,7 @@ export default function Pagination({
                 e.preventDefault()
                 onGoToPage(nextTenPage)
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasNextTen ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasNextTen}
@@ -185,7 +192,7 @@ export default function Pagination({
                 e.preventDefault()
                 onLast()
               }}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !hasNext ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasNext}
@@ -196,7 +203,7 @@ export default function Pagination({
             <button
               type="button"
               onClick={openJumpPicker}
-              className={`rounded border px-2 py-0.5 ${
+              className={`pagination-button border ${
                 paginationDisabled || !canJump ? 'cursor-not-allowed opacity-50' : 'bg-white'
               }`}
               disabled={paginationDisabled || !canJump}
@@ -215,12 +222,14 @@ export default function Pagination({
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
               <div
-                className="flex max-w-[560px] flex-col gap-3 p-3"
+                className="pagination-jump-panel flex flex-col"
                 style={{ width: jumpPanelWidth }}
               >
-                <div className="text-xs text-gray-500">{zh('选择页码', 'Select page')}</div>
+                <div className="pagination-jump-title text-gray-500">
+                  {zh('选择页码', 'Select page')}
+                </div>
                 <div
-                  className="grid max-h-72 gap-2 overflow-y-auto pr-2"
+                  className="pagination-jump-grid grid overflow-y-auto"
                   style={{ gridTemplateColumns: `repeat(${jumpColumnCount}, minmax(0, 1fr))` }}
                 >
                   {jumpOptions.map((optionPage) => (
@@ -231,7 +240,7 @@ export default function Pagination({
                         closeJumpPicker()
                         if (optionPage !== page) onGoToPage(optionPage)
                       }}
-                      className={`rounded border px-2 py-1 text-center text-xs leading-tight ${
+                      className={`pagination-jump-button border text-center ${
                         optionPage === page
                           ? 'border-blue-600 bg-blue-600 text-white'
                           : 'bg-white hover:border-blue-300 hover:text-blue-600'

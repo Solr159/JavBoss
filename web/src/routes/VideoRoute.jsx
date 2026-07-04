@@ -5,7 +5,6 @@ export default function VideoRoute({
   buildVideoUrl,
   canNext,
   canPrev,
-  clearSelection,
   goToLastPage,
   lastPage,
   totalItems,
@@ -21,10 +20,8 @@ export default function VideoRoute({
   page,
   randomMode,
   revealFile,
-  selectedCount,
   selectedVideoIds,
   setPage,
-  setSelectionOpsOpen,
   setTagPickerFor,
   setVideoTempSort,
   toggleSelectVideo,
@@ -39,9 +36,6 @@ export default function VideoRoute({
 }) {
   return (
     <VideoView
-      selectedCount={selectedCount}
-      clearSelection={clearSelection}
-      setSelectionOpsOpen={setSelectionOpsOpen}
       page={page}
       lastPage={lastPage}
       totalItems={totalItems}

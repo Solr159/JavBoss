@@ -26,9 +26,6 @@ function SortText({ option, value, className = '' }) {
 }
 
 export default function VideoView({
-  selectedCount,
-  clearSelection,
-  setSelectionOpsOpen,
   page,
   lastPage,
   totalItems,
@@ -65,8 +62,8 @@ export default function VideoView({
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
   const pageIds = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
   const pageSelectable = pageIds.length > 0
+  const hasSelection = selectedVideoIds.size > 0
   const pageAllSelected = pageSelectable && pageIds.every((id) => selectedVideoIds.has(id))
-  const hasSelection = selectedCount > 0
   const effectiveSort = videoTempSort || videoGlobalSort
   const currentOption = findVideoSortOption(effectiveSort) || VIDEO_SORT_OPTIONS[0]
   const activeWaterfallMode = waterfallMode && !randomMode
@@ -86,7 +83,7 @@ export default function VideoView({
   return (
     <>
       <div className="sticky-pagination mb-4">
-        <div className="relative grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+        <div className="pagination-toolbar-grid relative grid md:grid-cols-[1fr_auto_1fr] md:items-center">
           <div />
           <div className="flex justify-center">
             {!randomMode && (
@@ -113,26 +110,38 @@ export default function VideoView({
                 }}
                 waterfallMode={activeWaterfallMode}
                 onWaterfallModeChange={onWaterfallModeChange}
+                totalItemsAction={
+                  hasSelection ? (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={onToggleSelectPage}
+                      disabled={!pageSelectable}
+                      className="pagination-selection-action"
+                    >
+                      {pageAllSelected
+                        ? zh('取消全选', 'Unselect page')
+                        : zh('全选本页', 'Select page')}
+                    </Button>
+                  ) : null
+                }
               />
             )}
           </div>
           <div className="flex justify-end">
             {!randomMode && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">{zh('排序', 'Sort')}</span>
+              <div className="pagination-sort-group flex items-center">
+                <span className="pagination-sort-label text-gray-500">{zh('排序', 'Sort')}</span>
                 <button
                   type="button"
                   onClick={openSortMenu}
                   aria-haspopup="dialog"
                   aria-expanded={Boolean(sortAnchorEl)}
                   aria-label={zh('修改当前视频排序方式', 'Change current video sort')}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-400"
+                  className="pagination-sort-button"
                 >
                   <SortText option={currentOption} value={effectiveSort} />
-                  <span
-                    aria-hidden="true"
-                    className="block h-1.5 w-1.5 rotate-45 border-b border-r border-gray-400"
-                  />
+                  <span aria-hidden="true" className="pagination-sort-caret" />
                 </button>
               </div>
             )}
@@ -144,14 +153,14 @@ export default function VideoView({
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-              <div className="flex min-w-[180px] flex-col p-1">
+              <div className="pagination-sort-menu">
                 {VIDEO_SORT_OPTIONS.map((option) => {
                   const active = isOptionActive(option)
                   const displayValue = active ? effectiveSort : option.defaultValue
                   return (
                     <div
                       key={option.base}
-                      className={`flex items-center gap-1 rounded ${
+                      className={`pagination-sort-row ${
                         active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -161,7 +170,7 @@ export default function VideoView({
                           closeSortMenu()
                           setVideoTempSort?.(displayValue)
                         }}
-                        className="min-w-0 flex-1 px-2 py-1 text-left text-xs"
+                        className="pagination-sort-option"
                       >
                         <SortText option={option} value={displayValue} />
                       </button>
@@ -173,7 +182,7 @@ export default function VideoView({
                             reverseVideoSortValue(displayValue, option.defaultValue)
                           )
                         }}
-                        className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-white hover:text-blue-700"
+                        className="pagination-sort-reverse"
                         title={zh('反转排序', 'Reverse sort')}
                         aria-label={zh(
                           `反转${option.label[0]}排序`,
@@ -189,39 +198,6 @@ export default function VideoView({
             </Popover>
           </div>
         </div>
-        {hasSelection && (
-          <div className="mt-1 flex items-center gap-1 overflow-x-auto overflow-y-hidden whitespace-nowrap pb-1">
-            <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium leading-5 text-sky-700">
-              {zh(`已选 ${selectedCount} 项`, `${selectedCount} selected`)}
-            </span>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={onToggleSelectPage}
-              disabled={!pageSelectable}
-              className="!min-h-0 !min-w-0 !px-2 !py-0.5 !text-xs !leading-5"
-            >
-              {pageAllSelected ? zh('取消本页', 'Unselect page') : zh('全选本页', 'Select page')}
-            </Button>
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={() => setSelectionOpsOpen(true)}
-              disabled={selectedCount === 0}
-              className="!min-h-0 !min-w-0 !px-2 !py-0.5 !text-xs !leading-5"
-            >
-              {zh('操作', 'Actions')}
-            </Button>
-            <Button
-              variant="text"
-              size="small"
-              onClick={clearSelection}
-              className="!min-h-0 !min-w-0 !px-2 !py-0.5 !text-xs !leading-5"
-            >
-              {zh('清空', 'Clear')}
-            </Button>
-          </div>
-        )}
       </div>
       {loading ? (
         <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">

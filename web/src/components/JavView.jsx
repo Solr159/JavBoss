@@ -84,7 +84,7 @@ export default function JavView({
   return (
     <>
       {!javRandomMode && (
-        <div className="sticky-pagination mb-4 grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
+        <div className="sticky-pagination pagination-toolbar-grid mb-4 grid md:grid-cols-[1fr_auto_1fr] md:items-center">
           <div className="hidden md:block" />
           <div className="flex justify-center overflow-x-auto">
             <Pagination
@@ -109,21 +109,18 @@ export default function JavView({
             />
           </div>
           <div className="flex justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{zh('排序', 'Sort')}</span>
+            <div className="pagination-sort-group flex items-center">
+              <span className="pagination-sort-label text-gray-500">{zh('排序', 'Sort')}</span>
               <button
                 type="button"
                 onClick={openSortMenu}
                 aria-haspopup="dialog"
                 aria-expanded={Boolean(sortAnchorEl)}
                 aria-label={zh('修改当前 JAV 排序方式', 'Change current JAV sort')}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-400"
+                className="pagination-sort-button"
               >
                 <SortText option={currentOption} value={effectiveSort} />
-                <span
-                  aria-hidden="true"
-                  className="block h-1.5 w-1.5 rotate-45 border-b border-r border-gray-400"
-                />
+                <span aria-hidden="true" className="pagination-sort-caret" />
               </button>
             </div>
             <Popover
@@ -134,14 +131,14 @@ export default function JavView({
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-              <div className="flex min-w-[180px] flex-col p-1">
+              <div className="pagination-sort-menu">
                 {JAV_SORT_OPTIONS.map((option) => {
                   const active = isOptionActive(option)
                   const displayValue = active ? effectiveSort : option.defaultValue
                   return (
                     <div
                       key={option.base}
-                      className={`flex items-center gap-1 rounded ${
+                      className={`pagination-sort-row ${
                         active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
@@ -151,7 +148,7 @@ export default function JavView({
                           closeSortMenu()
                           setJavTempSort?.(displayValue)
                         }}
-                        className="min-w-0 flex-1 px-2 py-1 text-left text-xs"
+                        className="pagination-sort-option"
                       >
                         <SortText option={option} value={displayValue} />
                       </button>
@@ -163,7 +160,7 @@ export default function JavView({
                             reverseSortValue([option], displayValue, option.defaultValue)
                           )
                         }}
-                        className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-white hover:text-blue-700"
+                        className="pagination-sort-reverse"
                         title={zh('反转排序', 'Reverse sort')}
                         aria-label={zh(
                           `反转${option.label[0]}排序`,

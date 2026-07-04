@@ -74,117 +74,110 @@ export default function JavIdolView({
 
   return (
     <>
-      <div className="sticky-pagination mb-2.5">
-        <div className="relative grid gap-3 md:grid-cols-[1fr_auto_1fr] md:items-center">
-          <div />
-          <div className="flex justify-center overflow-x-auto">
-            <Pagination
-              page={page}
-              lastPage={lastPage}
-              totalItems={totalItems}
-              hasPrev={hasPrev}
-              hasNext={hasNext}
-              loading={loading}
-              buildPageUrl={buildPageUrl}
-              onFirst={onFirst}
-              onPrev={onPrev}
-              onGoToPage={onGoToPage}
-              onNext={onNext}
-              onLast={onLast}
-              waterfallMode={waterfallMode}
-              onWaterfallModeChange={onWaterfallModeChange}
-            />
-          </div>
-          <div className="flex justify-end">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{zh('排序', 'Sort')}</span>
-              <button
-                type="button"
-                onClick={openSortMenu}
-                aria-haspopup="dialog"
-                aria-expanded={Boolean(sortAnchorEl)}
-                aria-label={zh('修改当前女优排序方式', 'Change current idol sort')}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 shadow-sm hover:border-gray-400"
-              >
-                {isFavoriteOrder ? (
-                  <span className="font-semibold">{zh('自定义顺序', 'Custom order')}</span>
-                ) : (
-                  <SortText option={currentOption} value={effectiveSort} />
-                )}
-                <span
-                  aria-hidden="true"
-                  className="block h-1.5 w-1.5 rotate-45 border-b border-r border-gray-400"
-                />
-              </button>
-            </div>
-            <Popover
-              open={Boolean(sortAnchorEl)}
-              anchorEl={sortAnchorEl}
-              onClose={closeSortMenu}
-              disableScrollLock
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      <div className="sticky-pagination pagination-toolbar-grid relative mb-2.5 grid md:grid-cols-[1fr_auto_1fr] md:items-center">
+        <div />
+        <div className="flex justify-center overflow-x-auto">
+          <Pagination
+            page={page}
+            lastPage={lastPage}
+            totalItems={totalItems}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            loading={loading}
+            buildPageUrl={buildPageUrl}
+            onFirst={onFirst}
+            onPrev={onPrev}
+            onGoToPage={onGoToPage}
+            onNext={onNext}
+            onLast={onLast}
+            waterfallMode={waterfallMode}
+            onWaterfallModeChange={onWaterfallModeChange}
+          />
+        </div>
+        <div className="flex justify-end">
+          <div className="pagination-sort-group flex items-center">
+            <span className="pagination-sort-label text-gray-500">{zh('排序', 'Sort')}</span>
+            <button
+              type="button"
+              onClick={openSortMenu}
+              aria-haspopup="dialog"
+              aria-expanded={Boolean(sortAnchorEl)}
+              aria-label={zh('修改当前女优排序方式', 'Change current idol sort')}
+              className="pagination-sort-button"
             >
-              <div className="flex min-w-[180px] flex-col p-1">
-                {idolGlobalSort === IDOL_FAVORITE_ORDER_SORT ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      closeSortMenu()
-                      setIdolTempSort?.('')
-                    }}
-                    className={`rounded px-2 py-1 text-left text-xs font-semibold ${
-                      isFavoriteOrder
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-50'
+              {isFavoriteOrder ? (
+                <span className="font-semibold">{zh('自定义顺序', 'Custom order')}</span>
+              ) : (
+                <SortText option={currentOption} value={effectiveSort} />
+              )}
+              <span aria-hidden="true" className="pagination-sort-caret" />
+            </button>
+          </div>
+          <Popover
+            open={Boolean(sortAnchorEl)}
+            anchorEl={sortAnchorEl}
+            onClose={closeSortMenu}
+            disableScrollLock
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <div className="pagination-sort-menu">
+              {idolGlobalSort === IDOL_FAVORITE_ORDER_SORT ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    closeSortMenu()
+                    setIdolTempSort?.('')
+                  }}
+                  className={`pagination-sort-option rounded font-semibold ${
+                    isFavoriteOrder ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  {zh('自定义顺序', 'Custom order')}
+                </button>
+              ) : null}
+              {IDOL_SORT_OPTIONS.map((option) => {
+                const active = isOptionActive(option)
+                const displayValue = active ? effectiveSort : option.defaultValue
+                return (
+                  <div
+                    key={option.base}
+                    className={`pagination-sort-row ${
+                      active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
                     }`}
                   >
-                    {zh('自定义顺序', 'Custom order')}
-                  </button>
-                ) : null}
-                {IDOL_SORT_OPTIONS.map((option) => {
-                  const active = isOptionActive(option)
-                  const displayValue = active ? effectiveSort : option.defaultValue
-                  return (
-                    <div
-                      key={option.base}
-                      className={`flex items-center gap-1 rounded ${
-                        active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
-                      }`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeSortMenu()
+                        setIdolTempSort?.(displayValue)
+                      }}
+                      className="pagination-sort-option"
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closeSortMenu()
-                          setIdolTempSort?.(displayValue)
-                        }}
-                        className="min-w-0 flex-1 px-2 py-1 text-left text-xs"
-                      >
-                        <SortText option={option} value={displayValue} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          closeSortMenu()
-                          setIdolTempSort?.(
-                            reverseSortValue([option], displayValue, option.defaultValue)
-                          )
-                        }}
-                        className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-500 hover:bg-white hover:text-blue-700"
-                        title={zh('反转排序', 'Reverse sort')}
-                        aria-label={zh(
-                          `反转${option.label[0]}排序`,
-                          `Reverse ${option.label[1]} sort`
-                        )}
-                      >
-                        <SwapVertIcon fontSize="inherit" />
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-            </Popover>
-          </div>
+                      <SortText option={option} value={displayValue} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        closeSortMenu()
+                        setIdolTempSort?.(
+                          reverseSortValue([option], displayValue, option.defaultValue)
+                        )
+                      }}
+                      className="pagination-sort-reverse"
+                      title={zh('反转排序', 'Reverse sort')}
+                      aria-label={zh(
+                        `反转${option.label[0]}排序`,
+                        `Reverse ${option.label[1]} sort`
+                      )}
+                    >
+                      <SwapVertIcon fontSize="inherit" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </Popover>
         </div>
       </div>
       {loading ? (

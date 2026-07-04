@@ -1,5 +1,6 @@
-import { Button } from '@mui/material'
+import { Button, IconButton, Tooltip } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
 import { zh } from '@/utils/i18n'
 
 export default function SelectionOpsModal({
@@ -9,6 +10,7 @@ export default function SelectionOpsModal({
   selectedCount,
   onOpenTags,
   onOpenRemoveTags,
+  onRemoveSelected,
   onDeleteSelected,
   deleting = false,
 }) {
@@ -30,14 +32,31 @@ export default function SelectionOpsModal({
             ✕
           </button>
         </div>
-        <div className="max-h-64 overflow-y-auto rounded border bg-gray-50 p-2 text-sm">
+        <div className="max-h-[60vh] overflow-y-auto rounded border bg-gray-50 p-2 text-sm">
           {list.length === 0 ? (
             <div className="text-gray-500">{zh('暂无选择', 'No files selected')}</div>
           ) : (
-            <ul className="space-y-1">
+            <ul className="space-y-0.5">
               {list.map((item) => (
-                <li key={item.id} className="truncate text-gray-800">
-                  {item.label}
+                <li
+                  key={item.id}
+                  className="flex min-w-0 items-center gap-2 rounded px-2 py-0.5 text-gray-800"
+                >
+                  <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                  <Tooltip title={zh('移除所选', 'Remove from selection')} arrow>
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => onRemoveSelected?.(item.id)}
+                        disabled={deleting}
+                        aria-label={zh('移除所选', 'Remove from selection')}
+                        className="!h-6 !w-6 !p-0"
+                      >
+                        <RemoveCircleOutlineRoundedIcon fontSize="inherit" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
                 </li>
               ))}
             </ul>

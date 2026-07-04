@@ -1958,6 +1958,21 @@ export default function App() {
     setSelectionTagChoices([])
   }, [selectedCount])
 
+  const handleRemoveSelectedVideo = useCallback((key) => {
+    if (!key) return
+    useStore.setState((state) => {
+      const normalizedKey = String(key)
+      const nextIds = new Set(state.selectedVideoIds || [])
+      const nextMeta = { ...(state.selectedVideoMeta || {}) }
+      nextIds.delete(normalizedKey)
+      delete nextMeta[normalizedKey]
+      return {
+        selectedVideoIds: nextIds,
+        selectedVideoMeta: nextMeta,
+      }
+    })
+  }, [])
+
   const handleDeleteSelection = useCallback(async () => {
     if (selectionDeleting) return
     const targets = selectedList
@@ -2239,8 +2254,6 @@ export default function App() {
         selectedTags: [],
         searchTerm: '',
         page: 1,
-        selectedVideoIds: new Set(),
-        selectedVideoMeta: {},
       })
       setSearchInput('')
       forceReloadVideos()
@@ -2456,6 +2469,64 @@ export default function App() {
     ]
   )
 
+  const patchFavoriteCountInCurrentList = useCallback(
+    (entityType, entityID, groupIds) => {
+      const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
+      const id = Number(entityID)
+      if (!Number.isFinite(id) || id <= 0) return
+
+      const nextGroupIds = Array.from(
+        new Set((groupIds || []).map((value) => Number(value)).filter((value) => value > 0))
+      )
+      const nextGroupSet = new Set(nextGroupIds)
+      const activeGroupID = Number(activeFavoriteGroupId(type))
+      const removeFromCurrentList =
+        Number.isFinite(activeGroupID) && activeGroupID > 0
+          ? !nextGroupSet.has(activeGroupID)
+          : false
+      const listKey =
+        type === 'jav'
+          ? 'javItems'
+          : type === 'studio'
+            ? 'studioItems'
+            : type === 'series'
+              ? 'seriesItems'
+              : 'idolItems'
+      const totalKey =
+        type === 'jav'
+          ? 'javTotal'
+          : type === 'studio'
+            ? 'studioTotal'
+            : type === 'series'
+              ? 'seriesTotal'
+              : 'idolTotal'
+
+      useStore.setState((state) => {
+        const items = Array.isArray(state[listKey]) ? state[listKey] : []
+        let changed = false
+        const nextItems = removeFromCurrentList
+          ? items.filter((item) => {
+              const keep = Number(item?.id) !== id
+              if (!keep) changed = true
+              return keep
+            })
+          : items.map((item) => {
+              if (Number(item?.id) !== id) return item
+              changed = true
+              return { ...item, favorite_count: nextGroupIds.length }
+            })
+        if (!changed) return {}
+        return {
+          [listKey]: nextItems,
+          ...(removeFromCurrentList
+            ? { [totalKey]: Math.max(0, Number(state[totalKey] || 0) - 1) }
+            : {}),
+        }
+      })
+    },
+    [activeFavoriteGroupId]
+  )
+
   const handleCreateFavoriteGroup = useCallback(
     async (name, entityType = favoriteModalEntityType) => {
       const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
@@ -2496,18 +2567,26 @@ export default function App() {
       setIdolFavoriteModalError('')
       try {
         await replaceJavFavoriteGroups(type, entityID, groupIds)
+        patchFavoriteCountInCurrentList(type, entityID, groupIds)
         setIdolFavoriteModalOpen(false)
         setIdolFavoriteModalItem(null)
         setFavoriteModalEntityType('idol')
         setIdolFavoriteSelectedIds([])
-        await reloadFavoriteData(type)
+        if (type === 'idol') await loadJavIdolFavoriteGroups({ force: true })
+        else await loadJavFavoriteGroups(type, { force: true })
       } catch (err) {
         setIdolFavoriteModalError(err.message || zh('保存收藏夹失败', 'Failed to save favorites'))
       } finally {
         setIdolFavoriteModalSaving(false)
       }
     },
-    [favoriteModalEntityType, idolFavoriteModalItem, reloadFavoriteData]
+    [
+      favoriteModalEntityType,
+      idolFavoriteModalItem,
+      loadJavFavoriteGroups,
+      loadJavIdolFavoriteGroups,
+      patchFavoriteCountInCurrentList,
+    ]
   )
 
   const handleSaveIdolFavoriteGroups = handleSaveFavoriteGroups
@@ -2952,6 +3031,9 @@ export default function App() {
         enabledDirectoryIds={enabledDirectoryIds}
         onEnabledDirectoryIdsChange={setEnabledDirectoryIds}
         hostPathPrefixEnabled={hostPathPrefixEnabled}
+        selectedCount={selectedCount}
+        onOpenSelectionOps={() => setSelectionOpsOpen(true)}
+        onClearSelection={clearSelection}
       />
 
       <main className="page-main w-full pb-6 pt-0">
@@ -3087,9 +3169,6 @@ export default function App() {
           />
         ) : (
           <VideoRoute
-            selectedCount={selectedCount}
-            clearSelection={clearSelection}
-            setSelectionOpsOpen={setSelectionOpsOpen}
             page={page}
             lastPage={lastPage}
             totalItems={total}
@@ -3325,6 +3404,7 @@ export default function App() {
         selectedList={selectedList}
         selectedCount={selectedCount}
         deleting={selectionDeleting}
+        onRemoveSelected={handleRemoveSelectedVideo}
         onOpenTags={() => {
           loadTags()
           setSelectionTagAction('add')
