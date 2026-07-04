@@ -249,6 +249,53 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 	return GetVideo(ctx, videoID)
 }
 
+// UpdateVideoCoverScreenshotName stores the screenshot filename used as a video's custom cover.
+// Empty names restore the default generated thumbnail.
+func UpdateVideoCoverScreenshotName(ctx context.Context, videoID int64, name string) (*models.Video, error) {
+	if videoID <= 0 {
+		return nil, errors.New("video id cannot be zero")
+	}
+	name = strings.TrimSpace(name)
+
+	res := common.DB.WithContext(ctx).
+		Model(&models.Video{}).
+		Where("id = ?", videoID).
+		Where("EXISTS (?)", activeVideoLocationSubquery(ctx)).
+		Updates(map[string]any{
+			"cover_screenshot_name": name,
+			"updated_at":            time.Now(),
+		})
+	if res.Error != nil {
+		return nil, fmt.Errorf("update video cover screenshot: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return nil, nil
+	}
+	return GetVideo(ctx, videoID)
+}
+
+// ClearVideoCoverScreenshotNameIfMatch restores the default thumbnail when a referenced screenshot is removed.
+func ClearVideoCoverScreenshotNameIfMatch(ctx context.Context, videoID int64, name string) error {
+	if videoID <= 0 {
+		return errors.New("video id cannot be zero")
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Video{}).
+		Where("id = ?", videoID).
+		Where("cover_screenshot_name = ?", name).
+		Updates(map[string]any{
+			"cover_screenshot_name": "",
+			"updated_at":            time.Now(),
+		}).Error; err != nil {
+		return fmt.Errorf("clear video cover screenshot: %w", err)
+	}
+	return nil
+}
+
 func javScrapeOverrideCode(override string) string {
 	override = strings.TrimSpace(override)
 	if strings.EqualFold(override, models.JavScrapeOverrideSkip) {

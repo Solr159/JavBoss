@@ -19,6 +19,8 @@ func RegisterRoutes(router *gin.Engine) {
 	router.GET("/videos/:id/stream.m3u8", streamHLSManifest)
 	router.GET("/videos/:id/stream.m3u8/:segment", streamHLSSegment)
 	router.GET("/videos/:id/thumbnail", getThumbnail)
+	router.PUT("/videos/:id/cover", updateVideoCover)
+	router.DELETE("/videos/:id/cover", resetVideoCover)
 	router.GET("/videos/:id/screenshots", listVideoScreenshots)
 	router.POST("/videos/:id/screenshots", createVideoScreenshot)
 	router.GET("/videos/:id/screenshots/:name", getVideoScreenshot)

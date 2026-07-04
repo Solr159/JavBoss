@@ -50,6 +50,10 @@ export default function VideoCard({
   const hasScrapeOverride = Boolean(String(video?.jav_scrape_override || '').trim())
   const canOpenFile = Boolean(onOpenFile)
   const canRevealFile = Boolean(onRevealFile)
+  const thumbnailVersion = encodeURIComponent(
+    [video?.cover_screenshot_name || '', video?.updated_at || ''].join('|')
+  )
+  const thumbnailSrc = `/videos/${video.id}/thumbnail${thumbnailVersion ? `?v=${thumbnailVersion}` : ''}`
 
   const handleOpenFile = async (event) => {
     event.stopPropagation()
@@ -130,10 +134,13 @@ export default function VideoCard({
       ) : null}
       <div className="relative aspect-video w-full overflow-hidden bg-gray-200">
         <img
-          src={`/videos/${video.id}/thumbnail`}
+          src={thumbnailSrc}
           alt={displayName}
           className="h-full w-full object-cover"
           loading="lazy"
+          onLoad={(e) => {
+            e.currentTarget.style.display = ''
+          }}
           onError={(e) => {
             e.currentTarget.style.display = 'none'
           }}

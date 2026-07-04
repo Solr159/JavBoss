@@ -181,6 +181,67 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 	}
 }
 
+func TestUpdateVideoCoverScreenshotName(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	video := models.Video{
+		DirectoryID: dir.ID,
+		Path:        "movie.mp4",
+		Filename:    "movie.mp4",
+		Fingerprint: "cover-fp",
+		ModifiedAt:  now,
+		CreatedAt:   now,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	createVideoLocationsForVideos(t, gdb, video)
+
+	updated, err := UpdateVideoCoverScreenshotName(ctx, video.ID, " mpv_00-00-05.jpg ")
+	if err != nil {
+		t.Fatalf("update video cover: %v", err)
+	}
+	if updated == nil || updated.CoverScreenshotName != "mpv_00-00-05.jpg" {
+		t.Fatalf("unexpected cover after update: %#v", updated)
+	}
+
+	if err := ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_other.jpg"); err != nil {
+		t.Fatalf("clear non-matching cover: %v", err)
+	}
+	got, err := GetVideo(ctx, video.ID)
+	if err != nil {
+		t.Fatalf("get video after non-matching clear: %v", err)
+	}
+	if got.CoverScreenshotName != "mpv_00-00-05.jpg" {
+		t.Fatalf("cover changed after non-matching clear: %q", got.CoverScreenshotName)
+	}
+
+	if err := ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_00-00-05.jpg"); err != nil {
+		t.Fatalf("clear matching cover: %v", err)
+	}
+	got, err = GetVideo(ctx, video.ID)
+	if err != nil {
+		t.Fatalf("get video after matching clear: %v", err)
+	}
+	if got.CoverScreenshotName != "" {
+		t.Fatalf("cover was not cleared: %q", got.CoverScreenshotName)
+	}
+
+	updated, err = UpdateVideoCoverScreenshotName(ctx, video.ID, "")
+	if err != nil {
+		t.Fatalf("reset video cover: %v", err)
+	}
+	if updated == nil || updated.CoverScreenshotName != "" {
+		t.Fatalf("unexpected cover after reset: %#v", updated)
+	}
+}
+
 func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
@@ -547,7 +608,7 @@ func assertVideoContentSchema(t *testing.T, db *gorm.DB) {
 		t.Fatalf("iterate video columns: %v", err)
 	}
 
-	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at", "jav_scrape_override"}
+	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at", "jav_scrape_override", "cover_screenshot_name"}
 	if len(columns) != len(wantColumns) {
 		t.Fatalf("unexpected video columns: got %#v want %v", columns, wantColumns)
 	}

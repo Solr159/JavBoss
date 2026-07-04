@@ -1389,6 +1389,20 @@ export default function App() {
     loadVideos({ force: true })
   }, [configLoaded, hydrated, loadVideos])
 
+  const handleVideoCoverChanged = useCallback(
+    (updated) => {
+      if (updated?.id && screenshotsVideo?.id === updated.id) {
+        setScreenshotsVideo((current) =>
+          current?.id === updated.id ? { ...current, ...updated } : current
+        )
+      }
+      if (!hydrated || !configLoaded) return
+      loadVideos({ force: true })
+      loadJavs({ force: true })
+    },
+    [configLoaded, hydrated, loadJavs, loadVideos, screenshotsVideo?.id]
+  )
+
   const forceReloadJavByTab = useCallback(
     (tab) => {
       if (!hydrated || !configLoaded) return
@@ -3199,6 +3213,7 @@ export default function App() {
         playerHotkeys={config?.player_hotkeys}
         onClose={() => setScreenshotsVideo(null)}
         onPlayAtTime={playVideoFromTime}
+        onCoverChanged={handleVideoCoverChanged}
       />
 
       <PlayerModal

@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import RestoreIcon from '@mui/icons-material/Restore'
 import ZoomInIcon from '@mui/icons-material/ZoomIn'
 import { IconButton, Tooltip } from '@mui/material'
-import { deleteVideoScreenshot, fetchVideoScreenshots } from '@/api'
+import {
+  deleteVideoScreenshot,
+  fetchVideoScreenshots,
+  resetVideoCover,
+  updateVideoCover,
+} from '@/api'
 import { getVideoDisplayName } from '@/utils/display'
 import { zh } from '@/utils/i18n'
 import {
@@ -13,14 +21,22 @@ import {
   parsePlayerHotkeys,
 } from '@/utils/playerHotkeys'
 
-export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, onPlayAtTime }) {
+export default function VideoScreenshotsModal({
+  video,
+  playerHotkeys,
+  onClose,
+  onPlayAtTime,
+  onCoverChanged,
+}) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [previewItem, setPreviewItem] = useState(null)
   const [deletingName, setDeletingName] = useState('')
+  const [settingCoverName, setSettingCoverName] = useState('')
   const open = Boolean(video?.id)
   const title = useMemo(() => getVideoDisplayName(video), [video])
+  const currentCoverName = useMemo(() => items.find((item) => item?.is_cover)?.name || '', [items])
   const screenshotKey = useMemo(() => {
     const hotkeys = parsePlayerHotkeys(playerHotkeys)
     const screenshotHotkey = hotkeys.find(
@@ -38,6 +54,7 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
     setItems([])
     setPreviewItem(null)
     setDeletingName('')
+    setSettingCoverName('')
     fetchVideoScreenshots(video.id)
       .then((nextItems) => {
         if (!cancelled) setItems(nextItems)
@@ -88,11 +105,46 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
       await deleteVideoScreenshot(video.id, item.name)
       setItems((current) => current.filter((candidate) => candidate.name !== item.name))
       setPreviewItem((current) => (current?.name === item.name ? null : current))
+      if (item.is_cover) onCoverChanged?.()
     } catch (err) {
       console.error(zh('删除截图失败', 'Failed to delete screenshot'), err)
       setError(err?.message || zh('删除截图失败', 'Failed to delete screenshot'))
     } finally {
       setDeletingName('')
+    }
+  }
+
+  const handleSetCover = async (item) => {
+    if (!video?.id || !item?.name || settingCoverName || item.is_cover) return
+    setSettingCoverName(item.name)
+    setError('')
+    try {
+      const updated = await updateVideoCover(video.id, item.name)
+      setItems((current) =>
+        current.map((candidate) => ({ ...candidate, is_cover: candidate.name === item.name }))
+      )
+      onCoverChanged?.(updated)
+    } catch (err) {
+      console.error(zh('保存视频封面失败', 'Failed to save video cover'), err)
+      setError(err?.message || zh('保存视频封面失败', 'Failed to save video cover'))
+    } finally {
+      setSettingCoverName('')
+    }
+  }
+
+  const handleResetCover = async () => {
+    if (!video?.id || settingCoverName || !currentCoverName) return
+    setSettingCoverName(currentCoverName)
+    setError('')
+    try {
+      const updated = await resetVideoCover(video.id)
+      setItems((current) => current.map((candidate) => ({ ...candidate, is_cover: false })))
+      onCoverChanged?.(updated)
+    } catch (err) {
+      console.error(zh('恢复默认封面失败', 'Failed to restore default cover'), err)
+      setError(err?.message || zh('恢复默认封面失败', 'Failed to restore default cover'))
+    } finally {
+      setSettingCoverName('')
     }
   }
 
@@ -108,13 +160,29 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
               {title}
             </div>
           </div>
-          <IconButton
-            size="small"
-            onClick={onClose}
-            aria-label={zh('关闭截图弹窗', 'Close screenshots modal')}
-          >
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
+          <div className="flex items-center gap-1">
+            {currentCoverName ? (
+              <Tooltip title={zh('恢复默认封面', 'Restore default cover')}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={handleResetCover}
+                    disabled={Boolean(settingCoverName)}
+                    aria-label={zh('恢复默认封面', 'Restore default cover')}
+                  >
+                    <RestoreIcon fontSize="inherit" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : null}
+            <IconButton
+              size="small"
+              onClick={onClose}
+              aria-label={zh('关闭截图弹窗', 'Close screenshots modal')}
+            >
+              <CloseIcon fontSize="inherit" />
+            </IconButton>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -150,6 +218,12 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
                         loading="lazy"
                         className="h-full w-full object-contain"
                       />
+                      {item.is_cover ? (
+                        <div className="absolute left-2 top-2 z-10 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded bg-emerald-600/90 px-2 py-1 text-xs font-medium text-white">
+                          <CheckCircleOutlineIcon className="h-4 w-4" fontSize="inherit" />
+                          <span className="truncate">{zh('当前封面', 'Current cover')}</span>
+                        </div>
+                      ) : null}
                       <Tooltip title={zh('删除截图', 'Delete screenshot')}>
                         <IconButton
                           size="small"
@@ -180,6 +254,32 @@ export default function VideoScreenshotsModal({ video, playerHotkeys, onClose, o
                               className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
                             >
                               <PlayArrowIcon fontSize="medium" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            item.is_cover
+                              ? zh('当前封面', 'Current cover')
+                              : zh('设为封面', 'Set as cover')
+                          }
+                        >
+                          <span>
+                            <IconButton
+                              onClick={() => handleSetCover(item)}
+                              disabled={Boolean(settingCoverName) || item.is_cover}
+                              aria-label={
+                                item.is_cover
+                                  ? zh('当前封面', 'Current cover')
+                                  : zh('设为封面', 'Set as cover')
+                              }
+                              className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                            >
+                              {item.is_cover ? (
+                                <CheckCircleOutlineIcon fontSize="medium" />
+                              ) : (
+                                <ImageOutlinedIcon fontSize="medium" />
+                              )}
                             </IconButton>
                           </span>
                         </Tooltip>

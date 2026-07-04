@@ -117,6 +117,11 @@ type videoScreenshotInfo struct {
 	URL        string    `json:"url"`
 	Size       int64     `json:"size"`
 	ModifiedAt time.Time `json:"modified_at"`
+	IsCover    bool      `json:"is_cover"`
+}
+
+type videoCoverRequest struct {
+	ScreenshotName string `json:"screenshot_name"`
 }
 
 type renameVideoLocationRequest struct {
@@ -1119,17 +1124,23 @@ func getThumbnail(c *gin.Context) {
 		return
 	}
 
+	if common.AppConfig == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	dataDir := filepath.Dir(common.AppConfig.DatabasePath)
+
+	if path, ok := customVideoCoverPath(dataDir, video); ok {
+		c.File(path)
+		return
+	}
+
 	second, ok := manager.PickScreenshotSecond(video.DurationSec)
 	if !ok {
 		c.Status(http.StatusNotFound)
 		return
 	}
 
-	if common.AppConfig == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
-		return
-	}
-	dataDir := filepath.Dir(common.AppConfig.DatabasePath)
 	screenshotPath := manager.ScreenshotPath(dataDir, video.ID, second)
 	if screenshotPath == "" {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -1150,10 +1161,80 @@ func getThumbnail(c *gin.Context) {
 	c.File(screenshotPath)
 }
 
+func updateVideoCover(c *gin.Context) {
+	var req videoCoverRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	name := filepath.Base(strings.TrimSpace(req.ScreenshotName))
+	if !isScreenshotImageName(name) || name != strings.TrimSpace(req.ScreenshotName) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid screenshot name"})
+		return
+	}
+
+	id, screenshotDir, ok := resolveVideoScreenshotDir(c)
+	if !ok {
+		return
+	}
+	screenshotPath := filepath.Join(screenshotDir, name)
+	if _, err := os.Stat(screenshotPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			c.Status(http.StatusNotFound)
+			return
+		}
+		logging.Error("stat video cover screenshot error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	updated, err := dbpkg.UpdateVideoCoverScreenshotName(c.Request.Context(), id, name)
+	if err != nil {
+		logging.Error("update video cover error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if updated == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.JSON(http.StatusOK, updated)
+}
+
+func resetVideoCover(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return
+	}
+	updated, err := dbpkg.UpdateVideoCoverScreenshotName(c.Request.Context(), id, "")
+	if err != nil {
+		logging.Error("reset video cover error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if updated == nil {
+		c.Status(http.StatusNotFound)
+		return
+	}
+	c.JSON(http.StatusOK, updated)
+}
+
 func listVideoScreenshots(c *gin.Context) {
 	id, screenshotDir, ok := resolveVideoScreenshotDir(c)
 	if !ok {
 		return
+	}
+	video, err := dbpkg.GetVideo(c.Request.Context(), id)
+	if err != nil {
+		logging.Error("get video for screenshot cover state error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	coverName := ""
+	if video != nil {
+		coverName = strings.TrimSpace(video.CoverScreenshotName)
 	}
 
 	entries, err := os.ReadDir(screenshotDir)
@@ -1185,6 +1266,7 @@ func listVideoScreenshots(c *gin.Context) {
 			URL:        imageURL,
 			Size:       info.Size(),
 			ModifiedAt: info.ModTime(),
+			IsCover:    name == coverName,
 		})
 	}
 
@@ -1288,7 +1370,7 @@ func getVideoScreenshot(c *gin.Context) {
 }
 
 func deleteVideoScreenshot(c *gin.Context) {
-	_, screenshotDir, ok := resolveVideoScreenshotDir(c)
+	id, screenshotDir, ok := resolveVideoScreenshotDir(c)
 	if !ok {
 		return
 	}
@@ -1306,6 +1388,12 @@ func deleteVideoScreenshot(c *gin.Context) {
 			return
 		}
 		logging.Error("delete video screenshot error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+
+	if err := dbpkg.ClearVideoCoverScreenshotNameIfMatch(c.Request.Context(), id, name); err != nil {
+		logging.Error("clear deleted video cover screenshot error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
 		return
 	}
@@ -1368,4 +1456,19 @@ func isScreenshotImageName(name string) bool {
 	default:
 		return false
 	}
+}
+
+func customVideoCoverPath(dataDir string, video *models.Video) (string, bool) {
+	if video == nil || video.ID <= 0 {
+		return "", false
+	}
+	name := strings.TrimSpace(video.CoverScreenshotName)
+	if !isScreenshotImageName(name) {
+		return "", false
+	}
+	screenshotPath := filepath.Join(dataDir, "video", strconv.FormatInt(video.ID, 10), "screenshot", name)
+	if _, err := os.Stat(screenshotPath); err != nil {
+		return "", false
+	}
+	return screenshotPath, true
 }

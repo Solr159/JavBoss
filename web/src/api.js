@@ -267,6 +267,28 @@ export async function deleteVideoScreenshot(videoId, name) {
   }
 }
 
+export async function updateVideoCover(videoId, screenshotName) {
+  const res = await apiFetch(`/videos/${videoId}/cover`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ screenshot_name: screenshotName }),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('保存视频封面失败', 'Failed to save video cover'))
+  }
+  return res.json()
+}
+
+export async function resetVideoCover(videoId) {
+  const res = await apiFetch(`/videos/${videoId}/cover`, { method: 'DELETE' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('恢复默认封面失败', 'Failed to restore default cover'))
+  }
+  return res.json()
+}
+
 export async function renameVideoLocation(videoId, locationId, filename) {
   const res = await apiFetch(`/videos/${videoId}/locations/${locationId}`, {
     method: 'PATCH',
