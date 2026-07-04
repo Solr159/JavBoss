@@ -42,8 +42,8 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "osd-playing-msg-duration=5000\n") {
 		t.Fatalf("expected osd-playing-msg-duration=5000 in mpv config, got %q", content)
 	}
-	if !strings.Contains(content, "video-align-y=1\n") {
-		t.Fatalf("expected video-align-y=1 in mpv config, got %q", content)
+	if !strings.Contains(content, "video-align-y=0\n") {
+		t.Fatalf("expected video-align-y=0 in mpv config, got %q", content)
 	}
 	if !strings.Contains(content, "video-margin-ratio-bottom=0.125\n") {
 		t.Fatalf("expected video-margin-ratio-bottom=0.125 in mpv config, got %q", content)

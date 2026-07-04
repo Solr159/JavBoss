@@ -403,7 +403,7 @@ func buildConfigContent() (string, error) {
 		"keepaspect-window=no",
 		fmt.Sprintf("ontop=%s", mpvBool(ontop)),
 		fmt.Sprintf("osd-playing-msg-duration=%d", startupHintDuration),
-		"video-align-y=1",
+		"video-align-y=0",
 		"video-margin-ratio-bottom=0.125",
 		"watch-later-options-remove=sub-pos,osd-margin-y",
 	}
