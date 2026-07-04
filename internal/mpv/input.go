@@ -21,13 +21,15 @@ const playerWindowHeightConfigKey = "player_window_height"
 const playerWindowUseAutofitConfigKey = "player_window_use_autofit"
 const playerVolumeConfigKey = "player_volume"
 const playerOntopConfigKey = "player_ontop"
+const playerReuseWindowConfigKey = "player_reuse_window"
 const playerShowHotkeyHintConfigKey = "player_show_hotkey_hint"
 
 const (
 	defaultWindowWidth  = 80
 	defaultWindowHeight = 80
 	defaultVolume       = 70
-	defaultOntop        = true
+	defaultOntop        = false
+	defaultReuseWindow  = true
 	startupHintDuration = 5000
 )
 
@@ -465,6 +467,31 @@ func loadConfiguredPlayerBaseSettings() (int, int, bool, int, bool, error) {
 	}
 
 	return windowWidth, windowHeight, useAutofit, volume, ontop, nil
+}
+
+func loadConfiguredPlayerReuseWindow() bool {
+	if common.DB == nil {
+		return defaultReuseWindow
+	}
+
+	cfg, err := dbpkg.ListConfig(context.Background())
+	if err != nil {
+		logging.Error("list player reuse window config failed, using default: %v", err)
+		return defaultReuseWindow
+	}
+
+	raw := strings.TrimSpace(cfg[playerReuseWindowConfigKey])
+	if raw == "" {
+		return defaultReuseWindow
+	}
+	switch strings.ToLower(raw) {
+	case "0", "false", "no", "off":
+		return false
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return defaultReuseWindow
+	}
 }
 
 func loadConfiguredPlayerShowHotkeyHint() (bool, error) {

@@ -32,7 +32,8 @@ const PLAYER_BASIC_DEFAULTS = {
   windowWidth: 80,
   windowHeight: 80,
   windowUseAutofit: false,
-  ontop: true,
+  ontop: false,
+  reuseWindow: true,
   volume: 70,
   showHotkeyHint: true,
 }
@@ -65,6 +66,7 @@ export default function GlobalSettingsModal({
   playerWindowHeight,
   playerWindowUseAutofit,
   playerOntop,
+  playerReuseWindow,
   playerVolume,
   playerShowHotkeyHint,
   onSavePlayerBasicSettings,
@@ -94,7 +96,8 @@ export default function GlobalSettingsModal({
   const [playerWindowWidthInput, setPlayerWindowWidthInput] = useState('')
   const [playerWindowHeightInput, setPlayerWindowHeightInput] = useState('')
   const [playerWindowUseAutofitInput, setPlayerWindowUseAutofitInput] = useState(false)
-  const [playerOntopInput, setPlayerOntopInput] = useState(true)
+  const [playerOntopInput, setPlayerOntopInput] = useState(false)
+  const [playerReuseWindowInput, setPlayerReuseWindowInput] = useState(true)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
 
@@ -105,6 +108,7 @@ export default function GlobalSettingsModal({
     setPlayerWindowHeightInput(String(PLAYER_BASIC_DEFAULTS.windowHeight))
     setPlayerWindowUseAutofitInput(PLAYER_BASIC_DEFAULTS.windowUseAutofit)
     setPlayerOntopInput(PLAYER_BASIC_DEFAULTS.ontop)
+    setPlayerReuseWindowInput(PLAYER_BASIC_DEFAULTS.reuseWindow)
     setPlayerVolumeInput(String(PLAYER_BASIC_DEFAULTS.volume))
     setPlayerShowHotkeyHintInput(PLAYER_BASIC_DEFAULTS.showHotkeyHint)
     setPlayerBasicError('')
@@ -133,6 +137,7 @@ export default function GlobalSettingsModal({
         playerWindowUseAutofit ?? PLAYER_BASIC_DEFAULTS.windowUseAutofit
       )
       setPlayerOntopInput(playerOntop ?? PLAYER_BASIC_DEFAULTS.ontop)
+      setPlayerReuseWindowInput(playerReuseWindow ?? PLAYER_BASIC_DEFAULTS.reuseWindow)
       setPlayerVolumeInput(String(playerVolume ?? PLAYER_BASIC_DEFAULTS.volume))
       setPlayerShowHotkeyHintInput(playerShowHotkeyHint ?? PLAYER_BASIC_DEFAULTS.showHotkeyHint)
     }
@@ -147,6 +152,7 @@ export default function GlobalSettingsModal({
     playerWindowHeight,
     playerWindowUseAutofit,
     playerOntop,
+    playerReuseWindow,
     playerVolume,
     playerShowHotkeyHint,
     mpvEnabled,
@@ -684,8 +690,35 @@ export default function GlobalSettingsModal({
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认开启，使 mpv 播放器窗口保持置顶。',
-                      'Enabled by default to keep the mpv player window on top.'
+                      '默认关闭。开启后，mpv 播放器窗口会保持置顶。',
+                      'Disabled by default. When enabled, the mpv player window stays on top.'
+                    )}
+                  </p>
+                </section>
+
+                <section className="space-y-3 border-t border-zinc-200 pt-5">
+                  <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                    <input
+                      type="checkbox"
+                      checked={playerReuseWindowInput}
+                      onChange={(e) => {
+                        setPlayerReuseWindowInput(e.target.checked)
+                        setPlayerBasicError('')
+                        setPlayerBasicSuccess('')
+                      }}
+                      className="h-4 w-4 rounded"
+                    />
+                    <span>
+                      {zh(
+                        '播放新视频时尽可能使用已有播放器窗口',
+                        'Reuse Existing Player Window When Possible'
+                      )}
+                    </span>
+                  </label>
+                  <p className="text-xs text-zinc-500">
+                    {zh(
+                      '默认开启。关闭后，每次播放都会启动新的 mpv 播放器进程。',
+                      'Enabled by default. When disabled, each playback starts a new mpv player process.'
                     )}
                   </p>
                 </section>
@@ -763,6 +796,7 @@ export default function GlobalSettingsModal({
                         player_window_height: height,
                         player_window_use_autofit: playerWindowUseAutofitInput,
                         player_ontop: playerOntopInput,
+                        player_reuse_window: playerReuseWindowInput,
                         player_volume: volume,
                         player_show_hotkey_hint: playerShowHotkeyHintInput,
                       })

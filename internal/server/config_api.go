@@ -65,6 +65,7 @@ func updateConfig(c *gin.Context) {
 		PlayerWindowUseAutofit *bool                 `json:"player_window_use_autofit"`
 		PlayerVolume           *int                  `json:"player_volume"`
 		PlayerOntop            *bool                 `json:"player_ontop"`
+		PlayerReuseWindow      *bool                 `json:"player_reuse_window"`
 		PlayerShowHotkeyHint   *bool                 `json:"player_show_hotkey_hint"`
 		PlayerHotkeys          []playerHotkeyPayload `json:"player_hotkeys"`
 	}
@@ -265,6 +266,9 @@ func updateConfig(c *gin.Context) {
 	if req.PlayerOntop != nil {
 		entries["player_ontop"] = strconv.FormatBool(*req.PlayerOntop)
 	}
+	if req.PlayerReuseWindow != nil {
+		entries["player_reuse_window"] = strconv.FormatBool(*req.PlayerReuseWindow)
+	}
 	if req.PlayerShowHotkeyHint != nil {
 		entries["player_show_hotkey_hint"] = strconv.FormatBool(*req.PlayerShowHotkeyHint)
 	}
@@ -331,7 +335,8 @@ func updateConfig(c *gin.Context) {
 		req.PlayerWindowHeight != nil ||
 		req.PlayerWindowUseAutofit != nil ||
 		req.PlayerVolume != nil ||
-		req.PlayerOntop != nil {
+		req.PlayerOntop != nil ||
+		req.PlayerReuseWindow != nil {
 		mpv.InvalidatePlayerConfigCache()
 		playerSessionResetNeeded = true
 	}

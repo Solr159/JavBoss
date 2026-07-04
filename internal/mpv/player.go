@@ -66,11 +66,32 @@ var (
 
 // PlayVideo launches mpv to play the given file path.
 func PlayVideo(path string, options PlayOptions) error {
+	if !loadConfiguredPlayerReuseWindow() {
+		return playVideoInNewProcess(path, options)
+	}
 	return defaultSession.PlayVideo(path, options)
 }
 
 func ResetPlayerSession() {
 	defaultSession.Reset()
+}
+
+func playVideoInNewProcess(path string, options PlayOptions) error {
+	cmd, err := buildOneShotCommand(path, options)
+	if err != nil {
+		return err
+	}
+	logging.Info("play video command: %v", cmd.Args)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("play video: %w", err)
+	}
+	focusStartedProcessWindow(cmd.Process.Pid, "play video")
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			logging.Error("play video command exited with error: %v", err)
+		}
+	}()
+	return nil
 }
 
 func (s *playerSession) PlayVideo(path string, options PlayOptions) error {
@@ -189,47 +210,61 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	return cmd, err
 }
 
+func buildOneShotCommand(path string, options PlayOptions) (*exec.Cmd, error) {
+	return buildCommandArgs(path, options, "")
+}
+
 func buildCommandWithIPC(path string, options PlayOptions) (*exec.Cmd, string, error) {
-	mpvPath, err := ResolvePath()
-	if err != nil {
-		return nil, "", err
-	}
-	inputConfPath, err := ensureInputConf()
-	if err != nil {
-		return nil, "", err
-	}
-	mpvConfigPath, err := ensureConfig()
-	if err != nil {
-		return nil, "", err
-	}
-	modernZ, err := ensureModernZAssets()
-	if err != nil {
-		return nil, "", err
-	}
 	ipcPath, err := playbackIPCPath()
 	if err != nil {
 		return nil, "", err
 	}
-	args := make([]string, 0, 8)
+	cmd, err := buildCommandArgs(path, options, ipcPath)
+	if err != nil {
+		return nil, "", err
+	}
+	return cmd, ipcPath, nil
+}
+
+func buildCommandArgs(path string, options PlayOptions, ipcPath string) (*exec.Cmd, error) {
+	mpvPath, err := ResolvePath()
+	if err != nil {
+		return nil, err
+	}
+	inputConfPath, err := ensureInputConf()
+	if err != nil {
+		return nil, err
+	}
+	mpvConfigPath, err := ensureConfig()
+	if err != nil {
+		return nil, err
+	}
+	modernZ, err := ensureModernZAssets()
+	if err != nil {
+		return nil, err
+	}
+	args := make([]string, 0, 12)
 	args = append(args, "--config-dir="+modernZ.ConfigDir)
 	if runtime.GOOS == "linux" && os.Getenv("JAVBOSS_BUILD_MODE") != "release" {
 		args = append(args, "--vo=x11")
 	}
 	args = append(args, "--load-scripts=no")
 	args = append(args, "--include="+mpvConfigPath)
-	args = append(args, "--idle=yes")
-	args = append(args, "--force-window=yes")
-	args = append(args, "--input-ipc-server="+ipcPath)
+	if ipcPath != "" {
+		args = append(args, "--idle=yes")
+		args = append(args, "--force-window=yes")
+		args = append(args, "--input-ipc-server="+ipcPath)
+	}
 	args = append(args, buildThumbfastScriptArgs(mpvPath)...)
 	args = append(args, "--script="+modernZ.ScriptPath)
 	args = append(args, "--script="+modernZ.ThumbfastScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
-		return nil, "", err
+		return nil, err
 	} else if len(screenshotArgs) > 0 {
 		args = append(args, screenshotArgs...)
 	}
 	if hotkeyHint, err := buildStartupHotkeyHint(); err != nil {
-		return nil, "", err
+		return nil, err
 	} else if hotkeyHint != "" {
 		args = append(args, "--osd-playing-msg="+hotkeyHint)
 	}
@@ -238,7 +273,7 @@ func buildCommandWithIPC(path string, options PlayOptions) (*exec.Cmd, string, e
 	if strings.TrimSpace(path) != "" {
 		args = append(args, "--", path)
 	}
-	return exec.Command(mpvPath, args...), ipcPath, nil
+	return exec.Command(mpvPath, args...), nil
 }
 
 func buildThumbfastScriptArgs(mpvPath string) []string {

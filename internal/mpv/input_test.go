@@ -33,8 +33,8 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "auto-window-resize=no\n") {
 		t.Fatalf("expected auto-window-resize=no in fixed-size mpv config, got %q", content)
 	}
-	if !strings.Contains(content, "ontop=yes\n") {
-		t.Fatalf("expected ontop=yes in mpv config, got %q", content)
+	if !strings.Contains(content, "ontop=no\n") {
+		t.Fatalf("expected ontop=no in mpv config, got %q", content)
 	}
 	if !strings.Contains(content, "osd-playing-msg-duration=5000\n") {
 		t.Fatalf("expected osd-playing-msg-duration=5000 in mpv config, got %q", content)
@@ -132,7 +132,7 @@ func TestBuildStartupHotkeyHintCanBeDisabled(t *testing.T) {
 func TestBuildConfigContentRespectsConfiguredOntop(t *testing.T) {
 	openConfigTestDB(t)
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		playerOntopConfigKey: "false",
+		playerOntopConfigKey: "true",
 	}); err != nil {
 		t.Fatalf("upsert config: %v", err)
 	}
@@ -142,8 +142,33 @@ func TestBuildConfigContentRespectsConfiguredOntop(t *testing.T) {
 		t.Fatalf("buildConfigContent returned error: %v", err)
 	}
 
-	if !strings.Contains(content, "ontop=no\n") {
-		t.Fatalf("expected ontop=no in mpv config, got %q", content)
+	if !strings.Contains(content, "ontop=yes\n") {
+		t.Fatalf("expected ontop=yes in mpv config, got %q", content)
+	}
+}
+
+func TestLoadConfiguredPlayerReuseWindowDefaultsToTrue(t *testing.T) {
+	prevDB := common.DB
+	common.DB = nil
+	defer func() {
+		common.DB = prevDB
+	}()
+
+	if !loadConfiguredPlayerReuseWindow() {
+		t.Fatal("expected player reuse window to default to true")
+	}
+}
+
+func TestLoadConfiguredPlayerReuseWindowCanBeDisabled(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerReuseWindowConfigKey: "false",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	if loadConfiguredPlayerReuseWindow() {
+		t.Fatal("expected player reuse window to be disabled")
 	}
 }
 

@@ -3544,9 +3544,16 @@ export default function App() {
         }
         playerOntop={
           config?.player_ontop == null
-            ? true
+            ? false
             : !['0', 'false', 'no', 'off'].includes(
                 String(config.player_ontop).trim().toLowerCase()
+              )
+        }
+        playerReuseWindow={
+          config?.player_reuse_window == null
+            ? true
+            : !['0', 'false', 'no', 'off'].includes(
+                String(config.player_reuse_window).trim().toLowerCase()
               )
         }
         playerVolume={
