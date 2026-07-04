@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import CloseIcon from '@mui/icons-material/Close'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RestoreIcon from '@mui/icons-material/Restore'
-import ZoomInIcon from '@mui/icons-material/ZoomIn'
 import { IconButton, Tooltip } from '@mui/material'
 import {
   deleteVideoScreenshot,
@@ -211,7 +212,18 @@ export default function VideoScreenshotsModal({
                     key={item.name}
                     className="group overflow-hidden rounded border border-gray-200 bg-white hover:border-gray-300"
                   >
-                    <div className="relative aspect-video bg-gray-100">
+                    <div
+                      className="relative aspect-video cursor-pointer bg-gray-100"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setPreviewItem(item)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          setPreviewItem(item)
+                        }
+                      }}
+                    >
                       <img
                         src={item.url}
                         alt={item.name}
@@ -227,7 +239,10 @@ export default function VideoScreenshotsModal({
                       <Tooltip title={zh('删除截图', 'Delete screenshot')}>
                         <IconButton
                           size="small"
-                          onClick={() => handleDeleteScreenshot(item)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleDeleteScreenshot(item)
+                          }}
                           disabled={deletingName === item.name}
                           aria-label={zh('删除截图', 'Delete screenshot')}
                           className="!absolute !right-2 !top-2 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100"
@@ -236,19 +251,13 @@ export default function VideoScreenshotsModal({
                         </IconButton>
                       </Tooltip>
                       <div className="absolute inset-0 flex items-center justify-center gap-5 bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
-                        <Tooltip title={zh('放大图片', 'Enlarge image')}>
-                          <IconButton
-                            onClick={() => setPreviewItem(item)}
-                            aria-label={zh('放大图片', 'Enlarge image')}
-                            className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white"
-                          >
-                            <ZoomInIcon fontSize="medium" />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title={zh('从此处播放', 'Play from here')}>
                           <span>
                             <IconButton
-                              onClick={() => onPlayAtTime?.(video, startTime)}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                onPlayAtTime?.(video, startTime)
+                              }}
                               disabled={startTime == null}
                               aria-label={zh('从此处播放', 'Play from here')}
                               className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
@@ -266,7 +275,10 @@ export default function VideoScreenshotsModal({
                         >
                           <span>
                             <IconButton
-                              onClick={() => handleSetCover(item)}
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                handleSetCover(item)
+                              }}
                               disabled={Boolean(settingCoverName) || item.is_cover}
                               aria-label={
                                 item.is_cover
@@ -296,26 +308,47 @@ export default function VideoScreenshotsModal({
         </div>
       </div>
       {previewItem ? (
-        <ScreenshotPreviewModal item={previewItem} onClose={() => setPreviewItem(null)} />
+        <ScreenshotPreviewModal
+          item={previewItem}
+          items={items}
+          onClose={() => setPreviewItem(null)}
+          onSelect={setPreviewItem}
+        />
       ) : null}
     </div>
   )
 }
 
-function ScreenshotPreviewModal({ item, onClose }) {
-  const [scale, setScale] = useState(1)
+function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
+  const lastWheelAtRef = useRef(0)
+  const currentIndex = useMemo(
+    () => items.findIndex((candidate) => candidate?.name === item?.name),
+    [item?.name, items]
+  )
+  const canNavigate = items.length > 1 && currentIndex >= 0
+  const counterText =
+    currentIndex >= 0 ? `${currentIndex + 1}/${items.length}` : `1/${Math.max(1, items.length)}`
+  const goBy = useCallback(
+    (direction) => {
+      if (!canNavigate) return
+      const nextIndex = (currentIndex + direction + items.length) % items.length
+      onSelect?.(items[nextIndex])
+    },
+    [canNavigate, currentIndex, items, onSelect]
+  )
 
   useEffect(() => {
     if (!item?.url) return undefined
 
-    setScale(1)
     const previousOverflow = document.body.style.overflow
     const previousHtmlOverflow = document.documentElement.style.overflow
     const handleWheel = (event) => {
       event.preventDefault()
       event.stopPropagation()
-      const direction = event.deltaY < 0 ? 1 : -1
-      setScale((current) => Math.min(5, Math.max(0.5, current + direction * 0.2)))
+      const now = Date.now()
+      if (now - lastWheelAtRef.current < 180) return
+      lastWheelAtRef.current = now
+      goBy(event.deltaY > 0 ? 1 : -1)
     }
 
     document.body.style.overflow = 'hidden'
@@ -327,13 +360,13 @@ function ScreenshotPreviewModal({ item, onClose }) {
       document.documentElement.style.overflow = previousHtmlOverflow
       window.removeEventListener('wheel', handleWheel, true)
     }
-  }, [item?.url])
+  }, [goBy, item?.url])
 
   if (!item?.url) return null
 
   return (
     <div
-      className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-[1500] flex flex-col items-center justify-center bg-black/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={zh('截图预览', 'Screenshot preview')}
@@ -352,12 +385,40 @@ function ScreenshotPreviewModal({ item, onClose }) {
       >
         ×
       </button>
-      <img
-        src={item.url}
-        alt={item.name || zh('MPV 截图', 'MPV screenshot')}
-        className="relative z-10 max-h-[92vh] max-w-[94vw] transform-gpu cursor-zoom-in object-contain shadow-2xl"
-        style={{ transform: `scale(${scale})` }}
-      />
+      {canNavigate ? (
+        <>
+          <IconButton
+            onClick={(event) => {
+              event.stopPropagation()
+              goBy(-1)
+            }}
+            aria-label={zh('上一张截图', 'Previous screenshot')}
+            className="!absolute !left-4 !top-1/2 !z-20 !h-12 !w-12 !-translate-y-1/2 !bg-black/50 !text-white hover:!bg-black/70"
+          >
+            <ChevronLeftIcon fontSize="large" />
+          </IconButton>
+          <IconButton
+            onClick={(event) => {
+              event.stopPropagation()
+              goBy(1)
+            }}
+            aria-label={zh('下一张截图', 'Next screenshot')}
+            className="!absolute !right-4 !top-1/2 !z-20 !h-12 !w-12 !-translate-y-1/2 !bg-black/50 !text-white hover:!bg-black/70"
+          >
+            <ChevronRightIcon fontSize="large" />
+          </IconButton>
+        </>
+      ) : null}
+      <div className="relative z-10 flex max-w-[82vw] flex-col items-center gap-3">
+        <img
+          src={item.url}
+          alt={item.name || zh('MPV 截图', 'MPV screenshot')}
+          className="max-h-[78vh] max-w-full object-contain shadow-2xl"
+        />
+        <div className="rounded bg-black/50 px-3 py-1 text-sm font-medium text-white">
+          {counterText}
+        </div>
+      </div>
     </div>
   )
 }
