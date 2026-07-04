@@ -1391,16 +1391,57 @@ export default function App() {
 
   const handleVideoCoverChanged = useCallback(
     (updated) => {
-      if (updated?.id && screenshotsVideo?.id === updated.id) {
+      const targetID = Number(updated?.id || screenshotsVideo?.id || 0)
+      if (!targetID) return
+      const coverScreenshotName =
+        typeof updated?.cover_screenshot_name === 'string' ? updated.cover_screenshot_name : ''
+      const updatedAt = updated?.updated_at || new Date().toISOString()
+
+      if (screenshotsVideo?.id === targetID) {
         setScreenshotsVideo((current) =>
-          current?.id === updated.id ? { ...current, ...updated } : current
+          current?.id === targetID
+            ? {
+                ...current,
+                ...(updated || {}),
+                cover_screenshot_name: coverScreenshotName,
+                updated_at: updatedAt,
+              }
+            : current
         )
       }
-      if (!hydrated || !configLoaded) return
-      loadVideos({ force: true })
-      loadJavs({ force: true })
+      useStore.setState((state) => ({
+        videos: Array.isArray(state.videos)
+          ? state.videos.map((video) =>
+              video?.id === targetID
+                ? {
+                    ...video,
+                    ...(updated || {}),
+                    cover_screenshot_name: coverScreenshotName,
+                    updated_at: updatedAt,
+                  }
+                : video
+            )
+          : state.videos,
+        javItems: Array.isArray(state.javItems)
+          ? state.javItems.map((item) => {
+              if (!Array.isArray(item?.videos)) return item
+              let changed = false
+              const nextVideos = item.videos.map((video) => {
+                if (video?.id !== targetID) return video
+                changed = true
+                return {
+                  ...video,
+                  ...(updated || {}),
+                  cover_screenshot_name: coverScreenshotName,
+                  updated_at: updatedAt,
+                }
+              })
+              return changed ? { ...item, videos: nextVideos } : item
+            })
+          : state.javItems,
+      }))
     },
-    [configLoaded, hydrated, loadJavs, loadVideos, screenshotsVideo?.id]
+    [screenshotsVideo?.id]
   )
 
   const forceReloadJavByTab = useCallback(
