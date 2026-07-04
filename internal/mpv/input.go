@@ -146,8 +146,15 @@ func buildInputConfContent() (string, error) {
 	}
 
 	lines = append(lines, "SPACE cycle pause")
-	lines = append(lines, "ESC stop; set window-minimized yes")
+	lines = append(lines, buildEscapeHotkeyBinding())
 	return strings.Join(lines, "\n") + "\n", nil
+}
+
+func buildEscapeHotkeyBinding() string {
+	if loadConfiguredPlayerReuseWindow() {
+		return "ESC stop; set window-minimized yes"
+	}
+	return "ESC quit"
 }
 
 func buildStartupHotkeyHint() (string, error) {
@@ -180,9 +187,16 @@ func buildStartupHotkeyHint() (string, error) {
 		}
 	}
 	parts = append(parts, "空格：暂停/继续")
-	parts = append(parts, "ESC：停止播放并最小化")
+	parts = append(parts, buildEscapeHotkeyHint())
 	parts = append(parts, "你可在「全局设置 → MPV播放器 → 基础设置」里关闭此信息显示")
 	return strings.Join(parts, "\n"), nil
+}
+
+func buildEscapeHotkeyHint() string {
+	if loadConfiguredPlayerReuseWindow() {
+		return "ESC：停止播放并最小化"
+	}
+	return "ESC：退出播放器"
 }
 
 func loadConfiguredHotkeys() ([]hotkeyConfig, error) {

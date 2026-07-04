@@ -82,6 +82,27 @@ func TestBuildInputConfContentIncludesDefaultScreenshotKey(t *testing.T) {
 	}
 }
 
+func TestBuildInputConfContentQuitsWhenReuseWindowDisabled(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerReuseWindowConfigKey: "false",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildInputConfContent()
+	if err != nil {
+		t.Fatalf("buildInputConfContent returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "ESC quit\n") {
+		t.Fatalf("expected ESC quit in mpv input config, got %q", content)
+	}
+	if strings.Contains(content, "ESC stop; set window-minimized yes\n") {
+		t.Fatalf("expected ESC stop/minimize to be disabled, got %q", content)
+	}
+}
+
 func TestBuildStartupHotkeyHintIncludesDefaultHotkeys(t *testing.T) {
 	prevDB := common.DB
 	common.DB = nil
@@ -108,6 +129,27 @@ func TestBuildStartupHotkeyHintIncludesDefaultHotkeys(t *testing.T) {
 		if !strings.Contains(content, line) {
 			t.Fatalf("expected %q in mpv hotkey hint, got %q", line, content)
 		}
+	}
+}
+
+func TestBuildStartupHotkeyHintQuitsWhenReuseWindowDisabled(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerReuseWindowConfigKey: "false",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildStartupHotkeyHint()
+	if err != nil {
+		t.Fatalf("buildStartupHotkeyHint returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "ESC：退出播放器") {
+		t.Fatalf("expected ESC quit hint, got %q", content)
+	}
+	if strings.Contains(content, "ESC：停止播放并最小化") {
+		t.Fatalf("expected ESC stop/minimize hint to be disabled, got %q", content)
 	}
 }
 

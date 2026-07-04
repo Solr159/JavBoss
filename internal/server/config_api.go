@@ -330,6 +330,10 @@ func updateConfig(c *gin.Context) {
 		mpv.InvalidateHotkeysCache()
 		playerSessionResetNeeded = true
 	}
+	if req.PlayerReuseWindow != nil {
+		mpv.InvalidateHotkeysCache()
+		playerSessionResetNeeded = true
+	}
 	if req.PlayerWindowSize != nil ||
 		req.PlayerWindowWidth != nil ||
 		req.PlayerWindowHeight != nil ||
