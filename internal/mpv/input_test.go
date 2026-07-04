@@ -30,6 +30,9 @@ func TestBuildConfigContentIncludesRequiredDefaults(t *testing.T) {
 	if !strings.Contains(content, "save-position-on-quit=yes\n") {
 		t.Fatalf("expected save-position-on-quit=yes in mpv config, got %q", content)
 	}
+	if !strings.Contains(content, "resume-playback=yes\n") {
+		t.Fatalf("expected resume-playback=yes in mpv config, got %q", content)
+	}
 	if !strings.Contains(content, "osc=no\n") {
 		t.Fatalf("expected osc=no in mpv config, got %q", content)
 	}
@@ -249,6 +252,27 @@ func TestBuildConfigContentEnablesResumePlayback(t *testing.T) {
 
 	if !strings.Contains(content, "save-position-on-quit=yes\n") {
 		t.Fatalf("expected save-position-on-quit=yes in mpv config, got %q", content)
+	}
+}
+
+func TestBuildConfigContentDisablesResumePlaybackLoading(t *testing.T) {
+	openConfigTestDB(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		playerResumePlaybackConfigKey: "false",
+	}); err != nil {
+		t.Fatalf("upsert config: %v", err)
+	}
+
+	content, err := buildConfigContent()
+	if err != nil {
+		t.Fatalf("buildConfigContent returned error: %v", err)
+	}
+
+	if !strings.Contains(content, "save-position-on-quit=no\n") {
+		t.Fatalf("expected save-position-on-quit=no in mpv config, got %q", content)
+	}
+	if !strings.Contains(content, "resume-playback=no\n") {
+		t.Fatalf("expected resume-playback=no in mpv config, got %q", content)
 	}
 }
 

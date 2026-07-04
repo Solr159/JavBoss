@@ -407,6 +407,7 @@ func buildConfigContent() (string, error) {
 		"keep-open=yes",
 		"keepaspect-window=no",
 		fmt.Sprintf("save-position-on-quit=%s", mpvBool(resumePlayback)),
+		fmt.Sprintf("resume-playback=%s", mpvBool(resumePlayback)),
 		fmt.Sprintf("ontop=%s", mpvBool(ontop)),
 		fmt.Sprintf("osd-playing-msg-duration=%d", startupHintDuration),
 		"video-align-y=0",
