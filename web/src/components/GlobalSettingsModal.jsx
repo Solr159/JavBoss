@@ -668,8 +668,8 @@ export default function GlobalSettingsModal({
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认关闭。开启后，mpv 播放器窗口会保持置顶。',
-                      'Disabled by default. When enabled, the mpv player window stays on top.'
+                      '开启后，mpv 播放器窗口会保持置顶。',
+                      'When enabled, the mpv player window stays on top.'
                     )}
                   </p>
                 </section>
@@ -688,15 +688,15 @@ export default function GlobalSettingsModal({
                     />
                     <span>
                       {zh(
-                        '播放新视频时尽可能使用已有播放器窗口',
-                        'Reuse Existing Player Window When Possible'
+                        '播放新视频时复用当前播放器窗口',
+                        'Reuse Current Player Window When Playing a New Video'
                       )}
                     </span>
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认开启。关闭后，每次播放都会启动新的 mpv 播放器进程。',
-                      'Enabled by default. When disabled, each playback starts a new mpv player process.'
+                      '关闭后，每次播放都会启动新的 mpv 播放器窗口。',
+                      'When disabled, each playback starts a new mpv player window.'
                     )}
                   </p>
                 </section>
@@ -717,8 +717,8 @@ export default function GlobalSettingsModal({
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认开启。mpv 会记住每个视频的播放位置，下次播放同一文件时自动恢复。',
-                      'Enabled by default. mpv remembers each video position and resumes the same file automatically.'
+                      'mpv 会记住每个视频的播放位置，下次播放同一文件时自动恢复。',
+                      'mpv remembers each video position and resumes the same file automatically.'
                     )}
                   </p>
                 </section>
@@ -739,8 +739,8 @@ export default function GlobalSettingsModal({
                   </label>
                   <p className="text-xs text-zinc-500">
                     {zh(
-                      '默认开启，在 mpv 打开视频时显示当前快捷键说明。',
-                      'Enabled by default to show the current shortcut guide when mpv opens a video.'
+                      '在 mpv 打开视频时显示当前快捷键说明。',
+                      'Show the current shortcut guide when mpv opens a video.'
                     )}
                   </p>
                 </section>
