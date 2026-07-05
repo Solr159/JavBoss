@@ -5,15 +5,19 @@ package mpv
 /*
 #cgo darwin LDFLAGS: -framework AppKit -framework CoreGraphics -framework ApplicationServices
 #import <stdbool.h>
+#import <stdlib.h>
 #import <sys/types.h>
 
 bool javbossProcessHasWindow(pid_t pid);
 bool javbossActivateProcess(pid_t pid);
+pid_t javbossFrontmostProcessID(void);
+char* javbossFrontmostBundleID(void);
 */
 import "C"
 
 import (
 	"time"
+	"unsafe"
 
 	"javboss/internal/common/logging"
 )
@@ -35,6 +39,8 @@ func focusStartedProcessWindow(pid int, label string) {
 }
 
 func activateDarwinProcessWindow(pid int, timeout time.Duration) bool {
+	rememberDarwinFocusOwner(pid)
+
 	deadline := time.Now().Add(timeout)
 	for {
 		hasWindow := bool(C.javbossProcessHasWindow(C.pid_t(pid)))
@@ -46,5 +52,23 @@ func activateDarwinProcessWindow(pid int, timeout time.Duration) bool {
 			return activated
 		}
 		time.Sleep(darwinFocusWindowPollInterval)
+	}
+}
+
+func rememberDarwinFocusOwner(excludePID int) {
+	frontmostPID := int(C.javbossFrontmostProcessID())
+	if frontmostPID <= 0 || frontmostPID == excludePID {
+		return
+	}
+
+	var bundleID string
+	bundleIDCString := C.javbossFrontmostBundleID()
+	if bundleIDCString != nil {
+		bundleID = C.GoString(bundleIDCString)
+		C.free(unsafe.Pointer(bundleIDCString))
+	}
+
+	if err := writeDarwinFocusRestoreTarget(frontmostPID, bundleID); err != nil {
+		logging.Error("write macOS mpv focus restore target failed: %v", err)
 	}
 }

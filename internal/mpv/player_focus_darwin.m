@@ -2,6 +2,16 @@
 #import <ApplicationServices/ApplicationServices.h>
 #import <CoreGraphics/CoreGraphics.h>
 #import <stdbool.h>
+#import <stdlib.h>
+#import <string.h>
+
+static NSRunningApplication *javbossFrontmostApplication(void) {
+	NSRunningApplication *app = [[NSWorkspace sharedWorkspace] frontmostApplication];
+	if (app == nil || app.terminated) {
+		return nil;
+	}
+	return app;
+}
 
 bool javbossProcessHasWindow(pid_t pid) {
 	CFArrayRef windows = CGWindowListCopyWindowInfo(
@@ -69,5 +79,29 @@ bool javbossActivateProcess(pid_t pid) {
 #pragma clang diagnostic pop
 
 		return activated;
+	}
+}
+
+pid_t javbossFrontmostProcessID(void) {
+	@autoreleasepool {
+		NSRunningApplication *app = javbossFrontmostApplication();
+		if (app == nil) {
+			return 0;
+		}
+		return app.processIdentifier;
+	}
+}
+
+char* javbossFrontmostBundleID(void) {
+	@autoreleasepool {
+		NSRunningApplication *app = javbossFrontmostApplication();
+		if (app == nil || app.bundleIdentifier == nil) {
+			return NULL;
+		}
+		const char *bundleID = [app.bundleIdentifier UTF8String];
+		if (bundleID == NULL) {
+			return NULL;
+		}
+		return strdup(bundleID);
 	}
 }

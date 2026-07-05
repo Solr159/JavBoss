@@ -153,10 +153,15 @@ func buildInputConfContent() (string, error) {
 
 func buildEscapeHotkeyBinding() string {
 	if loadConfiguredPlayerReuseWindow() {
-		if loadConfiguredPlayerResumePlayback() {
-			return "ESC write-watch-later-config; stop; set window-minimized yes"
+		restoreFocusCommand := buildFocusRestoreCommand()
+		restoreFocusSuffix := ""
+		if restoreFocusCommand != "" {
+			restoreFocusSuffix = "; " + restoreFocusCommand
 		}
-		return "ESC stop; set window-minimized yes"
+		if loadConfiguredPlayerResumePlayback() {
+			return "ESC write-watch-later-config; stop; set window-minimized yes" + restoreFocusSuffix
+		}
+		return "ESC stop; set window-minimized yes" + restoreFocusSuffix
 	}
 	return "ESC quit"
 }

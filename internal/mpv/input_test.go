@@ -2,6 +2,7 @@ package mpv
 
 import (
 	"context"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -86,8 +87,11 @@ func TestBuildInputConfContentIncludesDefaultScreenshotKey(t *testing.T) {
 	if !strings.Contains(content, "SPACE cycle pause\n") {
 		t.Fatalf("expected SPACE cycle pause in mpv input config, got %q", content)
 	}
-	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes\n") {
+	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes") {
 		t.Fatalf("expected ESC to write watch-later before stop in mpv input config, got %q", content)
+	}
+	if runtime.GOOS == "darwin" && !strings.Contains(content, `; run /bin/sh "`) {
+		t.Fatalf("expected ESC to restore focus on macOS, got %q", content)
 	}
 }
 
@@ -125,7 +129,7 @@ func TestBuildInputConfContentWritesWatchLaterWhenResumeEnabled(t *testing.T) {
 		t.Fatalf("buildInputConfContent returned error: %v", err)
 	}
 
-	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes\n") {
+	if !strings.Contains(content, "ESC write-watch-later-config; stop; set window-minimized yes") {
 		t.Fatalf("expected ESC to write watch-later before stop, got %q", content)
 	}
 }
@@ -143,7 +147,7 @@ func TestBuildInputConfContentSkipsWatchLaterWhenResumeDisabled(t *testing.T) {
 		t.Fatalf("buildInputConfContent returned error: %v", err)
 	}
 
-	if !strings.Contains(content, "ESC stop; set window-minimized yes\n") {
+	if !strings.Contains(content, "ESC stop; set window-minimized yes") {
 		t.Fatalf("expected ESC stop/minimize without watch-later, got %q", content)
 	}
 	if strings.Contains(content, "write-watch-later-config") {
