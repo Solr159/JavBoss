@@ -24,6 +24,8 @@ const playbackScreenshotTemplate = "mpv_%wH-%wM-%wS.%wT"
 const (
 	ipcCommandTimeout = 5 * time.Second
 	ipcReadyTimeout   = 5 * time.Second
+
+	darwinAfterLoadWindowRestoreDelay = 150 * time.Millisecond
 )
 
 type PlayOptions struct {
@@ -150,7 +152,9 @@ func (s *playerSession) ensureRunningLocked() error {
 
 	s.cmd = cmd
 	s.ipcPath = ipcPath
-	focusStartedProcessWindow(cmd.Process.Pid, "play video")
+	if runtime.GOOS != "darwin" {
+		focusStartedProcessWindow(cmd.Process.Pid, "play video")
+	}
 
 	go s.waitForExit(cmd)
 
@@ -202,7 +206,22 @@ func (s *playerSession) playVideoLocked(path string, options PlayOptions) error 
 			return err
 		}
 	}
-	return runIPCCommand(s.ipcPath, buildLoadFileCommand(path, options))
+	if err := runIPCCommand(s.ipcPath, buildLoadFileCommand(path, options)); err != nil {
+		return err
+	}
+	if !shouldRestoreWindowBeforeLoad() {
+		time.Sleep(darwinAfterLoadWindowRestoreDelay)
+	}
+	for _, command := range buildAfterLoadCommands() {
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			if isOptionalPlaybackCommand(command) {
+				logging.Error("optional mpv ipc command ignored: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
 }
 
 func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
@@ -302,8 +321,10 @@ func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
 	if loadConfiguredPlayerResumePlayback() {
 		commands = append(commands, []any{"write-watch-later-config"})
 	}
+	if shouldRestoreWindowBeforeLoad() {
+		commands = append(commands, []any{"set_property", "window-minimized", false})
+	}
 	commands = append(commands,
-		[]any{"set_property", "window-minimized", false},
 		[]any{"set_property", "pause", false},
 		[]any{"set_property", "screenshot-template", playbackScreenshotTemplate},
 	)
@@ -324,7 +345,22 @@ func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
 	return commands, nil
 }
 
+func buildAfterLoadCommands() [][]any {
+	if shouldRestoreWindowBeforeLoad() {
+		return nil
+	}
+	return [][]any{{"set_property", "window-minimized", false}}
+}
+
+func shouldRestoreWindowBeforeLoad() bool {
+	return runtime.GOOS != "darwin"
+}
+
 func isOptionalBeforeLoadCommand(command []any) bool {
+	return isOptionalPlaybackCommand(command)
+}
+
+func isOptionalPlaybackCommand(command []any) bool {
 	if len(command) == 0 {
 		return false
 	}
