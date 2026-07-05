@@ -17,7 +17,7 @@
 
 <p>
   <img alt="Telegram" src="https://cdn.simpleicons.org/telegram/26A5E4" width="18" height="18" align="absmiddle">
-  <a href="https://t.me/+4dje8gAi2dI2ZTE1">官方交流群</a>
+  <a href="https://t.me/+4dje8gAi2dI2ZTE1">Telegram交流群</a>
 </p>
 
 
@@ -25,9 +25,13 @@
 
 JavBoss 是一个跨平台的本地web应用，提供全方位、全自动化的本地成人视频管理服务，尤其擅长日本AV的管理和检索。
 
-JavBoss的浏览体验和 JavDb、JavBus、JavLibrary 类似，但在它们的基础之上做了优化和改进，追求的是更加直观、更加强大、更加友好的用户体验。
+JavBoss 的 UI 设计参考了各大主流 JAV 网站：JavDb、JavBus、JavLibrary 等等，在它们的基础之上做了优化和改进，追求的是更加直观、更加强大、更加友好的用户体验。
 
-如果你不想折腾任何复杂工具和配置，只想简单导入之后就可以立刻浏览看片，JavBoss将是你的完美选择。
+JavBoss 旨在为用户屏蔽掉所有繁琐的信息整理底层细节，让用户能够把有限的精力放在更有意义的浏览、收藏、看片上。
+
+得益于 MPV 播放器强大自定义能力，JavBoss 对其进行了深度集成和完美联动，让用户的观看体验更上一个台阶。
+
+如果你不想折腾任何复杂工具和配置，只想简单添加目录之后就可以立刻使用，JavBoss将是你的完美选择。
 
 ## 快速开始
 
@@ -58,10 +62,10 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 点击下载对应系统的最新版发布包并解压：
 
-- [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.3/javboss-v1.8.3-windows-x86_64.zip)
-- [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.3/javboss-v1.8.3-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.3/javboss-v1.8.3-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
-- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.3/javboss-v1.8.3-macos-arm64.zip)（适用于 M 芯片的 macOS）
+- [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
+- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.2/javboss-v1.8.2-macos-arm64.zip)（适用于 M 芯片的 macOS）
 
 也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
 
@@ -114,9 +118,11 @@ Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目
 视频扫描入库、封面截图生成、JAV 刮削会在后台持续运行，刷新页面或者点击右上角按钮在视频模式和 JAV 模式之间切换查看当前进度。
 
 **注意事项：**
+  - JavBoss 只会读取不会主动修改目录里的任何内容，请放心添加。
   - 你可以随时关闭应用程序，下次打开所有任务会自动重启。
   - JAV 模式下的女优详情、厂商、系列等信息会逐渐自动补齐，请耐心等待。
   - 如果 JAV 模式下始终没数据，中国大陆地区请确保梯子已打开外网访问通畅，然后再等待一段时间。
+  - 目录里的任何内容变化 JavBoss 都能够自动感知并更新数据。
 
 ## 如何升级版本
 
@@ -282,11 +288,6 @@ JavBoss 集成 [mpv](https://github.com/mpv-player/mpv) 播放能力，点击视
 
 - Q: 添加目录后，怎么知道扫描完成了？需要一直等待吗？
 - A: 不需要。JavBoss 会在后台持续扫描和补全信息，添加目录后可以直接开始使用。你也可以随时关闭应用，下次启动后扫描会继续。
-
-<br>
-
-- Q: 添加目录后，为什么我的jav视频出现在了普通视频模式中？
-- A: 这是正常现象，jav元数据抓取相比于视频扫描有一定的延迟，所以jav视频也会被先当作普通视屏，只要你的外网访问通畅，稍等片刻此视频就会在普通模式中消失并出现在jav模式中。
 
 <br>
 
