@@ -17,13 +17,14 @@ import { zh } from '@/utils/i18n'
 export { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 
 const RIGHT_PORTION = IDOL_COVER_VISIBLE_RATIO
+const IDOL_COVER_SOURCE_WIDTH = 800
+const IDOL_COVER_SOURCE_HEIGHT = 538
 
 export function getIdolCardLayoutProps() {
   const visibleRatio = Math.min(Math.max(RIGHT_PORTION, 0.01), 1)
   const bgWidthPercent = (1 / visibleRatio) * 100
-  const originalWidth = 800
-  const originalHeight = 538
-  const coverAspectPercent = (originalHeight / (originalWidth * visibleRatio)) * 100
+  const coverAspectPercent =
+    (IDOL_COVER_SOURCE_HEIGHT / (IDOL_COVER_SOURCE_WIDTH * visibleRatio)) * 100
 
   return { bgWidthPercent, coverAspectPercent }
 }
@@ -164,10 +165,17 @@ export function IdolCard({
   )
   const metaRows = buildMetaRows({ birthDate, height, bwh, cup, aliases })
   const canOpenJavDB = Boolean(javdbURL || (lookupCode && name))
-  const renderedCoverWidth =
-    coverImageSize?.height > 0 && coverFrame.height > 0
-      ? coverFrame.height * (coverImageSize.width / coverImageSize.height)
-      : 0
+  const hasCoverImageSize =
+    coverImageSize?.src === cover &&
+    Number.isFinite(coverImageSize.width) &&
+    Number.isFinite(coverImageSize.height) &&
+    coverImageSize.width > 0 &&
+    coverImageSize.height > 0
+  const hasMeasuredCoverFrame = coverFrame.width > 0 && coverFrame.height > 0
+  const coverReady = Boolean(cover && hasCoverImageSize && hasMeasuredCoverFrame)
+  const renderedCoverWidth = coverReady
+    ? coverFrame.height * (coverImageSize.width / coverImageSize.height)
+    : 0
   const coverLeft = calculateCoverLeft({
     cropLeft: coverCropLeft,
     frameWidth: coverFrame.width,
@@ -176,6 +184,24 @@ export function IdolCard({
 
   useEffect(() => {
     setCoverImageSize(null)
+    if (!cover) return undefined
+
+    let cancelled = false
+    const img = new Image()
+    img.onload = () => {
+      if (cancelled) return
+      setCoverImageSize({ src: cover, width: img.naturalWidth, height: img.naturalHeight })
+    }
+    img.onerror = () => {
+      if (cancelled) return
+      setCoverImageSize(null)
+    }
+    img.src = cover
+    return () => {
+      cancelled = true
+      img.onload = null
+      img.onerror = null
+    }
   }, [cover])
 
   useEffect(() => {
@@ -281,7 +307,7 @@ export function IdolCard({
         className="relative w-full overflow-hidden bg-gray-100"
         style={{ paddingTop: `${coverAspectPercent}%` }} // 维持可见区域的原始纵横比，避免压扁
       >
-        {cover ? (
+        {cover && coverReady ? (
           <img
             src={cover}
             alt={primaryName}
@@ -291,14 +317,9 @@ export function IdolCard({
               width: 'auto',
             }}
             draggable={false}
-            loading="lazy"
-            onLoad={(event) => {
-              const img = event.currentTarget
-              setCoverImageSize({ width: img.naturalWidth, height: img.naturalHeight })
-            }}
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-3 text-center text-lg font-semibold text-gray-600">
             {primaryName}
           </div>
         )}
