@@ -380,7 +380,7 @@ func isOptionalPlaybackCommand(command []any) bool {
 func buildLoadFileCommand(path string, options PlayOptions) []any {
 	command := []any{"loadfile", path, "replace"}
 	if options.StartTimeSec > 0 {
-		command = append(command, "start="+strconv.FormatFloat(options.StartTimeSec, 'f', -1, 64))
+		command = append(command, -1, "start="+strconv.FormatFloat(options.StartTimeSec, 'f', -1, 64))
 	}
 	return command
 }

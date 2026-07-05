@@ -63,7 +63,7 @@ func TestBuildPlaybackStartArgsIncludesStartTime(t *testing.T) {
 
 func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
 	command := buildLoadFileCommand("/videos/a.mp4", PlayOptions{StartTimeSec: 12.345})
-	expected := []any{"loadfile", "/videos/a.mp4", "replace", "start=12.345"}
+	expected := []any{"loadfile", "/videos/a.mp4", "replace", -1, "start=12.345"}
 	if !reflect.DeepEqual(command, expected) {
 		t.Fatalf("expected loadfile command %v, got %v", expected, command)
 	}
