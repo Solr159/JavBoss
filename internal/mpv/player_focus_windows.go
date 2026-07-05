@@ -65,6 +65,8 @@ func focusStartedProcessWindow(pid int, label string) {
 	}()
 }
 
+func rememberFocusRestoreOwner(pid int) {}
+
 func waitForProcessWindow(pid uint32, timeout time.Duration) windows.Handle {
 	deadline := time.Now().Add(timeout)
 	for {

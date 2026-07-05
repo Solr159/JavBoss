@@ -68,6 +68,8 @@ var (
 
 // PlayVideo launches mpv to play the given file path.
 func PlayVideo(path string, options PlayOptions) error {
+	cancelFocusRestoreAttempts()
+	rememberFocusRestoreOwner(0)
 	if !loadConfiguredPlayerReuseWindow() {
 		return playVideoInNewProcess(path, options)
 	}

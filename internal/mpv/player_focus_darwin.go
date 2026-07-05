@@ -38,6 +38,10 @@ func focusStartedProcessWindow(pid int, label string) {
 	}()
 }
 
+func rememberFocusRestoreOwner(excludePID int) {
+	rememberDarwinFocusOwner(excludePID)
+}
+
 func activateDarwinProcessWindow(pid int, timeout time.Duration) bool {
 	rememberDarwinFocusOwner(pid)
 
