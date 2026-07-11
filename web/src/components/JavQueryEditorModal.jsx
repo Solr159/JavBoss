@@ -4,7 +4,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
 
 import { fetchJavIdols, fetchJavPrefixes, fetchJavSeries, fetchJavStudios } from '@/api'
-import { zh } from '@/utils/i18n'
+import { isChineseLocale, zh } from '@/utils/i18n'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
 const JAV_FILTER_FETCH_LIMIT = 500
@@ -19,6 +19,8 @@ const cleanJavPrefix = (value) =>
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
+
+const studioListSeparator = () => (isChineseLocale() ? '、' : ', ')
 
 const mergeJavPrefixes = (items = []) => {
   const byPrefix = new Map()
@@ -39,7 +41,7 @@ const mergeJavPrefixes = (items = []) => {
   return Array.from(byPrefix.values()).map((item) => ({
     prefix: item.prefix,
     work_count: item.work_count,
-    studio_name: Array.from(item.studioNames).join(' / '),
+    studio_name: Array.from(item.studioNames).join(studioListSeparator()),
   }))
 }
 

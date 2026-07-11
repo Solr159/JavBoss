@@ -476,9 +476,6 @@ func avmooMovieInfoFromAPI(movie *avmooAPIMovie) *JavInfo {
 		CoverURL:    firstNonEmpty(movie.PosterLarge, movie.PosterSmall),
 		Provider:    ProviderAvmoo,
 	}
-	if movie.Studio != nil {
-		info.Studio = firstNonEmpty(movie.Studio.StudioName, movie.Studio.StudioNameTW, movie.Studio.StudioNameCN, movie.Studio.StudioNameJA, movie.Studio.StudioNameEN)
-	}
 	if movie.Series != nil {
 		info.Series = firstNonEmpty(movie.Series.SeriesName, movie.Series.SeriesNameTW, movie.Series.SeriesNameCN, movie.Series.SeriesNameJA, movie.Series.SeriesNameEN)
 	}
@@ -490,7 +487,7 @@ func avmooMovieInfoFromAPI(movie *avmooAPIMovie) *JavInfo {
 	}
 	info.Tags = dedupeNonEmpty(info.Tags)
 	info.Actors = dedupeNonEmpty(info.Actors)
-	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
+	if info.Title == "" && info.Code == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
 	}
 	return info

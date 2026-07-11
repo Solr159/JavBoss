@@ -137,8 +137,8 @@ func TestAvmooMovieInfoFromAPI(t *testing.T) {
 	if info.Title != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ" {
 		t.Fatalf("unexpected title: %q", info.Title)
 	}
-	if info.Studio != "アイデアポケット" {
-		t.Fatalf("unexpected studio: %q", info.Studio)
+	if info.Studio != "" {
+		t.Fatalf("avmoo should not return studio, got %q", info.Studio)
 	}
 	if info.Series != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交" {
 		t.Fatalf("unexpected series: %q", info.Series)

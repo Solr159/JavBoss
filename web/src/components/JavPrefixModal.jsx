@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { Button } from '@mui/material'
-import { zh } from '@/utils/i18n'
+import { isChineseLocale, zh } from '@/utils/i18n'
 
 const isModifiedClick = (event) =>
   event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0
@@ -13,6 +13,9 @@ function censorLabel(value) {
   if (value === false) return zh('有码', 'Censored')
   return zh('未知', 'Unknown')
 }
+
+const unknownStudioLabel = () => zh('未知片商', 'Unknown studio')
+const studioListSeparator = () => (isChineseLocale() ? '、' : ', ')
 
 export default function JavPrefixModal({
   open,
@@ -35,7 +38,7 @@ export default function JavPrefixModal({
       if (censorMode === 'uncensored' && item?.is_uncensored !== true) return
       if (normalizedSearch) {
         const prefix = String(item?.prefix || '').toLowerCase()
-        const studio = String(item?.studio_name || '').toLowerCase()
+        const studio = String(item?.studio_name || unknownStudioLabel()).toLowerCase()
         if (!prefix.includes(normalizedSearch) && !studio.includes(normalizedSearch)) return
       }
 
@@ -51,8 +54,8 @@ export default function JavPrefixModal({
         studioNames: new Set(),
         censorValues: new Set(),
       }
-      const studioName = String(item?.studio_name || '').trim()
-      if (studioName) existing.studioNames.add(studioName)
+      const studioName = String(item?.studio_name || '').trim() || unknownStudioLabel()
+      existing.studioNames.add(studioName)
       if (item?.is_uncensored === true || item?.is_uncensored === false) {
         existing.censorValues.add(item.is_uncensored)
       }
@@ -64,7 +67,7 @@ export default function JavPrefixModal({
       const censorValues = Array.from(item.censorValues)
       return {
         ...item,
-        studio_name: Array.from(item.studioNames).join(' / '),
+        studio_name: Array.from(item.studioNames).join(studioListSeparator()),
         is_uncensored:
           censorValues.length === 1 ? censorValues[0] : censorValues.length > 1 ? 'mixed' : null,
       }
@@ -245,7 +248,7 @@ export default function JavPrefixModal({
                         </a>
                       </td>
                       <td className="px-5 py-3 text-gray-700">
-                        {item?.studio_name || zh('未知片商', 'Unknown studio')}
+                        {item?.studio_name || unknownStudioLabel()}
                       </td>
                       <td className="px-5 py-3 text-gray-700">
                         {censorLabel(item?.is_uncensored)}
