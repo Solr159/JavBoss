@@ -165,6 +165,7 @@ func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {
 		{Code: "ALT-001", Title: "Other Prefix", StudioID: int64Ptr(studioB.ID), IsUncensored: &uncensored, FetchedAt: now},
 		{Code: "PFX003", Title: "No Hyphen", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
 		{Code: "PFX-004", Title: "Hidden Prefix", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
+		{Code: "PFX_005", Title: "Underscore Prefix", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -175,6 +176,7 @@ func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {
 		{DirectoryID: dir.ID, Path: "alt-001.mp4", Filename: "alt-001.mp4", Fingerprint: "fp-alt-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "pfx003.mp4", Filename: "pfx003.mp4", Fingerprint: "fp-pfx003", JavID: int64Ptr(javs[3].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "pfx-004.mp4", Filename: "pfx-004.mp4", Fingerprint: "fp-pfx-004", JavID: int64Ptr(javs[4].ID), ModifiedAt: now, Hidden: true},
+		{DirectoryID: dir.ID, Path: "pfx_005.mp4", Filename: "pfx_005.mp4", Fingerprint: "fp-pfx-005", JavID: int64Ptr(javs[5].ID), ModifiedAt: now},
 	}
 	if err := db.Create(&videos).Error; err != nil {
 		t.Fatalf("create videos: %v", err)
@@ -188,7 +190,7 @@ func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {
 	if len(prefixes) != 2 {
 		t.Fatalf("unexpected prefix count: got %d want 2: %#v", len(prefixes), prefixes)
 	}
-	if prefixes[0].Prefix != "PFX" || prefixes[0].StudioName != "Studio A" || prefixes[0].WorkCount != 2 {
+	if prefixes[0].Prefix != "PFX" || prefixes[0].StudioName != "Studio A" || prefixes[0].WorkCount != 3 {
 		t.Fatalf("unexpected first prefix: %#v", prefixes[0])
 	}
 	if prefixes[0].IsUncensored == nil || *prefixes[0].IsUncensored {
@@ -205,11 +207,11 @@ func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SearchJavWithPrefix: %v", err)
 	}
-	if total != 2 || len(items) != 2 {
+	if total != 3 || len(items) != 3 {
 		t.Fatalf("unexpected pfx result count: total=%d len=%d", total, len(items))
 	}
-	if items[0].Code != "PFX-001" || items[1].Code != "PFX-002" {
-		t.Fatalf("unexpected pfx codes: %#v", []string{items[0].Code, items[1].Code})
+	if items[0].Code != "PFX-001" || items[1].Code != "PFX-002" || items[2].Code != "PFX_005" {
+		t.Fatalf("unexpected pfx codes: %#v", []string{items[0].Code, items[1].Code, items[2].Code})
 	}
 }
 

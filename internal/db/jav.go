@@ -40,6 +40,10 @@ type JavStudioCodePrefixSummary struct {
 	WorkCount int64  `json:"work_count"`
 }
 
+func javCodePrefixSQL(column string) string {
+	return fmt.Sprintf("CASE WHEN INSTR(%[1]s, '-') > 1 AND (INSTR(%[1]s, '_') = 0 OR INSTR(%[1]s, '-') < INSTR(%[1]s, '_')) THEN UPPER(SUBSTR(%[1]s, 1, INSTR(%[1]s, '-') - 1)) WHEN INSTR(%[1]s, '_') > 1 THEN UPPER(SUBSTR(%[1]s, 1, INSTR(%[1]s, '_') - 1)) ELSE '' END", column)
+}
+
 // JavScanVideo contains the fields the scanner needs to resolve or refresh JAV metadata.
 type JavScanVideo struct {
 	LocationID        int64     `gorm:"column:location_id"`
@@ -221,14 +225,14 @@ func SearchJavWithPrefix(ctx context.Context, idolIDs []int64, tagIDs []int64, s
 
 // ListJavPrefixes returns visible JAV code prefixes with studio, censor status, and work count.
 func ListJavPrefixes(ctx context.Context, directoryIDs []int64) ([]JavPrefixSummary, error) {
-	prefixExpr := "UPPER(SUBSTR(j.code, 1, INSTR(j.code, '-') - 1))"
+	prefixExpr := javCodePrefixSQL("j.code")
 	query := common.DB.WithContext(ctx).
 		Table("jav j").
 		Select(prefixExpr + " AS prefix, j.studio_id, COALESCE(js.name, '') AS studio_name, j.is_uncensored, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN jav_studio js ON js.id = j.studio_id").
-		Where("INSTR(j.code, '-') > 1").
+		Where(prefixExpr + " <> ''").
 		Where(activeLocationWhereSQL("vl", "d")).
 		Group(prefixExpr + ", j.studio_id, js.name, j.is_uncensored").
 		Order("work_count DESC, prefix ASC, studio_name ASC")
@@ -728,7 +732,7 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 		q = q.Where("studio_id = ?", studioID)
 	}
 	if prefix != "" {
-		q = q.Where("UPPER(code) LIKE ?", prefix+"-%")
+		q = q.Where(javCodePrefixSQL("code")+" = ?", prefix)
 	}
 	if seriesID > 0 {
 		q = q.Where(javSeriesColumn()+" = ?", seriesID)
@@ -966,7 +970,7 @@ func attachJavStudioCodePrefixes(ctx context.Context, items []JavStudioSummary, 
 		return nil
 	}
 
-	prefixExpr := "UPPER(SUBSTR(j.code, 1, INSTR(j.code, '-') - 1))"
+	prefixExpr := javCodePrefixSQL("j.code")
 	type row struct {
 		StudioID  int64  `gorm:"column:studio_id"`
 		Prefix    string `gorm:"column:prefix"`
@@ -979,7 +983,7 @@ func attachJavStudioCodePrefixes(ctx context.Context, items []JavStudioSummary, 
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("j.studio_id IN ?", ids).
-		Where("INSTR(j.code, '-') > 1").
+		Where(prefixExpr + " <> ''").
 		Where(activeLocationWhereSQL("vl", "d")).
 		Group("j.studio_id, " + prefixExpr).
 		Order("j.studio_id, prefix")
