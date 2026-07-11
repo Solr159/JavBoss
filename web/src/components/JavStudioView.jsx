@@ -302,6 +302,7 @@ export function StudioCard({
     onSelectPrefix?.({
       prefix,
       work_count: prefixItem?.work_count || 0,
+      include_studio_filter: true,
       studio_id: Number.isFinite(studioId) && studioId > 0 ? studioId : null,
       studio_name: name,
     })

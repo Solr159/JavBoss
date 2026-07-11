@@ -2809,6 +2809,10 @@ export default function App() {
       .trim()
       .toUpperCase()
     if (!prefix) return
+    const shouldIncludeStudio =
+      typeof prefixItem === 'object' && prefixItem !== null && prefixItem.include_studio_filter
+    const studioId = shouldIncludeStudio ? Number(prefixItem?.studio_id) : null
+    const hasStudio = Number.isFinite(studioId) && studioId > 0
     saveScrollBeforeUrlStateChange()
     useStore.setState({
       viewMode: 'jav',
@@ -2820,8 +2824,8 @@ export default function App() {
       javRandomSeed: null,
       javIdolIds: [],
       javTags: [],
-      javStudioId: null,
-      javStudioName: '',
+      javStudioId: hasStudio ? studioId : null,
+      javStudioName: hasStudio ? String(prefixItem?.studio_name || '').trim() : '',
       javSeriesId: null,
       javSeriesName: '',
       javPrefix: prefix,
