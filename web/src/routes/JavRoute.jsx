@@ -50,6 +50,7 @@ function JavIdolRoute({
           tab: 'list',
           idolIds: [idol.id],
           tagIds: [],
+          prefix: '',
           tempSort: '',
         })
       }
@@ -76,6 +77,7 @@ function JavIdolRoute({
 
 function JavStudioRoute({
   buildJavUrl,
+  directoryIds,
   hasMore,
   hasNext,
   hasPrev,
@@ -89,7 +91,9 @@ function JavStudioRoute({
   onLoadMore,
   onNext,
   onOpenFavorites,
+  onSelectPrefix,
   onPrev,
+  onSelectSeries,
   onSelectStudio,
   onWaterfallModeChange,
   page,
@@ -114,6 +118,21 @@ function JavStudioRoute({
           tagIds: [],
           studioId: studio.id,
           studioName: studio.name,
+          prefix: '',
+          tempSort: '',
+        })
+      }
+      buildSeriesUrl={(series) =>
+        buildJavUrl({
+          page: 1,
+          search: '',
+          tab: 'list',
+          idolIds: [],
+          tagIds: [],
+          studioId: null,
+          seriesId: series.id,
+          seriesName: series.name,
+          prefix: '',
           tempSort: '',
         })
       }
@@ -124,7 +143,10 @@ function JavStudioRoute({
       onLast={onLast}
       items={items}
       onSelectStudio={onSelectStudio}
+      onSelectSeries={onSelectSeries}
+      onSelectPrefix={onSelectPrefix}
       onOpenFavorites={onOpenFavorites}
+      directoryIds={directoryIds}
       waterfallMode={waterfallMode}
       onWaterfallModeChange={onWaterfallModeChange}
       onLoadMore={onLoadMore}
@@ -176,6 +198,7 @@ function JavSeriesRoute({
           studioId: null,
           seriesId: series.id,
           seriesName: series.name,
+          prefix: '',
           tempSort: '',
         })
       }
@@ -232,6 +255,7 @@ function JavListRoute({
   onManageVideoDelete,
   onManageVideoTagClick,
   onPlay,
+  onPrefixClick,
   onRevealFile,
   onSeriesClick,
   onStudioClick,
@@ -277,6 +301,7 @@ function JavListRoute({
       onIdolClick={onIdolClick}
       onOpenFavorites={onOpenFavorites}
       onOpenJavFavorites={onOpenJavFavorites}
+      onPrefixClick={onPrefixClick}
       onStudioClick={onStudioClick}
       onSeriesClick={onSeriesClick}
       onTagClick={onTagClick}

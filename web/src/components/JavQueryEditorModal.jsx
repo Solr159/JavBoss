@@ -3,7 +3,7 @@ import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
 
-import { fetchJavIdols, fetchJavSeries, fetchJavStudios } from '@/api'
+import { fetchJavIdols, fetchJavPrefixes, fetchJavSeries, fetchJavStudios } from '@/api'
 import { zh } from '@/utils/i18n'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
@@ -13,6 +13,35 @@ const cleanIds = (ids) =>
   Array.from(
     new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
   )
+
+const cleanJavPrefix = (value) =>
+  String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+
+const mergeJavPrefixes = (items = []) => {
+  const byPrefix = new Map()
+  ;(items || []).forEach((item) => {
+    const prefix = cleanJavPrefix(item?.prefix)
+    if (!prefix) return
+    const existing = byPrefix.get(prefix) || {
+      prefix,
+      work_count: 0,
+      studioNames: new Set(),
+    }
+    existing.work_count += Number.isFinite(Number(item?.work_count)) ? Number(item.work_count) : 0
+    const studioName = String(item?.studio_name || '').trim()
+    if (studioName) existing.studioNames.add(studioName)
+    byPrefix.set(prefix, existing)
+  })
+
+  return Array.from(byPrefix.values()).map((item) => ({
+    prefix: item.prefix,
+    work_count: item.work_count,
+    studio_name: Array.from(item.studioNames).join(' / '),
+  }))
+}
 
 function buildIdolSearchText(idol, javMetadataLanguage, preferChineseName) {
   const aliases = Array.isArray(idol?.aliases) ? idol.aliases : []
@@ -94,6 +123,11 @@ const fetchAllJavSeries = async ({ directoryIds = [] } = {}) => {
   return all
 }
 
+const fetchAllJavPrefixes = async ({ directoryIds = [] } = {}) => {
+  const items = await fetchJavPrefixes({ directoryIds })
+  return Array.isArray(items) ? items : []
+}
+
 function SelectedIdolChip({ idol, javMetadataLanguage, preferChineseName, onRemove }) {
   const displayName = getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)
   return (
@@ -124,14 +158,22 @@ export default function JavQueryEditorModal({
   studioName = '',
   seriesId = null,
   seriesName = '',
+  prefix = '',
   soloOnly = false,
   directoryIds = [],
   javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
+  const prefixInputRef = useRef(null)
   const studioInputRef = useRef(null)
   const seriesInputRef = useRef(null)
   const [keyword, setKeyword] = useState('')
+  const [selectedPrefix, setSelectedPrefix] = useState(null)
+  const [prefixSearch, setPrefixSearch] = useState('')
+  const [prefixPickerOpen, setPrefixPickerOpen] = useState(false)
+  const [allPrefixes, setAllPrefixes] = useState([])
+  const [prefixLoading, setPrefixLoading] = useState(false)
+  const [prefixError, setPrefixError] = useState('')
   const [selectedIdolIds, setSelectedIdolIds] = useState([])
   const [idolSearch, setIdolSearch] = useState('')
   const [idolPickerOpen, setIdolPickerOpen] = useState(false)
@@ -161,7 +203,12 @@ export default function JavQueryEditorModal({
     const parsedStudioId = Number(studioId)
     const trimmedSeriesName = String(seriesName || '').trim()
     const parsedSeriesId = Number(seriesId)
+    const cleanedPrefix = cleanJavPrefix(prefix)
     setKeyword(String(search || '').trim())
+    setSelectedPrefix(cleanedPrefix ? { prefix: cleanedPrefix, work_count: 0 } : null)
+    setPrefixSearch('')
+    setPrefixPickerOpen(false)
+    setPrefixError('')
     setSelectedIdolIds(cleanIds(idolIds))
     setIdolSearch('')
     setIdolPickerOpen(false)
@@ -186,7 +233,7 @@ export default function JavQueryEditorModal({
     setSeriesSearch('')
     setSeriesPickerOpen(false)
     setSeriesError('')
-  }, [idolIds, open, search, seriesId, seriesName, soloOnly, studioId, studioName, tagIds])
+  }, [idolIds, open, prefix, search, seriesId, seriesName, soloOnly, studioId, studioName, tagIds])
 
   useEffect(() => {
     if (!open) return
@@ -216,9 +263,35 @@ export default function JavQueryEditorModal({
   useEffect(() => {
     if (open) return
     setAllIdols([])
+    setAllPrefixes([])
     setAllStudios([])
     setAllSeries([])
   }, [open])
+
+  useEffect(() => {
+    if (!open) return
+
+    let cancelled = false
+    setPrefixLoading(true)
+    setPrefixError('')
+    fetchAllJavPrefixes({ directoryIds })
+      .then((items) => {
+        if (!cancelled) setAllPrefixes(items)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setAllPrefixes([])
+          setPrefixError(err.message || zh('加载番号失败', 'Failed to load JAV codes'))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPrefixLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [directoryIds, open])
 
   useEffect(() => {
     if (!open) return
@@ -340,6 +413,34 @@ export default function JavQueryEditorModal({
       })
   }, [idolMap, idolOptions, idolSearch, javMetadataLanguage, preferChineseName])
 
+  const mergedPrefixes = useMemo(() => mergeJavPrefixes(allPrefixes), [allPrefixes])
+
+  const selectedPrefixDisplay = useMemo(() => {
+    const prefixValue = cleanJavPrefix(selectedPrefix?.prefix)
+    if (!prefixValue) return null
+    return mergedPrefixes.find((item) => item.prefix === prefixValue) || selectedPrefix
+  }, [mergedPrefixes, selectedPrefix])
+
+  const filteredPrefixes = useMemo(() => {
+    const query = prefixSearch.trim().toLowerCase()
+    return [...mergedPrefixes]
+      .filter((item) => {
+        if (!query) return true
+        return [item?.prefix, item?.studio_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(query)
+      })
+      .sort((a, b) => {
+        const countA = Number.isFinite(a?.work_count) ? a.work_count : 0
+        const countB = Number.isFinite(b?.work_count) ? b.work_count : 0
+        if (countB !== countA) return countB - countA
+        return String(a?.prefix || '').localeCompare(String(b?.prefix || ''))
+      })
+      .slice(0, 200)
+  }, [mergedPrefixes, prefixSearch])
+
   const filteredStudios = useMemo(() => {
     const query = studioSearch.trim().toLowerCase()
     return [...allStudios]
@@ -408,6 +509,9 @@ export default function JavQueryEditorModal({
 
   const clearAll = () => {
     setKeyword('')
+    setSelectedPrefix(null)
+    setPrefixSearch('')
+    setPrefixPickerOpen(false)
     setSelectedIdolIds([])
     setIdolSearch('')
     setSelectedTagIds([])
@@ -424,6 +528,7 @@ export default function JavQueryEditorModal({
   const applyQuery = () => {
     onApply?.({
       search: keyword.trim(),
+      prefix: cleanJavPrefix(selectedPrefix?.prefix),
       idolIds: selectedIdolIds,
       tagIds: selectedTagIds,
       studio: selectedStudio,
@@ -498,6 +603,107 @@ export default function JavQueryEditorModal({
                 >
                   <CloseOutlinedIcon fontSize="inherit" />
                 </button>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="space-y-2">
+            <div className="text-sm font-semibold text-slate-800">{zh('番号', 'Code')}</div>
+            {selectedPrefixDisplay ? (
+              <div className="flex items-center justify-between gap-2 rounded border border-cyan-100 bg-cyan-50 px-3 py-2 text-sm text-cyan-800">
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {selectedPrefixDisplay.prefix}
+                </span>
+                {Number.isFinite(selectedPrefixDisplay?.work_count) &&
+                selectedPrefixDisplay.work_count > 0 ? (
+                  <span className="shrink-0 text-xs text-cyan-600">
+                    {zh(
+                      `${selectedPrefixDisplay.work_count} 部`,
+                      `${selectedPrefixDisplay.work_count} works`
+                    )}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedPrefix(null)
+                    setPrefixSearch('')
+                  }}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded hover:bg-cyan-100"
+                  aria-label={zh('删除番号条件', 'Remove code filter')}
+                >
+                  <DeleteOutlineIcon fontSize="small" />
+                </button>
+              </div>
+            ) : null}
+            <div onBlur={closePickerOnBlur(setPrefixPickerOpen)}>
+              <input
+                ref={prefixInputRef}
+                id="jav-query-prefix"
+                value={prefixSearch}
+                onFocus={() => setPrefixPickerOpen(true)}
+                onChange={(event) => {
+                  setPrefixSearch(cleanJavPrefix(event.target.value))
+                  setPrefixPickerOpen(true)
+                  setSelectedPrefix(null)
+                }}
+                className="w-full rounded border border-slate-200 px-3 py-2 text-sm uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                placeholder={zh('搜索并选择番号', 'Search and choose a code')}
+              />
+              {prefixPickerOpen ? (
+                <div className="mt-1 max-h-52 overflow-y-auto rounded border border-slate-200 bg-white p-1 shadow-lg">
+                  {prefixLoading ? (
+                    <div className="px-2 py-3 text-sm text-slate-500">
+                      {zh('加载中…', 'Loading...')}
+                    </div>
+                  ) : prefixError ? (
+                    <div className="px-2 py-3 text-sm text-rose-600">{prefixError}</div>
+                  ) : filteredPrefixes.length > 0 ? (
+                    filteredPrefixes.map((item) => {
+                      const checked = selectedPrefix?.prefix === item.prefix
+                      return (
+                        <button
+                          key={item.prefix}
+                          type="button"
+                          role="radio"
+                          aria-checked={checked}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => {
+                            setSelectedPrefix(item)
+                            setPrefixSearch('')
+                            setPrefixPickerOpen(false)
+                            prefixInputRef.current?.blur()
+                          }}
+                          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
+                        >
+                          <input
+                            type="radio"
+                            checked={checked}
+                            readOnly
+                            tabIndex={-1}
+                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-blue-600"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 flex-1 truncate font-medium text-slate-800">
+                            {item.prefix}
+                          </span>
+                          {item.studio_name ? (
+                            <span className="min-w-0 max-w-[45%] truncate text-xs text-slate-400">
+                              {item.studio_name}
+                            </span>
+                          ) : null}
+                          <span className="shrink-0 text-xs text-slate-400">
+                            {zh(`${item.work_count || 0} 部`, `${item.work_count || 0} works`)}
+                          </span>
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div className="px-2 py-3 text-sm text-slate-500">
+                      {zh('没有匹配番号', 'No matching codes')}
+                    </div>
+                  )}
+                </div>
               ) : null}
             </div>
           </section>

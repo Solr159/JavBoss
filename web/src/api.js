@@ -422,6 +422,7 @@ export async function fetchJavs({
   tagIds = [],
   studioId = null,
   seriesId = null,
+  prefix = '',
   soloOnly = false,
   sort = '',
   seed = null,
@@ -436,6 +437,7 @@ export async function fetchJavs({
   if (tagIds.length) params.set('tag_ids', tagIds.join(','))
   if (studioId) params.set('studio_id', String(studioId))
   if (seriesId) params.set('series_id', String(seriesId))
+  if (prefix) params.set('prefix', prefix)
   if (soloOnly) params.set('solo', '1')
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
@@ -445,6 +447,18 @@ export async function fetchJavs({
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载 JAV 失败', 'Failed to load JAV'))
+  }
+  return res.json()
+}
+
+export async function fetchJavPrefixes({ directoryIds = [] } = {}) {
+  const params = new URLSearchParams()
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  const query = params.toString()
+  const res = await apiFetch(`/jav/prefixes${query ? `?${query}` : ''}`)
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载番号失败', 'Failed to load JAV codes'))
   }
   return res.json()
 }

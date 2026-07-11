@@ -42,6 +42,7 @@ func searchJav(c *gin.Context) {
 		seriesID = parsed
 	}
 	search := strings.TrimSpace(c.Query("search"))
+	prefix := strings.TrimSpace(c.Query("prefix"))
 	sort := strings.TrimSpace(c.Query("sort"))
 	soloOnly := queryBool(c, "solo", false)
 	favoriteGroupID := int64(0)
@@ -64,7 +65,7 @@ func searchJav(c *gin.Context) {
 		seed = &parsed
 	}
 
-	items, total, err := dbpkg.SearchJav(c.Request.Context(), idolIDs, tagIDs, search, sort, limit, offset, seed, directoryIDs, studioID, seriesID, boolInt64(soloOnly), favoriteGroupID)
+	items, total, err := dbpkg.SearchJavWithPrefix(c.Request.Context(), idolIDs, tagIDs, search, prefix, sort, limit, offset, seed, directoryIDs, studioID, seriesID, boolInt64(soloOnly), favoriteGroupID)
 	if err != nil {
 		logging.Error("SearchJav: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
@@ -74,6 +75,19 @@ func searchJav(c *gin.Context) {
 		"items": items,
 		"total": total,
 	})
+}
+
+func listJavPrefixes(c *gin.Context) {
+	items, err := dbpkg.ListJavPrefixes(c.Request.Context(), parseDirectoryIDs(c.Query("directory_ids")))
+	if err != nil {
+		logging.Error("list jav prefixes error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		return
+	}
+	if items == nil {
+		items = []dbpkg.JavPrefixSummary{}
+	}
+	c.JSON(http.StatusOK, items)
 }
 
 func boolInt64(value bool) int64 {

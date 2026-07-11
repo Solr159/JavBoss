@@ -24,6 +24,22 @@ type JavTagCount struct {
 	Count    int64  `json:"count"`
 }
 
+// JavPrefixSummary represents an aggregated JAV code prefix.
+type JavPrefixSummary struct {
+	Prefix       string `json:"prefix"`
+	StudioID     *int64 `json:"studio_id"`
+	StudioName   string `json:"studio_name"`
+	IsUncensored *bool  `json:"is_uncensored"`
+	WorkCount    int64  `json:"work_count"`
+	SampleCode   string `json:"sample_code"`
+}
+
+// JavStudioCodePrefixSummary represents a code prefix attached to a studio.
+type JavStudioCodePrefixSummary struct {
+	Prefix    string `json:"prefix"`
+	WorkCount int64  `json:"work_count"`
+}
+
 // JavScanVideo contains the fields the scanner needs to resolve or refresh JAV metadata.
 type JavScanVideo struct {
 	LocationID        int64     `gorm:"column:location_id"`
@@ -106,6 +122,11 @@ func GetJav(ctx context.Context, javID int64, directoryIDs []int64) (*models.Jav
 
 // SearchJav lists Jav metadata filtered by idol IDs/tag IDs/search with pagination and sorting.
 func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sort string, limit, offset int, seed *int64, directoryIDs []int64, filterIDs ...int64) ([]models.Jav, int64, error) {
+	return SearchJavWithPrefix(ctx, idolIDs, tagIDs, search, "", sort, limit, offset, seed, directoryIDs, filterIDs...)
+}
+
+// SearchJavWithPrefix lists Jav metadata filtered by an exact code prefix plus other filters.
+func SearchJavWithPrefix(ctx context.Context, idolIDs []int64, tagIDs []int64, search, prefix, sort string, limit, offset int, seed *int64, directoryIDs []int64, filterIDs ...int64) ([]models.Jav, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -116,13 +137,14 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 	idolIDs = uniqueInt64s(idolIDs)
 	tagIDs = uniqueInt64s(tagIDs)
 	search = strings.TrimSpace(search)
+	prefix = normalizeJavCodePrefix(prefix)
 	sort = strings.ToLower(strings.TrimSpace(sort))
 
 	studioID, seriesID, soloOnly, favoriteGroupID := javFilterOptions(filterIDs)
-	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
+	filtered := buildJavFilter(ctx, idolIDs, tagIDs, search, prefix, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
 
 	// Count on a cloned query to avoid mutating the main one.
-	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
+	countBase := buildJavFilter(ctx, idolIDs, tagIDs, search, prefix, directoryIDs, studioID, seriesID, soloOnly, favoriteGroupID)
 	countQuery := countBase.Select("DISTINCT jav.id")
 	var total int64
 	if err := countQuery.Count(&total).Error; err != nil {
@@ -195,6 +217,28 @@ func SearchJav(ctx context.Context, idolIDs []int64, tagIDs []int64, search, sor
 		return nil, 0, err
 	}
 	return items, total, nil
+}
+
+// ListJavPrefixes returns visible JAV code prefixes with studio, censor status, and work count.
+func ListJavPrefixes(ctx context.Context, directoryIDs []int64) ([]JavPrefixSummary, error) {
+	prefixExpr := "UPPER(SUBSTR(j.code, 1, INSTR(j.code, '-') - 1))"
+	query := common.DB.WithContext(ctx).
+		Table("jav j").
+		Select(prefixExpr + " AS prefix, j.studio_id, COALESCE(js.name, '') AS studio_name, j.is_uncensored, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Joins("LEFT JOIN jav_studio js ON js.id = j.studio_id").
+		Where("INSTR(j.code, '-') > 1").
+		Where(activeLocationWhereSQL("vl", "d")).
+		Group(prefixExpr + ", j.studio_id, js.name, j.is_uncensored").
+		Order("work_count DESC, prefix ASC, studio_name ASC")
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+
+	var rows []JavPrefixSummary
+	if err := query.Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list jav prefixes: %w", err)
+	}
+	return rows, nil
 }
 
 func attachVisibleJavTags(ctx context.Context, items []models.Jav) error {
@@ -660,7 +704,7 @@ func replaceJavUserTagsTx(tx *gorm.DB, javIDs, tagIDs []int64) error {
 	return nil
 }
 
-func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool, favoriteGroupID int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search, prefix string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool, favoriteGroupID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -682,6 +726,9 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	}
 	if studioID > 0 {
 		q = q.Where("studio_id = ?", studioID)
+	}
+	if prefix != "" {
+		q = q.Where("UPPER(code) LIKE ?", prefix+"-%")
 	}
 	if seriesID > 0 {
 		q = q.Where(javSeriesColumn()+" = ?", seriesID)
@@ -717,6 +764,20 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	return q
 }
 
+func normalizeJavCodePrefix(prefix string) string {
+	prefix = strings.ToUpper(strings.TrimSpace(prefix))
+	if prefix == "" {
+		return ""
+	}
+	for _, r := range prefix {
+		if (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			continue
+		}
+		return ""
+	}
+	return prefix
+}
+
 func javFilterOptions(values []int64) (int64, int64, bool, int64) {
 	studioID := int64(0)
 	seriesID := int64(0)
@@ -746,11 +807,13 @@ func javSeriesColumn() string {
 
 // JavStudioSummary represents studio info with aggregated work count and a sample code for cover lookup.
 type JavStudioSummary struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	WorkCount     int64  `json:"work_count"`
-	SampleCode    string `json:"sample_code"`
-	FavoriteCount int64  `json:"favorite_count"`
+	ID            int64                        `json:"id"`
+	Name          string                       `json:"name"`
+	WorkCount     int64                        `json:"work_count"`
+	SampleCode    string                       `json:"sample_code"`
+	FavoriteCount int64                        `json:"favorite_count"`
+	CodePrefixes  []JavStudioCodePrefixSummary `json:"code_prefixes" gorm:"-"`
+	Series        []JavSeriesSummary           `json:"series" gorm:"-"`
 }
 
 // JavSeriesSummary represents series info with aggregated work count and a sample code for cover lookup.
@@ -839,6 +902,12 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 		Scan(&items).Error; err != nil {
 		return nil, 0, fmt.Errorf("list jav studios: %w", err)
 	}
+	if err := attachJavStudioCodePrefixes(ctx, items, directoryIDs); err != nil {
+		return nil, 0, err
+	}
+	if err := attachJavStudioSeries(ctx, items, directoryIDs); err != nil {
+		return nil, 0, err
+	}
 
 	return items, total, nil
 }
@@ -870,7 +939,134 @@ func GetJavStudioSummary(ctx context.Context, studioID int64, directoryIDs []int
 	if tx.RowsAffected == 0 {
 		return nil, gorm.ErrRecordNotFound
 	}
+	items := []JavStudioSummary{item}
+	if err := attachJavStudioCodePrefixes(ctx, items, directoryIDs); err != nil {
+		return nil, err
+	}
+	if err := attachJavStudioSeries(ctx, items, directoryIDs); err != nil {
+		return nil, err
+	}
+	item = items[0]
 	return &item, nil
+}
+
+func attachJavStudioCodePrefixes(ctx context.Context, items []JavStudioSummary, directoryIDs []int64) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(items))
+	indexByID := make(map[int64]int, len(items))
+	for i, item := range items {
+		if item.ID > 0 {
+			ids = append(ids, item.ID)
+			indexByID[item.ID] = i
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	prefixExpr := "UPPER(SUBSTR(j.code, 1, INSTR(j.code, '-') - 1))"
+	type row struct {
+		StudioID  int64  `gorm:"column:studio_id"`
+		Prefix    string `gorm:"column:prefix"`
+		WorkCount int64  `gorm:"column:work_count"`
+	}
+	var rows []row
+	query := common.DB.WithContext(ctx).
+		Table("jav j").
+		Select("j.studio_id, "+prefixExpr+" AS prefix, COUNT(DISTINCT j.id) AS work_count").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("j.studio_id IN ?", ids).
+		Where("INSTR(j.code, '-') > 1").
+		Where(activeLocationWhereSQL("vl", "d")).
+		Group("j.studio_id, " + prefixExpr).
+		Order("j.studio_id, prefix")
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	if err := query.Scan(&rows).Error; err != nil {
+		return fmt.Errorf("load jav studio code prefixes: %w", err)
+	}
+	for _, r := range rows {
+		i, ok := indexByID[r.StudioID]
+		if !ok {
+			continue
+		}
+		prefix := strings.TrimSpace(r.Prefix)
+		if prefix != "" {
+			items[i].CodePrefixes = append(items[i].CodePrefixes, JavStudioCodePrefixSummary{
+				Prefix:    prefix,
+				WorkCount: r.WorkCount,
+			})
+		}
+	}
+	return nil
+}
+
+func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, directoryIDs []int64) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(items))
+	indexByID := make(map[int64]int, len(items))
+	for i, item := range items {
+		if item.ID > 0 {
+			ids = append(ids, item.ID)
+			indexByID[item.ID] = i
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+
+	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
+	seriesColumn := javSeriesColumn()
+	type row struct {
+		ParentStudioID int64  `gorm:"column:parent_studio_id"`
+		ID             int64  `gorm:"column:id"`
+		Name           string `gorm:"column:name"`
+		IsEnglish      bool   `gorm:"column:is_english"`
+		StudioID       *int64 `gorm:"column:studio_id"`
+		StudioName     string `gorm:"column:studio_name"`
+		WorkCount      int64  `gorm:"column:work_count"`
+		SampleCode     string `gorm:"column:sample_code"`
+		FavoriteCount  int64  `gorm:"column:favorite_count"`
+	}
+	var rows []row
+	query := common.DB.WithContext(ctx).
+		Table("jav j").
+		Select("j.studio_id AS parent_studio_id, js.id, js.name, js.is_english, js.studio_id, COALESCE(jst.name, '') AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Joins("JOIN jav_series js ON j."+seriesColumn+" = js.id").
+		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
+		Where("j.studio_id IN ?", ids).
+		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where(activeLocationWhereSQL("vl", "d")).
+		Group("j.studio_id, js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Order("j.studio_id, work_count DESC, js.name ASC")
+	query = applyDirectoryFilter(query, "vl", directoryIDs)
+	if err := query.Scan(&rows).Error; err != nil {
+		return fmt.Errorf("load jav studio series: %w", err)
+	}
+	for _, r := range rows {
+		i, ok := indexByID[r.ParentStudioID]
+		if !ok {
+			continue
+		}
+		items[i].Series = append(items[i].Series, JavSeriesSummary{
+			ID:            r.ID,
+			Name:          strings.TrimSpace(r.Name),
+			IsEnglish:     r.IsEnglish,
+			StudioID:      r.StudioID,
+			StudioName:    strings.TrimSpace(r.StudioName),
+			WorkCount:     r.WorkCount,
+			SampleCode:    strings.TrimSpace(r.SampleCode),
+			FavoriteCount: r.FavoriteCount,
+		})
+	}
+	return nil
 }
 
 // ListStudioCoverCodes returns a prioritized list of codes for a studio.

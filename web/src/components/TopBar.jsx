@@ -3,6 +3,7 @@ import { Button, IconButton, Tooltip } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
+import ViewListRoundedIcon from '@mui/icons-material/ViewListRounded'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined'
@@ -15,6 +16,8 @@ import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
+import { fetchJavPrefixes } from '@/api'
+import JavPrefixModal from '@/components/JavPrefixModal'
 import { displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
 
@@ -49,6 +52,10 @@ export default function TopBar({
   showJavFilterRandomButton,
   isModifiedClick,
   javTab,
+  javPrefix = '',
+  javPrefixDirectoryIds = [],
+  buildJavPrefixUrl,
+  onJavPrefixClick,
   onSwitchJavTab,
   favoriteEntityType = 'idol',
   favoriteGroups = [],
@@ -76,6 +83,10 @@ export default function TopBar({
   const idolFavoriteMenuRef = useRef(null)
   const [directoryMenuOpen, setDirectoryMenuOpen] = useState(false)
   const [idolFavoriteMenuOpen, setIdolFavoriteMenuOpen] = useState(false)
+  const [prefixModalOpen, setPrefixModalOpen] = useState(false)
+  const [prefixItems, setPrefixItems] = useState([])
+  const [prefixLoading, setPrefixLoading] = useState(false)
+  const [prefixError, setPrefixError] = useState('')
   const headerClassName = ['sticky top-0 z-40 border-b bg-white/80 backdrop-blur', 'relative']
     .filter(Boolean)
     .join(' ')
@@ -163,6 +174,28 @@ export default function TopBar({
   useEffect(() => {
     updateTopbarOffset()
   }, [isJavMode, javTab, javRandomMode])
+
+  useEffect(() => {
+    if (!prefixModalOpen) return undefined
+    let cancelled = false
+    setPrefixLoading(true)
+    setPrefixError('')
+    fetchJavPrefixes({ directoryIds: javPrefixDirectoryIds })
+      .then((items) => {
+        if (cancelled) return
+        setPrefixItems(Array.isArray(items) ? items : [])
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setPrefixError(error?.message || zh('加载番号失败', 'Failed to load JAV codes'))
+      })
+      .finally(() => {
+        if (!cancelled) setPrefixLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [javPrefixDirectoryIds, prefixModalOpen])
 
   useEffect(() => {
     if (!directoryMenuOpen) return
@@ -429,6 +462,22 @@ export default function TopBar({
                       }}
                     >
                       <LocalOfferOutlinedIcon fontSize="small" />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip title={zh('番号', 'JAV codes')} arrow>
+                    <Button
+                      type="button"
+                      variant="outlined"
+                      onClick={() => setPrefixModalOpen(true)}
+                      aria-label={zh('番号', 'JAV codes')}
+                      sx={{
+                        minWidth: 36,
+                        width: 36,
+                        height: 36,
+                        p: 0,
+                      }}
+                    >
+                      <ViewListRoundedIcon fontSize="small" />
                     </Button>
                   </Tooltip>
                   {isJavMode ? (
@@ -772,6 +821,19 @@ export default function TopBar({
           </Tooltip>
         </div>
       </div>
+      <JavPrefixModal
+        open={prefixModalOpen}
+        items={prefixItems}
+        loading={prefixLoading}
+        error={prefixError}
+        activePrefix={javPrefix}
+        buildPrefixUrl={buildJavPrefixUrl}
+        onSelectPrefix={(item) => {
+          setPrefixModalOpen(false)
+          onJavPrefixClick?.(item)
+        }}
+        onClose={() => setPrefixModalOpen(false)}
+      />
     </header>
   )
 }

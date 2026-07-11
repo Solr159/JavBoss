@@ -20,6 +20,13 @@ const parsePositiveInt = (raw) => {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+const parseJavPrefix = (raw) => {
+  const value = String(raw || '')
+    .trim()
+    .toUpperCase()
+  return /^[A-Z0-9]+$/.test(value) ? value : ''
+}
+
 const parseDirectoryIds = (sp) => {
   if (!sp.has('directory_ids')) return null
   const raw = (sp.get('directory_ids') || '').trim()
@@ -73,6 +80,7 @@ export const parseUrlState = (searchString = window.location.search, options = {
     studioName: (sp.get('studio_name') || '').trim(),
     seriesId: parsePositiveInt(sp.get('series_id')),
     seriesName: (sp.get('series_name') || '').trim(),
+    prefix: parseJavPrefix(sp.get('prefix')),
     soloOnly: sp.get('solo') === '1',
     favoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
     idolFavoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
@@ -110,6 +118,9 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     if (state.jav.tab === 'list' && state.jav.seriesId) {
       sp.set('series_id', String(state.jav.seriesId))
       if (state.jav.seriesName) sp.set('series_name', state.jav.seriesName)
+    }
+    if (state.jav.tab === 'list' && state.jav.prefix) {
+      sp.set('prefix', state.jav.prefix)
     }
     if (state.jav.tab === 'list' && state.jav.soloOnly) {
       sp.set('solo', '1')
@@ -229,6 +240,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       studioName: (store.javStudioName || '').trim(),
       seriesId: store.javSeriesId || null,
       seriesName: (store.javSeriesName || '').trim(),
+      prefix: store.javPrefix || '',
       soloOnly: Boolean(store.javSoloOnly),
       favoriteGroupId:
         store.javTab === 'idol'

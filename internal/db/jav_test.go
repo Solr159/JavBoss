@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -133,6 +134,83 @@ func TestListJavIdolOptionsIncludesIdolsWithoutWorks(t *testing.T) {
 	}
 
 	assertJavIdolSummaries(t, items, total, []string{"Has Work Idol", "No Work Idol"})
+}
+
+func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+	censored := false
+	uncensored := true
+
+	dir := models.Directory{Path: "/tmp/media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	studioA := models.JavStudio{Name: "Studio A"}
+	studioB := models.JavStudio{Name: "Studio B"}
+	if err := db.Create(&[]models.JavStudio{studioA, studioB}).Error; err != nil {
+		t.Fatalf("create studios: %v", err)
+	}
+	var studios []models.JavStudio
+	if err := db.Order("name").Find(&studios).Error; err != nil {
+		t.Fatalf("load studios: %v", err)
+	}
+	studioA = studios[0]
+	studioB = studios[1]
+
+	javs := []models.Jav{
+		{Code: "PFX-001", Title: "Prefix One", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
+		{Code: "PFX-002", Title: "Prefix Two", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
+		{Code: "ALT-001", Title: "Other Prefix", StudioID: int64Ptr(studioB.ID), IsUncensored: &uncensored, FetchedAt: now},
+		{Code: "PFX003", Title: "No Hyphen", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
+		{Code: "PFX-004", Title: "Hidden Prefix", StudioID: int64Ptr(studioA.ID), IsUncensored: &censored, FetchedAt: now},
+	}
+	if err := db.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "pfx-001.mp4", Filename: "pfx-001.mp4", Fingerprint: "fp-pfx-001", JavID: int64Ptr(javs[0].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "pfx-002.mp4", Filename: "pfx-002.mp4", Fingerprint: "fp-pfx-002", JavID: int64Ptr(javs[1].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "alt-001.mp4", Filename: "alt-001.mp4", Fingerprint: "fp-alt-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "pfx003.mp4", Filename: "pfx003.mp4", Fingerprint: "fp-pfx003", JavID: int64Ptr(javs[3].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "pfx-004.mp4", Filename: "pfx-004.mp4", Fingerprint: "fp-pfx-004", JavID: int64Ptr(javs[4].ID), ModifiedAt: now, Hidden: true},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	prefixes, err := ListJavPrefixes(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListJavPrefixes: %v", err)
+	}
+	if len(prefixes) != 2 {
+		t.Fatalf("unexpected prefix count: got %d want 2: %#v", len(prefixes), prefixes)
+	}
+	if prefixes[0].Prefix != "PFX" || prefixes[0].StudioName != "Studio A" || prefixes[0].WorkCount != 2 {
+		t.Fatalf("unexpected first prefix: %#v", prefixes[0])
+	}
+	if prefixes[0].IsUncensored == nil || *prefixes[0].IsUncensored {
+		t.Fatalf("unexpected first prefix censor status: %#v", prefixes[0].IsUncensored)
+	}
+	if prefixes[1].Prefix != "ALT" || prefixes[1].StudioName != "Studio B" || prefixes[1].WorkCount != 1 {
+		t.Fatalf("unexpected second prefix: %#v", prefixes[1])
+	}
+	if prefixes[1].IsUncensored == nil || !*prefixes[1].IsUncensored {
+		t.Fatalf("unexpected second prefix censor status: %#v", prefixes[1].IsUncensored)
+	}
+
+	items, total, err := SearchJavWithPrefix(ctx, nil, nil, "", "pfx", "code", 20, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("SearchJavWithPrefix: %v", err)
+	}
+	if total != 2 || len(items) != 2 {
+		t.Fatalf("unexpected pfx result count: total=%d len=%d", total, len(items))
+	}
+	if items[0].Code != "PFX-001" || items[1].Code != "PFX-002" {
+		t.Fatalf("unexpected pfx codes: %#v", []string{items[0].Code, items[1].Code})
+	}
 }
 
 func TestDeleteJavFavoriteGroupCascadesMapsOnNewConnection(t *testing.T) {
@@ -719,10 +797,22 @@ func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	if err := db.Create(&studioB).Error; err != nil {
 		t.Fatalf("create studio b: %v", err)
 	}
+	seriesA := models.JavSeries{Name: "Series A", StudioID: int64Ptr(studioA.ID)}
+	seriesB := models.JavSeries{Name: "Series B", StudioID: int64Ptr(studioA.ID)}
+	if err := db.Create(&[]models.JavSeries{seriesA, seriesB}).Error; err != nil {
+		t.Fatalf("create series: %v", err)
+	}
+	var series []models.JavSeries
+	if err := db.Order("name").Find(&series).Error; err != nil {
+		t.Fatalf("load series: %v", err)
+	}
+	seriesA = series[0]
+	seriesB = series[1]
 
 	javs := []models.Jav{
-		{Code: "STA-001", Title: "Studio A One", StudioID: int64Ptr(studioA.ID), FetchedAt: now},
-		{Code: "STA-002", Title: "Studio A Two", StudioID: int64Ptr(studioA.ID), FetchedAt: now},
+		{Code: "STA-001", Title: "Studio A One", StudioID: int64Ptr(studioA.ID), SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
+		{Code: "STA-002", Title: "Studio A Two", StudioID: int64Ptr(studioA.ID), SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
+		{Code: "SAA-001", Title: "Studio A Other Prefix", StudioID: int64Ptr(studioA.ID), SeriesID: int64Ptr(seriesB.ID), FetchedAt: now},
 		{Code: "STB-001", Title: "Studio B One", StudioID: int64Ptr(studioB.ID), FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
@@ -732,7 +822,8 @@ func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	videos := []models.Video{
 		{DirectoryID: dir.ID, Path: "sta-001.mp4", Filename: "sta-001.mp4", Fingerprint: "fp-sta-001", JavID: int64Ptr(javs[0].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "sta-002.mp4", Filename: "sta-002.mp4", Fingerprint: "fp-sta-002", JavID: int64Ptr(javs[1].ID), ModifiedAt: now},
-		{DirectoryID: dir.ID, Path: "stb-001.mp4", Filename: "stb-001.mp4", Fingerprint: "fp-stb-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "saa-001.mp4", Filename: "saa-001.mp4", Fingerprint: "fp-saa-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
+		{DirectoryID: dir.ID, Path: "stb-001.mp4", Filename: "stb-001.mp4", Fingerprint: "fp-stb-001", JavID: int64Ptr(javs[3].ID), ModifiedAt: now},
 	}
 	if err := db.Create(&videos).Error; err != nil {
 		t.Fatalf("create videos: %v", err)
@@ -749,18 +840,39 @@ func TestListJavStudiosAndSearchByStudio(t *testing.T) {
 	if len(studios) != 2 {
 		t.Fatalf("unexpected studio count: got %d want 2", len(studios))
 	}
-	if studios[0].ID != studioA.ID || studios[0].WorkCount != 2 {
+	if studios[0].ID != studioA.ID || studios[0].WorkCount != 3 {
 		t.Fatalf("unexpected first studio: %#v", studios[0])
 	}
 	if studios[0].SampleCode == "" {
 		t.Fatalf("expected sample code for first studio")
+	}
+	gotPrefixes := make([]string, 0, len(studios[0].CodePrefixes))
+	gotPrefixCounts := make(map[string]int64, len(studios[0].CodePrefixes))
+	for _, prefix := range studios[0].CodePrefixes {
+		gotPrefixes = append(gotPrefixes, prefix.Prefix)
+		gotPrefixCounts[prefix.Prefix] = prefix.WorkCount
+	}
+	if got, want := strings.Join(gotPrefixes, ","), "SAA,STA"; got != want {
+		t.Fatalf("unexpected studio prefixes: got %q want %q", got, want)
+	}
+	if gotPrefixCounts["SAA"] != 1 || gotPrefixCounts["STA"] != 2 {
+		t.Fatalf("unexpected studio prefix counts: %#v", gotPrefixCounts)
+	}
+	if len(studios[0].Series) != 2 {
+		t.Fatalf("unexpected studio series count: got %d want 2: %#v", len(studios[0].Series), studios[0].Series)
+	}
+	if studios[0].Series[0].Name != "Series A" || studios[0].Series[0].WorkCount != 2 {
+		t.Fatalf("unexpected first studio series: %#v", studios[0].Series[0])
+	}
+	if studios[0].Series[1].Name != "Series B" || studios[0].Series[1].WorkCount != 1 {
+		t.Fatalf("unexpected second studio series: %#v", studios[0].Series[1])
 	}
 
 	items, total, err := SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil, studioA.ID)
 	if err != nil {
 		t.Fatalf("SearchJav by studio: %v", err)
 	}
-	if total != 2 || len(items) != 2 {
+	if total != 3 || len(items) != 3 {
 		t.Fatalf("unexpected filtered javs: total=%d len=%d", total, len(items))
 	}
 	for _, item := range items {

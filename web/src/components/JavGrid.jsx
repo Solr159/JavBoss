@@ -95,6 +95,7 @@ export default function JavGrid({
   onIdolClick,
   onOpenFavorites,
   onOpenJavFavorites,
+  onPrefixClick,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -264,6 +265,7 @@ export default function JavGrid({
             onIdolClick={onIdolClick}
             onOpenFavorites={onOpenFavorites}
             onOpenJavFavorites={onOpenJavFavorites}
+            onPrefixClick={onPrefixClick}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}
             onTagClick={onTagClick}
@@ -1505,6 +1507,7 @@ function JavCard({
   onIdolClick,
   onOpenFavorites,
   onOpenJavFavorites,
+  onPrefixClick,
   onStudioClick,
   onSeriesClick,
   onTagClick,
@@ -1749,6 +1752,7 @@ function JavCard({
         studioName: '',
         seriesId: null,
         seriesName: '',
+        prefix: '',
         random: false,
         tempSort: '',
       }) || '#'
@@ -1769,6 +1773,7 @@ function JavCard({
         studioName: studio?.name || '',
         seriesId: null,
         seriesName: '',
+        prefix: '',
         random: false,
         tempSort: '',
       }) || '#'
@@ -1789,6 +1794,7 @@ function JavCard({
         studioName: '',
         seriesId: id,
         seriesName: series?.name || '',
+        prefix: '',
         random: false,
         tempSort: '',
       }) || '#'
@@ -1809,6 +1815,7 @@ function JavCard({
         studioName: '',
         seriesId: null,
         seriesName: '',
+        prefix: '',
         random: false,
         tempSort: '',
       }) || '#'
@@ -2175,7 +2182,7 @@ function JavCard({
             ]}
           >
             <div
-              className="w-[220px]"
+              className="w-[320px]"
               onMouseEnter={clearHoverCloseTimer}
               onMouseLeave={scheduleHoverClose}
             >
@@ -2184,6 +2191,10 @@ function JavCard({
                   item={previewStudio}
                   href={buildStudioFilterHref(previewStudio)}
                   onSelectStudio={(studio) => onStudioClick?.(studio)}
+                  onSelectSeries={(series) => onSeriesClick?.(series)}
+                  onSelectPrefix={(prefix) => onPrefixClick?.(prefix)}
+                  buildSeriesUrl={buildSeriesFilterHref}
+                  directoryIds={directoryIds}
                 />
               ) : null}
             </div>

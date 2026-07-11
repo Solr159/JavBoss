@@ -25,7 +25,7 @@ import { zh } from '@/utils/i18n'
 
 const VIDEO_PAGE_SIZE = 25
 const JAV_PAGE_SIZE = 24
-const JAV_STUDIO_PAGE_SIZE = 24
+const JAV_STUDIO_PAGE_SIZE = 25
 const JAV_SERIES_PAGE_SIZE = 25
 const JAV_GRID_COLUMNS_AUTO = 0
 const JAV_TITLE_MAX_ROWS_DEFAULT = 2
@@ -144,6 +144,7 @@ const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
     (state.javTags || []).join(','),
     state.javStudioId || '',
     state.javSeriesId || '',
+    state.javPrefix || '',
     state.javSoloOnly ? 'solo' : '',
     state.javFavoriteGroupId || '',
     effectiveSort,
@@ -242,6 +243,7 @@ export const useStore = create((set, get) => ({
   javStudioName: '',
   javSeriesId: null,
   javSeriesName: '',
+  javPrefix: '',
   javSoloOnly: false,
   javFavoriteGroupId: null,
   javItems: [],
@@ -444,6 +446,7 @@ export const useStore = create((set, get) => ({
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javTempSort: '',
       javPage: 1,
     })
@@ -462,6 +465,7 @@ export const useStore = create((set, get) => ({
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javTempSort: '',
       javPage: 1,
     })
@@ -477,6 +481,7 @@ export const useStore = create((set, get) => ({
       javStudioName: String(studio?.name || '').trim(),
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javSoloOnly: false,
       javIdolIds: [],
       javTags: [],
@@ -498,6 +503,7 @@ export const useStore = create((set, get) => ({
       javSoloOnly: false,
       javStudioId: null,
       javStudioName: '',
+      javPrefix: '',
       javIdolIds: [],
       javTags: [],
       javTempSort: '',
@@ -819,6 +825,7 @@ export const useStore = create((set, get) => ({
       javTags,
       javStudioId,
       javSeriesId,
+      javPrefix,
       javSoloOnly,
       javFavoriteGroupId,
       javSort,
@@ -845,6 +852,7 @@ export const useStore = create((set, get) => ({
         tagIds: javTags,
         studioId: javStudioId,
         seriesId: javSeriesId,
+        prefix: javPrefix,
         soloOnly: javSoloOnly,
         favoriteGroupId: javFavoriteGroupId,
         sort: javRandomMode ? 'random' : effectiveSort,
@@ -890,6 +898,7 @@ export const useStore = create((set, get) => ({
         tagIds: state.javTags,
         studioId: state.javStudioId,
         seriesId: state.javSeriesId,
+        prefix: state.javPrefix,
         soloOnly: state.javSoloOnly,
         favoriteGroupId: state.javFavoriteGroupId,
         sort: effectiveSort,

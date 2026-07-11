@@ -153,6 +153,7 @@ export default function App() {
     javStudioName,
     javSeriesId,
     javSeriesName,
+    javPrefix,
     javSoloOnly,
     javFavoriteGroupId,
     setJavFavoriteGroupId,
@@ -909,6 +910,7 @@ export default function App() {
           javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
           javSeriesId: jav.tab === 'list' ? jav.seriesId : null,
           javSeriesName: jav.tab === 'list' && jav.seriesId ? jav.seriesName : '',
+          javPrefix: jav.tab === 'list' ? jav.prefix : '',
           javSoloOnly: jav.tab === 'list' ? jav.soloOnly : false,
           javFavoriteGroupId: jav.tab === 'list' ? jav.favoriteGroupId : null,
           javPage: jav.random ? 1 : jav.page,
@@ -978,6 +980,7 @@ export default function App() {
           javStudioName,
           javSeriesId,
           javSeriesName,
+          javPrefix,
           javSoloOnly,
           javFavoriteGroupId,
           javTempSort,
@@ -1009,6 +1012,7 @@ export default function App() {
       javIdolIds,
       javStudioId,
       javSeriesId,
+      javPrefix,
       javSoloOnly,
       studioFavoriteGroupId,
       seriesFavoriteGroupId,
@@ -1120,6 +1124,7 @@ export default function App() {
         studioName: studioNameOverride,
         seriesId: seriesIdOverride,
         seriesName: seriesNameOverride,
+        prefix: prefixOverride,
         soloOnly: soloOnlyOverride,
         favoriteGroupId: favoriteGroupIdOverride,
         tagIds: tagIdsOverride,
@@ -1164,6 +1169,13 @@ export default function App() {
         if (seriesName) {
           sp.set('series_name', seriesName)
         }
+      }
+      const hasPrefixOverride = Object.prototype.hasOwnProperty.call(options, 'prefix')
+      const prefix = String(hasPrefixOverride ? prefixOverride || '' : javPrefix || '')
+        .trim()
+        .toUpperCase()
+      if (tab === 'list' && prefix) {
+        sp.set('prefix', prefix)
       }
       const hasSoloOnlyOverride = Object.prototype.hasOwnProperty.call(options, 'soloOnly')
       const soloOnly = hasSoloOnlyOverride ? Boolean(soloOnlyOverride) : Boolean(javSoloOnly)
@@ -1239,6 +1251,7 @@ export default function App() {
       javStudioName,
       javSeriesId,
       javSeriesName,
+      javPrefix,
       javSoloOnly,
       javPage,
       javTempSort,
@@ -1273,6 +1286,7 @@ export default function App() {
         javStudioName: '',
         javSeriesId: null,
         javSeriesName: '',
+        javPrefix: '',
         javSoloOnly: false,
         idolFavoriteGroupId: null,
         javTags: clean,
@@ -1575,6 +1589,7 @@ export default function App() {
       javTags.length > 0 ||
       Boolean(javStudioId) ||
       Boolean(javSeriesId) ||
+      Boolean((javPrefix || '').trim()) ||
       Boolean(javSoloOnly) ||
       Boolean((javSearchTerm || '').trim()))
   useEffect(() => {
@@ -1626,6 +1641,7 @@ export default function App() {
     tagIds: [],
     studioId: null,
     seriesId: null,
+    prefix: '',
     soloOnly: false,
     random: false,
     tempSort: '',
@@ -1638,6 +1654,7 @@ export default function App() {
     tagIds: [],
     studioId: null,
     seriesId: null,
+    prefix: '',
     soloOnly: false,
     search: '',
   })
@@ -1655,6 +1672,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
@@ -1748,6 +1766,10 @@ export default function App() {
           const label = javSeriesName || loadedSeriesName || `#${javSeriesId}`
           parts.push(zh(`系列: ${label}`, `Series: ${label}`))
         }
+        const prefixLabel = (javPrefix || '').trim()
+        if (prefixLabel) {
+          parts.push(zh(`番号: ${prefixLabel}`, `Code: ${prefixLabel}`))
+        }
         if (javSoloOnly) {
           parts.push(zh('单体作品', 'Solo works'))
         }
@@ -1780,6 +1802,7 @@ export default function App() {
     javStudioName,
     javSeriesId,
     javSeriesName,
+    javPrefix,
     javSoloOnly,
     javItems,
     javTagNameMap,
@@ -1851,6 +1874,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javSoloOnly: false,
       javSearchTerm: (javSearchInput || '').trim(),
       javPage: 1,
@@ -2284,6 +2308,7 @@ export default function App() {
         javStudioName: '',
         javSeriesId: null,
         javSeriesName: '',
+        javPrefix: '',
         javSoloOnly: false,
         idolFavoriteGroupId: null,
         javSearchTerm: '',
@@ -2341,6 +2366,7 @@ export default function App() {
       javStudioName: '',
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javSoloOnly: false,
       idolFavoriteGroupId: null,
       javRandomMode: nextRandomMode,
@@ -2738,6 +2764,7 @@ export default function App() {
       javStudioName: String(studio?.name || '').trim(),
       javSeriesId: null,
       javSeriesName: '',
+      javPrefix: '',
       javSoloOnly: false,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
@@ -2766,7 +2793,40 @@ export default function App() {
       javStudioName: '',
       javSeriesId: id,
       javSeriesName: String(series?.name || '').trim(),
+      javPrefix: '',
       javSoloOnly: false,
+      idolFavoriteGroupId: null,
+      javSearchTerm: '',
+      javPage: 1,
+      idolPage: 1,
+      studioPage: 1,
+      seriesPage: 1,
+    })
+  }
+
+  const handleSelectJavPrefix = (prefixItem) => {
+    const prefix = String(prefixItem?.prefix || prefixItem || '')
+      .trim()
+      .toUpperCase()
+    if (!prefix) return
+    saveScrollBeforeUrlStateChange()
+    useStore.setState({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: 'list',
+      javTempSort: '',
+      idolTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javIdolIds: [],
+      javTags: [],
+      javStudioId: null,
+      javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
+      javPrefix: prefix,
+      javSoloOnly: false,
+      javFavoriteGroupId: null,
       idolFavoriteGroupId: null,
       javSearchTerm: '',
       javPage: 1,
@@ -2814,6 +2874,9 @@ export default function App() {
       const nextSeriesId = Number(query?.series?.id)
       const hasSeries = Number.isFinite(nextSeriesId) && nextSeriesId > 0
       const nextSeriesName = hasSeries ? String(query?.series?.name || '').trim() : ''
+      const nextPrefix = String(query?.prefix || '')
+        .trim()
+        .toUpperCase()
       saveScrollBeforeUrlStateChange()
       useStore.setState({
         viewMode: 'jav',
@@ -2830,6 +2893,7 @@ export default function App() {
         javStudioName: nextStudioName,
         javSeriesId: hasSeries ? nextSeriesId : null,
         javSeriesName: nextSeriesName,
+        javPrefix: nextPrefix,
         javSoloOnly: Boolean(query?.soloOnly),
         idolFavoriteGroupId: null,
         javPage: 1,
@@ -3006,6 +3070,25 @@ export default function App() {
         showJavFilterRandomButton={showJavFilterRandomButton}
         isModifiedClick={isModifiedClick}
         javTab={javTab}
+        javPrefix={javPrefix}
+        javPrefixDirectoryIds={javQueryDirectoryIds}
+        buildJavPrefixUrl={(item) =>
+          buildJavUrl({
+            page: 1,
+            tab: 'list',
+            search: '',
+            idolIds: [],
+            tagIds: [],
+            studioId: null,
+            seriesId: null,
+            prefix: item?.prefix || '',
+            soloOnly: false,
+            favoriteGroupId: null,
+            random: false,
+            tempSort: '',
+          })
+        }
+        onJavPrefixClick={handleSelectJavPrefix}
         onSwitchJavTab={handleSwitchJavTab}
         favoriteEntityType={activeFavoriteEntityType}
         favoriteGroups={activeFavoriteGroups}
@@ -3095,6 +3178,7 @@ export default function App() {
               hasMore: idolWaterfallHasMore,
             }}
             studio={{
+              directoryIds: javQueryDirectoryIds,
               page: studioPage,
               lastPage: studioLastPage,
               totalItems: studioTotal,
@@ -3108,6 +3192,8 @@ export default function App() {
               onLast: () => setStudioPage(studioLastPage),
               items: studioItems,
               onSelectStudio: handleSelectStudio,
+              onSelectSeries: handleSelectSeries,
+              onSelectPrefix: handleSelectJavPrefix,
               onOpenFavorites: (studio) => handleOpenFavoriteModal('studio', studio),
               waterfallMode: waterfallModes.studio,
               onWaterfallModeChange: (enabled) => setWaterfallMode('studio', enabled),
@@ -3137,6 +3223,7 @@ export default function App() {
               hasMore: seriesWaterfallHasMore,
             }}
             list={{
+              directoryIds: javQueryDirectoryIds,
               javPage,
               javLastPage,
               javHasPrev,
@@ -3145,6 +3232,7 @@ export default function App() {
               javRandomMode,
               javTempSort,
               javGlobalSort: javSort,
+              javPrefix,
               setJavPage,
               setJavTempSort,
               javItems,
@@ -3172,6 +3260,7 @@ export default function App() {
               onOpenJavFavorites: (item) => handleOpenFavoriteModal('jav', item),
               onStudioClick: handleSelectStudio,
               onSeriesClick: handleSelectSeries,
+              onPrefixClick: handleSelectJavPrefix,
               onTagClick: handleJavTagClick,
               waterfallMode: waterfallModes.jav,
               onWaterfallModeChange: (enabled) => setWaterfallMode('jav', enabled),
@@ -3231,6 +3320,7 @@ export default function App() {
         studioName={javStudioName}
         seriesId={javSeriesId}
         seriesName={javSeriesName}
+        prefix={javPrefix}
         soloOnly={javSoloOnly}
         directoryIds={javQueryDirectoryIds}
         javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
