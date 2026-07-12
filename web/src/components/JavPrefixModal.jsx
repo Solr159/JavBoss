@@ -263,9 +263,10 @@ export default function JavPrefixModal({
                         </a>
                       </td>
                       <td className="px-5 py-3 text-gray-700">
-                        <div className="flex flex-wrap gap-x-2 gap-y-1">
+                        <div className="flex flex-wrap gap-y-1">
                           {(item?.studioItems || []).length > 0 ? (
                             item.studioItems.map((studio, index) => {
+                              const studios = item.studioItems || []
                               const studioName = String(studio?.name || '').trim()
                               const studioId = Number(studio?.id)
                               const hasStudio = Number.isFinite(studioId) && studioId > 0
@@ -276,22 +277,29 @@ export default function JavPrefixModal({
                                 include_studio_filter: true,
                               }
                               return (
-                                <a
+                                <span
                                   key={`${hasStudio ? studioId : 'unknown'}-${studioName || index}`}
-                                  href={buildPrefixUrl?.(studioFilterItem) || '#'}
-                                  className="text-gray-700 hover:text-gray-900 hover:underline"
-                                  title={zh(
-                                    `搜索 ${prefix} + ${studioFilterItem.studio_name}`,
-                                    `Search ${prefix} + ${studioFilterItem.studio_name}`
-                                  )}
-                                  onClick={(event) => {
-                                    if (isModifiedClick(event)) return
-                                    event.preventDefault()
-                                    onSelectPrefix?.(studioFilterItem)
-                                  }}
+                                  className="inline-flex"
                                 >
-                                  {studioFilterItem.studio_name}
-                                </a>
+                                  <a
+                                    href={buildPrefixUrl?.(studioFilterItem) || '#'}
+                                    className="text-gray-700 hover:text-gray-900 hover:underline"
+                                    title={zh(
+                                      `搜索 ${prefix} + ${studioFilterItem.studio_name}`,
+                                      `Search ${prefix} + ${studioFilterItem.studio_name}`
+                                    )}
+                                    onClick={(event) => {
+                                      if (isModifiedClick(event)) return
+                                      event.preventDefault()
+                                      onSelectPrefix?.(studioFilterItem)
+                                    }}
+                                  >
+                                    {studioFilterItem.studio_name}
+                                  </a>
+                                  {index < studios.length - 1 ? (
+                                    <span className="text-gray-500">{studioListSeparator()}</span>
+                                  ) : null}
+                                </span>
                               )
                             })
                           ) : (
