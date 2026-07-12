@@ -83,7 +83,7 @@ export default function JavIdolFavoriteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 px-4">
+    <div className="fixed inset-0 z-[1800] flex items-center justify-center bg-black/35 px-4">
       <div className="flex max-h-[82vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
         <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">

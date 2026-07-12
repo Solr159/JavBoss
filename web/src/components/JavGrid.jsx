@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconButton, Popper, Tooltip } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
@@ -1730,6 +1730,7 @@ function JavCard({
   const [idolCoverEditorItem, setIdolCoverEditorItem] = useState(null)
   const [idolEditorItem, setIdolEditorItem] = useState(null)
   const closeTimerRef = useRef(null)
+  const hoverPreviewLockedRef = useRef(false)
   const activeIdolHoverIdRef = useRef(null)
   const activeStudioHoverIdRef = useRef(null)
   const activeSeriesHoverIdRef = useRef(null)
@@ -1857,11 +1858,35 @@ function JavCard({
 
   const scheduleHoverClose = () => {
     clearHoverCloseTimer()
+    if (hoverPreviewLockedRef.current) return
     closeTimerRef.current = window.setTimeout(() => {
       clearHoverPreview()
       closeTimerRef.current = null
     }, 120)
   }
+
+  const handleStudioSeriesListOpenChange = useCallback((open) => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    hoverPreviewLockedRef.current = Boolean(open)
+    if (open) {
+      return
+    }
+    closeTimerRef.current = window.setTimeout(() => {
+      activeIdolHoverIdRef.current = null
+      activeStudioHoverIdRef.current = null
+      activeSeriesHoverIdRef.current = null
+      setPreviewIdol(null)
+      setIdolHoverAnchorEl(null)
+      setPreviewStudio(null)
+      setStudioHoverAnchorEl(null)
+      setPreviewSeries(null)
+      setSeriesHoverAnchorEl(null)
+      closeTimerRef.current = null
+    }, 120)
+  }, [])
 
   const handleIdolHoverStart = (idol, event) => {
     clearHoverCloseTimer()
@@ -2202,6 +2227,7 @@ function JavCard({
                   onOpenFavorites={onOpenStudioFavorites}
                   buildSeriesUrl={buildSeriesFilterHref}
                   onOpenSeriesFavorites={onOpenSeriesFavorites}
+                  onSeriesListOpenChange={handleStudioSeriesListOpenChange}
                   directoryIds={directoryIds}
                 />
               ) : null}

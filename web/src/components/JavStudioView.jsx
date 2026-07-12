@@ -136,6 +136,7 @@ export function StudioCard({
   onSelectPrefix,
   onOpenFavorites,
   onOpenSeriesFavorites,
+  onSeriesListOpenChange,
   buildSeriesUrl,
   directoryIds = [],
 }) {
@@ -183,6 +184,7 @@ export function StudioCard({
   const seriesMeasureRef = useRef(null)
   const closeTimerRef = useRef(null)
   const activeSeriesHoverIdRef = useRef(null)
+  const hasReportedSeriesListOpenRef = useRef(false)
   const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(studioId) && studioId > 0))
   const displayedSeriesItems =
     visibleSeriesCount == null ? seriesItems : seriesItems.slice(0, visibleSeriesCount)
@@ -318,6 +320,19 @@ export function StudioCard({
     event.stopPropagation()
     setSeriesListOpen(true)
   }
+
+  useEffect(() => {
+    if (seriesListOpen) {
+      hasReportedSeriesListOpenRef.current = true
+      onSeriesListOpenChange?.(true)
+      return () => {
+        hasReportedSeriesListOpenRef.current = false
+        onSeriesListOpenChange?.(false)
+      }
+    }
+    if (hasReportedSeriesListOpenRef.current) onSeriesListOpenChange?.(false)
+    return undefined
+  }, [onSeriesListOpenChange, seriesListOpen])
 
   useEffect(() => {
     if (!seriesListOpen) return undefined
