@@ -1692,7 +1692,7 @@ func TestListJavsMissingTitle(t *testing.T) {
 	}
 }
 
-func TestListJavsMissingStudio(t *testing.T) {
+func TestListJavsMissingStudioOrEnglishSeries(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -1701,23 +1701,32 @@ func TestListJavsMissingStudio(t *testing.T) {
 	if err := gdb.Create(&studio).Error; err != nil {
 		t.Fatalf("create studio: %v", err)
 	}
+	seriesEn := models.JavSeries{Name: "English Series", IsEnglish: true}
+	if err := gdb.Create(&seriesEn).Error; err != nil {
+		t.Fatalf("create english series: %v", err)
+	}
 
 	rows := []models.Jav{
-		{Code: "MISS-STUDIO", TitleEn: "English Title", FetchedAt: now, CreatedAt: now},
-		{Code: "MISS-TITLE-EN", StudioID: &studio.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
-		{Code: "MISS-SERIES", TitleEn: "English Title", StudioID: &studio.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
+		{Code: "MISS-STUDIO", TitleEn: "English Title", SeriesEnID: &seriesEn.ID, FetchedAt: now, CreatedAt: now},
+		{Code: "MISS-SERIES-EN", TitleEn: "English Title", StudioID: &studio.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
+		{Code: "HAVE-BOTH", TitleEn: "English Title", StudioID: &studio.ID, SeriesEnID: &seriesEn.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
 		{Code: "", FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
 	}
 	if err := gdb.Create(&rows).Error; err != nil {
 		t.Fatalf("create jav rows: %v", err)
 	}
 
-	items, err := ListJavsMissingStudio(ctx)
+	items, err := ListJavsMissingStudioOrEnglishSeries(ctx)
 	if err != nil {
-		t.Fatalf("ListJavsMissingStudio: %v", err)
+		t.Fatalf("ListJavsMissingStudioOrEnglishSeries: %v", err)
 	}
-	if len(items) != 1 || items[0].Code != "MISS-STUDIO" {
-		t.Fatalf("unexpected items: %#v", items)
+	got := []string{}
+	for _, item := range items {
+		got = append(got, item.Code)
+	}
+	want := []string{"MISS-STUDIO", "MISS-SERIES-EN"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected codes: got %#v want %#v", got, want)
 	}
 }
 
@@ -1757,6 +1766,42 @@ func TestListJavsMissingEnglishMetadata(t *testing.T) {
 	want := []string{"MISS-STUDIO", "MISS-TITLE-EN", "MISS-SERIES-EN"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected codes: got %#v want %#v", got, want)
+	}
+}
+
+func TestListJavsMissingLocalSeriesWithEnglishSeries(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	localSeries := models.JavSeries{Name: "Local Series"}
+	englishSeries := models.JavSeries{Name: "English Series", IsEnglish: true}
+	if err := gdb.Create(&localSeries).Error; err != nil {
+		t.Fatalf("create local series: %v", err)
+	}
+	if err := gdb.Create(&englishSeries).Error; err != nil {
+		t.Fatalf("create english series: %v", err)
+	}
+
+	rows := []models.Jav{
+		{Code: "MISS-LOCAL", SeriesEnID: &englishSeries.ID, FetchedAt: now, CreatedAt: now},
+		{Code: "MISS-BOTH", FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
+		{Code: "HAVE-BOTH", SeriesID: &localSeries.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
+		{Code: "", SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+	}
+	if err := gdb.Create(&rows).Error; err != nil {
+		t.Fatalf("create jav rows: %v", err)
+	}
+
+	items, err := ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
+	if err != nil {
+		t.Fatalf("ListJavsMissingLocalSeriesWithEnglishSeries: %v", err)
+	}
+	if len(items) != 1 || items[0].Code != "MISS-LOCAL" {
+		t.Fatalf("unexpected items: %#v", items)
+	}
+	if items[0].SeriesID != nil || items[0].SeriesEnID == nil || *items[0].SeriesEnID != englishSeries.ID {
+		t.Fatalf("unexpected series ids: %#v", items[0])
 	}
 }
 

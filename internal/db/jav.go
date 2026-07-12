@@ -2154,32 +2154,17 @@ func ListJavCodes(ctx context.Context) ([]string, error) {
 	return codes, nil
 }
 
-// ListJavsMissingMetadata returns JAV rows whose English title, studio, or series relation is empty.
-func ListJavsMissingMetadata(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsMissingStudioOrEnglishSeries returns JAV rows whose studio or English series relation is empty.
+func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, title_en, studio_id, series_id, series_en_id").
+		Select("id, code, studio_id, series_en_id").
 		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(title_en, '') = '' OR studio_id IS NULL OR series_id IS NULL OR series_en_id IS NULL").
+		Where("studio_id IS NULL OR series_en_id IS NULL").
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing metadata: %w", err)
-	}
-	return items, nil
-}
-
-// ListJavsMissingStudio returns JAV rows whose studio relation is empty.
-func ListJavsMissingStudio(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code, studio_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("studio_id IS NULL").
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing studio: %w", err)
+		return nil, fmt.Errorf("list javs missing studio or english series: %w", err)
 	}
 	return items, nil
 }
@@ -2195,6 +2180,22 @@ func ListJavsMissingEnglishMetadata(ctx context.Context) ([]JavMetadataScanItem,
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
 		return nil, fmt.Errorf("list javs missing english metadata: %w", err)
+	}
+	return items, nil
+}
+
+// ListJavsMissingLocalSeriesWithEnglishSeries returns JAV rows that have English series but are missing local series.
+func ListJavsMissingLocalSeriesWithEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+	var items []JavMetadataScanItem
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Select("id, code, series_id, series_en_id").
+		Where("COALESCE(code, '') <> ''").
+		Where("series_id IS NULL").
+		Where("series_en_id IS NOT NULL").
+		Order("created_at ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("list javs missing local series with english series: %w", err)
 	}
 	return items, nil
 }

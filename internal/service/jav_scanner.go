@@ -57,7 +57,7 @@ func ScanJavMetadata(ctx context.Context) error {
 		if err := scanMissingJavEnglishMetadata(ctx); err != nil {
 			return err
 		}
-	} else if err := scanMissingJavStudio(ctx); err != nil {
+	} else if err := scanMissingJavStudioAndEnglishSeries(ctx); err != nil {
 		return err
 	}
 
@@ -71,8 +71,8 @@ func ScanJavMetadata(ctx context.Context) error {
 	return nil
 }
 
-func scanMissingJavStudio(ctx context.Context) error {
-	items, err := db.ListJavsMissingStudio(ctx)
+func scanMissingJavStudioAndEnglishSeries(ctx context.Context) error {
+	items, err := db.ListJavsMissingStudioOrEnglishSeries(ctx)
 	if err != nil {
 		return err
 	}
@@ -85,19 +85,38 @@ func scanMissingJavStudio(ctx context.Context) error {
 			continue
 		}
 		studio := ""
+		seriesEn := ""
 		if info != nil {
 			studio = strings.TrimSpace(info.Studio)
+			seriesEn = strings.TrimSpace(info.Series)
 		}
-		if studio == "" {
-			continue
+		if item.StudioID == nil && studio != "" {
+			if updated, err := db.UpdateJavStudioIfMissing(ctx, item.ID, studio); err != nil {
+				logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
+			} else if updated {
+				logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
+			}
 		}
-		if updated, err := db.UpdateJavStudioIfMissing(ctx, item.ID, studio); err != nil {
-			logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
-		} else if updated {
-			logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
+		if item.SeriesEnID == nil && seriesEn != "" {
+			if updated, err := db.UpdateJavSeriesIfMissing(ctx, item.ID, seriesEn, true); err != nil {
+				logging.Error("update jav english series failed id=%d code=%s err=%v", item.ID, code, err)
+			} else if updated {
+				logging.Info("jav english series updated id=%d code=%s series=%s", item.ID, code, seriesEn)
+			}
 		}
 	}
 	return nil
+}
+
+func updateMissingJavStudio(ctx context.Context, item db.JavMetadataScanItem, code, studio string) {
+	if item.StudioID != nil || studio == "" {
+		return
+	}
+	if updated, err := db.UpdateJavStudioIfMissing(ctx, item.ID, studio); err != nil {
+		logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
+	} else if updated {
+		logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
+	}
 }
 
 func scanMissingJavEnglishMetadata(ctx context.Context) error {
@@ -133,13 +152,7 @@ func scanMissingJavEnglishMetadata(ctx context.Context) error {
 				logging.Info("jav english series updated id=%d code=%s series=%s", item.ID, code, seriesEn)
 			}
 		}
-		if item.StudioID == nil && studio != "" {
-			if updated, err := db.UpdateJavStudioIfMissing(ctx, item.ID, studio); err != nil {
-				logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
-			} else if updated {
-				logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
-			}
-		}
+		updateMissingJavStudio(ctx, item, code, studio)
 	}
 	return nil
 }
@@ -170,7 +183,7 @@ func ScanSlowJavMetadata(ctx context.Context) error {
 	if err := scanMissingUncensoredJavInfoWithAvsox(ctx); err != nil {
 		return err
 	}
-	if err := scanMissingJavSeriesWithAvmoo(ctx); err != nil {
+	if err := scanMissingJavLocalSeriesWithAvmoo(ctx); err != nil {
 		return err
 	}
 
@@ -282,20 +295,20 @@ func scanMissingUncensoredJavInfoWithAvsox(ctx context.Context) error {
 	return nil
 }
 
-func scanMissingJavSeriesWithAvmoo(ctx context.Context) error {
-	logging.Info("starting scan missing jav series with avmoo")
-	items, err := db.ListJavsMissingMetadata(ctx)
+func scanMissingJavLocalSeriesWithAvmoo(ctx context.Context) error {
+	logging.Info("starting scan missing jav local series with avmoo")
+	items, err := db.ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
 	if err != nil {
 		return err
 	}
-	logging.Info("found %d javs missing series metadata", len(items))
+	logging.Info("found %d javs missing local series with english series", len(items))
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 
 		code := strings.TrimSpace(item.Code)
-		if code == "" || item.SeriesID != nil || item.SeriesEnID == nil {
+		if code == "" {
 			continue
 		}
 
@@ -315,10 +328,10 @@ func scanMissingJavSeriesWithAvmoo(ctx context.Context) error {
 			continue
 		}
 		if updated, err := db.UpdateJavSeriesIfMissing(ctx, item.ID, series, false); err != nil {
-			logging.Error("update jav series failed id=%d code=%s err=%v", item.ID, code, err)
+			logging.Error("update jav local series failed id=%d code=%s err=%v", item.ID, code, err)
 			continue
 		} else if updated {
-			logging.Info("jav series updated id=%d code=%s series=%s", item.ID, code, series)
+			logging.Info("jav local series updated id=%d code=%s series=%s", item.ID, code, series)
 		}
 	}
 	return nil
