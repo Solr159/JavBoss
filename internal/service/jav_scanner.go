@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 	"javboss/internal/db"
 	"javboss/internal/jav"
 )
+
+const javUncensoredBackfillDoneConfigKey = "jav_uncensored_backfill_done"
 
 type javMetadataScanFunc func(context.Context) error
 
@@ -50,7 +53,7 @@ func ScanJavMetadata(ctx context.Context) error {
 	if err := scanMissingJavZhInfo(ctx, javFastZhMetadataProviders()); err != nil {
 		return err
 	}
-	if err := scanMissingJavUncensored(ctx); err != nil {
+	if err := scanMissingJavUncensoredBackfillOnce(ctx); err != nil {
 		return err
 	}
 	if jav.CurrentMetadataLanguageIsEnglish() {
@@ -199,6 +202,32 @@ func ScanSlowJavMetadata(ctx context.Context) error {
 
 func javFastZhMetadataProviders() []jav.Provider {
 	return []jav.Provider{jav.ProviderJavBus}
+}
+
+func scanMissingJavUncensoredBackfillOnce(ctx context.Context) error {
+	done, err := javUncensoredBackfillDone(ctx)
+	if err != nil {
+		return err
+	}
+	if done {
+		return nil
+	}
+	if err := scanMissingJavUncensored(ctx); err != nil {
+		return err
+	}
+	if err := db.UpsertConfig(ctx, map[string]string{javUncensoredBackfillDoneConfigKey: "1"}); err != nil {
+		return fmt.Errorf("mark jav uncensored backfill done: %w", err)
+	}
+	logging.Info("jav uncensored backfill marked done")
+	return nil
+}
+
+func javUncensoredBackfillDone(ctx context.Context) (bool, error) {
+	entries, err := db.ListConfig(ctx)
+	if err != nil {
+		return false, err
+	}
+	return strings.TrimSpace(entries[javUncensoredBackfillDoneConfigKey]) == "1", nil
 }
 
 // jav表uncensored字段是新增的，存量数据中使用javbus获取的jav的uncensored状态未知，这个函数专门用javbus重新获取一遍来补齐这个信息。
