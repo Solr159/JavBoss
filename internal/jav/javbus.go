@@ -41,12 +41,13 @@ func (javBus) LookupJavByCode(code string) (*JavInfo, error) {
 	if code == "" {
 		return nil, ResourceNotFonud
 	}
-	logging.Info("javbus: code -> %s", code)
+	lookupCode, rewrite := javBusLookupCode(code)
+	logging.Info("javbus: code -> %s", lookupCode)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	info, err := fetchInfo(ctx, code)
+	info, err := fetchInfo(ctx, lookupCode)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +55,10 @@ func (javBus) LookupJavByCode(code string) (*JavInfo, error) {
 		return nil, nil
 	}
 	if info.Code == "" {
-		info.Code = code
+		info.Code = lookupCode
+	}
+	if rewrite != nil {
+		normalizeJavBusRewrittenInfo(info, rewrite)
 	}
 	return info, nil
 }
@@ -118,6 +122,56 @@ func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
 	}
 	logging.Info("javbus parsed from %s: title=%q tags=%d actors=%d", url, info.Title, len(info.Tags), len(info.Actors))
 	return info, nil
+}
+
+type javBusCodeRewrite struct {
+	inputPrefix   string
+	requestPrefix string
+}
+
+var javBusCodeRewrites = []javBusCodeRewrite{
+	{inputPrefix: "gana", requestPrefix: "200gana"},
+	{inputPrefix: "mium", requestPrefix: "300mium"},
+	{inputPrefix: "luxu", requestPrefix: "259luxu"},
+}
+
+func javBusLookupCode(code string) (string, *javBusCodeRewrite) {
+	code = strings.TrimSpace(code)
+	for _, rewrite := range javBusCodeRewrites {
+		if javBusCodeHasPrefix(code, rewrite.inputPrefix) {
+			r := rewrite
+			return rewrite.requestPrefix + code[len(rewrite.inputPrefix):], &r
+		}
+	}
+	return code, nil
+}
+
+func normalizeJavBusRewrittenInfo(info *JavInfo, rewrite *javBusCodeRewrite) {
+	if info == nil {
+		return
+	}
+	info.Code = stripJavBusRequestPrefix(info.Code, rewrite)
+	info.Title = cleanTitle(stripJavBusRequestPrefix(info.Title, rewrite))
+}
+
+func javBusCodeHasPrefix(code, prefix string) bool {
+	if len(code) <= len(prefix) || !strings.EqualFold(code[:len(prefix)], prefix) {
+		return false
+	}
+	next := code[len(prefix)]
+	return next == '-' || next == '_' || next == ' ' || (next >= '0' && next <= '9')
+}
+
+func stripJavBusRequestPrefix(value string, rewrite *javBusCodeRewrite) string {
+	value = strings.TrimSpace(value)
+	if rewrite == nil || !javBusCodeHasPrefix(value, rewrite.requestPrefix) {
+		return value
+	}
+	addedPrefixLen := len(rewrite.requestPrefix) - len(rewrite.inputPrefix)
+	if addedPrefixLen <= 0 || len(value) <= addedPrefixLen {
+		return value
+	}
+	return strings.TrimSpace(value[addedPrefixLen:])
 }
 
 func fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, error) {
