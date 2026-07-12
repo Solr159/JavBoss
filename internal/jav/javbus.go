@@ -274,6 +274,7 @@ func parseDocument(doc *html.Node) *JavInfo {
 	}
 	title := cleanTitle(rawTitle)
 	code := extractCode(doc)
+	series := extractJavBusField(doc, "系列", "series")
 	releaseUnix, duration := extractDetails(doc)
 
 	tags := collectGenres(doc)
@@ -287,6 +288,7 @@ func parseDocument(doc *html.Node) *JavInfo {
 	return &JavInfo{
 		Title:        title,
 		Code:         code,
+		Series:       series,
 		ReleaseUnix:  releaseUnix,
 		DurationMin:  duration,
 		Tags:         tags,
@@ -412,21 +414,36 @@ func cleanTitle(s string) string {
 }
 
 func extractCode(root *html.Node) string {
-	var code string
+	return extractJavBusField(root, "識別碼", "id:")
+}
+
+func extractJavBusField(root *html.Node, labels ...string) string {
+	normalizedLabels := make([]string, 0, len(labels))
+	for _, label := range labels {
+		label = normalizeJavBusFieldLabel(label)
+		if label != "" {
+			normalizedLabels = append(normalizedLabels, label)
+		}
+	}
+	if len(normalizedLabels) == 0 {
+		return ""
+	}
+
+	var value string
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
-		if code != "" {
+		if value != "" {
 			return
 		}
 		if n.Type == html.ElementNode && n.Data == "span" {
-			text := strings.TrimSpace(flattenText(n))
-			if strings.Contains(text, "識別碼") || strings.Contains(strings.ToLower(text), "id:") {
+			text := normalizeJavBusFieldLabel(flattenText(n))
+			if javBusFieldLabelMatches(text, normalizedLabels) {
 				for next := n.NextSibling; next != nil; next = next.NextSibling {
 					if next.Type != html.ElementNode {
 						continue
 					}
 					if c := strings.TrimSpace(flattenText(next)); c != "" {
-						code = c
+						value = c
 						return
 					}
 				}
@@ -437,7 +454,23 @@ func extractCode(root *html.Node) string {
 		}
 	}
 	walk(root)
-	return code
+	return value
+}
+
+func normalizeJavBusFieldLabel(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	value = strings.TrimSuffix(value, ":")
+	value = strings.TrimSuffix(value, "：")
+	return strings.TrimSpace(value)
+}
+
+func javBusFieldLabelMatches(text string, labels []string) bool {
+	for _, label := range labels {
+		if text == label || strings.Contains(text, label) {
+			return true
+		}
+	}
+	return false
 }
 
 func extractDetails(root *html.Node) (releaseUnix int64, durationMin int) {

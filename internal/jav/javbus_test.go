@@ -95,6 +95,28 @@ func TestParseJavBusMovieInfoIncludesCoverURL(t *testing.T) {
 	}
 }
 
+func TestParseJavBusMovieInfoIncludesSeries(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+		<html>
+			<body>
+				<h3>ABC-001 Test Title</h3>
+				<p><span>識別碼:</span><span>ABC-001</span></p>
+				<p><span>系列:</span><span><a href="/series/abc">测试系列</a></span></p>
+			</body>
+		</html>`))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	info := parseDocument(doc)
+	if info == nil {
+		t.Fatal("expected info, got nil")
+	}
+	if info.Series != "测试系列" {
+		t.Fatalf("unexpected series: %q", info.Series)
+	}
+}
+
 func TestJavBusLookupCodeRewritesSpecialPrefixes(t *testing.T) {
 	cases := []struct {
 		code string
