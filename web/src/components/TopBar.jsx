@@ -3,7 +3,7 @@ import { Button, IconButton, Tooltip } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
-import ViewListRoundedIcon from '@mui/icons-material/ViewListRounded'
+import NumbersRoundedIcon from '@mui/icons-material/NumbersRounded'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined'
@@ -477,7 +477,7 @@ export default function TopBar({
                         p: 0,
                       }}
                     >
-                      <ViewListRoundedIcon fontSize="small" />
+                      <NumbersRoundedIcon fontSize="small" />
                     </Button>
                   </Tooltip>
                   {isJavMode ? (
