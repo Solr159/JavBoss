@@ -165,9 +165,7 @@ func lookupJavDatabaseMetadata(ctx context.Context, item db.JavMetadataScanItem)
 
 // ScanSlowJavMetadata scans JAV rows using providers that are known to be slow or heavily rate limited.
 func ScanSlowJavMetadata(ctx context.Context) error {
-	if common.DB == nil {
-		return errors.New("nil db")
-	}
+	logging.Info("starting slow jav metadata scan")
 
 	if err := scanMissingUncensoredJavInfoWithAvsox(ctx); err != nil {
 		return err
@@ -285,10 +283,12 @@ func scanMissingUncensoredJavInfoWithAvsox(ctx context.Context) error {
 }
 
 func scanMissingJavSeriesWithAvmoo(ctx context.Context) error {
+	logging.Info("starting scan missing jav series with avmoo")
 	items, err := db.ListJavsMissingMetadata(ctx)
 	if err != nil {
 		return err
 	}
+	logging.Info("found %d javs missing series metadata", len(items))
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
 			return err
