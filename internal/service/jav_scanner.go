@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"strings"
 	"time"
 
@@ -79,6 +80,7 @@ func scanMissingJavStudioAndEnglishSeries(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	shuffleJavMetadataScanItems(items)
 	for _, item := range items {
 		info, code, ok, err := lookupJavDatabaseMetadata(ctx, item)
 		if err != nil {
@@ -127,6 +129,7 @@ func scanMissingJavEnglishMetadata(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	shuffleJavMetadataScanItems(items)
 	for _, item := range items {
 		info, code, ok, err := lookupJavDatabaseMetadata(ctx, item)
 		if err != nil {
@@ -236,6 +239,7 @@ func scanMissingJavUncensored(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	shuffleJavMetadataScanItems(items)
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -331,6 +335,7 @@ func scanMissingJavLocalSeriesWithAvmoo(ctx context.Context) error {
 		return err
 	}
 	logging.Info("found %d javs missing local series with english series", len(items))
+	shuffleJavMetadataScanItems(items)
 	for _, item := range items {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -364,6 +369,12 @@ func scanMissingJavLocalSeriesWithAvmoo(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func shuffleJavMetadataScanItems(items []db.JavMetadataScanItem) {
+	rand.Shuffle(len(items), func(i, j int) {
+		items[i], items[j] = items[j], items[i]
+	})
 }
 
 // 某些信息可能是通过英文数据源javdatabase获取的，缺少中日文元数据信息，这个函数专门用来补齐。
