@@ -142,7 +142,7 @@ const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
     search,
     (state.javIdolIds || []).join(','),
     (state.javTags || []).join(','),
-    state.javStudioId || '',
+    state.javStudioId ?? '',
     state.javSeriesId || '',
     state.javPrefix || '',
     state.javSoloOnly ? 'solo' : '',

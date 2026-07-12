@@ -20,6 +20,11 @@ const parsePositiveInt = (raw) => {
   return Number.isFinite(value) && value > 0 ? value : null
 }
 
+const parseNonNegativeInt = (raw) => {
+  const value = Number.parseInt(String(raw || '').trim(), 10)
+  return Number.isFinite(value) && value >= 0 ? value : null
+}
+
 const parseJavPrefix = (raw) => {
   const value = String(raw || '')
     .trim()
@@ -76,7 +81,7 @@ export const parseUrlState = (searchString = window.location.search, options = {
     search: (sp.get('search') || '').trim(),
     idolIds: parseIds(sp.get('idol_ids')),
     tagIds: parseIds(sp.get('tag_ids')),
-    studioId: parsePositiveInt(sp.get('studio_id')),
+    studioId: sp.get('studio_unknown') === '1' ? 0 : parseNonNegativeInt(sp.get('studio_id')),
     studioName: (sp.get('studio_name') || '').trim(),
     seriesId: parsePositiveInt(sp.get('series_id')),
     seriesName: (sp.get('series_name') || '').trim(),
@@ -111,7 +116,11 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     if (state.jav.tab === 'list' && state.jav.tagIds?.length) {
       sp.set('tag_ids', state.jav.tagIds.join(','))
     }
-    if (state.jav.tab === 'list' && state.jav.studioId) {
+    if (
+      state.jav.tab === 'list' &&
+      state.jav.studioId !== null &&
+      state.jav.studioId !== undefined
+    ) {
       sp.set('studio_id', String(state.jav.studioId))
       if (state.jav.studioName) sp.set('studio_name', state.jav.studioName)
     }
@@ -236,7 +245,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       search: (store.javSearchTerm || '').trim(),
       idolIds: store.javIdolIds || [],
       tagIds: store.javTags || [],
-      studioId: store.javStudioId || null,
+      studioId: store.javStudioId ?? null,
       studioName: (store.javStudioName || '').trim(),
       seriesId: store.javSeriesId || null,
       seriesName: (store.javSeriesName || '').trim(),

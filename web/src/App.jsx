@@ -907,7 +907,10 @@ export default function App() {
           javIdolIds: jav.tab === 'list' ? jav.idolIds : [],
           javTags: jav.tab === 'list' ? jav.tagIds : [],
           javStudioId: jav.tab === 'list' ? jav.studioId : null,
-          javStudioName: jav.tab === 'list' && jav.studioId ? jav.studioName : '',
+          javStudioName:
+            jav.tab === 'list' && jav.studioId !== null && jav.studioId !== undefined
+              ? jav.studioName
+              : '',
           javSeriesId: jav.tab === 'list' ? jav.seriesId : null,
           javSeriesName: jav.tab === 'list' && jav.seriesId ? jav.seriesName : '',
           javPrefix: jav.tab === 'list' ? jav.prefix : '',
@@ -1152,7 +1155,7 @@ export default function App() {
       }
       const hasStudioIdOverride = Object.prototype.hasOwnProperty.call(options, 'studioId')
       const studioId = hasStudioIdOverride ? studioIdOverride : javStudioId
-      if (tab === 'list' && studioId) {
+      if (tab === 'list' && studioId !== null && studioId !== undefined) {
         sp.set('studio_id', String(studioId))
         const studioName =
           studioNameOverride ?? (hasStudioIdOverride ? '' : String(javStudioName || '').trim())
@@ -1587,7 +1590,7 @@ export default function App() {
     javTab === 'list' &&
     (javIdolIds.length > 0 ||
       javTags.length > 0 ||
-      Boolean(javStudioId) ||
+      javStudioId !== null ||
       Boolean(javSeriesId) ||
       Boolean((javPrefix || '').trim()) ||
       Boolean(javSoloOnly) ||
@@ -1746,7 +1749,10 @@ export default function App() {
         const tagNames = javTags.map((id) => javTagNameMap.get(id)).filter(Boolean)
         const tagsLabel = formatList(tagNames)
         if (tagsLabel) parts.push(zh(`标签: ${tagsLabel}`, `Tags: ${tagsLabel}`))
-        if (javStudioId) {
+        if (javStudioId === 0) {
+          const label = javStudioName || zh('未知片商', 'Unknown studio')
+          parts.push(zh(`片商: ${label}`, `Studio: ${label}`))
+        } else if (javStudioId) {
           const loadedStudioName =
             javItems.find((item) => Number(item?.studio?.id) === Number(javStudioId))?.studio
               ?.name || ''
@@ -2824,8 +2830,8 @@ export default function App() {
       javRandomSeed: null,
       javIdolIds: [],
       javTags: [],
-      javStudioId: hasStudio ? studioId : null,
-      javStudioName: hasStudio ? String(prefixItem?.studio_name || '').trim() : '',
+      javStudioId: hasStudio ? studioId : shouldIncludeStudio ? 0 : null,
+      javStudioName: shouldIncludeStudio ? String(prefixItem?.studio_name || '').trim() : '',
       javSeriesId: null,
       javSeriesName: '',
       javPrefix: prefix,
@@ -3083,7 +3089,8 @@ export default function App() {
             search: '',
             idolIds: [],
             tagIds: [],
-            studioId: null,
+            studioId: item?.include_studio_filter ? item?.studio_id || 0 : null,
+            studioName: item?.include_studio_filter ? item?.studio_name || '' : '',
             seriesId: null,
             prefix: item?.prefix || '',
             soloOnly: false,

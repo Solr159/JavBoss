@@ -708,7 +708,7 @@ func replaceJavUserTagsTx(tx *gorm.DB, javIDs, tagIDs []int64) error {
 	return nil
 }
 
-func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search, prefix string, directoryIDs []int64, studioID, seriesID int64, soloOnly bool, favoriteGroupID int64) *gorm.DB {
+func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search, prefix string, directoryIDs []int64, studioID int64, seriesID int64, soloOnly bool, favoriteGroupID int64) *gorm.DB {
 	q := common.DB.WithContext(ctx).Model(&models.Jav{})
 	visibleTagProviders := visibleJavTagProviders()
 	// Only include JAV entries that have at least one active file location.
@@ -728,7 +728,9 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 		}
 		q = q.Where("code LIKE ? OR "+titleColumn+" LIKE ?", like, like)
 	}
-	if studioID > 0 {
+	if studioID == 0 {
+		q = q.Where("studio_id IS NULL")
+	} else if studioID > 0 {
 		q = q.Where("studio_id = ?", studioID)
 	}
 	if prefix != "" {
@@ -783,11 +785,11 @@ func normalizeJavCodePrefix(prefix string) string {
 }
 
 func javFilterOptions(values []int64) (int64, int64, bool, int64) {
-	studioID := int64(0)
+	studioID := int64(-1)
 	seriesID := int64(0)
 	soloOnly := false
 	favoriteGroupID := int64(0)
-	if len(values) > 0 && values[0] > 0 {
+	if len(values) > 0 && values[0] >= 0 {
 		studioID = values[0]
 	}
 	if len(values) > 1 && values[1] > 0 {

@@ -23,10 +23,10 @@ func searchJav(c *gin.Context) {
 	idolIDs := parseInt64CSV(c.Query("idol_ids"))
 	tagIDs := parseInt64CSV(c.Query("tag_ids"))
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	studioID := int64(0)
+	studioID := int64(-1)
 	if studioParam := strings.TrimSpace(c.Query("studio_id")); studioParam != "" {
 		parsed, err := strconv.ParseInt(studioParam, 10, 64)
-		if err != nil || parsed <= 0 {
+		if err != nil || parsed < 0 {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid studio_id"})
 			return
 		}

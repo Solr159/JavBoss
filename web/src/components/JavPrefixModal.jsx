@@ -51,11 +51,20 @@ export default function JavPrefixModal({
         studio_name: '',
         work_count: 0,
         is_uncensored: item?.is_uncensored,
-        studioNames: new Set(),
+        studios: new Map(),
         censorValues: new Set(),
       }
       const studioName = String(item?.studio_name || '').trim() || unknownStudioLabel()
-      existing.studioNames.add(studioName)
+      const studioId = Number(item?.studio_id)
+      const hasStudioId = Number.isFinite(studioId) && studioId > 0
+      const studioKey = hasStudioId ? `id:${studioId}` : `name:${studioName}`
+      const studioItem = existing.studios.get(studioKey) || {
+        id: hasStudioId ? studioId : null,
+        name: studioName,
+        work_count: 0,
+      }
+      studioItem.work_count += Number(item?.work_count || 0)
+      existing.studios.set(studioKey, studioItem)
       if (item?.is_uncensored === true || item?.is_uncensored === false) {
         existing.censorValues.add(item.is_uncensored)
       }
@@ -65,9 +74,15 @@ export default function JavPrefixModal({
 
     const list = Array.from(merged.values()).map((item) => {
       const censorValues = Array.from(item.censorValues)
+      const studioItems = Array.from(item.studios.values()).sort(
+        (a, b) =>
+          Number(b?.work_count || 0) - Number(a?.work_count || 0) ||
+          String(a?.name || '').localeCompare(String(b?.name || ''))
+      )
       return {
         ...item,
-        studio_name: Array.from(item.studioNames).join(studioListSeparator()),
+        studioItems,
+        studio_name: studioItems.map((studio) => studio.name).join(studioListSeparator()),
         is_uncensored:
           censorValues.length === 1 ? censorValues[0] : censorValues.length > 1 ? 'mixed' : null,
       }
@@ -248,7 +263,67 @@ export default function JavPrefixModal({
                         </a>
                       </td>
                       <td className="px-5 py-3 text-gray-700">
-                        {item?.studio_name || unknownStudioLabel()}
+                        <div className="flex flex-wrap gap-x-2 gap-y-1">
+                          {(item?.studioItems || []).length > 0 ? (
+                            item.studioItems.map((studio, index) => {
+                              const studioName = String(studio?.name || '').trim()
+                              const studioId = Number(studio?.id)
+                              const hasStudio = Number.isFinite(studioId) && studioId > 0
+                              const studioFilterItem = {
+                                ...item,
+                                studio_id: hasStudio ? studioId : null,
+                                studio_name: studioName || unknownStudioLabel(),
+                                include_studio_filter: true,
+                              }
+                              return (
+                                <a
+                                  key={`${hasStudio ? studioId : 'unknown'}-${studioName || index}`}
+                                  href={buildPrefixUrl?.(studioFilterItem) || '#'}
+                                  className="text-gray-700 hover:text-gray-900 hover:underline"
+                                  title={zh(
+                                    `搜索 ${prefix} + ${studioFilterItem.studio_name}`,
+                                    `Search ${prefix} + ${studioFilterItem.studio_name}`
+                                  )}
+                                  onClick={(event) => {
+                                    if (isModifiedClick(event)) return
+                                    event.preventDefault()
+                                    onSelectPrefix?.(studioFilterItem)
+                                  }}
+                                >
+                                  {studioFilterItem.studio_name}
+                                </a>
+                              )
+                            })
+                          ) : (
+                            <a
+                              href={
+                                buildPrefixUrl?.({
+                                  ...item,
+                                  studio_id: null,
+                                  studio_name: unknownStudioLabel(),
+                                  include_studio_filter: true,
+                                }) || '#'
+                              }
+                              className="text-gray-700 hover:text-gray-900 hover:underline"
+                              title={zh(
+                                `搜索 ${prefix} + ${unknownStudioLabel()}`,
+                                `Search ${prefix} + ${unknownStudioLabel()}`
+                              )}
+                              onClick={(event) => {
+                                if (isModifiedClick(event)) return
+                                event.preventDefault()
+                                onSelectPrefix?.({
+                                  ...item,
+                                  studio_id: null,
+                                  studio_name: unknownStudioLabel(),
+                                  include_studio_filter: true,
+                                })
+                              }}
+                            >
+                              {unknownStudioLabel()}
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3 text-gray-700">
                         {censorLabel(item?.is_uncensored)}
