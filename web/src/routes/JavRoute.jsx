@@ -91,6 +91,7 @@ function JavStudioRoute({
   onLoadMore,
   onNext,
   onOpenFavorites,
+  onOpenSeriesFavorites,
   onSelectPrefix,
   onPrev,
   onSelectSeries,
@@ -146,6 +147,7 @@ function JavStudioRoute({
       onSelectSeries={onSelectSeries}
       onSelectPrefix={onSelectPrefix}
       onOpenFavorites={onOpenFavorites}
+      onOpenSeriesFavorites={onOpenSeriesFavorites}
       directoryIds={directoryIds}
       waterfallMode={waterfallMode}
       onWaterfallModeChange={onWaterfallModeChange}
@@ -243,6 +245,8 @@ function JavListRoute({
   onLoadMore,
   onOpenFavorites,
   onOpenJavFavorites,
+  onOpenStudioFavorites,
+  onOpenSeriesFavorites,
   onOpenFile,
   onOpenScreenshots,
   onManageVideoPlay,
@@ -301,6 +305,8 @@ function JavListRoute({
       onIdolClick={onIdolClick}
       onOpenFavorites={onOpenFavorites}
       onOpenJavFavorites={onOpenJavFavorites}
+      onOpenStudioFavorites={onOpenStudioFavorites}
+      onOpenSeriesFavorites={onOpenSeriesFavorites}
       onPrefixClick={onPrefixClick}
       onStudioClick={onStudioClick}
       onSeriesClick={onSeriesClick}

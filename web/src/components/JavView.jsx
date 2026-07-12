@@ -41,6 +41,8 @@ export default function JavView({
   onIdolClick,
   onOpenFavorites,
   onOpenJavFavorites,
+  onOpenStudioFavorites,
+  onOpenSeriesFavorites,
   onPrefixClick,
   onStudioClick,
   onSeriesClick,
@@ -197,6 +199,8 @@ export default function JavView({
             onIdolClick={onIdolClick}
             onOpenFavorites={onOpenFavorites}
             onOpenJavFavorites={onOpenJavFavorites}
+            onOpenStudioFavorites={onOpenStudioFavorites}
+            onOpenSeriesFavorites={onOpenSeriesFavorites}
             onPrefixClick={onPrefixClick}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}

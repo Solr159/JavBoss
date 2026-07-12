@@ -95,6 +95,8 @@ export default function JavGrid({
   onIdolClick,
   onOpenFavorites,
   onOpenJavFavorites,
+  onOpenStudioFavorites,
+  onOpenSeriesFavorites,
   onPrefixClick,
   onStudioClick,
   onSeriesClick,
@@ -265,6 +267,8 @@ export default function JavGrid({
             onIdolClick={onIdolClick}
             onOpenFavorites={onOpenFavorites}
             onOpenJavFavorites={onOpenJavFavorites}
+            onOpenStudioFavorites={onOpenStudioFavorites}
+            onOpenSeriesFavorites={onOpenSeriesFavorites}
             onPrefixClick={onPrefixClick}
             onStudioClick={onStudioClick}
             onSeriesClick={onSeriesClick}
@@ -1507,6 +1511,8 @@ function JavCard({
   onIdolClick,
   onOpenFavorites,
   onOpenJavFavorites,
+  onOpenStudioFavorites,
+  onOpenSeriesFavorites,
   onPrefixClick,
   onStudioClick,
   onSeriesClick,
@@ -2193,7 +2199,9 @@ function JavCard({
                   onSelectStudio={(studio) => onStudioClick?.(studio)}
                   onSelectSeries={(series) => onSeriesClick?.(series)}
                   onSelectPrefix={(prefix) => onPrefixClick?.(prefix)}
+                  onOpenFavorites={onOpenStudioFavorites}
                   buildSeriesUrl={buildSeriesFilterHref}
+                  onOpenSeriesFavorites={onOpenSeriesFavorites}
                   directoryIds={directoryIds}
                 />
               ) : null}
@@ -2224,6 +2232,7 @@ function JavCard({
                   href={buildSeriesFilterHref(previewSeries)}
                   onSelectSeries={(series) => onSeriesClick?.(series)}
                   onSelectStudio={(studio) => onStudioClick?.(studio)}
+                  onOpenFavorites={onOpenSeriesFavorites}
                 />
               ) : null}
             </div>

@@ -30,6 +30,7 @@ export default function JavStudioView({
   onSelectSeries,
   onSelectPrefix,
   onOpenFavorites,
+  onOpenSeriesFavorites,
   directoryIds = [],
   waterfallMode,
   onWaterfallModeChange,
@@ -67,6 +68,7 @@ export default function JavStudioView({
           onSelectStudio={onSelectStudio}
           onSelectPrefix={onSelectPrefix}
           onOpenFavorites={onOpenFavorites}
+          onOpenSeriesFavorites={onOpenSeriesFavorites}
           buildStudioUrl={buildStudioUrl}
           buildSeriesUrl={buildSeriesUrl}
           onSelectSeries={onSelectSeries}
@@ -89,6 +91,7 @@ function JavStudioGrid({
   onSelectSeries,
   onSelectPrefix,
   onOpenFavorites,
+  onOpenSeriesFavorites,
   buildStudioUrl,
   buildSeriesUrl,
   directoryIds,
@@ -116,6 +119,7 @@ function JavStudioGrid({
           onSelectSeries={onSelectSeries}
           onSelectPrefix={onSelectPrefix}
           onOpenFavorites={onOpenFavorites}
+          onOpenSeriesFavorites={onOpenSeriesFavorites}
           buildSeriesUrl={buildSeriesUrl}
           directoryIds={directoryIds}
         />
@@ -131,6 +135,7 @@ export function StudioCard({
   onSelectSeries,
   onSelectPrefix,
   onOpenFavorites,
+  onOpenSeriesFavorites,
   buildSeriesUrl,
   directoryIds = [],
 }) {
@@ -616,6 +621,7 @@ export function StudioCard({
                     href={buildSeriesUrl?.(previewSeries)}
                     onSelectSeries={(series) => onSelectSeries?.(series)}
                     onSelectStudio={(studio) => onSelectStudio?.(studio)}
+                    onOpenFavorites={onOpenSeriesFavorites}
                   />
                 ) : null}
               </div>
@@ -673,6 +679,7 @@ export function StudioCard({
                                 onSelectSeries?.(selectedSeries)
                               }}
                               onSelectStudio={(studio) => onSelectStudio?.(studio)}
+                              onOpenFavorites={onOpenSeriesFavorites}
                             />
                           )
                         })}
