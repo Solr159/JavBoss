@@ -2879,7 +2879,7 @@ export default function App() {
         )
       )
       const nextStudioId = Number(query?.studio?.id)
-      const hasStudio = Number.isFinite(nextStudioId) && nextStudioId > 0
+      const hasStudio = Number.isFinite(nextStudioId) && nextStudioId >= 0
       const nextStudioName = hasStudio ? String(query?.studio?.name || '').trim() : ''
       const nextSeriesId = Number(query?.series?.id)
       const hasSeries = Number.isFinite(nextSeriesId) && nextSeriesId > 0

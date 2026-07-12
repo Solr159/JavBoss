@@ -21,6 +21,7 @@ const cleanJavPrefix = (value) =>
     .replace(/[^A-Z0-9]/g, '')
 
 const studioListSeparator = () => (isChineseLocale() ? '、' : ', ')
+const unknownStudioOption = () => ({ id: 0, name: zh('未知片商', 'Unknown studio') })
 
 const mergeJavPrefixes = (items = []) => {
   const byPrefix = new Map()
@@ -219,8 +220,13 @@ export default function JavQueryEditorModal({
     setTagSearch('')
     setTagPickerOpen(false)
     setSelectedStudio(
-      Number.isFinite(parsedStudioId) && parsedStudioId > 0
-        ? { id: parsedStudioId, name: trimmedStudioName || `#${parsedStudioId}` }
+      Number.isFinite(parsedStudioId) && parsedStudioId >= 0
+        ? {
+            id: parsedStudioId,
+            name:
+              trimmedStudioName ||
+              (parsedStudioId === 0 ? unknownStudioOption().name : `#${parsedStudioId}`),
+          }
         : null
     )
     setStudioSearch('')
@@ -445,7 +451,7 @@ export default function JavQueryEditorModal({
 
   const filteredStudios = useMemo(() => {
     const query = studioSearch.trim().toLowerCase()
-    return [...allStudios]
+    return [unknownStudioOption(), ...allStudios]
       .filter((studio) => {
         if (!query) return true
         return String(studio?.name || '')
@@ -453,6 +459,8 @@ export default function JavQueryEditorModal({
           .includes(query)
       })
       .sort((a, b) => {
+        if (Number(a?.id) === 0) return -1
+        if (Number(b?.id) === 0) return 1
         const countA = Number.isFinite(a?.work_count) ? a.work_count : 0
         const countB = Number.isFinite(b?.work_count) ? b.work_count : 0
         if (countB !== countA) return countB - countA
@@ -929,9 +937,14 @@ export default function JavQueryEditorModal({
                           <span className="min-w-0 flex-1 truncate text-slate-800">
                             {studio.name}
                           </span>
-                          <span className="shrink-0 text-xs text-slate-400">
-                            {zh(`${studio.work_count || 0} 部`, `${studio.work_count || 0} works`)}
-                          </span>
+                          {Number(studio.id) === 0 ? null : (
+                            <span className="shrink-0 text-xs text-slate-400">
+                              {zh(
+                                `${studio.work_count || 0} 部`,
+                                `${studio.work_count || 0} works`
+                              )}
+                            </span>
+                          )}
                         </button>
                       )
                     })
