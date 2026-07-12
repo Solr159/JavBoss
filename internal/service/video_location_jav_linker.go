@@ -187,7 +187,10 @@ func javScrapeCodesForVideo(filename, forcedCode string) []string {
 }
 
 func javLinkProviders() []jav.Provider {
-	return []jav.Provider{jav.ProviderJavBus, jav.ProviderJavDatabase}
+	if jav.CurrentMetadataLanguageIsEnglish() {
+		return []jav.Provider{jav.ProviderJavDatabase}
+	}
+	return []jav.Provider{jav.ProviderJavBus}
 }
 
 func normalizeJavScrapeOverride(raw string) string {

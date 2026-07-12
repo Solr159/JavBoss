@@ -151,6 +151,7 @@ func main() {
 	streamManager.Start(ctx)
 	service.StartDirectoryScanner(ctx, time.Minute)
 	service.StartJavMetadataScanner(ctx, time.Minute)
+	service.StartSlowJavMetadataScanner(ctx, time.Minute)
 	service.StartIdolProfileScanner(ctx, time.Minute)
 
 	apiToken := ""

@@ -15,9 +15,25 @@ func TestJavScrapeCodesForVideoUsesForcedCodeOnly(t *testing.T) {
 	}
 }
 
-func TestJavLinkProvidersExcludesJavDB(t *testing.T) {
+func TestJavLinkProvidersUsesJavBusInChineseMode(t *testing.T) {
+	prevLang := jav.CurrentMetadataLanguage()
+	t.Cleanup(func() { jav.SetMetadataLanguage(string(prevLang)) })
+	jav.SetMetadataLanguage("zh")
+
 	got := javLinkProviders()
-	want := []jav.Provider{jav.ProviderJavBus, jav.ProviderJavDatabase}
+	want := []jav.Provider{jav.ProviderJavBus}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("javLinkProviders() = %#v, want %#v", got, want)
+	}
+}
+
+func TestJavLinkProvidersUsesJavDatabaseInEnglishMode(t *testing.T) {
+	prevLang := jav.CurrentMetadataLanguage()
+	t.Cleanup(func() { jav.SetMetadataLanguage(string(prevLang)) })
+	jav.SetMetadataLanguage("en")
+
+	got := javLinkProviders()
+	want := []jav.Provider{jav.ProviderJavDatabase}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("javLinkProviders() = %#v, want %#v", got, want)
 	}
