@@ -149,10 +149,20 @@ func main() {
 	screenshotManager.Start(ctx)
 	coverManager.Start(ctx)
 	streamManager.Start(ctx)
-	service.StartDirectoryScanner(ctx, time.Minute)
-	service.StartJavMetadataScanner(ctx, time.Minute)
-	service.StartSlowJavMetadataScanner(ctx, time.Minute)
-	service.StartIdolProfileScanner(ctx, time.Minute)
+	go func() {
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			service.StartDirectoryScanner(ctx, time.Minute)
+			service.StartJavMetadataScanner(ctx, time.Minute)
+			service.StartSlowJavMetadataScanner(ctx, time.Minute)
+			service.StartIdolProfileScanner(ctx, time.Minute)
+		}
+	}()
 
 	apiToken := ""
 	if buildMode == "release" && !runtimeconfig.DisableAPIToken() {
