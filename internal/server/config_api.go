@@ -369,7 +369,6 @@ func updateConfig(c *gin.Context) {
 
 func applyRuntimeConfigFields(cfg map[string]string) {
 	cfg["runtime_container"] = strconv.FormatBool(runtimeconfig.ContainerMode())
-	cfg["api_token_disabled"] = strconv.FormatBool(runtimeconfig.DisableAPIToken())
 	cfg["directory_picker_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDirectoryPicker())
 	cfg["desktop_integration_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDesktopIntegration())
 	cfg["mpv_enabled"] = strconv.FormatBool(!runtimeconfig.DisableMPVPlayback())

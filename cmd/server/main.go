@@ -3,8 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -26,7 +24,6 @@ import (
 	"javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/models"
-	"javboss/internal/runtimeconfig"
 	"javboss/internal/server"
 	"javboss/internal/service"
 	"javboss/internal/util"
@@ -40,6 +37,8 @@ import (
 )
 
 var buildMode = "development"
+
+const defaultReleasePort = 8655
 
 func main() {
 	addr := flag.String("addr", ":17654", "HTTP address to listen on")
@@ -112,6 +111,14 @@ func main() {
 	defer stop()
 
 	common.DB = database
+	passwordResetPath := filepath.Join(filepath.Dir(cfg.DatabasePath), server.PasswordResetFilename)
+	passwordResetApplied, err := server.ApplyPasswordResetFile(ctx, passwordResetPath)
+	if err != nil {
+		logger.Fatalf("apply password reset file: %v", err)
+	}
+	if passwordResetApplied {
+		logger.Printf("password reset applied; all existing sessions were revoked")
+	}
 	applyRuntimeConfig(ctx)
 
 	var activeDirs []models.Directory
@@ -164,15 +171,12 @@ func main() {
 		}
 	}()
 
-	apiToken := ""
-	if buildMode == "release" && !runtimeconfig.DisableAPIToken() {
-		apiToken, err = generateAPIToken()
-		if err != nil {
-			logger.Fatalf("generate API token: %v", err)
-		}
+	authService, err := server.NewAuthServiceForInstance(ctx, baseDir)
+	if err != nil {
+		logger.Fatalf("initialize authentication: %v", err)
 	}
 
-	router := server.NewRouter(resolveStaticDir(*staticDir), apiToken)
+	router := server.NewRouter(resolveStaticDir(*staticDir), authService)
 
 	srv := &http.Server{
 		Addr:         *addr,
@@ -203,9 +207,6 @@ func main() {
 		actualPort := listener.Addr().(*net.TCPAddr).Port
 		displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 		openURL := displayURL
-		if apiToken != "" {
-			openURL = fmt.Sprintf("%s/?token=%s", displayURL, apiToken)
-		}
 		printReleaseStartupHint(displayURL)
 		if err := util.OpenFile(openURL); err != nil {
 			logger.Printf("open browser failed: %v", err)
@@ -275,7 +276,7 @@ func releaseListenAddr(addr string, baseDir string) (string, error) {
 		return net.JoinHostPort(host, strconv.Itoa(port)), nil
 	}
 
-	return net.JoinHostPort(host, "0"), nil
+	return net.JoinHostPort(host, strconv.Itoa(defaultReleasePort)), nil
 }
 
 func releaseConfigPort(baseDir string) (int, bool, error) {
@@ -445,12 +446,4 @@ func releaseFileLock(lock *util.FileLock, path string, removeOnRelease bool, log
 			logger.Printf("remove legacy lock failed: %v", err)
 		}
 	}
-}
-
-func generateAPIToken() (string, error) {
-	var data [32]byte
-	if _, err := rand.Read(data[:]); err != nil {
-		return "", fmt.Errorf("read random bytes: %w", err)
-	}
-	return base64.RawURLEncoding.EncodeToString(data[:]), nil
 }

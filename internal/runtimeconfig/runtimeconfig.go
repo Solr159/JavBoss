@@ -19,10 +19,6 @@ func ContainerMode() bool {
 	return envBool("JAVBOSS_CONTAINER") || envBool("JAVBOSS_DOCKER")
 }
 
-func DisableAPIToken() bool {
-	return ContainerMode() || envBool("JAVBOSS_DISABLE_API_TOKEN")
-}
-
 func DisableDirectoryPicker() bool {
 	return ContainerMode() || envBool("JAVBOSS_DISABLE_DIRECTORY_PICKER")
 }

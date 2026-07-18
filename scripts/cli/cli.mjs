@@ -364,7 +364,6 @@ async function startBackendDevChild() {
   };
   if (envBool("DOCKER_MODE")) {
     env.JAVBOSS_CONTAINER = env.JAVBOSS_CONTAINER || "1";
-    env.JAVBOSS_DISABLE_API_TOKEN = env.JAVBOSS_DISABLE_API_TOKEN || "1";
     env.JAVBOSS_DISABLE_DIRECTORY_PICKER = env.JAVBOSS_DISABLE_DIRECTORY_PICKER || "1";
     env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION =
       env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION || "1";
@@ -513,9 +512,8 @@ async function createReleaseConfig(outDir) {
   const configContent = [
     "# JavBoss release config",
     "# This file uses TOML format.",
-    "# Set port to 0 to use a random startup port.",
-    "# Example: port = 17654",
-    "port = 0",
+    "# The default browser URL is http://localhost:8655.",
+    "port = 8655",
     "",
   ].join("\n");
   await fsp.writeFile(configPath, configContent);

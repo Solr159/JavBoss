@@ -1,11 +1,29 @@
 package server
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"javboss/internal/models"
+
+	"github.com/gin-gonic/gin"
 )
+
+func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterRoutes(router)
+
+	for _, route := range router.Routes() {
+		if route.Method == "GET" && route.Path == "/videos/screenshots" {
+			return
+		}
+	}
+	t.Fatal("GET /videos/screenshots route is not registered")
+}
 
 func TestIsScreenshotImageName(t *testing.T) {
 	tests := []struct {
@@ -107,5 +125,51 @@ func TestPlaybackScreenshotName(t *testing.T) {
 		if got := playbackScreenshotName(tt.second); got != tt.want {
 			t.Fatalf("playbackScreenshotName(%v) = %q, want %q", tt.second, got, tt.want)
 		}
+	}
+}
+
+func TestReadVideoScreenshotInfos(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{
+		"mpv_00-00-09.jpg",
+		"mpv_00-00-03.png",
+		"ignored.jpg",
+		"mpv_ignored.txt",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(name), 0o600); err != nil {
+			t.Fatalf("write screenshot fixture %q: %v", name, err)
+		}
+	}
+
+	items, err := readVideoScreenshotInfos(42, "mpv_00-00-09.jpg", dir)
+	if err != nil {
+		t.Fatalf("readVideoScreenshotInfos() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("unexpected screenshot count: got %d want 2", len(items))
+	}
+	if items[0].Name != "mpv_00-00-03.png" || items[1].Name != "mpv_00-00-09.jpg" {
+		t.Fatalf("screenshots are not sorted by name: %#v", items)
+	}
+	for _, item := range items {
+		if item.VideoID != 42 {
+			t.Fatalf("unexpected video id: got %d want 42", item.VideoID)
+		}
+		if !strings.HasPrefix(item.URL, "/videos/42/screenshots/") {
+			t.Fatalf("unexpected screenshot URL: %q", item.URL)
+		}
+	}
+	if items[0].IsCover || !items[1].IsCover {
+		t.Fatalf("unexpected cover state: %#v", items)
+	}
+}
+
+func TestReadVideoScreenshotInfosMissingDirectory(t *testing.T) {
+	items, err := readVideoScreenshotInfos(42, "", filepath.Join(t.TempDir(), "missing"))
+	if err != nil {
+		t.Fatalf("readVideoScreenshotInfos() error = %v", err)
+	}
+	if items == nil || len(items) != 0 {
+		t.Fatalf("expected a non-nil empty screenshot list, got %#v", items)
 	}
 }

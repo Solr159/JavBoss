@@ -52,6 +52,8 @@ export default function JavView({
   onRevealFile,
   onOpenScreenshots,
   onManageVideoPlay,
+  onManageVideoPlayAtTime,
+  onManageVideoCoverChanged,
   onManageVideoOpenFile,
   onManageVideoRevealFile,
   onManageVideoOpenTagPicker,
@@ -210,6 +212,8 @@ export default function JavView({
             onRevealFile={onRevealFile}
             onOpenScreenshots={onOpenScreenshots}
             onManageVideoPlay={onManageVideoPlay}
+            onManageVideoPlayAtTime={onManageVideoPlayAtTime}
+            onManageVideoCoverChanged={onManageVideoCoverChanged}
             onManageVideoOpenFile={onManageVideoOpenFile}
             onManageVideoRevealFile={onManageVideoRevealFile}
             onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}

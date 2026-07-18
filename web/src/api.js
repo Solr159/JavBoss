@@ -1,39 +1,70 @@
 import { zh } from '@/utils/i18n'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
-const apiTokenStorageKey = 'javboss_api_token'
 const javIdolResolveInFlight = new Map()
+export const authExpiredEvent = 'javboss:auth-expired'
 
-function loadAPIToken() {
-  if (typeof window === 'undefined') return ''
-  const url = new URL(window.location.href)
-  const token = String(url.searchParams.get('token') || '').trim()
-  if (token) {
-    window.sessionStorage?.setItem(apiTokenStorageKey, token)
-    window.localStorage?.setItem(apiTokenStorageKey, token)
-    url.searchParams.delete('token')
-    const nextURL = `${url.pathname}${url.search}${url.hash}`
-    window.history.replaceState(window.history.state, '', nextURL || '/')
-    return token
-  }
-  return String(
-    window.sessionStorage?.getItem(apiTokenStorageKey) ||
-      window.localStorage?.getItem(apiTokenStorageKey) ||
-      ''
-  ).trim()
+async function apiError(res, fallback) {
+  const payload = await res.json().catch(() => ({}))
+  return new Error(payload.error || fallback)
 }
 
-const apiToken = loadAPIToken()
-
-function apiFetch(input, init = {}) {
-  if (!apiToken) return fetch(input, init)
-  const method = String(init.method || 'GET').toUpperCase()
-  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
-    return fetch(input, init)
+async function apiFetch(input, init = {}) {
+  const res = await fetch(input, init)
+  if (res.status === 401 && typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(authExpiredEvent))
   }
-  const headers = new Headers(init.headers || {})
-  headers.set('X-JavBoss-Token', apiToken)
-  return fetch(input, { ...init, headers })
+  return res
+}
+
+export async function fetchAuthStatus() {
+  const res = await fetch('/auth/status', { cache: 'no-store' })
+  if (!res.ok) throw await apiError(res, zh('检查登录状态失败', 'Failed to check login status'))
+  return res.json()
+}
+
+export async function loginWithPassword(password) {
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ password }),
+  })
+  if (!res.ok) {
+    if (res.status === 401) throw new Error(zh('密码错误', 'Incorrect password'))
+    if (res.status === 400) throw new Error(zh('密码格式无效', 'Invalid password format'))
+    if (res.status === 429) {
+      throw new Error(zh('登录尝试过多，请稍后再试', 'Too many attempts. Try again later.'))
+    }
+    throw await apiError(res, zh('登录失败', 'Login failed'))
+  }
+  return res.json()
+}
+
+export async function logoutSession() {
+  const res = await fetch('/auth/logout', { method: 'POST' })
+  if (!res.ok && res.status !== 401) {
+    throw await apiError(res, zh('退出登录失败', 'Failed to sign out'))
+  }
+}
+
+export async function changePassword(currentPassword, newPassword) {
+  const res = await apiFetch('/auth/password', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+  })
+  if (!res.ok) {
+    if (res.status === 400) throw new Error(zh('当前密码错误', 'Current password is incorrect'))
+    if (res.status === 422) {
+      throw new Error(
+        zh(
+          '新密码需为 6-20 个字符，且首尾不能有空格',
+          'New password must be 6-20 characters without surrounding spaces'
+        )
+      )
+    }
+    throw await apiError(res, zh('修改密码失败', 'Failed to change password'))
+  }
 }
 
 export async function fetchVideos({
@@ -232,10 +263,22 @@ export async function fetchPlaybackInfo(id, { locationId } = {}) {
 }
 
 export async function fetchVideoScreenshots(id) {
-  const res = await apiFetch(`/videos/${id}/screenshots`)
+  const res = await apiFetch(`/videos/${id}/screenshots`, { cache: 'no-store' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载截图失败', 'Failed to load screenshots'))
+  }
+  const data = await res.json()
+  return Array.isArray(data?.items) ? data.items : []
+}
+
+export async function fetchVideoScreenshotsByIds(videoIds) {
+  const params = new URLSearchParams()
+  params.set('video_id_list', (videoIds || []).join(','))
+  const res = await apiFetch(`/videos/screenshots?${params.toString()}`, { cache: 'no-store' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载视频截图失败', 'Failed to load video screenshots'))
   }
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []

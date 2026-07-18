@@ -77,6 +77,8 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
 
+默认登录密码为 `admin`。首次登录后请立即在“全局设置 → 安全”中修改密码。登录状态会随有效请求自动续期，连续闲置 7 天后过期，期间重启后台无需重新登录。
+
 #### 方式三：Docker 部署
 
 docker-compose.yaml：
@@ -107,9 +109,21 @@ docker compose up -d
 ```text
 http://localhost:8655 
 ```
-如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
+默认登录密码为 `admin`。首次登录后请立即在“全局设置 → 安全”中修改密码。
+
+如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。跨设备访问建议通过反向代理启用 HTTPS，避免密码在普通 HTTP 链路中明文传输。
 
 Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
+
+#### 忘记密码
+
+密码可以通过一次性重置文件恢复：
+
+1. 停止 JavBoss。
+2. 在数据目录中新建 `password_reset.txt`，文件中只填写一个 6-20 个字符的新密码。桌面版和仓库自带的 Docker Compose 均使用 JavBoss 项目目录下的 `data/password_reset.txt`（容器内路径为 `/app/data/password_reset.txt`）。
+3. 重新启动 JavBoss。程序会更新密码、注销全部旧登录并自动删除重置文件，然后使用新密码登录。
+
+Linux 和 macOS 建议将文件权限设置为 `0600`。如果文件内容或删除操作存在问题，JavBoss 会拒绝启动并保留文件以便修正，日志中不会输出密码内容。
 
 ### 2. 添加本地目录
 
@@ -267,7 +281,7 @@ JavBoss 集成 [mpv](https://github.com/mpv-player/mpv) 播放能力，点击视
 - JavBoss 是本地媒体库管理工具，不是在线视频站。
 - JAV 元数据、封面资料首次抓取依赖外部站点可访问性，中国大陆地区请自备梯子。
 - 首次导入大库时，扫描、封面抓取、资料补全和缩略图生成需要一些时间。
-- 发布包根目录会包含 `config.toml` 文件。默认 `port = 0`，启动时使用随机端口；如果需要固定端口，可随时更改。
+- 发布包根目录会包含 `config.toml` 文件，默认使用 `port = 8655`，启动后可访问 `http://localhost:8655`。用户设置的其他有效端口会在一键更新时继续保留。
 
 ## Q&A
 
@@ -351,7 +365,7 @@ npm install
 DOCKER_MODE=1 ./scripts/cli.sh dev backend
 ```
 
-该模式会启用 `JAVBOSS_CONTAINER=1`，禁用 API token、目录选择器、桌面集成和 mpv 播放，并使用 ffmpeg 生成截图。需要本机可通过 `FFMPEG_PATH`、`internal/bin/ffmpeg` 或系统 `PATH` 找到 `ffmpeg`。本地调试默认不会把前端输入的目录自动加上 `/host` 前缀，也不会把 `127.0.0.1` 代理改写为 `host.docker.internal`；如需测试 Docker 宿主机路径映射，可使用 `DOCKER_MODE=1 JAVBOSS_HOST_PATH_PREFIX=1 ./scripts/cli.sh dev backend`，如需测试 Docker 代理网关映射，可额外设置 `JAVBOSS_PROXY_HOST_GATEWAY=1`。
+该模式会启用 `JAVBOSS_CONTAINER=1`，禁用目录选择器、桌面集成和 mpv 播放，并使用 ffmpeg 生成截图；密码登录仍然启用。需要本机可通过 `FFMPEG_PATH`、`internal/bin/ffmpeg` 或系统 `PATH` 找到 `ffmpeg`。本地调试默认不会把前端输入的目录自动加上 `/host` 前缀，也不会把 `127.0.0.1` 代理改写为 `host.docker.internal`；如需测试 Docker 宿主机路径映射，可使用 `DOCKER_MODE=1 JAVBOSS_HOST_PATH_PREFIX=1 ./scripts/cli.sh dev backend`，如需测试 Docker 代理网关映射，可额外设置 `JAVBOSS_PROXY_HOST_GATEWAY=1`。
 
 启动前端：
 

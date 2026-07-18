@@ -14,14 +14,15 @@ import (
 )
 
 // NewRouter constructs a gin router with API routes and optional static file serving.
-func NewRouter(staticDir string, apiToken string) *gin.Engine {
+func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 	router := gin.New()
 	router.Use(ginLogger(), gin.Recovery())
-	if apiToken != "" {
-		router.Use(apiTokenMiddleware(apiToken))
-	}
-
-	RegisterRoutes(router)
+	router.GET("/healthz", handleHealth)
+	registerAuthRoutes(router, auth)
+	protected := router.Group("/")
+	protected.Use(auth.requireAuth())
+	registerProtectedAuthRoutes(protected, auth)
+	RegisterRoutes(protected)
 
 	if staticDir != "" {
 		if fi, err := os.Stat(staticDir); err == nil && fi.IsDir() {

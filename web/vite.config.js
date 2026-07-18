@@ -2,6 +2,8 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const backendProxy = () => ({ target: 'http://localhost:17654', changeOrigin: false })
+
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -13,13 +15,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/healthz': 'http://localhost:17654',
-      '/videos': 'http://localhost:17654',
-      '/tags': 'http://localhost:17654',
-      '/sync': 'http://localhost:17654',
-      '/directories': 'http://localhost:17654',
-      '/jav': 'http://localhost:17654',
-      '/config': 'http://localhost:17654',
+      '/healthz': backendProxy(),
+      '/auth': backendProxy(),
+      '/videos': backendProxy(),
+      '/tags': backendProxy(),
+      '/sync': backendProxy(),
+      '/directories': backendProxy(),
+      '/jav': backendProxy(),
+      '/config': backendProxy(),
     },
   },
 })

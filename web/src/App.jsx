@@ -54,6 +54,7 @@ import VideoRoute from '@/routes/VideoRoute'
 import { isChineseLocale, zh } from '@/utils/i18n'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
+import { useAuth } from '@/auth'
 
 const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
 const JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX = ':manual:'
@@ -101,6 +102,7 @@ function applyScrapeOverrideToVideo(video, override) {
 }
 
 export default function App() {
+  const { changePassword, logout } = useAuth()
   const pendingVideoTagIdsRef = useRef(null)
   const {
     page,
@@ -251,6 +253,7 @@ export default function App() {
   const [playerVideo, setPlayerVideo] = useState(null)
   const [playerStartTime, setPlayerStartTime] = useState(0)
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
+  const [screenshotsAllowSetCover, setScreenshotsAllowSetCover] = useState(true)
   const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
   const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
   const [searchInput, setSearchInput] = useState('')
@@ -777,6 +780,16 @@ export default function App() {
     [handleRevealVideoFile, isVideoOpenable]
   )
 
+  const openVideoScreenshots = useCallback((video) => {
+    setScreenshotsAllowSetCover(true)
+    setScreenshotsVideo(video)
+  }, [])
+
+  const openJavScreenshots = useCallback((video) => {
+    setScreenshotsAllowSetCover(false)
+    setScreenshotsVideo(video)
+  }, [])
+
   const handleJavOpenScreenshots = useCallback(
     (video, item) => {
       const videos = item?.videos || (video ? [video] : [])
@@ -788,9 +801,9 @@ export default function App() {
       }
       const target = video && isVideoOpenable(video) ? video : videos.find(isVideoOpenable)
       if (!target) return
-      setScreenshotsVideo(target)
+      openJavScreenshots(target)
     },
-    [isVideoOpenable]
+    [isVideoOpenable, openJavScreenshots]
   )
 
   const handleSelectJavVideo = useCallback(
@@ -808,7 +821,7 @@ export default function App() {
       }
       if (javVideoPickerAction === 'screenshots') {
         if (isVideoOpenable(video)) {
-          setScreenshotsVideo(video)
+          openJavScreenshots(video)
           closeJavVideoPicker()
         }
         return
@@ -835,6 +848,7 @@ export default function App() {
       handleRevealVideoFile,
       isVideoOpenable,
       javVideoPickerAction,
+      openJavScreenshots,
     ]
   )
 
@@ -3259,10 +3273,12 @@ export default function App() {
               onRevealFile: handleJavRevealFile,
               onOpenScreenshots: handleJavOpenScreenshots,
               onManageVideoPlay: handleOpenPlayer,
+              onManageVideoPlayAtTime: playVideoFromTime,
+              onManageVideoCoverChanged: handleVideoCoverChanged,
               onManageVideoOpenFile: handleOpenAlternatePlayer,
               onManageVideoRevealFile: handleRevealVideoFile,
               onManageVideoOpenTagPicker: openTagEditor,
-              onManageVideoOpenScreenshots: setScreenshotsVideo,
+              onManageVideoOpenScreenshots: openJavScreenshots,
               onManageVideoOpenScrapeSettings: handleOpenScrapeSettings,
               onManageVideoRename: handleRenameVideo,
               onManageVideoDelete: handleDeleteVideo,
@@ -3307,7 +3323,7 @@ export default function App() {
             revealFile={desktopIntegrationEnabled ? handleRevealVideoFile : null}
             alternatePlayerLabel={alternatePlayerLabel}
             setTagPickerFor={openTagEditor}
-            onOpenScreenshots={setScreenshotsVideo}
+            onOpenScreenshots={openVideoScreenshots}
             onOpenScrapeSettings={handleOpenScrapeSettings}
             onRenameVideo={handleRenameVideo}
             onDeleteVideo={handleDeleteVideo}
@@ -3356,6 +3372,7 @@ export default function App() {
       <VideoScreenshotsModal
         video={screenshotsVideo}
         playerHotkeys={config?.player_hotkeys}
+        allowSetCover={screenshotsAllowSetCover}
         onClose={() => setScreenshotsVideo(null)}
         onPlayAtTime={playVideoFromTime}
         onCoverChanged={handleVideoCoverChanged}
@@ -3751,6 +3768,8 @@ export default function App() {
           const cfg = await updateConfig({ player_hotkeys: hotkeys })
           useStore.setState({ config: cfg })
         }}
+        onChangePassword={changePassword}
+        onLogout={logout}
       />
       <Toast open={Boolean(toastMessage)} message={toastMessage} onClose={closeToast} />
     </div>

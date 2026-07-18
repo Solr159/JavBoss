@@ -13,6 +13,31 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+func TestListVideoCoverScreenshotNames(t *testing.T) {
+	db := openTestDB(t)
+	videos := []models.Video{
+		{Fingerprint: "cover-name-a", CoverScreenshotName: " mpv_00-00-01.jpg "},
+		{Fingerprint: "cover-name-b"},
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+
+	items, err := ListVideoCoverScreenshotNames(
+		context.Background(),
+		[]int64{videos[0].ID, videos[1].ID, videos[0].ID, videos[1].ID + 999},
+	)
+	if err != nil {
+		t.Fatalf("ListVideoCoverScreenshotNames() error = %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("unexpected cover name count: got %d want 2", len(items))
+	}
+	if items[videos[0].ID] != "mpv_00-00-01.jpg" || items[videos[1].ID] != "" {
+		t.Fatalf("unexpected cover names: %#v", items)
+	}
+}
+
 func TestListVideosSortByDurationDirections(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

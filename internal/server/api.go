@@ -8,11 +8,11 @@ import (
 
 // ThumbnailQueue abstracts the ability to enqueue thumbnail generation tasks.
 // RegisterRoutes wires handlers onto the provided router.
-func RegisterRoutes(router *gin.Engine) {
-	router.GET("/healthz", handleHealth)
+func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/config", getConfig)
 	router.PATCH("/config", updateConfig)
 	router.GET("/videos", listVideos)
+	router.GET("/videos/screenshots", listVideosScreenshots)
 	router.GET("/videos/:id", getVideo)
 	router.GET("/videos/:id/streams", getVideoStreams)
 	router.GET("/videos/:id/stream", streamVideo)
@@ -93,7 +93,7 @@ const (
 	dbFavoriteEntitySeries = "series"
 )
 
-func registerJavFavoriteRoutes(router *gin.Engine, routeEntity string, dbEntity string) {
+func registerJavFavoriteRoutes(router gin.IRoutes, routeEntity string, dbEntity string) {
 	base := "/jav/" + routeEntity + "-favorite-groups"
 	router.GET(base, listJavFavoriteGroupsFor(dbEntity))
 	router.POST(base, createJavFavoriteGroupFor(dbEntity))

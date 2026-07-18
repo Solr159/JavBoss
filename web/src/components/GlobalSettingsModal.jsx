@@ -27,6 +27,11 @@ const SETTINGS_SECTIONS = [
     title: { zh: '播放器', en: 'Player' },
     summary: { zh: '播放器快捷键与播放控制', en: 'Player shortcuts and playback controls' },
   },
+  {
+    id: 'security',
+    title: { zh: '安全', en: 'Security' },
+    summary: { zh: '修改密码与退出登录', en: 'Password and sign-out' },
+  },
 ]
 
 const PLAYER_BASIC_DEFAULTS = {
@@ -71,6 +76,8 @@ export default function GlobalSettingsModal({
   onSavePlayerBasicSettings,
   playerHotkeys,
   onSavePlayerHotkeys,
+  onChangePassword,
+  onLogout,
 }) {
   const [proxyHostInput, setProxyHostInput] = useState('')
   const [proxyInput, setProxyInput] = useState('')
@@ -99,6 +106,12 @@ export default function GlobalSettingsModal({
   const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(true)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
 
@@ -137,6 +150,11 @@ export default function GlobalSettingsModal({
       setPlayerResumePlaybackInput(playerResumePlayback ?? PLAYER_BASIC_DEFAULTS.resumePlayback)
       setPlayerVolumeInput(String(playerVolume ?? PLAYER_BASIC_DEFAULTS.volume))
       setPlayerShowHotkeyHintInput(playerShowHotkeyHint ?? PLAYER_BASIC_DEFAULTS.showHotkeyHint)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordError('')
+      setPasswordSuccess('')
     }
   }, [
     open,
@@ -857,6 +875,126 @@ export default function GlobalSettingsModal({
     </div>
   )
 
+  const renderSecurityPanel = () => {
+    const handleChangePassword = async (event) => {
+      event.preventDefault()
+      setPasswordError('')
+      setPasswordSuccess('')
+      const newPasswordLength = [...newPassword].length
+      const newPasswordBytes = new TextEncoder().encode(newPassword).length
+      if (newPasswordLength < 6 || newPasswordLength > 20 || newPasswordBytes > 72) {
+        setPasswordError(zh('新密码需为 6-20 个字符', 'New password must be 6-20 characters'))
+        return
+      }
+      if (newPassword !== newPassword.trim()) {
+        setPasswordError(
+          zh('新密码首尾不能包含空格', 'New password cannot start or end with spaces')
+        )
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError(zh('两次输入的新密码不一致', 'The new passwords do not match'))
+        return
+      }
+      setSavingPassword(true)
+      try {
+        await onChangePassword?.(currentPassword, newPassword)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        setPasswordSuccess(zh('密码修改成功', 'Password changed successfully'))
+      } catch (err) {
+        setPasswordError(err.message || zh('修改密码失败', 'Failed to change password'))
+      } finally {
+        setSavingPassword(false)
+      }
+    }
+
+    return (
+      <div className="space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h4 className="text-sm font-semibold text-zinc-800">
+            {zh('修改密码', 'Change Password')}
+          </h4>
+          <p className="mt-1 text-sm text-zinc-500">
+            {zh(
+              '默认密码为 admin。为避免其他人访问您的媒体库，请尽快修改。',
+              'The default password is admin. Change it promptly to protect your media library.'
+            )}
+          </p>
+          <form onSubmit={handleChangePassword} className="mt-5 max-w-md space-y-4">
+            {[
+              {
+                label: zh('当前密码', 'Current password'),
+                value: currentPassword,
+                setter: setCurrentPassword,
+                autoComplete: 'current-password',
+              },
+              {
+                label: zh('新密码', 'New password'),
+                value: newPassword,
+                setter: setNewPassword,
+                autoComplete: 'new-password',
+              },
+              {
+                label: zh('确认新密码', 'Confirm new password'),
+                value: confirmPassword,
+                setter: setConfirmPassword,
+                autoComplete: 'new-password',
+              },
+            ].map((field) => (
+              <label key={field.label} className="block">
+                <span className="mb-1.5 block text-sm font-medium text-zinc-700">
+                  {field.label}
+                </span>
+                <input
+                  type="password"
+                  autoComplete={field.autoComplete}
+                  value={field.value}
+                  onChange={(event) => {
+                    field.setter(event.target.value)
+                    setPasswordError('')
+                    setPasswordSuccess('')
+                  }}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </label>
+            ))}
+            {passwordError ? <div className="text-sm text-red-600">{passwordError}</div> : null}
+            {passwordSuccess ? (
+              <div className="text-sm text-emerald-600">{passwordSuccess}</div>
+            ) : null}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
+                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+              >
+                {savingPassword ? zh('保存中…', 'Saving...') : zh('修改密码', 'Change password')}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <h4 className="text-sm font-semibold text-zinc-800">{zh('登录会话', 'Session')}</h4>
+          <p className="mt-1 text-sm text-zinc-500">
+            {zh('退出当前浏览器的登录会话。', 'Sign out of the current browser session.')}
+          </p>
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => onLogout?.()}
+              className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+            >
+              {zh('退出登录', 'Sign out')}
+            </button>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
       <div className="flex h-[min(86vh,820px)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#f5f5f7] shadow-2xl">
@@ -929,6 +1067,7 @@ export default function GlobalSettingsModal({
             {currentSection === 'jav' && renderJavPanel()}
             {currentSection === 'player' && renderPlayerPanel()}
             {currentSection === 'directories' && renderDirectoriesPanel()}
+            {currentSection === 'security' && renderSecurityPanel()}
           </section>
         </div>
       </div>

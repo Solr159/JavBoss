@@ -42,7 +42,6 @@ COPY --from=go-build /out/javboss ./javboss
 COPY --from=web-build /src/web/dist ./web/dist
 
 ENV JAVBOSS_CONTAINER=1 \
-  JAVBOSS_DISABLE_API_TOKEN=1 \
   JAVBOSS_DISABLE_DIRECTORY_PICKER=1 \
   JAVBOSS_DISABLE_DESKTOP_INTEGRATION=1 \
   JAVBOSS_DISABLE_MPV=1 \

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -28,6 +29,7 @@ export default function VideoScreenshotsModal({
   onClose,
   onPlayAtTime,
   onCoverChanged,
+  allowSetCover = true,
 }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -169,7 +171,7 @@ export default function VideoScreenshotsModal({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {currentCoverName ? (
+            {allowSetCover && currentCoverName ? (
               <Tooltip
                 arrow
                 placement="left"
@@ -238,7 +240,7 @@ export default function VideoScreenshotsModal({
                 return (
                   <div
                     key={item.name}
-                    className="group overflow-hidden rounded border border-gray-200 bg-white hover:border-gray-300"
+                    className="group overflow-hidden rounded border border-gray-200 bg-white"
                   >
                     <div
                       className="relative aspect-video cursor-pointer bg-gray-100"
@@ -278,7 +280,7 @@ export default function VideoScreenshotsModal({
                           <DeleteOutlineIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <div className="absolute inset-0 flex items-center justify-center gap-5 bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+                      <div className="absolute inset-0 flex items-center justify-center gap-5 bg-transparent opacity-0 transition-opacity group-hover:opacity-100">
                         <Tooltip title={zh('从此处播放', 'Play from here')}>
                           <span>
                             <IconButton
@@ -294,40 +296,40 @@ export default function VideoScreenshotsModal({
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip
-                          title={
-                            item.is_cover
-                              ? zh('当前封面', 'Current cover')
-                              : zh('设为封面', 'Set as cover')
-                          }
-                        >
-                          <span>
-                            <IconButton
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                handleSetCover(item)
-                              }}
-                              disabled={Boolean(settingCoverName) || item.is_cover}
-                              aria-label={
-                                item.is_cover
-                                  ? zh('当前封面', 'Current cover')
-                                  : zh('设为封面', 'Set as cover')
-                              }
-                              className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
-                            >
-                              {item.is_cover ? (
-                                <CheckCircleOutlineIcon fontSize="medium" />
-                              ) : (
-                                <ImageOutlinedIcon fontSize="medium" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        {allowSetCover ? (
+                          <Tooltip
+                            title={
+                              item.is_cover
+                                ? zh('当前封面', 'Current cover')
+                                : zh('设为封面', 'Set as cover')
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleSetCover(item)
+                                }}
+                                disabled={Boolean(settingCoverName) || item.is_cover}
+                                aria-label={
+                                  item.is_cover
+                                    ? zh('当前封面', 'Current cover')
+                                    : zh('设为封面', 'Set as cover')
+                                }
+                                className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                              >
+                                {item.is_cover ? (
+                                  <CheckCircleOutlineIcon fontSize="medium" />
+                                ) : (
+                                  <ImageOutlinedIcon fontSize="medium" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        ) : null}
                       </div>
                     </div>
-                    <div className="truncate px-2 py-1 text-xs text-gray-600 group-hover:text-gray-900">
-                      {displayName}
-                    </div>
+                    <div className="truncate px-2 py-1 text-xs text-gray-600">{displayName}</div>
                   </div>
                 )
               })}
@@ -377,11 +379,16 @@ function DefaultCoverPreview({ src }) {
   )
 }
 
-function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
+function screenshotPreviewIdentity(item) {
+  return `${item?.video_id || item?.video?.id || ''}:${item?.name || item?.url || ''}`
+}
+
+export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
   const lastWheelAtRef = useRef(0)
+  const itemIdentity = screenshotPreviewIdentity(item)
   const currentIndex = useMemo(
-    () => items.findIndex((candidate) => candidate?.name === item?.name),
-    [item?.name, items]
+    () => items.findIndex((candidate) => screenshotPreviewIdentity(candidate) === itemIdentity),
+    [itemIdentity, items]
   )
   const canNavigate = items.length > 1 && currentIndex >= 0
   const counterText =
@@ -422,9 +429,9 @@ function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
 
   if (!item?.url) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[1500] flex flex-col items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-[1900] flex flex-col items-center justify-center bg-black/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={zh('截图预览', 'Screenshot preview')}
@@ -477,6 +484,7 @@ function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
           {counterText}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

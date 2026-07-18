@@ -24,6 +24,7 @@ import {
   fetchJavStudios,
   updateJavItem,
 } from '@/api'
+import JavDetailModal from '@/components/JavDetailModal'
 import JavIdolCoverModal from '@/components/JavIdolCoverModal'
 import { IdolCard, JavIdolEditModal, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
@@ -105,6 +106,8 @@ export default function JavGrid({
   openFileLabel,
   onOpenScreenshots,
   onManageVideoPlay,
+  onManageVideoPlayAtTime,
+  onManageVideoCoverChanged,
   onManageVideoOpenFile,
   onManageVideoRevealFile,
   onManageVideoOpenTagPicker,
@@ -277,6 +280,17 @@ export default function JavGrid({
             openFileLabel={openFileLabel}
             onOpenScreenshots={onOpenScreenshots}
             onOpenVideoManager={setVideoManagerItem}
+            onManageVideoPlay={onManageVideoPlay}
+            onManageVideoPlayAtTime={onManageVideoPlayAtTime}
+            onManageVideoCoverChanged={onManageVideoCoverChanged}
+            onManageVideoOpenFile={onManageVideoOpenFile}
+            onManageVideoRevealFile={onManageVideoRevealFile}
+            onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}
+            onManageVideoOpenScreenshots={onManageVideoOpenScreenshots}
+            onManageVideoOpenScrapeSettings={onManageVideoOpenScrapeSettings}
+            onManageVideoRename={onManageVideoRename}
+            onManageVideoDelete={onManageVideoDelete}
+            onManageVideoTagClick={onManageVideoTagClick}
             loadIdolPreview={loadIdolPreview}
             loadStudioPreview={loadStudioPreview}
             loadSeriesPreview={loadSeriesPreview}
@@ -1521,6 +1535,17 @@ function JavCard({
   openFileLabel,
   onOpenScreenshots,
   onOpenVideoManager,
+  onManageVideoPlay,
+  onManageVideoPlayAtTime,
+  onManageVideoCoverChanged,
+  onManageVideoOpenFile,
+  onManageVideoRevealFile,
+  onManageVideoOpenTagPicker,
+  onManageVideoOpenScreenshots,
+  onManageVideoOpenScrapeSettings,
+  onManageVideoRename,
+  onManageVideoDelete,
+  onManageVideoTagClick,
   loadIdolPreview,
   loadStudioPreview,
   loadSeriesPreview,
@@ -1538,6 +1563,7 @@ function JavCard({
   const code = item?.code?.trim()
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
   const [javdbURL, setJavdbURL] = useState('')
   const [javdbOpening, setJavdbOpening] = useState(false)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
@@ -1679,6 +1705,11 @@ function JavCard({
     event.stopPropagation()
     if (!cover) return
     onOpenCoverPreview?.({ src: cover, alt: titleText })
+  }
+
+  const handleOpenDetail = () => {
+    clearHoverPreview()
+    setDetailOpen(true)
   }
 
   const handleOpenEditor = (event) => {
@@ -2031,7 +2062,13 @@ function JavCard({
               {item?.code || zh('未知番号', 'Unknown code')}
             </div>
           )}
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            className="absolute inset-0 z-[1] cursor-pointer"
+            onClick={handleOpenDetail}
+            aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
+          />
+          <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
             <button
               onClick={handlePlay}
               disabled={!canPlay}
@@ -2398,6 +2435,58 @@ function JavCard({
         onClose={() => setEditorOpen(false)}
         onSaved={handleEditorSaved}
       />
+      {detailOpen ? (
+        <JavDetailModal
+          item={item}
+          cover={cover}
+          title={titleText}
+          releaseText={releaseText}
+          durationText={durationText}
+          studio={item?.studio}
+          series={preferredSeries}
+          tags={tags}
+          externalLinks={externalLinks}
+          javMetadataLanguage={javMetadataLanguage}
+          preferChineseName={preferChineseName}
+          canPlay={canPlay}
+          onClose={() => setDetailOpen(false)}
+          onPlay={() => {
+            if (onManageVideoPlay) onManageVideoPlay(primaryVideo)
+            else onPlay?.(primaryVideo, item)
+          }}
+          onOpenFavorites={() => onOpenJavFavorites?.(item)}
+          onEdit={() => setEditorOpen(true)}
+          onSelectStudio={onStudioClick}
+          onSelectSeries={onSeriesClick}
+          onSelectIdol={onIdolClick}
+          onSelectPrefix={onPrefixClick}
+          loadIdolPreview={loadIdolPreview}
+          loadStudioPreview={loadStudioPreview}
+          loadSeriesPreview={loadSeriesPreview}
+          buildIdolUrl={buildIdolFilterHref}
+          buildStudioUrl={buildStudioFilterHref}
+          buildSeriesUrl={buildSeriesFilterHref}
+          buildTagUrl={buildTagFilterHref}
+          directoryIds={directoryIds}
+          onOpenIdolFavorites={onOpenFavorites}
+          onOpenStudioFavorites={onOpenStudioFavorites}
+          onOpenSeriesFavorites={onOpenSeriesFavorites}
+          onOpenIdolCoverEditor={handleOpenIdolCoverEditor}
+          onOpenIdolEditor={handleOpenIdolEditor}
+          onVideoPlay={onManageVideoPlay}
+          onVideoPlayAtTime={onManageVideoPlayAtTime}
+          onVideoCoverChanged={onManageVideoCoverChanged}
+          onVideoOpenFile={onManageVideoOpenFile}
+          onVideoRevealFile={onManageVideoRevealFile}
+          openFileLabel={openFileLabel}
+          onVideoOpenTagPicker={onManageVideoOpenTagPicker}
+          onVideoOpenScreenshots={onManageVideoOpenScreenshots}
+          onVideoOpenScrapeSettings={onManageVideoOpenScrapeSettings}
+          onVideoRename={onManageVideoRename}
+          onVideoDelete={onManageVideoDelete}
+          onVideoTagClick={onManageVideoTagClick}
+        />
+      ) : null}
     </>
   )
 }

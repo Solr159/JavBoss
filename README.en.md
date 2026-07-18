@@ -65,6 +65,8 @@ After extracting the package, start the app:
 
 After launch, JavBoss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while JavBoss is running.
 
+The default password is `admin`. Change it immediately under **Global Settings → Security** after signing in. Active requests renew the session automatically; it expires after 7 consecutive idle days and survives server restarts in the meantime.
+
 #### Option 3: Docker Deployment
 
 docker-compose.yaml:
@@ -96,9 +98,21 @@ Open:
 http://localhost:8655
 ```
 
-To access JavBoss over your LAN, replace the host with the LAN IP address of the server where JavBoss is deployed.
+The default password is `admin`. Change it immediately under **Global Settings → Security** after signing in.
+
+To access JavBoss over your LAN, replace the host with the LAN IP address of the server where JavBoss is deployed. For access from other devices, enable HTTPS through a reverse proxy so the password is not sent over plain HTTP.
 
 Docker deployments use browser video playback and do not call mpv on the host. When adding a folder, enter the host path directly, such as `/mnt/disk1/videos`; JavBoss maps it to a container-readable path automatically.
+
+#### Forgot Your Password
+
+Use the one-time reset file to recover access:
+
+1. Stop JavBoss.
+2. Create `password_reset.txt` in the data directory and put only a new 6-20 character password in it. Desktop releases and the bundled Docker Compose setup both use `data/password_reset.txt` under the JavBoss project directory (the container path is `/app/data/password_reset.txt`).
+3. Start JavBoss again. It updates the password, revokes every old session, deletes the reset file automatically, and then accepts the new password.
+
+On Linux and macOS, file mode `0600` is recommended. If the contents are invalid or the file cannot be removed, JavBoss refuses to start and leaves the file for correction. The password is never written to logs.
 
 ### 2. Set JAV Metadata Language
 
@@ -261,7 +275,7 @@ The frontend is designed around finding the right video quickly. Common operatio
 - JavBoss is a local media library manager, not an online streaming site.
 - Initial JAV metadata and cover fetching depend on external website availability. If access is restricted in your region, prepare a working network/proxy environment yourself.
 - When importing a large library for the first time, scanning, cover downloads, metadata completion, and thumbnail generation can take some time.
-- The release package includes a `config.toml` file in its root directory. By default `port = 0`, so JavBoss uses a random startup port. You can change it any time if you need a fixed port.
+- The release package includes a `config.toml` file in its root directory and uses `port = 8655` by default, so it is available at `http://localhost:8655` after startup. Any other valid custom port is preserved during a one-line update.
 
 ## Q&A
 
@@ -349,7 +363,7 @@ Start the local backend with Docker runtime settings for container-mode debuggin
 DOCKER_MODE=1 ./scripts/cli.sh dev backend
 ```
 
-This enables `JAVBOSS_CONTAINER=1`, disables the API token, directory picker, desktop integration, and mpv playback, and uses ffmpeg for screenshots. Local debug needs `ffmpeg` available through `FFMPEG_PATH`, `internal/bin/ffmpeg`, or the system `PATH`. It does not add the `/host` prefix to frontend directory input or rewrite `127.0.0.1` proxies to `host.docker.internal` by default; use `DOCKER_MODE=1 JAVBOSS_HOST_PATH_PREFIX=1 ./scripts/cli.sh dev backend` when you need to test Docker host-path mapping, and add `JAVBOSS_PROXY_HOST_GATEWAY=1` when you need to test Docker proxy gateway mapping.
+This enables `JAVBOSS_CONTAINER=1`, disables the directory picker, desktop integration, and mpv playback, and uses ffmpeg for screenshots; password authentication remains enabled. Local debug needs `ffmpeg` available through `FFMPEG_PATH`, `internal/bin/ffmpeg`, or the system `PATH`. It does not add the `/host` prefix to frontend directory input or rewrite `127.0.0.1` proxies to `host.docker.internal` by default; use `DOCKER_MODE=1 JAVBOSS_HOST_PATH_PREFIX=1 ./scripts/cli.sh dev backend` when you need to test Docker host-path mapping, and add `JAVBOSS_PROXY_HOST_GATEWAY=1` when you need to test Docker proxy gateway mapping.
 
 Start the frontend:
 
