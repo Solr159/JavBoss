@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
+import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 
 import DirectoryManager from '@/components/DirectoryManager'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
@@ -106,11 +108,16 @@ export default function GlobalSettingsModal({
   const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(true)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [visiblePasswords, setVisiblePasswords] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  })
   const [passwordError, setPasswordError] = useState('')
-  const [passwordSuccess, setPasswordSuccess] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
@@ -150,11 +157,12 @@ export default function GlobalSettingsModal({
       setPlayerResumePlaybackInput(playerResumePlayback ?? PLAYER_BASIC_DEFAULTS.resumePlayback)
       setPlayerVolumeInput(String(playerVolume ?? PLAYER_BASIC_DEFAULTS.volume))
       setPlayerShowHotkeyHintInput(playerShowHotkeyHint ?? PLAYER_BASIC_DEFAULTS.showHotkeyHint)
+      setPasswordDialogOpen(false)
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
+      setVisiblePasswords({ current: false, new: false, confirm: false })
       setPasswordError('')
-      setPasswordSuccess('')
     }
   }, [
     open,
@@ -879,7 +887,6 @@ export default function GlobalSettingsModal({
     const handleChangePassword = async (event) => {
       event.preventDefault()
       setPasswordError('')
-      setPasswordSuccess('')
       const newPasswordLength = [...newPassword].length
       const newPasswordBytes = new TextEncoder().encode(newPassword).length
       if (newPasswordLength < 6 || newPasswordLength > 20 || newPasswordBytes > 72) {
@@ -902,7 +909,8 @@ export default function GlobalSettingsModal({
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
-        setPasswordSuccess(zh('密码修改成功', 'Password changed successfully'))
+        setVisiblePasswords({ current: false, new: false, confirm: false })
+        setPasswordDialogOpen(false)
       } catch (err) {
         setPasswordError(err.message || zh('修改密码失败', 'Failed to change password'))
       } finally {
@@ -910,88 +918,167 @@ export default function GlobalSettingsModal({
       }
     }
 
-    return (
-      <div className="space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h4 className="text-sm font-semibold text-zinc-800">
-            {zh('修改密码', 'Change Password')}
-          </h4>
-          <p className="mt-1 text-sm text-zinc-500">
-            {zh(
-              '默认密码为 admin。为避免其他人访问您的媒体库，请尽快修改。',
-              'The default password is admin. Change it promptly to protect your media library.'
-            )}
-          </p>
-          <form onSubmit={handleChangePassword} className="mt-5 max-w-md space-y-4">
-            {[
-              {
-                label: zh('当前密码', 'Current password'),
-                value: currentPassword,
-                setter: setCurrentPassword,
-                autoComplete: 'current-password',
-              },
-              {
-                label: zh('新密码', 'New password'),
-                value: newPassword,
-                setter: setNewPassword,
-                autoComplete: 'new-password',
-              },
-              {
-                label: zh('确认新密码', 'Confirm new password'),
-                value: confirmPassword,
-                setter: setConfirmPassword,
-                autoComplete: 'new-password',
-              },
-            ].map((field) => (
-              <label key={field.label} className="block">
-                <span className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  {field.label}
-                </span>
-                <input
-                  type="password"
-                  autoComplete={field.autoComplete}
-                  value={field.value}
-                  onChange={(event) => {
-                    field.setter(event.target.value)
-                    setPasswordError('')
-                    setPasswordSuccess('')
-                  }}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-            ))}
-            {passwordError ? <div className="text-sm text-red-600">{passwordError}</div> : null}
-            {passwordSuccess ? (
-              <div className="text-sm text-emerald-600">{passwordSuccess}</div>
-            ) : null}
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingPassword ? zh('保存中…', 'Saving...') : zh('修改密码', 'Change password')}
-              </button>
-            </div>
-          </form>
-        </section>
+    const openPasswordDialog = () => {
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setVisiblePasswords({ current: false, new: false, confirm: false })
+      setPasswordError('')
+      setPasswordDialogOpen(true)
+    }
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h4 className="text-sm font-semibold text-zinc-800">{zh('登录会话', 'Session')}</h4>
-          <p className="mt-1 text-sm text-zinc-500">
-            {zh('退出当前浏览器的登录会话。', 'Sign out of the current browser session.')}
-          </p>
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={() => onLogout?.()}
-              className="rounded-xl border border-red-200 bg-white px-3 py-1.5 text-sm text-red-600 hover:bg-red-50"
+    const closePasswordDialog = () => {
+      if (savingPassword) return
+      setPasswordDialogOpen(false)
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setVisiblePasswords({ current: false, new: false, confirm: false })
+      setPasswordError('')
+    }
+
+    return (
+      <>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={openPasswordDialog}
+            className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            {zh('修改密码', 'Change password')}
+          </button>
+          <button
+            type="button"
+            onClick={() => onLogout?.()}
+            className="rounded-xl border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+          >
+            {zh('退出登录', 'Sign out')}
+          </button>
+        </div>
+
+        {passwordDialogOpen ? (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="change-password-title"
+          >
+            <form
+              onSubmit={handleChangePassword}
+              className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
             >
-              {zh('退出登录', 'Sign out')}
-            </button>
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <h3 id="change-password-title" className="text-lg font-semibold text-zinc-900">
+                  {zh('修改密码', 'Change password')}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closePasswordDialog}
+                  disabled={savingPassword}
+                  className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+                  aria-label={zh('关闭', 'Close')}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  {
+                    id: 'current-password',
+                    label: zh('旧密码', 'Current password'),
+                    value: currentPassword,
+                    setter: setCurrentPassword,
+                    autoComplete: 'current-password',
+                    visibilityKey: 'current',
+                  },
+                  {
+                    id: 'new-password',
+                    label: zh('新密码', 'New password'),
+                    value: newPassword,
+                    setter: setNewPassword,
+                    autoComplete: 'new-password',
+                    visibilityKey: 'new',
+                  },
+                  {
+                    id: 'confirm-password',
+                    label: zh('确认新密码', 'Confirm new password'),
+                    value: confirmPassword,
+                    setter: setConfirmPassword,
+                    autoComplete: 'new-password',
+                    visibilityKey: 'confirm',
+                  },
+                ].map((field) => (
+                  <div key={field.id}>
+                    <label
+                      htmlFor={field.id}
+                      className="mb-1.5 block text-sm font-medium text-zinc-700"
+                    >
+                      {field.label}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id={field.id}
+                        type={visiblePasswords[field.visibilityKey] ? 'text' : 'password'}
+                        autoComplete={field.autoComplete}
+                        value={field.value}
+                        onChange={(event) => {
+                          field.setter(event.target.value)
+                          setPasswordError('')
+                        }}
+                        className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-16 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setVisiblePasswords((current) => ({
+                            ...current,
+                            [field.visibilityKey]: !current[field.visibilityKey],
+                          }))
+                        }
+                        className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                        aria-label={
+                          visiblePasswords[field.visibilityKey]
+                            ? zh(`隐藏${field.label}`, `Hide ${field.label.toLowerCase()}`)
+                            : zh(`显示${field.label}`, `Show ${field.label.toLowerCase()}`)
+                        }
+                      >
+                        {visiblePasswords[field.visibilityKey] ? (
+                          <VisibilityOutlinedIcon fontSize="small" aria-hidden="true" />
+                        ) : (
+                          <VisibilityOffOutlinedIcon fontSize="small" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {passwordError ? (
+                <div className="mt-4 text-sm text-red-600">{passwordError}</div>
+              ) : null}
+
+              <div className="mt-6 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closePasswordDialog}
+                  disabled={savingPassword}
+                  className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  {zh('取消', 'Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+                >
+                  {savingPassword ? zh('保存中…', 'Saving...') : zh('确认修改', 'Change password')}
+                </button>
+              </div>
+            </form>
           </div>
-        </section>
-      </div>
+        ) : null}
+      </>
     )
   }
 
