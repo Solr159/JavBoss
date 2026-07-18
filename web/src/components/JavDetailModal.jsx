@@ -582,6 +582,9 @@ export default function JavDetailModal({
               ) : null}
 
               <section className="mt-auto pt-1" aria-label={zh('操作', 'Actions')}>
+                <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                  {zh('操作栏', 'Actions')}
+                </h3>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -597,7 +600,7 @@ export default function JavDetailModal({
                     onClick={onEdit}
                   >
                     <MovieEdit sx={{ fontSize: 16 }} />
-                    {zh('编辑 JAV', 'Edit JAV')}
+                    {zh('编辑', 'Edit')}
                   </button>
                 </div>
               </section>
