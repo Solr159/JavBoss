@@ -304,7 +304,6 @@ export default function JavDetailModal({
   onSelectStudio,
   onSelectSeries,
   onSelectIdol,
-  onSelectTag,
   onSelectPrefix,
   loadIdolPreview,
   loadStudioPreview,
@@ -312,6 +311,7 @@ export default function JavDetailModal({
   buildIdolUrl,
   buildStudioUrl,
   buildSeriesUrl,
+  buildTagUrl,
   directoryIds,
   onOpenIdolFavorites,
   onOpenStudioFavorites,
@@ -440,17 +440,16 @@ export default function JavDetailModal({
     {
       label: zh('片商', 'Studio'),
       content: studioName ? (
-        <button
-          type="button"
+        <a
+          href={buildStudioUrl?.(studio) || '#'}
           className="text-left font-medium text-blue-700 hover:underline"
-          onClick={() => onSelectStudio?.(studio)}
           onMouseEnter={(event) => handleHoverStart('studio', studio, event)}
           onMouseLeave={scheduleHoverClose}
           onFocus={(event) => handleHoverStart('studio', studio, event)}
           onBlur={scheduleHoverClose}
         >
           {studioName}
-        </button>
+        </a>
       ) : (
         zh('未知', 'Unknown')
       ),
@@ -458,17 +457,16 @@ export default function JavDetailModal({
     {
       label: zh('系列', 'Series'),
       content: seriesName ? (
-        <button
-          type="button"
+        <a
+          href={buildSeriesUrl?.(series) || '#'}
           className="text-left font-medium text-blue-700 hover:underline"
-          onClick={() => onSelectSeries?.(series)}
           onMouseEnter={(event) => handleHoverStart('series', series, event)}
           onMouseLeave={scheduleHoverClose}
           onFocus={(event) => handleHoverStart('series', series, event)}
           onBlur={scheduleHoverClose}
         >
           {seriesName}
-        </button>
+        </a>
       ) : (
         zh('未知', 'Unknown')
       ),
@@ -558,18 +556,17 @@ export default function JavDetailModal({
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {idols.map((idol) => (
-                      <button
+                      <a
                         key={idol?.id || idol?.name}
-                        type="button"
+                        href={buildIdolUrl?.(idol) || '#'}
                         className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-300 hover:bg-purple-100"
-                        onClick={() => onSelectIdol?.(idol)}
                         onMouseEnter={(event) => handleHoverStart('idol', idol, event)}
                         onMouseLeave={scheduleHoverClose}
                         onFocus={(event) => handleHoverStart('idol', idol, event)}
                         onBlur={scheduleHoverClose}
                       >
                         {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
-                      </button>
+                      </a>
                     ))}
                   </div>
                 </section>
@@ -582,18 +579,17 @@ export default function JavDetailModal({
                     {tags.map((tag) => {
                       const isUser = isUserJavTag(tag)
                       return (
-                        <button
+                        <a
                           key={`${tag?.id || tag?.name}-${tag?.provider || 0}`}
-                          type="button"
+                          href={buildTagUrl?.(tag) || '#'}
                           className={`rounded px-2.5 py-1 text-xs font-medium transition ${
                             isUser
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
                               : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                           }`}
-                          onClick={() => onSelectTag?.(tag)}
                         >
                           {tag?.name}
-                        </button>
+                        </a>
                       )
                     })}
                   </div>

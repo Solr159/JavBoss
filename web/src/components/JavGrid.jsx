@@ -2459,7 +2459,6 @@ function JavCard({
           onSelectStudio={onStudioClick}
           onSelectSeries={onSeriesClick}
           onSelectIdol={onIdolClick}
-          onSelectTag={onTagClick}
           onSelectPrefix={onPrefixClick}
           loadIdolPreview={loadIdolPreview}
           loadStudioPreview={loadStudioPreview}
@@ -2467,6 +2466,7 @@ function JavCard({
           buildIdolUrl={buildIdolFilterHref}
           buildStudioUrl={buildStudioFilterHref}
           buildSeriesUrl={buildSeriesFilterHref}
+          buildTagUrl={buildTagFilterHref}
           directoryIds={directoryIds}
           onOpenIdolFavorites={onOpenFavorites}
           onOpenStudioFavorites={onOpenStudioFavorites}
