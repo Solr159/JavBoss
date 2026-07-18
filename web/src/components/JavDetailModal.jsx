@@ -445,8 +445,6 @@ export default function JavDetailModal({
           className="text-left font-medium text-blue-700 hover:underline"
           onMouseEnter={(event) => handleHoverStart('studio', studio, event)}
           onMouseLeave={scheduleHoverClose}
-          onFocus={(event) => handleHoverStart('studio', studio, event)}
-          onBlur={scheduleHoverClose}
         >
           {studioName}
         </a>
@@ -462,8 +460,6 @@ export default function JavDetailModal({
           className="text-left font-medium text-blue-700 hover:underline"
           onMouseEnter={(event) => handleHoverStart('series', series, event)}
           onMouseLeave={scheduleHoverClose}
-          onFocus={(event) => handleHoverStart('series', series, event)}
-          onBlur={scheduleHoverClose}
         >
           {seriesName}
         </a>
@@ -562,8 +558,6 @@ export default function JavDetailModal({
                         className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-300 hover:bg-purple-100"
                         onMouseEnter={(event) => handleHoverStart('idol', idol, event)}
                         onMouseLeave={scheduleHoverClose}
-                        onFocus={(event) => handleHoverStart('idol', idol, event)}
-                        onBlur={scheduleHoverClose}
                       >
                         {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
                       </a>

@@ -1316,8 +1316,6 @@ function IdolTagList({
             className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 transition hover:bg-purple-200"
             onMouseEnter={(event) => onIdolHoverStart(idol, event)}
             onMouseLeave={onIdolHoverEnd}
-            onFocus={(event) => onIdolHoverStart(idol, event)}
-            onBlur={onIdolHoverEnd}
             onClick={(event) => onFilterLinkClick(event, () => onIdolClick?.(idol))}
           >
             {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
@@ -2191,22 +2189,21 @@ function JavCard({
                     <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
                   </span>
                 </Tooltip>
-                <button
-                  type="button"
+                <a
+                  href={buildStudioFilterHref(item.studio)}
                   className={`min-w-0 truncate text-left ${
                     canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                   }`}
-                  onClick={() => {
-                    if (canFilterStudio) onStudioClick(item.studio)
-                  }}
+                  onClick={(event) =>
+                    handleFilterLinkClick(event, () => {
+                      if (canFilterStudio) onStudioClick(item.studio)
+                    })
+                  }
                   onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
                   onMouseLeave={scheduleHoverClose}
-                  onFocus={(event) => handleStudioHoverStart(item.studio, event)}
-                  onBlur={scheduleHoverClose}
-                  disabled={!canFilterStudio}
                 >
                   {studioText}
-                </button>
+                </a>
               </span>
             ) : null}
           </div>
@@ -2217,22 +2214,21 @@ function JavCard({
                   <MovieCreationIcon sx={{ fontSize: 16 }} className="shrink-0 text-emerald-600" />
                 </span>
               </Tooltip>
-              <button
-                type="button"
+              <a
+                href={buildSeriesFilterHref(preferredSeries)}
                 className={`min-w-0 whitespace-normal break-words text-left leading-snug ${
                   canFilterSeries ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                 }`}
-                onClick={() => {
-                  if (canFilterSeries) onSeriesClick(preferredSeries)
-                }}
+                onClick={(event) =>
+                  handleFilterLinkClick(event, () => {
+                    if (canFilterSeries) onSeriesClick(preferredSeries)
+                  })
+                }
                 onMouseEnter={(event) => handleSeriesHoverStart(preferredSeries, event)}
                 onMouseLeave={scheduleHoverClose}
-                onFocus={(event) => handleSeriesHoverStart(preferredSeries, event)}
-                onBlur={scheduleHoverClose}
-                disabled={!canFilterSeries}
               >
                 {seriesText}
-              </button>
+              </a>
             </div>
           ) : null}
           <Popper
