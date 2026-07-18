@@ -6,7 +6,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import { IconButton, Popper, Tooltip } from '@mui/material'
 
-import { deleteVideoScreenshot, fetchVideoScreenshots } from '@/api'
+import { deleteVideoScreenshot, fetchVideoScreenshotsByIds } from '@/api'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
@@ -43,6 +43,19 @@ function screenshotActionKey(video, screenshot) {
   return `${video?.id || 'video'}:${screenshot?.name || ''}`
 }
 
+function screenshotItemsMatch(current, next) {
+  if (current.length !== next.length) return false
+  return current.every((item, index) => {
+    const candidate = next[index]
+    return (
+      Number(item?.video?.id) === Number(candidate?.video?.id) &&
+      item?.name === candidate?.name &&
+      item?.url === candidate?.url &&
+      Boolean(item?.is_cover) === Boolean(candidate?.is_cover)
+    )
+  })
+}
+
 function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverChanged }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -55,34 +68,56 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
 
   useEffect(() => {
     let cancelled = false
-    const availableVideos = (videos || []).filter((video) => Number(video?.id) > 0)
+    let refreshInFlight = false
+    let initialLoad = true
+    const videoById = new Map()
+    for (const video of videos || []) {
+      const videoId = Number(video?.id)
+      if (videoId > 0 && !videoById.has(videoId)) videoById.set(videoId, video)
+    }
     setItems([])
     setFailedCount(0)
     setError('')
     setDeletingKey('')
-    if (availableVideos.length === 0) {
+    if (videoById.size === 0) {
       setLoading(false)
       return undefined
     }
 
     setLoading(true)
-    Promise.allSettled(
-      availableVideos.map(async (video) => {
-        const screenshots = await fetchVideoScreenshots(video.id)
-        return screenshots.map((screenshot) => ({ ...screenshot, video }))
-      })
-    )
-      .then((results) => {
+    const refreshScreenshots = async () => {
+      if (refreshInFlight) return
+      refreshInFlight = true
+      try {
+        const screenshots = await fetchVideoScreenshotsByIds(Array.from(videoById.keys()))
         if (cancelled) return
-        setItems(results.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])))
-        setFailedCount(results.filter((result) => result.status === 'rejected').length)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
+        setItems((current) => {
+          const nextItems = screenshots.flatMap((screenshot) => {
+            const video = videoById.get(Number(screenshot?.video_id))
+            return video ? [{ ...screenshot, video }] : []
+          })
+          return screenshotItemsMatch(current, nextItems) ? current : nextItems
+        })
+        setFailedCount(0)
+      } catch {
+        if (!cancelled) setFailedCount(1)
+      } finally {
+        refreshInFlight = false
+        if (!cancelled && initialLoad) {
+          initialLoad = false
+          setLoading(false)
+        }
+      }
+    }
+
+    void refreshScreenshots()
+    const refreshTimer = window.setInterval(() => {
+      void refreshScreenshots()
+    }, 1000)
 
     return () => {
       cancelled = true
+      window.clearInterval(refreshTimer)
     }
   }, [videoIdentity, videos])
 
@@ -139,8 +174,8 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
       {failedCount > 0 ? (
         <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
           {zh(
-            `${failedCount} 个视频的截图加载失败，其余截图已正常展示。`,
-            `Screenshots failed to load for ${failedCount} video(s); the remaining screenshots are shown.`
+            '截图实时刷新失败，正在保留现有结果并继续重试。',
+            'Live screenshot refresh failed. Existing results are preserved while retrying.'
           )}
         </div>
       ) : null}

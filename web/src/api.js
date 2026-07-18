@@ -232,10 +232,22 @@ export async function fetchPlaybackInfo(id, { locationId } = {}) {
 }
 
 export async function fetchVideoScreenshots(id) {
-  const res = await apiFetch(`/videos/${id}/screenshots`)
+  const res = await apiFetch(`/videos/${id}/screenshots`, { cache: 'no-store' })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || zh('加载截图失败', 'Failed to load screenshots'))
+  }
+  const data = await res.json()
+  return Array.isArray(data?.items) ? data.items : []
+}
+
+export async function fetchVideoScreenshotsByIds(videoIds) {
+  const params = new URLSearchParams()
+  params.set('video_id_list', (videoIds || []).join(','))
+  const res = await apiFetch(`/videos/screenshots?${params.toString()}`, { cache: 'no-store' })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || zh('加载视频截图失败', 'Failed to load video screenshots'))
   }
   const data = await res.json()
   return Array.isArray(data?.items) ? data.items : []

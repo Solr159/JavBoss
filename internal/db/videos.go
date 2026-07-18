@@ -406,6 +406,31 @@ func GetVideo(ctx context.Context, id int64) (*models.Video, error) {
 	return &video, nil
 }
 
+// ListVideoCoverScreenshotNames returns cover screenshot names for the requested video IDs.
+func ListVideoCoverScreenshotNames(ctx context.Context, videoIDs []int64) (map[int64]string, error) {
+	ids := uniqueInt64s(videoIDs)
+	result := make(map[int64]string, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	var rows []struct {
+		ID                  int64  `gorm:"column:id"`
+		CoverScreenshotName string `gorm:"column:cover_screenshot_name"`
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Video{}).
+		Select("id, cover_screenshot_name").
+		Where("id IN ?", ids).
+		Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list video cover screenshot names: %w", err)
+	}
+	for _, row := range rows {
+		result[row.ID] = strings.TrimSpace(row.CoverScreenshotName)
+	}
+	return result, nil
+}
+
 // GetVideoForLocation returns a video-shaped row for a specific active location.
 func GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*models.Video, error) {
 	loc, err := GetActiveVideoLocation(ctx, videoID, locationID)
