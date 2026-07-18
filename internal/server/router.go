@@ -26,9 +26,16 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 
 	if staticDir != "" {
 		if fi, err := os.Stat(staticDir); err == nil && fi.IsDir() {
+			indexPath := filepath.Join(staticDir, "index.html")
+			indexHandler := func(c *gin.Context) {
+				serveIndexHTML(c, indexPath)
+			}
 			router.Static("/assets", filepath.Join(staticDir, "assets"))
 			router.Static("/ico", filepath.Join(staticDir, "ico"))
-			router.StaticFile("/", filepath.Join(staticDir, "index.html"))
+			router.GET("/", indexHandler)
+			router.HEAD("/", indexHandler)
+			router.GET("/index.html", indexHandler)
+			router.HEAD("/index.html", indexHandler)
 
 			router.NoRoute(func(c *gin.Context) {
 				path := c.Request.URL.Path
@@ -37,7 +44,7 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 					return
 				}
 				if strings.Contains(c.GetHeader("Accept"), "text/html") {
-					c.File(filepath.Join(staticDir, "index.html"))
+					serveIndexHTML(c, indexPath)
 					return
 				}
 				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
@@ -52,6 +59,24 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 	}
 
 	return router
+}
+
+func serveIndexHTML(c *gin.Context, indexPath string) {
+	data, err := os.ReadFile(indexPath)
+	if err != nil {
+		logging.Error("read frontend index error: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "frontend unavailable"})
+		return
+	}
+	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+	if c.Request.Method == http.MethodHead {
+		c.Header("Content-Type", "text/html; charset=utf-8")
+		c.Status(http.StatusOK)
+		return
+	}
+	c.Data(http.StatusOK, "text/html; charset=utf-8", data)
 }
 
 func ginLogger() gin.HandlerFunc {
