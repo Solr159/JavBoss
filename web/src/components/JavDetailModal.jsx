@@ -193,7 +193,7 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
           return (
             <div
               key={`${video?.id || 'video'}-${screenshot?.name || screenshot?.url}`}
-              className="group overflow-hidden rounded-md border border-gray-200 bg-white text-left transition hover:border-gray-300 hover:shadow"
+              className="group overflow-hidden rounded-md border border-gray-200 bg-white text-left"
             >
               <div
                 className="relative aspect-video cursor-pointer overflow-hidden bg-gray-100"
@@ -211,7 +211,7 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
                 <img
                   src={screenshot.url}
                   alt={screenshot.name}
-                  className="h-full w-full object-contain transition group-hover:scale-[1.02]"
+                  className="h-full w-full object-contain"
                   loading="lazy"
                 />
                 {screenshot.is_cover ? (
@@ -233,7 +233,7 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
                     <DeleteOutlineIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+                <div className="absolute inset-0 flex items-center justify-center bg-transparent opacity-0 transition-opacity group-hover:opacity-100">
                   <Tooltip title={zh('从此处播放', 'Play from here')}>
                     <span>
                       <IconButton
@@ -509,17 +509,16 @@ export default function JavDetailModal({
                   {code || zh('暂无封面', 'No cover')}
                 </span>
               )}
-              <button
-                type="button"
-                className="absolute inset-0 z-[1] flex items-center justify-center bg-black/0 text-white opacity-0 transition hover:bg-black/25 hover:opacity-100 focus-visible:bg-black/25 focus-visible:opacity-100 disabled:cursor-not-allowed"
-                onClick={onPlay}
-                disabled={!canPlay}
-                aria-label={zh('播放', 'Play')}
-              >
-                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/65 shadow-lg transition hover:bg-black/80">
-                  <PlayArrowIcon sx={{ fontSize: 42 }} />
-                </span>
-              </button>
+              {canPlay ? (
+                <button
+                  type="button"
+                  className="absolute left-1/2 top-1/2 z-[1] flex h-20 w-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg transition hover:bg-black/80 focus-visible:opacity-100 group-hover:opacity-100"
+                  onClick={onPlay}
+                  aria-label={zh('播放', 'Play')}
+                >
+                  <PlayArrowIcon sx={{ fontSize: 54 }} />
+                </button>
+              ) : null}
             </div>
 
             <div className="flex min-w-0 flex-col gap-5">

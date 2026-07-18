@@ -239,7 +239,7 @@ export default function VideoScreenshotsModal({
                 return (
                   <div
                     key={item.name}
-                    className="group overflow-hidden rounded border border-gray-200 bg-white hover:border-gray-300"
+                    className="group overflow-hidden rounded border border-gray-200 bg-white"
                   >
                     <div
                       className="relative aspect-video cursor-pointer bg-gray-100"
@@ -279,7 +279,7 @@ export default function VideoScreenshotsModal({
                           <DeleteOutlineIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <div className="absolute inset-0 flex items-center justify-center gap-5 bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+                      <div className="absolute inset-0 flex items-center justify-center gap-5 bg-transparent opacity-0 transition-opacity group-hover:opacity-100">
                         <Tooltip title={zh('从此处播放', 'Play from here')}>
                           <span>
                             <IconButton
@@ -328,9 +328,7 @@ export default function VideoScreenshotsModal({
                         ) : null}
                       </div>
                     </div>
-                    <div className="truncate px-2 py-1 text-xs text-gray-600 group-hover:text-gray-900">
-                      {displayName}
-                    </div>
+                    <div className="truncate px-2 py-1 text-xs text-gray-600">{displayName}</div>
                   </div>
                 )
               })}
