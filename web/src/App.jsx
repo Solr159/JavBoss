@@ -251,6 +251,7 @@ export default function App() {
   const [playerVideo, setPlayerVideo] = useState(null)
   const [playerStartTime, setPlayerStartTime] = useState(0)
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
+  const [screenshotsAllowSetCover, setScreenshotsAllowSetCover] = useState(true)
   const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
   const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
   const [searchInput, setSearchInput] = useState('')
@@ -777,6 +778,16 @@ export default function App() {
     [handleRevealVideoFile, isVideoOpenable]
   )
 
+  const openVideoScreenshots = useCallback((video) => {
+    setScreenshotsAllowSetCover(true)
+    setScreenshotsVideo(video)
+  }, [])
+
+  const openJavScreenshots = useCallback((video) => {
+    setScreenshotsAllowSetCover(false)
+    setScreenshotsVideo(video)
+  }, [])
+
   const handleJavOpenScreenshots = useCallback(
     (video, item) => {
       const videos = item?.videos || (video ? [video] : [])
@@ -788,9 +799,9 @@ export default function App() {
       }
       const target = video && isVideoOpenable(video) ? video : videos.find(isVideoOpenable)
       if (!target) return
-      setScreenshotsVideo(target)
+      openJavScreenshots(target)
     },
-    [isVideoOpenable]
+    [isVideoOpenable, openJavScreenshots]
   )
 
   const handleSelectJavVideo = useCallback(
@@ -808,7 +819,7 @@ export default function App() {
       }
       if (javVideoPickerAction === 'screenshots') {
         if (isVideoOpenable(video)) {
-          setScreenshotsVideo(video)
+          openJavScreenshots(video)
           closeJavVideoPicker()
         }
         return
@@ -835,6 +846,7 @@ export default function App() {
       handleRevealVideoFile,
       isVideoOpenable,
       javVideoPickerAction,
+      openJavScreenshots,
     ]
   )
 
@@ -3259,10 +3271,12 @@ export default function App() {
               onRevealFile: handleJavRevealFile,
               onOpenScreenshots: handleJavOpenScreenshots,
               onManageVideoPlay: handleOpenPlayer,
+              onManageVideoPlayAtTime: playVideoFromTime,
+              onManageVideoCoverChanged: handleVideoCoverChanged,
               onManageVideoOpenFile: handleOpenAlternatePlayer,
               onManageVideoRevealFile: handleRevealVideoFile,
               onManageVideoOpenTagPicker: openTagEditor,
-              onManageVideoOpenScreenshots: setScreenshotsVideo,
+              onManageVideoOpenScreenshots: openJavScreenshots,
               onManageVideoOpenScrapeSettings: handleOpenScrapeSettings,
               onManageVideoRename: handleRenameVideo,
               onManageVideoDelete: handleDeleteVideo,
@@ -3307,7 +3321,7 @@ export default function App() {
             revealFile={desktopIntegrationEnabled ? handleRevealVideoFile : null}
             alternatePlayerLabel={alternatePlayerLabel}
             setTagPickerFor={openTagEditor}
-            onOpenScreenshots={setScreenshotsVideo}
+            onOpenScreenshots={openVideoScreenshots}
             onOpenScrapeSettings={handleOpenScrapeSettings}
             onRenameVideo={handleRenameVideo}
             onDeleteVideo={handleDeleteVideo}
@@ -3356,6 +3370,7 @@ export default function App() {
       <VideoScreenshotsModal
         video={screenshotsVideo}
         playerHotkeys={config?.player_hotkeys}
+        allowSetCover={screenshotsAllowSetCover}
         onClose={() => setScreenshotsVideo(null)}
         onPlayAtTime={playVideoFromTime}
         onCoverChanged={handleVideoCoverChanged}

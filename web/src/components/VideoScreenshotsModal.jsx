@@ -28,6 +28,7 @@ export default function VideoScreenshotsModal({
   onClose,
   onPlayAtTime,
   onCoverChanged,
+  allowSetCover = true,
 }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
@@ -169,7 +170,7 @@ export default function VideoScreenshotsModal({
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {currentCoverName ? (
+            {allowSetCover && currentCoverName ? (
               <Tooltip
                 arrow
                 placement="left"
@@ -294,35 +295,37 @@ export default function VideoScreenshotsModal({
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip
-                          title={
-                            item.is_cover
-                              ? zh('当前封面', 'Current cover')
-                              : zh('设为封面', 'Set as cover')
-                          }
-                        >
-                          <span>
-                            <IconButton
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                handleSetCover(item)
-                              }}
-                              disabled={Boolean(settingCoverName) || item.is_cover}
-                              aria-label={
-                                item.is_cover
-                                  ? zh('当前封面', 'Current cover')
-                                  : zh('设为封面', 'Set as cover')
-                              }
-                              className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
-                            >
-                              {item.is_cover ? (
-                                <CheckCircleOutlineIcon fontSize="medium" />
-                              ) : (
-                                <ImageOutlinedIcon fontSize="medium" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
+                        {allowSetCover ? (
+                          <Tooltip
+                            title={
+                              item.is_cover
+                                ? zh('当前封面', 'Current cover')
+                                : zh('设为封面', 'Set as cover')
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleSetCover(item)
+                                }}
+                                disabled={Boolean(settingCoverName) || item.is_cover}
+                                aria-label={
+                                  item.is_cover
+                                    ? zh('当前封面', 'Current cover')
+                                    : zh('设为封面', 'Set as cover')
+                                }
+                                className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                              >
+                                {item.is_cover ? (
+                                  <CheckCircleOutlineIcon fontSize="medium" />
+                                ) : (
+                                  <ImageOutlinedIcon fontSize="medium" />
+                                )}
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        ) : null}
                       </div>
                     </div>
                     <div className="truncate px-2 py-1 text-xs text-gray-600 group-hover:text-gray-900">

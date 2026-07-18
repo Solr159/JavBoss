@@ -1,0 +1,728 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import { MovieEdit } from '@mui/icons-material'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
+import { IconButton, Popper, Tooltip } from '@mui/material'
+
+import { deleteVideoScreenshot, fetchVideoScreenshots } from '@/api'
+import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
+import { SeriesCard } from '@/components/JavSeriesView'
+import { StudioCard } from '@/components/JavStudioView'
+import VideoGrid from '@/components/VideoGrid'
+import { isUserJavTag } from '@/constants/jav'
+import { getVideoDisplayName } from '@/utils/display'
+import { getIdolDisplayName } from '@/utils/javIdol'
+import { zh } from '@/utils/i18n'
+
+function formatScreenshotTime(name) {
+  const stem = String(name || '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/^mpv_/, '')
+  const match = stem.match(/^(\d{2})-(\d{2})-(\d{2})(\.\d+)?$/)
+  if (!match) return stem || name
+  return `${match[1]}:${match[2]}:${match[3]}`
+}
+
+function screenshotStartTime(name) {
+  const stem = String(name || '')
+    .replace(/\.[^.]+$/, '')
+    .replace(/^mpv_/, '')
+  const match = stem.match(/^(\d{2})-(\d{2})-(\d{2})(\.\d+)?$/)
+  if (!match) return null
+  return (
+    Number.parseInt(match[1], 10) * 3600 +
+    Number.parseInt(match[2], 10) * 60 +
+    Number.parseInt(match[3], 10) +
+    Number.parseFloat(match[4] || '0')
+  )
+}
+
+function screenshotActionKey(video, screenshot) {
+  return `${video?.id || 'video'}:${screenshot?.name || ''}`
+}
+
+function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverChanged }) {
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [failedCount, setFailedCount] = useState(0)
+  const [error, setError] = useState('')
+  const [deletingKey, setDeletingKey] = useState('')
+  const videoIdentity = (videos || [])
+    .map((video) => `${video?.id || ''}:${video?.updated_at || ''}`)
+    .join('|')
+
+  useEffect(() => {
+    let cancelled = false
+    const availableVideos = (videos || []).filter((video) => Number(video?.id) > 0)
+    setItems([])
+    setFailedCount(0)
+    setError('')
+    setDeletingKey('')
+    if (availableVideos.length === 0) {
+      setLoading(false)
+      return undefined
+    }
+
+    setLoading(true)
+    Promise.allSettled(
+      availableVideos.map(async (video) => {
+        const screenshots = await fetchVideoScreenshots(video.id)
+        return screenshots.map((screenshot) => ({ ...screenshot, video }))
+      })
+    )
+      .then((results) => {
+        if (cancelled) return
+        setItems(results.flatMap((result) => (result.status === 'fulfilled' ? result.value : [])))
+        setFailedCount(results.filter((result) => result.status === 'rejected').length)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [videoIdentity, videos])
+
+  const handleDeleteScreenshot = async (video, screenshot) => {
+    if (!video?.id || !screenshot?.name || deletingKey) return
+    const actionKey = screenshotActionKey(video, screenshot)
+    setDeletingKey(actionKey)
+    setError('')
+    try {
+      await deleteVideoScreenshot(video.id, screenshot.name)
+      setItems((current) =>
+        current.filter(
+          (candidate) =>
+            !(
+              Number(candidate?.video?.id) === Number(video.id) &&
+              candidate?.name === screenshot.name
+            )
+        )
+      )
+      if (screenshot.is_cover) {
+        onCoverChanged?.({
+          id: video.id,
+          cover_screenshot_name: '',
+          updated_at: new Date().toISOString(),
+        })
+      }
+    } catch (err) {
+      setError(err?.message || zh('删除截图失败', 'Failed to delete screenshot'))
+    } finally {
+      setDeletingKey('')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-gray-200 text-xs text-gray-500">
+        {zh('正在加载视频截图…', 'Loading video screenshots...')}
+      </div>
+    )
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-gray-200 px-4 text-center text-xs text-gray-500">
+        {failedCount > 0
+          ? zh('视频截图加载失败', 'Failed to load video screenshots')
+          : zh('暂无视频截图', 'No video screenshots')}
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {failedCount > 0 ? (
+        <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700">
+          {zh(
+            `${failedCount} 个视频的截图加载失败，其余截图已正常展示。`,
+            `Screenshots failed to load for ${failedCount} video(s); the remaining screenshots are shown.`
+          )}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="mb-2 rounded border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs text-red-700">
+          {error}
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {items.map((screenshot) => {
+          const video = screenshot.video
+          const videoName = getVideoDisplayName(video)
+          const startTime = screenshotStartTime(screenshot.name)
+          const actionKey = screenshotActionKey(video, screenshot)
+          return (
+            <div
+              key={`${video?.id || 'video'}-${screenshot?.name || screenshot?.url}`}
+              className="group overflow-hidden rounded-md border border-gray-200 bg-white text-left transition hover:border-gray-300 hover:shadow"
+            >
+              <div
+                className="relative aspect-video cursor-pointer overflow-hidden bg-gray-100"
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpenScreenshots?.(video)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onOpenScreenshots?.(video)
+                  }
+                }}
+                aria-label={zh(`查看 ${videoName} 的截图`, `View screenshots for ${videoName}`)}
+              >
+                <img
+                  src={screenshot.url}
+                  alt={screenshot.name}
+                  className="h-full w-full object-contain transition group-hover:scale-[1.02]"
+                  loading="lazy"
+                />
+                {screenshot.is_cover ? (
+                  <span className="absolute left-1.5 top-1.5 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                    {zh('当前封面', 'Current cover')}
+                  </span>
+                ) : null}
+                <Tooltip title={zh('删除截图', 'Delete screenshot')}>
+                  <IconButton
+                    size="small"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleDeleteScreenshot(video, screenshot)
+                    }}
+                    disabled={Boolean(deletingKey)}
+                    aria-label={zh('删除截图', 'Delete screenshot')}
+                    className="!absolute !right-1.5 !top-1.5 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100"
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/0 opacity-0 transition group-hover:bg-black/35 group-hover:opacity-100">
+                  <Tooltip title={zh('从此处播放', 'Play from here')}>
+                    <span>
+                      <IconButton
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onPlayAtTime?.(video, startTime)
+                        }}
+                        disabled={startTime == null}
+                        aria-label={zh('从此处播放', 'Play from here')}
+                        className="!h-10 !w-10 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                      >
+                        <PlayArrowIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </div>
+              </div>
+              <div className="px-2 py-1.5">
+                <div className="truncate text-[11px] font-medium text-gray-800" title={videoName}>
+                  {videoName}
+                </div>
+                <div className="text-[10px] text-gray-500">
+                  {formatScreenshotTime(screenshot.name)}
+                </div>
+              </div>
+              {deletingKey === actionKey ? (
+                <div className="h-0.5 animate-pulse bg-blue-500" />
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+    </>
+  )
+}
+
+export default function JavDetailModal({
+  item,
+  cover,
+  title,
+  releaseText,
+  durationText,
+  studio,
+  series,
+  tags,
+  externalLinks,
+  javMetadataLanguage,
+  preferChineseName,
+  canPlay,
+  onClose,
+  onPlay,
+  onOpenFavorites,
+  onEdit,
+  onSelectStudio,
+  onSelectSeries,
+  onSelectIdol,
+  onSelectTag,
+  onSelectPrefix,
+  loadIdolPreview,
+  loadStudioPreview,
+  loadSeriesPreview,
+  buildIdolUrl,
+  buildStudioUrl,
+  buildSeriesUrl,
+  directoryIds,
+  onOpenIdolFavorites,
+  onOpenStudioFavorites,
+  onOpenSeriesFavorites,
+  onOpenIdolCoverEditor,
+  onOpenIdolEditor,
+  onVideoPlay,
+  onVideoPlayAtTime,
+  onVideoCoverChanged,
+  onVideoOpenFile,
+  onVideoRevealFile,
+  openFileLabel,
+  onVideoOpenTagPicker,
+  onVideoOpenScreenshots,
+  onVideoOpenScrapeSettings,
+  onVideoRename,
+  onVideoDelete,
+  onVideoTagClick,
+}) {
+  const dialogRef = useRef(null)
+  const titleId = `jav-detail-title-${item?.id || 'item'}`
+  const code = String(item?.code || '').trim()
+  const idols = useMemo(() => (Array.isArray(item?.idols) ? item.idols : []), [item?.idols])
+  const videos = useMemo(() => (Array.isArray(item?.videos) ? item.videos : []), [item?.videos])
+  const studioName = String(studio?.name || '').trim()
+  const seriesName = String(series?.name || '').trim()
+  const emptyVideoSelection = useMemo(() => new Set(), [])
+  const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
+  const [hoverPreview, setHoverPreview] = useState(null)
+  const hoverCloseTimerRef = useRef(null)
+  const activeHoverKeyRef = useRef('')
+  const hoverPreviewLockedRef = useRef(false)
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    dialogRef.current?.focus()
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (hoverCloseTimerRef.current) window.clearTimeout(hoverCloseTimerRef.current)
+    }
+  }, [])
+
+  const clearHoverCloseTimer = () => {
+    if (!hoverCloseTimerRef.current) return
+    window.clearTimeout(hoverCloseTimerRef.current)
+    hoverCloseTimerRef.current = null
+  }
+
+  const closeHoverPreview = () => {
+    activeHoverKeyRef.current = ''
+    hoverPreviewLockedRef.current = false
+    setHoverPreview(null)
+  }
+
+  const scheduleHoverClose = () => {
+    clearHoverCloseTimer()
+    if (hoverPreviewLockedRef.current) return
+    hoverCloseTimerRef.current = window.setTimeout(() => {
+      closeHoverPreview()
+      hoverCloseTimerRef.current = null
+    }, 120)
+  }
+
+  const handleHoverStart = (type, previewItem, event) => {
+    clearHoverCloseTimer()
+    const identity = previewItem?.id || previewItem?.name || ''
+    const previewKey = `${type}:${identity}`
+    activeHoverKeyRef.current = previewKey
+    setHoverPreview({ type, item: previewItem, anchorEl: event.currentTarget })
+
+    const loader =
+      type === 'idol' ? loadIdolPreview : type === 'studio' ? loadStudioPreview : loadSeriesPreview
+    if (!loader) return
+    void loader(previewItem)
+      .then((loadedItem) => {
+        if (!loadedItem || activeHoverKeyRef.current !== previewKey) return
+        setHoverPreview((current) =>
+          current?.type === type
+            ? { ...current, item: { ...current.item, ...loadedItem } }
+            : current
+        )
+      })
+      .catch((error) => {
+        console.warn(`load ${type} preview failed`, error)
+      })
+  }
+
+  const handleStudioSeriesListOpenChange = (open) => {
+    clearHoverCloseTimer()
+    hoverPreviewLockedRef.current = Boolean(open)
+    if (!open) scheduleHoverClose()
+  }
+
+  const detailRows = [
+    {
+      label: zh('识别码', 'Code'),
+      content: (
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{code || zh('未知', 'Unknown')}</span>
+          {typeof item?.is_uncensored === 'boolean' ? (
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-medium ${
+                item.is_uncensored ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700'
+              }`}
+            >
+              {item.is_uncensored ? zh('无码', 'Uncensored') : zh('有码', 'Censored')}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    { label: zh('发行日期', 'Release date'), content: releaseText },
+    { label: zh('时长', 'Runtime'), content: durationText || zh('未知', 'Unknown') },
+    {
+      label: zh('片商', 'Studio'),
+      content: studioName ? (
+        <button
+          type="button"
+          className="text-left font-medium text-blue-700 hover:underline"
+          onClick={() => onSelectStudio?.(studio)}
+          onMouseEnter={(event) => handleHoverStart('studio', studio, event)}
+          onMouseLeave={scheduleHoverClose}
+          onFocus={(event) => handleHoverStart('studio', studio, event)}
+          onBlur={scheduleHoverClose}
+        >
+          {studioName}
+        </button>
+      ) : (
+        zh('未知', 'Unknown')
+      ),
+    },
+    {
+      label: zh('系列', 'Series'),
+      content: seriesName ? (
+        <button
+          type="button"
+          className="text-left font-medium text-blue-700 hover:underline"
+          onClick={() => onSelectSeries?.(series)}
+          onMouseEnter={(event) => handleHoverStart('series', series, event)}
+          onMouseLeave={scheduleHoverClose}
+          onFocus={(event) => handleHoverStart('series', series, event)}
+          onBlur={scheduleHoverClose}
+        >
+          {seriesName}
+        </button>
+      ) : (
+        zh('未知', 'Unknown')
+      ),
+    },
+  ]
+
+  return (
+    <div
+      className="fixed inset-0 z-[40] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-[2px] sm:p-6"
+      role="presentation"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default"
+        aria-label={zh('关闭 JAV 详情', 'Close JAV details')}
+        onClick={onClose}
+      />
+      <div
+        ref={dialogRef}
+        className="relative z-10 flex max-h-[92vh] w-full max-w-[90rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl outline-none"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-1.5 sm:px-5">
+          <div className="min-w-0">
+            <h2 id={titleId} className="truncate text-sm font-semibold text-gray-900 sm:text-base">
+              {title}
+            </h2>
+          </div>
+          <button
+            type="button"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+            onClick={onClose}
+            aria-label={zh('关闭', 'Close')}
+          >
+            <CloseOutlinedIcon sx={{ fontSize: 16 }} />
+          </button>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
+            <div className="group relative aspect-[800/538] w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm">
+              {cover ? (
+                <img
+                  src={cover}
+                  alt={code || zh('JAV 封面', 'JAV cover')}
+                  className="h-full w-full object-contain object-top"
+                />
+              ) : (
+                <span className="flex h-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-500">
+                  {code || zh('暂无封面', 'No cover')}
+                </span>
+              )}
+              <button
+                type="button"
+                className="absolute inset-0 z-[1] flex items-center justify-center bg-black/0 text-white opacity-0 transition hover:bg-black/25 hover:opacity-100 focus-visible:bg-black/25 focus-visible:opacity-100 disabled:cursor-not-allowed"
+                onClick={onPlay}
+                disabled={!canPlay}
+                aria-label={zh('播放', 'Play')}
+              >
+                <span className="flex h-16 w-16 items-center justify-center rounded-full bg-black/65 shadow-lg transition hover:bg-black/80">
+                  <PlayArrowIcon sx={{ fontSize: 42 }} />
+                </span>
+              </button>
+            </div>
+
+            <div className="flex min-w-0 flex-col gap-5">
+              <dl className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+                {detailRows.map((row, index) => (
+                  <div
+                    key={row.label}
+                    className={`grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 px-4 py-2.5 text-sm ${
+                      index > 0 ? 'border-t border-gray-100' : ''
+                    }`}
+                  >
+                    <dt className="font-medium text-gray-500">{row.label}</dt>
+                    <dd className="min-w-0 break-words text-gray-800">{row.content}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              {idols.length > 0 ? (
+                <section aria-label={zh('女优', 'Actresses')}>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                    {zh('女优', 'Actresses')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {idols.map((idol) => (
+                      <button
+                        key={idol?.id || idol?.name}
+                        type="button"
+                        className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-300 hover:bg-purple-100"
+                        onClick={() => onSelectIdol?.(idol)}
+                        onMouseEnter={(event) => handleHoverStart('idol', idol, event)}
+                        onMouseLeave={scheduleHoverClose}
+                        onFocus={(event) => handleHoverStart('idol', idol, event)}
+                        onBlur={scheduleHoverClose}
+                      >
+                        {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              {tags.length > 0 ? (
+                <section aria-label={zh('类别', 'Genres')}>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                    {zh('类别', 'Genres')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((tag) => {
+                      const isUser = isUserJavTag(tag)
+                      return (
+                        <button
+                          key={`${tag?.id || tag?.name}-${tag?.provider || 0}`}
+                          type="button"
+                          className={`rounded px-2.5 py-1 text-xs font-medium transition ${
+                            isUser
+                              ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                              : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                          }`}
+                          onClick={() => onSelectTag?.(tag)}
+                        >
+                          {tag?.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
+              {externalLinks.length > 0 ? (
+                <section aria-label={zh('外部链接', 'External links')}>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
+                    {zh('外部链接', 'External links')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {externalLinks.map((site) => (
+                      <a
+                        key={site.key}
+                        href={site.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 transition hover:border-gray-300 hover:bg-gray-50"
+                        onClick={site.onClick}
+                      >
+                        <img
+                          src={site.icon}
+                          alt=""
+                          className={`h-4 w-4 ${site.loading ? 'animate-pulse' : ''}`}
+                          loading="lazy"
+                        />
+                        <span>{site.name}</span>
+                      </a>
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+
+              <section className="mt-auto pt-1" aria-label={zh('操作', 'Actions')}>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
+                    onClick={onOpenFavorites}
+                  >
+                    <StarBorderRoundedIcon sx={{ fontSize: 16 }} />
+                    {zh('收藏', 'Favorite')}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
+                    onClick={onEdit}
+                  >
+                    <MovieEdit sx={{ fontSize: 16 }} />
+                    {zh('编辑 JAV', 'Edit JAV')}
+                  </button>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div className="mt-7 space-y-7">
+            <section
+              className="border-t border-gray-200 pt-5"
+              aria-labelledby={`${titleId}-videos`}
+            >
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <h3 id={`${titleId}-videos`} className="text-base font-semibold text-gray-900">
+                  {zh('关联视频', 'Related videos')}
+                </h3>
+                <span className="text-xs text-gray-500">
+                  {zh(`${videos.length} 个`, `${videos.length} videos`)}
+                </span>
+              </div>
+              {videos.length > 0 ? (
+                <VideoGrid
+                  videos={videos}
+                  selectedIds={emptyVideoSelection}
+                  onToggleSelect={() => {}}
+                  showSelection={false}
+                  onPlay={onVideoPlay}
+                  onOpenFile={onVideoOpenFile}
+                  onRevealFile={onVideoRevealFile}
+                  openFileLabel={openFileLabel}
+                  onOpenTagPicker={onVideoOpenTagPicker}
+                  showTagEditor
+                  onOpenScreenshots={onVideoOpenScreenshots}
+                  onOpenScrapeSettings={onVideoOpenScrapeSettings}
+                  onRenameVideo={onVideoRename}
+                  onDeleteVideo={onVideoDelete}
+                  onTagClick={onVideoTagClick}
+                />
+              ) : (
+                <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-gray-200 text-xs text-gray-500">
+                  {zh('暂无关联视频', 'No related videos')}
+                </div>
+              )}
+            </section>
+
+            <section
+              className="border-t border-gray-200 pt-5"
+              aria-labelledby={`${titleId}-screenshots`}
+            >
+              <h3
+                id={`${titleId}-screenshots`}
+                className="mb-3 text-base font-semibold text-gray-900"
+              >
+                {zh('视频截图', 'Video screenshots')}
+              </h3>
+              <JavScreenshotGrid
+                videos={videos}
+                onOpenScreenshots={onVideoOpenScreenshots}
+                onPlayAtTime={onVideoPlayAtTime}
+                onCoverChanged={onVideoCoverChanged}
+              />
+            </section>
+          </div>
+        </div>
+
+        <Popper
+          open={Boolean(hoverPreview?.item && hoverPreview?.anchorEl)}
+          anchorEl={hoverPreview?.anchorEl || null}
+          placement="right-start"
+          className="z-[1550]"
+          modifiers={[{ name: 'offset', options: { offset: [10, 0] } }]}
+        >
+          <div
+            className={
+              hoverPreview?.type === 'studio'
+                ? 'w-[320px]'
+                : hoverPreview?.type === 'series'
+                  ? 'w-[260px]'
+                  : 'w-[220px]'
+            }
+            onMouseEnter={clearHoverCloseTimer}
+            onMouseLeave={scheduleHoverClose}
+          >
+            {hoverPreview?.type === 'studio' ? (
+              <StudioCard
+                item={hoverPreview.item}
+                href={buildStudioUrl?.(hoverPreview.item)}
+                onSelectStudio={onSelectStudio}
+                onSelectSeries={onSelectSeries}
+                onSelectPrefix={onSelectPrefix}
+                onOpenFavorites={onOpenStudioFavorites}
+                buildSeriesUrl={buildSeriesUrl}
+                onOpenSeriesFavorites={onOpenSeriesFavorites}
+                onSeriesListOpenChange={handleStudioSeriesListOpenChange}
+                directoryIds={directoryIds}
+              />
+            ) : null}
+            {hoverPreview?.type === 'series' ? (
+              <SeriesCard
+                item={hoverPreview.item}
+                href={buildSeriesUrl?.(hoverPreview.item)}
+                onSelectSeries={onSelectSeries}
+                onSelectStudio={onSelectStudio}
+                onOpenFavorites={onOpenSeriesFavorites}
+              />
+            ) : null}
+            {hoverPreview?.type === 'idol' ? (
+              <IdolCard
+                item={hoverPreview.item}
+                onSelectIdol={onSelectIdol}
+                onOpenFavorites={onOpenIdolFavorites}
+                onOpenCoverEditor={onOpenIdolCoverEditor}
+                onOpenEditor={onOpenIdolEditor}
+                href={buildIdolUrl?.(hoverPreview.item)}
+                coverAspectPercent={coverAspectPercent}
+                showWorkCount={
+                  typeof hoverPreview.item?.work_count === 'number' &&
+                  hoverPreview.item.work_count > 0
+                }
+                javMetadataLanguage={javMetadataLanguage}
+                preferChineseName={preferChineseName}
+              />
+            ) : null}
+          </div>
+        </Popper>
+      </div>
+    </div>
+  )
+}

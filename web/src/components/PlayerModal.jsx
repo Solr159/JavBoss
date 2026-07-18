@@ -250,7 +250,7 @@ export default function PlayerModal({ video, startTime = 0, onClose, hotkeys = n
   const displayName = getVideoDisplayName(video)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+    <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/70">
       <div className="relative mx-4 w-full max-w-6xl rounded-lg bg-white shadow-lg">
         <button
           aria-label={zh('关闭', 'Close')}

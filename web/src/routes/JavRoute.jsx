@@ -250,6 +250,8 @@ function JavListRoute({
   onOpenFile,
   onOpenScreenshots,
   onManageVideoPlay,
+  onManageVideoPlayAtTime,
+  onManageVideoCoverChanged,
   onManageVideoOpenFile,
   onManageVideoRevealFile,
   onManageVideoOpenTagPicker,
@@ -294,6 +296,8 @@ function JavListRoute({
       onRevealFile={onRevealFile}
       onOpenScreenshots={onOpenScreenshots}
       onManageVideoPlay={onManageVideoPlay}
+      onManageVideoPlayAtTime={onManageVideoPlayAtTime}
+      onManageVideoCoverChanged={onManageVideoCoverChanged}
       onManageVideoOpenFile={onManageVideoOpenFile}
       onManageVideoRevealFile={onManageVideoRevealFile}
       onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}
