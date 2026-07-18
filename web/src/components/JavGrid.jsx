@@ -2165,8 +2165,8 @@ function JavCard({
             {codeText ? ' ' : null}
             <span className="font-medium text-gray-800">{mainTitle}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600">
-            <span className="inline-flex items-center gap-1">
+          <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
+            <span className="inline-flex shrink-0 items-center gap-1">
               <Tooltip title={zh('时长', 'Duration')} arrow>
                 <span className="inline-flex">
                   <DurationIcon />
@@ -2174,7 +2174,7 @@ function JavCard({
               </Tooltip>
               <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
             </span>
-            <span className="inline-flex items-center gap-1">
+            <span className="inline-flex shrink-0 items-center gap-1">
               <Tooltip title={zh('发行日期', 'Release date')} arrow>
                 <span className="inline-flex">
                   <ReleaseIcon />
@@ -2183,7 +2183,7 @@ function JavCard({
               <span>{releaseText}</span>
             </span>
             {studioText ? (
-              <span className="inline-flex min-w-0 items-center gap-1">
+              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                 <Tooltip title={zh('片商', 'Studio')} arrow>
                   <span className="inline-flex">
                     <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
@@ -2191,7 +2191,7 @@ function JavCard({
                 </Tooltip>
                 <a
                   href={buildStudioFilterHref(item.studio)}
-                  className={`min-w-0 truncate text-left ${
+                  className={`block min-w-0 flex-1 truncate text-left ${
                     canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                   }`}
                   onClick={(event) =>
