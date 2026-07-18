@@ -659,13 +659,10 @@ export default function JavDetailModal({
               className="border-t border-gray-200 pt-5"
               aria-labelledby={`${titleId}-videos`}
             >
-              <div className="mb-3 flex items-center justify-between gap-3">
+              <div className="mb-3">
                 <h3 id={`${titleId}-videos`} className="text-base font-semibold text-gray-900">
                   {zh('关联视频', 'Related videos')}
                 </h3>
-                <span className="text-xs text-gray-500">
-                  {zh(`${videos.length} 个`, `${videos.length} videos`)}
-                </span>
               </div>
               {videos.length > 0 ? (
                 <VideoGrid
