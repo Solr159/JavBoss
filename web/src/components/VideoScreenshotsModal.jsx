@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -378,11 +379,16 @@ function DefaultCoverPreview({ src }) {
   )
 }
 
-function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
+function screenshotPreviewIdentity(item) {
+  return `${item?.video_id || item?.video?.id || ''}:${item?.name || item?.url || ''}`
+}
+
+export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
   const lastWheelAtRef = useRef(0)
+  const itemIdentity = screenshotPreviewIdentity(item)
   const currentIndex = useMemo(
-    () => items.findIndex((candidate) => candidate?.name === item?.name),
-    [item?.name, items]
+    () => items.findIndex((candidate) => screenshotPreviewIdentity(candidate) === itemIdentity),
+    [itemIdentity, items]
   )
   const canNavigate = items.length > 1 && currentIndex >= 0
   const counterText =
@@ -423,9 +429,9 @@ function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
 
   if (!item?.url) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[1500] flex flex-col items-center justify-center bg-black/80 p-4"
+      className="fixed inset-0 z-[1900] flex flex-col items-center justify-center bg-black/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-label={zh('截图预览', 'Screenshot preview')}
@@ -478,6 +484,7 @@ function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
           {counterText}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

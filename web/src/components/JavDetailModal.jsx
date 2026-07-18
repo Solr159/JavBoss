@@ -11,6 +11,7 @@ import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
 import VideoGrid from '@/components/VideoGrid'
+import { ScreenshotPreviewModal } from '@/components/VideoScreenshotsModal'
 import { isUserJavTag } from '@/constants/jav'
 import { getVideoDisplayName } from '@/utils/display'
 import { getIdolDisplayName } from '@/utils/javIdol'
@@ -56,12 +57,13 @@ function screenshotItemsMatch(current, next) {
   })
 }
 
-function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverChanged }) {
+function JavScreenshotGrid({ videos, onPlayAtTime, onCoverChanged }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(false)
   const [failedCount, setFailedCount] = useState(0)
   const [error, setError] = useState('')
   const [deletingKey, setDeletingKey] = useState('')
+  const [previewItem, setPreviewItem] = useState(null)
   const videoIdentity = (videos || [])
     .map((video) => `${video?.id || ''}:${video?.updated_at || ''}`)
     .join('|')
@@ -199,14 +201,17 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
                 className="relative aspect-video cursor-pointer overflow-hidden bg-gray-100"
                 role="button"
                 tabIndex={0}
-                onClick={() => onOpenScreenshots?.(video)}
+                onClick={() => setPreviewItem(screenshot)}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    onOpenScreenshots?.(video)
+                    setPreviewItem(screenshot)
                   }
                 }}
-                aria-label={zh(`查看 ${videoName} 的截图`, `View screenshots for ${videoName}`)}
+                aria-label={zh(
+                  `放大查看 ${videoName} 的截图`,
+                  `Enlarge screenshot for ${videoName}`
+                )}
               >
                 <img
                   src={screenshot.url}
@@ -266,6 +271,14 @@ function JavScreenshotGrid({ videos, onOpenScreenshots, onPlayAtTime, onCoverCha
           )
         })}
       </div>
+      {previewItem ? (
+        <ScreenshotPreviewModal
+          item={previewItem}
+          items={items}
+          onClose={() => setPreviewItem(null)}
+          onSelect={setPreviewItem}
+        />
+      ) : null}
     </>
   )
 }
@@ -691,7 +704,6 @@ export default function JavDetailModal({
               </h3>
               <JavScreenshotGrid
                 videos={videos}
-                onOpenScreenshots={onVideoOpenScreenshots}
                 onPlayAtTime={onVideoPlayAtTime}
                 onCoverChanged={onVideoCoverChanged}
               />
