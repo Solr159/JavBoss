@@ -4,6 +4,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import { MovieEdit } from '@mui/icons-material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
+import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { IconButton, Popper, Tooltip } from '@mui/material'
 
 import { deleteVideoScreenshot, fetchVideoScreenshotsByIds } from '@/api'
@@ -337,6 +338,7 @@ export default function JavDetailModal({
   const videos = useMemo(() => (Array.isArray(item?.videos) ? item.videos : []), [item?.videos])
   const studioName = String(studio?.name || '').trim()
   const seriesName = String(series?.name || '').trim()
+  const favoriteCount = Number(item?.favorite_count) || 0
   const emptyVideoSelection = useMemo(() => new Set(), [])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
   const [hoverPreview, setHoverPreview] = useState(null)
@@ -574,10 +576,8 @@ export default function JavDetailModal({
               ) : null}
 
               {tags.length > 0 ? (
-                <section aria-label={zh('类别', 'Genres')}>
-                  <h3 className="mb-2 text-sm font-semibold text-gray-800">
-                    {zh('类别', 'Genres')}
-                  </h3>
+                <section aria-label={zh('标签', 'Tags')}>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">{zh('标签', 'Tags')}</h3>
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => {
                       const isUser = isUserJavTag(tag)
@@ -638,7 +638,11 @@ export default function JavDetailModal({
                     className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
                     onClick={onOpenFavorites}
                   >
-                    <StarBorderRoundedIcon sx={{ fontSize: 16 }} />
+                    {favoriteCount > 0 ? (
+                      <StarRoundedIcon className="text-amber-500" sx={{ fontSize: 16 }} />
+                    ) : (
+                      <StarBorderRoundedIcon sx={{ fontSize: 16 }} />
+                    )}
                     {zh('收藏', 'Favorite')}
                   </button>
                   <button
