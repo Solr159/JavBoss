@@ -165,7 +165,7 @@ export default function JavSettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 py-4 backdrop-blur-sm">
       <div
-        className="flex h-[640px] max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 shadow-2xl shadow-slate-900/20"
+        className="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 shadow-2xl shadow-slate-900/20"
         role="dialog"
         aria-modal="true"
         aria-labelledby="jav-display-settings-title"
