@@ -160,8 +160,9 @@ func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool
 	})
 }
 
-// SetDirectoryMissingAndHideVideos updates the directory missing flag and hides/unhides its videos atomically.
-func SetDirectoryMissingAndHideVideos(ctx context.Context, id int64, missing bool) error {
+// SetDirectoryMissing updates whether a directory is temporarily unavailable.
+// Missing directories and their videos remain visible until explicitly deleted.
+func SetDirectoryMissing(ctx context.Context, id int64, missing bool) error {
 	_, err := updateDirectoryWithVisibility(ctx, id, func(tx *gorm.DB, dir *models.Directory) error {
 		dir.Missing = missing
 		return nil

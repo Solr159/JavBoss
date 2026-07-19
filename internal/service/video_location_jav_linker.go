@@ -142,9 +142,11 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 		return nil
 	}
 
-	for _, provider := range javLinkProviders() {
-		if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, possibleCodes, provider); err != nil || linked {
-			return err
+	for _, code := range possibleCodes {
+		for _, provider := range javLinkProvidersForCode(code) {
+			if linked, err := lookupAndLinkVideoLocationJav(ctx, v, filename, []string{code}, provider); err != nil || linked {
+				return err
+			}
 		}
 	}
 
@@ -186,11 +188,22 @@ func javScrapeCodesForVideo(filename, forcedCode string) []string {
 	return util.ExtractCodeFromName(filename)
 }
 
-func javLinkProviders() []jav.Provider {
+func javLinkProvidersForCode(code string) []jav.Provider {
 	if jav.CurrentMetadataLanguageIsEnglish() {
 		return []jav.Provider{jav.ProviderJavDatabase}
 	}
-	return []jav.Provider{jav.ProviderJavBus}
+
+	code = strings.ToUpper(strings.TrimSpace(code))
+	switch {
+	case strings.HasPrefix(code, "GANA-"):
+		return []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus}
+	case strings.HasPrefix(code, "STARS-"):
+		return []jav.Provider{jav.ProviderJavBus, jav.ProviderAvmoo}
+	case strings.HasPrefix(code, "AP-"):
+		return []jav.Provider{jav.ProviderAvmoo}
+	default:
+		return []jav.Provider{jav.ProviderJavBus}
+	}
 }
 
 func normalizeJavScrapeOverride(raw string) string {

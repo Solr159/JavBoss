@@ -7,6 +7,7 @@ import DirectoryManager from '@/components/DirectoryManager'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const SETTINGS_SECTIONS = [
   {
@@ -15,14 +16,14 @@ const SETTINGS_SECTIONS = [
     summary: { zh: '管理扫描目录与路径', en: 'Manage watched folders and paths' },
   },
   {
-    id: 'basic',
-    title: { zh: '基础设置', en: 'Basic Settings' },
-    summary: { zh: '默认播放器与基础行为', en: 'Default player and basic behavior' },
+    id: 'display',
+    title: { zh: '显示与交互', en: 'Display & Interaction' },
+    summary: { zh: '界面提示与交互行为', en: 'Interface hints and interactions' },
   },
   {
-    id: 'jav',
-    title: { zh: 'JAV元数据', en: 'JAV Metadata' },
-    summary: { zh: '元数据语言', en: 'Metadata language' },
+    id: 'network',
+    title: { zh: '网络与代理', en: 'Network & Proxy' },
+    summary: { zh: '网络连接与代理设置', en: 'Network connection and proxy settings' },
   },
   {
     id: 'player',
@@ -68,6 +69,8 @@ export default function GlobalSettingsModal({
   onSaveDefaultPlayer,
   initialViewMode,
   onSaveInitialViewMode,
+  showTopBarButtonTooltips = true,
+  onSaveShowTopBarButtonTooltips,
   playerWindowWidth,
   playerWindowHeight,
   playerOntop,
@@ -97,7 +100,10 @@ export default function GlobalSettingsModal({
   const [initialViewModeInput, setInitialViewModeInput] = useState('video')
   const [initialViewModeError, setInitialViewModeError] = useState('')
   const [savingInitialViewMode, setSavingInitialViewMode] = useState(false)
-  const [playerTab, setPlayerTab] = useState('mpv')
+  const [showTopBarButtonTooltipsInput, setShowTopBarButtonTooltipsInput] = useState(true)
+  const [showTopBarButtonTooltipsError, setShowTopBarButtonTooltipsError] = useState('')
+  const [savingShowTopBarButtonTooltips, setSavingShowTopBarButtonTooltips] = useState(false)
+  const [playerTab, setPlayerTab] = useState('basic')
   const [playerBasicError, setPlayerBasicError] = useState('')
   const [playerBasicSuccess, setPlayerBasicSuccess] = useState('')
   const [savingPlayerBasic, setSavingPlayerBasic] = useState(false)
@@ -147,7 +153,9 @@ export default function GlobalSettingsModal({
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
       setInitialViewModeError('')
-      setPlayerTab(mpvEnabled && !browserPlaybackOnly ? 'mpv' : 'hotkeys')
+      setShowTopBarButtonTooltipsInput(showTopBarButtonTooltips !== false)
+      setShowTopBarButtonTooltipsError('')
+      setPlayerTab('basic')
       setPlayerBasicError('')
       setPlayerBasicSuccess('')
       setPlayerWindowWidthInput(String(playerWindowWidth ?? PLAYER_BASIC_DEFAULTS.windowWidth))
@@ -171,6 +179,7 @@ export default function GlobalSettingsModal({
     javMetadataLanguage,
     defaultPlayer,
     initialViewMode,
+    showTopBarButtonTooltips,
     playerWindowWidth,
     playerWindowHeight,
     playerOntop,
@@ -212,7 +221,7 @@ export default function GlobalSettingsModal({
       await onSaveProxySettings?.({ host: nextHost, port })
       setProxyEditing(false)
     } catch (err) {
-      setProxyError(err.message || zh('保存失败', 'Save failed'))
+      setProxyError(getErrorMessage(err))
     } finally {
       setSavingProxy(false)
     }
@@ -244,7 +253,7 @@ export default function GlobalSettingsModal({
     try {
       await onSaveDefaultPlayer?.(next)
     } catch (err) {
-      setDefaultPlayerError(err.message || zh('保存失败', 'Save failed'))
+      setDefaultPlayerError(getErrorMessage(err))
     } finally {
       setSavingDefaultPlayer(false)
     }
@@ -257,102 +266,59 @@ export default function GlobalSettingsModal({
     try {
       await onSaveInitialViewMode?.(next)
     } catch (err) {
-      setInitialViewModeError(err.message || zh('保存失败', 'Save failed'))
+      setInitialViewModeError(getErrorMessage(err))
     } finally {
       setSavingInitialViewMode(false)
     }
   }
 
-  const renderBasicPanel = () => {
+  const handleSaveShowTopBarButtonTooltips = async () => {
+    setShowTopBarButtonTooltipsError('')
+    setSavingShowTopBarButtonTooltips(true)
+    try {
+      await onSaveShowTopBarButtonTooltips?.(showTopBarButtonTooltipsInput)
+    } catch (err) {
+      setShowTopBarButtonTooltipsError(getErrorMessage(err))
+    } finally {
+      setSavingShowTopBarButtonTooltips(false)
+    }
+  }
+
+  const renderDefaultPlayerSettings = () => {
     const currentDefaultPlayer = defaultPlayer === 'system' ? 'system' : 'mpv'
     const defaultPlayerUnchanged = defaultPlayerInput === currentDefaultPlayer
-    const currentInitialViewMode = initialViewMode === 'jav' ? 'jav' : 'video'
-    const initialViewModeUnchanged = initialViewModeInput === currentInitialViewMode
 
     return (
-      <div className="space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="space-y-4">
-            {browserPlaybackOnly ? (
-              <div>
-                <h4 className="text-sm font-semibold text-zinc-800">
-                  {zh('默认播放器', 'Default Player')}
-                </h4>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {zh(
-                    '当前部署模式使用浏览器播放视频。',
-                    'This deployment mode plays videos in the browser.'
-                  )}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h4 className="text-sm font-semibold text-zinc-800">
-                    {zh('默认播放器', 'Default Player')}
-                  </h4>
-                  <span className="relative inline-block">
-                    <select
-                      value={defaultPlayerInput}
-                      onChange={(event) => {
-                        setDefaultPlayerInput(event.target.value === 'system' ? 'system' : 'mpv')
-                        setDefaultPlayerError('')
-                      }}
-                      className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
-                    >
-                      <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
-                      <option value="system">{zh('系统播放器', 'System Player')}</option>
-                    </select>
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
-                    />
-                  </span>
-                </div>
-                <div>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {zh(
-                      '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
-                      'The primary play button uses the selected player, while the bottom play button uses the other player.'
-                    )}
-                  </p>
-                </div>
-              </>
-            )}
-
-            {defaultPlayerError && <div className="text-sm text-red-600">{defaultPlayerError}</div>}
-
-            {!browserPlaybackOnly ? (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleSaveDefaultPlayer}
-                  disabled={savingDefaultPlayer || defaultPlayerUnchanged}
-                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-                >
-                  {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-                </button>
-              </div>
-            ) : null}
+      <div className="space-y-4">
+        {browserPlaybackOnly ? (
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-800">
+              {zh('默认播放器', 'Default Player')}
+            </h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              {zh(
+                '当前部署模式使用浏览器播放视频。',
+                'This deployment mode plays videos in the browser.'
+              )}
+            </p>
           </div>
-        </section>
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="space-y-4">
+        ) : (
+          <>
             <div className="flex flex-wrap items-center gap-3">
               <h4 className="text-sm font-semibold text-zinc-800">
-                {zh('初始页面', 'Initial Page')}
+                {zh('默认播放器', 'Default Player')}
               </h4>
               <span className="relative inline-block">
                 <select
-                  value={initialViewModeInput}
+                  value={defaultPlayerInput}
                   onChange={(event) => {
-                    setInitialViewModeInput(event.target.value === 'jav' ? 'jav' : 'video')
-                    setInitialViewModeError('')
+                    setDefaultPlayerInput(event.target.value === 'system' ? 'system' : 'mpv')
+                    setDefaultPlayerError('')
                   }}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
-                  <option value="video">{zh('视频模式', 'Video Mode')}</option>
-                  <option value="jav">{zh('JAV模式', 'JAV Mode')}</option>
+                  <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
+                  <option value="system">{zh('系统播放器', 'System Player')}</option>
                 </select>
                 <span
                   aria-hidden="true"
@@ -360,30 +326,31 @@ export default function GlobalSettingsModal({
                 />
               </span>
             </div>
-            <p className="text-sm text-zinc-500">
-              {zh(
-                '打开新页面，默认进入所选模式。',
-                'When opening a new page, use the selected mode by default.'
-              )}
-            </p>
-
-            {initialViewModeError && (
-              <div className="text-sm text-red-600">{initialViewModeError}</div>
-            )}
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSaveInitialViewMode}
-                disabled={savingInitialViewMode || initialViewModeUnchanged}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingInitialViewMode ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
+            <div>
+              <p className="mt-1 text-sm text-zinc-500">
+                {zh(
+                  '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
+                  'The primary play button uses the selected player, while the bottom play button uses the other player.'
+                )}
+              </p>
             </div>
+          </>
+        )}
+
+        {defaultPlayerError && <div className="text-sm text-red-600">{defaultPlayerError}</div>}
+
+        {!browserPlaybackOnly ? (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveDefaultPlayer}
+              disabled={savingDefaultPlayer || defaultPlayerUnchanged}
+              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+            >
+              {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            </button>
           </div>
-        </section>
-        {renderProxyPanel()}
+        ) : null}
       </div>
     )
   }
@@ -493,22 +460,10 @@ export default function GlobalSettingsModal({
     </section>
   )
 
-  const handleSaveJavMetadataLanguage = async () => {
-    const next = javMetadataLanguageInput === 'en' ? 'en' : 'zh'
-    setJavMetadataLanguageError('')
-    setSavingJavMetadataLanguage(true)
-    try {
-      await onSaveJavMetadataLanguage?.(next)
-    } catch (err) {
-      setJavMetadataLanguageError(err.message || zh('保存失败', 'Save failed'))
-    } finally {
-      setSavingJavMetadataLanguage(false)
-    }
-  }
-
-  const renderJavPanel = () => {
-    const currentLanguage = javMetadataLanguage === 'en' ? 'en' : 'zh'
-    const unchanged = javMetadataLanguageInput === currentLanguage
+  const renderDisplayPanel = () => {
+    const unchanged = showTopBarButtonTooltipsInput === (showTopBarButtonTooltips !== false)
+    const currentInitialViewMode = initialViewMode === 'jav' ? 'jav' : 'video'
+    const initialViewModeUnchanged = initialViewModeInput === currentInitialViewMode
 
     return (
       <div className="space-y-5">
@@ -516,19 +471,19 @@ export default function GlobalSettingsModal({
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
               <h4 className="text-sm font-semibold text-zinc-800">
-                {zh('元数据语言', 'Metadata Language')}
+                {zh('初始页面', 'Initial Page')}
               </h4>
               <span className="relative inline-block">
                 <select
-                  value={javMetadataLanguageInput}
+                  value={initialViewModeInput}
                   onChange={(event) => {
-                    setJavMetadataLanguageInput(event.target.value === 'en' ? 'en' : 'zh')
-                    setJavMetadataLanguageError('')
+                    setInitialViewModeInput(event.target.value === 'jav' ? 'jav' : 'video')
+                    setInitialViewModeError('')
                   }}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
-                  <option value="en">English</option>
-                  <option value="zh">中文</option>
+                  <option value="video">{zh('视频模式', 'Video Mode')}</option>
+                  <option value="jav">{zh('JAV模式', 'JAV Mode')}</option>
                 </select>
                 <span
                   aria-hidden="true"
@@ -538,66 +493,183 @@ export default function GlobalSettingsModal({
             </div>
             <p className="text-sm text-zinc-500">
               {zh(
-                '控制后台扫描时抓取的 JAV 标题与标签语言。',
-                'Controls the language used for JAV titles and tags fetched by background scans.'
+                '打开新页面，默认进入所选模式。',
+                'When opening a new page, use the selected mode by default.'
               )}
             </p>
 
-            {javMetadataLanguageError && (
-              <div className="text-sm text-red-600">{javMetadataLanguageError}</div>
+            {initialViewModeError && (
+              <div className="text-sm text-red-600">{initialViewModeError}</div>
             )}
 
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={handleSaveJavMetadataLanguage}
-                disabled={savingJavMetadataLanguage || unchanged}
+                onClick={handleSaveInitialViewMode}
+                disabled={savingInitialViewMode || initialViewModeUnchanged}
                 className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
               >
-                {savingJavMetadataLanguage ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+                {savingInitialViewMode ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
               </button>
             </div>
           </div>
         </section>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 text-sm font-semibold text-zinc-800">
+              <input
+                type="checkbox"
+                checked={showTopBarButtonTooltipsInput}
+                onChange={(event) => {
+                  setShowTopBarButtonTooltipsInput(event.target.checked)
+                  setShowTopBarButtonTooltipsError('')
+                }}
+                className="mt-0.5 h-4 w-4 rounded"
+              />
+              <span>
+                {zh(
+                  '鼠标移动到顶部控制栏按钮时显示对应说明',
+                  'Show descriptions when hovering over top control bar buttons'
+                )}
+              </span>
+            </label>
+            {showTopBarButtonTooltipsError && (
+              <div className="text-sm text-red-600">{showTopBarButtonTooltipsError}</div>
+            )}
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleSaveShowTopBarButtonTooltips}
+                disabled={savingShowTopBarButtonTooltips || unchanged}
+                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+              >
+                {savingShowTopBarButtonTooltips ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+              </button>
+            </div>
+          </div>
+        </section>
+        {renderJavMetadataSettings()}
       </div>
+    )
+  }
+
+  const handleSaveJavMetadataLanguage = async () => {
+    const next = javMetadataLanguageInput === 'en' ? 'en' : 'zh'
+    setJavMetadataLanguageError('')
+    setSavingJavMetadataLanguage(true)
+    try {
+      await onSaveJavMetadataLanguage?.(next)
+    } catch (err) {
+      setJavMetadataLanguageError(getErrorMessage(err))
+    } finally {
+      setSavingJavMetadataLanguage(false)
+    }
+  }
+
+  const renderJavMetadataSettings = () => {
+    const currentLanguage = javMetadataLanguage === 'en' ? 'en' : 'zh'
+    const unchanged = javMetadataLanguageInput === currentLanguage
+
+    return (
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h4 className="text-sm font-semibold text-zinc-800">
+              {zh('JAV元数据语言', 'JAV Metadata Language')}
+            </h4>
+            <span className="relative inline-block">
+              <select
+                value={javMetadataLanguageInput}
+                onChange={(event) => {
+                  setJavMetadataLanguageInput(event.target.value === 'en' ? 'en' : 'zh')
+                  setJavMetadataLanguageError('')
+                }}
+                className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
+              >
+                <option value="en">English</option>
+                <option value="zh">{zh('中日文', 'Chinese/Japanese')}</option>
+              </select>
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
+              />
+            </span>
+          </div>
+          <p className="text-sm text-zinc-500">
+            {zh(
+              '控制后台JAV 刮削和前端显示的元数据语言。',
+              'Controls the metadata language used by background JAV scraping and frontend display.'
+            )}
+          </p>
+
+          {javMetadataLanguageError && (
+            <div className="text-sm text-red-600">{javMetadataLanguageError}</div>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveJavMetadataLanguage}
+              disabled={savingJavMetadataLanguage || unchanged}
+              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+            >
+              {savingJavMetadataLanguage ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            </button>
+          </div>
+        </div>
+      </section>
     )
   }
 
   const renderPlayerPanel = () => {
     const showMPVSettings = mpvEnabled && !browserPlaybackOnly
-    const currentPlayerTab = showMPVSettings && playerTab === 'mpv' ? 'mpv' : 'hotkeys'
+    const currentPlayerTab =
+      playerTab === 'hotkeys' ? 'hotkeys' : showMPVSettings && playerTab === 'mpv' ? 'mpv' : 'basic'
 
     return (
       <div className="space-y-5">
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex flex-wrap gap-2">
-            {showMPVSettings ? (
-              <button
-                type="button"
-                onClick={() => setPlayerTab('mpv')}
-                className={`rounded-xl px-3 py-1.5 text-sm ${
-                  currentPlayerTab === 'mpv'
-                    ? 'bg-zinc-900 text-white'
-                    : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
-                }`}
-              >
-                {zh('MPV播放器', 'MPV Player')}
-              </button>
-            ) : null}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setPlayerTab('basic')}
+            className={`rounded-xl px-3 py-1.5 text-sm ${
+              currentPlayerTab === 'basic'
+                ? 'bg-zinc-900 text-white'
+                : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+            }`}
+          >
+            {zh('基础设置', 'Basic Settings')}
+          </button>
+          {showMPVSettings ? (
             <button
               type="button"
-              onClick={() => setPlayerTab('hotkeys')}
+              onClick={() => setPlayerTab('mpv')}
               className={`rounded-xl px-3 py-1.5 text-sm ${
-                currentPlayerTab === 'hotkeys'
+                currentPlayerTab === 'mpv'
                   ? 'bg-zinc-900 text-white'
                   : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
               }`}
             >
-              {zh('快捷键', 'Shortcuts')}
+              {zh('MPV播放器', 'MPV Player')}
             </button>
-          </div>
-
-          {currentPlayerTab === 'mpv' ? (
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setPlayerTab('hotkeys')}
+            className={`rounded-xl px-3 py-1.5 text-sm ${
+              currentPlayerTab === 'hotkeys'
+                ? 'bg-zinc-900 text-white'
+                : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+            }`}
+          >
+            {zh('快捷键', 'Shortcuts')}
+          </button>
+        </div>
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          {currentPlayerTab === 'basic' ? (
+            renderDefaultPlayerSettings()
+          ) : currentPlayerTab === 'mpv' ? (
             <div>
               <div className="space-y-6">
                 <section className="space-y-3">
@@ -829,7 +901,7 @@ export default function GlobalSettingsModal({
                         zh('MPV播放器设置保存成功', 'MPV player settings saved')
                       )
                     } catch (err) {
-                      setPlayerBasicError(err.message || zh('保存失败', 'Save failed'))
+                      setPlayerBasicError(getErrorMessage(err))
                     } finally {
                       setSavingPlayerBasic(false)
                     }
@@ -912,7 +984,7 @@ export default function GlobalSettingsModal({
         setVisiblePasswords({ current: false, new: false, confirm: false })
         setPasswordDialogOpen(false)
       } catch (err) {
-        setPasswordError(err.message || zh('修改密码失败', 'Failed to change password'))
+        setPasswordError(getErrorMessage(err))
       } finally {
         setSavingPassword(false)
       }
@@ -1106,15 +1178,11 @@ export default function GlobalSettingsModal({
               {visibleSections.map((section) => {
                 const selected = currentSection === section.id
                 const badgeText =
-                  section.id === 'jav'
-                    ? javMetadataLanguage === 'en'
-                      ? 'EN'
-                      : '中文'
-                    : section.id === 'player'
-                      ? ''
-                      : section.id === 'directories'
-                        ? String(directories.length)
-                        : ''
+                  section.id === 'player'
+                    ? ''
+                    : section.id === 'directories'
+                      ? String(directories.length)
+                      : ''
 
                 return (
                   <button
@@ -1150,8 +1218,8 @@ export default function GlobalSettingsModal({
               currentSection === 'directories' ? 'md:pt-3' : 'md:pt-6'
             }`}
           >
-            {currentSection === 'basic' && renderBasicPanel()}
-            {currentSection === 'jav' && renderJavPanel()}
+            {currentSection === 'display' && renderDisplayPanel()}
+            {currentSection === 'network' && renderProxyPanel()}
             {currentSection === 'player' && renderPlayerPanel()}
             {currentSection === 'directories' && renderDirectoriesPanel()}
             {currentSection === 'security' && renderSecurityPanel()}

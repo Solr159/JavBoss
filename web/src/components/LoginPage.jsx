@@ -3,6 +3,7 @@ import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 export default function LoginPage({ onLogin, checkError = '', onRetry }) {
   const [password, setPassword] = useState('')
@@ -19,7 +20,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
     try {
       await onLogin(password)
     } catch (err) {
-      setError(err.message || zh('登录失败', 'Login failed'))
+      setError(getErrorMessage(err))
     } finally {
       setSubmitting(false)
     }

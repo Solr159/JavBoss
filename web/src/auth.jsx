@@ -9,6 +9,7 @@ import {
 } from '@/api'
 import LoginPage from '@/components/LoginPage'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const AuthContext = createContext(null)
 
@@ -25,7 +26,7 @@ export function AuthProvider({ children }) {
       setAuthenticated(Boolean(status?.authenticated))
     } catch (err) {
       setAuthenticated(false)
-      setCheckError(err.message || zh('无法连接服务器', 'Unable to connect to server'))
+      setCheckError(getErrorMessage(err))
     } finally {
       setChecking(false)
     }

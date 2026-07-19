@@ -5,6 +5,7 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import { Button, IconButton } from '@mui/material'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
 export default function JavIdolFavoriteManageModal({
@@ -66,7 +67,7 @@ export default function JavIdolFavoriteManageModal({
     try {
       await onReorderGroups?.(nextGroups.map((group) => Number(group.id)))
     } catch (err) {
-      setError(err.message || zh('保存收藏夹顺序失败', 'Failed to save favorite order'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -103,7 +104,7 @@ export default function JavIdolFavoriteManageModal({
       setNewGroupName('')
       setCreatingOpen(false)
     } catch (err) {
-      setError(err.message || zh('创建收藏夹失败', 'Failed to create favorite'))
+      setError(getErrorMessage(err))
     } finally {
       setCreating(false)
     }
@@ -313,7 +314,7 @@ function FavoriteGroupEditModal({
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message || labels.loadItemsError)
+          setError(getErrorMessage(err))
         }
       })
       .finally(() => {
@@ -322,7 +323,7 @@ function FavoriteGroupEditModal({
     return () => {
       cancelled = true
     }
-  }, [group, groupId, labels.loadItemsError, onLoadGroupIdols])
+  }, [group, groupId, onLoadGroupIdols])
 
   if (!groupId) return null
 
@@ -334,7 +335,7 @@ function FavoriteGroupEditModal({
     try {
       await onRename?.(groupId, name)
     } catch (err) {
-      setError(err.message || zh('重命名收藏夹失败', 'Failed to rename favorite'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -349,7 +350,7 @@ function FavoriteGroupEditModal({
     try {
       await onDelete?.(groupId)
     } catch (err) {
-      setError(err.message || zh('删除收藏夹失败', 'Failed to delete favorite'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -365,7 +366,7 @@ function FavoriteGroupEditModal({
         nextIdols.map((idol) => Number(idol.id))
       )
     } catch (err) {
-      setError(err.message || labels.saveOrderError)
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -402,7 +403,7 @@ function FavoriteGroupEditModal({
       setIdols((current) => current.filter((idol) => !removed.has(Number(idol.id))))
       setSelectedIds([])
     } catch (err) {
-      setError(err.message || labels.removeItemsError)
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -744,9 +745,6 @@ function favoriteManageLabels(entityType) {
         itemNameZh: '作品',
         itemNameEn: 'JAV items',
         manageTitle: zh('管理作品收藏夹', 'Manage JAV favorites'),
-        loadItemsError: zh('加载收藏夹作品失败', 'Failed to load favorite group JAV'),
-        saveOrderError: zh('保存作品顺序失败', 'Failed to save JAV order'),
-        removeItemsError: zh('批量移除作品失败', 'Failed to remove selected JAV'),
         emptyItemsText: zh('该收藏夹暂无作品', 'No JAV in this favorite'),
         selectAria: zh('选择作品', 'Select JAV'),
         groupMeta: (count) => zh(`${count} 部`, `${count} JAV`),
@@ -758,9 +756,6 @@ function favoriteManageLabels(entityType) {
         itemNameZh: '片商',
         itemNameEn: 'studios',
         manageTitle: zh('管理片商收藏夹', 'Manage studio favorites'),
-        loadItemsError: zh('加载收藏夹片商失败', 'Failed to load favorite group studios'),
-        saveOrderError: zh('保存片商顺序失败', 'Failed to save studio order'),
-        removeItemsError: zh('批量移除片商失败', 'Failed to remove selected studios'),
         emptyItemsText: zh('该收藏夹暂无片商', 'No studios in this favorite'),
         selectAria: zh('选择片商', 'Select studio'),
         groupMeta: (count) => zh(`${count} 个`, `${count} studios`),
@@ -773,9 +768,6 @@ function favoriteManageLabels(entityType) {
         itemNameZh: '系列',
         itemNameEn: 'series',
         manageTitle: zh('管理系列收藏夹', 'Manage series favorites'),
-        loadItemsError: zh('加载收藏夹系列失败', 'Failed to load favorite group series'),
-        saveOrderError: zh('保存系列顺序失败', 'Failed to save series order'),
-        removeItemsError: zh('批量移除系列失败', 'Failed to remove selected series'),
         emptyItemsText: zh('该收藏夹暂无系列', 'No series in this favorite'),
         selectAria: zh('选择系列', 'Select series'),
         groupMeta: (count) => zh(`${count} 个`, `${count} series`),
@@ -789,9 +781,6 @@ function favoriteManageLabels(entityType) {
         itemNameZh: '女优',
         itemNameEn: 'idols',
         manageTitle: zh('管理女优收藏夹', 'Manage idol favorites'),
-        loadItemsError: zh('加载收藏夹女优失败', 'Failed to load favorite group idols'),
-        saveOrderError: zh('保存女优顺序失败', 'Failed to save idol order'),
-        removeItemsError: zh('批量移除女优失败', 'Failed to remove selected idols'),
         emptyItemsText: zh('该收藏夹暂无女优', 'No idols in this favorite'),
         selectAria: zh('选择女优', 'Select idol'),
         groupMeta: (count) => zh(`${count} 位`, `${count} idols`),

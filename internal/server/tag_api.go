@@ -100,18 +100,18 @@ func deleteTag(c *gin.Context) {
 func addTagsToVideos(c *gin.Context) {
 	var req videoTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "添加视频标签请求无效", "Invalid add-video-tags request")
 		return
 	}
 
 	if req.TagID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_id must be positive"})
+		respondLocalizedError(c, http.StatusBadRequest, "标签 ID 无效", "Invalid tag ID")
 		return
 	}
 
 	if err := dbpkg.AddTagToVideos(c.Request.Context(), req.TagID, req.VideoIDs); err != nil {
 		logging.Error("add tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "添加视频标签失败", "Failed to add video tags")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -120,18 +120,18 @@ func addTagsToVideos(c *gin.Context) {
 func removeTagsFromVideos(c *gin.Context) {
 	var req videoTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "移除视频标签请求无效", "Invalid remove-video-tags request")
 		return
 	}
 
 	if req.TagID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_id must be positive"})
+		respondLocalizedError(c, http.StatusBadRequest, "标签 ID 无效", "Invalid tag ID")
 		return
 	}
 
 	if err := dbpkg.RemoveTagFromVideos(c.Request.Context(), req.TagID, req.VideoIDs); err != nil {
 		logging.Error("remove tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "移除视频标签失败", "Failed to remove video tags")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -140,16 +140,16 @@ func removeTagsFromVideos(c *gin.Context) {
 func replaceTagsForVideos(c *gin.Context) {
 	var req videoTagsReplaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "更新视频标签请求无效", "Invalid update-video-tags request")
 		return
 	}
 	if len(req.VideoIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "video_ids required"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 不能为空", "Video IDs are required")
 		return
 	}
 	if err := dbpkg.ReplaceTagsForVideos(c.Request.Context(), req.VideoIDs, req.TagIDs); err != nil {
 		logging.Error("replace tags error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "更新视频标签失败", "Failed to update video tags")
 		return
 	}
 	c.Status(http.StatusNoContent)

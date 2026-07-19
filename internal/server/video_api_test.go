@@ -1,16 +1,96 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
 	"javboss/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
+
+func TestDeleteVideoLocationRejectsMissingDirectory(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dir := models.Directory{Path: filepath.Join(t.TempDir(), "offline"), Missing: true}
+	if err := database.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	video := models.Video{Fingerprint: "missing-directory-delete"}
+	if err := database.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	loc, err := dbpkg.UpsertVideoLocation(
+		context.Background(),
+		video.ID,
+		dir.ID,
+		"movie.mp4",
+		time.Unix(1710000000, 0).UTC(),
+	)
+	if err != nil {
+		t.Fatalf("create video location: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.DELETE("/videos/:id/locations/:location_id", deleteVideoLocation)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodDelete,
+		"/videos/"+strconv.FormatInt(video.ID, 10)+"/locations/"+strconv.FormatInt(loc.ID, 10),
+		nil,
+	)
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusConflict {
+		t.Fatalf("unexpected status: got %d want %d body=%s", recorder.Code, http.StatusConflict, recorder.Body.String())
+	}
+	var payload struct {
+		Error   *string `json:"error"`
+		ErrorZH string  `json:"error_zh"`
+		ErrorEN string  `json:"error_en"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response body: %v body=%s", err, recorder.Body.String())
+	}
+	if payload.ErrorZH != "目录缺失，无法删除视频" {
+		t.Fatalf("unexpected Chinese error: %q", payload.ErrorZH)
+	}
+	if payload.ErrorEN != "The directory is missing; video cannot be deleted" {
+		t.Fatalf("unexpected English error: %q", payload.ErrorEN)
+	}
+	if payload.Error != nil {
+		t.Fatalf("localized error response must not include legacy error field: %q", *payload.Error)
+	}
+	var saved models.VideoLocation
+	if err := database.First(&saved, loc.ID).Error; err != nil {
+		t.Fatalf("reload video location: %v", err)
+	}
+	if saved.IsDelete {
+		t.Fatal("missing directory location must remain visible after rejected delete")
+	}
+}
 
 func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
 	gin.SetMode(gin.TestMode)

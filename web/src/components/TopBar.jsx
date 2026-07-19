@@ -20,6 +20,11 @@ import { fetchJavPrefixes } from '@/api'
 import JavPrefixModal from '@/components/JavPrefixModal'
 import { displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
+
+function ButtonTooltip({ enabled = true, title, ...props }) {
+  return <Tooltip {...props} title={enabled ? title : ''} />
+}
 
 export default function TopBar({
   onHome,
@@ -77,6 +82,7 @@ export default function TopBar({
   selectedCount = 0,
   onOpenSelectionOps,
   onClearSelection,
+  showButtonTooltips = true,
 }) {
   const headerRef = useRef(null)
   const directoryMenuRef = useRef(null)
@@ -187,7 +193,7 @@ export default function TopBar({
       })
       .catch((error) => {
         if (cancelled) return
-        setPrefixError(error?.message || zh('加载番号失败', 'Failed to load JAV codes'))
+        setPrefixError(getErrorMessage(error))
       })
       .finally(() => {
         if (!cancelled) setPrefixLoading(false)
@@ -288,27 +294,29 @@ export default function TopBar({
         className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label={zh('搜索JAV', 'Search JAV')}
       />
-      <Button
-        component="a"
-        href={javSearchHref}
-        aria-label={zh('搜索JAV', 'Search JAV')}
-        variant="contained"
-        size="medium"
-        onClick={(e) => {
-          if (isModifiedClick(e)) return
-          onSubmitJavSearch(e)
-        }}
-        sx={{
-          borderTopLeftRadius: 0,
-          borderBottomLeftRadius: 0,
-          minWidth: 40,
-          minHeight: '40px',
-          height: '40px',
-          px: 1.25,
-        }}
-      >
-        <SearchIcon fontSize="small" />
-      </Button>
+      <ButtonTooltip enabled={showButtonTooltips} title={zh('搜索JAV', 'Search JAV')} arrow>
+        <Button
+          component="a"
+          href={javSearchHref}
+          aria-label={zh('搜索JAV', 'Search JAV')}
+          variant="contained"
+          size="medium"
+          onClick={(e) => {
+            if (isModifiedClick(e)) return
+            onSubmitJavSearch(e)
+          }}
+          sx={{
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0,
+            minWidth: 40,
+            minHeight: '40px',
+            height: '40px',
+            px: 1.25,
+          }}
+        >
+          <SearchIcon fontSize="small" />
+        </Button>
+      </ButtonTooltip>
     </form>
   ) : (
     <form
@@ -322,27 +330,29 @@ export default function TopBar({
         className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         aria-label={zh('搜索视频', 'Search videos')}
       />
-      <Button
-        component="a"
-        href={videoSearchHref}
-        aria-label={zh('搜索视频', 'Search videos')}
-        variant="contained"
-        size="medium"
-        onClick={(e) => {
-          if (isModifiedClick(e)) return
-          onSubmitVideoSearch(e)
-        }}
-        sx={{
-          borderTopLeftRadius: 0,
-          borderBottomLeftRadius: 0,
-          minWidth: 40,
-          minHeight: '40px',
-          height: '40px',
-          px: 1.25,
-        }}
-      >
-        <SearchIcon fontSize="small" />
-      </Button>
+      <ButtonTooltip enabled={showButtonTooltips} title={zh('搜索视频', 'Search videos')} arrow>
+        <Button
+          component="a"
+          href={videoSearchHref}
+          aria-label={zh('搜索视频', 'Search videos')}
+          variant="contained"
+          size="medium"
+          onClick={(e) => {
+            if (isModifiedClick(e)) return
+            onSubmitVideoSearch(e)
+          }}
+          sx={{
+            borderTopLeftRadius: 0,
+            borderBottomLeftRadius: 0,
+            minWidth: 40,
+            minHeight: '40px',
+            height: '40px',
+            px: 1.25,
+          }}
+        >
+          <SearchIcon fontSize="small" />
+        </Button>
+      </ButtonTooltip>
     </form>
   )
 
@@ -354,7 +364,7 @@ export default function TopBar({
           variant="text"
           onClick={onBrowserBack}
           disabled={!canGoBack}
-          title={zh('浏览器后退', 'Browser back')}
+          title={showButtonTooltips ? zh('浏览器后退', 'Browser back') : undefined}
           aria-label={zh('浏览器后退', 'Browser back')}
           sx={{
             minWidth: 30,
@@ -373,7 +383,7 @@ export default function TopBar({
           variant="text"
           onClick={onBrowserForward}
           disabled={!canGoForward}
-          title={zh('浏览器前进', 'Browser forward')}
+          title={showButtonTooltips ? zh('浏览器前进', 'Browser forward') : undefined}
           aria-label={zh('浏览器前进', 'Browser forward')}
           sx={{
             minWidth: 30,
@@ -428,7 +438,7 @@ export default function TopBar({
                   >
                     {zh('系列', 'Series')}
                   </Button>
-                  <Tooltip title={zh('随机', 'Random')} arrow>
+                  <ButtonTooltip enabled={showButtonTooltips} title={zh('随机', 'Random')} arrow>
                     <Button
                       component="a"
                       href={javRandomHref}
@@ -448,8 +458,12 @@ export default function TopBar({
                     >
                       <ShuffleOutlinedIcon fontSize="small" />
                     </Button>
-                  </Tooltip>
-                  <Tooltip title={zh('标签管理', 'Tag management')} arrow>
+                  </ButtonTooltip>
+                  <ButtonTooltip
+                    enabled={showButtonTooltips}
+                    title={zh('标签管理', 'Tag management')}
+                    arrow
+                  >
                     <Button
                       variant="outlined"
                       onClick={onOpenJavTagModal}
@@ -463,8 +477,8 @@ export default function TopBar({
                     >
                       <LocalOfferOutlinedIcon fontSize="small" />
                     </Button>
-                  </Tooltip>
-                  <Tooltip title={zh('番号', 'JAV codes')} arrow>
+                  </ButtonTooltip>
+                  <ButtonTooltip enabled={showButtonTooltips} title={zh('番号', 'JAV codes')} arrow>
                     <Button
                       type="button"
                       variant="outlined"
@@ -479,10 +493,10 @@ export default function TopBar({
                     >
                       <NumbersRoundedIcon fontSize="small" />
                     </Button>
-                  </Tooltip>
+                  </ButtonTooltip>
                   {isJavMode ? (
                     <div ref={idolFavoriteMenuRef} className="relative">
-                      <Tooltip title={favoriteLabel} arrow>
+                      <ButtonTooltip enabled={showButtonTooltips} title={favoriteLabel} arrow>
                         <Button
                           type="button"
                           variant="outlined"
@@ -507,9 +521,10 @@ export default function TopBar({
                             </span>
                           ) : null}
                         </Button>
-                      </Tooltip>
+                      </ButtonTooltip>
                       {idolFavoriteMenuOpen ? (
                         <IdolFavoriteGroupMenu
+                          showButtonTooltips={showButtonTooltips}
                           title={favoriteLabel}
                           allLabel={favoriteAllLabel}
                           groups={favoriteGroups}
@@ -557,7 +572,11 @@ export default function TopBar({
               )}
 
               {isJavMode ? (
-                <Tooltip title={zh('显示设置', 'Display settings')} arrow>
+                <ButtonTooltip
+                  enabled={showButtonTooltips}
+                  title={zh('显示设置', 'Display settings')}
+                  arrow
+                >
                   <Button
                     variant="outlined"
                     onClick={handleSettingsClick}
@@ -571,7 +590,7 @@ export default function TopBar({
                   >
                     <DisplaySettingsIcon fontSize="small" />
                   </Button>
-                </Tooltip>
+                </ButtonTooltip>
               ) : (
                 <Button
                   startIcon={<DisplaySettingsIcon fontSize="small" />}
@@ -594,7 +613,11 @@ export default function TopBar({
                     </span>
                   </Tooltip>
                 ) : null}
-                <Tooltip title={zh('编辑 JAV 查询条件', 'Edit JAV filters')} arrow>
+                <ButtonTooltip
+                  enabled={showButtonTooltips}
+                  title={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
+                  arrow
+                >
                   <button
                     type="button"
                     onClick={onOpenJavQueryEditor}
@@ -603,10 +626,11 @@ export default function TopBar({
                   >
                     <TuneOutlinedIcon fontSize="inherit" className="text-[16px]" />
                   </button>
-                </Tooltip>
+                </ButtonTooltip>
                 {showJavFilterRandomButton ? (
                   <span className="inline-flex shrink-0 items-center">
-                    <Tooltip
+                    <ButtonTooltip
+                      enabled={showButtonTooltips}
                       title={zh('基于当前筛选条件随机', 'Random within current filters')}
                       arrow
                     >
@@ -622,9 +646,13 @@ export default function TopBar({
                       >
                         <ShuffleOutlinedIcon fontSize="inherit" className="text-[16px]" />
                       </button>
-                    </Tooltip>
+                    </ButtonTooltip>
                     {javRandomMode ? (
-                      <Tooltip title={zh('取消筛选随机', 'Cancel filter random')} arrow>
+                      <ButtonTooltip
+                        enabled={showButtonTooltips}
+                        title={zh('取消筛选随机', 'Cancel filter random')}
+                        arrow
+                      >
                         <button
                           type="button"
                           onClick={onCancelJavFilterRandom}
@@ -633,7 +661,7 @@ export default function TopBar({
                         >
                           <CloseRoundedIcon fontSize="inherit" className="text-[14px]" />
                         </button>
-                      </Tooltip>
+                      </ButtonTooltip>
                     ) : null}
                   </span>
                 ) : null}
@@ -693,7 +721,11 @@ export default function TopBar({
                 </Button>
               </div>
             ) : null}
-            <Tooltip title={zh('全局设置', 'Global settings')} arrow>
+            <ButtonTooltip
+              enabled={showButtonTooltips}
+              title={zh('全局设置', 'Global settings')}
+              arrow
+            >
               <Button
                 variant="outlined"
                 onClick={onOpenGlobalSettings}
@@ -707,8 +739,12 @@ export default function TopBar({
               >
                 <SettingsOutlinedIcon fontSize="small" />
               </Button>
-            </Tooltip>
-            <Tooltip title={zh('选择启用目录', 'Choose enabled directories')} arrow>
+            </ButtonTooltip>
+            <ButtonTooltip
+              enabled={showButtonTooltips}
+              title={zh('选择启用目录', 'Choose enabled directories')}
+              arrow
+            >
               <Button
                 type="button"
                 onClick={() => setDirectoryMenuOpen((open) => !open)}
@@ -732,7 +768,7 @@ export default function TopBar({
                   }
                 />
               </Button>
-            </Tooltip>
+            </ButtonTooltip>
 
             {directoryMenuOpen ? (
               <div
@@ -790,8 +826,13 @@ export default function TopBar({
                               `Enable directory ${directoryPath}`
                             )}
                           />
-                          <span className="min-w-0 flex-1 break-all text-gray-700">
-                            {directoryPath}
+                          <span className="min-w-0 flex-1 text-gray-700">
+                            <span className="break-all">{directoryPath}</span>
+                            {directory.missing ? (
+                              <span className="ml-2 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                                {zh('目录缺失', 'Missing')}
+                              </span>
+                            ) : null}
                           </span>
                         </label>
                       )
@@ -801,7 +842,8 @@ export default function TopBar({
               </div>
             ) : null}
           </div>
-          <Tooltip
+          <ButtonTooltip
+            enabled={showButtonTooltips}
             title={
               isJavMode ? zh('切换到视频', 'Switch to Video') : zh('切换到 JAV', 'Switch to JAV')
             }
@@ -818,7 +860,7 @@ export default function TopBar({
             >
               {isJavMode ? zh('视频', 'Video') : 'JAV'}
             </Button>
-          </Tooltip>
+          </ButtonTooltip>
         </div>
       </div>
       <JavPrefixModal
@@ -839,6 +881,7 @@ export default function TopBar({
 }
 
 function IdolFavoriteGroupMenu({
+  showButtonTooltips,
   title,
   allLabel,
   groups,
@@ -877,7 +920,11 @@ function IdolFavoriteGroupMenu({
               : zh(`${list.length} 个收藏夹`, `${list.length} favorites`)}
           </div>
         </div>
-        <Tooltip title={zh('管理收藏夹', 'Manage favorites')} arrow>
+        <ButtonTooltip
+          enabled={showButtonTooltips}
+          title={zh('管理收藏夹', 'Manage favorites')}
+          arrow
+        >
           <IconButton
             type="button"
             size="small"
@@ -887,7 +934,7 @@ function IdolFavoriteGroupMenu({
           >
             <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
           </IconButton>
-        </Tooltip>
+        </ButtonTooltip>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80 p-2">
         {error ? (

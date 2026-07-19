@@ -44,10 +44,6 @@ function Save-ExistingConfig {
   if (-not (Test-Path -LiteralPath $config)) {
     return $null
   }
-  if (Select-String -LiteralPath $config -Pattern '^\s*port\s*=\s*0\s*(?:#.*)?$' -Quiet) {
-    Write-Log "replacing legacy random-port config with port 8655"
-    return $null
-  }
   $saved = Join-Path ([System.IO.Path]::GetTempPath()) ("javboss-config-" + [System.Guid]::NewGuid().ToString() + ".toml")
   Copy-Item -LiteralPath $config -Destination $saved -Force
   return $saved

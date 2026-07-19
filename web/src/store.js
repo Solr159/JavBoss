@@ -22,6 +22,7 @@ import {
 import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const VIDEO_PAGE_SIZE = 25
 const JAV_PAGE_SIZE = 24
@@ -592,7 +593,7 @@ export const useStore = create((set, get) => ({
         lastJavTagFetchKey = key
         return tags
       } catch (e) {
-        set({ javError: e.message || zh('加载 JAV 标签失败', 'Failed to load JAV tags') })
+        set({ javError: getErrorMessage(e) })
         return null
       } finally {
         if (javTagFetchInFlightKey === key) {
@@ -867,7 +868,7 @@ export const useStore = create((set, get) => ({
       })
     } catch (e) {
       if (reqId !== javLoadSeq || key !== javListRequestKey(get())) return
-      set({ javError: e.message || zh('加载 JAV 失败', 'Failed to load JAV') })
+      set({ javError: getErrorMessage(e) })
     } finally {
       if (reqId === javLoadSeq) {
         set({ javLoading: false })
@@ -924,7 +925,7 @@ export const useStore = create((set, get) => ({
       ) {
         return
       }
-      set({ javError: e.message || zh('加载 JAV 失败', 'Failed to load JAV') })
+      set({ javError: getErrorMessage(e) })
     } finally {
       if (loadMoreReqId === javLoadMoreSeq) {
         set({ javLoadingMore: false })
@@ -958,7 +959,7 @@ export const useStore = create((set, get) => ({
       })
     } catch (e) {
       if (reqId !== idolLoadSeq || key !== idolListRequestKey(get())) return
-      set({ idolError: e.message || zh('加载女优失败', 'Failed to load idols') })
+      set({ idolError: getErrorMessage(e) })
     } finally {
       if (reqId === idolLoadSeq) {
         set({ idolLoading: false })
@@ -1008,7 +1009,7 @@ export const useStore = create((set, get) => ({
       ) {
         return
       }
-      set({ idolError: e.message || zh('加载女优失败', 'Failed to load idols') })
+      set({ idolError: getErrorMessage(e) })
     } finally {
       if (loadMoreReqId === idolLoadMoreSeq) {
         set({ idolLoadingMore: false })
@@ -1034,7 +1035,7 @@ export const useStore = create((set, get) => ({
       }))
       return groups || []
     } catch (e) {
-      const message = e.message || zh('加载收藏夹失败', 'Failed to load favorite groups')
+      const message = getErrorMessage(e)
       set((state) => ({
         favoriteGroupsErrorByType: {
           ...(state.favoriteGroupsErrorByType || {}),
@@ -1077,7 +1078,7 @@ export const useStore = create((set, get) => ({
       })
     } catch (e) {
       if (reqId !== studioLoadSeq || key !== studioListRequestKey(get())) return
-      set({ studioError: e.message || zh('加载片商失败', 'Failed to load studios') })
+      set({ studioError: getErrorMessage(e) })
     } finally {
       if (reqId === studioLoadSeq) {
         set({ studioLoading: false })
@@ -1126,7 +1127,7 @@ export const useStore = create((set, get) => ({
       ) {
         return
       }
-      set({ studioError: e.message || zh('加载片商失败', 'Failed to load studios') })
+      set({ studioError: getErrorMessage(e) })
     } finally {
       if (loadMoreReqId === studioLoadMoreSeq) {
         set({ studioLoadingMore: false })
@@ -1159,7 +1160,7 @@ export const useStore = create((set, get) => ({
       })
     } catch (e) {
       if (reqId !== seriesLoadSeq || key !== seriesListRequestKey(get())) return
-      set({ seriesError: e.message || zh('加载系列失败', 'Failed to load series') })
+      set({ seriesError: getErrorMessage(e) })
     } finally {
       if (reqId === seriesLoadSeq) {
         set({ seriesLoading: false })
@@ -1208,7 +1209,7 @@ export const useStore = create((set, get) => ({
       ) {
         return
       }
-      set({ seriesError: e.message || zh('加载系列失败', 'Failed to load series') })
+      set({ seriesError: getErrorMessage(e) })
     } finally {
       if (loadMoreReqId === seriesLoadMoreSeq) {
         set({ seriesLoadingMore: false })

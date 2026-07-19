@@ -9,10 +9,17 @@ import {
   parsePlayerHotkeys,
 } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 
-export default function PlayerModal({ video, startTime = 0, onClose, hotkeys = null }) {
+export default function PlayerModal({
+  video,
+  startTime = 0,
+  onClose,
+  hotkeys = null,
+  onPlaybackError,
+}) {
   const videoRef = useRef(null)
   const playerRef = useRef(null)
   const hotkeyMapRef = useRef(new Map())
@@ -65,11 +72,9 @@ export default function PlayerModal({ video, startTime = 0, onClose, hotkeys = n
       })
       .catch((err) => {
         if (cancelled) return
-        setPlaybackError(
-          err instanceof Error
-            ? err.message
-            : zh('加载播放信息失败', 'Failed to load playback info')
-        )
+        const message = getErrorMessage(err)
+        setPlaybackError(message)
+        onPlaybackError?.(message)
       })
       .finally(() => {
         if (cancelled) return
@@ -79,7 +84,7 @@ export default function PlayerModal({ video, startTime = 0, onClose, hotkeys = n
     return () => {
       cancelled = true
     }
-  }, [video])
+  }, [onPlaybackError, video])
 
   useEffect(() => {
     if (!video || !videoRef.current || !selectedSource?.src) return

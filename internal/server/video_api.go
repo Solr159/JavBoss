@@ -88,7 +88,7 @@ func getVideo(c *gin.Context) {
 func incrementVideoPlayCount(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return
 	}
 	if err := dbpkg.IncrementVideoPlayCount(c.Request.Context(), id); err != nil {
@@ -230,7 +230,7 @@ func streamHLSManifest(c *gin.Context) {
 		return
 	}
 	if common.StreamManager == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "stream manager unavailable"})
+		respondLocalizedError(c, http.StatusServiceUnavailable, "浏览器播放服务不可用", "Browser playback service is unavailable")
 		return
 	}
 
@@ -246,7 +246,7 @@ func streamHLSSegment(c *gin.Context) {
 		return
 	}
 	if common.StreamManager == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "stream manager unavailable"})
+		respondLocalizedError(c, http.StatusServiceUnavailable, "浏览器播放服务不可用", "Browser playback service is unavailable")
 		return
 	}
 
@@ -345,17 +345,17 @@ func respondPlaybackError(c *gin.Context, err error) {
 	case err == nil:
 		return
 	case errors.Is(err, os.ErrNotExist):
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频文件或所在目录不存在", "Video file or directory does not exist")
 	case errors.Is(err, context.Canceled):
 		c.Status(499)
 	case strings.Contains(err.Error(), "ffmpeg not found"), strings.Contains(err.Error(), "ffprobe not found"):
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusServiceUnavailable, "缺少浏览器播放所需组件", err.Error())
 	case strings.Contains(err.Error(), "browser playback is not supported"):
-		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusUnprocessableEntity, "当前视频不支持浏览器播放", err.Error())
 	case strings.Contains(err.Error(), "invalid segment"), strings.Contains(err.Error(), "invalid id"), strings.Contains(err.Error(), "invalid location_id"), strings.Contains(err.Error(), "invalid path"):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "播放请求参数无效", "Invalid playback request")
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载播放信息失败", "Failed to load playback information")
 	}
 }
 
@@ -427,12 +427,12 @@ func serveVideoFile(c *gin.Context, fullPath string) {
 
 func openVideoFile(c *gin.Context) {
 	if runtimeconfig.DisableDesktopIntegration() {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "desktop file opening is disabled"})
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用系统播放器", "Desktop file opening is disabled")
 		return
 	}
 	fullPath, dirPath, err := resolveVideoPathFromBody(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "视频文件路径无效", "Invalid video file path")
 		return
 	}
 	if err := ensureVideoFileExists(c, fullPath); err != nil {
@@ -440,7 +440,7 @@ func openVideoFile(c *gin.Context) {
 	}
 	if err := util.OpenFile(fullPath); err != nil {
 		logging.Error("open video file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "open file failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "使用系统播放器打开文件失败", "Failed to open file with the system player")
 		return
 	}
 	incrementPlayCountByPath(c.Request.Context(), dirPath, fullPath)
@@ -449,12 +449,12 @@ func openVideoFile(c *gin.Context) {
 
 func playVideoFile(c *gin.Context) {
 	if runtimeconfig.DisableMPVPlayback() {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "mpv playback is disabled"})
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用 MPV 播放", "MPV playback is disabled")
 		return
 	}
 	req, fullPath, dirPath, err := resolveVideoPathRequestFromBody(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "视频文件路径无效", "Invalid video file path")
 		return
 	}
 	if err := ensureVideoFileExists(c, fullPath); err != nil {
@@ -472,10 +472,10 @@ func playVideoFile(c *gin.Context) {
 	}); err != nil {
 		logging.Error("play video file error: %v", err)
 		if strings.Contains(err.Error(), "mpv not found") {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusServiceUnavailable, "未找到 MPV 播放器", err.Error())
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "play file failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "播放文件失败", "Failed to play file")
 		return
 	}
 	if videoID > 0 {
@@ -488,12 +488,12 @@ func playVideoFile(c *gin.Context) {
 
 func revealVideoLocation(c *gin.Context) {
 	if runtimeconfig.DisableDesktopIntegration() {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "desktop file revealing is disabled"})
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用打开文件位置", "Desktop file revealing is disabled")
 		return
 	}
 	fullPath, _, err := resolveVideoPathFromBody(c)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "视频文件路径无效", "Invalid video file path")
 		return
 	}
 	if err := ensureVideoFileExists(c, fullPath); err != nil {
@@ -501,7 +501,7 @@ func revealVideoLocation(c *gin.Context) {
 	}
 	if err := util.RevealFile(fullPath); err != nil {
 		logging.Error("reveal video file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "reveal file failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "打开文件所在位置失败", "Failed to reveal file")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -515,23 +515,23 @@ func renameVideoLocation(c *gin.Context) {
 
 	var req renameVideoLocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "重命名请求无效", "Invalid rename request")
 		return
 	}
 	filename := strings.TrimSpace(req.Filename)
 	if !isSafeVideoFilename(filename) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid filename"})
+		respondLocalizedError(c, http.StatusBadRequest, "文件名无效", "Invalid filename")
 		return
 	}
 
 	loc, err := dbpkg.GetActiveVideoLocation(c.Request.Context(), videoID, locationID)
 	if err != nil {
 		logging.Error("get video location for rename error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频位置失败", "Failed to load video location")
 		return
 	}
 	if loc == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频位置不存在", "Video location does not exist")
 		return
 	}
 
@@ -543,18 +543,18 @@ func renameVideoLocation(c *gin.Context) {
 	}
 	nextRel = filepath.ToSlash(filepath.Clean(filepath.FromSlash(nextRel)))
 	if nextRel == "." || strings.HasPrefix(nextRel, "../") || nextRel == ".." {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid filename"})
+		respondLocalizedError(c, http.StatusBadRequest, "文件名无效", "Invalid filename")
 		return
 	}
 	if nextRel == currentRel {
 		video, err := dbpkg.GetVideoForLocation(c.Request.Context(), videoID, locationID)
 		if err != nil {
 			logging.Error("load unchanged video location error: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "读取视频信息失败", "Failed to load video information")
 			return
 		}
 		if video == nil {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 			return
 		}
 		c.JSON(http.StatusOK, video)
@@ -564,52 +564,52 @@ func renameVideoLocation(c *gin.Context) {
 	exists, err := dbpkg.VideoLocationPathExists(c.Request.Context(), loc.DirectoryID, nextRel)
 	if err != nil {
 		logging.Error("check video location path error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "检查目标文件失败", "Failed to check target file")
 		return
 	}
 	if exists {
-		c.JSON(http.StatusConflict, gin.H{"error": "target path already exists"})
+		respondLocalizedError(c, http.StatusConflict, "目标文件已存在", "Target file already exists")
 		return
 	}
 
 	oldFullPath, dirPath, err := resolveVideoPath(currentRel, loc.DirectoryRef.Path)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "原视频文件路径无效", "Invalid source video path")
 		return
 	}
 	newFullPath, _, err := resolveVideoPath(nextRel, dirPath)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "目标视频文件路径无效", "Invalid target video path")
 		return
 	}
 	info, err := os.Stat(oldFullPath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频文件或所在目录不存在", "Video file or directory does not exist")
 			return
 		}
 		logging.Error("stat video before rename error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频文件失败", "Failed to inspect video file")
 		return
 	}
 	if info.IsDir() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "path is not a file"})
+		respondLocalizedError(c, http.StatusBadRequest, "目标路径不是文件", "Path is not a file")
 		return
 	}
 	if targetInfo, err := os.Stat(newFullPath); err == nil {
 		if !os.SameFile(info, targetInfo) {
-			c.JSON(http.StatusConflict, gin.H{"error": "target file already exists"})
+			respondLocalizedError(c, http.StatusConflict, "目标文件已存在", "Target file already exists")
 			return
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Error("stat video rename target error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "检查目标文件失败", "Failed to inspect target file")
 		return
 	}
 
 	if err := os.Rename(oldFullPath, newFullPath); err != nil {
 		logging.Error("rename video file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "rename file failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "重命名视频文件失败", "Failed to rename video file")
 		return
 	}
 	modifiedAt := info.ModTime()
@@ -621,22 +621,22 @@ func renameVideoLocation(c *gin.Context) {
 			logging.Error("rollback video file rename failed: %v", rollbackErr)
 		}
 		if errors.Is(err, dbpkg.ErrVideoLocationPathConflict) {
-			c.JSON(http.StatusConflict, gin.H{"error": "target path already exists"})
+			respondLocalizedError(c, http.StatusConflict, "目标文件已存在", "Target file already exists")
 			return
 		}
 		logging.Error("update video location after rename error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "保存重命名结果失败", "Failed to save renamed video location")
 		return
 	}
 
 	video, err := dbpkg.GetVideoForLocation(c.Request.Context(), videoID, locationID)
 	if err != nil {
 		logging.Error("load renamed video location error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "重新加载视频失败", "Failed to reload video")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 	c.JSON(http.StatusOK, video)
@@ -645,29 +645,29 @@ func renameVideoLocation(c *gin.Context) {
 func updateVideoJavScrapeSettings(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return
 	}
 
 	var req videoJavScrapeSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "刮削设置请求无效", "Invalid scrape settings request")
 		return
 	}
 	override, ok := normalizeVideoJavScrapeOverride(req)
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jav scrape settings"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 刮削设置无效", "Invalid JAV scrape settings")
 		return
 	}
 
 	video, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, override)
 	if err != nil {
 		logging.Error("update video jav scrape settings error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "保存刮削设置失败", "Failed to save scrape settings")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 	c.JSON(http.StatusOK, video)
@@ -682,11 +682,11 @@ func getVideoJavScrapePossibleCodes(c *gin.Context) {
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
 		logging.Error("load video for jav scrape possible codes error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "提取番号失败", "Failed to extract JAV codes")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 
@@ -703,22 +703,22 @@ func lookupVideoJavScrapeJavDB(c *gin.Context) {
 	}
 	code := strings.TrimSpace(c.Query("code"))
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "番号不能为空", "JAV code is required")
 		return
 	}
 
 	info, err := jav.LookupJavByCode(code, jav.ProviderJavDB)
 	if err != nil {
 		if errors.Is(err, jav.ResourceNotFonud) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "javdb metadata not found"})
+			respondLocalizedError(c, http.StatusNotFound, "JavDB 中未找到对应元数据", "JavDB metadata was not found")
 			return
 		}
 		logging.Error("lookup javdb metadata code=%s: %v", code, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "从 JavDB 获取元数据失败", "Failed to fetch metadata from JavDB")
 		return
 	}
 	if info == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "javdb metadata not found"})
+		respondLocalizedError(c, http.StatusNotFound, "JavDB 中未找到对应元数据", "JavDB metadata was not found")
 		return
 	}
 	c.JSON(http.StatusOK, javInfoToVideoScrapeResponse(info))
@@ -732,56 +732,69 @@ func manualVideoJavScrape(c *gin.Context) {
 
 	var req videoJavManualScrapeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "手动刮削请求无效", "Invalid manual scrape request")
 		return
 	}
 	info, err := manualScrapeRequestToJavInfo(req)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		messageZH := "手动刮削信息无效"
+		messageEN := "Invalid manual scrape metadata"
+		switch err.Error() {
+		case "code is required":
+			messageZH = "番号不能为空"
+			messageEN = "JAV code is required"
+		case "release_date must be YYYY-MM-DD":
+			messageZH = "发行日期格式必须为 YYYY-MM-DD"
+			messageEN = "Release date must use the YYYY-MM-DD format"
+		case "duration_min must be non-negative":
+			messageZH = "时长不能为负数"
+			messageEN = "Duration cannot be negative"
+		}
+		respondLocalizedError(c, http.StatusBadRequest, messageZH, messageEN)
 		return
 	}
 
 	if req.LocationID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "location_id is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频位置 ID 不能为空", "Video location ID is required")
 		return
 	}
 
 	loc, err := dbpkg.GetActiveVideoLocation(c.Request.Context(), id, req.LocationID)
 	if err != nil {
 		logging.Error("load video location for manual jav scrape video=%d location=%d: %v", id, req.LocationID, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频位置失败", "Failed to load video location")
 		return
 	}
 	if loc == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频位置不存在", "Video location does not exist")
 		return
 	}
 
 	javRec, err := dbpkg.SaveJavInfoAndLinkVideoLocations(c.Request.Context(), info, id)
 	if err != nil {
 		logging.Error("manual jav scrape save failed video=%d code=%s: %v", id, info.Code, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "保存手动刮削信息失败", "Failed to save manual scrape metadata")
 		return
 	}
 	if javRec == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "未生成 JAV 元数据", "JAV metadata was not created")
 		return
 	}
 
 	manualOverride := models.JavScrapeOverrideManualPrefix + info.Code
 	if _, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, manualOverride); err != nil {
 		logging.Error("manual jav scrape update override failed video=%d code=%s: %v", id, info.Code, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "保存刮削设置失败", "Failed to save scrape settings")
 		return
 	}
 	video, err := dbpkg.GetVideoForLocation(c.Request.Context(), id, loc.ID)
 	if err != nil {
 		logging.Error("manual jav scrape reload failed video=%d location=%d code=%s: %v", id, loc.ID, info.Code, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "重新加载视频失败", "Failed to reload video")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 
@@ -792,7 +805,7 @@ func manualVideoJavScrape(c *gin.Context) {
 func parsePositiveVideoID(c *gin.Context) (int64, bool) {
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return 0, false
 	}
 	return id, true
@@ -928,38 +941,44 @@ func deleteVideoLocation(c *gin.Context) {
 	loc, err := dbpkg.GetActiveVideoLocation(c.Request.Context(), videoID, locationID)
 	if err != nil {
 		logging.Error("get video location for delete error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频位置失败", "Failed to load video location")
 		return
 	}
 	if loc == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频位置不存在", "Video location does not exist")
+		return
+	}
+	if loc.DirectoryRef.Missing {
+		respondLocalizedError(c, http.StatusConflict, "目录缺失，无法删除视频", "The directory is missing; video cannot be deleted")
 		return
 	}
 
 	fullPath, _, err := resolveVideoPath(loc.RelativePath, loc.DirectoryRef.Path)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "视频文件路径无效", "Invalid video file path")
 		return
 	}
 	info, err := os.Stat(fullPath)
 	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			logging.Error("stat video before delete error: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		if errors.Is(err, os.ErrNotExist) {
+			respondLocalizedError(c, http.StatusNotFound, "视频文件不存在，无法删除", "The video file does not exist and cannot be deleted")
 			return
 		}
+		logging.Error("stat video before delete error: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频文件失败", "Failed to inspect video file")
+		return
 	} else if info.IsDir() {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "path is not a file"})
+		respondLocalizedError(c, http.StatusBadRequest, "目标路径不是文件", "Path is not a file")
 		return
 	} else if err := util.MoveFileToTrash(fullPath); err != nil {
 		logging.Error("delete video file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete file failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "删除视频文件失败", "Failed to delete video file")
 		return
 	}
 
 	if err := dbpkg.HideVideoLocationsByIDs(c.Request.Context(), []int64{locationID}); err != nil {
 		logging.Error("hide deleted video location error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "更新视频记录失败", "Failed to update video record")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -968,12 +987,12 @@ func deleteVideoLocation(c *gin.Context) {
 func parseVideoLocationParams(c *gin.Context) (int64, int64, bool) {
 	videoID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || videoID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return 0, 0, false
 	}
 	locationID, err := strconv.ParseInt(c.Param("location_id"), 10, 64)
 	if err != nil || locationID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid location_id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频位置 ID 无效", "Invalid video location ID")
 		return 0, 0, false
 	}
 	return videoID, locationID, true
@@ -1043,7 +1062,7 @@ func resolveVideoPath(rawPath, rawDirPath string) (string, string, error) {
 func ensureVideoFileExists(c *gin.Context, fullPath string) error {
 	if _, err := os.Stat(fullPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频文件或所在目录不存在", "Video file or directory does not exist")
 			return err
 		}
 		logging.Error("stat stream file error: %v", err)

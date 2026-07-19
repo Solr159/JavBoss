@@ -16,6 +16,7 @@ import {
   updateVideoCover,
 } from '@/api'
 import { getVideoDisplayName } from '@/utils/display'
+import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import {
   PLAYER_HOTKEY_ACTIONS,
@@ -71,7 +72,7 @@ export default function VideoScreenshotsModal({
       })
       .catch((err) => {
         console.error(zh('加载截图失败', 'Failed to load screenshots'), err)
-        if (!cancelled) setError(err?.message || zh('加载截图失败', 'Failed to load screenshots'))
+        if (!cancelled) setError(getErrorMessage(err))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -118,7 +119,7 @@ export default function VideoScreenshotsModal({
       if (item.is_cover) onCoverChanged?.()
     } catch (err) {
       console.error(zh('删除截图失败', 'Failed to delete screenshot'), err)
-      setError(err?.message || zh('删除截图失败', 'Failed to delete screenshot'))
+      setError(getErrorMessage(err))
     } finally {
       setDeletingName('')
     }
@@ -136,7 +137,7 @@ export default function VideoScreenshotsModal({
       onCoverChanged?.(updated)
     } catch (err) {
       console.error(zh('保存视频封面失败', 'Failed to save video cover'), err)
-      setError(err?.message || zh('保存视频封面失败', 'Failed to save video cover'))
+      setError(getErrorMessage(err))
     } finally {
       setSettingCoverName('')
     }
@@ -152,7 +153,7 @@ export default function VideoScreenshotsModal({
       onCoverChanged?.(updated)
     } catch (err) {
       console.error(zh('恢复默认封面失败', 'Failed to restore default cover'), err)
-      setError(err?.message || zh('恢复默认封面失败', 'Failed to restore default cover'))
+      setError(getErrorMessage(err))
     } finally {
       setSettingCoverName('')
     }

@@ -10,6 +10,7 @@ import {
   normalizePlayerHotkeyKey,
 } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const createRows = (items) =>
   (Array.isArray(items) && items.length ? items : DEFAULT_PLAYER_HOTKEYS).map((item, index) => ({
@@ -123,7 +124,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
       await onSave?.(normalized)
       setSuccess(zh('快捷键保存成功', 'Shortcut settings saved'))
     } catch (err) {
-      setError(err.message || zh('保存失败', 'Save failed'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }

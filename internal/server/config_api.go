@@ -61,6 +61,7 @@ func updateConfig(c *gin.Context) {
 		JavIdolPreferChinese *bool                 `json:"jav_idol_prefer_chinese_name"`
 		DefaultPlayer        string                `json:"default_player"`
 		InitialViewMode      string                `json:"initial_view_mode"`
+		ShowTopBarTooltips   *bool                 `json:"show_top_bar_button_tooltips"`
 		ProxyHost            *string               `json:"proxy_host"`
 		ProxyPort            *int                  `json:"proxy_port"`
 		PlayerWindowSize     *int                  `json:"player_window_size"`
@@ -74,7 +75,7 @@ func updateConfig(c *gin.Context) {
 		PlayerHotkeys        []playerHotkeyPayload `json:"player_hotkeys"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "配置请求无效", "Invalid configuration request")
 		return
 	}
 
@@ -196,7 +197,7 @@ func updateConfig(c *gin.Context) {
 	if s := strings.TrimSpace(req.JavMetadataLanguage); s != "" {
 		lang, ok := jav.ParseMetadataLanguage(s)
 		if !ok {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jav metadata language"})
+			respondLocalizedError(c, http.StatusBadRequest, "JAV 元数据语言无效", "Invalid JAV metadata language")
 			return
 		}
 		entries["jav_metadata_language"] = string(lang)
@@ -209,7 +210,7 @@ func updateConfig(c *gin.Context) {
 		case "mpv", "system":
 			entries["default_player"] = s
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid default player"})
+			respondLocalizedError(c, http.StatusBadRequest, "默认播放器无效", "Invalid default player")
 			return
 		}
 	}
@@ -218,9 +219,12 @@ func updateConfig(c *gin.Context) {
 		case "video", "jav":
 			entries["initial_view_mode"] = s
 		default:
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid initial view mode"})
+			respondLocalizedError(c, http.StatusBadRequest, "初始页面模式无效", "Invalid initial page mode")
 			return
 		}
+	}
+	if req.ShowTopBarTooltips != nil {
+		entries["show_top_bar_button_tooltips"] = strconv.FormatBool(*req.ShowTopBarTooltips)
 	}
 	if req.ProxyPort != nil {
 		port := *req.ProxyPort
@@ -229,7 +233,7 @@ func updateConfig(c *gin.Context) {
 		} else if port <= 65535 {
 			entries["proxy_port"] = strconv.Itoa(port)
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "proxy port out of range"})
+			respondLocalizedError(c, http.StatusBadRequest, "代理端口必须在 1-65535 之间", "Proxy port must be between 1 and 65535")
 			return
 		}
 	}
@@ -240,14 +244,14 @@ func updateConfig(c *gin.Context) {
 		} else if cleanHost, ok := normalizeProxyHost(host); ok {
 			entries["proxy_host"] = cleanHost
 		} else {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid proxy host"})
+			respondLocalizedError(c, http.StatusBadRequest, "代理主机无效", "Invalid proxy host")
 			return
 		}
 	}
 	if req.PlayerWindowSize != nil {
 		size := *req.PlayerWindowSize
 		if size < 10 || size > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "player window size out of range"})
+			respondLocalizedError(c, http.StatusBadRequest, "播放器窗口大小必须在 10-100 之间", "Player window size must be between 10 and 100")
 			return
 		}
 		entries["player_window_size"] = strconv.Itoa(size)
@@ -255,7 +259,7 @@ func updateConfig(c *gin.Context) {
 	if req.PlayerWindowWidth != nil {
 		width := *req.PlayerWindowWidth
 		if width < 10 || width > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "player window width out of range"})
+			respondLocalizedError(c, http.StatusBadRequest, "播放器窗口宽度必须在 10-100 之间", "Player window width must be between 10 and 100")
 			return
 		}
 		entries["player_window_width"] = strconv.Itoa(width)
@@ -263,7 +267,7 @@ func updateConfig(c *gin.Context) {
 	if req.PlayerWindowHeight != nil {
 		height := *req.PlayerWindowHeight
 		if height < 10 || height > 100 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "player window height out of range"})
+			respondLocalizedError(c, http.StatusBadRequest, "播放器窗口高度必须在 10-100 之间", "Player window height must be between 10 and 100")
 			return
 		}
 		entries["player_window_height"] = strconv.Itoa(height)
@@ -271,7 +275,7 @@ func updateConfig(c *gin.Context) {
 	if req.PlayerVolume != nil {
 		volume := *req.PlayerVolume
 		if volume < 0 || volume > 130 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "player volume out of range"})
+			respondLocalizedError(c, http.StatusBadRequest, "播放器音量必须在 0-130 之间", "Player volume must be between 0 and 130")
 			return
 		}
 		entries["player_volume"] = strconv.Itoa(volume)
@@ -298,27 +302,27 @@ func updateConfig(c *gin.Context) {
 				key = strings.ToLower(key)
 			}
 			if key == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "player hotkey key required"})
+				respondLocalizedError(c, http.StatusBadRequest, "播放器快捷键不能为空", "Player hotkey key is required")
 				return
 			}
 			if key == " " || strings.EqualFold(key, "spacebar") || strings.EqualFold(key, "escape") {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "space and escape are reserved"})
+				respondLocalizedError(c, http.StatusBadRequest, "Space 和 Escape 是保留按键", "Space and Escape are reserved")
 				return
 			}
 			if _, ok := seen[key]; ok {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "duplicate player hotkeys"})
+				respondLocalizedError(c, http.StatusBadRequest, "播放器快捷键重复", "Duplicate player hotkeys")
 				return
 			}
 			if action != "seek" && action != "volume" && action != "screenshot" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "invalid player hotkey action"})
+				respondLocalizedError(c, http.StatusBadRequest, "播放器快捷键动作无效", "Invalid player hotkey action")
 				return
 			}
 			if action != "screenshot" && item.Amount == 0 {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "player hotkey amount required"})
+				respondLocalizedError(c, http.StatusBadRequest, "播放器快捷键数值不能为空", "Player hotkey amount is required")
 				return
 			}
 			if action == "volume" && (item.Amount < -100 || item.Amount > 100) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "player volume hotkey out of range"})
+				respondLocalizedError(c, http.StatusBadRequest, "音量快捷键数值必须在 -100 到 100 之间", "Player volume hotkey amount must be between -100 and 100")
 				return
 			}
 			seen[key] = struct{}{}
@@ -330,7 +334,7 @@ func updateConfig(c *gin.Context) {
 		}
 		raw, err := json.Marshal(clean)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "保存播放器快捷键失败", "Failed to save player hotkeys")
 			return
 		}
 		entries["player_hotkeys"] = string(raw)
@@ -338,7 +342,7 @@ func updateConfig(c *gin.Context) {
 
 	if err := dbpkg.UpsertConfig(c.Request.Context(), entries); err != nil {
 		logging.Error("update config error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "保存配置失败", "Failed to save configuration")
 		return
 	}
 	playerSessionResetNeeded := false
@@ -374,7 +378,7 @@ func updateConfig(c *gin.Context) {
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
 		logging.Error("list config after update error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取已保存的配置失败", "Failed to load the saved configuration")
 		return
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])

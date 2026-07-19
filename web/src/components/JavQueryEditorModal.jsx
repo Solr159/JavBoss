@@ -5,6 +5,7 @@ import SearchIcon from '@mui/icons-material/Search'
 
 import { fetchJavIdols, fetchJavPrefixes, fetchJavSeries, fetchJavStudios } from '@/api'
 import { isChineseLocale, zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
 const JAV_FILTER_FETCH_LIMIT = 500
@@ -256,7 +257,7 @@ export default function JavQueryEditorModal({
       .catch((err) => {
         if (!cancelled) {
           setAllIdols([])
-          setIdolError(err.message || zh('加载女优失败', 'Failed to load idols'))
+          setIdolError(getErrorMessage(err))
         }
       })
       .finally(() => {
@@ -289,7 +290,7 @@ export default function JavQueryEditorModal({
       .catch((err) => {
         if (!cancelled) {
           setAllPrefixes([])
-          setPrefixError(err.message || zh('加载番号失败', 'Failed to load JAV codes'))
+          setPrefixError(getErrorMessage(err))
         }
       })
       .finally(() => {
@@ -314,7 +315,7 @@ export default function JavQueryEditorModal({
       .catch((err) => {
         if (!cancelled) {
           setAllStudios([])
-          setStudioError(err.message || zh('加载片商失败', 'Failed to load studios'))
+          setStudioError(getErrorMessage(err))
         }
       })
       .finally(() => {
@@ -339,7 +340,7 @@ export default function JavQueryEditorModal({
       .catch((err) => {
         if (!cancelled) {
           setAllSeries([])
-          setSeriesError(err.message || zh('加载系列失败', 'Failed to load series'))
+          setSeriesError(getErrorMessage(err))
         }
       })
       .finally(() => {

@@ -3,6 +3,7 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { Button, IconButton } from '@mui/material'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
 export default function JavIdolFavoriteModal({
@@ -76,7 +77,7 @@ export default function JavIdolFavoriteModal({
       }
       setNewGroupName('')
     } catch (err) {
-      setCreateError(err.message || zh('创建收藏夹失败', 'Failed to create favorite group'))
+      setCreateError(getErrorMessage(err))
     } finally {
       setCreating(false)
     }

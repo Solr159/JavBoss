@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SearchIcon from '@mui/icons-material/Search'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const SKIP_OVERRIDE = ':skip'
 const MANUAL_OVERRIDE_PREFIX = ':manual:'
@@ -177,7 +178,7 @@ export default function VideoScrapeSettingsModal({
       const data = await onFetchPossibleCodes?.()
       setPossibleCodesResult(data || {})
     } catch (err) {
-      setPossibleCodesError(err?.message || zh('提取番号失败', 'Failed to extract codes'))
+      setPossibleCodesError(getErrorMessage(err))
     } finally {
       setPossibleCodesLoading(false)
     }
@@ -193,9 +194,7 @@ export default function VideoScrapeSettingsModal({
       setCode(nextInfo.code)
       setManualInfo((current) => ({ ...current, ...nextInfo }))
     } catch (err) {
-      setLookupError(
-        err?.message || zh('从 JavDB 获取信息失败', 'Failed to fetch metadata from JavDB')
-      )
+      setLookupError(getErrorMessage(err))
     } finally {
       setLookupLoading(false)
     }

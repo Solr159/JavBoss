@@ -1371,6 +1371,39 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 	})
 }
 
+func TestJavMenuTagsAreVisibleInChineseMode(t *testing.T) {
+	openTestDB(t)
+	ctx := context.Background()
+	prevLang := jav.CurrentMetadataLanguage()
+	t.Cleanup(func() {
+		jav.SetMetadataLanguage(string(prevLang))
+	})
+	jav.SetMetadataLanguage("zh")
+
+	saved, err := SaveJavInfo(ctx, &jav.JavInfo{
+		Code:     "JMENU-001",
+		Title:    "JavMenu metadata",
+		Tags:     []string{"美少女", "接吻"},
+		Provider: jav.ProviderJavMenu,
+	})
+	if err != nil {
+		t.Fatalf("SaveJavInfo: %v", err)
+	}
+
+	got, err := GetJav(ctx, saved.ID, nil)
+	if err != nil {
+		t.Fatalf("GetJav: %v", err)
+	}
+	if len(got.Tags) != 2 || got.Tags[0].Name != "接吻" || got.Tags[1].Name != "美少女" {
+		t.Fatalf("unexpected JavMenu tags: %#v", got.Tags)
+	}
+	for _, tag := range got.Tags {
+		if tag.Provider != int(jav.ProviderJavMenu) {
+			t.Fatalf("unexpected JavMenu tag provider: %#v", tag)
+		}
+	}
+}
+
 func TestUserJavTagNameDoesNotModifyScrapedTag(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
@@ -1474,6 +1507,7 @@ func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 		{Name: "JavDB Only"},
 		{Name: "Avmoo Only"},
 		{Name: "Avsox Only"},
+		{Name: "JavMenu Only"},
 		{Name: "English Only"},
 		{Name: "TPDB Only"},
 		{Name: "User Only", IsUser: true},
@@ -1491,6 +1525,7 @@ func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 		{JavID: javRec.ID, JavTagID: byName["JavDB Only"].ID, Provider: int(jav.ProviderJavDB), CreatedAt: now},
 		{JavID: javRec.ID, JavTagID: byName["Avmoo Only"].ID, Provider: int(jav.ProviderAvmoo), CreatedAt: now},
 		{JavID: javRec.ID, JavTagID: byName["Avsox Only"].ID, Provider: int(jav.ProviderAvsox), CreatedAt: now},
+		{JavID: javRec.ID, JavTagID: byName["JavMenu Only"].ID, Provider: int(jav.ProviderJavMenu), CreatedAt: now},
 		{JavID: javRec.ID, JavTagID: byName["English Only"].ID, Provider: int(jav.ProviderJavDatabase), CreatedAt: now},
 		{JavID: javRec.ID, JavTagID: byName["TPDB Only"].ID, Provider: int(jav.ProviderThePornDB), CreatedAt: now},
 		{JavID: javRec.ID, JavTagID: byName["User Only"].ID, Provider: int(jav.ProviderUser), CreatedAt: now},
@@ -1505,21 +1540,22 @@ func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 		t.Fatalf("ListJavTags zh: %v", err)
 	}
 	assertJavTagProviderNames(t, zhTags, map[int][]string{
-		int(jav.ProviderJavBus): {"Avmoo Only", "Avsox Only", "JavDB Only", "Shared"},
+		int(jav.ProviderJavBus): {"Avmoo Only", "Avsox Only", "JavDB Only", "JavMenu Only", "Shared"},
 		int(jav.ProviderUser):   {"User Only"},
 	})
 	assertJavTagCounts(t, zhTags, map[string]int64{
-		"Shared":     2,
-		"JavDB Only": 1,
-		"Avmoo Only": 1,
-		"Avsox Only": 1,
-		"User Only":  1,
+		"Shared":       2,
+		"JavDB Only":   1,
+		"Avmoo Only":   1,
+		"Avsox Only":   1,
+		"JavMenu Only": 1,
+		"User Only":    1,
 	})
 	items, total, err := SearchJav(ctx, nil, []int64{byName["JavDB Only"].ID}, "", "code", 20, 0, nil, nil)
 	if err != nil {
 		t.Fatalf("SearchJav zh tag: %v", err)
 	}
-	if total != 1 || len(items) != 1 || len(items[0].Tags) != 5 {
+	if total != 1 || len(items) != 1 || len(items[0].Tags) != 6 {
 		t.Fatalf("unexpected zh search result: total=%d items=%#v", total, items)
 	}
 

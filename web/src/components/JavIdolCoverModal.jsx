@@ -6,6 +6,7 @@ import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import { fetchJavIdolCoverOptions, updateJavIdolCover } from '@/api'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
 export const IDOL_COVER_VISIBLE_RATIO = 0.47
@@ -94,8 +95,7 @@ export default function JavIdolCoverModal({
         })
       })
       .catch((err) => {
-        if (!cancelled)
-          setError(err.message || zh('加载封面作品失败', 'Failed to load cover works'))
+        if (!cancelled) setError(getErrorMessage(err))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -173,7 +173,7 @@ export default function JavIdolCoverModal({
       onSaved?.(updated)
       onClose?.()
     } catch (err) {
-      setError(err.message || zh('保存女优封面失败', 'Failed to save idol cover'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }

@@ -9,6 +9,68 @@ import (
 	"javboss/internal/models"
 )
 
+func TestMissingDirectoryContentsRemainVisible(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/offline/media", Missing: true}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create missing directory: %v", err)
+	}
+	video := models.Video{
+		Fingerprint: "missing-directory-video",
+		Size:        1024,
+		DurationSec: 120,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	javRec := models.Jav{Code: "OFFLINE-001", Title: "Offline video"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "OFFLINE-001.mp4", now)
+	if err != nil {
+		t.Fatalf("upsert video location: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("id = ?", loc.ID).
+		Update("jav_id", javRec.ID).Error; err != nil {
+		t.Fatalf("link jav: %v", err)
+	}
+
+	items, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{dir.ID})
+	if err != nil {
+		t.Fatalf("list videos: %v", err)
+	}
+	if len(items) != 1 || items[0].LocationID != loc.ID || !items[0].DirectoryRef.Missing {
+		t.Fatalf("missing directory video should remain visible: %#v", items)
+	}
+	count, err := CountVideos(ctx, nil, "", []int64{dir.ID})
+	if err != nil {
+		t.Fatalf("count videos: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("missing directory video should be counted: got %d want 1", count)
+	}
+	got, err := GetVideo(ctx, video.ID)
+	if err != nil {
+		t.Fatalf("get video: %v", err)
+	}
+	if got == nil || len(got.Locations) != 1 || !got.Locations[0].DirectoryRef.Missing {
+		t.Fatalf("missing directory video details should remain visible: %#v", got)
+	}
+
+	javItems, total, err := SearchJav(ctx, nil, nil, "", "recent", 20, 0, nil, []int64{dir.ID})
+	if err != nil {
+		t.Fatalf("search jav: %v", err)
+	}
+	if total != 1 || len(javItems) != 1 || javItems[0].ID != javRec.ID {
+		t.Fatalf("missing directory jav should remain visible: total=%d items=%#v", total, javItems)
+	}
+}
+
 func TestUpdateDirectoryPathHidesExistingVideoLocations(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

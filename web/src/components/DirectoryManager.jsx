@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { pickDirectory } from '@/api'
 import { apiHostPath, displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 function isWindowsPlatform() {
   if (typeof navigator === 'undefined') return false
@@ -82,9 +83,9 @@ export default function DirectoryManager({
       setValue?.(displayPath(picked))
     } catch (err) {
       if (setErr) {
-        setErr(err.message || zh('选择目录失败', 'Directory selection failed'))
+        setErr(getErrorMessage(err))
       } else {
-        setError(err.message || zh('选择目录失败', 'Directory selection failed'))
+        setError(getErrorMessage(err))
       }
       if (setRowId) {
         setRowId()
@@ -107,7 +108,7 @@ export default function DirectoryManager({
       setPath('')
       setAdding(false)
     } catch (err) {
-      setError(err.message || zh('创建失败', 'Create failed'))
+      setError(getErrorMessage(err))
     } finally {
       setSubmitting(false)
     }
@@ -144,7 +145,7 @@ export default function DirectoryManager({
       cancelEdit()
     } catch (err) {
       setRowErrorId(editId)
-      setRowErrorMsg(err.message || zh('更新失败', 'Update failed'))
+      setRowErrorMsg(getErrorMessage(err))
     } finally {
       setSavingId(null)
     }
@@ -169,7 +170,7 @@ export default function DirectoryManager({
       }
     } catch (err) {
       setRowErrorId(dir.id)
-      setRowErrorMsg(err.message || zh('删除失败', 'Delete failed'))
+      setRowErrorMsg(getErrorMessage(err))
     } finally {
       setDeletingId(null)
     }

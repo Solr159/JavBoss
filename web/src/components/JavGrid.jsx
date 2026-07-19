@@ -35,6 +35,7 @@ import { getJavDisplayTitle } from '@/utils/jav'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 function DurationIcon() {
   return (
@@ -763,7 +764,7 @@ function JavEditModal({
       })
       .catch((err) => {
         if (cancelled) return
-        setOptionsError(err?.message || zh('加载已有数据失败', 'Failed to load existing data'))
+        setOptionsError(getErrorMessage(err))
         setStudioOptions([])
         setSeriesOptions([])
         setIdolOptions([])
@@ -842,7 +843,7 @@ function JavEditModal({
       }
       onSaved?.(normalizedUpdated, Boolean(trimmedCoverUrl))
     } catch (err) {
-      const message = err?.message || zh('保存 JAV 信息失败', 'Failed to save JAV info')
+      const message = getErrorMessage(err)
       setError(
         trimmedCoverUrl ? zh(`${message}。请重试。`, `${message}. Please try again.`) : message
       )

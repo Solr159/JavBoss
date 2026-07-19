@@ -39,6 +39,7 @@ import SelectionOpsModal from '@/components/SelectionOpsModal'
 import SelectionTagsModal from '@/components/SelectionTagsModal'
 import TagPickerModal from '@/components/TagPickerModal'
 import Toast from '@/components/Toast'
+import CenterToast from '@/components/CenterToast'
 import TopBar from '@/components/TopBar'
 import PlayerModal from '@/components/PlayerModal'
 import VideoSettingsModal from '@/components/VideoSettingsModal'
@@ -52,6 +53,7 @@ import useUrlStateSync from '@/hooks/useUrlStateSync'
 import JavRoute from '@/routes/JavRoute'
 import VideoRoute from '@/routes/VideoRoute'
 import { isChineseLocale, zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { useAuth } from '@/auth'
@@ -328,6 +330,7 @@ export default function App() {
   )
   const [javResolvedIdols, setJavResolvedIdols] = useState({})
   const [toastMessage, setToastMessage] = useState('')
+  const [centerToastMessage, setCenterToastMessage] = useState('')
 
   useEffect(() => {
     const updateScrolledState = () => {
@@ -362,6 +365,7 @@ export default function App() {
     ? 'browser'
     : normalizeDefaultPlayer(config?.default_player)
   const initialViewMode = normalizeInitialViewMode(config?.initial_view_mode)
+  const showTopBarButtonTooltips = configFlag(config?.show_top_bar_button_tooltips, true)
   const alternatePlayer = browserPlaybackOnly ? '' : defaultPlayer === 'system' ? 'mpv' : 'system'
   const alternatePlayerLabel =
     alternatePlayer === 'mpv'
@@ -374,6 +378,12 @@ export default function App() {
   }, [])
   const closeToast = useCallback(() => {
     setToastMessage('')
+  }, [])
+  const showCenterToast = useCallback((message) => {
+    setCenterToastMessage(String(message || '').trim())
+  }, [])
+  const closeCenterToast = useCallback(() => {
+    setCenterToastMessage('')
   }, [])
   const handleOpenTagModal = useCallback(() => {
     loadTags()
@@ -458,7 +468,7 @@ export default function App() {
 
   const playVideoWith = useCallback(
     (video, player) => {
-      if (!video || !isVideoOpenable(video)) return
+      if (!video) return
       if (player === 'browser') {
         setPlayerStartTime(0)
         setPlayerVideo(video)
@@ -471,16 +481,17 @@ export default function App() {
       }
       const useSystemPlayer = player === 'system'
       const action = useSystemPlayer ? openVideoFile : playVideoFile
-      action(payload).catch((err) =>
+      action(payload).catch((err) => {
         console.error(
           useSystemPlayer
             ? zh('打开文件失败', 'Failed to open file')
             : zh('播放文件失败', 'Failed to play file'),
           err
         )
-      )
+        showCenterToast(getErrorMessage(err))
+      })
     },
-    [getVideoDirPath, getVideoRelPath, isVideoOpenable]
+    [getVideoDirPath, getVideoRelPath, showCenterToast]
   )
 
   const revealVideoFile = useCallback(
@@ -496,7 +507,7 @@ export default function App() {
 
   const playVideoFromTime = useCallback(
     (video, startTime) => {
-      if (!video || !isVideoOpenable(video)) return
+      if (!video) return
       if (browserPlaybackOnly) {
         setPlayerStartTime(startTime || 0)
         setPlayerVideo(video)
@@ -507,9 +518,12 @@ export default function App() {
         path: getVideoRelPath(video),
         dirPath: getVideoDirPath(video),
         startTime,
-      }).catch((err) => console.error(zh('播放文件失败', 'Failed to play file'), err))
+      }).catch((err) => {
+        console.error(zh('播放文件失败', 'Failed to play file'), err)
+        showCenterToast(getErrorMessage(err))
+      })
     },
-    [browserPlaybackOnly, getVideoDirPath, getVideoRelPath, isVideoOpenable]
+    [browserPlaybackOnly, getVideoDirPath, getVideoRelPath, showCenterToast]
   )
 
   const handleOpenPlayer = useCallback(
@@ -544,18 +558,19 @@ export default function App() {
         openLocationPicker(video, 'reveal', choices)
         return
       }
-      revealVideoFile(choices[0] || video).catch((err) =>
+      revealVideoFile(choices[0] || video).catch((err) => {
         console.error(zh('打开所在位置失败', 'Failed to reveal file'), err)
-      )
+        showCenterToast(getErrorMessage(err))
+      })
     },
-    [getVideoLocationChoices, openLocationPicker, revealVideoFile]
+    [getVideoLocationChoices, openLocationPicker, revealVideoFile, showCenterToast]
   )
 
   const handleRenameVideo = useCallback(
     async (video) => {
       const locationId = Number(video?.location_id)
       if (!video?.id || !Number.isFinite(locationId) || locationId <= 0) {
-        showToast(zh('无法重命名：缺少文件位置', 'Cannot rename: missing file location'))
+        showCenterToast(zh('无法重命名：缺少文件位置', 'Cannot rename: missing file location'))
         return
       }
       const currentName =
@@ -591,17 +606,17 @@ export default function App() {
         await loadVideos({ force: true })
       } catch (err) {
         console.error(zh('重命名视频失败', 'Failed to rename video'), err)
-        showToast(err?.message || zh('重命名视频失败', 'Failed to rename video'))
+        showCenterToast(getErrorMessage(err))
       }
     },
-    [loadVideos, showToast]
+    [loadVideos, showCenterToast]
   )
 
   const handleDeleteVideo = useCallback(
     async (video) => {
       const locationId = Number(video?.location_id)
       if (!video?.id || !Number.isFinite(locationId) || locationId <= 0) {
-        showToast(zh('无法删除：缺少文件位置', 'Cannot delete: missing file location'))
+        showCenterToast(zh('无法删除：缺少文件位置', 'Cannot delete: missing file location'))
         return
       }
       const label = String(video?.filename || video?.path || `#${video.id}`)
@@ -631,10 +646,10 @@ export default function App() {
         await loadVideos({ force: true })
       } catch (err) {
         console.error(zh('删除视频失败', 'Failed to delete video'), err)
-        showToast(err?.message || zh('删除视频失败', 'Failed to delete video'))
+        showCenterToast(getErrorMessage(err))
       }
     },
-    [loadVideos, showToast]
+    [loadVideos, showCenterToast]
   )
 
   const handleOpenScrapeSettings = useCallback((video) => {
@@ -670,12 +685,12 @@ export default function App() {
         showToast(zh('刮削设置已保存', 'Scrape settings saved'))
       } catch (err) {
         console.error(zh('保存刮削设置失败', 'Failed to save scrape settings'), err)
-        showToast(err?.message || zh('保存刮削设置失败', 'Failed to save scrape settings'))
+        showCenterToast(getErrorMessage(err))
       } finally {
         setScrapeSettingsSaving(false)
       }
     },
-    [loadVideos, scrapeSettingsVideo, showToast]
+    [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
   )
 
   const handleLookupScrapeJavDB = useCallback(
@@ -699,7 +714,7 @@ export default function App() {
       if (!video?.id) return
       const locationId = Number(video?.location_id || video?.locations?.[0]?.id || 0)
       if (!Number.isFinite(locationId) || locationId <= 0) {
-        showToast(zh('缺少视频位置 ID', 'Missing video location ID'))
+        showCenterToast(zh('缺少视频位置 ID', 'Missing video location ID'))
         return
       }
       setScrapeSettingsSaving(true)
@@ -723,12 +738,12 @@ export default function App() {
         showToast(zh('手动刮削已保存', 'Manual scrape saved'))
       } catch (err) {
         console.error(zh('手动刮削失败', 'Manual scrape failed'), err)
-        showToast(err?.message || zh('手动刮削失败', 'Manual scrape failed'))
+        showCenterToast(getErrorMessage(err))
       } finally {
         setScrapeSettingsSaving(false)
       }
     },
-    [loadVideos, scrapeSettingsVideo, showToast]
+    [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
   )
 
   const closeJavVideoPicker = useCallback(() => {
@@ -843,6 +858,7 @@ export default function App() {
             : zh('打开所在位置失败', 'Failed to reveal file'),
           err
         )
+        showCenterToast(getErrorMessage(err))
       } finally {
         closeJavVideoPicker()
       }
@@ -855,6 +871,7 @@ export default function App() {
       isVideoOpenable,
       javVideoPickerAction,
       openJavScreenshots,
+      showCenterToast,
     ]
   )
 
@@ -877,6 +894,7 @@ export default function App() {
         }
       } catch (err) {
         console.error(zh('打开所在位置失败', 'Failed to reveal file'), err)
+        showCenterToast(getErrorMessage(err))
       } finally {
         closeLocationPicker()
       }
@@ -888,6 +906,7 @@ export default function App() {
       locationPickerAction,
       playVideoWith,
       revealVideoFile,
+      showCenterToast,
     ]
   )
   useEffect(() => {
@@ -1944,7 +1963,7 @@ export default function App() {
       })
       setVideoSettingsOpen(false)
     } catch (err) {
-      alert(err.message || zh('保存失败', 'Save failed'))
+      showCenterToast(getErrorMessage(err))
     }
   }
 
@@ -2020,7 +2039,7 @@ export default function App() {
       })
       setJavSettingsOpen(false)
     } catch (err) {
-      alert(err.message || zh('保存失败', 'Save failed'))
+      showCenterToast(getErrorMessage(err))
     }
   }
 
@@ -2116,7 +2135,7 @@ export default function App() {
       .filter(Boolean)
     const skipped = Math.max(0, selectedList.length - targets.length)
     if (targets.length === 0) {
-      showToast(
+      showCenterToast(
         zh('无法删除：所选视频缺少文件位置', 'Cannot delete: selected videos have no file location')
       )
       return
@@ -2170,14 +2189,9 @@ export default function App() {
 
       if (failed.length > 0) {
         console.error('batch delete videos failed', failed)
-        showToast(
-          zh(
-            `已删除 ${deletedKeys.length} 个视频，${failed.length} 个失败`,
-            `Deleted ${deletedKeys.length} videos, ${failed.length} failed`
-          )
-        )
+        showCenterToast(getErrorMessage(failed[0]?.err))
       } else if (skipped > 0) {
-        showToast(
+        showCenterToast(
           zh(
             `已删除 ${deletedKeys.length} 个视频，跳过 ${skipped} 项`,
             `Deleted ${deletedKeys.length} videos, skipped ${skipped} items`
@@ -2190,7 +2204,7 @@ export default function App() {
     } finally {
       setSelectionDeleting(false)
     }
-  }, [loadVideos, selectedList, selectionDeleting, showToast])
+  }, [loadVideos, selectedList, selectionDeleting, showCenterToast, showToast])
 
   const openTagEditor = useCallback(
     (videoId) => {
@@ -2245,6 +2259,7 @@ export default function App() {
       })
     } catch (err) {
       console.error('update tags failed', err)
+      showCenterToast(getErrorMessage(err))
     } finally {
       setTagPickerFor(null)
       setTagPickerSelected([])
@@ -2325,6 +2340,7 @@ export default function App() {
       }
     } catch (err) {
       console.error(`${selectionTagAction} tags for selection failed`, err)
+      showCenterToast(getErrorMessage(err))
     } finally {
       setSelectionTagsOpen(false)
       setSelectionTagAction('add')
@@ -2489,7 +2505,7 @@ export default function App() {
           (selectedIds || []).map((value) => Number(value)).filter((value) => value > 0)
         )
       } catch (err) {
-        setIdolFavoriteModalError(err.message || zh('加载收藏夹失败', 'Failed to load favorites'))
+        setIdolFavoriteModalError(getErrorMessage(err))
       } finally {
         setIdolFavoriteModalLoading(false)
       }
@@ -2682,7 +2698,7 @@ export default function App() {
         setIdolFavoriteSelectedIds([])
         await loadJavFavoriteGroups(type, { force: true })
       } catch (err) {
-        setIdolFavoriteModalError(err.message || zh('保存收藏夹失败', 'Failed to save favorites'))
+        setIdolFavoriteModalError(getErrorMessage(err))
       } finally {
         setIdolFavoriteModalSaving(false)
       }
@@ -3181,6 +3197,7 @@ export default function App() {
         selectedCount={selectedCount}
         onOpenSelectionOps={() => setSelectionOpsOpen(true)}
         onClearSelection={clearSelection}
+        showButtonTooltips={showTopBarButtonTooltips}
       />
 
       <main className="page-main w-full pb-6 pt-0">
@@ -3408,6 +3425,7 @@ export default function App() {
         video={playerVideo}
         startTime={playerStartTime}
         hotkeys={config?.player_hotkeys}
+        onPlaybackError={showCenterToast}
         onClose={() => {
           setPlayerVideo(null)
           setPlayerStartTime(0)
@@ -3752,6 +3770,11 @@ export default function App() {
           const cfg = await updateConfig({ initial_view_mode: normalizeInitialViewMode(mode) })
           useStore.setState({ config: cfg })
         }}
+        showTopBarButtonTooltips={showTopBarButtonTooltips}
+        onSaveShowTopBarButtonTooltips={async (enabled) => {
+          const cfg = await updateConfig({ show_top_bar_button_tooltips: Boolean(enabled) })
+          useStore.setState({ config: cfg })
+        }}
         playerWindowWidth={
           Number.parseInt(config?.player_window_width, 10) ||
           Number.parseInt(config?.player_window_size, 10) ||
@@ -3806,6 +3829,11 @@ export default function App() {
         onLogout={logout}
       />
       <Toast open={Boolean(toastMessage)} message={toastMessage} onClose={closeToast} />
+      <CenterToast
+        open={Boolean(centerToastMessage)}
+        message={centerToastMessage}
+        onClose={closeCenterToast}
+      />
     </div>
   )
 }

@@ -201,7 +201,7 @@ func syncDirectoryWithState(ctx context.Context, dir models.Directory, state *sy
 	info, statErr := os.Stat(dir.Path)
 	if statErr != nil {
 		if util.IsPathUnavailable(statErr) {
-			if err := db.SetDirectoryMissingAndHideVideos(ctx, dir.ID, true); err != nil {
+			if err := db.SetDirectoryMissing(ctx, dir.ID, true); err != nil {
 				logging.Error("mark directory missing failed id=%d path=%s err=%v", dir.ID, dir.Path, err)
 			}
 			return false, nil
@@ -209,13 +209,13 @@ func syncDirectoryWithState(ctx context.Context, dir models.Directory, state *sy
 		return false, fmt.Errorf("stat directory %s: %w", dir.Path, statErr)
 	}
 	if !info.IsDir() {
-		if err := db.SetDirectoryMissingAndHideVideos(ctx, dir.ID, true); err != nil {
+		if err := db.SetDirectoryMissing(ctx, dir.ID, true); err != nil {
 			logging.Error("mark directory missing failed id=%d path=%s err=%v", dir.ID, dir.Path, err)
 		}
 		return false, nil
 	}
 	if dir.Missing {
-		if err := db.SetDirectoryMissingAndHideVideos(ctx, dir.ID, false); err != nil {
+		if err := db.SetDirectoryMissing(ctx, dir.ID, false); err != nil {
 			logging.Error("clear directory missing failed id=%d path=%s err=%v", dir.ID, dir.Path, err)
 		}
 	}

@@ -9,6 +9,7 @@ import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 import TagBar from '@/components/TagBar'
 import { isUserJavTag } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 const compactButtonSx = {
   minHeight: 28,
@@ -210,7 +211,7 @@ export default function JavTagModal({
                     try {
                       await onDeleteTag?.(t)
                     } catch (err) {
-                      setBatchError(err.message || zh('删除失败', 'Delete failed'))
+                      setBatchError(getErrorMessage(err))
                     } finally {
                       setDeletingId(null)
                     }
@@ -388,7 +389,7 @@ export default function JavTagModal({
                     setCreateOpen(false)
                     setNewTagName('')
                   } catch (err) {
-                    setCreateError(err.message || zh('创建失败', 'Create failed'))
+                    setCreateError(getErrorMessage(err))
                   } finally {
                     setCreating(false)
                   }
@@ -464,7 +465,7 @@ export default function JavTagModal({
                     await onRenameTag?.(renameTagId, trimmed)
                     handleCloseRename()
                   } catch (err) {
-                    setRenameError(err.message || zh('重命名失败', 'Rename failed'))
+                    setRenameError(getErrorMessage(err))
                   } finally {
                     setRenaming(false)
                   }

@@ -17,6 +17,7 @@ import { isUserJavTag } from '@/constants/jav'
 import { getVideoDisplayName } from '@/utils/display'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 function formatScreenshotTime(name) {
   const stem = String(name || '')
@@ -148,7 +149,7 @@ function JavScreenshotGrid({ videos, onPlayAtTime, onCoverChanged }) {
         })
       }
     } catch (err) {
-      setError(err?.message || zh('删除截图失败', 'Failed to delete screenshot'))
+      setError(getErrorMessage(err))
     } finally {
       setDeletingKey('')
     }
@@ -165,9 +166,7 @@ function JavScreenshotGrid({ videos, onPlayAtTime, onCoverChanged }) {
   if (items.length === 0) {
     return (
       <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-gray-200 px-4 text-center text-xs text-gray-500">
-        {failedCount > 0
-          ? zh('视频截图加载失败', 'Failed to load video screenshots')
-          : zh('暂无视频截图', 'No video screenshots')}
+        {failedCount > 0 ? getErrorMessage() : zh('暂无视频截图', 'No video screenshots')}
       </div>
     )
   }

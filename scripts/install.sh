@@ -202,12 +202,8 @@ copy_release_files() {
 
   mkdir -p "$dest"
   if [[ -f "$dest/config.toml" ]]; then
-    if grep -Eq '^[[:space:]]*port[[:space:]]*=[[:space:]]*0[[:space:]]*(#.*)?$' "$dest/config.toml"; then
-      log "replacing legacy random-port config with port 8655"
-    else
-      protected_config="$(mktemp)"
-      cp "$dest/config.toml" "$protected_config"
-    fi
+    protected_config="$(mktemp)"
+    cp "$dest/config.toml" "$protected_config"
   fi
 
   rm -rf "$dest/internal" "$dest/web" "$dest/modernz"

@@ -473,6 +473,7 @@ func visibleScrapedJavTagProviders() []int {
 		jav.ProviderJavDB,
 		jav.ProviderAvmoo,
 		jav.ProviderAvsox,
+		jav.ProviderJavMenu,
 		jav.ProviderJavDatabase,
 		jav.ProviderThePornDB,
 	}

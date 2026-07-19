@@ -13,6 +13,7 @@ import JavIdolCoverModal, {
 } from '@/components/JavIdolCoverModal'
 import { getIdolDisplayNames } from '@/utils/javIdol'
 import { zh } from '@/utils/i18n'
+import { getErrorMessage } from '@/utils/errors'
 
 export { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 
@@ -489,7 +490,7 @@ export function JavIdolEditModal({
       onSaved?.(normalizedUpdated)
       onClose?.()
     } catch (err) {
-      setError(err.message || zh('保存女优信息失败', 'Failed to save idol info'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -765,7 +766,7 @@ function JavIdolMergeModal({
           setOptions(items.filter((option) => Number(option?.id) !== sourceId))
         })
         .catch((err) => {
-          if (!cancelled) setError(err.message || zh('加载女优失败', 'Failed to load idols'))
+          if (!cancelled) setError(getErrorMessage(err))
         })
         .finally(() => {
           if (!cancelled) setLoading(false)
@@ -797,7 +798,7 @@ function JavIdolMergeModal({
       })
       onMerged?.(updated)
     } catch (err) {
-      setError(err.message || zh('合并女优失败', 'Failed to merge idols'))
+      setError(getErrorMessage(err))
     } finally {
       setSaving(false)
     }

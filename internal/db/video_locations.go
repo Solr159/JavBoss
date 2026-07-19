@@ -135,7 +135,6 @@ func GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoL
 		Where("video_location.video_id = ?", videoID).
 		Where("COALESCE(video_location.is_delete, 0) = 0").
 		Where("COALESCE(directory.is_delete, 0) = 0").
-		Where("COALESCE(directory.missing, 0) = 0").
 		Order("video_location.id").
 		Preload("DirectoryRef").
 		First(&loc).Error
@@ -161,7 +160,6 @@ func GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*mo
 		Where("video_location.video_id = ?", videoID).
 		Where("COALESCE(video_location.is_delete, 0) = 0").
 		Where("COALESCE(directory.is_delete, 0) = 0").
-		Where("COALESCE(directory.missing, 0) = 0").
 		Preload("DirectoryRef").
 		First(&loc).Error
 	if err != nil {
@@ -263,24 +261,7 @@ func activeVideoLocationSubquery(ctx context.Context) *gorm.DB {
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.video_id = video.id").
 		Where("COALESCE(vl.is_delete, 0) = 0").
-		Where("COALESCE(d.is_delete, 0) = 0").
-		Where("COALESCE(d.missing, 0) = 0")
-}
-
-func activeVideoLocationExistsSQL(videoAlias string) string {
-	videoAlias = strings.TrimSpace(videoAlias)
-	if videoAlias == "" {
-		videoAlias = "video"
-	}
-	return fmt.Sprintf(`EXISTS (
-		SELECT 1
-		FROM video_location vl
-		JOIN directory d ON d.id = vl.directory_id
-		WHERE vl.video_id = %s.id
-			AND COALESCE(vl.is_delete, 0) = 0
-			AND COALESCE(d.is_delete, 0) = 0
-			AND COALESCE(d.missing, 0) = 0
-	)`, videoAlias)
+		Where("COALESCE(d.is_delete, 0) = 0")
 }
 
 func activeLocationWhereSQL(locationAlias, directoryAlias string) string {
@@ -293,9 +274,8 @@ func activeLocationWhereSQL(locationAlias, directoryAlias string) string {
 		directoryAlias = "directory"
 	}
 	return fmt.Sprintf(
-		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.missing, 0) = 0",
+		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.is_delete, 0) = 0",
 		locationAlias,
-		directoryAlias,
 		directoryAlias,
 	)
 }
@@ -355,8 +335,7 @@ func preloadActiveLocationsWhere(extraWhere string) func(*gorm.DB) *gorm.DB {
 				tx = tx.
 					Joins("JOIN directory ON directory.id = video_location.directory_id").
 					Where("COALESCE(video_location.is_delete, 0) = 0").
-					Where("COALESCE(directory.is_delete, 0) = 0").
-					Where("COALESCE(directory.missing, 0) = 0")
+					Where("COALESCE(directory.is_delete, 0) = 0")
 				if extraWhere != "" {
 					tx = tx.Where(extraWhere)
 				}
