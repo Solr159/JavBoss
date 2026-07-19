@@ -162,6 +162,34 @@ export default function JavSettingsModal({
     { key: 'series', label: zh('系列', 'Series') },
   ]
 
+  const resetActiveTab = () => {
+    switch (activeTab) {
+      case 'idol':
+        onIdolPageSizeChange?.(24)
+        onIdolSortChange?.(IDOL_SORT_OPTIONS[0]?.defaultValue || 'recent')
+        onJavIdolPreferChineseNameChange?.(false)
+        break
+      case 'studio':
+        onStudioPageSizeChange?.(25)
+        break
+      case 'series':
+        onSeriesPageSizeChange?.(25)
+        break
+      default:
+        onJavPageSizeChange?.(24)
+        onJavGridColumnsChange?.(0)
+        onJavTitleMaxRowsChange?.(2)
+        onJavIdolTagMaxRowsChange?.(2)
+        onJavTagMaxRowsChange?.(2)
+        onJavHideSeriesChange?.(false)
+        onJavHideIdolsChange?.(false)
+        onJavHideTagsChange?.(false)
+        onJavHideActionsChange?.(false)
+        onJavSortChange?.(JAV_SORT_OPTIONS[0]?.defaultValue || 'recent')
+        break
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 px-4 py-4 backdrop-blur-sm">
       <div
@@ -282,7 +310,7 @@ export default function JavSettingsModal({
                 </div>
               </SettingsSection>
 
-              <SettingsSection title={zh('显示内容', 'Content')}>
+              <SettingsSection title={zh('卡片内容', 'Card content')}>
                 <div className="divide-y divide-slate-100 px-1">
                   <SettingsRow label={zh('不显示系列', 'Hide series')}>
                     <SettingsSwitch
@@ -346,7 +374,7 @@ export default function JavSettingsModal({
                   </SettingsRow>
                 </div>
               </SettingsSection>
-              <SettingsSection title={zh('显示内容', 'Content')}>
+              <SettingsSection title={zh('卡片内容', 'Card content')}>
                 <SettingsRow label={zh('优先显示中文名', 'Prefer Chinese name')}>
                   <SettingsSwitch
                     label={zh('优先显示中文名', 'Prefer Chinese name')}
@@ -400,21 +428,30 @@ export default function JavSettingsModal({
           ) : null}
         </div>
 
-        <footer className="flex shrink-0 justify-end gap-3 border-t border-slate-200 bg-white px-5 py-4">
+        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
           <button
             type="button"
-            onClick={onClose}
-            className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            onClick={resetActiveTab}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            {zh('取消', 'Cancel')}
+            {zh('恢复默认', 'Restore defaults')}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-          >
-            {zh('保存', 'Save')}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+            >
+              {zh('保存', 'Save')}
+            </button>
+          </div>
         </footer>
       </div>
     </div>

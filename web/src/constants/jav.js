@@ -53,15 +53,6 @@ export const JAV_SORT_OPTIONS = [
 
 export const IDOL_SORT_OPTIONS = [
   {
-    base: 'recent',
-    defaultValue: 'recent',
-    ascValue: 'recent_asc',
-    descValue: 'recent',
-    label: ['加入时间', 'Added time'],
-    asc: ['远→近', 'old→new'],
-    desc: ['近→远', 'new→old'],
-  },
-  {
     base: 'work',
     defaultValue: 'work',
     ascValue: 'work_asc',
@@ -69,6 +60,15 @@ export const IDOL_SORT_OPTIONS = [
     label: ['作品数量', 'Work count'],
     asc: ['少→多', 'low→high'],
     desc: ['多→少', 'high→low'],
+  },
+  {
+    base: 'recent',
+    defaultValue: 'recent',
+    ascValue: 'recent_asc',
+    descValue: 'recent',
+    label: ['加入时间', 'Added time'],
+    asc: ['远→近', 'old→new'],
+    desc: ['近→远', 'new→old'],
   },
   {
     base: 'birth',
