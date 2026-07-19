@@ -84,8 +84,6 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 - macOS：打开终端运行 `javboss.command`。
 - Linux：打开终端运行 `javboss`。
 
-启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
-
 </dd>
 </dl>
 
@@ -117,17 +115,12 @@ services:
 docker compose up -d
 ```
 
-访问：
-
-```text
-http://localhost:8655
-```
-如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
-
 Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
 </dd>
 </dl>
+
+浏览器访问地址：`http://localhost:8655`。非 Docker 部署方式启动时，程序会自动打开浏览器。
 
 ### 2. 添加本地目录
 
