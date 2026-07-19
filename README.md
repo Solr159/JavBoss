@@ -39,7 +39,8 @@ JavBoss 完美屏蔽了繁琐的 JAV信息收集 和 视频整理 的底层细�
 
 #### 方式一：命令行一键安装（推荐）
 
-<div style="margin-left: 2em">
+<dl>
+<dd>
 
 Windows PowerShell：
 
@@ -60,11 +61,13 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 - Windows：双击桌面的 `JavBoss` 快捷方式，或在开始菜单中搜索 `JavBoss`。
 - Linux / macOS：打开终端运行 `javboss`。
 
-</div>
+</dd>
+</dl>
 
 #### 方式二：手动下载
 
-<div style="margin-left: 2em">
+<dl>
+<dd>
 
 点击下载对应系统的最新版发布包并解压：
 
@@ -83,11 +86,13 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
 
-</div>
+</dd>
+</dl>
 
 #### 方式三：Docker 部署
 
-<div style="margin-left: 2em">
+<dl>
+<dd>
 
 docker-compose.yaml：
 
@@ -121,7 +126,8 @@ http://localhost:8655
 
 Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
-</div>
+</dd>
+</dl>
 
 ### 2. 添加本地目录
 
