@@ -39,77 +39,89 @@ JavBoss 完美屏蔽了繁琐的 JAV信息收集 和 视频整理 的底层细�
 
 #### 方式一：命令行一键安装（推荐）
 
-> Windows PowerShell：
->
-> ```powershell
-> irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 | iex
-> ```
->
-> Linux / macOS：
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.sh | bash
-> ```
->
-> 安装脚本会自动下载对应系统的最新版发布包，完成安装后启动 JavBoss。
->
-> 以后每次打开：
->
-> - Windows：双击桌面的 `JavBoss` 快捷方式，或在开始菜单中搜索 `JavBoss`。
-> - Linux / macOS：打开终端运行 `javboss`。
+<div style="margin-left: 2em">
+
+Windows PowerShell：
+
+```powershell
+irm https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.ps1 | iex
+```
+
+Linux / macOS：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/install.sh | bash
+```
+
+安装脚本会自动下载对应系统的最新版发布包，完成安装后启动 JavBoss。
+
+以后每次打开：
+
+- Windows：双击桌面的 `JavBoss` 快捷方式，或在开始菜单中搜索 `JavBoss`。
+- Linux / macOS：打开终端运行 `javboss`。
+
+</div>
 
 #### 方式二：手动下载
 
-> 点击下载对应系统的最新版发布包并解压：
->
-> - [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-windows-x86_64.zip)
-> - [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-linux-x86_64.zip)
-> - [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
-> - [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-macos-arm64.zip)（适用于 M 芯片的 macOS）
->
-> 也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
->
-> 下载解压后启动程序：
->
-> - Windows：双击 `javboss.exe`。首次运行可能会被 SmartScreen 阻止，点击“更多信息” -> “仍要运行”。
-> - macOS：打开终端运行 `javboss.command`。
-> - Linux：打开终端运行 `javboss`。
->
-> 启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
+<div style="margin-left: 2em">
+
+点击下载对应系统的最新版发布包并解压：
+
+- [Windows](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
+- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v1.8.5/javboss-v1.8.5-macos-arm64.zip)（适用于 M 芯片的 macOS）
+
+也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
+
+下载解压后启动程序：
+
+- Windows：双击 `javboss.exe`。首次运行可能会被 SmartScreen 阻止，点击“更多信息” -> “仍要运行”。
+- macOS：打开终端运行 `javboss.command`。
+- Linux：打开终端运行 `javboss`。
+
+启动成功后，程序会自动尝试打开浏览器。如果没有自动打开，可以手动访问终端里显示的本地地址。运行过程中请不要关闭终端窗口。
+
+</div>
 
 #### 方式三：Docker 部署
 
-> docker-compose.yaml：
->
-> ```yaml
-> services:
->   javboss:
->     image: ghcr.io/solr159/javboss:latest
->     container_name: javboss
->     ports:
->       - "8655:17654"
->     extra_hosts:
->       - "host.docker.internal:host-gateway"
->     volumes:
->       - ./data:/app/data
->       - /:/host:ro
->     restart: unless-stopped
-> ```
->
-> 启动：
->
-> ```bash
-> docker compose up -d
-> ```
->
-> 访问：
->
-> ```text
-> http://localhost:8655
-> ```
-> 如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
->
-> Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
+<div style="margin-left: 2em">
+
+docker-compose.yaml：
+
+```yaml
+services:
+  javboss:
+    image: ghcr.io/solr159/javboss:latest
+    container_name: javboss
+    ports:
+      - "8655:17654"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./data:/app/data
+      - /:/host:ro
+    restart: unless-stopped
+```
+
+启动：
+
+```bash
+docker compose up -d
+```
+
+访问：
+
+```text
+http://localhost:8655
+```
+如果需要通过局域网访问，将 ip 改为部署服务器的局域网 ip。
+
+Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
+
+</div>
 
 ### 2. 添加本地目录
 
