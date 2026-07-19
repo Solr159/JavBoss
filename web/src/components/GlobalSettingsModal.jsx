@@ -142,6 +142,14 @@ export default function GlobalSettingsModal({
 
   useEffect(() => {
     if (open) {
+      setPlayerTab('basic')
+      setPlayerBasicError('')
+      setPlayerBasicSuccess('')
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (open) {
       setProxyHostInput(proxyHost || DEFAULT_PROXY_HOST)
       setProxyInput(proxyPort ? String(proxyPort) : '')
       setProxyEnabledInput(Boolean(proxyPort))
@@ -155,9 +163,6 @@ export default function GlobalSettingsModal({
       setInitialViewModeError('')
       setShowTopBarButtonTooltipsInput(showTopBarButtonTooltips !== false)
       setShowTopBarButtonTooltipsError('')
-      setPlayerTab('basic')
-      setPlayerBasicError('')
-      setPlayerBasicSuccess('')
       setPlayerWindowWidthInput(String(playerWindowWidth ?? PLAYER_BASIC_DEFAULTS.windowWidth))
       setPlayerWindowHeightInput(String(playerWindowHeight ?? PLAYER_BASIC_DEFAULTS.windowHeight))
       setPlayerOntopInput(playerOntop ?? PLAYER_BASIC_DEFAULTS.ontop)
