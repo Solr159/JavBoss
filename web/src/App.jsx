@@ -312,6 +312,12 @@ export default function App() {
   const [javTitleMaxRowsInput, setJavTitleMaxRowsInput] = useState(javTitleMaxRows)
   const [javIdolTagMaxRowsInput, setJavIdolTagMaxRowsInput] = useState(javIdolTagMaxRows)
   const [javTagMaxRowsInput, setJavTagMaxRowsInput] = useState(javTagMaxRows)
+  const [javHideSeriesInput, setJavHideSeriesInput] = useState(configFlag(config?.jav_hide_series))
+  const [javHideIdolsInput, setJavHideIdolsInput] = useState(configFlag(config?.jav_hide_idols))
+  const [javHideTagsInput, setJavHideTagsInput] = useState(configFlag(config?.jav_hide_tags))
+  const [javHideActionsInput, setJavHideActionsInput] = useState(
+    configFlag(config?.jav_hide_actions)
+  )
   const [idolPageSizeInput, setIdolPageSizeInput] = useState(idolPageSize)
   const [studioPageSizeInput, setStudioPageSizeInput] = useState(studioPageSize)
   const [seriesPageSizeInput, setSeriesPageSizeInput] = useState(seriesPageSize)
@@ -1846,6 +1852,10 @@ export default function App() {
     setJavTitleMaxRowsInput(javTitleMaxRows)
     setJavIdolTagMaxRowsInput(javIdolTagMaxRows)
     setJavTagMaxRowsInput(javTagMaxRows)
+    setJavHideSeriesInput(configFlag(config?.jav_hide_series))
+    setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
+    setJavHideTagsInput(configFlag(config?.jav_hide_tags))
+    setJavHideActionsInput(configFlag(config?.jav_hide_actions))
     setIdolPageSizeInput(idolPageSize)
     setStudioPageSizeInput(studioPageSize)
     setSeriesPageSizeInput(seriesPageSize)
@@ -1858,6 +1868,10 @@ export default function App() {
     javTitleMaxRows,
     javIdolTagMaxRows,
     javTagMaxRows,
+    config?.jav_hide_series,
+    config?.jav_hide_idols,
+    config?.jav_hide_tags,
+    config?.jav_hide_actions,
     idolPageSize,
     studioPageSize,
     seriesPageSize,
@@ -1964,6 +1978,10 @@ export default function App() {
         jav_title_max_rows: javTitleRows,
         jav_idol_tag_max_rows: javIdolTagRows,
         jav_tag_max_rows: javTagRows,
+        jav_hide_series: Boolean(javHideSeriesInput),
+        jav_hide_idols: Boolean(javHideIdolsInput),
+        jav_hide_tags: Boolean(javHideTagsInput),
+        jav_hide_actions: Boolean(javHideActionsInput),
         idol_page_size: idolSize,
         studio_page_size: studioSize,
         series_page_size: seriesSize,
@@ -2021,6 +2039,10 @@ export default function App() {
       setJavTitleMaxRowsInput(javTitleMaxRows)
       setJavIdolTagMaxRowsInput(javIdolTagMaxRows)
       setJavTagMaxRowsInput(javTagMaxRows)
+      setJavHideSeriesInput(configFlag(config?.jav_hide_series))
+      setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
+      setJavHideTagsInput(configFlag(config?.jav_hide_tags))
+      setJavHideActionsInput(configFlag(config?.jav_hide_actions))
       setIdolPageSizeInput(idolPageSize)
       setStudioPageSizeInput(studioPageSize)
       setSeriesPageSizeInput(seriesPageSize)
@@ -2031,6 +2053,10 @@ export default function App() {
   }, [
     javSettingsOpen,
     config?.jav_idol_prefer_chinese_name,
+    config?.jav_hide_series,
+    config?.jav_hide_idols,
+    config?.jav_hide_tags,
+    config?.jav_hide_actions,
     javPageSize,
     javGridColumns,
     javTitleMaxRows,
@@ -3416,6 +3442,14 @@ export default function App() {
         onJavIdolTagMaxRowsChange={setJavIdolTagMaxRowsInput}
         javTagMaxRowsInput={javTagMaxRowsInput}
         onJavTagMaxRowsChange={setJavTagMaxRowsInput}
+        javHideSeriesInput={javHideSeriesInput}
+        onJavHideSeriesChange={setJavHideSeriesInput}
+        javHideIdolsInput={javHideIdolsInput}
+        onJavHideIdolsChange={setJavHideIdolsInput}
+        javHideTagsInput={javHideTagsInput}
+        onJavHideTagsChange={setJavHideTagsInput}
+        javHideActionsInput={javHideActionsInput}
+        onJavHideActionsChange={setJavHideActionsInput}
         idolPageSizeInput={idolPageSizeInput}
         onIdolPageSizeChange={setIdolPageSizeInput}
         studioPageSizeInput={studioPageSizeInput}

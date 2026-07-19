@@ -124,6 +124,10 @@ export default function JavGrid({
   const preferChineseName = useStore((state) =>
     configFlag(state.config?.jav_idol_prefer_chinese_name)
   )
+  const hideSeries = useStore((state) => configFlag(state.config?.jav_hide_series))
+  const hideIdols = useStore((state) => configFlag(state.config?.jav_hide_idols))
+  const hideTags = useStore((state) => configFlag(state.config?.jav_hide_tags))
+  const hideActions = useStore((state) => configFlag(state.config?.jav_hide_actions))
   const idolPreviewCacheRef = useRef(new Map())
   const idolPreviewInflightRef = useRef(new Map())
   const studioPreviewCacheRef = useRef(new Map())
@@ -302,6 +306,10 @@ export default function JavGrid({
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}
             tagMaxRows={tagMaxRows}
+            hideSeries={hideSeries}
+            hideIdols={hideIdols}
+            hideTags={hideTags}
+            hideActions={hideActions}
           />
         ))}
       </div>
@@ -1555,6 +1563,10 @@ function JavCard({
   titleMaxRows,
   idolTagMaxRows,
   tagMaxRows,
+  hideSeries = false,
+  hideIdols = false,
+  hideTags = false,
+  hideActions = false,
 }) {
   const primaryVideo = useMemo(() => (item?.videos || [])[0], [item])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
@@ -2207,7 +2219,7 @@ function JavCard({
               </span>
             ) : null}
           </div>
-          {seriesText ? (
+          {!hideSeries && seriesText ? (
             <div className="flex min-w-0 items-start gap-1 text-xs text-gray-600">
               <Tooltip title={zh('系列', 'Series')} arrow>
                 <span className="inline-flex">
@@ -2296,7 +2308,7 @@ function JavCard({
               ) : null}
             </div>
           </Popper>
-          {Array.isArray(item?.idols) && item.idols.length > 0 && (
+          {!hideIdols && Array.isArray(item?.idols) && item.idols.length > 0 && (
             <>
               <IdolTagList
                 idols={item.idols}
@@ -2370,7 +2382,7 @@ function JavCard({
               />
             </>
           )}
-          {tags.length > 0 && (
+          {!hideTags && tags.length > 0 && (
             <JavTagList
               tags={tags}
               maxRows={tagMaxRows}
@@ -2379,47 +2391,49 @@ function JavCard({
               onFilterLinkClick={handleFilterLinkClick}
             />
           )}
-          <div className="flex flex-wrap items-center gap-2">
+          {!hideActions ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
-                <IconButton
-                  size="small"
-                  onClick={handleOpenFile}
-                  disabled={!canOpen}
-                  aria-label={openFileLabel || zh('打开文件', 'Open file')}
-                  className="h-6 w-6"
-                >
-                  <PlayArrowIcon fontSize="inherit" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
-                <IconButton
-                  size="small"
-                  onClick={handleOpenEditor}
-                  aria-label={zh('编辑 JAV', 'Edit JAV')}
-                  className="h-6 w-6"
-                >
-                  <MovieEdit fontSize="inherit" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={zh('视频管理', 'Manage videos')}>
-                <IconButton
-                  size="small"
-                  onClick={handleOpenVideoManager}
-                  disabled={!Array.isArray(item?.videos) || item.videos.length === 0}
-                  aria-label={zh('视频管理', 'Manage videos')}
-                  className="h-6 w-6"
-                >
-                  <VideoLibraryOutlinedIcon fontSize="inherit" />
-                </IconButton>
-              </Tooltip>
+              <div className="flex flex-wrap items-center gap-2">
+                <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
+                  <IconButton
+                    size="small"
+                    onClick={handleOpenFile}
+                    disabled={!canOpen}
+                    aria-label={openFileLabel || zh('打开文件', 'Open file')}
+                    className="h-6 w-6"
+                  >
+                    <PlayArrowIcon fontSize="inherit" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
+                  <IconButton
+                    size="small"
+                    onClick={handleOpenEditor}
+                    aria-label={zh('编辑 JAV', 'Edit JAV')}
+                    className="h-6 w-6"
+                  >
+                    <MovieEdit fontSize="inherit" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={zh('视频管理', 'Manage videos')}>
+                  <IconButton
+                    size="small"
+                    onClick={handleOpenVideoManager}
+                    disabled={!Array.isArray(item?.videos) || item.videos.length === 0}
+                    aria-label={zh('视频管理', 'Manage videos')}
+                    className="h-6 w-6"
+                  >
+                    <VideoLibraryOutlinedIcon fontSize="inherit" />
+                  </IconButton>
+                </Tooltip>
+              </div>
+              {Array.isArray(item?.videos) && item.videos.length > 1 && (
+                <span className="text-xs text-gray-500">
+                  {zh(`${item.videos.length} 个视频`, `${item.videos.length} video files`)}
+                </span>
+              )}
             </div>
-            {Array.isArray(item?.videos) && item.videos.length > 1 && (
-              <span className="text-xs text-gray-500">
-                {zh(`${item.videos.length} 个视频`, `${item.videos.length} video files`)}
-              </span>
-            )}
-          </div>
+          ) : null}
         </div>
       </div>
       <JavEditModal

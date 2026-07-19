@@ -46,6 +46,10 @@ func updateConfig(c *gin.Context) {
 		JavTitleMaxRows      *int                  `json:"jav_title_max_rows"`
 		JavIdolTagMaxRows    *int                  `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows        *int                  `json:"jav_tag_max_rows"`
+		JavHideSeries        *bool                 `json:"jav_hide_series"`
+		JavHideIdols         *bool                 `json:"jav_hide_idols"`
+		JavHideTags          *bool                 `json:"jav_hide_tags"`
+		JavHideActions       *bool                 `json:"jav_hide_actions"`
 		IdolPageSize         *int                  `json:"idol_page_size"`
 		StudioPageSize       *int                  `json:"studio_page_size"`
 		SeriesPageSize       *int                  `json:"series_page_size"`
@@ -134,6 +138,18 @@ func updateConfig(c *gin.Context) {
 			rows = maxJavDisplayRows
 		}
 		entries["jav_tag_max_rows"] = strconv.Itoa(rows)
+	}
+	if req.JavHideSeries != nil {
+		entries["jav_hide_series"] = strconv.FormatBool(*req.JavHideSeries)
+	}
+	if req.JavHideIdols != nil {
+		entries["jav_hide_idols"] = strconv.FormatBool(*req.JavHideIdols)
+	}
+	if req.JavHideTags != nil {
+		entries["jav_hide_tags"] = strconv.FormatBool(*req.JavHideTags)
+	}
+	if req.JavHideActions != nil {
+		entries["jav_hide_actions"] = strconv.FormatBool(*req.JavHideActions)
 	}
 	if req.IdolPageSize != nil {
 		if v, ok := clampSize(*req.IdolPageSize); ok {
