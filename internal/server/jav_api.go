@@ -27,7 +27,7 @@ func searchJav(c *gin.Context) {
 	if studioParam := strings.TrimSpace(c.Query("studio_id")); studioParam != "" {
 		parsed, err := strconv.ParseInt(studioParam, 10, 64)
 		if err != nil || parsed < 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid studio_id"})
+			respondLocalizedError(c, http.StatusBadRequest, "片商 ID 无效", "Invalid studio ID")
 			return
 		}
 		studioID = parsed
@@ -36,7 +36,7 @@ func searchJav(c *gin.Context) {
 	if seriesParam := strings.TrimSpace(c.Query("series_id")); seriesParam != "" {
 		parsed, err := strconv.ParseInt(seriesParam, 10, 64)
 		if err != nil || parsed <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid series_id"})
+			respondLocalizedError(c, http.StatusBadRequest, "系列 ID 无效", "Invalid series ID")
 			return
 		}
 		seriesID = parsed
@@ -49,7 +49,7 @@ func searchJav(c *gin.Context) {
 	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
 		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
 		if err != nil || parsed <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid favorite_group_id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		favoriteGroupID = parsed
@@ -59,7 +59,7 @@ func searchJav(c *gin.Context) {
 	if seedParam != "" {
 		parsed, err := strconv.ParseInt(seedParam, 10, 64)
 		if err != nil || parsed <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seed"})
+			respondLocalizedError(c, http.StatusBadRequest, "随机种子无效", "Invalid random seed")
 			return
 		}
 		seed = &parsed
@@ -68,7 +68,7 @@ func searchJav(c *gin.Context) {
 	items, total, err := dbpkg.SearchJavWithPrefix(c.Request.Context(), idolIDs, tagIDs, search, prefix, sort, limit, offset, seed, directoryIDs, studioID, seriesID, boolInt64(soloOnly), favoriteGroupID)
 	if err != nil {
 		logging.Error("SearchJav: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "搜索 JAV 作品失败", "Failed to search JAV items")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
@@ -81,7 +81,7 @@ func listJavPrefixes(c *gin.Context) {
 	items, err := dbpkg.ListJavPrefixes(c.Request.Context(), parseDirectoryIDs(c.Query("directory_ids")))
 	if err != nil {
 		logging.Error("list jav prefixes error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 番号前缀失败", "Failed to load JAV code prefixes")
 		return
 	}
 	if items == nil {
@@ -100,18 +100,18 @@ func boolInt64(value bool) int64 {
 func getJavJavDBURL(c *gin.Context) {
 	code := strings.TrimSpace(c.Query("code"))
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "番号不能为空", "JAV code is required")
 		return
 	}
 
 	javdbURL, err := jav.LookupJavDBURLByCode(code)
 	if err != nil {
 		if errors.Is(err, jav.ResourceNotFonud) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "javdb url not found"})
+			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 JavDB 页面", "JavDB page was not found")
 			return
 		}
 		logging.Error("lookup javdb url code=%s: %v", code, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "查询 JavDB 页面失败", "Failed to look up the JavDB page")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"url": javdbURL})
@@ -121,7 +121,7 @@ func listJavTags(c *gin.Context) {
 	tags, err := dbpkg.ListJavTags(c.Request.Context(), parseDirectoryIDs(c.Query("directory_ids")))
 	if err != nil {
 		logging.Error("list jav tags error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 标签失败", "Failed to load JAV tags")
 		return
 	}
 	if tags == nil {
@@ -144,13 +144,13 @@ type javItemUpdateRequest struct {
 func updateJavItem(c *gin.Context) {
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 作品 ID 无效", "Invalid JAV item ID")
 		return
 	}
 
 	var req javItemUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "修改 JAV 信息请求无效", "Invalid JAV item update request")
 		return
 	}
 
@@ -158,7 +158,7 @@ func updateJavItem(c *gin.Context) {
 	if req.ReleaseDate != nil {
 		parsed, err := parseJavEditReleaseUnix(*req.ReleaseDate)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "发行日期格式必须为 YYYY-MM-DD", "Release date must use the YYYY-MM-DD format")
 			return
 		}
 		releaseUnix = &parsed
@@ -169,19 +169,19 @@ func updateJavItem(c *gin.Context) {
 		if coverURL != "" {
 			cfg := common.AppConfig
 			if cfg == nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "config not loaded"})
+				respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 				return
 			}
 			item, err := dbpkg.GetJav(c.Request.Context(), id, parseDirectoryIDs(c.Query("directory_ids")))
 			if err != nil {
 				logging.Error("get jav for cover update error: %v", err)
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				respondLocalizedError(c, http.StatusBadRequest, "读取 JAV 作品信息失败", "Failed to load the JAV item")
 				return
 			}
 			ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
 			defer cancel()
 			if err := manager.DownloadCoverFromURL(ctx, cfg.JavCoverDir, item.Code, coverURL); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				respondLocalizedError(c, http.StatusBadRequest, "下载 JAV 封面失败，请检查图片地址", "Failed to download the JAV cover; check the image URL")
 				return
 			}
 		}
@@ -198,7 +198,7 @@ func updateJavItem(c *gin.Context) {
 	}, parseDirectoryIDs(c.Query("directory_ids")))
 	if err != nil {
 		logging.Error("update jav item error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "保存 JAV 作品信息失败", "Failed to save JAV item information")
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -221,14 +221,14 @@ func createJavTag(c *gin.Context) {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "创建 JAV 标签请求无效", "Invalid JAV tag creation request")
 		return
 	}
 
 	tag, err := dbpkg.CreateJavTag(c.Request.Context(), req.Name)
 	if err != nil {
 		logging.Error("create jav tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "创建 JAV 标签失败，标签名称可能为空或已存在", "Failed to create JAV tag; the name may be empty or already exist")
 		return
 	}
 	c.JSON(http.StatusCreated, dbpkg.JavTagCount{
@@ -242,7 +242,7 @@ func createJavTag(c *gin.Context) {
 func renameJavTag(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 标签 ID 无效", "Invalid JAV tag ID")
 		return
 	}
 
@@ -250,13 +250,13 @@ func renameJavTag(c *gin.Context) {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "重命名 JAV 标签请求无效", "Invalid JAV tag rename request")
 		return
 	}
 
 	if err := dbpkg.RenameJavTag(c.Request.Context(), id, req.Name); err != nil {
 		logging.Error("rename jav tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "重命名 JAV 标签失败，标签名称可能为空或已存在", "Failed to rename JAV tag; the name may be empty or already exist")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -265,13 +265,13 @@ func renameJavTag(c *gin.Context) {
 func deleteJavTag(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 标签 ID 无效", "Invalid JAV tag ID")
 		return
 	}
 
 	if err := dbpkg.DeleteJavTag(c.Request.Context(), id); err != nil {
 		logging.Error("delete jav tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "删除 JAV 标签失败", "Failed to delete JAV tag")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -294,16 +294,16 @@ type javTagsBatchDeleteRequest struct {
 func addJavTagsToItems(c *gin.Context) {
 	var req javTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "添加 JAV 标签请求无效", "Invalid add-JAV-tag request")
 		return
 	}
 	if req.TagID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_id must be positive"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 标签 ID 无效", "Invalid JAV tag ID")
 		return
 	}
 	if err := dbpkg.AddJavTagToJavs(c.Request.Context(), req.TagID, req.JavIDs); err != nil {
 		logging.Error("add jav tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "添加 JAV 标签失败", "Failed to add JAV tag")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -312,16 +312,16 @@ func addJavTagsToItems(c *gin.Context) {
 func removeJavTagsFromItems(c *gin.Context) {
 	var req javTagRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "移除 JAV 标签请求无效", "Invalid remove-JAV-tag request")
 		return
 	}
 	if req.TagID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_id must be positive"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 标签 ID 无效", "Invalid JAV tag ID")
 		return
 	}
 	if err := dbpkg.RemoveJavTagFromJavs(c.Request.Context(), req.TagID, req.JavIDs); err != nil {
 		logging.Error("remove jav tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "移除 JAV 标签失败", "Failed to remove JAV tag")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -330,16 +330,16 @@ func removeJavTagsFromItems(c *gin.Context) {
 func replaceJavTagsForItems(c *gin.Context) {
 	var req javTagsReplaceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "更新 JAV 标签请求无效", "Invalid JAV tag update request")
 		return
 	}
 	if len(req.JavIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "jav_ids required"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 作品 ID 不能为空", "JAV item IDs are required")
 		return
 	}
 	if err := dbpkg.ReplaceJavUserTags(c.Request.Context(), req.JavIDs, req.TagIDs); err != nil {
 		logging.Error("replace jav tags error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "更新 JAV 标签失败", "Failed to update JAV tags")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -348,16 +348,16 @@ func replaceJavTagsForItems(c *gin.Context) {
 func deleteJavTagsBatch(c *gin.Context) {
 	var req javTagsBatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "批量删除 JAV 标签请求无效", "Invalid batch JAV tag deletion request")
 		return
 	}
 	if len(req.TagIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_ids required"})
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 标签 ID 不能为空", "JAV tag IDs are required")
 		return
 	}
 	if err := dbpkg.DeleteJavTags(c.Request.Context(), req.TagIDs); err != nil {
 		logging.Error("delete jav tags error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "批量删除 JAV 标签失败", "Failed to delete JAV tags")
 		return
 	}
 	c.Status(http.StatusNoContent)

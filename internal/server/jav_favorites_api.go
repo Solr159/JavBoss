@@ -17,7 +17,7 @@ func listJavFavoriteGroupsFor(entityType string) gin.HandlerFunc {
 		groups, err := dbpkg.ListJavFavoriteGroups(c.Request.Context(), entityType, parseDirectoryIDs(c.Query("directory_ids")))
 		if err != nil {
 			logging.Error("list jav favorite groups type=%s: %v", entityType, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "加载收藏夹失败", "Failed to load favorite groups")
 			return
 		}
 		if groups == nil {
@@ -33,14 +33,14 @@ func createJavFavoriteGroupFor(entityType string) gin.HandlerFunc {
 			Name string `json:"name"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "创建收藏夹请求无效", "Invalid favorite group creation request")
 			return
 		}
 
 		group, err := dbpkg.CreateJavFavoriteGroup(c.Request.Context(), entityType, req.Name)
 		if err != nil {
 			logging.Error("create jav favorite group type=%s: %v", entityType, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "创建收藏夹失败，名称可能为空或已存在", "Failed to create favorite group; the name may be empty or already exist")
 			return
 		}
 		c.JSON(http.StatusCreated, dbpkg.JavFavoriteGroupSummary{
@@ -57,19 +57,19 @@ func renameJavFavoriteGroupFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		var req struct {
 			Name string `json:"name"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "重命名收藏夹请求无效", "Invalid favorite group rename request")
 			return
 		}
 		if err := dbpkg.RenameJavFavoriteGroup(c.Request.Context(), entityType, id, req.Name); err != nil {
 			logging.Error("rename jav favorite group type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "重命名收藏夹失败，名称可能为空或已存在", "Failed to rename favorite group; the name may be empty or already exist")
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -80,16 +80,16 @@ func deleteJavFavoriteGroupFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		if err := dbpkg.DeleteJavFavoriteGroup(c.Request.Context(), entityType, id); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "favorite group not found"})
+				respondLocalizedError(c, http.StatusNotFound, "收藏夹不存在", "Favorite group was not found")
 				return
 			}
 			logging.Error("delete jav favorite group type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "删除收藏夹失败", "Failed to delete favorite group")
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -102,12 +102,12 @@ func reorderJavFavoriteGroupsFor(entityType string) gin.HandlerFunc {
 			GroupIDs []int64 `json:"group_ids"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹排序请求无效", "Invalid favorite group reorder request")
 			return
 		}
 		if err := dbpkg.ReorderJavFavoriteGroups(c.Request.Context(), entityType, req.GroupIDs); err != nil {
 			logging.Error("reorder jav favorite groups type=%s: %v", entityType, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "保存收藏夹顺序失败", "Failed to save favorite group order")
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -118,7 +118,7 @@ func listJavFavoriteGroupItemsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		items, err := dbpkg.ListJavFavoriteGroupItems(
@@ -129,7 +129,7 @@ func listJavFavoriteGroupItemsFor(entityType string) gin.HandlerFunc {
 		)
 		if err != nil {
 			logging.Error("list jav favorite group items type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "加载收藏夹内容失败", "Failed to load favorite group items")
 			return
 		}
 		if items == nil {
@@ -143,23 +143,23 @@ func reorderJavFavoriteGroupItemsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		var req struct {
 			EntityIDs []int64 `json:"entity_ids"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹内容排序请求无效", "Invalid favorite item reorder request")
 			return
 		}
 		if err := dbpkg.ReorderJavFavoriteGroupItems(c.Request.Context(), entityType, id, req.EntityIDs); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "favorite group not found"})
+				respondLocalizedError(c, http.StatusNotFound, "收藏夹不存在", "Favorite group was not found")
 				return
 			}
 			logging.Error("reorder jav favorite group items type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "保存收藏夹内容顺序失败", "Failed to save favorite item order")
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -170,19 +170,19 @@ func removeJavFavoriteGroupItemsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		var req struct {
 			EntityIDs []int64 `json:"entity_ids"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "移除收藏夹内容请求无效", "Invalid favorite item removal request")
 			return
 		}
 		if err := dbpkg.RemoveJavFavoriteGroupItems(c.Request.Context(), entityType, id, req.EntityIDs); err != nil {
 			logging.Error("remove jav favorite group items type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "移除收藏夹内容失败", "Failed to remove favorite group items")
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -193,13 +193,13 @@ func listJavFavoriteGroupIDsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "作品 ID 无效", "Invalid item ID")
 			return
 		}
 		ids, err := dbpkg.ListJavFavoriteGroupIDs(c.Request.Context(), entityType, id)
 		if err != nil {
 			logging.Error("list jav favorite group ids type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "加载作品收藏夹选择失败", "Failed to load favorite group selection")
 			return
 		}
 		if ids == nil {
@@ -213,24 +213,24 @@ func replaceJavFavoriteGroupsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+			respondLocalizedError(c, http.StatusBadRequest, "作品 ID 无效", "Invalid item ID")
 			return
 		}
 		var req struct {
 			GroupIDs []int64 `json:"group_ids"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+			respondLocalizedError(c, http.StatusBadRequest, "保存作品收藏夹请求无效", "Invalid favorite selection update request")
 			return
 		}
 
 		if err := dbpkg.ReplaceJavFavoriteGroups(c.Request.Context(), entityType, id, req.GroupIDs); err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				c.JSON(http.StatusNotFound, gin.H{"error": "entity not found"})
+				respondLocalizedError(c, http.StatusNotFound, "作品不存在", "Item was not found")
 				return
 			}
 			logging.Error("replace jav favorite groups type=%s id=%d: %v", entityType, id, err)
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusBadRequest, "保存作品收藏夹失败", "Failed to save favorite group selection")
 			return
 		}
 		c.Status(http.StatusNoContent)

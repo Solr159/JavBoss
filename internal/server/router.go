@@ -40,14 +40,14 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 			router.NoRoute(func(c *gin.Context) {
 				path := c.Request.URL.Path
 				if strings.HasPrefix(path, "/videos") || strings.HasPrefix(path, "/tags") || strings.HasPrefix(path, "/sync") || strings.HasPrefix(path, "/healthz") {
-					c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+					respondLocalizedError(c, http.StatusNotFound, "接口不存在", "API endpoint was not found")
 					return
 				}
 				if strings.Contains(c.GetHeader("Accept"), "text/html") {
 					serveIndexHTML(c, indexPath)
 					return
 				}
-				c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
+				respondLocalizedError(c, http.StatusNotFound, "请求的资源不存在", "The requested resource was not found")
 			})
 
 			logging.Info("serving frontend from %s", staticDir)
@@ -65,7 +65,7 @@ func serveIndexHTML(c *gin.Context, indexPath string) {
 	data, err := os.ReadFile(indexPath)
 	if err != nil {
 		logging.Error("read frontend index error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "frontend unavailable"})
+		respondLocalizedError(c, http.StatusInternalServerError, "前端页面暂不可用", "The frontend is unavailable")
 		return
 	}
 	c.Header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")

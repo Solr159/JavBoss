@@ -22,7 +22,7 @@ func listDirectories(c *gin.Context) {
 	dirs, err := dbpkg.ListDirectories(c.Request.Context())
 	if err != nil {
 		logging.Error("list directories error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载目录列表失败", "Failed to load directories")
 		return
 	}
 	c.JSON(http.StatusOK, dirs)
@@ -33,18 +33,18 @@ func createDirectory(c *gin.Context) {
 		Path string `json:"path"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "添加目录请求无效", "Invalid add-directory request")
 		return
 	}
 	if strings.TrimSpace(req.Path) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "path is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "目录路径不能为空", "Directory path is required")
 		return
 	}
 
 	dir, err := dbpkg.CreateDirectory(c.Request.Context(), req.Path)
 	if err != nil {
 		logging.Error("create directory error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "添加目录失败，请检查路径是否有效或已存在", "Failed to add directory; check whether the path is valid or already exists")
 		return
 	}
 	go func(created models.Directory) {
@@ -61,7 +61,7 @@ func createDirectory(c *gin.Context) {
 
 func pickDirectory(c *gin.Context) {
 	if runtimeconfig.DisableDirectoryPicker() {
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "directory picker is disabled"})
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用目录选择器", "The directory picker is disabled in this deployment")
 		return
 	}
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Now().Add(10 * time.Minute)); err != nil && !errors.Is(err, http.ErrNotSupported) {
@@ -70,11 +70,11 @@ func pickDirectory(c *gin.Context) {
 	path, err := dirpicker.PickDirectory(c.Request.Context())
 	if err != nil {
 		if errors.Is(err, dirpicker.ErrDirPickerCanceled) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "directory selection canceled"})
+			respondLocalizedError(c, http.StatusBadRequest, "已取消选择目录", "Directory selection was canceled")
 			return
 		}
 		logging.Error("pick directory error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "pick directory failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "打开目录选择器失败", "Failed to open the directory picker")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"path": path})
@@ -83,7 +83,7 @@ func pickDirectory(c *gin.Context) {
 func updateDirectory(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "目录 ID 无效", "Invalid directory ID")
 		return
 	}
 
@@ -92,11 +92,11 @@ func updateDirectory(c *gin.Context) {
 		IsDelete *bool   `json:"is_delete"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "修改目录请求无效", "Invalid directory update request")
 		return
 	}
 	if req.Path != nil && strings.TrimSpace(*req.Path) == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "path is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "目录路径不能为空", "Directory path is required")
 		return
 	}
 
@@ -107,7 +107,7 @@ func updateDirectory(c *gin.Context) {
 		cancel()
 		if err != nil {
 			logging.Error("cancel directory scan before update failed id=%d err=%v", id, err)
-			c.JSON(http.StatusConflict, gin.H{"error": "directory scan is stopping; try again shortly"})
+			respondLocalizedError(c, http.StatusConflict, "目录扫描正在停止，请稍后重试", "The directory scan is stopping; please try again shortly")
 			return
 		}
 		releaseScanReservation = release
@@ -121,11 +121,11 @@ func updateDirectory(c *gin.Context) {
 	dir, err := dbpkg.UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete)
 	if err != nil {
 		logging.Error("update directory error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "修改目录失败，请检查路径是否有效或已存在", "Failed to update directory; check whether the path is valid or already exists")
 		return
 	}
 	if dir == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "目录不存在", "Directory does not exist")
 		return
 	}
 	if releaseScanReservation != nil {

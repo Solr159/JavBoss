@@ -39,7 +39,7 @@ func listVideos(c *gin.Context) {
 	if seedParam != "" {
 		parsed, err := strconv.ParseInt(seedParam, 10, 64)
 		if err != nil || parsed <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seed"})
+			respondLocalizedError(c, http.StatusBadRequest, "随机种子无效", "Invalid random seed")
 			return
 		}
 		seed = &parsed
@@ -48,14 +48,14 @@ func listVideos(c *gin.Context) {
 	videos, err := dbpkg.ListVideos(c.Request.Context(), limit, offset, tagFilter, search, sort, seed, directoryIDs, hideJav)
 	if err != nil {
 		logging.Error("list videos error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频列表失败", "Failed to load videos")
 		return
 	}
 
 	total, err := dbpkg.CountVideos(c.Request.Context(), tagFilter, search, directoryIDs, hideJav)
 	if err != nil {
 		logging.Error("count videos error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "统计视频数量失败", "Failed to count videos")
 		return
 	}
 
@@ -68,18 +68,18 @@ func listVideos(c *gin.Context) {
 func getVideo(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return
 	}
 
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
 		logging.Error("get video error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频信息失败", "Failed to load video information")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 	c.JSON(http.StatusOK, video)
@@ -93,7 +93,7 @@ func incrementVideoPlayCount(c *gin.Context) {
 	}
 	if err := dbpkg.IncrementVideoPlayCount(c.Request.Context(), id); err != nil {
 		logging.Error("increment play count error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "更新视频播放次数失败", "Failed to update video play count")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -415,11 +415,11 @@ func resolveVideoPrimaryPath(ctx context.Context, video *models.Video) (string, 
 func serveVideoFile(c *gin.Context, fullPath string) {
 	if _, err := os.Stat(fullPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频文件不存在", "Video file does not exist")
 			return
 		}
 		logging.Error("stat stream file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频文件失败", "Failed to inspect video file")
 		return
 	}
 	c.File(fullPath)
@@ -1066,7 +1066,7 @@ func ensureVideoFileExists(c *gin.Context, fullPath string) error {
 			return err
 		}
 		logging.Error("stat stream file error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频文件失败", "Failed to inspect video file")
 		return err
 	}
 	return nil
@@ -1129,23 +1129,23 @@ func sameCleanPath(a, b string) bool {
 func getThumbnail(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return
 	}
 
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
 		logging.Error("get screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频缩略图信息失败", "Failed to load video thumbnail information")
 		return
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 
 	if common.AppConfig == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 		return
 	}
 	dataDir := filepath.Dir(common.AppConfig.DatabasePath)
@@ -1159,24 +1159,24 @@ func getThumbnail(c *gin.Context) {
 
 	second, ok := manager.PickScreenshotSecond(video.DurationSec)
 	if !ok {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频没有可用的缩略图时间点", "No thumbnail timestamp is available for this video")
 		return
 	}
 
 	screenshotPath := manager.ScreenshotPath(dataDir, video.ID, second)
 	if screenshotPath == "" {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "生成缩略图路径失败", "Failed to build the thumbnail path")
 		return
 	}
 
 	if _, err := os.Stat(screenshotPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			common.ScreenshotManager.EnqueueForVideo(video)
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频缩略图尚未生成", "Video thumbnail has not been generated yet")
 			return
 		}
 		logging.Error("stat screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频缩略图失败", "Failed to inspect the video thumbnail")
 		return
 	}
 
@@ -1190,13 +1190,13 @@ func defaultVideoThumbnailRequested(c *gin.Context) bool {
 func updateVideoCover(c *gin.Context) {
 	var req videoCoverRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "更新视频封面请求无效", "Invalid video cover update request")
 		return
 	}
 
 	name := filepath.Base(strings.TrimSpace(req.ScreenshotName))
 	if !isScreenshotImageName(name) || name != strings.TrimSpace(req.ScreenshotName) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid screenshot name"})
+		respondLocalizedError(c, http.StatusBadRequest, "截图文件名无效", "Invalid screenshot filename")
 		return
 	}
 
@@ -1207,22 +1207,22 @@ func updateVideoCover(c *gin.Context) {
 	screenshotPath := filepath.Join(screenshotDir, name)
 	if _, err := os.Stat(screenshotPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "用于封面的截图不存在", "The screenshot selected as cover does not exist")
 			return
 		}
 		logging.Error("stat video cover screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取封面截图失败", "Failed to inspect the cover screenshot")
 		return
 	}
 
 	updated, err := dbpkg.UpdateVideoCoverScreenshotName(c.Request.Context(), id, name)
 	if err != nil {
 		logging.Error("update video cover error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "保存视频封面失败", "Failed to save video cover")
 		return
 	}
 	if updated == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -1231,17 +1231,17 @@ func updateVideoCover(c *gin.Context) {
 func resetVideoCover(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return
 	}
 	updated, err := dbpkg.UpdateVideoCoverScreenshotName(c.Request.Context(), id, "")
 	if err != nil {
 		logging.Error("reset video cover error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "恢复默认视频封面失败", "Failed to restore the default video cover")
 		return
 	}
 	if updated == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return
 	}
 	c.JSON(http.StatusOK, updated)
@@ -1255,7 +1255,7 @@ func listVideoScreenshots(c *gin.Context) {
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
 		logging.Error("get video for screenshot cover state error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频封面状态失败", "Failed to load video cover state")
 		return
 	}
 	coverName := ""
@@ -1266,7 +1266,7 @@ func listVideoScreenshots(c *gin.Context) {
 	items, err := readVideoScreenshotInfos(id, coverName, screenshotDir)
 	if err != nil {
 		logging.Error("read video screenshots error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频截图失败", "Failed to load video screenshots")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"items": items})
@@ -1275,22 +1275,22 @@ func listVideoScreenshots(c *gin.Context) {
 func listVideosScreenshots(c *gin.Context) {
 	videoIDs := parseInt64CSV(c.Query("video_id_list"))
 	if len(videoIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "video_id_list is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 列表不能为空", "Video ID list is required")
 		return
 	}
 	if len(videoIDs) > 100 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "video_id_list is too large"})
+		respondLocalizedError(c, http.StatusBadRequest, "一次最多查询 100 个视频的截图", "At most 100 videos can be queried at once")
 		return
 	}
 	if common.AppConfig == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 		return
 	}
 
 	coverNames, err := dbpkg.ListVideoCoverScreenshotNames(c.Request.Context(), videoIDs)
 	if err != nil {
 		logging.Error("list video cover screenshot names error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频封面截图信息失败", "Failed to load video cover screenshot information")
 		return
 	}
 
@@ -1310,7 +1310,7 @@ func listVideosScreenshots(c *gin.Context) {
 		videoItems, err := readVideoScreenshotInfos(videoID, coverName, screenshotDir)
 		if err != nil {
 			logging.Error("read video screenshots error (video_id=%d): %v", videoID, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			respondLocalizedError(c, http.StatusInternalServerError, "加载视频截图失败", "Failed to load video screenshots")
 			return
 		}
 		items = append(items, videoItems...)
@@ -1363,7 +1363,7 @@ func readVideoScreenshotInfos(id int64, coverName, screenshotDir string) ([]vide
 
 func createVideoScreenshot(c *gin.Context) {
 	if common.ScreenshotManager == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "screenshot manager unavailable"})
+		respondLocalizedError(c, http.StatusServiceUnavailable, "截图服务不可用", "Screenshot service is unavailable")
 		return
 	}
 	video, fullPath, _, err := resolveVideoStreamTarget(c)
@@ -1372,7 +1372,7 @@ func createVideoScreenshot(c *gin.Context) {
 		return
 	}
 	if common.AppConfig == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 		return
 	}
 
@@ -1380,15 +1380,15 @@ func createVideoScreenshot(c *gin.Context) {
 		Second float64 `json:"second"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "创建视频截图请求无效", "Invalid video screenshot request")
 		return
 	}
 	if req.Second < 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid second"})
+		respondLocalizedError(c, http.StatusBadRequest, "截图时间不能为负数", "Screenshot time cannot be negative")
 		return
 	}
 	if video.DurationSec > 0 && req.Second > float64(video.DurationSec)+1 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid second"})
+		respondLocalizedError(c, http.StatusBadRequest, "截图时间超出视频时长", "Screenshot time exceeds the video duration")
 		return
 	}
 
@@ -1401,17 +1401,17 @@ func createVideoScreenshot(c *gin.Context) {
 	if err := common.ScreenshotManager.CaptureFile(ctx, fullPath, req.Second, screenshotPath); err != nil {
 		logging.Error("create video screenshot error: %v", err)
 		if strings.Contains(err.Error(), "ffmpeg not found") || strings.Contains(err.Error(), "mpv not found") {
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+			respondLocalizedError(c, http.StatusServiceUnavailable, "缺少截图所需的 FFmpeg 或 MPV 组件", "FFmpeg or MPV required for screenshots was not found")
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "screenshot failed"})
+		respondLocalizedError(c, http.StatusInternalServerError, "创建视频截图失败", "Failed to create video screenshot")
 		return
 	}
 
 	info, err := os.Stat(screenshotPath)
 	if err != nil {
 		logging.Error("stat created video screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取新建的视频截图失败", "Failed to inspect the created video screenshot")
 		return
 	}
 	imageURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/screenshots/" + url.PathEscape(name)
@@ -1433,18 +1433,18 @@ func getVideoScreenshot(c *gin.Context) {
 
 	name := filepath.Base(strings.TrimSpace(c.Param("name")))
 	if !isScreenshotImageName(name) || name != strings.TrimSpace(c.Param("name")) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid screenshot name"})
+		respondLocalizedError(c, http.StatusBadRequest, "截图文件名无效", "Invalid screenshot filename")
 		return
 	}
 
 	screenshotPath := filepath.Join(screenshotDir, name)
 	if _, err := os.Stat(screenshotPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频截图不存在", "Video screenshot does not exist")
 			return
 		}
 		logging.Error("stat video screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "读取视频截图失败", "Failed to inspect video screenshot")
 		return
 	}
 
@@ -1459,24 +1459,24 @@ func deleteVideoScreenshot(c *gin.Context) {
 
 	name := filepath.Base(strings.TrimSpace(c.Param("name")))
 	if !isScreenshotImageName(name) || name != strings.TrimSpace(c.Param("name")) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid screenshot name"})
+		respondLocalizedError(c, http.StatusBadRequest, "截图文件名无效", "Invalid screenshot filename")
 		return
 	}
 
 	screenshotPath := filepath.Join(screenshotDir, name)
 	if err := util.MoveFileToTrash(screenshotPath); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			c.Status(http.StatusNotFound)
+			respondLocalizedError(c, http.StatusNotFound, "视频截图不存在", "Video screenshot does not exist")
 			return
 		}
 		logging.Error("delete video screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "删除视频截图失败", "Failed to delete video screenshot")
 		return
 	}
 
 	if err := dbpkg.ClearVideoCoverScreenshotNameIfMatch(c.Request.Context(), id, name); err != nil {
 		logging.Error("clear deleted video cover screenshot error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "更新视频封面状态失败", "Failed to update video cover state")
 		return
 	}
 
@@ -1486,22 +1486,22 @@ func deleteVideoScreenshot(c *gin.Context) {
 func resolveVideoScreenshotDir(c *gin.Context) (int64, string, bool) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "视频 ID 无效", "Invalid video ID")
 		return 0, "", false
 	}
 
 	video, err := dbpkg.GetVideo(c.Request.Context(), id)
 	if err != nil {
 		logging.Error("get video for screenshots error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频截图信息失败", "Failed to load video screenshot information")
 		return 0, "", false
 	}
 	if video == nil {
-		c.Status(http.StatusNotFound)
+		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
 		return 0, "", false
 	}
 	if common.AppConfig == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 		return 0, "", false
 	}
 

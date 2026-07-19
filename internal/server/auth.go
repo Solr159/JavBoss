@@ -321,7 +321,7 @@ func (a *AuthService) requireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := requestSessionToken(c, a.cookieName)
 		if !requestOriginAllowed(c.Request) {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "invalid request origin"})
+			abortLocalizedError(c, http.StatusForbidden, "请求来源无效", "Invalid request origin")
 			return
 		}
 		authenticated, cookieTTL, renewed, err := a.authenticateRequest(c.Request.Context(), token)
@@ -329,7 +329,7 @@ func (a *AuthService) requireAuth() gin.HandlerFunc {
 			logging.Error("renew auth session error: %v", err)
 		}
 		if !authenticated {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+			abortLocalizedError(c, http.StatusUnauthorized, "需要登录后才能继续", "Authentication is required")
 			return
 		}
 		if renewed {

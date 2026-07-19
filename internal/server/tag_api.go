@@ -32,7 +32,7 @@ func listTags(c *gin.Context) {
 	)
 	if err != nil {
 		logging.Error("list tags error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频标签失败", "Failed to load video tags")
 		return
 	}
 	if tags == nil {
@@ -46,14 +46,14 @@ func createTag(c *gin.Context) {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签请求无效", "Invalid tag creation request")
 		return
 	}
 
 	tag, err := dbpkg.CreateTag(c.Request.Context(), req.Name)
 	if err != nil {
 		logging.Error("create tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签失败，标签名称可能为空或已存在", "Failed to create tag; the name may be empty or already exist")
 		return
 	}
 	c.JSON(http.StatusCreated, dbpkg.TagCount{ID: tag.ID, Name: tag.Name, Count: 0})
@@ -62,7 +62,7 @@ func createTag(c *gin.Context) {
 func renameTag(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "标签 ID 无效", "Invalid tag ID")
 		return
 	}
 
@@ -70,13 +70,13 @@ func renameTag(c *gin.Context) {
 		Name string `json:"name"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "重命名标签请求无效", "Invalid tag rename request")
 		return
 	}
 
 	if err := dbpkg.RenameTag(c.Request.Context(), id, req.Name); err != nil {
 		logging.Error("rename tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "重命名标签失败，标签名称可能为空或已存在", "Failed to rename tag; the name may be empty or already exist")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -85,13 +85,13 @@ func renameTag(c *gin.Context) {
 func deleteTag(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "标签 ID 无效", "Invalid tag ID")
 		return
 	}
 
 	if err := dbpkg.DeleteTag(c.Request.Context(), id); err != nil {
 		logging.Error("delete tag error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "删除标签失败", "Failed to delete tag")
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -158,16 +158,16 @@ func replaceTagsForVideos(c *gin.Context) {
 func deleteTagsBatch(c *gin.Context) {
 	var req tagsBatchDeleteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "批量删除标签请求无效", "Invalid batch tag deletion request")
 		return
 	}
 	if len(req.TagIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tag_ids required"})
+		respondLocalizedError(c, http.StatusBadRequest, "标签 ID 不能为空", "Tag IDs are required")
 		return
 	}
 	if err := dbpkg.DeleteTags(c.Request.Context(), req.TagIDs); err != nil {
 		logging.Error("delete tags error: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "批量删除标签失败", "Failed to delete tags")
 		return
 	}
 	c.Status(http.StatusNoContent)

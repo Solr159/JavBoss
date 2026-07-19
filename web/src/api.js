@@ -33,11 +33,6 @@ export async function loginWithPassword(password) {
     body: JSON.stringify({ password }),
   })
   if (!res.ok) {
-    if (res.status === 401) throw new Error(zh('密码错误', 'Incorrect password'))
-    if (res.status === 400) throw new Error(zh('密码格式无效', 'Invalid password format'))
-    if (res.status === 429) {
-      throw new Error(zh('登录尝试过多，请稍后再试', 'Too many attempts. Try again later.'))
-    }
     throw await apiError(res)
   }
   return res.json()
@@ -57,15 +52,6 @@ export async function changePassword(currentPassword, newPassword) {
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   })
   if (!res.ok) {
-    if (res.status === 400) throw new Error(zh('当前密码错误', 'Current password is incorrect'))
-    if (res.status === 422) {
-      throw new Error(
-        zh(
-          '新密码需为 6-20 个字符，且首尾不能有空格',
-          'New password must be 6-20 characters without surrounding spaces'
-        )
-      )
-    }
     throw await apiError(res)
   }
 }

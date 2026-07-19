@@ -25,7 +25,7 @@ func getConfig(c *gin.Context) {
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
 		logging.Error("list config error: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载配置失败", "Failed to load configuration")
 		return
 	}
 	applyRuntimeConfigFields(cfg)

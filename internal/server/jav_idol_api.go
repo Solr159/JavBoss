@@ -29,7 +29,7 @@ func listJavIdols(c *gin.Context) {
 	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
 		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
 		if err != nil || parsed <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid favorite_group_id"})
+			respondLocalizedError(c, http.StatusBadRequest, "收藏夹 ID 无效", "Invalid favorite group ID")
 			return
 		}
 		favoriteGroupID = parsed
@@ -38,7 +38,7 @@ func listJavIdols(c *gin.Context) {
 	items, total, err := dbpkg.ListJavIdols(c.Request.Context(), search, sort, limit, offset, directoryIDs, favoriteGroupID)
 	if err != nil {
 		logging.Error("list jav idols: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载女优列表失败", "Failed to load idols")
 		return
 	}
 
@@ -58,7 +58,7 @@ func listJavIdolOptions(c *gin.Context) {
 	items, total, err := dbpkg.ListJavIdolOptions(c.Request.Context(), search, limit, offset)
 	if err != nil {
 		logging.Error("list jav idol options: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载女优选项失败", "Failed to load idol options")
 		return
 	}
 
@@ -73,7 +73,7 @@ func resolveJavIdols(c *gin.Context) {
 	items, err := dbpkg.ResolveJavIdols(c.Request.Context(), ids)
 	if err != nil {
 		logging.Error("resolve jav idols: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "解析女优信息失败", "Failed to resolve idol information")
 		return
 	}
 	if items == nil {
@@ -88,15 +88,15 @@ func mergeJavIdols(c *gin.Context) {
 		MergeIDs    []int64 `json:"merge_ids"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "合并女优请求无效", "Invalid idol merge request")
 		return
 	}
 	if req.CanonicalID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "canonical_id is required"})
+		respondLocalizedError(c, http.StatusBadRequest, "主女优 ID 不能为空", "Canonical idol ID is required")
 		return
 	}
 	if len(req.MergeIDs) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "merge_ids required"})
+		respondLocalizedError(c, http.StatusBadRequest, "待合并女优 ID 不能为空", "Idol IDs to merge are required")
 		return
 	}
 
@@ -104,11 +104,11 @@ func mergeJavIdols(c *gin.Context) {
 	item, err := dbpkg.MergeJavIdols(c.Request.Context(), req.CanonicalID, req.MergeIDs, directoryIDs)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "idol not found"})
+			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
 			return
 		}
 		logging.Error("merge jav idols canonical=%d merge=%v: %v", req.CanonicalID, req.MergeIDs, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "合并女优失败，请检查所选女优是否有效", "Failed to merge idols; check the selected idols")
 		return
 	}
 	items := []dbpkg.JavIdolSummary{*item}
@@ -119,7 +119,7 @@ func mergeJavIdols(c *gin.Context) {
 func updateJavIdol(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "女优 ID 无效", "Invalid idol ID")
 		return
 	}
 
@@ -137,7 +137,7 @@ func updateJavIdol(c *gin.Context) {
 		Aliases      []string `json:"aliases"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "修改女优信息请求无效", "Invalid idol update request")
 		return
 	}
 
@@ -147,7 +147,7 @@ func updateJavIdol(c *gin.Context) {
 		if raw != "" {
 			parsed, err := time.Parse("2006-01-02", raw)
 			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "birth_date must be YYYY-MM-DD"})
+				respondLocalizedError(c, http.StatusBadRequest, "出生日期格式必须为 YYYY-MM-DD", "Birth date must use the YYYY-MM-DD format")
 				return
 			}
 			birthDate = &parsed
@@ -170,11 +170,11 @@ func updateJavIdol(c *gin.Context) {
 	}, directoryIDs)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "idol not found"})
+			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
 			return
 		}
 		logging.Error("update jav idol id=%d: %v", id, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "保存女优信息失败", "Failed to save idol information")
 		return
 	}
 	items := []dbpkg.JavIdolSummary{*item}
@@ -185,7 +185,7 @@ func updateJavIdol(c *gin.Context) {
 func listJavIdolCoverOptions(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "女优 ID 无效", "Invalid idol ID")
 		return
 	}
 
@@ -196,7 +196,7 @@ func listJavIdolCoverOptions(c *gin.Context) {
 	)
 	if err != nil {
 		logging.Error("list jav idol cover options id=%d: %v", id, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载女优封面选项失败", "Failed to load idol cover options")
 		return
 	}
 	if options == nil {
@@ -208,7 +208,7 @@ func listJavIdolCoverOptions(c *gin.Context) {
 func updateJavIdolCover(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "女优 ID 无效", "Invalid idol ID")
 		return
 	}
 
@@ -217,11 +217,11 @@ func updateJavIdolCover(c *gin.Context) {
 		CropLeft float64 `json:"crop_left"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		respondLocalizedError(c, http.StatusBadRequest, "更新女优封面请求无效", "Invalid idol cover update request")
 		return
 	}
 	if math.IsNaN(req.CropLeft) || math.IsInf(req.CropLeft, 0) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid crop_left"})
+		respondLocalizedError(c, http.StatusBadRequest, "封面裁剪位置无效", "Invalid cover crop position")
 		return
 	}
 
@@ -234,11 +234,11 @@ func updateJavIdolCover(c *gin.Context) {
 	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "idol not found"})
+			respondLocalizedError(c, http.StatusNotFound, "女优或封面作品不存在", "Idol or cover item was not found")
 			return
 		}
 		logging.Error("update jav idol cover id=%d: %v", id, err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondLocalizedError(c, http.StatusBadRequest, "保存女优封面失败", "Failed to save idol cover")
 		return
 	}
 
@@ -250,7 +250,7 @@ func updateJavIdolCover(c *gin.Context) {
 func getJavIdol(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondLocalizedError(c, http.StatusBadRequest, "女优 ID 无效", "Invalid idol ID")
 		return
 	}
 
@@ -258,11 +258,11 @@ func getJavIdol(c *gin.Context) {
 	item, err := dbpkg.GetJavIdolSummary(c.Request.Context(), id, directoryIDs)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "idol not found"})
+			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
 			return
 		}
 		logging.Error("get jav idol id=%d: %v", id, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "加载女优信息失败", "Failed to load idol information")
 		return
 	}
 
@@ -275,18 +275,18 @@ func getJavIdolJavDBURL(c *gin.Context) {
 	code := strings.TrimSpace(c.Query("code"))
 	name := strings.TrimSpace(c.Query("name"))
 	if code == "" || name == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code and name are required"})
+		respondLocalizedError(c, http.StatusBadRequest, "番号和女优名称不能为空", "JAV code and idol name are required")
 		return
 	}
 
 	profileURL, err := jav.LookupActressURLByCodeAndName(code, name, jav.ProviderJavDB)
 	if err != nil {
 		if errors.Is(err, jav.ResourceNotFonud) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "javdb actress url not found"})
+			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 JavDB 女优页面", "JavDB idol page was not found")
 			return
 		}
 		logging.Error("lookup javdb actress url code=%s name=%s: %v", code, name, err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+		respondLocalizedError(c, http.StatusInternalServerError, "查询 JavDB 女优页面失败", "Failed to look up the JavDB idol page")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"url": profileURL})

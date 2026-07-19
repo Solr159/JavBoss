@@ -10,3 +10,8 @@ func respondLocalizedError(c *gin.Context, status int, messageZH, messageEN stri
 		"error_en": messageEN,
 	})
 }
+
+func abortLocalizedError(c *gin.Context, status int, messageZH, messageEN string) {
+	c.Abort()
+	respondLocalizedError(c, status, messageZH, messageEN)
+}
