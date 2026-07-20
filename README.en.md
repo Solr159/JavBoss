@@ -27,6 +27,9 @@ If you do not want to deal with complex tools or configuration and just want to 
 
 #### Option 1: Command-line One-line Install (Recommended)
 
+<dl>
+<dd>
+
 Windows PowerShell:
 
 ```powershell
@@ -46,7 +49,13 @@ To open JavBoss later:
 - Windows: double-click the `JavBoss` desktop shortcut, or search for `JavBoss` in the Start menu.
 - Linux / macOS: open a terminal and run `javboss`.
 
+</dd>
+</dl>
+
 #### Option 2: Manual Download
+
+<dl>
+<dd>
 
 Click the link for your system, download the latest release package, and extract it:
 
@@ -63,9 +72,13 @@ After extracting the package, start the app:
 - macOS: open a terminal and run `javboss.command`.
 - Linux: open a terminal and run `javboss`.
 
-After launch, JavBoss will try to open your browser automatically. If it does not, open the local address shown in the terminal manually. Keep the terminal window open while JavBoss is running.
+</dd>
+</dl>
 
 #### Option 3: Docker Deployment
+
+<dl>
+<dd>
 
 docker-compose.yaml:
 
@@ -90,15 +103,12 @@ Start:
 docker compose up -d
 ```
 
-Open:
-
-```text
-http://localhost:8655
-```
-
-To access JavBoss over your LAN, replace the host with the LAN IP address of the server where JavBoss is deployed.
-
 Docker deployments use browser video playback and do not call mpv on the host. When adding a folder, enter the host path directly, such as `/mnt/disk1/videos`; JavBoss maps it to a container-readable path automatically.
+
+</dd>
+</dl>
+
+**Open `http://localhost:8655` in your browser to access JavBoss. For non-Docker installations, JavBoss opens the browser automatically after startup. The default login password is `admin`; you can change it in Global Settings.**
 
 ### 2. Set JAV Metadata Language
 
@@ -261,7 +271,7 @@ The frontend is designed around finding the right video quickly. Common operatio
 - JavBoss is a local media library manager, not an online streaming site.
 - Initial JAV metadata and cover fetching depend on external website availability. If access is restricted in your region, prepare a working network/proxy environment yourself.
 - When importing a large library for the first time, scanning, cover downloads, metadata completion, and thumbnail generation can take some time.
-- The release package includes a `config.toml` file in its root directory. By default `port = 0`, so JavBoss uses a random startup port. You can change it any time if you need a fixed port.
+- The release package includes a `config.toml` file in its root directory. JavBoss uses port 8655 by default; change the `port` value if you need to use a different startup port.
 
 ## Q&A
 
