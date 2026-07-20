@@ -249,18 +249,22 @@ export default function DirectoryManager({
                     </form>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                      {zh(
-                        `已扫描 ${Number(d.scanned_video_count) || 0} 个视频`,
-                        `${Number(d.scanned_video_count) || 0} videos scanned`
-                      )}
-                    </span>
-                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      {zh(
-                        `已刮削 ${Number(d.scraped_video_count) || 0} 个视频`,
-                        `${Number(d.scraped_video_count) || 0} videos scraped`
-                      )}
-                    </span>
+                    {!isEditing && (
+                      <div className="flex items-center divide-x divide-zinc-200 text-xs text-zinc-500">
+                        <span className="pr-3">
+                          {zh('已扫描', 'Scanned')}{' '}
+                          <strong className="font-semibold tabular-nums text-zinc-800">
+                            {Number(d.scanned_video_count) || 0}
+                          </strong>
+                        </span>
+                        <span className="pl-3">
+                          {zh('已刮削', 'Scraped')}{' '}
+                          <strong className="font-semibold tabular-nums text-zinc-800">
+                            {Number(d.scraped_video_count) || 0}
+                          </strong>
+                        </span>
+                      </div>
+                    )}
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                         {zh('目录缺失', 'Missing')}
