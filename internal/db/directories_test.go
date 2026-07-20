@@ -9,6 +9,73 @@ import (
 	"javboss/internal/models"
 )
 
+func TestListDirectoriesIncludesCurrentVideoCounts(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	directories := []models.Directory{
+		{Path: "/media/one"},
+		{Path: "/media/two"},
+	}
+	if err := gdb.Create(&directories).Error; err != nil {
+		t.Fatalf("create directories: %v", err)
+	}
+	javRec := models.Jav{Code: "COUNT-001", Title: "Counted scrape"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+
+	videos := []models.Video{
+		{Fingerprint: "directory-count-one"},
+		{Fingerprint: "directory-count-two"},
+		{Fingerprint: "directory-count-hidden"},
+		{Fingerprint: "directory-count-other"},
+	}
+	if err := gdb.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	first, err := UpsertVideoLocation(ctx, videos[0].ID, directories[0].ID, "one.mp4", now)
+	if err != nil {
+		t.Fatalf("create first location: %v", err)
+	}
+	if _, err := UpsertVideoLocation(ctx, videos[1].ID, directories[0].ID, "two.mp4", now); err != nil {
+		t.Fatalf("create second location: %v", err)
+	}
+	hidden, err := UpsertVideoLocation(ctx, videos[2].ID, directories[0].ID, "hidden.mp4", now)
+	if err != nil {
+		t.Fatalf("create hidden location: %v", err)
+	}
+	other, err := UpsertVideoLocation(ctx, videos[3].ID, directories[1].ID, "other.mp4", now)
+	if err != nil {
+		t.Fatalf("create other location: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("id IN ?", []int64{first.ID, other.ID}).
+		Update("jav_id", javRec.ID).Error; err != nil {
+		t.Fatalf("mark locations scraped: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("id = ?", hidden.ID).
+		Update("is_delete", true).Error; err != nil {
+		t.Fatalf("hide location: %v", err)
+	}
+
+	got, err := ListDirectories(ctx)
+	if err != nil {
+		t.Fatalf("list directories: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("directory count = %d, want 2", len(got))
+	}
+	if got[0].ScannedVideoCount != 2 || got[0].ScrapedVideoCount != 1 {
+		t.Fatalf("first directory counts = scanned %d scraped %d, want 2 and 1", got[0].ScannedVideoCount, got[0].ScrapedVideoCount)
+	}
+	if got[1].ScannedVideoCount != 1 || got[1].ScrapedVideoCount != 1 {
+		t.Fatalf("second directory counts = scanned %d scraped %d, want 1 and 1", got[1].ScannedVideoCount, got[1].ScrapedVideoCount)
+	}
+}
+
 func TestMissingDirectoryContentsRemainVisible(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

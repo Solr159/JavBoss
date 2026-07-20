@@ -367,7 +367,7 @@ export async function manualVideoJavScrape(videoId, locationId, info) {
 
 // Directories
 export async function fetchDirectories() {
-  const res = await apiFetch('/directories')
+  const res = await apiFetch('/directories', { cache: 'no-store' })
   if (!res.ok) throw await apiError(res)
   const ct = res.headers.get('content-type') || ''
   if (!ct.includes('application/json')) {

@@ -40,7 +40,17 @@ func normalizeDirectoryPath(p string) (string, error) {
 // ListDirectories returns all directories regardless of status.
 func ListDirectories(ctx context.Context) ([]models.Directory, error) {
 	var dirs []models.Directory
-	if err := common.DB.WithContext(ctx).Order("id").Find(&dirs).Error; err != nil {
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Directory{}).
+		Select(`directory.*,
+			COUNT(video_location.id) AS scanned_video_count,
+			COALESCE(SUM(CASE WHEN video_location.jav_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS scraped_video_count`).
+		Joins(`LEFT JOIN video_location
+			ON video_location.directory_id = directory.id
+			AND COALESCE(video_location.is_delete, 0) = 0`).
+		Group("directory.id").
+		Order("directory.id").
+		Find(&dirs).Error; err != nil {
 		return nil, fmt.Errorf("list directories: %w", err)
 	}
 	return dirs, nil

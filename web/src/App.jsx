@@ -3721,8 +3721,8 @@ export default function App() {
           await loadDirectories()
           showToast(
             zh(
-              '目录添加成功，首次扫描目录里的视频需要一定时间，请耐心等待，您可手动刷新页面查看扫描进度',
-              'Directory added. The first scan may take some time. You can refresh manually to check progress.'
+              '目录添加成功，首次扫描需要一定时间，目录管理中的视频数量会自动更新',
+              'Directory added. The first scan may take some time; video counts update automatically in Directory Management.'
             )
           )
           return created
@@ -3737,6 +3737,7 @@ export default function App() {
           await loadDirectories()
           return deleted
         }}
+        onRefreshDirectories={loadDirectories}
         proxyHost={config?.proxy_host || ''}
         proxyPort={Number.parseInt(config?.proxy_port, 10) || 0}
         onSaveProxySettings={async ({ host, port }) => {

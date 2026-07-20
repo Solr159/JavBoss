@@ -20,6 +20,7 @@ export default function DirectoryManager({
   onCreate,
   onUpdate,
   onDelete,
+  onRefresh,
   directoryPickerEnabled = true,
   useHostPaths = false,
 }) {
@@ -70,6 +71,27 @@ export default function DirectoryManager({
       setRowErrorMsg('')
     }
   }, [open])
+
+  useEffect(() => {
+    if (!open || !onRefresh) return undefined
+
+    let refreshing = false
+    const refresh = async () => {
+      if (refreshing) return
+      refreshing = true
+      try {
+        await onRefresh()
+      } catch {
+        // Keep the last successful counts visible and retry on the next interval.
+      } finally {
+        refreshing = false
+      }
+    }
+
+    refresh()
+    const timer = window.setInterval(refresh, 1000)
+    return () => window.clearInterval(timer)
+  }, [onRefresh, open])
 
   const handlePick = async ({ setValue, setErr, setRowId }) => {
     setError('')
@@ -227,6 +249,18 @@ export default function DirectoryManager({
                     </form>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {zh(
+                        `已扫描 ${Number(d.scanned_video_count) || 0} 个视频`,
+                        `${Number(d.scanned_video_count) || 0} videos scanned`
+                      )}
+                    </span>
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {zh(
+                        `已刮削 ${Number(d.scraped_video_count) || 0} 个视频`,
+                        `${Number(d.scraped_video_count) || 0} videos scraped`
+                      )}
+                    </span>
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                         {zh('目录缺失', 'Missing')}
