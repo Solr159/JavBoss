@@ -205,6 +205,8 @@ export default function JavQueryEditorModal({
     if (!open) return
     const trimmedStudioName = String(studioName || '').trim()
     const parsedStudioId = Number(studioId)
+    const hasStudioFilter =
+      studioId !== null && studioId !== undefined && String(studioId).trim() !== ''
     const trimmedSeriesName = String(seriesName || '').trim()
     const parsedSeriesId = Number(seriesId)
     const cleanedPrefix = cleanJavPrefix(prefix)
@@ -221,7 +223,7 @@ export default function JavQueryEditorModal({
     setTagSearch('')
     setTagPickerOpen(false)
     setSelectedStudio(
-      Number.isFinite(parsedStudioId) && parsedStudioId >= 0
+      hasStudioFilter && Number.isFinite(parsedStudioId) && parsedStudioId >= 0
         ? {
             id: parsedStudioId,
             name:
