@@ -252,13 +252,13 @@ export default function DirectoryManager({
                     {!isEditing && (
                       <div className="flex items-center divide-x divide-zinc-200 text-xs text-zinc-500">
                         <span className="pr-3">
-                          {zh('已扫描', 'Scanned')}{' '}
+                          {zh('已扫描视频', 'Scanned videos')}{' '}
                           <strong className="font-semibold tabular-nums text-zinc-800">
                             {Number(d.scanned_video_count) || 0}
                           </strong>
                         </span>
                         <span className="pl-3">
-                          {zh('已刮削', 'Scraped')}{' '}
+                          {zh('已刮削视频', 'Scraped videos')}{' '}
                           <strong className="font-semibold tabular-nums text-zinc-800">
                             {Number(d.scraped_video_count) || 0}
                           </strong>
