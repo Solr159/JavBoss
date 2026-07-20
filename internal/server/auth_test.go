@@ -18,6 +18,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func TestAuthSessionTTL(t *testing.T) {
+	if authSessionTTL != 14*24*time.Hour {
+		t.Fatalf("auth session TTL = %s, want 14 days", authSessionTTL)
+	}
+}
+
 func TestAuthLoginProtectsRoutesAndLogoutRevokesSession(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	auth := testAuthService(t)

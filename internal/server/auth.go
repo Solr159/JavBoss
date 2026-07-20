@@ -27,7 +27,7 @@ import (
 
 const (
 	authSessionCookie = "javboss_session"
-	authSessionTTL    = 7 * 24 * time.Hour
+	authSessionTTL    = 14 * 24 * time.Hour
 	authRenewInterval = 24 * time.Hour
 	maxLoginFailures  = 5
 	loginLockout      = 30 * time.Second
