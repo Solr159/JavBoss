@@ -40,39 +40,43 @@ func updateConfig(c *gin.Context) {
 	}
 
 	var req struct {
-		VideoPageSize        *int                  `json:"video_page_size"`
-		JavPageSize          *int                  `json:"jav_page_size"`
-		JavGridColumns       *int                  `json:"jav_grid_columns"`
-		JavTitleMaxRows      *int                  `json:"jav_title_max_rows"`
-		JavIdolTagMaxRows    *int                  `json:"jav_idol_tag_max_rows"`
-		JavTagMaxRows        *int                  `json:"jav_tag_max_rows"`
-		JavHideSeries        *bool                 `json:"jav_hide_series"`
-		JavHideIdols         *bool                 `json:"jav_hide_idols"`
-		JavHideTags          *bool                 `json:"jav_hide_tags"`
-		JavHideActions       *bool                 `json:"jav_hide_actions"`
-		IdolPageSize         *int                  `json:"idol_page_size"`
-		StudioPageSize       *int                  `json:"studio_page_size"`
-		SeriesPageSize       *int                  `json:"series_page_size"`
-		VideoHideJav         *bool                 `json:"video_hide_jav"`
-		VideoSort            string                `json:"video_sort"`
-		JavSort              string                `json:"jav_sort"`
-		IdolSort             string                `json:"idol_sort"`
-		JavMetadataLanguage  string                `json:"jav_metadata_language"`
-		JavIdolPreferChinese *bool                 `json:"jav_idol_prefer_chinese_name"`
-		DefaultPlayer        string                `json:"default_player"`
-		InitialViewMode      string                `json:"initial_view_mode"`
-		ShowTopBarTooltips   *bool                 `json:"show_top_bar_button_tooltips"`
-		ProxyHost            *string               `json:"proxy_host"`
-		ProxyPort            *int                  `json:"proxy_port"`
-		PlayerWindowSize     *int                  `json:"player_window_size"`
-		PlayerWindowWidth    *int                  `json:"player_window_width"`
-		PlayerWindowHeight   *int                  `json:"player_window_height"`
-		PlayerVolume         *int                  `json:"player_volume"`
-		PlayerOntop          *bool                 `json:"player_ontop"`
-		PlayerReuseWindow    *bool                 `json:"player_reuse_window"`
-		PlayerResumePlayback *bool                 `json:"player_resume_playback"`
-		PlayerShowHotkeyHint *bool                 `json:"player_show_hotkey_hint"`
-		PlayerHotkeys        []playerHotkeyPayload `json:"player_hotkeys"`
+		VideoPageSize          *int                  `json:"video_page_size"`
+		JavPageSize            *int                  `json:"jav_page_size"`
+		JavGridColumns         *int                  `json:"jav_grid_columns"`
+		JavTitleMaxRows        *int                  `json:"jav_title_max_rows"`
+		JavIdolTagMaxRows      *int                  `json:"jav_idol_tag_max_rows"`
+		JavTagMaxRows          *int                  `json:"jav_tag_max_rows"`
+		JavHideSeries          *bool                 `json:"jav_hide_series"`
+		JavHideIdols           *bool                 `json:"jav_hide_idols"`
+		JavHideTags            *bool                 `json:"jav_hide_tags"`
+		JavHideActions         *bool                 `json:"jav_hide_actions"`
+		JavWaterfallDefault    *bool                 `json:"jav_waterfall_default"`
+		IdolPageSize           *int                  `json:"idol_page_size"`
+		IdolWaterfallDefault   *bool                 `json:"idol_waterfall_default"`
+		StudioPageSize         *int                  `json:"studio_page_size"`
+		StudioWaterfallDefault *bool                 `json:"studio_waterfall_default"`
+		SeriesPageSize         *int                  `json:"series_page_size"`
+		SeriesWaterfallDefault *bool                 `json:"series_waterfall_default"`
+		VideoHideJav           *bool                 `json:"video_hide_jav"`
+		VideoSort              string                `json:"video_sort"`
+		JavSort                string                `json:"jav_sort"`
+		IdolSort               string                `json:"idol_sort"`
+		JavMetadataLanguage    string                `json:"jav_metadata_language"`
+		JavIdolPreferChinese   *bool                 `json:"jav_idol_prefer_chinese_name"`
+		DefaultPlayer          string                `json:"default_player"`
+		InitialViewMode        string                `json:"initial_view_mode"`
+		ShowTopBarTooltips     *bool                 `json:"show_top_bar_button_tooltips"`
+		ProxyHost              *string               `json:"proxy_host"`
+		ProxyPort              *int                  `json:"proxy_port"`
+		PlayerWindowSize       *int                  `json:"player_window_size"`
+		PlayerWindowWidth      *int                  `json:"player_window_width"`
+		PlayerWindowHeight     *int                  `json:"player_window_height"`
+		PlayerVolume           *int                  `json:"player_volume"`
+		PlayerOntop            *bool                 `json:"player_ontop"`
+		PlayerReuseWindow      *bool                 `json:"player_reuse_window"`
+		PlayerResumePlayback   *bool                 `json:"player_resume_playback"`
+		PlayerShowHotkeyHint   *bool                 `json:"player_show_hotkey_hint"`
+		PlayerHotkeys          []playerHotkeyPayload `json:"player_hotkeys"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "配置请求无效", "Invalid configuration request")
@@ -152,20 +156,32 @@ func updateConfig(c *gin.Context) {
 	if req.JavHideActions != nil {
 		entries["jav_hide_actions"] = strconv.FormatBool(*req.JavHideActions)
 	}
+	if req.JavWaterfallDefault != nil {
+		entries["jav_waterfall_default"] = strconv.FormatBool(*req.JavWaterfallDefault)
+	}
 	if req.IdolPageSize != nil {
 		if v, ok := clampSize(*req.IdolPageSize); ok {
 			entries["idol_page_size"] = v
 		}
+	}
+	if req.IdolWaterfallDefault != nil {
+		entries["idol_waterfall_default"] = strconv.FormatBool(*req.IdolWaterfallDefault)
 	}
 	if req.StudioPageSize != nil {
 		if v, ok := clampSize(*req.StudioPageSize); ok {
 			entries["studio_page_size"] = v
 		}
 	}
+	if req.StudioWaterfallDefault != nil {
+		entries["studio_waterfall_default"] = strconv.FormatBool(*req.StudioWaterfallDefault)
+	}
 	if req.SeriesPageSize != nil {
 		if v, ok := clampSize(*req.SeriesPageSize); ok {
 			entries["series_page_size"] = v
 		}
+	}
+	if req.SeriesWaterfallDefault != nil {
+		entries["series_waterfall_default"] = strconv.FormatBool(*req.SeriesWaterfallDefault)
 	}
 	if req.VideoHideJav != nil {
 		entries["video_hide_jav"] = strconv.FormatBool(*req.VideoHideJav)

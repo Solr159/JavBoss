@@ -320,9 +320,21 @@ export default function App() {
   const [javHideActionsInput, setJavHideActionsInput] = useState(
     configFlag(config?.jav_hide_actions)
   )
+  const [javWaterfallDefaultInput, setJavWaterfallDefaultInput] = useState(
+    configFlag(config?.jav_waterfall_default)
+  )
   const [idolPageSizeInput, setIdolPageSizeInput] = useState(idolPageSize)
+  const [idolWaterfallDefaultInput, setIdolWaterfallDefaultInput] = useState(
+    configFlag(config?.idol_waterfall_default)
+  )
   const [studioPageSizeInput, setStudioPageSizeInput] = useState(studioPageSize)
+  const [studioWaterfallDefaultInput, setStudioWaterfallDefaultInput] = useState(
+    configFlag(config?.studio_waterfall_default)
+  )
   const [seriesPageSizeInput, setSeriesPageSizeInput] = useState(seriesPageSize)
+  const [seriesWaterfallDefaultInput, setSeriesWaterfallDefaultInput] = useState(
+    configFlag(config?.series_waterfall_default)
+  )
   const [javSortInput, setJavSortInput] = useState(javSort)
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
   const [javIdolPreferChineseNameInput, setJavIdolPreferChineseNameInput] = useState(
@@ -918,6 +930,23 @@ export default function App() {
       mounted = false
     }
   }, [loadConfig])
+
+  useEffect(() => {
+    if (!configLoaded) return
+    setWaterfallModes((current) => ({
+      ...current,
+      jav: configFlag(config?.jav_waterfall_default),
+      idol: configFlag(config?.idol_waterfall_default),
+      studio: configFlag(config?.studio_waterfall_default),
+      series: configFlag(config?.series_waterfall_default),
+    }))
+  }, [
+    configLoaded,
+    config?.jav_waterfall_default,
+    config?.idol_waterfall_default,
+    config?.studio_waterfall_default,
+    config?.series_waterfall_default,
+  ])
 
   const applyUrlState = useCallback(
     (parsed) => {
@@ -1875,9 +1904,13 @@ export default function App() {
     setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
     setJavHideTagsInput(configFlag(config?.jav_hide_tags))
     setJavHideActionsInput(configFlag(config?.jav_hide_actions))
+    setJavWaterfallDefaultInput(configFlag(config?.jav_waterfall_default))
     setIdolPageSizeInput(idolPageSize)
+    setIdolWaterfallDefaultInput(configFlag(config?.idol_waterfall_default))
     setStudioPageSizeInput(studioPageSize)
+    setStudioWaterfallDefaultInput(configFlag(config?.studio_waterfall_default))
     setSeriesPageSizeInput(seriesPageSize)
+    setSeriesWaterfallDefaultInput(configFlag(config?.series_waterfall_default))
     setJavSortInput(javSort)
     setIdolSortInput(idolSort)
     setJavSettingsOpen(true)
@@ -1891,6 +1924,10 @@ export default function App() {
     config?.jav_hide_idols,
     config?.jav_hide_tags,
     config?.jav_hide_actions,
+    config?.jav_waterfall_default,
+    config?.idol_waterfall_default,
+    config?.studio_waterfall_default,
+    config?.series_waterfall_default,
     idolPageSize,
     studioPageSize,
     seriesPageSize,
@@ -1990,6 +2027,12 @@ export default function App() {
     const seriesSize = Math.max(1, parseInt(seriesPageSizeInput, 10) || seriesPageSize)
     const normalizedSort = normalizeJavSort(javSortInput)
     const normalizedIdolSort = normalizeIdolSort(idolSortInput)
+    const waterfallDefaults = {
+      jav: Boolean(javWaterfallDefaultInput),
+      idol: Boolean(idolWaterfallDefaultInput),
+      studio: Boolean(studioWaterfallDefaultInput),
+      series: Boolean(seriesWaterfallDefaultInput),
+    }
     try {
       const cfg = await updateConfig({
         jav_page_size: javSize,
@@ -2001,9 +2044,13 @@ export default function App() {
         jav_hide_idols: Boolean(javHideIdolsInput),
         jav_hide_tags: Boolean(javHideTagsInput),
         jav_hide_actions: Boolean(javHideActionsInput),
+        jav_waterfall_default: waterfallDefaults.jav,
         idol_page_size: idolSize,
+        idol_waterfall_default: waterfallDefaults.idol,
         studio_page_size: studioSize,
+        studio_waterfall_default: waterfallDefaults.studio,
         series_page_size: seriesSize,
+        series_waterfall_default: waterfallDefaults.series,
         jav_sort: normalizedSort,
         idol_sort: normalizedIdolSort,
         jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
@@ -2016,6 +2063,11 @@ export default function App() {
       const idolLast = Math.max(1, Math.ceil((idolTotal || 0) / idolSize))
       const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / studioSize))
       const seriesLast = Math.max(1, Math.ceil((seriesTotal || 0) / seriesSize))
+      Object.entries(waterfallDefaults).forEach(([key, enabled]) => {
+        if (waterfallModes[key] !== enabled) {
+          setWaterfallMode(key, enabled)
+        }
+      })
       useStore.setState({
         javPageSize: javSize,
         javGridColumns: javColumns,
@@ -2062,9 +2114,13 @@ export default function App() {
       setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
       setJavHideTagsInput(configFlag(config?.jav_hide_tags))
       setJavHideActionsInput(configFlag(config?.jav_hide_actions))
+      setJavWaterfallDefaultInput(configFlag(config?.jav_waterfall_default))
       setIdolPageSizeInput(idolPageSize)
+      setIdolWaterfallDefaultInput(configFlag(config?.idol_waterfall_default))
       setStudioPageSizeInput(studioPageSize)
+      setStudioWaterfallDefaultInput(configFlag(config?.studio_waterfall_default))
       setSeriesPageSizeInput(seriesPageSize)
+      setSeriesWaterfallDefaultInput(configFlag(config?.series_waterfall_default))
       setJavSortInput(javSort)
       setIdolSortInput(idolSort)
       setJavIdolPreferChineseNameInput(configFlag(config?.jav_idol_prefer_chinese_name))
@@ -2076,6 +2132,10 @@ export default function App() {
     config?.jav_hide_idols,
     config?.jav_hide_tags,
     config?.jav_hide_actions,
+    config?.jav_waterfall_default,
+    config?.idol_waterfall_default,
+    config?.studio_waterfall_default,
+    config?.series_waterfall_default,
     javPageSize,
     javGridColumns,
     javTitleMaxRows,
@@ -3468,12 +3528,20 @@ export default function App() {
         onJavHideTagsChange={setJavHideTagsInput}
         javHideActionsInput={javHideActionsInput}
         onJavHideActionsChange={setJavHideActionsInput}
+        javWaterfallDefaultInput={javWaterfallDefaultInput}
+        onJavWaterfallDefaultChange={setJavWaterfallDefaultInput}
         idolPageSizeInput={idolPageSizeInput}
         onIdolPageSizeChange={setIdolPageSizeInput}
+        idolWaterfallDefaultInput={idolWaterfallDefaultInput}
+        onIdolWaterfallDefaultChange={setIdolWaterfallDefaultInput}
         studioPageSizeInput={studioPageSizeInput}
         onStudioPageSizeChange={setStudioPageSizeInput}
+        studioWaterfallDefaultInput={studioWaterfallDefaultInput}
+        onStudioWaterfallDefaultChange={setStudioWaterfallDefaultInput}
         seriesPageSizeInput={seriesPageSizeInput}
         onSeriesPageSizeChange={setSeriesPageSizeInput}
+        seriesWaterfallDefaultInput={seriesWaterfallDefaultInput}
+        onSeriesWaterfallDefaultChange={setSeriesWaterfallDefaultInput}
         javSortInput={javSortInput}
         onJavSortChange={setJavSortInput}
         idolSortInput={idolSortInput}

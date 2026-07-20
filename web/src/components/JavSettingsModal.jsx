@@ -137,12 +137,20 @@ export default function JavSettingsModal({
   onJavHideTagsChange,
   javHideActionsInput = false,
   onJavHideActionsChange,
+  javWaterfallDefaultInput = false,
+  onJavWaterfallDefaultChange,
   idolPageSizeInput,
   onIdolPageSizeChange,
+  idolWaterfallDefaultInput = false,
+  onIdolWaterfallDefaultChange,
   studioPageSizeInput,
   onStudioPageSizeChange,
+  studioWaterfallDefaultInput = false,
+  onStudioWaterfallDefaultChange,
   seriesPageSizeInput,
   onSeriesPageSizeChange,
+  seriesWaterfallDefaultInput = false,
+  onSeriesWaterfallDefaultChange,
   javSortInput,
   onJavSortChange,
   idolSortInput,
@@ -166,17 +174,21 @@ export default function JavSettingsModal({
     switch (activeTab) {
       case 'idol':
         onIdolPageSizeChange?.(24)
+        onIdolWaterfallDefaultChange?.(false)
         onIdolSortChange?.(IDOL_SORT_OPTIONS[0]?.defaultValue || 'recent')
         onJavIdolPreferChineseNameChange?.(false)
         break
       case 'studio':
         onStudioPageSizeChange?.(25)
+        onStudioWaterfallDefaultChange?.(false)
         break
       case 'series':
         onSeriesPageSizeChange?.(25)
+        onSeriesWaterfallDefaultChange?.(false)
         break
       default:
         onJavPageSizeChange?.(24)
+        onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
@@ -307,6 +319,13 @@ export default function JavSettingsModal({
                       ))}
                     </select>
                   </SettingsRow>
+                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                    <SettingsSwitch
+                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                      checked={javWaterfallDefaultInput}
+                      onChange={onJavWaterfallDefaultChange}
+                    />
+                  </SettingsRow>
                 </div>
               </SettingsSection>
 
@@ -372,6 +391,13 @@ export default function JavSettingsModal({
                       className={controlClassName}
                     />
                   </SettingsRow>
+                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                    <SettingsSwitch
+                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                      checked={idolWaterfallDefaultInput}
+                      onChange={onIdolWaterfallDefaultChange}
+                    />
+                  </SettingsRow>
                 </div>
               </SettingsSection>
               <SettingsSection title={zh('卡片内容', 'Card content')}>
@@ -401,29 +427,47 @@ export default function JavSettingsModal({
 
           {activeTab === 'studio' ? (
             <SettingsSection title={zh('布局设置', 'Layout')}>
-              <SettingsRow label={zh('每页 片商 数量', 'Studios per page')}>
-                <input
-                  type="number"
-                  min="1"
-                  value={studioPageSizeInput}
-                  onChange={(e) => onStudioPageSizeChange?.(e.target.value)}
-                  className={controlClassName}
-                />
-              </SettingsRow>
+              <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('每页 片商 数量', 'Studios per page')}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={studioPageSizeInput}
+                    onChange={(e) => onStudioPageSizeChange?.(e.target.value)}
+                    className={controlClassName}
+                  />
+                </SettingsRow>
+                <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                  <SettingsSwitch
+                    label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                    checked={studioWaterfallDefaultInput}
+                    onChange={onStudioWaterfallDefaultChange}
+                  />
+                </SettingsRow>
+              </div>
             </SettingsSection>
           ) : null}
 
           {activeTab === 'series' ? (
             <SettingsSection title={zh('布局设置', 'Layout')}>
-              <SettingsRow label={zh('每页 系列 数量', 'Series per page')}>
-                <input
-                  type="number"
-                  min="1"
-                  value={seriesPageSizeInput}
-                  onChange={(e) => onSeriesPageSizeChange?.(e.target.value)}
-                  className={controlClassName}
-                />
-              </SettingsRow>
+              <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('每页 系列 数量', 'Series per page')}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={seriesPageSizeInput}
+                    onChange={(e) => onSeriesPageSizeChange?.(e.target.value)}
+                    className={controlClassName}
+                  />
+                </SettingsRow>
+                <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                  <SettingsSwitch
+                    label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                    checked={seriesWaterfallDefaultInput}
+                    onChange={onSeriesWaterfallDefaultChange}
+                  />
+                </SettingsRow>
+              </div>
             </SettingsSection>
           ) : null}
         </div>
