@@ -13,10 +13,6 @@ func init() {
 
 func removeFrontendEnglishJavMetadata(ctx context.Context, tx *sql.Tx) error {
 	if err := execStatements(ctx, tx,
-		`UPDATE jav
-		 SET title = title_en
-		 WHERE TRIM(COALESCE(title, '')) = ''
-		   AND TRIM(COALESCE(title_en, '')) <> ''`,
 		`DELETE FROM jav_favorite_map
 		 WHERE entity_type = 'idol'
 		   AND entity_id IN (SELECT id FROM jav_idol WHERE COALESCE(is_english, 0) <> 0)`,
