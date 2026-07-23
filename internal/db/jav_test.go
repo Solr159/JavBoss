@@ -2,9 +2,7 @@ package db
 
 import (
 	"context"
-	"errors"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -123,7 +121,6 @@ func TestListJavIdolOptionsIncludesIdolsWithoutWorks(t *testing.T) {
 	idols := []models.JavIdol{
 		{Name: "Has Work Idol"},
 		{Name: "No Work Idol"},
-		{Name: "English Idol", IsEnglish: true},
 	}
 	if err := db.Create(&idols).Error; err != nil {
 		t.Fatalf("create idols: %v", err)
@@ -312,12 +309,6 @@ func TestListJavFavoriteGroupsCountsOnlyVisibleItems(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-	jav.SetMetadataLanguage("zh")
-
 	dir := models.Directory{Path: "/tmp/media"}
 	if err := db.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
@@ -519,12 +510,6 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-	jav.SetMetadataLanguage("zh")
-
 	dir := models.Directory{Path: "/tmp/media"}
 	if err := db.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
@@ -532,8 +517,7 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 
 	idolA := models.JavIdol{Name: "Idol A"}
 	idolB := models.JavIdol{Name: "Idol B"}
-	englishIdol := models.JavIdol{Name: "English Idol", IsEnglish: true}
-	if err := db.Create(&[]models.JavIdol{idolA, idolB, englishIdol}).Error; err != nil {
+	if err := db.Create(&[]models.JavIdol{idolA, idolB}).Error; err != nil {
 		t.Fatalf("create idols: %v", err)
 	}
 	var idols []models.JavIdol
@@ -548,7 +532,6 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	javs := []models.Jav{
 		{Code: "SOLO-001", Title: "One idol", FetchedAt: now},
 		{Code: "GROUP-001", Title: "Two idols", FetchedAt: now},
-		{Code: "EN-001", Title: "English idol only", FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -561,7 +544,6 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 		{JavID: javByCode["SOLO-001"].ID, JavIdolID: idolByName["Idol A"].ID},
 		{JavID: javByCode["GROUP-001"].ID, JavIdolID: idolByName["Idol A"].ID},
 		{JavID: javByCode["GROUP-001"].ID, JavIdolID: idolByName["Idol B"].ID},
-		{JavID: javByCode["EN-001"].ID, JavIdolID: idolByName["English Idol"].ID},
 	}
 	if err := db.Create(&maps).Error; err != nil {
 		t.Fatalf("create idol maps: %v", err)
@@ -569,7 +551,6 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	videos := []models.Video{
 		{DirectoryID: dir.ID, Path: "solo-001.mp4", Filename: "solo-001.mp4", Fingerprint: "fp-solo-001", JavID: int64Ptr(javByCode["SOLO-001"].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "group-001.mp4", Filename: "group-001.mp4", Fingerprint: "fp-group-001", JavID: int64Ptr(javByCode["GROUP-001"].ID), ModifiedAt: now},
-		{DirectoryID: dir.ID, Path: "en-001.mp4", Filename: "en-001.mp4", Fingerprint: "fp-en-001", JavID: int64Ptr(javByCode["EN-001"].ID), ModifiedAt: now},
 	}
 	if err := db.Create(&videos).Error; err != nil {
 		t.Fatalf("create videos: %v", err)
@@ -757,42 +738,25 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 	}
 }
 
-func TestUpdateJavEditsTitleForCurrentMetadataLanguage(t *testing.T) {
+func TestUpdateJavEditsTitle(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Now()
 
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-
-	javRec := models.Jav{Code: "TITLE-EDIT", Title: "旧标题", TitleEn: "Old Title", FetchedAt: now}
+	javRec := models.Jav{Code: "TITLE-EDIT", Title: "旧标题", FetchedAt: now}
 	if err := db.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
 
-	jav.SetMetadataLanguage("zh")
 	zhTitle := "新标题"
 	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{Title: &zhTitle}, nil)
 	if err != nil {
-		t.Fatalf("UpdateJav zh title: %v", err)
+		t.Fatalf("UpdateJav title: %v", err)
 	}
-	if updated.Title != zhTitle || updated.TitleEn != "Old Title" {
-		t.Fatalf("unexpected zh update titles: title=%q title_en=%q", updated.Title, updated.TitleEn)
+	if updated.Title != zhTitle {
+		t.Fatalf("unexpected title: %q", updated.Title)
 	}
-	assertJavTitles(t, db, javRec.Code, zhTitle, "Old Title")
-
-	jav.SetMetadataLanguage("en")
-	enTitle := "New English Title"
-	updated, err = UpdateJav(ctx, javRec.ID, JavUpdateInput{Title: &enTitle}, nil)
-	if err != nil {
-		t.Fatalf("UpdateJav en title: %v", err)
-	}
-	if updated.Title != zhTitle || updated.TitleEn != enTitle {
-		t.Fatalf("unexpected en update titles: title=%q title_en=%q", updated.Title, updated.TitleEn)
-	}
-	assertJavTitles(t, db, javRec.Code, zhTitle, enTitle)
+	assertJavTitle(t, db, javRec.Code, zhTitle)
 }
 
 func TestListJavStudiosAndSearchByStudio(t *testing.T) {
@@ -902,10 +866,6 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
 
 	dir := models.Directory{Path: "/tmp/media"}
 	if err := db.Create(&dir).Error; err != nil {
@@ -913,7 +873,6 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	}
 
 	seriesA := models.JavSeries{Name: "Series A"}
-	seriesB := models.JavSeries{Name: "Series B", IsEnglish: true}
 	studioA := models.JavStudio{Name: "Series Studio"}
 	if err := db.Create(&studioA).Error; err != nil {
 		t.Fatalf("create studio a: %v", err)
@@ -922,14 +881,10 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	if err := db.Create(&seriesA).Error; err != nil {
 		t.Fatalf("create series a: %v", err)
 	}
-	if err := db.Create(&seriesB).Error; err != nil {
-		t.Fatalf("create series b: %v", err)
-	}
 
 	javs := []models.Jav{
 		{Code: "SRA-001", Title: "Series A One", SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
 		{Code: "SRA-002", Title: "Series A Two", SeriesID: int64Ptr(seriesA.ID), FetchedAt: now},
-		{Code: "SRB-001", Title: "Series B One", SeriesEnID: int64Ptr(seriesB.ID), FetchedAt: now},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -938,14 +893,12 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 	videos := []models.Video{
 		{DirectoryID: dir.ID, Path: "sra-001.mp4", Filename: "sra-001.mp4", Fingerprint: "fp-sra-001", JavID: int64Ptr(javs[0].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "sra-002.mp4", Filename: "sra-002.mp4", Fingerprint: "fp-sra-002", JavID: int64Ptr(javs[1].ID), ModifiedAt: now},
-		{DirectoryID: dir.ID, Path: "srb-001.mp4", Filename: "srb-001.mp4", Fingerprint: "fp-srb-001", JavID: int64Ptr(javs[2].ID), ModifiedAt: now},
 	}
 	if err := db.Create(&videos).Error; err != nil {
 		t.Fatalf("create videos: %v", err)
 	}
 	createVideoLocationsForVideos(t, db, videos...)
 
-	jav.SetMetadataLanguage("zh")
 	series, total, err := ListJavSeries(ctx, "", 20, 0, nil)
 	if err != nil {
 		t.Fatalf("ListJavSeries: %v", err)
@@ -977,8 +930,8 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 		if item.SeriesID == nil || *item.SeriesID != seriesA.ID {
 			t.Fatalf("unexpected zh series filtered item: %#v", item)
 		}
-		if item.Series == nil || item.SeriesEn != nil {
-			t.Fatalf("unexpected zh series preload: %#v", item)
+		if item.Series == nil {
+			t.Fatalf("missing series preload: %#v", item)
 		}
 	}
 
@@ -987,60 +940,11 @@ func TestListJavSeriesAndSearchBySeries(t *testing.T) {
 		t.Fatalf("ListSeriesCoverCodes zh: %v", err)
 	}
 	if len(codes) != 2 {
-		t.Fatalf("unexpected zh cover codes: %#v", codes)
-	}
-
-	jav.SetMetadataLanguage("en")
-	series, total, err = ListJavSeries(ctx, "", 20, 0, nil)
-	if err != nil {
-		t.Fatalf("ListJavSeries en: %v", err)
-	}
-	if total != 1 {
-		t.Fatalf("unexpected en series total: got %d want 1", total)
-	}
-	if len(series) != 1 {
-		t.Fatalf("unexpected en series count: got %d want 1", len(series))
-	}
-	if series[0].ID != seriesB.ID || series[0].WorkCount != 1 || !series[0].IsEnglish {
-		t.Fatalf("unexpected en series: %#v", series[0])
-	}
-
-	items, total, err = SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil, 0, seriesA.ID)
-	if err != nil {
-		t.Fatalf("SearchJav by zh series in en mode: %v", err)
-	}
-	if total != 0 || len(items) != 0 {
-		t.Fatalf("unexpected zh series match in en mode: total=%d len=%d", total, len(items))
-	}
-
-	items, total, err = SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil, 0, seriesB.ID)
-	if err != nil {
-		t.Fatalf("SearchJav by en series: %v", err)
-	}
-	if total != 1 || len(items) != 1 {
-		t.Fatalf("unexpected en filtered javs: total=%d len=%d", total, len(items))
-	}
-	if items[0].Series != nil || items[0].SeriesEn == nil || items[0].SeriesEn.ID != seriesB.ID {
-		t.Fatalf("unexpected en series preload: %#v", items[0])
-	}
-
-	codes, err = ListSeriesCoverCodes(ctx, seriesA.ID, nil)
-	if err != nil {
-		t.Fatalf("ListSeriesCoverCodes zh series in en mode: %v", err)
-	}
-	if len(codes) != 0 {
-		t.Fatalf("unexpected zh cover codes in en mode: %#v", codes)
-	}
-	codes, err = ListSeriesCoverCodes(ctx, seriesB.ID, nil)
-	if err != nil {
-		t.Fatalf("ListSeriesCoverCodes en: %v", err)
-	}
-	if len(codes) != 1 || codes[0] != "SRB-001" {
-		t.Fatalf("unexpected en cover codes: %#v", codes)
+		t.Fatalf("unexpected cover codes: %#v", codes)
 	}
 }
 
-func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
+func TestSaveJavInfoAppendsIdolsOnlyWhenMappingMissing(t *testing.T) {
 	gdb := openTestDB(t)
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -1064,104 +968,6 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenLanguageMappingMissing(t *testing.T) {
 		"岬ななみ": false,
 	})
 
-	save(&jav.JavInfo{
-		Code:     "AAA-001",
-		Title:    "Japanese metadata refreshed",
-		Actors:   []string{"別の女優"},
-		Provider: jav.ProviderJavBus,
-	})
-	assertJavIdolMaps(t, gdb, "AAA-001", map[string]bool{
-		"岬ななみ": false,
-	})
-
-	save(&jav.JavInfo{
-		Code:     "AAA-001",
-		Title:    "English metadata",
-		Actors:   []string{"Nanami Misaki"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavTitles(t, gdb, "AAA-001", "Japanese metadata refreshed", "English metadata")
-	assertJavIdolMaps(t, gdb, "AAA-001", map[string]bool{
-		"岬ななみ":          false,
-		"Nanami Misaki": true,
-	})
-
-	save(&jav.JavInfo{
-		Code:     "AAA-001",
-		Title:    "English metadata refreshed",
-		Actors:   []string{"Other Actress"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavTitles(t, gdb, "AAA-001", "Japanese metadata refreshed", "English metadata refreshed")
-	assertJavIdolMaps(t, gdb, "AAA-001", map[string]bool{
-		"岬ななみ":          false,
-		"Nanami Misaki": true,
-	})
-
-	save(&jav.JavInfo{
-		Code:     "BBB-001",
-		Title:    "Shared-name metadata",
-		Actors:   []string{"Shared Name"},
-		Provider: jav.ProviderJavBus,
-	})
-	save(&jav.JavInfo{
-		Code:     "BBB-001",
-		Title:    "Shared-name metadata refreshed",
-		Actors:   []string{"Shared Name"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavTitles(t, gdb, "BBB-001", "Shared-name metadata", "Shared-name metadata refreshed")
-	assertJavIdolLanguageCount(t, gdb, "Shared Name", 2)
-	assertJavIdolMapLanguages(t, gdb, "BBB-001", "Shared Name", []bool{false, true})
-
-	save(&jav.JavInfo{
-		Code:     "CCC-001",
-		Title:    "Japanese-name English-provider metadata",
-		Actors:   []string{"三上悠亜"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavIdolMaps(t, gdb, "CCC-001", map[string]bool{
-		"三上悠亜": true,
-	})
-
-	save(&jav.JavInfo{
-		Code:     "DDD-001",
-		Title:    "English alias metadata",
-		Actors:   []string{"Ameri Ichinose (Ayaka Misora)"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavIdolMaps(t, gdb, "DDD-001", map[string]bool{
-		"Ameri Ichinose (Ayaka Misora)": true,
-	})
-
-	save(&jav.JavInfo{
-		Code:     "EEE-001",
-		Title:    "JavBus romanized stage name",
-		Actors:   []string{"AIKA"},
-		Provider: jav.ProviderJavBus,
-	})
-	assertJavIdolMaps(t, gdb, "EEE-001", map[string]bool{
-		"AIKA": false,
-	})
-	save(&jav.JavInfo{
-		Code:     "EEE-001",
-		Title:    "English romanized stage name",
-		Actors:   []string{"AIKA"},
-		Provider: jav.ProviderJavDatabase,
-	})
-	assertJavIdolLanguageCount(t, gdb, "AIKA", 2)
-	assertJavIdolMapLanguages(t, gdb, "EEE-001", "AIKA", []bool{false, true})
-
-	save(&jav.JavInfo{
-		Code:     "FFF-001",
-		Title:    "ThePornDB metadata",
-		Actors:   []string{"English Performer"},
-		Provider: jav.ProviderThePornDB,
-	})
-	assertJavTitles(t, gdb, "FFF-001", "", "ThePornDB metadata")
-	assertJavIdolMaps(t, gdb, "FFF-001", map[string]bool{
-		"English Performer": true,
-	})
 }
 
 func TestAppendJavIdolsIfMissingForProvider(t *testing.T) {
@@ -1184,7 +990,7 @@ func TestAppendJavIdolsIfMissingForProvider(t *testing.T) {
 	assertJavIdolMaps(t, gdb, "AVS-001", map[string]bool{
 		"小橋りえこ": false,
 	})
-	assertJavTitles(t, gdb, "AVS-001", "Kept Title", "")
+	assertJavTitle(t, gdb, "AVS-001", "Kept Title")
 
 	updated, err = AppendJavIdolsIfMissingForProvider(ctx, javRec.ID, []string{"別の女優"}, jav.ProviderAvsox)
 	if err != nil {
@@ -1294,13 +1100,13 @@ func TestSaveJavInfoPersistsUncensoredState(t *testing.T) {
 	censored := false
 	save(&jav.JavInfo{Code: "UNC-001", Title: "Uncensored", IsUncensored: &uncensored, Provider: jav.ProviderJavBus})
 	save(&jav.JavInfo{Code: "CEN-001", Title: "Censored", IsUncensored: &censored, Provider: jav.ProviderJavBus})
-	save(&jav.JavInfo{Code: "UNK-001", Title: "Unknown", Provider: jav.ProviderJavDatabase})
+	save(&jav.JavInfo{Code: "UNK-001", Title: "Unknown", Provider: jav.ProviderJavBus})
 
 	assertState("UNC-001", &uncensored)
 	assertState("CEN-001", &censored)
 	assertState("UNK-001", nil)
 
-	save(&jav.JavInfo{Code: "UNC-001", Title: "Unknown refresh", Provider: jav.ProviderJavDatabase})
+	save(&jav.JavInfo{Code: "UNC-001", Title: "Unknown refresh", Provider: jav.ProviderJavBus})
 	assertState("UNC-001", &uncensored)
 
 	var unknownRec models.Jav
@@ -1371,14 +1177,9 @@ func TestSaveJavInfoReplacesOnlyCurrentProviderTags(t *testing.T) {
 	})
 }
 
-func TestJavMenuTagsAreVisibleInChineseMode(t *testing.T) {
+func TestJavMenuTagsAreVisible(t *testing.T) {
 	openTestDB(t)
 	ctx := context.Background()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-	jav.SetMetadataLanguage("zh")
 
 	saved, err := SaveJavInfo(ctx, &jav.JavInfo{
 		Code:     "JMENU-001",
@@ -1472,24 +1273,20 @@ func TestCreatedUserJavTagAppearsWithZeroCount(t *testing.T) {
 	t.Fatalf("created user tag not listed: %#v", tags)
 }
 
-func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
+func TestJavTagsFilterOutEnglishProviders(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
 
 	dir := models.Directory{Path: "/tmp/media"}
 	if err := gdb.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
 	}
-	javRec := models.Jav{Code: "LANG-001", Title: "Language Tags", TitleEn: "Language Tags EN", FetchedAt: now}
+	javRec := models.Jav{Code: "LANG-001", Title: "Language Tags", FetchedAt: now}
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
-	javRec2 := models.Jav{Code: "LANG-002", Title: "Language Tags 2", TitleEn: "Language Tags EN 2", FetchedAt: now}
+	javRec2 := models.Jav{Code: "LANG-002", Title: "Language Tags 2", FetchedAt: now}
 	if err := gdb.Create(&javRec2).Error; err != nil {
 		t.Fatalf("create jav 2: %v", err)
 	}
@@ -1534,7 +1331,6 @@ func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 		t.Fatalf("create tag maps: %v", err)
 	}
 
-	jav.SetMetadataLanguage("zh")
 	zhTags, err := ListJavTags(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListJavTags zh: %v", err)
@@ -1559,22 +1355,6 @@ func TestJavTagsFilterProvidersByCurrentLanguage(t *testing.T) {
 		t.Fatalf("unexpected zh search result: total=%d items=%#v", total, items)
 	}
 
-	jav.SetMetadataLanguage("en")
-	enTags, err := ListJavTags(ctx, nil)
-	if err != nil {
-		t.Fatalf("ListJavTags en: %v", err)
-	}
-	assertJavTagProviderNames(t, enTags, map[int][]string{
-		int(jav.ProviderJavDatabase): {"English Only", "TPDB Only"},
-		int(jav.ProviderUser):        {"User Only"},
-	})
-	items, total, err = SearchJav(ctx, nil, []int64{byName["JavDB Only"].ID}, "", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav en zh-provider tag: %v", err)
-	}
-	if total != 0 || len(items) != 0 {
-		t.Fatalf("unexpected zh-provider tag match in en mode: total=%d items=%#v", total, items)
-	}
 }
 
 func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
@@ -1588,14 +1368,14 @@ func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
 			Title:    "Studio metadata",
 			Studio:   "Idea Pocket",
 			Series:   "Beautiful Girl Series",
-			Provider: jav.ProviderJavDatabase,
+			Provider: jav.ProviderAvmoo,
 		}, now)
 		return err
 	}); err != nil {
 		t.Fatalf("save jav info: %v", err)
 	}
 	assertJavStudio(t, gdb, "STU-001", "Idea Pocket")
-	assertJavSeries(t, gdb, "STU-001", "Beautiful Girl Series", true)
+	assertJavSeries(t, gdb, "STU-001", "Beautiful Girl Series")
 
 	plainJav := models.Jav{Code: "STU-002", Title: "Missing studio", FetchedAt: now}
 	if err := gdb.Create(&plainJav).Error; err != nil {
@@ -1605,10 +1385,10 @@ func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
 		t.Fatalf("update jav studio: %v", err)
 	}
 	assertJavStudio(t, gdb, "STU-002", "S1 No. 1 Style")
-	if err := UpdateJavSeries(ctx, plainJav.ID, "中年オヤジ", false); err != nil {
+	if err := UpdateJavSeries(ctx, plainJav.ID, "中年オヤジ"); err != nil {
 		t.Fatalf("update jav series: %v", err)
 	}
-	assertJavSeries(t, gdb, "STU-002", "中年オヤジ", false)
+	assertJavSeries(t, gdb, "STU-002", "中年オヤジ")
 	var updatedJav models.Jav
 	if err := gdb.Preload("Series").Where("code = ?", "STU-002").First(&updatedJav).Error; err != nil {
 		t.Fatalf("load updated jav: %v", err)
@@ -1650,7 +1430,7 @@ func TestMissingOnlyJavMetadataUpdatesDoNotOverwriteExistingValues(t *testing.T)
 	if updated {
 		t.Fatal("UpdateJavStudioIfMissing should not update an existing studio")
 	}
-	updated, err = UpdateJavSeriesIfMissing(ctx, existing.ID, "Replacement Series", false)
+	updated, err = UpdateJavSeriesIfMissing(ctx, existing.ID, "Replacement Series")
 	if err != nil {
 		t.Fatalf("update missing series: %v", err)
 	}
@@ -1697,7 +1477,7 @@ func TestMissingOnlyJavMetadataUpdatesFillEmptyValues(t *testing.T) {
 	if !updated {
 		t.Fatal("UpdateJavStudioIfMissing should fill an empty studio")
 	}
-	updated, err = UpdateJavSeriesIfMissing(ctx, item.ID, "Filled Series", false)
+	updated, err = UpdateJavSeriesIfMissing(ctx, item.ID, "Filled Series")
 	if err != nil {
 		t.Fatalf("update missing series: %v", err)
 	}
@@ -1721,7 +1501,7 @@ func TestListJavsMissingTitle(t *testing.T) {
 
 	rows := []models.Jav{
 		{Code: "MISS-001", FetchedAt: now, CreatedAt: now},
-		{Code: "MISS-002", Title: "  ", TitleEn: "English Title", FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
+		{Code: "MISS-002", Title: "  ", FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
 		{Code: "HAVE-001", Title: "中文标题", FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
 		{Code: "", FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
 	}
@@ -1741,116 +1521,51 @@ func TestListJavsMissingTitle(t *testing.T) {
 	}
 }
 
-func TestListJavsMissingStudioOrEnglishSeries(t *testing.T) {
+func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
-	studio := models.JavStudio{Name: "Studio A"}
-	if err := gdb.Create(&studio).Error; err != nil {
-		t.Fatalf("create studio: %v", err)
-	}
-	seriesEn := models.JavSeries{Name: "English Series", IsEnglish: true}
-	if err := gdb.Create(&seriesEn).Error; err != nil {
-		t.Fatalf("create english series: %v", err)
-	}
-
-	rows := []models.Jav{
-		{Code: "MISS-STUDIO", TitleEn: "English Title", SeriesEnID: &seriesEn.ID, FetchedAt: now, CreatedAt: now},
-		{Code: "MISS-SERIES-EN", TitleEn: "English Title", StudioID: &studio.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
-		{Code: "HAVE-BOTH", TitleEn: "English Title", StudioID: &studio.ID, SeriesEnID: &seriesEn.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
-		{Code: "", FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
-	}
-	if err := gdb.Create(&rows).Error; err != nil {
-		t.Fatalf("create jav rows: %v", err)
-	}
-
-	items, err := ListJavsMissingStudioOrEnglishSeries(ctx)
-	if err != nil {
-		t.Fatalf("ListJavsMissingStudioOrEnglishSeries: %v", err)
-	}
-	got := []string{}
-	for _, item := range items {
-		got = append(got, item.Code)
-	}
-	want := []string{"MISS-STUDIO", "MISS-SERIES-EN"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected codes: got %#v want %#v", got, want)
-	}
-}
-
-func TestListJavsMissingEnglishMetadata(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-
-	studio := models.JavStudio{Name: "Studio A"}
-	seriesEn := models.JavSeries{Name: "English Series", IsEnglish: true}
-	if err := gdb.Create(&studio).Error; err != nil {
-		t.Fatalf("create studio: %v", err)
-	}
-	if err := gdb.Create(&seriesEn).Error; err != nil {
-		t.Fatalf("create english series: %v", err)
-	}
-
-	rows := []models.Jav{
-		{Code: "MISS-STUDIO", TitleEn: "English Title", SeriesEnID: &seriesEn.ID, FetchedAt: now, CreatedAt: now},
-		{Code: "MISS-TITLE-EN", StudioID: &studio.ID, SeriesEnID: &seriesEn.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
-		{Code: "MISS-SERIES-EN", TitleEn: "English Title", StudioID: &studio.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
-		{Code: "MISS-LOCAL-SERIES", TitleEn: "English Title", StudioID: &studio.ID, SeriesEnID: &seriesEn.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
-		{Code: "", FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
-	}
-	if err := gdb.Create(&rows).Error; err != nil {
-		t.Fatalf("create jav rows: %v", err)
-	}
-
-	items, err := ListJavsMissingEnglishMetadata(ctx)
-	if err != nil {
-		t.Fatalf("ListJavsMissingEnglishMetadata: %v", err)
-	}
-	got := []string{}
-	for _, item := range items {
-		got = append(got, item.Code)
-	}
-	want := []string{"MISS-STUDIO", "MISS-TITLE-EN", "MISS-SERIES-EN"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("unexpected codes: got %#v want %#v", got, want)
-	}
-}
-
-func TestListJavsMissingLocalSeriesWithEnglishSeries(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-
-	localSeries := models.JavSeries{Name: "Local Series"}
+	studio := models.JavStudio{Name: "Studio"}
+	localSeries := models.JavSeries{Name: "中文系列"}
 	englishSeries := models.JavSeries{Name: "English Series", IsEnglish: true}
+	if err := gdb.Create(&studio).Error; err != nil {
+		t.Fatalf("create studio: %v", err)
+	}
 	if err := gdb.Create(&localSeries).Error; err != nil {
 		t.Fatalf("create local series: %v", err)
 	}
 	if err := gdb.Create(&englishSeries).Error; err != nil {
-		t.Fatalf("create english series: %v", err)
+		t.Fatalf("create English series: %v", err)
 	}
-
 	rows := []models.Jav{
-		{Code: "MISS-LOCAL", SeriesEnID: &englishSeries.ID, FetchedAt: now, CreatedAt: now},
-		{Code: "MISS-BOTH", FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
-		{Code: "HAVE-BOTH", SeriesID: &localSeries.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
-		{Code: "", SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+		{Code: "MISS-STUDIO", SeriesEnID: &englishSeries.ID, FetchedAt: now, CreatedAt: now},
+		{Code: "MISS-ENGLISH", StudioID: &studio.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
+		{Code: "MISS-LOCAL", StudioID: &studio.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
+		{Code: "HAVE-BOTH", StudioID: &studio.ID, SeriesID: &localSeries.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
 	}
 	if err := gdb.Create(&rows).Error; err != nil {
 		t.Fatalf("create jav rows: %v", err)
 	}
 
-	items, err := ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
+	fastCandidates, err := ListJavsMissingStudioOrEnglishSeries(ctx)
+	if err != nil {
+		t.Fatalf("ListJavsMissingStudioOrEnglishSeries: %v", err)
+	}
+	if len(fastCandidates) != 2 ||
+		fastCandidates[0].Code != "MISS-STUDIO" ||
+		fastCandidates[1].Code != "MISS-ENGLISH" {
+		t.Fatalf("unexpected JavDatabase candidates: %#v", fastCandidates)
+	}
+
+	slowCandidates, err := ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
 	if err != nil {
 		t.Fatalf("ListJavsMissingLocalSeriesWithEnglishSeries: %v", err)
 	}
-	if len(items) != 1 || items[0].Code != "MISS-LOCAL" {
-		t.Fatalf("unexpected items: %#v", items)
-	}
-	if items[0].SeriesID != nil || items[0].SeriesEnID == nil || *items[0].SeriesEnID != englishSeries.ID {
-		t.Fatalf("unexpected series ids: %#v", items[0])
+	if len(slowCandidates) != 2 ||
+		slowCandidates[0].Code != "MISS-STUDIO" ||
+		slowCandidates[1].Code != "MISS-LOCAL" {
+		t.Fatalf("unexpected Avmoo candidates: %#v", slowCandidates)
 	}
 }
 
@@ -2117,299 +1832,6 @@ func TestSetVideoLocationJavIDForVideoAllowsStaleTimestampWhenUnlinked(t *testin
 	}
 	if got.JavID == nil || *got.JavID != javRec.ID {
 		t.Fatalf("jav id not linked: %#v", got.JavID)
-	}
-}
-
-func TestSearchJavPreloadsOnlyCurrentLanguageIdols(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-
-	dir := models.Directory{Path: "/tmp/media"}
-	if err := gdb.Create(&dir).Error; err != nil {
-		t.Fatalf("create directory: %v", err)
-	}
-
-	javRec := models.Jav{Code: "LANG-001", Title: "Language Work", FetchedAt: now}
-	if err := gdb.Create(&javRec).Error; err != nil {
-		t.Fatalf("create jav: %v", err)
-	}
-
-	japaneseIdol := models.JavIdol{Name: "岬ななみ", IsEnglish: false}
-	englishIdol := models.JavIdol{Name: "Nanami Misaki", IsEnglish: true}
-	if err := gdb.Create(&japaneseIdol).Error; err != nil {
-		t.Fatalf("create japanese idol: %v", err)
-	}
-	if err := gdb.Create(&englishIdol).Error; err != nil {
-		t.Fatalf("create english idol: %v", err)
-	}
-	if err := gdb.Create(&[]models.JavIdolMap{
-		{JavID: javRec.ID, JavIdolID: japaneseIdol.ID},
-		{JavID: javRec.ID, JavIdolID: englishIdol.ID},
-	}).Error; err != nil {
-		t.Fatalf("create idol maps: %v", err)
-	}
-
-	video := models.Video{
-		DirectoryID: dir.ID,
-		Path:        "lang-001.mp4",
-		Filename:    "lang-001.mp4",
-		Fingerprint: "fp-lang",
-		DurationSec: 7200,
-		ModifiedAt:  now,
-	}
-	if err := gdb.Create(&video).Error; err != nil {
-		t.Fatalf("create video: %v", err)
-	}
-	loc := models.VideoLocation{
-		VideoID:      video.ID,
-		DirectoryID:  dir.ID,
-		RelativePath: "lang-001.mp4",
-		ModifiedAt:   now,
-		JavID:        int64Ptr(javRec.ID),
-	}
-	if err := gdb.Create(&loc).Error; err != nil {
-		t.Fatalf("create video location: %v", err)
-	}
-
-	jav.SetMetadataLanguage("zh")
-	items, total, err := SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav zh: %v", err)
-	}
-	assertSearchJavIdols(t, items, total, []string{"岬ななみ"})
-
-	jav.SetMetadataLanguage("en")
-	items, total, err = SearchJav(ctx, nil, nil, "", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav en: %v", err)
-	}
-	assertSearchJavIdols(t, items, total, []string{"Nanami Misaki"})
-}
-
-func TestSearchJavUsesCurrentLanguageTitleField(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-
-	dir := models.Directory{Path: "/tmp/media"}
-	if err := gdb.Create(&dir).Error; err != nil {
-		t.Fatalf("create directory: %v", err)
-	}
-
-	javRec := models.Jav{
-		Code:      "TITLE-001",
-		Title:     "日本語タイトル",
-		TitleEn:   "English Title",
-		FetchedAt: now,
-	}
-	if err := gdb.Create(&javRec).Error; err != nil {
-		t.Fatalf("create jav: %v", err)
-	}
-	video := models.Video{
-		DirectoryID: dir.ID,
-		Path:        "title-001.mp4",
-		Filename:    "title-001.mp4",
-		Fingerprint: "fp-title",
-		JavID:       int64Ptr(javRec.ID),
-		DurationSec: 7200,
-		ModifiedAt:  now,
-	}
-	if err := gdb.Create(&video).Error; err != nil {
-		t.Fatalf("create video: %v", err)
-	}
-	createVideoLocationsForVideos(t, gdb, video)
-
-	jav.SetMetadataLanguage("zh")
-	items, total, err := SearchJav(ctx, nil, nil, "日本語", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav zh title: %v", err)
-	}
-	if total != 1 || len(items) != 1 || items[0].Title != "日本語タイトル" {
-		t.Fatalf("unexpected zh search result: total=%d items=%#v", total, items)
-	}
-	items, total, err = SearchJav(ctx, nil, nil, "English", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav zh english title: %v", err)
-	}
-	if total != 0 || len(items) != 0 {
-		t.Fatalf("zh search should not match title_en: total=%d items=%#v", total, items)
-	}
-
-	jav.SetMetadataLanguage("en")
-	items, total, err = SearchJav(ctx, nil, nil, "English", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav en title: %v", err)
-	}
-	if total != 1 || len(items) != 1 || items[0].TitleEn != "English Title" {
-		t.Fatalf("unexpected en search result: total=%d items=%#v", total, items)
-	}
-	items, total, err = SearchJav(ctx, nil, nil, "日本語", "code", 20, 0, nil, nil)
-	if err != nil {
-		t.Fatalf("SearchJav en japanese title: %v", err)
-	}
-	if total != 0 || len(items) != 0 {
-		t.Fatalf("en search should not match title: total=%d items=%#v", total, items)
-	}
-}
-
-func TestJavIdolAPIFiltersCurrentLanguageIdols(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-
-	dir := models.Directory{Path: "/tmp/media"}
-	if err := gdb.Create(&dir).Error; err != nil {
-		t.Fatalf("create directory: %v", err)
-	}
-
-	javRec := models.Jav{Code: "IDOL-001", Title: "Idol Language Work", FetchedAt: now}
-	if err := gdb.Create(&javRec).Error; err != nil {
-		t.Fatalf("create jav: %v", err)
-	}
-
-	japaneseIdol := models.JavIdol{Name: "一ノ瀬アメリ", IsEnglish: false}
-	englishIdol := models.JavIdol{Name: "Ameri Ichinose (Ayaka Misora)", IsEnglish: true}
-	if err := gdb.Create(&japaneseIdol).Error; err != nil {
-		t.Fatalf("create japanese idol: %v", err)
-	}
-	if err := gdb.Create(&englishIdol).Error; err != nil {
-		t.Fatalf("create english idol: %v", err)
-	}
-	if err := gdb.Create(&[]models.JavIdolMap{
-		{JavID: javRec.ID, JavIdolID: japaneseIdol.ID},
-		{JavID: javRec.ID, JavIdolID: englishIdol.ID},
-	}).Error; err != nil {
-		t.Fatalf("create idol maps: %v", err)
-	}
-
-	video := models.Video{
-		DirectoryID: dir.ID,
-		Path:        "idol-001.mp4",
-		Filename:    "idol-001.mp4",
-		Fingerprint: "fp-idol-language",
-		DurationSec: 7200,
-		ModifiedAt:  now,
-	}
-	if err := gdb.Create(&video).Error; err != nil {
-		t.Fatalf("create video: %v", err)
-	}
-	loc := models.VideoLocation{
-		VideoID:      video.ID,
-		DirectoryID:  dir.ID,
-		RelativePath: "idol-001.mp4",
-		ModifiedAt:   now,
-		JavID:        int64Ptr(javRec.ID),
-	}
-	if err := gdb.Create(&loc).Error; err != nil {
-		t.Fatalf("create video location: %v", err)
-	}
-
-	jav.SetMetadataLanguage("zh")
-	idols, total, err := ListJavIdols(ctx, "", "work", 20, 0, nil, 0)
-	if err != nil {
-		t.Fatalf("ListJavIdols zh: %v", err)
-	}
-	assertJavIdolSummaries(t, idols, total, []string{"一ノ瀬アメリ"})
-	if _, err := GetJavIdolSummary(ctx, englishIdol.ID, nil); !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("expected english idol to be hidden in zh mode, got err=%v", err)
-	}
-
-	jav.SetMetadataLanguage("en")
-	idols, total, err = ListJavIdols(ctx, "", "work", 20, 0, nil, 0)
-	if err != nil {
-		t.Fatalf("ListJavIdols en: %v", err)
-	}
-	assertJavIdolSummaries(t, idols, total, []string{"Ameri Ichinose (Ayaka Misora)"})
-	if _, err := GetJavIdolSummary(ctx, japaneseIdol.ID, nil); !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("expected japanese idol to be hidden in en mode, got err=%v", err)
-	}
-}
-
-func TestListIdolsMissingProfileFiltersCurrentLanguage(t *testing.T) {
-	gdb := openTestDB(t)
-	ctx := context.Background()
-	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-
-	dir := models.Directory{Path: "/tmp/media"}
-	if err := gdb.Create(&dir).Error; err != nil {
-		t.Fatalf("create directory: %v", err)
-	}
-	javRec := models.Jav{Code: "MISS-001", Title: "Missing Profile Work", FetchedAt: now}
-	if err := gdb.Create(&javRec).Error; err != nil {
-		t.Fatalf("create jav: %v", err)
-	}
-	japaneseIdol := models.JavIdol{Name: "あいか", IsEnglish: false}
-	englishIdol := models.JavIdol{Name: "AIKA", IsEnglish: true}
-	if err := gdb.Create(&japaneseIdol).Error; err != nil {
-		t.Fatalf("create japanese idol: %v", err)
-	}
-	if err := gdb.Create(&englishIdol).Error; err != nil {
-		t.Fatalf("create english idol: %v", err)
-	}
-	if err := gdb.Create(&[]models.JavIdolMap{
-		{JavID: javRec.ID, JavIdolID: japaneseIdol.ID},
-		{JavID: javRec.ID, JavIdolID: englishIdol.ID},
-	}).Error; err != nil {
-		t.Fatalf("create idol maps: %v", err)
-	}
-	video := models.Video{
-		DirectoryID: dir.ID,
-		Path:        "miss-001.mp4",
-		Filename:    "miss-001.mp4",
-		Fingerprint: "fp-missing-profile",
-		DurationSec: 7200,
-		ModifiedAt:  now,
-	}
-	if err := gdb.Create(&video).Error; err != nil {
-		t.Fatalf("create video: %v", err)
-	}
-	loc := models.VideoLocation{
-		VideoID:      video.ID,
-		DirectoryID:  dir.ID,
-		RelativePath: "miss-001.mp4",
-		ModifiedAt:   now,
-		JavID:        int64Ptr(javRec.ID),
-	}
-	if err := gdb.Create(&loc).Error; err != nil {
-		t.Fatalf("create video location: %v", err)
-	}
-
-	jav.SetMetadataLanguage("zh")
-	idols, err := ListIdolsMissingProfile(ctx)
-	if err != nil {
-		t.Fatalf("ListIdolsMissingProfile zh: %v", err)
-	}
-	assertJavIdolNames(t, idols, []string{"あいか"})
-
-	jav.SetMetadataLanguage("en")
-	idols, err = ListIdolsMissingProfile(ctx)
-	if err != nil {
-		t.Fatalf("ListIdolsMissingProfile en: %v", err)
-	}
-	assertJavIdolNames(t, idols, []string{"AIKA"})
-	code, err := FindIdolSoloCode(ctx, englishIdol.ID)
-	if err != nil {
-		t.Fatalf("FindIdolSoloCode english: %v", err)
-	}
-	if code != javRec.Code {
-		t.Fatalf("unexpected english solo code: got %q want %q", code, javRec.Code)
 	}
 }
 
@@ -3066,22 +2488,16 @@ func TestMergeJavIdolsOnlyUsesSourceNameAsAlias(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() {
-		jav.SetMetadataLanguage(string(prevLang))
-	})
-	jav.SetMetadataLanguage("en")
 
 	dir := models.Directory{Path: "/tmp/media"}
 	if err := db.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
 	}
-	canonical := models.JavIdol{Name: "Main Idol", IsEnglish: true}
+	canonical := models.JavIdol{Name: "Main Idol"}
 	source := models.JavIdol{
 		Name:         "Alias Idol",
 		JapaneseName: "合并女优",
 		ChineseName:  "合并中文名",
-		IsEnglish:    true,
 	}
 	if err := db.Create(&canonical).Error; err != nil {
 		t.Fatalf("create canonical idol: %v", err)
@@ -3272,11 +2688,10 @@ func assertJavIdolMaps(t *testing.T, db *gorm.DB, code string, want map[string]b
 	t.Helper()
 
 	var rows []struct {
-		Name      string
-		IsEnglish bool
+		Name string
 	}
 	if err := db.Table("jav_idol_map jim").
-		Select("ji.name, ji.is_english").
+		Select("ji.name").
 		Joins("JOIN jav j ON j.id = jim.jav_id").
 		Joins("JOIN jav_idol ji ON ji.id = jim.jav_idol_id").
 		Where("j.code = ?", code).
@@ -3288,25 +2703,22 @@ func assertJavIdolMaps(t *testing.T, db *gorm.DB, code string, want map[string]b
 		t.Fatalf("unexpected idol map count: got %d want %d rows=%#v", len(rows), len(want), rows)
 	}
 	for _, row := range rows {
-		wantEnglish, ok := want[row.Name]
+		_, ok := want[row.Name]
 		if !ok {
 			t.Fatalf("unexpected idol map row: %#v", row)
-		}
-		if row.IsEnglish != wantEnglish {
-			t.Fatalf("unexpected is_english for %q: got %t want %t", row.Name, row.IsEnglish, wantEnglish)
 		}
 	}
 }
 
-func assertJavTitles(t *testing.T, db *gorm.DB, code, wantTitle, wantTitleEn string) {
+func assertJavTitle(t *testing.T, db *gorm.DB, code, wantTitle string) {
 	t.Helper()
 
 	var rec models.Jav
 	if err := db.Where("code = ?", code).First(&rec).Error; err != nil {
 		t.Fatalf("load jav %q: %v", code, err)
 	}
-	if rec.Title != wantTitle || rec.TitleEn != wantTitleEn {
-		t.Fatalf("unexpected titles for %q: title=%q title_en=%q want title=%q title_en=%q", code, rec.Title, rec.TitleEn, wantTitle, wantTitleEn)
+	if rec.Title != wantTitle {
+		t.Fatalf("unexpected title for %q: got %q want %q", code, rec.Title, wantTitle)
 	}
 }
 
@@ -3325,64 +2737,19 @@ func assertJavStudio(t *testing.T, db *gorm.DB, code, want string) {
 	}
 }
 
-func assertJavSeries(t *testing.T, db *gorm.DB, code, want string, isEnglish bool) {
+func assertJavSeries(t *testing.T, db *gorm.DB, code, want string) {
 	t.Helper()
 
 	var rec models.Jav
-	preload := "Series"
-	if isEnglish {
-		preload = "SeriesEn"
-	}
-	if err := db.Preload(preload).Where("code = ?", code).First(&rec).Error; err != nil {
+	if err := db.Preload("Series").Where("code = ?", code).First(&rec).Error; err != nil {
 		t.Fatalf("load jav %q: %v", code, err)
 	}
 	series := rec.Series
-	if isEnglish {
-		series = rec.SeriesEn
-	}
 	if series == nil {
 		t.Fatalf("expected series for %q", code)
 	}
 	if series.Name != want {
 		t.Fatalf("unexpected series for %q: got %q want %q", code, series.Name, want)
-	}
-	if series.IsEnglish != isEnglish {
-		t.Fatalf("unexpected series language for %q: got %v want %v", code, series.IsEnglish, isEnglish)
-	}
-}
-
-func assertJavIdolLanguageCount(t *testing.T, db *gorm.DB, name string, want int64) {
-	t.Helper()
-
-	var got int64
-	if err := db.Model(&models.JavIdol{}).Where("name = ?", name).Count(&got).Error; err != nil {
-		t.Fatalf("count jav idol languages: %v", err)
-	}
-	if got != want {
-		t.Fatalf("unexpected language row count for %q: got %d want %d", name, got, want)
-	}
-}
-
-func assertJavIdolMapLanguages(t *testing.T, db *gorm.DB, code, name string, want []bool) {
-	t.Helper()
-
-	var got []bool
-	if err := db.Table("jav_idol_map jim").
-		Select("ji.is_english").
-		Joins("JOIN jav j ON j.id = jim.jav_id").
-		Joins("JOIN jav_idol ji ON ji.id = jim.jav_idol_id").
-		Where("j.code = ? AND ji.name = ?", code, name).
-		Order("ji.is_english").
-		Pluck("ji.is_english", &got).Error; err != nil {
-		t.Fatalf("list jav idol map languages: %v", err)
-	}
-	if len(got) != len(want) {
-		t.Fatalf("unexpected language count for %q/%q: got %v want %v", code, name, got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("unexpected language at %d for %q/%q: got %v want %v", i, code, name, got, want)
-		}
 	}
 }
 

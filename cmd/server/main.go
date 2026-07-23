@@ -232,7 +232,6 @@ func applyRuntimeConfig(ctx context.Context) {
 		return
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
-	jav.SetMetadataLanguage(cfg["jav_metadata_language"])
 }
 
 func buildLogger(baseDir string) (*log.Logger, func(), error) {

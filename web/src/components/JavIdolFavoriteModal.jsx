@@ -15,7 +15,6 @@ export default function JavIdolFavoriteModal({
   loading,
   saving,
   error,
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
   onClose,
   onCreateGroup,
@@ -47,7 +46,7 @@ export default function JavIdolFavoriteModal({
 
   const selectedSet = new Set(localSelectedIds)
   const entityLabel = favoriteEntityLabel(entityType)
-  const itemName = favoriteItemName(entityType, idol, javMetadataLanguage, preferChineseName)
+  const itemName = favoriteItemName(entityType, idol, preferChineseName)
 
   const toggleGroup = (id, checked) => {
     const parsed = Number(id)
@@ -205,17 +204,14 @@ function favoriteEntityLabel(entityType) {
   }
 }
 
-function favoriteItemName(entityType, item, javMetadataLanguage, preferChineseName) {
+function favoriteItemName(entityType, item, preferChineseName) {
   if (entityType === 'idol') {
-    return getIdolDisplayName(item, javMetadataLanguage, preferChineseName)
+    return getIdolDisplayName(item, preferChineseName)
   }
   const name = String(item?.name || '').trim()
   if (name) return name
   if (entityType === 'jav') {
-    return (
-      [item?.code, item?.title || item?.title_en].filter(Boolean).join(' ') ||
-      zh('未知作品', 'Unknown JAV')
-    )
+    return [item?.code, item?.title].filter(Boolean).join(' ') || zh('未知作品', 'Unknown JAV')
   }
   if (entityType === 'studio') return zh('未知片商', 'Unknown studio')
   if (entityType === 'series') return zh('未知系列', 'Unknown series')

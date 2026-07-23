@@ -110,11 +110,7 @@ Docker deployments use browser video playback and do not call mpv on the host. W
 
 **Open `http://localhost:8655` in your browser to access JavBoss. For non-Docker installations, JavBoss opens the browser automatically after startup. The default login password is `admin`; you can change it in Global Settings.**
 
-### 2. Set JAV Metadata Language
-
-Open `Global Settings` -> `JAV Metadata`, switch the metadata language to `English`, and save.
-
-### 3. Add Your Local Folders
+### 2. Add Your Local Folders
 
 - Open `Global Settings` -> `Directory Management`, then add the local folders that store your videos.
 - Scanning will continue in the background. Use the button in the upper-right corner to switch between Video mode and JAV mode to check scan progress.
@@ -178,7 +174,7 @@ JavBoss extracts JAV codes from filenames, including common patterns such as `IP
 - Automatically fetches title, release date, cover art, actresses, tags, and other basic metadata.
 - Automatically fetches and completes actress profiles, including height, Chinese and English names, measurements, birthday, and more.
 - Automatically fetches and completes JAV maker and series information.
-- Supports Chinese and English JAV metadata fetching, freely switchable.
+- Uses English-language providers only as internal helpers, including fetching an English series from JavDatabase before Avmoo fills the localized series; the frontend displays and edits Chinese/Japanese JAV metadata.
 - Provides powerful sorting for JAV titles and actresses, including release date, duration, play count, height, age, measurements, and more.
 - Provides powerful search and filtering, with editable complex queries covering keywords, actresses, tags, makers, series, and more for paged browsing.
 - Provides powerful random browsing, including global random mode and random results under the current filters, with the ability to exit random mode at any time.

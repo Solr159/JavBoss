@@ -12,7 +12,6 @@ import (
 
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
-	"javboss/internal/jav"
 	"javboss/internal/mpv"
 	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
@@ -61,7 +60,6 @@ func updateConfig(c *gin.Context) {
 		VideoSort              string                `json:"video_sort"`
 		JavSort                string                `json:"jav_sort"`
 		IdolSort               string                `json:"idol_sort"`
-		JavMetadataLanguage    string                `json:"jav_metadata_language"`
 		JavIdolPreferChinese   *bool                 `json:"jav_idol_prefer_chinese_name"`
 		DefaultPlayer          string                `json:"default_player"`
 		InitialViewMode        string                `json:"initial_view_mode"`
@@ -209,14 +207,6 @@ func updateConfig(c *gin.Context) {
 		default:
 			// ignore invalid values
 		}
-	}
-	if s := strings.TrimSpace(req.JavMetadataLanguage); s != "" {
-		lang, ok := jav.ParseMetadataLanguage(s)
-		if !ok {
-			respondLocalizedError(c, http.StatusBadRequest, "JAV 元数据语言无效", "Invalid JAV metadata language")
-			return
-		}
-		entries["jav_metadata_language"] = string(lang)
 	}
 	if req.JavIdolPreferChinese != nil {
 		entries["jav_idol_prefer_chinese_name"] = strconv.FormatBool(*req.JavIdolPreferChinese)
@@ -398,7 +388,6 @@ func updateConfig(c *gin.Context) {
 		return
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
-	jav.SetMetadataLanguage(cfg["jav_metadata_language"])
 	applyRuntimeConfigFields(cfg)
 	c.JSON(http.StatusOK, cfg)
 }

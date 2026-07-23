@@ -293,7 +293,6 @@ export default function JavDetailModal({
   series,
   tags,
   externalLinks,
-  javMetadataLanguage,
   preferChineseName,
   canPlay,
   onClose,
@@ -558,7 +557,7 @@ export default function JavDetailModal({
                         onMouseEnter={(event) => handleHoverStart('idol', idol, event)}
                         onMouseLeave={scheduleHoverClose}
                       >
-                        {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
+                        {getIdolDisplayName(idol, preferChineseName)}
                       </a>
                     ))}
                   </div>
@@ -755,7 +754,6 @@ export default function JavDetailModal({
                   typeof hoverPreview.item?.work_count === 'number' &&
                   hoverPreview.item.work_count > 0
                 }
-                javMetadataLanguage={javMetadataLanguage}
                 preferChineseName={preferChineseName}
               />
             ) : null}

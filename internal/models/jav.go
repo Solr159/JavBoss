@@ -7,13 +7,12 @@ type Jav struct {
 	ID            int64      `json:"id" gorm:"primaryKey"`
 	Code          string     `json:"code" gorm:"uniqueIndex"`
 	Title         string     `json:"title"`
-	TitleEn       string     `json:"title_en"`
 	StudioID      *int64     `json:"studio_id" gorm:"index"`
 	Studio        *JavStudio `json:"studio,omitempty" gorm:"foreignKey:StudioID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	SeriesID      *int64     `json:"series_id" gorm:"index"`
 	Series        *JavSeries `json:"series,omitempty" gorm:"foreignKey:SeriesID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
-	SeriesEnID    *int64     `json:"series_en_id" gorm:"index"`
-	SeriesEn      *JavSeries `json:"series_en,omitempty" gorm:"foreignKey:SeriesEnID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+	SeriesEnID    *int64     `json:"-" gorm:"index"`
+	SeriesEn      *JavSeries `json:"-" gorm:"foreignKey:SeriesEnID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	ReleaseUnix   int64      `json:"release_unix"`
 	DurationMin   int        `json:"duration_min"`
 	FetchedAt     time.Time  `json:"fetched_at"`
@@ -36,7 +35,7 @@ type JavStudio struct {
 type JavSeries struct {
 	ID        int64      `json:"id" gorm:"primaryKey"`
 	Name      string     `json:"name" gorm:"uniqueIndex:idx_jav_series_name_language"`
-	IsEnglish bool       `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_series_name_language"`
+	IsEnglish bool       `json:"-" gorm:"not null;default:0;uniqueIndex:idx_jav_series_name_language"`
 	StudioID  *int64     `json:"studio_id" gorm:"index"`
 	Studio    *JavStudio `json:"studio,omitempty" gorm:"foreignKey:StudioID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	CreatedAt time.Time  `json:"created_at"`
@@ -54,8 +53,7 @@ type JavTag struct {
 
 type JavIdol struct {
 	ID            int64      `json:"id" gorm:"primaryKey"`
-	Name          string     `json:"name" gorm:"uniqueIndex:idx_jav_idol_name_language"`
-	IsEnglish     bool       `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_idol_name_language"`
+	Name          string     `json:"name" gorm:"uniqueIndex"`
 	RomanName     string     `json:"roman_name"`
 	JapaneseName  string     `json:"japanese_name"`
 	ChineseName   string     `json:"chinese_name"`
@@ -75,8 +73,7 @@ type JavIdolAlias struct {
 	ID        int64     `json:"id" gorm:"primaryKey"`
 	JavIdolID int64     `json:"jav_idol_id" gorm:"not null;index"`
 	JavIdol   JavIdol   `json:"-" gorm:"foreignKey:JavIdolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	Alias     string    `json:"alias" gorm:"not null;uniqueIndex:idx_jav_idol_alias_alias_language"`
-	IsEnglish bool      `json:"is_english" gorm:"not null;default:0;uniqueIndex:idx_jav_idol_alias_alias_language"`
+	Alias     string    `json:"alias" gorm:"not null;uniqueIndex"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

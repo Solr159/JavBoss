@@ -1,43 +1,22 @@
 import { zh } from '@/utils/i18n'
 
-export function getIdolDisplayName(item, javMetadataLanguage = 'zh', preferChineseName = false) {
-  return getIdolDisplayNames(item, javMetadataLanguage, preferChineseName).primaryName
+export function getIdolDisplayName(item, preferChineseName = false) {
+  return getIdolDisplayNames(item, preferChineseName).primaryName
 }
 
-export function getIdolDisplayNames(item, javMetadataLanguage = 'zh', preferChineseName = false) {
+export function getIdolDisplayNames(item, preferChineseName = false) {
   return buildDisplayNames({
     name: item?.name || '',
-    japaneseName: item?.japanese_name || '',
     chineseName: item?.chinese_name || '',
-    javMetadataLanguage,
     preferChineseName,
   })
 }
 
-function buildDisplayNames({
-  name,
-  japaneseName,
-  chineseName,
-  javMetadataLanguage,
-  preferChineseName,
-}) {
+function buildDisplayNames({ name, chineseName, preferChineseName }) {
   if (preferChineseName && String(chineseName || '').trim()) {
     return {
       primaryName: String(chineseName || '').trim(),
       secondaryName: joinUniqueDisplayParts([name], [chineseName]),
-    }
-  }
-
-  if (javMetadataLanguage === 'en') {
-    const primaryName = firstNonEmpty(
-      name,
-      japaneseName,
-      chineseName,
-      zh('Unknown idol', 'Unknown idol')
-    )
-    return {
-      primaryName,
-      secondaryName: joinUniqueDisplayParts([japaneseName, chineseName], [primaryName]),
     }
   }
 

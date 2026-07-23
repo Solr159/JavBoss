@@ -86,13 +86,12 @@ type JavIdolUpdateInput struct {
 type JavMetadataScanItem struct {
 	ID         int64  `gorm:"column:id"`
 	Code       string `gorm:"column:code"`
-	TitleEn    string `gorm:"column:title_en"`
 	StudioID   *int64 `gorm:"column:studio_id"`
 	SeriesID   *int64 `gorm:"column:series_id"`
 	SeriesEnID *int64 `gorm:"column:series_en_id"`
 }
 
-// GetJav returns one JAV record with display-language associations and visible files/tags.
+// GetJav returns one JAV record with visible files and tags.
 func GetJav(ctx context.Context, javID int64, directoryIDs []int64) (*models.Jav, error) {
 	if javID <= 0 {
 		return nil, errors.New("jav id must be positive")
@@ -101,13 +100,9 @@ func GetJav(ctx context.Context, javID int64, directoryIDs []int64) (*models.Jav
 	var item models.Jav
 	query := common.DB.WithContext(ctx).
 		Preload("Studio").
-		Preload("Idols", "COALESCE(is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
+		Preload("Idols").
+		Preload("Series").
 		Where("id = ?", javID)
-	if jav.CurrentMetadataLanguageIsEnglish() {
-		query = query.Preload("SeriesEn")
-	} else {
-		query = query.Preload("Series")
-	}
 	if err := query.First(&item).Error; err != nil {
 		return nil, fmt.Errorf("get jav: %w", err)
 	}
@@ -195,14 +190,10 @@ func SearchJavWithPrefix(ctx context.Context, idolIDs []int64, tagIDs []int64, s
 	}
 	query := filtered.
 		Preload("Studio").
-		Preload("Idols", "COALESCE(is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
+		Preload("Idols").
+		Preload("Series").
 		Limit(limit).
 		Offset(offset)
-	if jav.CurrentMetadataLanguageIsEnglish() {
-		query = query.Preload("SeriesEn")
-	} else {
-		query = query.Preload("Series")
-	}
 	if useExpr {
 		query = query.Order(clause.OrderBy{Expression: orderExpr})
 	} else {
@@ -339,12 +330,11 @@ func attachJavLocationVideos(ctx context.Context, items []models.Jav, directoryI
 	return nil
 }
 
-// UpdateJav applies user edits to one JAV record in the current metadata language.
+// UpdateJav applies user edits to one JAV record.
 func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directoryIDs []int64) (*models.Jav, error) {
 	if javID <= 0 {
 		return nil, errors.New("jav id must be positive")
 	}
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var javRec models.Jav
 		if err := tx.Select("id", "studio_id").Where("id = ?", javID).First(&javRec).Error; err != nil {
@@ -353,11 +343,7 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 
 		updates := map[string]any{}
 		if input.Title != nil {
-			titleColumn := "title"
-			if isEnglish {
-				titleColumn = "title_en"
-			}
-			updates[titleColumn] = strings.TrimSpace(*input.Title)
+			updates["title"] = strings.TrimSpace(*input.Title)
 		}
 		if input.ReleaseUnix != nil {
 			releaseUnix := *input.ReleaseUnix
@@ -389,18 +375,14 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 		}
 		if input.SeriesID != nil {
 			seriesID := *input.SeriesID
-			column := "series_id"
-			if isEnglish {
-				column = "series_en_id"
-			}
 			if seriesID <= 0 {
-				updates[column] = nil
+				updates["series_id"] = nil
 			} else {
 				var series models.JavSeries
-				if err := tx.Select("id").Where("id = ? AND COALESCE(is_english, 0) = ?", seriesID, isEnglish).First(&series).Error; err != nil {
+				if err := tx.Select("id").Where("id = ? AND is_english = ?", seriesID, false).First(&series).Error; err != nil {
 					return fmt.Errorf("find jav series: %w", err)
 				}
-				updates[column] = series.ID
+				updates["series_id"] = series.ID
 			}
 		}
 		if len(updates) > 0 {
@@ -409,7 +391,7 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 			}
 		}
 		if input.IdolIDs != nil {
-			if err := replaceJavIdolsForLanguageTx(tx, javID, *input.IdolIDs, isEnglish); err != nil {
+			if err := replaceJavIdolsTx(tx, javID, *input.IdolIDs); err != nil {
 				return err
 			}
 		}
@@ -428,7 +410,7 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 
 // ListJavTags returns JAV tags with the number of works for each tag.
 func ListJavTags(ctx context.Context, directoryIDs []int64) ([]JavTagCount, error) {
-	scrapedTags, err := listJavTagsForProviders(ctx, directoryIDs, visibleScrapedJavTagProviders(), int(jav.PreferredProvider()))
+	scrapedTags, err := listJavTagsForProviders(ctx, directoryIDs, visibleScrapedJavTagProviders(), int(jav.ProviderJavBus))
 	if err != nil {
 		return nil, err
 	}
@@ -467,23 +449,13 @@ func listJavTagsForProviders(ctx context.Context, directoryIDs []int64, provider
 }
 
 func visibleScrapedJavTagProviders() []int {
-	currentLanguage := jav.CurrentMetadataLanguage()
-	candidates := []jav.Provider{
-		jav.ProviderJavBus,
-		jav.ProviderJavDB,
-		jav.ProviderAvmoo,
-		jav.ProviderAvsox,
-		jav.ProviderJavMenu,
-		jav.ProviderJavDatabase,
-		jav.ProviderThePornDB,
+	return []int{
+		int(jav.ProviderJavBus),
+		int(jav.ProviderJavDB),
+		int(jav.ProviderAvmoo),
+		int(jav.ProviderAvsox),
+		int(jav.ProviderJavMenu),
 	}
-	providers := make([]int, 0, len(candidates)+1)
-	for _, provider := range candidates {
-		if jav.ProviderMetadataLanguage(provider) == currentLanguage {
-			providers = append(providers, int(provider))
-		}
-	}
-	return providers
 }
 
 func visibleJavTagProviders() []int {
@@ -723,11 +695,7 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	q = q.Where("EXISTS (?)", validLocation)
 	if search != "" {
 		like := fmt.Sprintf("%%%s%%", search)
-		titleColumn := "title"
-		if jav.CurrentMetadataLanguageIsEnglish() {
-			titleColumn = "title_en"
-		}
-		q = q.Where("code LIKE ? OR "+titleColumn+" LIKE ?", like, like)
+		q = q.Where("code LIKE ? OR title LIKE ?", like, like)
 	}
 	if studioID == 0 {
 		q = q.Where("studio_id IS NULL")
@@ -738,7 +706,7 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 		q = q.Where(javCodePrefixSQL("code")+" = ?", prefix)
 	}
 	if seriesID > 0 {
-		q = q.Where(javSeriesColumn()+" = ?", seriesID)
+		q = q.Where("series_id = ?", seriesID)
 	}
 	if favoriteGroupID > 0 {
 		q = q.Joins("JOIN jav_favorite_map jfm_filter ON jfm_filter.entity_id = jav.id AND jfm_filter.entity_type = ? AND jfm_filter.jav_favorite_group_id = ?", JavFavoriteEntityJav, favoriteGroupID)
@@ -747,8 +715,6 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 		soloJavs := common.DB.WithContext(ctx).
 			Table("jav_idol_map jim_solo_count").
 			Select("jim_solo_count.jav_id").
-			Joins("JOIN jav_idol ji_solo_count ON ji_solo_count.id = jim_solo_count.jav_idol_id").
-			Where("COALESCE(ji_solo_count.is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
 			Group("jim_solo_count.jav_id").
 			Having("COUNT(DISTINCT jim_solo_count.jav_idol_id) = 1")
 		q = q.Where("jav.id IN (?)", soloJavs)
@@ -805,13 +771,6 @@ func javFilterOptions(values []int64) (int64, int64, bool, int64) {
 	return studioID, seriesID, soloOnly, favoriteGroupID
 }
 
-func javSeriesColumn() string {
-	if jav.CurrentMetadataLanguageIsEnglish() {
-		return "series_en_id"
-	}
-	return "series_id"
-}
-
 // JavStudioSummary represents studio info with aggregated work count and a sample code for cover lookup.
 type JavStudioSummary struct {
 	ID            int64                        `json:"id"`
@@ -827,7 +786,6 @@ type JavStudioSummary struct {
 type JavSeriesSummary struct {
 	ID            int64  `json:"id"`
 	Name          string `json:"name"`
-	IsEnglish     bool   `json:"is_english"`
 	StudioID      *int64 `json:"studio_id"`
 	StudioName    string `json:"studio_name"`
 	WorkCount     int64  `json:"work_count"`
@@ -1026,13 +984,10 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		return nil
 	}
 
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	seriesColumn := javSeriesColumn()
 	type row struct {
 		ParentStudioID int64  `gorm:"column:parent_studio_id"`
 		ID             int64  `gorm:"column:id"`
 		Name           string `gorm:"column:name"`
-		IsEnglish      bool   `gorm:"column:is_english"`
 		StudioID       *int64 `gorm:"column:studio_id"`
 		StudioName     string `gorm:"column:studio_name"`
 		WorkCount      int64  `gorm:"column:work_count"`
@@ -1042,16 +997,15 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 	var rows []row
 	query := common.DB.WithContext(ctx).
 		Table("jav j").
-		Select("j.studio_id AS parent_studio_id, js.id, js.name, js.is_english, js.studio_id, COALESCE(jst.name, '') AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Joins("JOIN jav_series js ON j."+seriesColumn+" = js.id").
+		Select("j.studio_id AS parent_studio_id, js.id, js.name, js.studio_id, COALESCE(jst.name, '') AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Joins("JOIN jav_series js ON j.series_id = js.id").
 		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
 		Where("j.studio_id IN ?", ids).
-		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
 		Where(activeLocationWhereSQL("vl", "d")).
-		Group("j.studio_id, js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Group("j.studio_id, js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Order("j.studio_id, work_count DESC, js.name ASC")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.Scan(&rows).Error; err != nil {
@@ -1065,7 +1019,6 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		items[i].Series = append(items[i].Series, JavSeriesSummary{
 			ID:            r.ID,
 			Name:          strings.TrimSpace(r.Name),
-			IsEnglish:     r.IsEnglish,
 			StudioID:      r.StudioID,
 			StudioName:    strings.TrimSpace(r.StudioName),
 			WorkCount:     r.WorkCount,
@@ -1111,15 +1064,12 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	if len(favoriteGroupIDs) > 0 && favoriteGroupIDs[0] > 0 {
 		favoriteGroupID = favoriteGroupIDs[0]
 	}
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	seriesColumn := javSeriesColumn()
-
 	countBase := common.DB.WithContext(ctx).
 		Table("jav_series js").
-		Joins("JOIN jav j ON j."+seriesColumn+" = js.id").
+		Joins("JOIN jav j ON j.series_id = js.id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where("COALESCE(js.is_english, 0) = 0").
 		Where(activeLocationWhereSQL("vl", "d"))
 	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
 	countBase = applyJavSeriesSearch(countBase, search)
@@ -1135,11 +1085,11 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	var items []JavSeriesSummary
 	base := common.DB.WithContext(ctx).
 		Table("jav_series js").
-		Joins("JOIN jav j ON j."+seriesColumn+" = js.id").
+		Joins("JOIN jav j ON j.series_id = js.id").
 		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where("COALESCE(js.is_english, 0) = 0").
 		Where(activeLocationWhereSQL("vl", "d"))
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavSeriesSearch(base, search)
@@ -1152,8 +1102,8 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	}
 	if err := base.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
-		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Select("js.id, js.name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Order(order).
 		Limit(limit).
 		Offset(offset).
@@ -1170,23 +1120,21 @@ func GetJavSeriesSummary(ctx context.Context, seriesID int64, directoryIDs []int
 		return nil, errors.New("series id must be positive")
 	}
 
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	seriesColumn := javSeriesColumn()
 	var item JavSeriesSummary
 	query := common.DB.WithContext(ctx).
 		Table("jav_series js").
-		Joins("JOIN jav j ON j."+seriesColumn+" = js.id").
+		Joins("JOIN jav j ON j.series_id = js.id").
 		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("js.id = ?", seriesID).
-		Where("COALESCE(js.is_english, 0) = ?", isEnglish).
+		Where("COALESCE(js.is_english, 0) = 0").
 		Where(activeLocationWhereSQL("vl", "d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
-		Select("js.id, js.name, js.is_english, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("js.id, js.name, js.is_english, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Select("js.id, js.name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {
@@ -1204,13 +1152,12 @@ func ListSeriesCoverCodes(ctx context.Context, seriesID int64, directoryIDs []in
 		return nil, errors.New("series id must be positive")
 	}
 	var codes []string
-	seriesColumn := javSeriesColumn()
 	query := common.DB.WithContext(ctx).
 		Table("jav j").
 		Select("j.code").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where("j."+seriesColumn+" = ?", seriesID).
+		Where("j.series_id = ?", seriesID).
 		Where(activeLocationWhereSQL("vl", "d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
@@ -1245,11 +1192,10 @@ type JavIdolSummary struct {
 
 // JavIdolCoverOption represents one visible JAV work that can be used as an idol card cover.
 type JavIdolCoverOption struct {
-	ID      int64  `json:"id"`
-	Code    string `json:"code"`
-	Title   string `json:"title"`
-	TitleEn string `json:"title_en"`
-	Solo    bool   `json:"solo"`
+	ID    int64  `json:"id"`
+	Code  string `json:"code"`
+	Title string `json:"title"`
+	Solo  bool   `json:"solo"`
 }
 
 func applyJavIdolSearch(q *gorm.DB, search string) *gorm.DB {
@@ -1258,17 +1204,9 @@ func applyJavIdolSearch(q *gorm.DB, search string) *gorm.DB {
 		return q
 	}
 	like := fmt.Sprintf("%%%s%%", search)
-	if jav.CurrentMetadataLanguageIsEnglish() {
-		return q.Where(
-			"ji.name LIKE ? OR ji.japanese_name LIKE ? OR ji.chinese_name LIKE ? OR EXISTS (SELECT 1 FROM jav_idol_alias jia WHERE jia.jav_idol_id = ji.id AND COALESCE(jia.is_english, 0) = COALESCE(ji.is_english, 0) AND jia.alias LIKE ?)",
-			like,
-			like,
-			like,
-			like,
-		)
-	}
 	return q.Where(
-		"ji.name LIKE ? OR ji.roman_name LIKE ? OR ji.chinese_name LIKE ? OR EXISTS (SELECT 1 FROM jav_idol_alias jia WHERE jia.jav_idol_id = ji.id AND COALESCE(jia.is_english, 0) = COALESCE(ji.is_english, 0) AND jia.alias LIKE ?)",
+		"ji.name LIKE ? OR ji.roman_name LIKE ? OR ji.japanese_name LIKE ? OR ji.chinese_name LIKE ? OR EXISTS (SELECT 1 FROM jav_idol_alias jia WHERE jia.jav_idol_id = ji.id AND jia.alias LIKE ?)",
+		like,
 		like,
 		like,
 		like,
@@ -1276,17 +1214,12 @@ func applyJavIdolSearch(q *gorm.DB, search string) *gorm.DB {
 	)
 }
 
-func buildVisibleSoloIdolCoverQuery(ctx context.Context, directoryIDs []int64, language ...bool) *gorm.DB {
+func buildVisibleSoloIdolCoverQuery(ctx context.Context, directoryIDs []int64) *gorm.DB {
 	soloJavs := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_count").
 		Select("jim_count.jav_id").
 		Group("jim_count.jav_id").
 		Having("COUNT(*) = 1")
-	if len(language) > 0 {
-		soloJavs = soloJavs.
-			Joins("JOIN jav_idol ji_count ON ji_count.id = jim_count.jav_idol_id").
-			Where("COALESCE(ji_count.is_english, 0) = ?", language[0])
-	}
 
 	query := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_solo").
@@ -1296,11 +1229,6 @@ func buildVisibleSoloIdolCoverQuery(ctx context.Context, directoryIDs []int64, l
 		Joins("JOIN video_location vl_solo ON vl_solo.jav_id = jim_solo.jav_id").
 		Joins("JOIN directory d_solo ON d_solo.id = vl_solo.directory_id").
 		Where(activeLocationWhereSQL("vl_solo", "d_solo"))
-	if len(language) > 0 {
-		query = query.
-			Joins("JOIN jav_idol ji_solo ON ji_solo.id = jim_solo.jav_idol_id").
-			Where("COALESCE(ji_solo.is_english, 0) = ?", language[0])
-	}
 	query = applyDirectoryFilter(query, "vl_solo", directoryIDs)
 	return query.
 		Group("jim_solo.jav_idol_id")
@@ -1325,16 +1253,14 @@ func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) 
 	}
 
 	var item JavIdolSummary
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
 	tx := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
 		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
 		Joins("LEFT JOIN (?) idol_work_counts ON idol_work_counts.jav_idol_id = ji.id", buildVisibleIdolWorkCountQuery(ctx, directoryIDs)).
-		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)).
+		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)).
 		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.jav_idol_id = ji.id", buildIdolFavoriteCountQuery(ctx)).
 		Where("ji.id = ?", idolID).
-		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 		Where("solo_idols.cover_code IS NOT NULL").
 		Limit(1).
 		Scan(&item)
@@ -1363,7 +1289,6 @@ func ResolveJavIdols(ctx context.Context, ids []int64) ([]JavIdolSummary, error)
 		Table("jav_idol ji").
 		Select("ji.id, ji.name").
 		Where("ji.id IN ?", cleanIDs).
-		Where("COALESCE(ji.is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish()).
 		Order("ji.name").
 		Scan(&items).Error; err != nil {
 		return nil, fmt.Errorf("resolve jav idols: %w", err)
@@ -1374,7 +1299,7 @@ func ResolveJavIdols(ctx context.Context, ids []int64) ([]JavIdolSummary, error)
 	return items, nil
 }
 
-// ListJavIdolOptions returns all idols in the active metadata language for edit selectors.
+// ListJavIdolOptions returns all idols for edit selectors.
 func ListJavIdolOptions(ctx context.Context, search string, limit, offset int) ([]JavIdolSummary, int64, error) {
 	if limit <= 0 {
 		limit = 100
@@ -1383,9 +1308,7 @@ func ListJavIdolOptions(ctx context.Context, search string, limit, offset int) (
 		offset = 0
 	}
 
-	base := common.DB.WithContext(ctx).
-		Table("jav_idol ji").
-		Where("COALESCE(ji.is_english, 0) = ?", jav.CurrentMetadataLanguageIsEnglish())
+	base := common.DB.WithContext(ctx).Table("jav_idol ji")
 	base = applyJavIdolSearch(base, search)
 
 	var total int64
@@ -1418,13 +1341,11 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		offset = 0
 	}
 	sort = strings.ToLower(strings.TrimSpace(sort))
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs, isEnglish)
+	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)
 
 	countBase := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
-		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols).
-		Where("COALESCE(ji.is_english, 0) = ?", isEnglish)
+		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols)
 	if favoriteGroupID > 0 {
 		countBase = countBase.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
@@ -1487,7 +1408,6 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		Joins("JOIN jav j ON j.id = jim.jav_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 		Where(activeLocationWhereSQL("vl", "d"))
 	if favoriteGroupID > 0 {
 		base = base.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
@@ -1569,7 +1489,7 @@ func UpdateJavIdol(ctx context.Context, idolID int64, input JavIdolUpdateInput, 
 
 		var duplicateNameCount int64
 		if err := tx.Model(&models.JavIdol{}).
-			Where("id <> ? AND name = ? AND COALESCE(is_english, 0) = ?", idolID, input.Name, existing.IsEnglish).
+			Where("id <> ? AND name = ?", idolID, input.Name).
 			Count(&duplicateNameCount).Error; err != nil {
 			return fmt.Errorf("check jav idol name: %w", err)
 		}
@@ -1577,14 +1497,9 @@ func UpdateJavIdol(ctx context.Context, idolID int64, input JavIdolUpdateInput, 
 			return errors.New("idol name already exists")
 		}
 
-		ownNames := []string{input.Name, input.ChineseName}
-		if existing.IsEnglish {
-			ownNames = append(ownNames, input.JapaneseName)
-		} else {
-			ownNames = append(ownNames, input.RomanName)
-		}
-		aliases := normalizeJavIdolAliases(input.Aliases, existing.IsEnglish, ownNames...)
-		if err := validateJavIdolAliasesTx(tx, idolID, existing.IsEnglish, aliases); err != nil {
+		ownNames := []string{input.Name, input.RomanName, input.JapaneseName, input.ChineseName}
+		aliases := normalizeJavIdolAliases(input.Aliases, ownNames...)
+		if err := validateJavIdolAliasesTx(tx, idolID, aliases); err != nil {
 			return err
 		}
 
@@ -1603,7 +1518,7 @@ func UpdateJavIdol(ctx context.Context, idolID int64, input JavIdolUpdateInput, 
 		if err := tx.Model(&models.JavIdol{}).Where("id = ?", idolID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("update jav idol: %w", err)
 		}
-		if err := replaceJavIdolAliasesTx(tx, idolID, existing.IsEnglish, aliases); err != nil {
+		if err := replaceJavIdolAliasesTx(tx, idolID, aliases); err != nil {
 			return err
 		}
 		return nil
@@ -1614,12 +1529,12 @@ func UpdateJavIdol(ctx context.Context, idolID int64, input JavIdolUpdateInput, 
 	return GetJavIdolSummary(ctx, idolID, directoryIDs)
 }
 
-func normalizeJavIdolAliases(values []string, isEnglish bool, ownNames ...string) []string {
+func normalizeJavIdolAliases(values []string, ownNames ...string) []string {
 	excluded := make(map[string]bool, len(ownNames))
 	for _, ownName := range ownNames {
 		ownName = strings.TrimSpace(ownName)
 		if ownName != "" {
-			excluded[javIdolAliasKey(ownName, isEnglish)] = true
+			excluded[javIdolAliasKey(ownName)] = true
 		}
 	}
 	seen := map[string]bool{}
@@ -1629,7 +1544,7 @@ func normalizeJavIdolAliases(values []string, isEnglish bool, ownNames ...string
 		if alias == "" {
 			continue
 		}
-		key := javIdolAliasKey(alias, isEnglish)
+		key := javIdolAliasKey(alias)
 		if excluded[key] || seen[key] {
 			continue
 		}
@@ -1639,21 +1554,17 @@ func normalizeJavIdolAliases(values []string, isEnglish bool, ownNames ...string
 	return aliases
 }
 
-func javIdolAliasKey(value string, isEnglish bool) string {
-	value = strings.TrimSpace(value)
-	if isEnglish {
-		return strings.ToLower(value)
-	}
-	return value
+func javIdolAliasKey(value string) string {
+	return strings.TrimSpace(value)
 }
 
-func validateJavIdolAliasesTx(tx *gorm.DB, idolID int64, isEnglish bool, aliases []string) error {
+func validateJavIdolAliasesTx(tx *gorm.DB, idolID int64, aliases []string) error {
 	if len(aliases) == 0 {
 		return nil
 	}
 	var nameConflict int64
 	if err := tx.Model(&models.JavIdol{}).
-		Where("id <> ? AND COALESCE(is_english, 0) = ? AND name IN ?", idolID, isEnglish, aliases).
+		Where("id <> ? AND name IN ?", idolID, aliases).
 		Count(&nameConflict).Error; err != nil {
 		return fmt.Errorf("check jav idol alias names: %w", err)
 	}
@@ -1663,7 +1574,7 @@ func validateJavIdolAliasesTx(tx *gorm.DB, idolID int64, isEnglish bool, aliases
 
 	var aliasConflict int64
 	if err := tx.Model(&models.JavIdolAlias{}).
-		Where("jav_idol_id <> ? AND COALESCE(is_english, 0) = ? AND alias IN ?", idolID, isEnglish, aliases).
+		Where("jav_idol_id <> ? AND alias IN ?", idolID, aliases).
 		Count(&aliasConflict).Error; err != nil {
 		return fmt.Errorf("check jav idol aliases: %w", err)
 	}
@@ -1673,7 +1584,7 @@ func validateJavIdolAliasesTx(tx *gorm.DB, idolID int64, isEnglish bool, aliases
 	return nil
 }
 
-func replaceJavIdolAliasesTx(tx *gorm.DB, idolID int64, isEnglish bool, aliases []string) error {
+func replaceJavIdolAliasesTx(tx *gorm.DB, idolID int64, aliases []string) error {
 	if err := tx.Where("jav_idol_id = ?", idolID).Delete(&models.JavIdolAlias{}).Error; err != nil {
 		return fmt.Errorf("delete jav idol aliases: %w", err)
 	}
@@ -1686,7 +1597,6 @@ func replaceJavIdolAliasesTx(tx *gorm.DB, idolID int64, isEnglish bool, aliases 
 		rows = append(rows, models.JavIdolAlias{
 			JavIdolID: idolID,
 			Alias:     alias,
-			IsEnglish: isEnglish,
 			CreatedAt: now,
 		})
 	}
@@ -1746,20 +1656,17 @@ func ListIdolCoverOptions(ctx context.Context, idolID int64, directoryIDs []int6
 	sub := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_count").
 		Select("jim_count.jav_id, COUNT(*) as c").
-		Joins("JOIN jav_idol ji_count ON ji_count.id = jim_count.jav_idol_id").
-		Where("COALESCE(ji_count.is_english, 0) = (SELECT COALESCE(is_english, 0) FROM jav_idol WHERE id = ?)", idolID).
 		Group("jim_count.jav_id")
 
 	var rows []struct {
-		ID      int64
-		Code    string
-		Title   string
-		TitleEn string
-		Solo    int
+		ID    int64
+		Code  string
+		Title string
+		Solo  int
 	}
 	query := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim").
-		Select("j.id, j.code, j.title, j.title_en, CASE WHEN s.c = 1 THEN 1 ELSE 0 END AS solo").
+		Select("j.id, j.code, j.title, CASE WHEN s.c = 1 THEN 1 ELSE 0 END AS solo").
 		Joins("JOIN jav j ON j.id = jim.jav_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
@@ -1768,7 +1675,7 @@ func ListIdolCoverOptions(ctx context.Context, idolID int64, directoryIDs []int6
 		Where(activeLocationWhereSQL("vl", "d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
-		Group("j.id, j.code, j.title, j.title_en, solo").
+		Group("j.id, j.code, j.title, solo").
 		Order("solo DESC, j.code ASC").
 		Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("list idol cover options: %w", err)
@@ -1781,11 +1688,10 @@ func ListIdolCoverOptions(ctx context.Context, idolID int64, directoryIDs []int6
 			continue
 		}
 		options = append(options, JavIdolCoverOption{
-			ID:      row.ID,
-			Code:    code,
-			Title:   strings.TrimSpace(row.Title),
-			TitleEn: strings.TrimSpace(row.TitleEn),
-			Solo:    row.Solo == 1,
+			ID:    row.ID,
+			Code:  code,
+			Title: strings.TrimSpace(row.Title),
+			Solo:  row.Solo == 1,
 		})
 	}
 	return options, nil
@@ -1867,8 +1773,6 @@ func FindIdolSoloCode(ctx context.Context, idolID int64) (string, error) {
 	sub := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim_count").
 		Select("jim_count.jav_id, COUNT(*) as c").
-		Joins("JOIN jav_idol ji_count ON ji_count.id = jim_count.jav_idol_id").
-		Where("COALESCE(ji_count.is_english, 0) = (SELECT COALESCE(is_english, 0) FROM jav_idol WHERE id = ?)", idolID).
 		Group("jav_id")
 
 	var codes []string
@@ -1897,11 +1801,9 @@ func FindIdolSoloCode(ctx context.Context, idolID int64) (string, error) {
 // ListIdolsMissingProfile returns idols that have no profile fields populated.
 func ListIdolsMissingProfile(ctx context.Context) ([]models.JavIdol, error) {
 	var idols []models.JavIdol
-	isEnglish := jav.CurrentMetadataLanguageIsEnglish()
-	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, nil, isEnglish)
+	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, nil)
 	if err := common.DB.WithContext(ctx).
 		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = jav_idol.id", soloIdols).
-		Where("COALESCE(jav_idol.is_english, 0) = ?", isEnglish).
 		Where(`
 (
   japanese_name IS NULL OR japanese_name = '' OR
@@ -2157,7 +2059,8 @@ func ListJavCodes(ctx context.Context) ([]string, error) {
 	return codes, nil
 }
 
-// ListJavsMissingStudioOrEnglishSeries returns JAV rows whose studio or English series relation is empty.
+// ListJavsMissingStudioOrEnglishSeries returns JAV rows whose studio or
+// internal English-series relation is empty.
 func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
@@ -2172,22 +2075,8 @@ func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataSca
 	return items, nil
 }
 
-// ListJavsMissingEnglishMetadata returns JAV rows whose English title, studio, or English series relation is empty.
-func ListJavsMissingEnglishMetadata(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code, title_en, studio_id, series_en_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(title_en, '') = '' OR studio_id IS NULL OR series_en_id IS NULL").
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing english metadata: %w", err)
-	}
-	return items, nil
-}
-
-// ListJavsMissingLocalSeriesWithEnglishSeries returns JAV rows that have English series but are missing local series.
+// ListJavsMissingLocalSeriesWithEnglishSeries returns JAV rows that have the
+// internal English-series hint but are still missing the frontend-visible series.
 func ListJavsMissingLocalSeriesWithEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
@@ -2208,7 +2097,7 @@ func ListJavsMissingTitle(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, title_en, studio_id, series_id, series_en_id").
+		Select("id, code, studio_id, series_id").
 		Where("COALESCE(code, '') <> ''").
 		Where("TRIM(COALESCE(title, '')) = ''").
 		Order("created_at ASC, id ASC").
@@ -2239,9 +2128,7 @@ func ListUncensoredJavsMissingAvsoxMetadata(ctx context.Context) ([]JavMetadataS
 	localIdols := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim").
 		Select("1").
-		Joins("JOIN jav_idol ji ON ji.id = jim.jav_idol_id").
-		Where("jim.jav_id = jav.id").
-		Where("COALESCE(ji.is_english, 0) = ?", jav.ProviderIsEnglish(jav.ProviderAvsox))
+		Where("jim.jav_id = jav.id")
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Select("id, code, studio_id, series_id").
@@ -2368,7 +2255,7 @@ func UpdateJavStudioIfMissing(ctx context.Context, javID int64, studio string) (
 }
 
 // UpdateJavSeries records the series lookup result for a JAV row.
-func UpdateJavSeries(ctx context.Context, javID int64, series string, isEnglish bool) error {
+func UpdateJavSeries(ctx context.Context, javID int64, series string) error {
 	if javID == 0 {
 		return errors.New("jav id cannot be zero")
 	}
@@ -2381,17 +2268,13 @@ func UpdateJavSeries(ctx context.Context, javID int64, series string, isEnglish 
 		if err := tx.Select("id", "studio_id").Where("id = ?", javID).First(&javRec).Error; err != nil {
 			return fmt.Errorf("get jav studio for series: %w", err)
 		}
-		rec, err := ensureSeriesWithStudioTx(tx, series, isEnglish, javRec.StudioID)
+		rec, err := ensureSeriesWithStudioTx(tx, series, false, javRec.StudioID)
 		if err != nil {
 			return err
 		}
-		column := "series_id"
-		if isEnglish {
-			column = "series_en_id"
-		}
 		if err := tx.Model(&models.Jav{}).
 			Where("id = ?", javID).
-			Update(column, rec.ID).Error; err != nil {
+			Update("series_id", rec.ID).Error; err != nil {
 			return fmt.Errorf("update jav series: %w", err)
 		}
 		return nil
@@ -2399,7 +2282,17 @@ func UpdateJavSeries(ctx context.Context, javID int64, series string, isEnglish 
 }
 
 // UpdateJavSeriesIfMissing records the series lookup result without overwriting an existing series.
-func UpdateJavSeriesIfMissing(ctx context.Context, javID int64, series string, isEnglish bool) (bool, error) {
+func UpdateJavSeriesIfMissing(ctx context.Context, javID int64, series string) (bool, error) {
+	return updateJavSeriesIfMissing(ctx, javID, series, false)
+}
+
+// UpdateJavEnglishSeriesIfMissing records the internal JavDatabase series hint
+// used to decide which rows need the slow Avmoo localized-series lookup.
+func UpdateJavEnglishSeriesIfMissing(ctx context.Context, javID int64, series string) (bool, error) {
+	return updateJavSeriesIfMissing(ctx, javID, series, true)
+}
+
+func updateJavSeriesIfMissing(ctx context.Context, javID int64, series string, isEnglish bool) (bool, error) {
 	if javID == 0 {
 		return false, errors.New("jav id cannot be zero")
 	}
@@ -2445,7 +2338,7 @@ func UpdateJavSeriesIfMissing(ctx context.Context, javID int64, series string, i
 	return updated, nil
 }
 
-// AppendJavIdolsIfMissingForProvider appends provider-language idol mappings when none exist yet.
+// AppendJavIdolsIfMissingForProvider appends idol mappings when none exist yet.
 func AppendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names []string, provider jav.Provider) (bool, error) {
 	if javID == 0 {
 		return false, errors.New("jav id cannot be zero")
@@ -2470,12 +2363,11 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 		javRec = &models.Jav{Code: info.Code}
 	}
 	provider := jav.ParseProvider(int(info.Provider))
-	javRec.Code = info.Code
-	if jav.ProviderIsEnglish(provider) {
-		javRec.TitleEn = info.Title
-	} else {
-		javRec.Title = info.Title
+	if provider == jav.ProviderJavDatabase || provider == jav.ProviderThePornDB {
+		return nil, errors.New("english JAV metadata cannot be persisted")
 	}
+	javRec.Code = info.Code
+	javRec.Title = info.Title
 	javRec.ReleaseUnix = info.ReleaseUnix
 	javRec.DurationMin = info.DurationMin
 	javRec.FetchedAt = ts
@@ -2491,15 +2383,11 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 		javRec.StudioID = &studioRec.ID
 	}
 	if series := strings.TrimSpace(info.Series); series != "" {
-		seriesRec, err := ensureSeriesTx(tx, series, jav.ProviderIsEnglish(provider))
+		seriesRec, err := ensureSeriesTx(tx, series)
 		if err != nil {
 			return nil, err
 		}
-		if jav.ProviderIsEnglish(provider) {
-			javRec.SeriesEnID = &seriesRec.ID
-		} else {
-			javRec.SeriesID = &seriesRec.ID
-		}
+		javRec.SeriesID = &seriesRec.ID
 	}
 	if err := tx.Save(javRec).Error; err != nil {
 		return nil, fmt.Errorf("save jav: %w", err)
@@ -2512,7 +2400,7 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 	if err := replaceJavTagsForProviderTx(tx, javRec.ID, tags, info.Provider); err != nil {
 		return nil, err
 	}
-	if err := appendJavIdolsForProviderLanguageTx(tx, javRec, info.Actors, info.Provider); err != nil {
+	if err := appendJavIdolsTx(tx, javRec, info.Actors); err != nil {
 		return nil, err
 	}
 	return javRec, nil
@@ -2571,8 +2459,8 @@ func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 	return &studio, nil
 }
 
-func ensureSeriesTx(tx *gorm.DB, name string, isEnglish bool) (*models.JavSeries, error) {
-	return ensureSeriesWithStudioTx(tx, name, isEnglish, nil)
+func ensureSeriesTx(tx *gorm.DB, name string) (*models.JavSeries, error) {
+	return ensureSeriesWithStudioTx(tx, name, false, nil)
 }
 
 func ensureSeriesWithStudioTx(tx *gorm.DB, name string, isEnglish bool, studioID *int64) (*models.JavSeries, error) {
@@ -2659,17 +2547,14 @@ func deleteJavTagIfUnusedTx(tx *gorm.DB, tagID int64) error {
 	return nil
 }
 
-func appendJavIdolsForProviderLanguageTx(tx *gorm.DB, javRec *models.Jav, names []string, provider jav.Provider) error {
+func appendJavIdolsTx(tx *gorm.DB, javRec *models.Jav, names []string) error {
 	if javRec == nil || javRec.ID == 0 {
 		return errors.New("jav record is missing")
 	}
 
-	isEnglish := jav.ProviderIsEnglish(provider)
 	var existingCount int64
 	if err := tx.Model(&models.JavIdolMap{}).
-		Joins("JOIN jav_idol ji ON ji.id = jav_idol_map.jav_idol_id").
 		Where("jav_idol_map.jav_id = ?", javRec.ID).
-		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 		Count(&existingCount).Error; err != nil {
 		return fmt.Errorf("count jav idol maps: %w", err)
 	}
@@ -2677,7 +2562,7 @@ func appendJavIdolsForProviderLanguageTx(tx *gorm.DB, javRec *models.Jav, names 
 		return nil
 	}
 
-	idols, err := ensureJavIdolsTx(tx, names, isEnglish)
+	idols, err := ensureJavIdolsTx(tx, names)
 	if err != nil {
 		return err
 	}
@@ -2691,6 +2576,10 @@ func appendJavIdolsForProviderLanguageTx(tx *gorm.DB, javRec *models.Jav, names 
 }
 
 func appendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names []string, provider jav.Provider) (bool, error) {
+	provider = jav.ParseProvider(int(provider))
+	if provider == jav.ProviderJavDatabase || provider == jav.ProviderThePornDB {
+		return false, errors.New("english JAV idols cannot be persisted")
+	}
 	unique := normalizeNames(names)
 	if len(unique) == 0 {
 		return false, nil
@@ -2702,12 +2591,9 @@ func appendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names 
 		if err := tx.Select("id").Where("id = ?", javID).First(&javRec).Error; err != nil {
 			return fmt.Errorf("get jav for idol append: %w", err)
 		}
-		isEnglish := jav.ProviderIsEnglish(provider)
 		var existingCount int64
 		if err := tx.Model(&models.JavIdolMap{}).
-			Joins("JOIN jav_idol ji ON ji.id = jav_idol_map.jav_idol_id").
 			Where("jav_idol_map.jav_id = ?", javID).
-			Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
 			Count(&existingCount).Error; err != nil {
 			return fmt.Errorf("count jav idol maps: %w", err)
 		}
@@ -2715,7 +2601,7 @@ func appendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names 
 			return nil
 		}
 
-		idols, err := ensureJavIdolsTx(tx, unique, isEnglish)
+		idols, err := ensureJavIdolsTx(tx, unique)
 		if err != nil {
 			return err
 		}
@@ -2734,14 +2620,14 @@ func appendJavIdolsIfMissingForProvider(ctx context.Context, javID int64, names 
 	return updated, nil
 }
 
-func ensureJavIdolsTx(tx *gorm.DB, names []string, isEnglish bool) ([]models.JavIdol, error) {
+func ensureJavIdolsTx(tx *gorm.DB, names []string) ([]models.JavIdol, error) {
 	unique := normalizeNames(names)
 	if len(unique) == 0 {
 		return nil, nil
 	}
 	var idols []models.JavIdol
 	for _, name := range unique {
-		idol, err := findOrCreateJavIdolByNameOrAliasTx(tx, name, isEnglish)
+		idol, err := findOrCreateJavIdolByNameOrAliasTx(tx, name)
 		if err != nil {
 			return nil, fmt.Errorf("ensure jav idol %q: %w", name, err)
 		}
@@ -2750,13 +2636,13 @@ func ensureJavIdolsTx(tx *gorm.DB, names []string, isEnglish bool) ([]models.Jav
 	return idols, nil
 }
 
-func findOrCreateJavIdolByNameOrAliasTx(tx *gorm.DB, name string, isEnglish bool) (models.JavIdol, error) {
+func findOrCreateJavIdolByNameOrAliasTx(tx *gorm.DB, name string) (models.JavIdol, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return models.JavIdol{}, errors.New("jav idol name cannot be empty")
 	}
 	var idol models.JavIdol
-	err := tx.Where("name = ? AND is_english = ?", name, isEnglish).First(&idol).Error
+	err := tx.Where("name = ?", name).First(&idol).Error
 	if err == nil {
 		return idol, nil
 	}
@@ -2767,8 +2653,7 @@ func findOrCreateJavIdolByNameOrAliasTx(tx *gorm.DB, name string, isEnglish bool
 		Table("jav_idol_alias jia").
 		Select("ji.*").
 		Joins("JOIN jav_idol ji ON ji.id = jia.jav_idol_id").
-		Where("jia.alias = ? AND COALESCE(jia.is_english, 0) = ?", name, isEnglish).
-		Where("COALESCE(ji.is_english, 0) = ?", isEnglish).
+		Where("jia.alias = ?", name).
 		Limit(1).
 		Scan(&idol).Error
 	if err != nil {
@@ -2777,7 +2662,7 @@ func findOrCreateJavIdolByNameOrAliasTx(tx *gorm.DB, name string, isEnglish bool
 	if idol.ID > 0 {
 		return idol, nil
 	}
-	idol = models.JavIdol{Name: name, IsEnglish: isEnglish}
+	idol = models.JavIdol{Name: name}
 	if err := tx.Create(&idol).Error; err != nil {
 		return models.JavIdol{}, err
 	}
@@ -2815,12 +2700,6 @@ func MergeJavIdols(ctx context.Context, canonicalID int64, sourceIDs []int64, di
 		if len(sources) != len(cleanSourceIDs) {
 			return gorm.ErrRecordNotFound
 		}
-		for _, source := range sources {
-			if source.IsEnglish != canonical.IsEnglish {
-				return errors.New("cannot merge idols from different metadata languages")
-			}
-		}
-
 		if err := moveJavIdolAliasesTx(tx, canonical, sources); err != nil {
 			return err
 		}
@@ -2858,7 +2737,6 @@ func moveJavIdolAliasesTx(tx *gorm.DB, canonical models.JavIdol, sources []model
 				FROM jav_idol_alias canonical_alias
 				WHERE canonical_alias.jav_idol_id = ?
 				AND canonical_alias.alias = jav_idol_alias.alias
-				AND COALESCE(canonical_alias.is_english, 0) = COALESCE(jav_idol_alias.is_english, 0)
 			)`,
 			sourceIDs,
 			canonical.ID,
@@ -2887,7 +2765,6 @@ func moveJavIdolAliasesTx(tx *gorm.DB, canonical models.JavIdol, sources []model
 		aliases = append(aliases, models.JavIdolAlias{
 			JavIdolID: canonical.ID,
 			Alias:     alias,
-			IsEnglish: canonical.IsEnglish,
 			CreatedAt: time.Now(),
 		})
 	}
@@ -2898,7 +2775,7 @@ func moveJavIdolAliasesTx(tx *gorm.DB, canonical models.JavIdol, sources []model
 		return nil
 	}
 	if err := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "alias"}, {Name: "is_english"}},
+		Columns:   []clause.Column{{Name: "alias"}},
 		DoNothing: true,
 	}).Create(&aliases).Error; err != nil {
 		return fmt.Errorf("create jav idol aliases: %w", err)
@@ -2964,17 +2841,13 @@ func inheritJavIdolCoverTx(tx *gorm.DB, canonical models.JavIdol, sources []mode
 	return nil
 }
 
-func replaceJavIdolsForLanguageTx(tx *gorm.DB, javID int64, idolIDs []int64, isEnglish bool) error {
+func replaceJavIdolsTx(tx *gorm.DB, javID int64, idolIDs []int64) error {
 	if javID <= 0 {
 		return errors.New("jav id cannot be zero")
 	}
 	cleanIDs := uniqueInt64s(idolIDs)
-	idolIDsForLanguage := tx.
-		Model(&models.JavIdol{}).
-		Select("id").
-		Where("COALESCE(is_english, 0) = ?", isEnglish)
 	if err := tx.
-		Where("jav_id = ? AND jav_idol_id IN (?)", javID, idolIDsForLanguage).
+		Where("jav_id = ?", javID).
 		Delete(&models.JavIdolMap{}).Error; err != nil {
 		return fmt.Errorf("delete jav idol maps: %w", err)
 	}
@@ -2985,7 +2858,6 @@ func replaceJavIdolsForLanguageTx(tx *gorm.DB, javID int64, idolIDs []int64, isE
 	var count int64
 	if err := tx.Model(&models.JavIdol{}).
 		Where("id IN ?", cleanIDs).
-		Where("COALESCE(is_english, 0) = ?", isEnglish).
 		Count(&count).Error; err != nil {
 		return fmt.Errorf("find jav idols: %w", err)
 	}

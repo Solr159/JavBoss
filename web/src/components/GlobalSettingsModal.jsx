@@ -64,8 +64,6 @@ export default function GlobalSettingsModal({
   proxyHost,
   proxyPort,
   onSaveProxySettings,
-  javMetadataLanguage,
-  onSaveJavMetadataLanguage,
   defaultPlayer,
   onSaveDefaultPlayer,
   initialViewMode,
@@ -91,9 +89,6 @@ export default function GlobalSettingsModal({
   const [savingProxy, setSavingProxy] = useState(false)
   const [proxyEditing, setProxyEditing] = useState(false)
   const [proxyEnabledInput, setProxyEnabledInput] = useState(false)
-  const [javMetadataLanguageInput, setJavMetadataLanguageInput] = useState('zh')
-  const [javMetadataLanguageError, setJavMetadataLanguageError] = useState('')
-  const [savingJavMetadataLanguage, setSavingJavMetadataLanguage] = useState(false)
   const [activeSection, setActiveSection] = useState('directories')
   const [defaultPlayerInput, setDefaultPlayerInput] = useState('mpv')
   const [defaultPlayerError, setDefaultPlayerError] = useState('')
@@ -156,8 +151,6 @@ export default function GlobalSettingsModal({
       setProxyEnabledInput(Boolean(proxyPort))
       setProxyEditing(false)
       setProxyError('')
-      setJavMetadataLanguageInput(javMetadataLanguage === 'en' ? 'en' : 'zh')
-      setJavMetadataLanguageError('')
       setDefaultPlayerInput(defaultPlayer === 'system' ? 'system' : 'mpv')
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
@@ -182,7 +175,6 @@ export default function GlobalSettingsModal({
     open,
     proxyHost,
     proxyPort,
-    javMetadataLanguage,
     defaultPlayer,
     initialViewMode,
     showTopBarButtonTooltips,
@@ -555,76 +547,7 @@ export default function GlobalSettingsModal({
             </div>
           </div>
         </section>
-        {renderJavMetadataSettings()}
       </div>
-    )
-  }
-
-  const handleSaveJavMetadataLanguage = async () => {
-    const next = javMetadataLanguageInput === 'en' ? 'en' : 'zh'
-    setJavMetadataLanguageError('')
-    setSavingJavMetadataLanguage(true)
-    try {
-      await onSaveJavMetadataLanguage?.(next)
-    } catch (err) {
-      setJavMetadataLanguageError(getErrorMessage(err))
-    } finally {
-      setSavingJavMetadataLanguage(false)
-    }
-  }
-
-  const renderJavMetadataSettings = () => {
-    const currentLanguage = javMetadataLanguage === 'en' ? 'en' : 'zh'
-    const unchanged = javMetadataLanguageInput === currentLanguage
-
-    return (
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <h4 className="text-sm font-semibold text-zinc-800">
-              {zh('JAV元数据语言', 'JAV Metadata Language')}
-            </h4>
-            <span className="relative inline-block">
-              <select
-                value={javMetadataLanguageInput}
-                onChange={(event) => {
-                  setJavMetadataLanguageInput(event.target.value === 'en' ? 'en' : 'zh')
-                  setJavMetadataLanguageError('')
-                }}
-                className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
-              >
-                <option value="en">English</option>
-                <option value="zh">{zh('中日文', 'Chinese/Japanese')}</option>
-              </select>
-              <span
-                aria-hidden="true"
-                className="pointer-events-none absolute right-4 top-1/2 h-1.5 w-1.5 -translate-y-1/2 rotate-45 border-b border-r border-zinc-500"
-              />
-            </span>
-          </div>
-          <p className="text-sm text-zinc-500">
-            {zh(
-              '控制后台JAV 刮削和前端显示的元数据语言。',
-              'Controls the metadata language used by background JAV scraping and frontend display.'
-            )}
-          </p>
-
-          {javMetadataLanguageError && (
-            <div className="text-sm text-red-600">{javMetadataLanguageError}</div>
-          )}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSaveJavMetadataLanguage}
-              disabled={savingJavMetadataLanguage || unchanged}
-              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-            >
-              {savingJavMetadataLanguage ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-            </button>
-          </div>
-        </div>
-      </section>
     )
   }
 

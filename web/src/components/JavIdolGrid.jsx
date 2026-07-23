@@ -35,7 +35,6 @@ export default function JavIdolGrid({
   onSelectIdol,
   onOpenFavorites,
   buildIdolUrl,
-  javMetadataLanguage,
   preferChineseName = false,
   directoryIds = [],
   onMerged,
@@ -78,7 +77,6 @@ export default function JavIdolGrid({
             onOpenEditor={setEditItem}
             href={buildIdolUrl?.(item)}
             coverAspectPercent={coverAspectPercent}
-            javMetadataLanguage={javMetadataLanguage}
             preferChineseName={preferChineseName}
           />
         ))}
@@ -88,7 +86,6 @@ export default function JavIdolGrid({
         open={Boolean(coverEditorItem)}
         item={coverEditorItem}
         directoryIds={directoryIds}
-        javMetadataLanguage={javMetadataLanguage}
         preferChineseName={preferChineseName}
         onClose={() => setCoverEditorItem(null)}
         onSaved={(updated) => {
@@ -106,7 +103,6 @@ export default function JavIdolGrid({
         open={Boolean(editItem)}
         item={editItem}
         directoryIds={directoryIds}
-        javMetadataLanguage={javMetadataLanguage}
         preferChineseName={preferChineseName}
         onClose={() => setEditItem(null)}
         onSaved={(updated) => {
@@ -137,7 +133,6 @@ export function IdolCard({
   href,
   coverAspectPercent,
   showWorkCount = true,
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
   const coverCode = String(item?.cover_code || '').trim()
@@ -159,11 +154,7 @@ export function IdolCard({
   const lookupCode = coverCode
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
-  const { primaryName, secondaryName } = getIdolDisplayNames(
-    item,
-    javMetadataLanguage,
-    preferChineseName
-  )
+  const { primaryName, secondaryName } = getIdolDisplayNames(item, preferChineseName)
   const metaRows = buildMetaRows({ birthDate, height, bwh, cup, aliases })
   const canOpenJavDB = Boolean(javdbURL || (lookupCode && name))
   const hasCoverImageSize =
@@ -429,7 +420,6 @@ export function JavIdolEditModal({
   open,
   item,
   directoryIds = [],
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
   onClose,
   onSaved,
@@ -440,8 +430,7 @@ export function JavIdolEditModal({
   const [error, setError] = useState('')
   const [mergeOpen, setMergeOpen] = useState(false)
   const idolId = Number(item?.id)
-  const displayName = displayIdolOptionName(item, javMetadataLanguage, preferChineseName)
-  const editingEnglishMetadata = javMetadataLanguage === 'en'
+  const displayName = displayIdolOptionName(item, preferChineseName)
 
   useEffect(() => {
     if (open) {
@@ -528,19 +517,16 @@ export function JavIdolEditModal({
                 onChange={(value) => setField('name', value)}
                 required
               />
-              {editingEnglishMetadata ? (
-                <TextField
-                  label={zh('日文名', 'Japanese name')}
-                  value={form.japanese_name}
-                  onChange={(value) => setField('japanese_name', value)}
-                />
-              ) : (
-                <TextField
-                  label={zh('罗马名', 'Roman name')}
-                  value={form.roman_name}
-                  onChange={(value) => setField('roman_name', value)}
-                />
-              )}
+              <TextField
+                label={zh('日文名', 'Japanese name')}
+                value={form.japanese_name}
+                onChange={(value) => setField('japanese_name', value)}
+              />
+              <TextField
+                label={zh('罗马名', 'Roman name')}
+                value={form.roman_name}
+                onChange={(value) => setField('roman_name', value)}
+              />
               <TextField
                 label={zh('中文名', 'Chinese name')}
                 value={form.chinese_name}
@@ -641,7 +627,6 @@ export function JavIdolEditModal({
         open={mergeOpen}
         item={item}
         directoryIds={directoryIds}
-        javMetadataLanguage={javMetadataLanguage}
         preferChineseName={preferChineseName}
         onClose={() => setMergeOpen(false)}
         onMerged={onMerged}
@@ -729,7 +714,6 @@ function JavIdolMergeModal({
   open,
   item,
   directoryIds = [],
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
   onClose,
   onMerged,
@@ -856,7 +840,7 @@ function JavIdolMergeModal({
                 {options.map((option) => {
                   const id = Number(option?.id)
                   const { primaryName: optionName, secondaryName: optionSecondaryName } =
-                    getIdolDisplayNames(option, javMetadataLanguage, preferChineseName)
+                    getIdolDisplayNames(option, preferChineseName)
                   const optionMeta = buildMergeOptionMeta(option)
                   const checked = id === selectedId
                   return (
@@ -924,8 +908,8 @@ function JavIdolMergeModal({
   )
 }
 
-function displayIdolOptionName(item, javMetadataLanguage, preferChineseName = false) {
-  return getIdolDisplayNames(item, javMetadataLanguage, preferChineseName).primaryName
+function displayIdolOptionName(item, preferChineseName = false) {
+  return getIdolDisplayNames(item, preferChineseName).primaryName
 }
 
 function rawIdolName(item) {

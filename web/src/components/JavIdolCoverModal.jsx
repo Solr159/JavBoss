@@ -54,7 +54,6 @@ export default function JavIdolCoverModal({
   open,
   item,
   directoryIds = [],
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
   onClose,
   onSaved,
@@ -127,7 +126,7 @@ export default function JavIdolCoverModal({
   )
   const previewCode = String(selectedOption?.code || itemCoverCode).trim()
   const coverSrc = previewCode ? `/jav/${encodeURIComponent(previewCode)}/cover` : ''
-  const title = selectedOption ? getJavDisplayTitle(selectedOption, javMetadataLanguage) : ''
+  const title = selectedOption ? getJavDisplayTitle(selectedOption) : ''
   const visibleRatio = getCoverVisibleRatio(imageSize)
   const maxCropLeft = Math.max(0, 1 - visibleRatio)
   const displayCropLeft = Math.min(cropLeft, maxCropLeft)
@@ -187,7 +186,7 @@ export default function JavIdolCoverModal({
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div className="min-w-0">
             <div className="truncate text-base font-semibold text-slate-950">
-              {getIdolDisplayName(item, javMetadataLanguage, preferChineseName)}
+              {getIdolDisplayName(item, preferChineseName)}
             </div>
             <div className="text-xs text-slate-500">{zh('封面', 'Cover')}</div>
           </div>
@@ -221,7 +220,7 @@ export default function JavIdolCoverModal({
             ) : options.length > 0 ? (
               options.map((option) => {
                 const active = Number(option.id) === Number(selectedJavId)
-                const optionTitle = getJavDisplayTitle(option, javMetadataLanguage)
+                const optionTitle = getJavDisplayTitle(option)
                 return (
                   <button
                     key={option.id}

@@ -15,11 +15,7 @@ func TestJavScrapeCodesForVideoUsesForcedCodeOnly(t *testing.T) {
 	}
 }
 
-func TestJavLinkProvidersForCodeInChineseMode(t *testing.T) {
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() { jav.SetMetadataLanguage(string(prevLang)) })
-	jav.SetMetadataLanguage("zh")
-
+func TestJavLinkProvidersForCode(t *testing.T) {
 	tests := []struct {
 		name string
 		code string
@@ -53,20 +49,6 @@ func TestJavLinkProvidersForCodeInChineseMode(t *testing.T) {
 				t.Fatalf("javLinkProvidersForCode(%q) = %#v, want %#v", tt.code, got, tt.want)
 			}
 		})
-	}
-}
-
-func TestJavLinkProvidersForCodeUsesJavDatabaseInEnglishMode(t *testing.T) {
-	prevLang := jav.CurrentMetadataLanguage()
-	t.Cleanup(func() { jav.SetMetadataLanguage(string(prevLang)) })
-	jav.SetMetadataLanguage("en")
-
-	for _, code := range []string{"GANA-1234", "STARS-001", "AP-001", "IPX-228"} {
-		got := javLinkProvidersForCode(code)
-		want := []jav.Provider{jav.ProviderJavDatabase}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("javLinkProvidersForCode(%q) = %#v, want %#v", code, got, want)
-		}
 	}
 }
 

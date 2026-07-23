@@ -23,7 +23,6 @@ export default function JavIdolFavoriteManageModal({
   onLoadGroupIdols,
   onReorderGroupIdols,
   onRemoveGroupIdols,
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
   const [localGroups, setLocalGroups] = useState([])
@@ -168,7 +167,6 @@ export default function JavIdolFavoriteManageModal({
         onReorderGroupIdols={onReorderGroupIdols}
         onRemoveGroupIdols={onRemoveGroupIdols}
         labels={labels}
-        javMetadataLanguage={javMetadataLanguage}
         preferChineseName={preferChineseName}
       />
 
@@ -280,7 +278,6 @@ function FavoriteGroupEditModal({
   onReorderGroupIdols,
   onRemoveGroupIdols,
   labels = favoriteManageLabels('idol'),
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
   const [groupName, setGroupName] = useState('')
@@ -472,7 +469,6 @@ function FavoriteGroupEditModal({
             onReorder={setIdols}
             onReorderCommit={commitIdolOrder}
             labels={labels}
-            javMetadataLanguage={javMetadataLanguage}
             preferChineseName={preferChineseName}
           />
         </div>
@@ -503,7 +499,6 @@ function IdolOrderList({
   onReorder,
   onReorderCommit,
   labels = favoriteManageLabels('idol'),
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
   if (!idols.length) {
@@ -518,9 +513,7 @@ function IdolOrderList({
       items={idols}
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
-      getLabel={(idol) =>
-        favoriteItemLabel(labels.entityType, idol, javMetadataLanguage, preferChineseName)
-      }
+      getLabel={(idol) => favoriteItemLabel(labels.entityType, idol, preferChineseName)}
       getMeta={(idol) => labels.itemMeta(idol)}
       renderLeading={(idol) => (
         <input
@@ -790,17 +783,14 @@ function favoriteManageLabels(entityType) {
   }
 }
 
-function favoriteItemLabel(entityType, item, javMetadataLanguage, preferChineseName) {
+function favoriteItemLabel(entityType, item, preferChineseName) {
   if (entityType === 'idol') {
-    return getIdolDisplayName(item, javMetadataLanguage, preferChineseName)
+    return getIdolDisplayName(item, preferChineseName)
   }
   const name = String(item?.name || '').trim()
   if (name) return name
   if (entityType === 'jav') {
-    return (
-      [item?.code, item?.title || item?.title_en].filter(Boolean).join(' ') ||
-      zh('未知作品', 'Unknown JAV')
-    )
+    return [item?.code, item?.title].filter(Boolean).join(' ') || zh('未知作品', 'Unknown JAV')
   }
   if (entityType === 'studio') return zh('未知片商', 'Unknown studio')
   if (entityType === 'series') return zh('未知系列', 'Unknown series')

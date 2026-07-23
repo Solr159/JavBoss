@@ -189,10 +189,6 @@ func javScrapeCodesForVideo(filename, forcedCode string) []string {
 }
 
 func javLinkProvidersForCode(code string) []jav.Provider {
-	if jav.CurrentMetadataLanguageIsEnglish() {
-		return []jav.Provider{jav.ProviderJavDatabase}
-	}
-
 	code = strings.ToUpper(strings.TrimSpace(code))
 	switch {
 	case strings.HasPrefix(code, "GANA-"):

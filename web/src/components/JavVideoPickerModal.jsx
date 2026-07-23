@@ -12,12 +12,11 @@ export default function JavVideoPickerModal({
   buildVideoFullPath,
   isVideoOpenable,
   onSelectVideo,
-  javMetadataLanguage = 'zh',
 }) {
   if (!open) return null
 
   const list = Array.isArray(choices) ? choices : []
-  const itemTitle = item ? getJavDisplayTitle(item, javMetadataLanguage) : ''
+  const itemTitle = item ? getJavDisplayTitle(item) : ''
 
   return (
     <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/30 px-4">

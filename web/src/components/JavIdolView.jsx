@@ -37,7 +37,6 @@ export default function JavIdolView({
   buildPageUrl,
   buildIdolUrl,
   directoryIds = [],
-  javMetadataLanguage,
   preferChineseName = false,
   onFirst,
   onPrev,
@@ -192,7 +191,6 @@ export default function JavIdolView({
           onMerged={onMerged}
           buildIdolUrl={buildIdolUrl}
           directoryIds={directoryIds}
-          javMetadataLanguage={javMetadataLanguage}
           preferChineseName={preferChineseName}
         />
       )}

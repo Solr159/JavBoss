@@ -1665,7 +1665,7 @@ export default function App() {
       Boolean((javSearchTerm || '').trim()))
   useEffect(() => {
     setJavResolvedIdols({})
-  }, [config?.jav_metadata_language, javDirectoryKey])
+  }, [javDirectoryKey])
 
   useEffect(() => {
     if (!isJavMode || javTab !== 'list' || javIdolIds.length === 0) return undefined
@@ -1805,13 +1805,7 @@ export default function App() {
         const idolNames = javIdolIds
           .map((id) => javIdolOptionMap.get(Number(id)))
           .filter(Boolean)
-          .map((idol) =>
-            getIdolDisplayName(
-              idol,
-              config?.jav_metadata_language === 'en' ? 'en' : 'zh',
-              configFlag(config?.jav_idol_prefer_chinese_name)
-            )
-          )
+          .map((idol) => getIdolDisplayName(idol, configFlag(config?.jav_idol_prefer_chinese_name)))
         const idolsLabel = formatList(idolNames)
         if (idolsLabel) parts.push(zh(`女优: ${idolsLabel}`, `Idols: ${idolsLabel}`))
         const tagNames = javTags.map((id) => javTagNameMap.get(id)).filter(Boolean)
@@ -1829,14 +1823,9 @@ export default function App() {
         }
         if (javSeriesId) {
           const loadedSeriesItem = javItems.find(
-            (item) =>
-              Number(item?.series?.id) === Number(javSeriesId) ||
-              Number(item?.series_en?.id) === Number(javSeriesId)
+            (item) => Number(item?.series?.id) === Number(javSeriesId)
           )
-          const loadedSeriesName =
-            Number(loadedSeriesItem?.series?.id) === Number(javSeriesId)
-              ? loadedSeriesItem?.series?.name || ''
-              : loadedSeriesItem?.series_en?.name || ''
+          const loadedSeriesName = loadedSeriesItem?.series?.name || ''
           const label = javSeriesName || loadedSeriesName || `#${javSeriesId}`
           parts.push(zh(`系列: ${label}`, `Series: ${label}`))
         }
@@ -1867,7 +1856,6 @@ export default function App() {
   }, [
     isJavMode,
     config?.jav_idol_prefer_chinese_name,
-    config?.jav_metadata_language,
     javTab,
     javIdolIds,
     javIdolOptionMap,
@@ -3456,7 +3444,6 @@ export default function App() {
         prefix={javPrefix}
         soloOnly={javSoloOnly}
         directoryIds={javQueryDirectoryIds}
-        javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       />
 
@@ -3562,7 +3549,6 @@ export default function App() {
         buildVideoFullPath={buildVideoFullPath}
         isVideoOpenable={isVideoOpenable}
         onSelectVideo={handleSelectJavVideo}
-        javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
       />
 
       <JavIdolFavoriteModal
@@ -3580,7 +3566,6 @@ export default function App() {
         onClose={handleCloseIdolFavoriteModal}
         onCreateGroup={(name) => handleCreateFavoriteGroup(name, favoriteModalEntityType)}
         onSave={handleSaveIdolFavoriteGroups}
-        javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       />
 
@@ -3602,7 +3587,6 @@ export default function App() {
         onLoadGroupIdols={handleLoadIdolFavoriteGroupIdols}
         onReorderGroupIdols={handleReorderIdolFavoriteGroupIdols}
         onRemoveGroupIdols={handleRemoveIdolFavoriteGroupIdols}
-        javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       />
 
@@ -3811,23 +3795,6 @@ export default function App() {
         onSaveProxySettings={async ({ host, port }) => {
           const cfg = await updateConfig({ proxy_host: host, proxy_port: port })
           useStore.setState({ config: cfg })
-        }}
-        javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
-        onSaveJavMetadataLanguage={async (language) => {
-          const cfg = await updateConfig({
-            jav_metadata_language: language === 'en' ? 'en' : 'zh',
-          })
-          useStore.setState({
-            config: cfg,
-            javTempSort: '',
-            idolTempSort: '',
-            javTags: [],
-            javPage: 1,
-            javRandomMode: false,
-            javRandomSeed: null,
-          })
-          await loadJavTags({ force: true })
-          forceReloadJavByTab(javTab)
         }}
         defaultPlayer={defaultPlayer}
         onSaveDefaultPlayer={async (player) => {

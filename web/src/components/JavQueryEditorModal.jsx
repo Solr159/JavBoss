@@ -47,10 +47,10 @@ const mergeJavPrefixes = (items = []) => {
   }))
 }
 
-function buildIdolSearchText(idol, javMetadataLanguage, preferChineseName) {
+function buildIdolSearchText(idol, preferChineseName) {
   const aliases = Array.isArray(idol?.aliases) ? idol.aliases : []
   return [
-    getIdolDisplayName(idol, javMetadataLanguage, preferChineseName),
+    getIdolDisplayName(idol, preferChineseName),
     idol?.name,
     idol?.roman_name,
     idol?.japanese_name,
@@ -132,8 +132,8 @@ const fetchAllJavPrefixes = async ({ directoryIds = [] } = {}) => {
   return Array.isArray(items) ? items : []
 }
 
-function SelectedIdolChip({ idol, javMetadataLanguage, preferChineseName, onRemove }) {
-  const displayName = getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)
+function SelectedIdolChip({ idol, preferChineseName, onRemove }) {
+  const displayName = getIdolDisplayName(idol, preferChineseName)
   return (
     <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
       <span className="truncate">{displayName}</span>
@@ -165,7 +165,6 @@ export default function JavQueryEditorModal({
   prefix = '',
   soloOnly = false,
   directoryIds = [],
-  javMetadataLanguage = 'zh',
   preferChineseName = false,
 }) {
   const prefixInputRef = useRef(null)
@@ -410,19 +409,17 @@ export default function JavQueryEditorModal({
     return Array.from(merged.values())
       .filter((idol) => {
         if (!query) return true
-        return buildIdolSearchText(idol, javMetadataLanguage, preferChineseName)
-          .toLowerCase()
-          .includes(query)
+        return buildIdolSearchText(idol, preferChineseName).toLowerCase().includes(query)
       })
       .sort((a, b) => {
         const countA = Number.isFinite(a?.work_count) ? a.work_count : 0
         const countB = Number.isFinite(b?.work_count) ? b.work_count : 0
         if (countB !== countA) return countB - countA
-        return getIdolDisplayName(a, javMetadataLanguage, preferChineseName).localeCompare(
-          getIdolDisplayName(b, javMetadataLanguage, preferChineseName)
+        return getIdolDisplayName(a, preferChineseName).localeCompare(
+          getIdolDisplayName(b, preferChineseName)
         )
       })
-  }, [idolMap, idolOptions, idolSearch, javMetadataLanguage, preferChineseName])
+  }, [idolMap, idolOptions, idolSearch, preferChineseName])
 
   const mergedPrefixes = useMemo(() => mergeJavPrefixes(allPrefixes), [allPrefixes])
 
@@ -729,7 +726,6 @@ export default function JavQueryEditorModal({
                   <SelectedIdolChip
                     key={idol.id}
                     idol={idol}
-                    javMetadataLanguage={javMetadataLanguage}
                     preferChineseName={preferChineseName}
                     onRemove={() => removeIdol(idol.id)}
                   />
@@ -777,7 +773,7 @@ export default function JavQueryEditorModal({
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800">
-                            {getIdolDisplayName(idol, javMetadataLanguage, preferChineseName)}
+                            {getIdolDisplayName(idol, preferChineseName)}
                           </span>
                           {Number.isFinite(idol?.work_count) ? (
                             <span className="shrink-0 text-xs text-slate-400">

@@ -545,6 +545,14 @@ func TestOpenMigratesLegacyGormSchemaPreservesVideoTags(t *testing.T) {
 	); err != nil {
 		t.Fatalf("create legacy schema: %v", err)
 	}
+	for _, statement := range []string{
+		`ALTER TABLE jav ADD COLUMN provider integer NOT NULL DEFAULT 0`,
+		`ALTER TABLE jav_idol ADD COLUMN is_english numeric NOT NULL DEFAULT 0`,
+	} {
+		if err := legacy.Exec(statement).Error; err != nil {
+			t.Fatalf("prepare legacy metadata schema: %v", err)
+		}
+	}
 
 	now := time.Unix(1710000000, 0).UTC()
 	dir := models.Directory{Path: "/tmp/media"}
@@ -725,10 +733,10 @@ func assertModelIndexes(t *testing.T, db *gorm.DB) {
 	})
 	assertTableIndexes(t, db, "jav_idol", []string{
 		"idx_jav_idol_cover_jav_id",
-		"idx_jav_idol_name_language",
+		"idx_jav_idol_name",
 	})
 	assertTableIndexes(t, db, "jav_idol_alias", []string{
-		"idx_jav_idol_alias_alias_language",
+		"idx_jav_idol_alias_alias",
 		"idx_jav_idol_alias_jav_idol_id",
 	})
 	assertTableIndexes(t, db, "config", nil)

@@ -61,7 +61,6 @@ function JavIdolRoute({
       onLast={onLast}
       items={items}
       directoryIds={directoryIds}
-      javMetadataLanguage={config?.jav_metadata_language === 'en' ? 'en' : 'zh'}
       preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       onSelectIdol={onSelectIdol}
       onOpenFavorites={onOpenFavorites}

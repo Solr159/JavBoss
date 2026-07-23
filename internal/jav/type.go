@@ -3,7 +3,6 @@ package jav
 import (
 	"errors"
 	"strings"
-	"sync"
 )
 
 // ResourceNotFonud indicates the requested resource is not available.
@@ -61,19 +60,6 @@ func ParseProvider(value int) Provider {
 	}
 }
 
-// MetadataLanguage identifies the preferred language for fetched JAV metadata.
-type MetadataLanguage string
-
-const (
-	MetadataLanguageChinese MetadataLanguage = "zh"
-	MetadataLanguageEnglish MetadataLanguage = "en"
-)
-
-var metadataLanguageState = struct {
-	sync.RWMutex
-	value MetadataLanguage
-}{value: MetadataLanguageChinese}
-
 var errUnsupportedProvider = errors.New("jav: unsupported provider")
 
 var lookupProvidersByProvider = map[Provider]lookupProvider{
@@ -85,79 +71,6 @@ var lookupProvidersByProvider = map[Provider]lookupProvider{
 	ProviderJavModel:    javModelProvider,
 	ProviderAvsox:       avsoxProvider,
 	ProviderJavMenu:     javMenuProvider,
-}
-
-var metadataLanguageByProvider = map[Provider]MetadataLanguage{
-	ProviderJavBus:      MetadataLanguageChinese,
-	ProviderJavDB:       MetadataLanguageChinese,
-	ProviderAvmoo:       MetadataLanguageChinese,
-	ProviderAvsox:       MetadataLanguageChinese,
-	ProviderJavMenu:     MetadataLanguageChinese,
-	ProviderJavDatabase: MetadataLanguageEnglish,
-	ProviderThePornDB:   MetadataLanguageEnglish,
-}
-
-// ParseMetadataLanguage converts user config to a known metadata language.
-func ParseMetadataLanguage(value string) (MetadataLanguage, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "en", "eng", "english", "en-us", "en-gb":
-		return MetadataLanguageEnglish, true
-	case "zh", "cn", "chi", "chinese", "zh-cn", "zh-hans", "zh-tw", "zh-hant":
-		return MetadataLanguageChinese, true
-	default:
-		return MetadataLanguageChinese, false
-	}
-}
-
-// NormalizeMetadataLanguage converts user config to a known metadata language.
-func NormalizeMetadataLanguage(value string) MetadataLanguage {
-	lang, ok := ParseMetadataLanguage(value)
-	if !ok {
-		return MetadataLanguageChinese
-	}
-	return lang
-}
-
-// SetMetadataLanguage updates the process-wide preferred JAV metadata language.
-func SetMetadataLanguage(value string) MetadataLanguage {
-	lang := NormalizeMetadataLanguage(value)
-	metadataLanguageState.Lock()
-	metadataLanguageState.value = lang
-	metadataLanguageState.Unlock()
-	return lang
-}
-
-// CurrentMetadataLanguage returns the process-wide preferred JAV metadata language.
-func CurrentMetadataLanguage() MetadataLanguage {
-	metadataLanguageState.RLock()
-	defer metadataLanguageState.RUnlock()
-	return metadataLanguageState.value
-}
-
-// CurrentMetadataLanguageIsEnglish reports whether the process-wide metadata language is English.
-func CurrentMetadataLanguageIsEnglish() bool {
-	return CurrentMetadataLanguage() == MetadataLanguageEnglish
-}
-
-// ProviderMetadataLanguage returns the metadata language produced by a provider.
-func ProviderMetadataLanguage(provider Provider) MetadataLanguage {
-	if language, ok := metadataLanguageByProvider[ParseProvider(int(provider))]; ok {
-		return language
-	}
-	return MetadataLanguageChinese
-}
-
-// ProviderIsEnglish reports whether a provider stores English metadata.
-func ProviderIsEnglish(provider Provider) bool {
-	return ProviderMetadataLanguage(provider) == MetadataLanguageEnglish
-}
-
-// PreferredProvider chooses the metadata source based on the configured language.
-func PreferredProvider() Provider {
-	if CurrentMetadataLanguageIsEnglish() {
-		return ProviderJavDatabase
-	}
-	return ProviderJavBus
 }
 
 // JavInfo holds basic metadata extracted from a JAV metadata provider.
