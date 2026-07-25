@@ -16,6 +16,8 @@ import (
 	"sync"
 
 	"github.com/h2non/filetype"
+
+	"javboss/internal/runtimeconfig"
 )
 
 type VideoMetadata struct {
@@ -182,7 +184,9 @@ func FFmpegToolRelativePath() string {
 
 func findFFBinaryPath(envKey, name string) (string, error) {
 	var candidates []string
-	if env := strings.TrimSpace(os.Getenv(envKey)); env != "" {
+	containerMode := runtimeconfig.ContainerMode()
+	if env := strings.TrimSpace(os.Getenv(envKey)); env != "" &&
+		shouldUseFFBinaryEnv(name, containerMode) {
 		candidates = append(candidates, env)
 	}
 
@@ -192,17 +196,17 @@ func findFFBinaryPath(envKey, name string) (string, error) {
 	}
 
 	if wd, err := os.Getwd(); err == nil {
-		if name == "ffmpeg" {
-			candidates = append(candidates, filepath.Join(wd, FFmpegToolRelativePath()))
-		}
-		candidates = append(candidates, filepath.Join(wd, "internal", "bin", binName))
+		candidates = append(
+			candidates,
+			ffBinaryCandidatesForBase(wd, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
+		)
 	}
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
-		if name == "ffmpeg" {
-			candidates = append(candidates, filepath.Join(execDir, FFmpegToolRelativePath()))
-		}
-		candidates = append(candidates, filepath.Join(execDir, "internal", "bin", binName))
+		candidates = append(
+			candidates,
+			ffBinaryCandidatesForBase(execDir, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
+		)
 	}
 	candidates = append(candidates, binName)
 
@@ -215,9 +219,29 @@ func findFFBinaryPath(envKey, name string) (string, error) {
 		}
 	}
 	if name == "ffmpeg" {
-		return "", fmt.Errorf("%s not found; set %s or place binary at %s", name, envKey, filepath.ToSlash(FFmpegToolRelativePath()))
+		if containerMode {
+			return "", fmt.Errorf("%s not found; set %s or place binary at %s", name, envKey, filepath.ToSlash(FFmpegToolRelativePath()))
+		}
+		return "", fmt.Errorf("%s not found; place binary at %s", name, filepath.ToSlash(FFmpegToolRelativePath()))
 	}
 	return "", fmt.Errorf("%s not found; set %s or place binary at internal/bin/%s", name, envKey, binName)
+}
+
+func shouldUseFFBinaryEnv(name string, containerMode bool) bool {
+	return name != "ffmpeg" || containerMode
+}
+
+func ffBinaryCandidatesForBase(baseDir string, name string, binName string, goos string, ffmpegToolPath string) []string {
+	bundledPath := filepath.Join(baseDir, "internal", "bin", binName)
+	if name != "ffmpeg" {
+		return []string{bundledPath}
+	}
+
+	downloadedPath := filepath.Join(baseDir, ffmpegToolPath)
+	if goos == "darwin" {
+		return []string{bundledPath, downloadedPath}
+	}
+	return []string{downloadedPath, bundledPath}
 }
 
 // ProbeVideo extracts codec/resolution/fps/duration using ffprobe.
