@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
 )
 
@@ -53,6 +54,7 @@ type FFmpegToolStatus struct {
 	Version         string `json:"version"`
 	Supported       bool   `json:"supported"`
 	Installed       bool   `json:"installed"`
+	Source          string `json:"source,omitempty"`
 	Downloading     bool   `json:"downloading"`
 	Progress        int    `json:"progress"`
 	DownloadedBytes int64  `json:"downloaded_bytes"`
@@ -61,16 +63,21 @@ type FFmpegToolStatus struct {
 	Error           string `json:"error,omitempty"`
 }
 
-// FFmpegToolManager downloads FFmpeg into the running project's internal/bin directory.
+// FFmpegToolManager downloads FFmpeg into the running project's persistent data/tools directory.
 type FFmpegToolManager struct {
 	mu sync.Mutex
 
 	context     context.Context
 	targetPath  string
 	displayPath string
+	bundledDir  string
+	tempDir     string
 	downloadURL string
 	downloadSHA string
 	httpClient  *http.Client
+
+	containerMode bool
+	resolveFFmpeg func() (string, error)
 
 	downloading     bool
 	progress        int
@@ -87,12 +94,16 @@ func NewFFmpegToolManager(ctx context.Context, baseDir string) *FFmpegToolManage
 	relativePath := util.FFmpegToolRelativePath()
 	download := ffmpegDownloads[runtime.GOOS+"/"+runtime.GOARCH]
 	return &FFmpegToolManager{
-		context:     ctx,
-		targetPath:  filepath.Join(baseDir, relativePath),
-		displayPath: filepath.ToSlash(relativePath),
-		downloadURL: download.url,
-		downloadSHA: download.sha256,
-		httpClient:  util.NewHTTPClient(0),
+		context:       ctx,
+		targetPath:    filepath.Join(baseDir, relativePath),
+		displayPath:   filepath.ToSlash(relativePath),
+		bundledDir:    filepath.Join(baseDir, "internal", "bin"),
+		tempDir:       os.TempDir(),
+		downloadURL:   download.url,
+		downloadSHA:   download.sha256,
+		httpClient:    util.NewHTTPClient(0),
+		containerMode: runtimeconfig.ContainerMode(),
+		resolveFFmpeg: util.ResolveFFmpegPath,
 	}
 }
 
@@ -101,11 +112,17 @@ func (m *FFmpegToolManager) Status() FFmpegToolStatus {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	installed, source := m.detectInstallation()
+	version := ""
+	if source == "downloaded" {
+		version = ffmpegRelease
+	}
 	return FFmpegToolStatus{
 		Name:            "ffmpeg",
-		Version:         ffmpegRelease,
+		Version:         version,
 		Supported:       m.downloadURL != "",
-		Installed:       isUsableFFmpegFile(m.targetPath),
+		Installed:       installed,
+		Source:          source,
 		Downloading:     m.downloading,
 		Progress:        m.progress,
 		DownloadedBytes: m.downloadedBytes,
@@ -121,11 +138,12 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	installed, _ := m.detectInstallation()
+	if m.downloading || installed {
+		return false, nil
+	}
 	if m.downloadURL == "" {
 		return false, errors.New("automatic FFmpeg download is not supported on this platform")
-	}
-	if m.downloading || isUsableFFmpegFile(m.targetPath) {
-		return false, nil
 	}
 
 	m.downloading = true
@@ -135,6 +153,27 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 	m.downloadError = ""
 	go m.download()
 	return true, nil
+}
+
+func (m *FFmpegToolManager) detectInstallation() (bool, string) {
+	if m.resolveFFmpeg != nil {
+		if resolvedPath, err := m.resolveFFmpeg(); err == nil && isUsableFFmpegFile(resolvedPath) {
+			switch {
+			case m.containerMode:
+				return true, "builtin"
+			case sameFilePath(resolvedPath, m.targetPath):
+				return true, "downloaded"
+			case pathWithinDirectory(resolvedPath, m.bundledDir):
+				return true, "builtin"
+			default:
+				return true, "system"
+			}
+		}
+	}
+	if isUsableFFmpegFile(m.targetPath) {
+		return true, "downloaded"
+	}
+	return false, ""
 }
 
 func (m *FFmpegToolManager) download() {
@@ -173,16 +212,11 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	m.totalBytes = resp.ContentLength
 	m.mu.Unlock()
 
-	targetDir := filepath.Dir(m.targetPath)
-	if err := os.MkdirAll(targetDir, 0o755); err != nil {
-		return fmt.Errorf("create FFmpeg directory: %w", err)
-	}
-
 	tempPattern := ".ffmpeg-download-*"
 	if strings.EqualFold(filepath.Ext(m.targetPath), ".exe") {
 		tempPattern += ".exe"
 	}
-	tempFile, err := os.CreateTemp(targetDir, tempPattern)
+	tempFile, err := os.CreateTemp(m.tempDir, tempPattern)
 	if err != nil {
 		return fmt.Errorf("create FFmpeg temporary file: %w", err)
 	}
@@ -223,6 +257,10 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 		return err
 	}
 
+	targetDir := filepath.Dir(m.targetPath)
+	if err := os.MkdirAll(targetDir, 0o755); err != nil {
+		return fmt.Errorf("create FFmpeg directory: %w", err)
+	}
 	if isUsableFFmpegFile(m.targetPath) {
 		return nil
 	}
@@ -265,6 +303,28 @@ func (r *downloadProgressReader) Read(p []byte) (int, error) {
 func isUsableFFmpegFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+}
+
+func sameFilePath(left string, right string) bool {
+	leftInfo, leftErr := os.Stat(left)
+	rightInfo, rightErr := os.Stat(right)
+	if leftErr == nil && rightErr == nil {
+		return os.SameFile(leftInfo, rightInfo)
+	}
+	return filepath.Clean(left) == filepath.Clean(right)
+}
+
+func pathWithinDirectory(path string, directory string) bool {
+	if strings.TrimSpace(path) == "" || strings.TrimSpace(directory) == "" {
+		return false
+	}
+	relativePath, err := filepath.Rel(directory, path)
+	if err != nil {
+		return false
+	}
+	return relativePath != ".." &&
+		relativePath != "." &&
+		!strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
 }
 
 func validateFFmpeg(path string) error {

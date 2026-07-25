@@ -133,6 +133,12 @@ export default function GlobalSettingsModal({
   const [startingFFmpegDownload, setStartingFFmpegDownload] = useState(false)
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
+  const ffmpegInstalledLabel =
+    ffmpegStatus?.source === 'builtin'
+      ? zh('已内置', 'Built in')
+      : ffmpegStatus?.source === 'system'
+        ? zh('系统可用', 'Available on system')
+        : zh('已安装', 'Installed')
 
   const resetPlayerBasicInputs = () => {
     setPlayerWindowWidthInput(String(PLAYER_BASIC_DEFAULTS.windowWidth))
@@ -975,7 +981,7 @@ export default function GlobalSettingsModal({
                   <h4 className="text-sm font-semibold text-zinc-900">FFmpeg</h4>
                   {installed ? (
                     <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                      {zh('已安装', 'Installed')}
+                      {ffmpegInstalledLabel}
                     </span>
                   ) : null}
                 </div>
@@ -1000,7 +1006,7 @@ export default function GlobalSettingsModal({
                   : downloading
                     ? zh(`下载中 ${progress}%`, `Downloading ${progress}%`)
                     : installed
-                      ? zh('已安装', 'Installed')
+                      ? ffmpegInstalledLabel
                       : supported
                         ? zh('下载 FFmpeg', 'Download FFmpeg')
                         : zh('当前平台不支持', 'Unsupported platform')}
@@ -1259,12 +1265,7 @@ export default function GlobalSettingsModal({
             <div className="flex gap-2 overflow-x-auto md:flex-col">
               {visibleSections.map((section) => {
                 const selected = currentSection === section.id
-                const badgeText =
-                  section.id === 'directories'
-                    ? String(directories.length)
-                    : section.id === 'tools' && ffmpegStatus?.installed
-                      ? zh('已安装', 'Installed')
-                      : ''
+                const badgeText = section.id === 'directories' ? String(directories.length) : ''
 
                 return (
                   <button

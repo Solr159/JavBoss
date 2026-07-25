@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,6 +33,9 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 		downloadURL: server.URL,
 		downloadSHA: hex.EncodeToString(digest[:]),
 		httpClient:  server.Client(),
+		resolveFFmpeg: func() (string, error) {
+			return "", errors.New("FFmpeg not found")
+		},
 	}
 
 	started, err := manager.StartDownload()
@@ -48,6 +52,9 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 	}
 	if status.Progress != 100 {
 		t.Fatalf("progress = %d, want 100", status.Progress)
+	}
+	if status.Source != "downloaded" {
+		t.Fatalf("source = %q, want downloaded", status.Source)
 	}
 	if status.Path != "internal/bin/ffmpeg" {
 		t.Fatalf("path = %q, want internal/bin/ffmpeg", status.Path)
@@ -80,6 +87,9 @@ func TestFFmpegToolManagerRejectsChecksumMismatch(t *testing.T) {
 		downloadURL: server.URL,
 		downloadSHA: "wrong-checksum",
 		httpClient:  server.Client(),
+		resolveFFmpeg: func() (string, error) {
+			return "", errors.New("FFmpeg not found")
+		},
 	}
 
 	if _, err := manager.StartDownload(); err != nil {
@@ -112,6 +122,69 @@ func TestNewFFmpegToolManagerUsesPersistentDataPath(t *testing.T) {
 	}
 	if manager.displayPath != filepath.ToSlash(wantRelativePath) {
 		t.Fatalf("displayPath = %q, want %q", manager.displayPath, filepath.ToSlash(wantRelativePath))
+	}
+	if manager.tempDir != os.TempDir() {
+		t.Fatalf("tempDir = %q, want system temp directory %q", manager.tempDir, os.TempDir())
+	}
+}
+
+func TestFFmpegToolManagerDetectsBuiltInFFmpeg(t *testing.T) {
+	tests := []struct {
+		name          string
+		containerMode bool
+		resolvedPath  func(string) string
+	}{
+		{
+			name: "macOS release bundle",
+			resolvedPath: func(baseDir string) string {
+				return filepath.Join(baseDir, "internal", "bin", "ffmpeg")
+			},
+		},
+		{
+			name:          "Docker image",
+			containerMode: true,
+			resolvedPath: func(baseDir string) string {
+				return filepath.Join(baseDir, "usr", "local", "bin", "ffmpeg")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baseDir := t.TempDir()
+			resolvedPath := tt.resolvedPath(baseDir)
+			if err := os.MkdirAll(filepath.Dir(resolvedPath), 0o755); err != nil {
+				t.Fatalf("create built-in FFmpeg directory: %v", err)
+			}
+			if err := os.WriteFile(resolvedPath, []byte("built-in ffmpeg"), 0o755); err != nil {
+				t.Fatalf("write built-in FFmpeg: %v", err)
+			}
+
+			manager := &FFmpegToolManager{
+				context:       context.Background(),
+				targetPath:    filepath.Join(baseDir, "data", "tools", "test", "ffmpeg"),
+				bundledDir:    filepath.Join(baseDir, "internal", "bin"),
+				containerMode: tt.containerMode,
+				resolveFFmpeg: func() (string, error) {
+					return resolvedPath, nil
+				},
+			}
+
+			status := manager.Status()
+			if !status.Installed {
+				t.Fatal("installed = false, want true")
+			}
+			if status.Source != "builtin" {
+				t.Fatalf("source = %q, want builtin", status.Source)
+			}
+			started, err := manager.StartDownload()
+			if err != nil {
+				t.Fatalf("start download: %v", err)
+			}
+			if started {
+				t.Fatal("StartDownload() = true for built-in FFmpeg")
+			}
+		})
 	}
 }
 
