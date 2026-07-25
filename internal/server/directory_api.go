@@ -25,7 +25,18 @@ func listDirectories(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "加载目录列表失败", "Failed to load directories")
 		return
 	}
-	c.JSON(http.StatusOK, dirs)
+	type directoryResponse struct {
+		models.Directory
+		IsScanning bool `json:"is_scanning"`
+	}
+	response := make([]directoryResponse, len(dirs))
+	for i := range dirs {
+		response[i] = directoryResponse{
+			Directory:  dirs[i],
+			IsScanning: service.IsDirectoryScanning(dirs[i].ID),
+		}
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 func createDirectory(c *gin.Context) {

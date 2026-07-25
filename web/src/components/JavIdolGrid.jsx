@@ -82,7 +82,7 @@ export default function JavIdolGrid({
         ))}
       </div>
       <JavIdolCoverModal
-        key={coverEditorItem?.id || 'closed'}
+        key={`cover-${coverEditorItem?.id || 'closed'}`}
         open={Boolean(coverEditorItem)}
         item={coverEditorItem}
         directoryIds={directoryIds}
@@ -99,7 +99,7 @@ export default function JavIdolGrid({
         }}
       />
       <JavIdolEditModal
-        key={editItem?.id || 'closed'}
+        key={`edit-${editItem?.id || 'closed'}`}
         open={Boolean(editItem)}
         item={editItem}
         directoryIds={directoryIds}

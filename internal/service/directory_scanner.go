@@ -92,6 +92,19 @@ type directoryScanSession struct {
 	reserve bool
 }
 
+// IsDirectoryScanning reports whether a filesystem scan is currently running for id.
+// Reservations used while updating a directory are intentionally not reported as scans.
+func IsDirectoryScanning(id int64) bool {
+	if id <= 0 {
+		return false
+	}
+
+	dirScanMu.Lock()
+	defer dirScanMu.Unlock()
+	session := dirScanActive[id]
+	return session != nil && !session.reserve
+}
+
 func startDirectoryScanSession(ctx context.Context, id int64) (context.Context, func(), error) {
 	if id <= 0 {
 		return nil, nil, errors.New("directory id cannot be zero")

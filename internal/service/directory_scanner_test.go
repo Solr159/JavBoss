@@ -69,6 +69,36 @@ func TestCancelAndReserveDirectoryScanHonorsContext(t *testing.T) {
 	}
 }
 
+func TestIsDirectoryScanning(t *testing.T) {
+	resetDirectoryScanSessions(t)
+
+	if IsDirectoryScanning(42) {
+		t.Fatal("directory should be idle before a scan starts")
+	}
+
+	_, finish, err := startDirectoryScanSession(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("begin scan: %v", err)
+	}
+	if !IsDirectoryScanning(42) {
+		t.Fatal("directory should report scanning while its session is active")
+	}
+
+	finish()
+	if IsDirectoryScanning(42) {
+		t.Fatal("directory should be idle after its scan finishes")
+	}
+
+	release, err := CancelAndReserveDirectoryScan(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("reserve scan: %v", err)
+	}
+	defer release()
+	if IsDirectoryScanning(42) {
+		t.Fatal("directory update reservation should not be reported as scanning")
+	}
+}
+
 func resetDirectoryScanSessions(t *testing.T) {
 	t.Helper()
 

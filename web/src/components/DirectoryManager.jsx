@@ -265,6 +265,20 @@ export default function DirectoryManager({
                         </span>
                       </div>
                     )}
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        d.is_scanning ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-600'
+                      }`}
+                    >
+                      <span
+                        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
+                          d.is_scanning ? 'animate-pulse bg-blue-500' : 'bg-zinc-400'
+                        }`}
+                      />
+                      {d.is_scanning
+                        ? zh('当前状态：扫描中', 'Status: Scanning')
+                        : zh('当前状态：空闲', 'Status: Idle')}
+                    </span>
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                         {zh('目录缺失', 'Missing')}
