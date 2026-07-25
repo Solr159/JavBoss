@@ -451,39 +451,43 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
       >
         ×
       </button>
-      {canNavigate ? (
-        <>
+      <div className="relative z-10 flex max-w-[82vw] items-center justify-center">
+        <div className="flex max-h-[78vh] max-w-full items-center justify-center">
+          <img
+            src={item.url}
+            alt={item.name || zh('MPV 截图', 'MPV screenshot')}
+            className="max-h-[78vh] max-w-full object-contain shadow-2xl"
+          />
+        </div>
+      </div>
+      <div className="fixed bottom-10 left-1/2 z-20 flex -translate-x-1/2 items-center justify-center gap-2.5">
+        {canNavigate ? (
           <IconButton
             onClick={(event) => {
               event.stopPropagation()
               goBy(-1)
             }}
             aria-label={zh('上一张截图', 'Previous screenshot')}
-            className="!absolute !left-4 !top-1/2 !z-20 !h-12 !w-12 !-translate-y-1/2 !bg-black/50 !text-white hover:!bg-black/70"
+            className="!h-11 !w-11 !bg-black/55 !text-white !shadow-lg hover:!bg-black/75"
           >
-            <ChevronLeftIcon fontSize="large" />
+            <ChevronLeftIcon className="!text-[36px]" />
           </IconButton>
+        ) : null}
+        <div className="flex h-11 min-w-14 items-center justify-center rounded bg-black/50 px-3 text-center text-base font-semibold text-white shadow-lg">
+          {counterText}
+        </div>
+        {canNavigate ? (
           <IconButton
             onClick={(event) => {
               event.stopPropagation()
               goBy(1)
             }}
             aria-label={zh('下一张截图', 'Next screenshot')}
-            className="!absolute !right-4 !top-1/2 !z-20 !h-12 !w-12 !-translate-y-1/2 !bg-black/50 !text-white hover:!bg-black/70"
+            className="!h-11 !w-11 !bg-black/55 !text-white !shadow-lg hover:!bg-black/75"
           >
-            <ChevronRightIcon fontSize="large" />
+            <ChevronRightIcon className="!text-[36px]" />
           </IconButton>
-        </>
-      ) : null}
-      <div className="relative z-10 flex max-w-[82vw] flex-col items-center gap-3">
-        <img
-          src={item.url}
-          alt={item.name || zh('MPV 截图', 'MPV screenshot')}
-          className="max-h-[78vh] max-w-full object-contain shadow-2xl"
-        />
-        <div className="rounded bg-black/50 px-3 py-1 text-sm font-medium text-white">
-          {counterText}
-        </div>
+        ) : null}
       </div>
     </div>,
     document.body
