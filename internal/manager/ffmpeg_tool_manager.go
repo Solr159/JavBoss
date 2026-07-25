@@ -264,10 +264,95 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	if isUsableFFmpegFile(m.targetPath) {
 		return nil
 	}
-	if err := os.Rename(tempPath, m.targetPath); err != nil {
+	if err := installFFmpegFile(tempPath, m.targetPath); err != nil {
 		return fmt.Errorf("install FFmpeg: %w", err)
 	}
 	return nil
+}
+
+func installFFmpegFile(sourcePath string, targetPath string) error {
+	return installFFmpegFileWithRename(sourcePath, targetPath, os.Rename)
+}
+
+func installFFmpegFileWithRename(
+	sourcePath string,
+	targetPath string,
+	renameFile func(string, string) error,
+) error {
+	renameErr := renameFile(sourcePath, targetPath)
+	if renameErr == nil {
+		return nil
+	}
+	if isUsableFFmpegFile(targetPath) {
+		return nil
+	}
+
+	stagedPath, err := copyFFmpegToTargetDirectory(sourcePath, targetPath)
+	if err != nil {
+		return fmt.Errorf("copy FFmpeg to target directory after rename failed (%v): %w", renameErr, err)
+	}
+	defer os.Remove(stagedPath)
+
+	if err := renameFile(stagedPath, targetPath); err == nil {
+		return nil
+	} else if isUsableFFmpegFile(targetPath) {
+		return nil
+	}
+
+	targetInfo, statErr := os.Stat(targetPath)
+	switch {
+	case statErr == nil && !targetInfo.Mode().IsRegular():
+		return fmt.Errorf("replace existing FFmpeg target: target is not a regular file")
+	case statErr != nil && !os.IsNotExist(statErr):
+		return fmt.Errorf("inspect existing FFmpeg target: %w", statErr)
+	}
+	if removeErr := os.Remove(targetPath); removeErr != nil && !os.IsNotExist(removeErr) {
+		return fmt.Errorf("remove unusable FFmpeg target: %w", removeErr)
+	}
+	if err := renameFile(stagedPath, targetPath); err != nil {
+		return fmt.Errorf("move staged FFmpeg into place: %w", err)
+	}
+	return nil
+}
+
+func copyFFmpegToTargetDirectory(sourcePath string, targetPath string) (string, error) {
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return "", fmt.Errorf("open verified FFmpeg: %w", err)
+	}
+	defer sourceFile.Close()
+
+	tempPattern := ".ffmpeg-install-*"
+	if strings.EqualFold(filepath.Ext(targetPath), ".exe") {
+		tempPattern += ".exe"
+	}
+	stagedFile, err := os.CreateTemp(filepath.Dir(targetPath), tempPattern)
+	if err != nil {
+		return "", fmt.Errorf("create FFmpeg install file: %w", err)
+	}
+	stagedPath := stagedFile.Name()
+	keepStagedFile := false
+	defer func() {
+		_ = stagedFile.Close()
+		if !keepStagedFile {
+			_ = os.Remove(stagedPath)
+		}
+	}()
+
+	if _, err := io.Copy(stagedFile, sourceFile); err != nil {
+		return "", fmt.Errorf("copy verified FFmpeg: %w", err)
+	}
+	if err := stagedFile.Sync(); err != nil {
+		return "", fmt.Errorf("sync FFmpeg install file: %w", err)
+	}
+	if err := stagedFile.Chmod(0o755); err != nil {
+		return "", fmt.Errorf("make FFmpeg install file executable: %w", err)
+	}
+	if err := stagedFile.Close(); err != nil {
+		return "", fmt.Errorf("close FFmpeg install file: %w", err)
+	}
+	keepStagedFile = true
+	return stagedPath, nil
 }
 
 func (m *FFmpegToolManager) updateProgress(downloaded int64) {

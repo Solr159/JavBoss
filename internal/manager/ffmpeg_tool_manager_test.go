@@ -107,6 +107,55 @@ func TestFFmpegToolManagerRejectsChecksumMismatch(t *testing.T) {
 	}
 }
 
+func TestInstallFFmpegFileFallsBackToCopyAcrossFilesystems(t *testing.T) {
+	baseDir := t.TempDir()
+	sourcePath := filepath.Join(baseDir, "system-temp", "ffmpeg.exe")
+	targetPath := filepath.Join(baseDir, "project", "data", "tools", "ffmpeg.exe")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source directory: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target directory: %v", err)
+	}
+	wantContent := []byte("verified FFmpeg")
+	if err := os.WriteFile(sourcePath, wantContent, 0o755); err != nil {
+		t.Fatalf("write source FFmpeg: %v", err)
+	}
+
+	renameCalls := 0
+	renameFile := func(oldPath string, newPath string) error {
+		renameCalls++
+		if renameCalls == 1 {
+			return errors.New("simulated cross-filesystem rename")
+		}
+		return os.Rename(oldPath, newPath)
+	}
+	if err := installFFmpegFileWithRename(sourcePath, targetPath, renameFile); err != nil {
+		t.Fatalf("install FFmpeg: %v", err)
+	}
+
+	gotContent, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read installed FFmpeg: %v", err)
+	}
+	if !bytes.Equal(gotContent, wantContent) {
+		t.Fatalf("installed FFmpeg content = %q, want %q", gotContent, wantContent)
+	}
+	if renameCalls != 2 {
+		t.Fatalf("rename calls = %d, want 2", renameCalls)
+	}
+	if _, err := os.Stat(sourcePath); err != nil {
+		t.Fatalf("source FFmpeg should remain for caller cleanup: %v", err)
+	}
+	matches, err := filepath.Glob(filepath.Join(filepath.Dir(targetPath), ".ffmpeg-install-*"))
+	if err != nil {
+		t.Fatalf("glob staged FFmpeg files: %v", err)
+	}
+	if len(matches) != 0 {
+		t.Fatalf("staged FFmpeg files were not cleaned up: %v", matches)
+	}
+}
+
 func TestNewFFmpegToolManagerUsesPersistentDataPath(t *testing.T) {
 	baseDir := t.TempDir()
 	manager := NewFFmpegToolManager(context.Background(), baseDir)
