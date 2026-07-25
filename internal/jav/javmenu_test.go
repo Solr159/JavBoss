@@ -58,6 +58,25 @@ func TestParseJavMenuMovieInfoFromFixture(t *testing.T) {
 			t.Fatalf("unexpected actor at %d: got %q want %q", i, info.Actors[i], actor)
 		}
 	}
+
+	wantSampleImages := []SampleImage{
+		{
+			ThumbnailURL: "https://c0.jdbstatic.com/samples/kk/kKdRm_s_0.jpg",
+			DetailURL:    "https://c0.jdbstatic.com/samples/kk/kKdRm_l_0.jpg",
+		},
+		{
+			ThumbnailURL: "/samples/ipx228_s_1.jpg",
+			DetailURL:    "/samples/ipx228_l_1.jpg",
+		},
+	}
+	if len(info.SampleImages) != len(wantSampleImages) {
+		t.Fatalf("unexpected sample image count: got %d want %d", len(info.SampleImages), len(wantSampleImages))
+	}
+	for i := range wantSampleImages {
+		if info.SampleImages[i] != wantSampleImages[i] {
+			t.Fatalf("unexpected sample image at %d: got %#v want %#v", i, info.SampleImages[i], wantSampleImages[i])
+		}
+	}
 }
 
 func mustParseJavMenuFixture(t *testing.T) *html.Node {
@@ -70,6 +89,17 @@ func mustParseJavMenuFixture(t *testing.T) *html.Node {
 			</head>
 			<body>
 				<h1>IPX-228 中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ</h1>
+				<div class="d-flex flex-wrap">
+					<a class="tile-item" href="https://c0.jdbstatic.com/samples/kk/kKdRm_l_0.jpg" data-fancybox="gallery">
+						<img src="/images/loading.gif" data-src="https://c0.jdbstatic.com/samples/kk/kKdRm_s_0.jpg">
+					</a>
+					<a class="tile-item" href="/samples/ipx228_l_1.jpg" data-fancybox="gallery">
+						<img src="/samples/ipx228_s_1.jpg">
+					</a>
+				</div>
+				<a class="tile-item" href="/recommendation.jpg">
+					<img src="/recommendation-thumb.jpg">
+				</a>
 				<div class="card rounded">
 					<div class="card-body">
 						<h2>影片資料</h2>

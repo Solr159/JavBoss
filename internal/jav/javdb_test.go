@@ -110,6 +110,14 @@ func TestParseJavDBMovieInfo(t *testing.T) {
 <head><title> IPX-228 Fallback | JavDB 成人影片數據庫 </title></head>
 <body>
   <img src="https://c0.jdbstatic.com/covers/kk/kKdRm.jpg" class="video-cover">
+  <div class="tile-images preview-images">
+    <a class="tile-item" href="https://pics.dmm.co.jp/digital/video/ipx00228/ipx00228jp-1.jpg">
+      <img src="https://c0.jdbstatic.com/samples/ipx00228-1.jpg">
+    </a>
+    <a class="tile-item" href="/samples/ipx00228jp-2.jpg">
+      <img data-src="/samples/ipx00228-2.jpg" src="data:image/gif;base64,placeholder">
+    </a>
+  </div>
   <div class="video-detail">
     <h2 class="title is-4">
       <strong>IPX-228 </strong>
@@ -182,6 +190,24 @@ func TestParseJavDBMovieInfo(t *testing.T) {
 	}
 	if info.CoverURL != "https://c0.jdbstatic.com/covers/kk/kKdRm.jpg" {
 		t.Fatalf("unexpected cover url: %q", info.CoverURL)
+	}
+	wantSampleImages := []SampleImage{
+		{
+			ThumbnailURL: "https://c0.jdbstatic.com/samples/ipx00228-1.jpg",
+			DetailURL:    "https://pics.dmm.co.jp/digital/video/ipx00228/ipx00228jp-1.jpg",
+		},
+		{
+			ThumbnailURL: "/samples/ipx00228-2.jpg",
+			DetailURL:    "/samples/ipx00228jp-2.jpg",
+		},
+	}
+	if len(info.SampleImages) != len(wantSampleImages) {
+		t.Fatalf("unexpected sample image count: got %d want %d", len(info.SampleImages), len(wantSampleImages))
+	}
+	for i := range wantSampleImages {
+		if info.SampleImages[i] != wantSampleImages[i] {
+			t.Fatalf("unexpected sample image at %d: got %#v want %#v", i, info.SampleImages[i], wantSampleImages[i])
+		}
 	}
 	if info.Studio != "IDEA POCKET" {
 		t.Fatalf("unexpected studio: %q", info.Studio)

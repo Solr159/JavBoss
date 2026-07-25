@@ -150,6 +150,14 @@ func TestAvmooMovieInfoFromAPI(t *testing.T) {
 	if info.DurationMin != 171 {
 		t.Fatalf("unexpected duration: %d", info.DurationMin)
 	}
+	if len(movie.SampleSmall) != 2 || len(movie.SampleLarge) != 2 {
+		t.Fatalf("unexpected sample image counts: small=%d large=%d", len(movie.SampleSmall), len(movie.SampleLarge))
+	}
+	if len(info.SampleImages) != 2 ||
+		info.SampleImages[0].ThumbnailURL != movie.SampleSmall[0] ||
+		info.SampleImages[0].DetailURL != movie.SampleLarge[0] {
+		t.Fatalf("unexpected sample images: %#v", info.SampleImages)
+	}
 
 	wantTags := []string{"花癡", "接吻", "流汗", "美少女", "校服", "單體作品", "DMM獨家", "數位馬賽克", "高畫質"}
 	if len(info.Tags) != len(wantTags) {
@@ -357,6 +365,14 @@ const avmooAPIMovieFixture = `{
   "length": 171,
   "posterSmall": "https://jp.netcdn.space/digital/video/ipx00228/ipx00228ps.jpg",
   "posterLarge": "https://jp.netcdn.space/digital/video/ipx00228/ipx00228pl.jpg",
+  "sampleSmall": [
+    "https://jp.netcdn.space/digital/video/ipx00228/ipx00228-1.jpg",
+    "https://jp.netcdn.space/digital/video/ipx00228/ipx00228-2.jpg"
+  ],
+  "sampleLarge": [
+    "https://jp.netcdn.space/digital/video/ipx00228/ipx00228jp-1.jpg",
+    "https://jp.netcdn.space/digital/video/ipx00228/ipx00228jp-2.jpg"
+  ],
   "title": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ",
   "series": {
     "seriesName_ja": "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交",

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 
 	"javboss/internal/common/logging"
@@ -497,67 +498,6 @@ func avsoxMovieInfoFromAPI(movie *avsoxAPIMovie) *JavInfo {
 	return info
 }
 
-func fetchAvsoxDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	searchURL := fmt.Sprintf("%s/cn/search/%s", avsoxBaseURL, url.PathEscape(code))
-	searchDoc, status, err := fetchAvsoxHTML(ctx, searchURL, avsoxBaseURL)
-	if err != nil {
-		return nil, "", err
-	}
-	if status == http.StatusNotFound || searchDoc == nil {
-		return nil, "", ResourceNotFonud
-	}
-
-	detailURL := findAvsoxSearchResultURL(searchDoc, code, searchURL)
-	if detailURL == "" {
-		return nil, "", ResourceNotFonud
-	}
-
-	detailDoc, status, err := fetchAvsoxHTML(ctx, detailURL, searchURL)
-	if err != nil {
-		return nil, "", err
-	}
-	if status == http.StatusNotFound || detailDoc == nil {
-		return nil, "", ResourceNotFonud
-	}
-	return detailDoc, detailURL, nil
-}
-
-func fetchAvsoxHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
-	req, err := buildAvsoxRequest(ctx, targetURL, referer)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	logging.Info("avsox request: %s", targetURL)
-	resp, err := doAvsoxRequest(req)
-	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, nil
-		}
-		return nil, 0, err
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, resp.StatusCode, err
-	}
-
-	logging.Info("avsox response status: %s, length: %d bytes", resp.Status, len(body))
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, resp.StatusCode, nil
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, resp.StatusCode, fmt.Errorf("avsox: http %d", resp.StatusCode)
-	}
-
-	doc, err := html.Parse(strings.NewReader(string(body)))
-	if err != nil {
-		return nil, resp.StatusCode, fmt.Errorf("avsox: parse html: %w", err)
-	}
-	return doc, resp.StatusCode, nil
-}
-
 func doAvsoxRequest(req *http.Request) (*http.Response, error) {
 	if err := waitForAvsoxRateLimit(req.Context()); err != nil {
 		return nil, err
@@ -621,45 +561,28 @@ func buildAvsoxRequest(ctx context.Context, targetURL, referer string) (*http.Re
 }
 
 func findAvsoxSearchResultURL(root *html.Node, code, pageURL string) string {
-	waterfall := findElementByID(root, "waterfall")
-	if waterfall == nil {
-		return ""
-	}
-
 	wantCode := normalizeAvsoxCodeForCompare(code)
-	for item := waterfall.FirstChild; item != nil; item = item.NextSibling {
-		if item.Type != html.ElementNode || item.Data != "div" || !hasClass(item, "item") {
-			continue
+	var result string
+	documentSelection(root).Find("#waterfall > div.item").EachWithBreak(func(_ int, item *goquery.Selection) bool {
+		if normalizeAvsoxCodeForCompare(findAvsoxSearchItemCode(firstSelectionNode(item))) == wantCode {
+			result = resolveURL(pageURL, selectionAttr(item.Find("a").First(), "href"))
+			return false
 		}
-		if normalizeAvsoxCodeForCompare(findAvsoxSearchItemCode(item)) != wantCode {
-			continue
-		}
-		if href := firstAnchorHref(item); href != "" {
-			return resolveURL(pageURL, href)
-		}
-	}
-	return ""
+		return true
+	})
+	return result
 }
 
 func findAvsoxSearchItemCode(item *html.Node) string {
 	var code string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if code != "" {
-			return
+	documentSelection(item).Find("date").EachWithBreak(func(_ int, date *goquery.Selection) bool {
+		text := cleanSelectionText(date)
+		if text != "" && !isAvsoxReleaseDate(text) {
+			code = text
+			return false
 		}
-		if n.Type == html.ElementNode && n.Data == "date" {
-			text := strings.TrimSpace(flattenText(n))
-			if text != "" && !isAvsoxReleaseDate(text) {
-				code = text
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(item)
+		return true
+	})
 	return code
 }
 
@@ -706,26 +629,15 @@ func parseAvsoxMovieInfo(root *html.Node) *JavInfo {
 }
 
 func findAvsoxMainContainer(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
+	var result *html.Node
+	documentSelection(root).Find("body > div.container").EachWithBreak(func(_ int, container *goquery.Selection) bool {
+		if container.Find("div.movie").Length() > 0 {
+			result = firstSelectionNode(container)
+			return false
 		}
-		if n.Type == html.ElementNode && n.Data == "body" {
-			for c := n.FirstChild; c != nil; c = c.NextSibling {
-				if c.Type == html.ElementNode && c.Data == "div" && hasClass(c, "container") && findDescendantByClass(c, "div", "movie") != nil {
-					found = c
-					return
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+		return true
+	})
+	return result
 }
 
 func extractAvsoxMovieFields(root *html.Node) avsoxMovieFields {
@@ -734,39 +646,37 @@ func extractAvsoxMovieFields(root *html.Node) avsoxMovieFields {
 		return out
 	}
 
-	out.Title = strings.TrimSpace(firstTextByTag(root, "h3"))
-	if info := findDescendantByClass(root, "div", "info"); info != nil {
+	doc := documentSelection(root)
+	out.Title = cleanSelectionText(doc.Find("h3").First())
+	if info := firstSelectionNode(doc.Find("div.info").First()); info != nil {
 		out.Tags = collectAvmooGenreTexts(info)
 		extractAvsoxInfoFields(info, &out)
 	}
-	if actors := findElementByID(root, "avatar-waterfall"); actors != nil {
-		out.Actors = collectAnchorTexts(actors)
-	}
+	out.Actors = selectionTexts(doc.Find("#avatar-waterfall a"))
 	return out
 }
 
 func extractAvsoxInfoFields(root *html.Node, out *avsoxMovieFields) {
 	pendingLabel := ""
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "p" {
-			label, value := extractAvmooParagraphField(n)
-			switch {
-			case label != "" && value != "":
-				pendingLabel = ""
-				assignAvsoxMovieField(out, label, value)
-			case label != "":
-				pendingLabel = label
-			case pendingLabel != "":
-				assignAvsoxMovieField(out, pendingLabel, firstNonEmpty(firstAnchorText(n), flattenText(n)))
-				pendingLabel = ""
-			}
+	documentSelection(root).Find("p").Each(func(_ int, paragraph *goquery.Selection) {
+		labelSelection := paragraph.Find("span.header").First()
+		label := cleanSelectionText(labelSelection)
+		value := strings.TrimSpace(strings.TrimPrefix(cleanSelectionText(paragraph), label))
+		if paragraph.HasClass("header") {
+			label = cleanSelectionText(paragraph)
+			value = ""
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
+		switch {
+		case label != "" && value != "":
+			pendingLabel = ""
+			assignAvsoxMovieField(out, label, value)
+		case label != "":
+			pendingLabel = label
+		case pendingLabel != "":
+			assignAvsoxMovieField(out, pendingLabel, firstNonEmpty(cleanSelectionText(paragraph.Find("a").First()), cleanSelectionText(paragraph)))
+			pendingLabel = ""
 		}
-	}
-	walk(root)
+	})
 }
 
 func assignAvsoxMovieField(out *avsoxMovieFields, label, value string) {

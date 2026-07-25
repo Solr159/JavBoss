@@ -15,6 +15,7 @@ import (
 
 	"javboss/internal/common/logging"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 )
 
@@ -116,6 +117,7 @@ func fetchInfo(ctx context.Context, code string) (*JavInfo, error) {
 		return nil, ResourceNotFonud
 	}
 	info.CoverURL = parseJavBusCoverURL(doc, url)
+	info.SampleImages = parseSampleImages(doc, url)
 	if info.Code == "" || info.Title == "" {
 		logging.Info("javbus: parsed title/code empty (title=%q code=%q)", info.Title, info.Code)
 		return nil, ResourceNotFonud
@@ -212,7 +214,7 @@ func fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, 
 		return nil, "", errors.New("javbus: non-200 response")
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	doc, err := parseHTMLDocument(body)
 	if err != nil {
 		logging.Error("parse javbus html: %s", err.Error())
 		return nil, "", ResourceNotFonud
@@ -294,6 +296,7 @@ func parseDocument(doc *html.Node) *JavInfo {
 		Tags:         tags,
 		Actors:       actors,
 		CoverURL:     coverURL,
+		SampleImages: parseSampleImages(doc, ""),
 		IsUncensored: &isUncensored,
 		Provider:     ProviderJavBus,
 	}
@@ -301,105 +304,34 @@ func parseDocument(doc *html.Node) *JavInfo {
 
 func parseJavBusIsUncensored(root *html.Node) bool {
 	var found bool
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "li" && hasClass(n, "active") {
-			href, text := firstAnchorHrefAndText(n)
-			text = strings.ToLower(strings.TrimSpace(text))
-			href = strings.ToLower(strings.TrimSpace(href))
-			if strings.Contains(href, "/uncensored") || strings.Contains(text, "無碼") || strings.Contains(text, "无码") || strings.Contains(text, "uncensored") {
-				found = true
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	documentSelection(root).Find("li.active a").EachWithBreak(func(_ int, link *goquery.Selection) bool {
+		href := strings.ToLower(selectionAttr(link, "href"))
+		text := strings.ToLower(cleanSelectionText(link))
+		found = strings.Contains(href, "/uncensored") ||
+			strings.Contains(text, "無碼") ||
+			strings.Contains(text, "无码") ||
+			strings.Contains(text, "uncensored")
+		return !found
+	})
 	return found
 }
 
-func firstAnchorHrefAndText(root *html.Node) (string, string) {
-	var href string
-	var text string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if href != "" || text != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "a" {
-			href = attrValue(n, "href")
-			text = flattenText(n)
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return href, text
-}
-
 func parseJavBusCoverURL(root *html.Node, pageURL string) string {
-	if root == nil {
-		return ""
-	}
-
-	var cover string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if cover != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "meta" {
-			prop := strings.ToLower(strings.TrimSpace(attrValue(n, "property")))
-			content := strings.TrimSpace(attrValue(n, "content"))
-			if prop == "og:image" && content != "" {
-				cover = resolveURL(pageURL, content)
-				return
-			}
-		}
-		if n.Type == html.ElementNode && n.Data == "a" && hasClass(n, "bigImage") {
-			if href := strings.TrimSpace(attrValue(n, "href")); href != "" {
-				cover = resolveURL(pageURL, href)
-				return
-			}
-		}
-		if n.Type == html.ElementNode && n.Data == "img" {
-			if src := strings.TrimSpace(attrValue(n, "src")); src != "" && (hasClass(n, "cover") || isInsideClass(n, "bigImage")) {
-				cover = resolveURL(pageURL, src)
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
+	doc := documentSelection(root)
+	for _, candidate := range []string{
+		selectionAttr(doc.Find(`meta[property="og:image"]`).First(), "content"),
+		selectionAttr(doc.Find("a.bigImage").First(), "href"),
+		selectionAttr(doc.Find("img.cover, .bigImage img").First(), "src"),
+	} {
+		if cover := resolveURL(pageURL, candidate); cover != "" {
+			return cover
 		}
 	}
-	walk(root)
-	return strings.TrimSpace(cover)
+	return ""
 }
 
 func firstTextByTag(root *html.Node, tag string) string {
-	var text string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if text != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == tag {
-			text = strings.TrimSpace(flattenText(n))
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return text
+	return cleanSelectionText(documentSelection(root).Find(tag).First())
 }
 
 func cleanTitle(s string) string {
@@ -430,30 +362,18 @@ func extractJavBusField(root *html.Node, labels ...string) string {
 	}
 
 	var value string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if value != "" {
-			return
+	documentSelection(root).Find("span").EachWithBreak(func(_ int, label *goquery.Selection) bool {
+		labelText := normalizeJavBusFieldLabel(cleanSelectionText(label))
+		if !javBusFieldLabelMatches(labelText, normalizedLabels) {
+			return true
 		}
-		if n.Type == html.ElementNode && n.Data == "span" {
-			text := normalizeJavBusFieldLabel(flattenText(n))
-			if javBusFieldLabelMatches(text, normalizedLabels) {
-				for next := n.NextSibling; next != nil; next = next.NextSibling {
-					if next.Type != html.ElementNode {
-						continue
-					}
-					if c := strings.TrimSpace(flattenText(next)); c != "" {
-						value = c
-						return
-					}
-				}
-			}
+		value = cleanSelectionText(label.NextAll().First())
+		if value == "" {
+			line := cleanSelectionText(label.Parent())
+			value = strings.TrimSpace(strings.TrimPrefix(line, cleanSelectionText(label)))
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+		return value == ""
+	})
 	return value
 }
 
@@ -478,33 +398,21 @@ func extractDetails(root *html.Node) (releaseUnix int64, durationMin int) {
 	durationRe := regexp.MustCompile(`(\d{1,4})\s*(分鐘|分钟|分|分間|min)?`)
 
 	var releaseStr string
-
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if releaseStr != "" && durationMin != 0 {
-			return
+	documentSelection(root).Find("p").EachWithBreak(func(_ int, paragraph *goquery.Selection) bool {
+		text := cleanSelectionText(paragraph)
+		lower := strings.ToLower(text)
+		if releaseStr == "" && (strings.Contains(text, "發行日期") || strings.Contains(text, "発売日") || strings.Contains(lower, "release")) {
+			releaseStr = dateRe.FindString(text)
 		}
-		if n.Type == html.ElementNode && n.Data == "p" {
-			text := strings.TrimSpace(flattenText(n))
-			lower := strings.ToLower(text)
-			if releaseStr == "" && (strings.Contains(text, "發行日期") || strings.Contains(text, "発売日") || strings.Contains(lower, "release")) {
-				if m := dateRe.FindString(text); m != "" {
-					releaseStr = m
-				}
-			}
-			if durationMin == 0 && (strings.Contains(text, "長度") || strings.Contains(text, "時長") || strings.Contains(text, "時間") || strings.Contains(lower, "length") || strings.Contains(lower, "duration")) {
-				if m := durationRe.FindStringSubmatch(text); len(m) >= 2 {
-					if v, err := strconv.Atoi(strings.TrimSpace(m[1])); err == nil {
-						durationMin = v
-					}
+		if durationMin == 0 && (strings.Contains(text, "長度") || strings.Contains(text, "時長") || strings.Contains(text, "時間") || strings.Contains(lower, "length") || strings.Contains(lower, "duration")) {
+			if match := durationRe.FindStringSubmatch(text); len(match) >= 2 {
+				if value, err := strconv.Atoi(strings.TrimSpace(match[1])); err == nil {
+					durationMin = value
 				}
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+		return releaseStr == "" || durationMin == 0
+	})
 	if releaseStr != "" {
 		if t, err := time.Parse("2006-01-02", releaseStr); err == nil {
 			releaseUnix = t.Unix()
@@ -521,27 +429,18 @@ func collectGenres(root *html.Node) []string {
 
 	seen := make(map[string]struct{})
 	var out []string
-	var walk func(*html.Node, bool)
-	walk = func(n *html.Node, inGenre bool) {
-		in := inGenre || (n.Type == html.ElementNode && n.Data == "span" && hasClass(n, "genre"))
-		if n.Type == html.ElementNode && n.Data == "a" && in {
-			// 演员链接也出现在 span.genre 下，过滤掉 /star/ 链接避免混入标签
-			if href := attrValue(n, "href"); strings.Contains(href, "/star/") {
-				// let collectActors handle it
-				return
-			}
-			if t := strings.TrimSpace(flattenText(n)); t != "" {
-				if _, ok := seen[t]; !ok {
-					seen[t] = struct{}{}
-					out = append(out, t)
-				}
+	documentSelection(section).Find("span.genre a").Each(func(_ int, link *goquery.Selection) {
+		if strings.Contains(selectionAttr(link, "href"), "/star/") {
+			return
+		}
+		text := cleanSelectionText(link)
+		if text != "" {
+			if _, exists := seen[text]; !exists {
+				seen[text] = struct{}{}
+				out = append(out, text)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c, in)
-		}
-	}
-	walk(section, false)
+	})
 	return out
 }
 
@@ -553,82 +452,18 @@ func collectActors(root *html.Node) []string {
 
 	seen := make(map[string]struct{})
 	var out []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			href := attrValue(n, "href")
-			if strings.Contains(href, "/star/") {
-				if t := strings.TrimSpace(flattenText(n)); t != "" {
-					if _, ok := seen[t]; !ok {
-						seen[t] = struct{}{}
-						out = append(out, t)
-					}
-				}
+	documentSelection(section).Find(`a[href*="/star/"]`).Each(func(_ int, link *goquery.Selection) {
+		text := cleanSelectionText(link)
+		if text != "" {
+			if _, exists := seen[text]; !exists {
+				seen[text] = struct{}{}
+				out = append(out, text)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(section)
+	})
 	return out
 }
 
-func attrValue(n *html.Node, key string) string {
-	for _, a := range n.Attr {
-		if a.Key == key {
-			return a.Val
-		}
-	}
-	return ""
-}
-
-func hasClass(n *html.Node, target string) bool {
-	for _, attr := range n.Attr {
-		if attr.Key != "class" {
-			continue
-		}
-		classes := strings.Fields(attr.Val)
-		for _, c := range classes {
-			if c == target {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// addActor deduplicates actor names preferring the longer variant when one contains the other.
 func findMovieSection(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "movie") && hasClass(n, "row") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
-}
-
-func flattenText(n *html.Node) string {
-	var b strings.Builder
-	var walk func(*html.Node)
-	walk = func(cur *html.Node) {
-		if cur.Type == html.TextNode {
-			b.WriteString(cur.Data)
-		}
-		for c := cur.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(n)
-	return b.String()
+	return firstSelectionNode(documentSelection(root).Find("div.movie.row").First())
 }

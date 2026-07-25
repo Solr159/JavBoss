@@ -40,6 +40,11 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
       </div>
     </div>
   </div>
+  <div class="image-gallery-section">
+    <a href="#" data-image-src="https://pics.dmm.co.jp/ipx004jp-1.jpg">
+      <img src="https://pics.dmm.co.jp/ipx004-1.jpg">
+    </a>
+  </div>
 </body>
 </html>`))
 	if err != nil {
@@ -65,6 +70,11 @@ func TestParseJavDatabaseMovieInfo(t *testing.T) {
 	}
 	if info.CoverURL != "https://www.javdatabase.com/covers/ipx-004.jpg" {
 		t.Fatalf("unexpected cover url: %q", info.CoverURL)
+	}
+	if len(info.SampleImages) != 1 ||
+		info.SampleImages[0].ThumbnailURL != "https://pics.dmm.co.jp/ipx004-1.jpg" ||
+		info.SampleImages[0].DetailURL != "https://pics.dmm.co.jp/ipx004jp-1.jpg" {
+		t.Fatalf("unexpected sample images: %#v", info.SampleImages)
 	}
 
 	wantRelease := time.Date(2017, 9, 9, 0, 0, 0, 0, time.UTC).Unix()
@@ -187,6 +197,62 @@ func TestParseJavDatabaseActressInfoTrimsTrailingDashFromJapaneseName(t *testing
 	}
 	if info.JapaneseName != "工藤ララ" {
 		t.Fatalf("unexpected japanese name: %q", info.JapaneseName)
+	}
+}
+
+func TestParseJavDatabaseActressInfoFromIPX228Profile(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+<!doctype html>
+<html>
+<body>
+  <div class="entry-content">
+    <div class="row">
+      <div class="col-12 col-xxl-7">
+        <h1 class="idol-name">Nanami Misaki - JAV Profile</h1>
+        <b>Age:</b> <a href="/idols/?_birth_year=1996">30</a>
+        - <b>DOB:</b> <a href="/idols/?_birth_year=1996">1996-06-09</a>
+        - <b>Debut:</b> <a href="/idols/?_debut_year=2017">2017-10-28</a>
+        - <b>Measurements:</b> 83-59-83
+        - <b>Cup:</b> <a href="/idols/?_cup_size=d">D</a>
+        - <b>Height:</b> <a href="/idols/?_height=150">150 cm</a>
+        - <b>Shoe Size:</b> ?<br>
+        <p>
+          <b>Tags:</b>
+          <a href="/idols/?_age_group=twenties">Twenties</a> -
+          <a href="/suggest-idol-tags/">Suggest Tags</a><br>
+          <b>JP:</b> 岬ななみ <br>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`))
+	if err != nil {
+		t.Fatalf("parse html: %v", err)
+	}
+
+	info := parseJavDatabaseActressInfo(doc)
+	if info == nil {
+		t.Fatal("expected info, got nil")
+	}
+	if info.RomanName != "Nanami Misaki" {
+		t.Fatalf("unexpected roman name: %q", info.RomanName)
+	}
+	if info.JapaneseName != "岬ななみ" {
+		t.Fatalf("unexpected japanese name: %q", info.JapaneseName)
+	}
+	if info.HeightCM != 150 {
+		t.Fatalf("unexpected height: %d", info.HeightCM)
+	}
+	if info.Bust != 83 || info.Waist != 59 || info.Hips != 83 {
+		t.Fatalf("unexpected measurements: %d-%d-%d", info.Bust, info.Waist, info.Hips)
+	}
+	wantBirthDate := int(time.Date(1996, 6, 9, 0, 0, 0, 0, time.UTC).Unix())
+	if info.BirthDate != wantBirthDate {
+		t.Fatalf("unexpected birth date: got %d want %d", info.BirthDate, wantBirthDate)
+	}
+	if info.Cup != 4 {
+		t.Fatalf("unexpected cup: %d", info.Cup)
 	}
 }
 

@@ -80,6 +80,11 @@ func TestParseJavBusMovieInfoIncludesCoverURL(t *testing.T) {
 			<body>
 				<h3>ABC-001 Test Title</h3>
 				<p><span>識別碼:</span><span>ABC-001</span></p>
+				<div id="sample-waterfall">
+					<a href="https://pics.dmm.co.jp/abc001jp-1.jpg">
+						<img src="https://www.javbus.com/pics/sample/abc001-1.jpg">
+					</a>
+				</div>
 			</body>
 		</html>`))
 	if err != nil {
@@ -92,6 +97,11 @@ func TestParseJavBusMovieInfoIncludesCoverURL(t *testing.T) {
 	}
 	if info.CoverURL != "https://www.javbus.com/pics/cover/c85j_b.jpg" {
 		t.Fatalf("unexpected cover url: %q", info.CoverURL)
+	}
+	if len(info.SampleImages) != 1 ||
+		info.SampleImages[0].ThumbnailURL != "https://www.javbus.com/pics/sample/abc001-1.jpg" ||
+		info.SampleImages[0].DetailURL != "https://pics.dmm.co.jp/abc001jp-1.jpg" {
+		t.Fatalf("unexpected sample images: %#v", info.SampleImages)
 	}
 }
 

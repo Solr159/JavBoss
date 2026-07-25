@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 
 	"javboss/internal/common/logging"
@@ -74,7 +75,7 @@ func (javMenu) LookupJavByCode(code string) (*JavInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	doc, _, err := fetchJavMenuDetailByCode(ctx, code)
+	doc, detailURL, err := fetchJavMenuDetailByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
@@ -86,6 +87,7 @@ func (javMenu) LookupJavByCode(code string) (*JavInfo, error) {
 	if info.Code == "" {
 		info.Code = code
 	}
+	info.SampleImages = parseSampleImages(doc, detailURL)
 	return info, nil
 }
 
@@ -130,7 +132,7 @@ func fetchJavMenuHTML(ctx context.Context, targetURL, referer string) (*html.Nod
 		return nil, resp.StatusCode, fmt.Errorf("javmenu: http %d", resp.StatusCode)
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	doc, err := parseHTMLDocument(body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("javmenu: parse html: %w", err)
 	}
@@ -209,15 +211,16 @@ func parseJavMenuMovieInfo(root *html.Node) *JavInfo {
 	}
 
 	info := &JavInfo{
-		Title:       title,
-		Code:        strings.TrimSpace(fields.Code),
-		Studio:      strings.TrimSpace(fields.Studio),
-		Series:      strings.TrimSpace(fields.Series),
-		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
-		DurationMin: parseRuntimeMinutes(fields.Runtime),
-		Tags:        dedupeNonEmpty(fields.Tags),
-		Actors:      dedupeNonEmpty(fields.Actors),
-		Provider:    ProviderJavMenu,
+		Title:        title,
+		Code:         strings.TrimSpace(fields.Code),
+		Studio:       strings.TrimSpace(fields.Studio),
+		Series:       strings.TrimSpace(fields.Series),
+		ReleaseUnix:  parseDateUnix(fields.ReleaseDate),
+		DurationMin:  parseRuntimeMinutes(fields.Runtime),
+		Tags:         dedupeNonEmpty(fields.Tags),
+		Actors:       dedupeNonEmpty(fields.Actors),
+		SampleImages: parseSampleImages(root, ""),
+		Provider:     ProviderJavMenu,
 	}
 	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
@@ -226,25 +229,15 @@ func parseJavMenuMovieInfo(root *html.Node) *JavInfo {
 }
 
 func findJavMenuInfoCardBody(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
+	var result *html.Node
+	documentSelection(root).Find("div.card.rounded div.card-body").EachWithBreak(func(_ int, body *goquery.Selection) bool {
+		if strings.Contains(body.Text(), "影片資料") {
+			result = firstSelectionNode(body)
+			return false
 		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "card") && hasClass(n, "rounded") {
-			body := findDescendantByClass(n, "div", "card-body")
-			if body != nil && strings.Contains(flattenText(body), "影片資料") {
-				found = body
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+		return true
+	})
+	return result
 }
 
 func extractJavMenuMovieFields(cardBody *html.Node) javMenuMovieFields {
@@ -253,61 +246,41 @@ func extractJavMenuMovieFields(cardBody *html.Node) javMenuMovieFields {
 		return out
 	}
 
-	for row := cardBody.FirstChild; row != nil; row = row.NextSibling {
-		if row.Type != html.ElementNode || row.Data != "div" {
-			continue
-		}
-		labelNode := firstJavMenuFieldLabelNode(row)
-		if labelNode == nil {
-			continue
-		}
-		label := normalizeJavMenuLabel(flattenText(labelNode))
+	documentSelection(cardBody).ChildrenFiltered("div").Each(func(_ int, row *goquery.Selection) {
+		labelSelection := row.ChildrenFiltered("span").First()
+		label := normalizeJavMenuLabel(cleanSelectionText(labelSelection))
 		if label == "" {
-			continue
+			return
 		}
+		value := strings.TrimSpace(strings.TrimPrefix(cleanSelectionText(row), cleanSelectionText(labelSelection)))
+		anchorText := cleanSelectionText(row.Find("a").First())
 		switch label {
 		case "番號", "番号", "識別碼", "识别码":
-			out.Code = cleanJavMenuCode(collectTextAfterNode(labelNode))
+			out.Code = cleanJavMenuCode(value)
 		case "發佈於", "发布于", "發行日期", "发行日期", "発売日", "release date":
-			out.ReleaseDate = firstNonEmpty(out.ReleaseDate, collectTextAfterNode(labelNode))
+			out.ReleaseDate = firstNonEmpty(out.ReleaseDate, value)
 		case "時長", "时长", "長度", "长度", "duration", "runtime":
-			out.Runtime = firstNonEmpty(out.Runtime, collectTextAfterNode(labelNode))
+			out.Runtime = firstNonEmpty(out.Runtime, value)
 		case "出版", "發行", "发行", "片商", "製作商", "制作商", "studio", "maker", "publisher":
-			out.Studio = firstNonEmpty(out.Studio, firstNonEmpty(firstAnchorText(row), collectTextAfterNode(labelNode)))
+			out.Studio = firstNonEmpty(out.Studio, firstNonEmpty(anchorText, value))
 		case "系列", "series":
-			out.Series = firstNonEmpty(out.Series, firstNonEmpty(firstAnchorText(row), collectTextAfterNode(labelNode)))
+			out.Series = firstNonEmpty(out.Series, firstNonEmpty(anchorText, value))
 		case "類別", "类别", "主題", "主题", "genre", "genres", "tags":
-			out.Tags = append(out.Tags, collectJavMenuAnchorTextsByClass(row, "genre")...)
+			out.Tags = append(out.Tags, selectionTexts(row.Find("a.genre"))...)
 		case "女優", "女优", "演員", "演员", "actress", "actor", "actors":
-			out.Actors = append(out.Actors, collectJavMenuAnchorTextsByClass(row, "actress")...)
+			out.Actors = append(out.Actors, selectionTexts(row.Find("a.actress"))...)
 		}
-	}
+	})
 	return out
 }
 
-func firstJavMenuFieldLabelNode(row *html.Node) *html.Node {
-	for c := row.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.ElementNode && c.Data == "span" {
-			return c
-		}
-	}
-	return nil
-}
-
-func collectJavMenuAnchorTextsByClass(root *html.Node, class string) []string {
+func selectionTexts(selection *goquery.Selection) []string {
 	var values []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" && hasClass(n, class) {
-			if text := strings.TrimSpace(flattenText(n)); text != "" {
-				values = append(values, text)
-			}
+	selection.Each(func(_ int, item *goquery.Selection) {
+		if text := cleanSelectionText(item); text != "" {
+			values = append(values, text)
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return values
 }
 

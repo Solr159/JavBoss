@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 
 	"javboss/internal/common/logging"
@@ -157,6 +158,7 @@ func (javDB) LookupJavByCode(code string) (*JavInfo, error) {
 		info.Code = code
 	}
 	info.CoverURL = parseJavDBCoverURL(doc, detailURL)
+	info.SampleImages = parseSampleImages(doc, detailURL)
 	return info, nil
 }
 
@@ -276,7 +278,7 @@ func fetchJavDBHTML(ctx context.Context, targetURL, referer string) (*html.Node,
 		return nil, resp.StatusCode, fmt.Errorf("javdb: http %d", resp.StatusCode)
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	doc, err := parseHTMLDocument(body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("javdb: parse html: %w", err)
 	}
@@ -366,94 +368,27 @@ func findSingleJavDBSearchResultURL(root *html.Node, code, pageURL string) strin
 }
 
 func findJavDBSearchResultURLs(root *html.Node, code, pageURL string) []string {
-	list := findJavDBMovieList(root)
-	if list == nil {
-		return nil
-	}
-
 	wantCode := normalizeJavDBCode(code)
 	seen := make(map[string]struct{})
 	var urls []string
-	for item := list.FirstChild; item != nil; item = item.NextSibling {
-		if item.Type != html.ElementNode || item.Data != "div" || !hasClass(item, "item") {
-			continue
-		}
-		itemCode := findJavDBSearchItemCode(item)
+	documentSelection(root).Find("div.movie-list.h.cols-4.vcols-8 > div.item").Each(func(_ int, item *goquery.Selection) {
+		itemCode := cleanSelectionText(item.Find("div.video-title strong").First())
 		if normalizeJavDBCode(itemCode) != wantCode {
-			continue
+			return
 		}
-		if href := firstAnchorHref(item); href != "" {
+		if href := selectionAttr(item.Find("a").First(), "href"); href != "" {
 			detailURL := resolveURL(pageURL, href)
 			if detailURL == "" {
-				continue
+				return
 			}
 			if _, ok := seen[detailURL]; ok {
-				continue
+				return
 			}
 			seen[detailURL] = struct{}{}
 			urls = append(urls, detailURL)
 		}
-	}
+	})
 	return urls
-}
-
-func findJavDBMovieList(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" &&
-			hasClass(n, "movie-list") &&
-			hasClass(n, "h") &&
-			hasClass(n, "cols-4") &&
-			hasClass(n, "vcols-8") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
-}
-
-func findJavDBSearchItemCode(item *html.Node) string {
-	var code string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if code != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "video-title") {
-			if strong := firstChildElementByTag(n, "strong"); strong != nil {
-				code = strings.TrimSpace(flattenText(strong))
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(item)
-	return code
-}
-
-func firstAnchorHref(root *html.Node) string {
-	if root == nil {
-		return ""
-	}
-	if root.Type == html.ElementNode && root.Data == "a" {
-		return strings.TrimSpace(attrValue(root, "href"))
-	}
-	for c := root.FirstChild; c != nil; c = c.NextSibling {
-		if href := firstAnchorHref(c); href != "" {
-			return href
-		}
-	}
-	return ""
 }
 
 type javDBMovieFields struct {
@@ -478,16 +413,17 @@ func parseJavDBMovieInfo(root *html.Node) *JavInfo {
 	}
 
 	info := &JavInfo{
-		Title:       title,
-		Code:        strings.TrimSpace(fields.Code),
-		Studio:      strings.TrimSpace(fields.Maker),
-		Series:      strings.TrimSpace(fields.Series),
-		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
-		DurationMin: parseRuntimeMinutes(fields.Runtime),
-		Tags:        dedupeNonEmpty(fields.Tags),
-		Actors:      dedupeNonEmpty(fields.Actors),
-		CoverURL:    parseJavDBCoverURL(root, ""),
-		Provider:    ProviderJavDB,
+		Title:        title,
+		Code:         strings.TrimSpace(fields.Code),
+		Studio:       strings.TrimSpace(fields.Maker),
+		Series:       strings.TrimSpace(fields.Series),
+		ReleaseUnix:  parseDateUnix(fields.ReleaseDate),
+		DurationMin:  parseRuntimeMinutes(fields.Runtime),
+		Tags:         dedupeNonEmpty(fields.Tags),
+		Actors:       dedupeNonEmpty(fields.Actors),
+		CoverURL:     parseJavDBCoverURL(root, ""),
+		SampleImages: parseSampleImages(root, ""),
+		Provider:     ProviderJavDB,
 	}
 	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
@@ -510,60 +446,22 @@ func extractJavDBMovieFields(root *html.Node) javDBMovieFields {
 		return out
 	}
 
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "panel-block") {
-			if strong := firstChildElementByTag(n, "strong"); strong != nil {
-				label := strings.TrimSpace(flattenText(strong))
-				label = strings.TrimSuffix(label, ":")
-				label = strings.TrimSuffix(label, "：")
-				assignJavDBMovieField(&out, label, n, strong)
-			}
+	documentSelection(panel).Find("div.panel-block").Each(func(_ int, block *goquery.Selection) {
+		strong := block.ChildrenFiltered("strong").First()
+		if strong.Length() > 0 {
+			label := normalizeJavDBLabel(cleanSelectionText(strong))
+			assignJavDBMovieField(&out, label, firstSelectionNode(block), firstSelectionNode(strong))
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(panel)
+	})
 	return out
 }
 
 func findJavDBMovieInfoPanel(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "nav" && hasClass(n, "panel") && hasClass(n, "movie-panel-info") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return firstSelectionNode(documentSelection(root).Find("nav.panel.movie-panel-info").First())
 }
 
 func findJavDBCurrentTitle(root *html.Node) string {
-	var title string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if title != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "strong" && hasClass(n, "current-title") {
-			title = strings.TrimSpace(flattenText(n))
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return title
+	return cleanSelectionText(documentSelection(root).Find("strong.current-title").First())
 }
 
 func assignJavDBMovieField(out *javDBMovieFields, label string, block, strong *html.Node) {
@@ -627,25 +525,18 @@ func collectJavDBActorTexts(root *html.Node) []string {
 
 	seen := make(map[string]struct{})
 	var texts []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			if isJavDBMaleActorLink(n) {
-				return
-			}
-			text := strings.TrimSpace(flattenText(n))
-			if text != "" {
-				if _, ok := seen[text]; !ok {
-					seen[text] = struct{}{}
-					texts = append(texts, text)
-				}
+	documentSelection(root).Find("a").Each(func(_ int, link *goquery.Selection) {
+		if isJavDBMaleActorLink(firstSelectionNode(link)) {
+			return
+		}
+		text := cleanSelectionText(link)
+		if text != "" {
+			if _, exists := seen[text]; !exists {
+				seen[text] = struct{}{}
+				texts = append(texts, text)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return texts
 }
 
@@ -682,27 +573,24 @@ func collectJavDBActressLinks(root *html.Node, pageURL string) []javDBActressLin
 
 	seen := make(map[string]struct{})
 	var links []javDBActressLink
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" && !isJavDBMaleActorLink(n) {
-			text := strings.TrimSpace(flattenText(n))
-			href := strings.TrimSpace(attrValue(n, "href"))
-			if text != "" && href != "" && isJavDBActorURL(href) {
-				actorURL := resolveURL(pageURL, href)
-				if actorURL != "" {
-					key := text + "\x00" + actorURL
-					if _, ok := seen[key]; !ok {
-						seen[key] = struct{}{}
-						links = append(links, javDBActressLink{text: text, href: actorURL})
-					}
+	documentSelection(root).Find("a").Each(func(_ int, link *goquery.Selection) {
+		node := firstSelectionNode(link)
+		if isJavDBMaleActorLink(node) {
+			return
+		}
+		text := cleanSelectionText(link)
+		href := selectionAttr(link, "href")
+		if text != "" && isJavDBActorURL(href) {
+			actorURL := resolveURL(pageURL, href)
+			key := text + "\x00" + actorURL
+			if actorURL != "" {
+				if _, exists := seen[key]; !exists {
+					seen[key] = struct{}{}
+					links = append(links, javDBActressLink{text: text, href: actorURL})
 				}
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return links
 }
 
@@ -712,55 +600,20 @@ func findJavDBActorSearchResultURLs(root *html.Node, name, pageURL string) []str
 		return nil
 	}
 
-	list := findJavDBActorList(root)
-	if list == nil {
-		return nil
-	}
-
 	seen := make(map[string]struct{})
 	var urls []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "actor-box") {
-			if href := javDBActorBoxExactHref(n, name); href != "" {
-				actorURL := resolveURL(pageURL, href)
-				if actorURL != "" {
-					if _, ok := seen[actorURL]; !ok {
-						seen[actorURL] = struct{}{}
-						urls = append(urls, actorURL)
-					}
+	documentSelection(root).Find("#actors .actor-box, .actors .actor-box").Each(func(_ int, box *goquery.Selection) {
+		if href := javDBActorBoxExactHref(firstSelectionNode(box), name); href != "" {
+			actorURL := resolveURL(pageURL, href)
+			if actorURL != "" {
+				if _, exists := seen[actorURL]; !exists {
+					seen[actorURL] = struct{}{}
+					urls = append(urls, actorURL)
 				}
 			}
-			return
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(list)
+	})
 	return urls
-}
-
-func findJavDBActorList(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" {
-			id := strings.TrimSpace(attrValue(n, "id"))
-			if id == "actors" || hasClass(n, "actors") {
-				found = n
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
 }
 
 func javDBActorBoxExactHref(root *html.Node, name string) string {
@@ -769,23 +622,14 @@ func javDBActorBoxExactHref(root *html.Node, name string) string {
 	}
 	name = strings.TrimSpace(name)
 	var href string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if href != "" {
-			return
+	documentSelection(root).Find("a").EachWithBreak(func(_ int, link *goquery.Selection) bool {
+		candidateHref := selectionAttr(link, "href")
+		if candidateHref != "" && isJavDBActorURL(candidateHref) && javDBActorAnchorMatchesName(firstSelectionNode(link), name) {
+			href = candidateHref
+			return false
 		}
-		if n.Type == html.ElementNode && n.Data == "a" {
-			candidateHref := strings.TrimSpace(attrValue(n, "href"))
-			if candidateHref != "" && isJavDBActorURL(candidateHref) && javDBActorAnchorMatchesName(n, name) {
-				href = candidateHref
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+		return true
+	})
 	return href
 }
 
@@ -793,7 +637,8 @@ func javDBActorAnchorMatchesName(anchor *html.Node, name string) bool {
 	if anchor == nil || name == "" {
 		return false
 	}
-	if javDBActorTitleHasName(attrValue(anchor, "title"), name) {
+	selection := goquery.NewDocumentFromNode(anchor).Selection
+	if javDBActorTitleHasName(selectionAttr(selection, "title"), name) {
 		return true
 	}
 	return strings.TrimSpace(firstDescendantTextByTag(anchor, "strong")) == name
@@ -829,31 +674,20 @@ func parseJavDBPanelURL(root *html.Node, pageURL, wantLabel string, matchHref fu
 	}
 
 	var matchedURL string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if matchedURL != "" {
-			return
+	documentSelection(root).Find("div.panel-block").EachWithBreak(func(_ int, block *goquery.Selection) bool {
+		if normalizeJavDBLabel(cleanSelectionText(block.ChildrenFiltered("strong").First())) != wantLabel {
+			return true
 		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "panel-block") {
-			if strong := firstChildElementByTag(n, "strong"); strong != nil {
-				label := strings.TrimSpace(flattenText(strong))
-				label = strings.TrimSuffix(label, ":")
-				label = strings.TrimSuffix(label, "：")
-				if normalizeJavDBLabel(label) == wantLabel {
-					for _, href := range collectAnchorHrefs(n) {
-						if matchHref(href) {
-							matchedURL = resolveURL(pageURL, href)
-							return
-						}
-					}
-				}
+		block.Find("a").EachWithBreak(func(_ int, link *goquery.Selection) bool {
+			href := selectionAttr(link, "href")
+			if matchHref(href) {
+				matchedURL = resolveURL(pageURL, href)
+				return false
 			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+			return true
+		})
+		return matchedURL == ""
+	})
 	return matchedURL
 }
 
@@ -873,26 +707,11 @@ func isJavDBStudioURL(href string) bool {
 }
 
 func isJavDBMaleActorLink(anchor *html.Node) bool {
-	for cur := anchor.NextSibling; cur != nil; cur = cur.NextSibling {
-		text := strings.TrimSpace(flattenText(cur))
-		if cur.Type == html.TextNode {
-			if text == "" {
-				continue
-			}
-			return false
-		}
-		if cur.Type != html.ElementNode {
-			continue
-		}
-		if cur.Data == "strong" && hasClass(cur, "symbol") && hasClass(cur, "male") {
-			return true
-		}
-		if cur.Data == "strong" && text == "♂" {
-			return true
-		}
+	if anchor == nil {
 		return false
 	}
-	return false
+	next := goquery.NewDocumentFromNode(anchor).Selection.NextAll().First()
+	return next.Is("strong.symbol.male") || (goquery.NodeName(next) == "strong" && cleanSelectionText(next) == "♂")
 }
 
 func normalizeJavDBLabel(label string) string {
@@ -903,57 +722,22 @@ func normalizeJavDBLabel(label string) string {
 }
 
 func collectJavDBValue(block, strong *html.Node) string {
-	if value := firstDescendantTextByClass(block, "span", "value"); value != "" {
+	blockSelection := goquery.NewDocumentFromNode(block).Selection
+	if value := cleanSelectionText(blockSelection.Find("span.value").First()); value != "" {
 		return cleanJavDBValue(value)
 	}
 	if strong != nil {
-		return cleanJavDBValue(collectValueAfterBold(strong))
+		strongText := cleanSelectionText(goquery.NewDocumentFromNode(strong).Selection)
+		return cleanJavDBValue(strings.TrimPrefix(cleanSelectionText(blockSelection), strongText))
 	}
-	return cleanJavDBValue(flattenText(block))
-}
-
-func firstDescendantTextByClass(root *html.Node, tag, class string) string {
-	if root == nil {
-		return ""
-	}
-	var text string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if text != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == tag && hasClass(n, class) {
-			text = strings.TrimSpace(flattenText(n))
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return text
+	return cleanJavDBValue(cleanSelectionText(blockSelection))
 }
 
 func firstDescendantTextByTag(root *html.Node, tag string) string {
 	if root == nil || tag == "" {
 		return ""
 	}
-	var text string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if text != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == tag {
-			text = strings.TrimSpace(flattenText(n))
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return text
+	return cleanSelectionText(documentSelection(root).Find(tag).First())
 }
 
 func cleanJavDBValue(value string) string {
@@ -965,36 +749,16 @@ func cleanJavDBValue(value string) string {
 }
 
 func parseJavDBCoverURL(root *html.Node, pageURL string) string {
-	if root == nil {
-		return ""
-	}
-
-	var cover string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if cover != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "meta" {
-			prop := strings.ToLower(strings.TrimSpace(attrValue(n, "property")))
-			content := strings.TrimSpace(attrValue(n, "content"))
-			if prop == "og:image" && content != "" {
-				cover = resolveURL(pageURL, content)
-				return
-			}
-		}
-		if n.Type == html.ElementNode && n.Data == "img" && hasClass(n, "video-cover") {
-			if src := strings.TrimSpace(attrValue(n, "src")); src != "" {
-				cover = resolveURL(pageURL, src)
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
+	doc := documentSelection(root)
+	for _, candidate := range []string{
+		selectionAttr(doc.Find(`meta[property="og:image"]`).First(), "content"),
+		selectionAttr(doc.Find("img.video-cover").First(), "src"),
+	} {
+		if cover := resolveURL(pageURL, candidate); cover != "" {
+			return cover
 		}
 	}
-	walk(root)
-	return strings.TrimSpace(cover)
+	return ""
 }
 
 func cleanJavDBMoviePageTitle(title string) string {

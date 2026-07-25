@@ -3,6 +3,7 @@ module javboss
 go 1.25.1
 
 require (
+	github.com/PuerkitoBio/goquery v1.10.3
 	github.com/gin-gonic/gin v1.11.0
 	github.com/h2non/filetype v1.1.3
 	github.com/liuzl/gocc v0.0.0-20231231122217-0372e1059ca5
@@ -21,6 +22,7 @@ require (
 
 require (
 	github.com/adamzy/cedar-go v0.0.0-20170805034717-80a9c64b256d // indirect
+	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect

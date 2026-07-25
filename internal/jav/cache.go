@@ -18,11 +18,12 @@ const (
 )
 
 var lookupJavCacheKeyVersionByProvider = map[Provider]string{
-	ProviderJavBus:      "v4",
-	ProviderJavDatabase: "v3",
-	ProviderJavDB:       "v3",
-	ProviderAvmoo:       "v4",
+	ProviderJavBus:      "v5",
+	ProviderJavDatabase: "v4",
+	ProviderJavDB:       "v4",
+	ProviderAvmoo:       "v5",
 	ProviderAvsox:       "v3",
+	ProviderJavMenu:     "v2",
 }
 
 var lookupCoverCacheKeyVersionByProvider = map[Provider]string{
@@ -149,6 +150,9 @@ func lookupCacheKeyVersion(provider Provider, method string) string {
 	provider = ParseProvider(int(provider))
 	if provider == ProviderJavDB && method == "lookup_actress_url_code_name" {
 		return "v3"
+	}
+	if provider == ProviderJavDatabase && method == "lookup_actress_code" {
+		return "v2"
 	}
 	if method == "lookup_jav" {
 		if version, ok := lookupJavCacheKeyVersionByProvider[provider]; ok {

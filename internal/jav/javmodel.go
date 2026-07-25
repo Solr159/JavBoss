@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 )
 
@@ -149,7 +150,7 @@ func fetchJavModelHTML(ctx context.Context, targetURL, referer string) (*html.No
 		return nil, resp.StatusCode, fmt.Errorf("javmodel: http %d", resp.StatusCode)
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	doc, err := parseHTMLDocument(body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("javmodel: parse html: %w", err)
 	}
@@ -171,102 +172,26 @@ func buildJavModelRequest(ctx context.Context, targetURL, referer string) (*http
 }
 
 func findJavModelSearchCard(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "card") && hasClass(n, "flq-card-blog") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return firstSelectionNode(documentSelection(root).Find("div.card.flq-card-blog").First())
 }
 
 func extractJavModelSearchResult(card *html.Node) (string, string) {
 	if card == nil {
 		return "", ""
 	}
-	var roman string
-	var href string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if roman != "" || href != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "h5" && hasClass(n, "card-title") && hasClass(n, "h6") {
-			if anchor := firstAnchorNode(n); anchor != nil {
-				roman = strings.TrimSpace(flattenText(anchor))
-				href = strings.TrimSpace(attrValue(anchor, "href"))
-				if roman == "" {
-					roman = strings.TrimSpace(flattenText(n))
-				}
-			} else {
-				roman = strings.TrimSpace(flattenText(n))
-			}
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
+	title := documentSelection(card).Find("h5.card-title.h6").First()
+	link := title.Find("a").First()
+	roman := cleanSelectionText(link)
+	if roman == "" {
+		roman = cleanSelectionText(title)
 	}
-	walk(card)
-	return roman, href
-}
-
-func firstAnchorNode(root *html.Node) *html.Node {
-	if root == nil {
-		return nil
-	}
-	if root.Type == html.ElementNode && root.Data == "a" {
-		return root
-	}
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "a" {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return roman, selectionAttr(link, "href")
 }
 
 func findJavModelProfileCard(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" &&
-			hasClass(n, "col-12") &&
-			hasClass(n, "col-lg-7") &&
-			hasClass(n, "col-xxl-8") &&
-			hasClass(n, "remove-animation") &&
-			hasClass(n, "card") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return firstSelectionNode(documentSelection(root).
+		Find("div.col-12.col-lg-7.col-xxl-8.remove-animation.card").
+		First())
 }
 
 type javModelProfileFields struct {
@@ -336,35 +261,17 @@ func extractJavModelProfileFields(root *html.Node) javModelProfileFields {
 		return out
 	}
 
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "tr" {
-			label, value := extractJavModelRow(n)
-			if label != "" && value != "" {
-				assignJavModelProfileField(&out, label, value)
-			}
+	documentSelection(root).Find("tr").Each(func(_ int, row *goquery.Selection) {
+		cells := row.ChildrenFiltered("th, td")
+		if cells.Length() >= 2 {
+			assignJavModelProfileField(
+				&out,
+				cleanSelectionText(cells.Eq(0)),
+				cleanSelectionText(cells.Eq(1)),
+			)
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return out
-}
-
-func extractJavModelRow(row *html.Node) (string, string) {
-	var cells []*html.Node
-	for c := row.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.ElementNode && (c.Data == "td" || c.Data == "th") {
-			cells = append(cells, c)
-		}
-	}
-	if len(cells) < 2 {
-		return "", ""
-	}
-	label := strings.TrimSpace(flattenText(cells[0]))
-	value := strings.TrimSpace(flattenText(cells[1]))
-	return label, value
 }
 
 func assignJavModelProfileField(out *javModelProfileFields, label, value string) {

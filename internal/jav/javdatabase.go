@@ -18,6 +18,7 @@ import (
 
 	"javboss/internal/common/logging"
 
+	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
 )
 
@@ -121,6 +122,7 @@ func (javDatabase) LookupJavByCode(code string) (*JavInfo, error) {
 		info.Code = code
 	}
 	info.CoverURL = parseJavDatabaseCoverURL(doc, movieURL)
+	info.SampleImages = parseSampleImages(doc, movieURL)
 	return info, nil
 }
 
@@ -205,7 +207,7 @@ func fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html
 		return nil, resp.StatusCode, fmt.Errorf("javdatabase: http %d", resp.StatusCode)
 	}
 
-	doc, err := html.Parse(strings.NewReader(string(body)))
+	doc, err := parseHTMLDocument(body)
 	if err != nil {
 		return nil, resp.StatusCode, fmt.Errorf("javdatabase: parse html: %w", err)
 	}
@@ -276,24 +278,18 @@ func findJavDatabaseActressLink(root *html.Node) (string, error) {
 
 	var candidates []actressLinkCandidate
 	seen := make(map[string]struct{})
-
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			href := strings.TrimSpace(attrValue(n, "href"))
-			if href != "" && looksLikeActressURL(href) {
-				if _, ok := seen[href]; !ok {
-					seen[href] = struct{}{}
-					score := scoreActressLink(n, href)
-					candidates = append(candidates, actressLinkCandidate{href: href, score: score})
-				}
+	documentSelection(root).Find("a").Each(func(_ int, link *goquery.Selection) {
+		href := selectionAttr(link, "href")
+		if href != "" && looksLikeActressURL(href) {
+			if _, exists := seen[href]; !exists {
+				seen[href] = struct{}{}
+				candidates = append(candidates, actressLinkCandidate{
+					href:  href,
+					score: scoreActressLink(firstSelectionNode(link), href),
+				})
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 
 	if len(candidates) == 0 {
 		return "", nil
@@ -308,29 +304,18 @@ func findActressLinkFromIdolSection(root *html.Node) (string, error) {
 	var link string
 	var links []string
 	found := false
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "p" && hasClass(n, "mb-1") {
-			if isIdolSection(n) {
-				links = collectIdolSectionLinks(n)
-				found = true
-				if len(links) > 1 {
-					return
-				}
-				if len(links) == 1 {
-					link = links[0]
-				}
-				return
+	documentSelection(root).Find("p.mb-1").EachWithBreak(func(_ int, paragraph *goquery.Selection) bool {
+		node := firstSelectionNode(paragraph)
+		if isIdolSection(node) {
+			links = collectIdolSectionLinks(node)
+			found = true
+			if len(links) == 1 {
+				link = links[0]
 			}
+			return false
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+		return true
+	})
 	if len(links) > 1 {
 		return "", fmt.Errorf("javdatabase: multiple actresses found: %d", len(links))
 	}
@@ -341,11 +326,11 @@ func findActressLinkFromIdolSection(root *html.Node) (string, error) {
 }
 
 func isIdolSection(n *html.Node) bool {
-	bold := firstChildElementByTag(n, "b")
-	if bold == nil {
+	bold := documentSelection(n).ChildrenFiltered("b").First()
+	if bold.Length() == 0 {
 		return false
 	}
-	label := strings.TrimSpace(flattenText(bold))
+	label := cleanSelectionText(bold)
 	label = strings.TrimSuffix(label, ":")
 	label = strings.TrimSuffix(label, "：")
 	label = normalizeLabel(label)
@@ -356,60 +341,7 @@ func collectIdolSectionLinks(n *html.Node) []string {
 	if n == nil {
 		return nil
 	}
-	if b := findBoldByLabel(n, "idol(s)/actress(es)"); b != nil {
-		return collectAnchorHrefsAfterBold(b)
-	}
 	return collectAnchorHrefs(n)
-}
-
-func findBoldByLabel(root *html.Node, label string) *html.Node {
-	label = strings.ToLower(strings.TrimSpace(label))
-	if root == nil || label == "" {
-		return nil
-	}
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "b" {
-			text := strings.ToLower(strings.TrimSpace(flattenText(n)))
-			if strings.Contains(text, label) {
-				found = n
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
-}
-
-func collectAnchorHrefsAfterBold(b *html.Node) []string {
-	if b == nil {
-		return nil
-	}
-	seen := make(map[string]struct{})
-	var hrefs []string
-	for cur := b.NextSibling; cur != nil; cur = cur.NextSibling {
-		if cur.Type == html.ElementNode && (cur.Data == "b" || cur.Data == "br") {
-			break
-		}
-		for _, href := range collectAnchorHrefs(cur) {
-			if href == "" {
-				continue
-			}
-			if _, ok := seen[href]; ok {
-				continue
-			}
-			seen[href] = struct{}{}
-			hrefs = append(hrefs, href)
-		}
-	}
-	return hrefs
 }
 
 func collectAnchorHrefs(n *html.Node) []string {
@@ -418,22 +350,15 @@ func collectAnchorHrefs(n *html.Node) []string {
 	}
 	seen := make(map[string]struct{})
 	var hrefs []string
-	var walk func(*html.Node)
-	walk = func(cur *html.Node) {
-		if cur.Type == html.ElementNode && cur.Data == "a" {
-			href := strings.TrimSpace(attrValue(cur, "href"))
-			if href != "" {
-				if _, ok := seen[href]; !ok {
-					seen[href] = struct{}{}
-					hrefs = append(hrefs, href)
-				}
+	documentSelection(n).Find("a").Each(func(_ int, link *goquery.Selection) {
+		href := selectionAttr(link, "href")
+		if href != "" {
+			if _, exists := seen[href]; !exists {
+				seen[href] = struct{}{}
+				hrefs = append(hrefs, href)
 			}
 		}
-		for c := cur.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(n)
+	})
 	return hrefs
 }
 
@@ -454,7 +379,7 @@ func looksLikeActressURL(href string) bool {
 }
 
 func scoreActressLink(n *html.Node, href string) int {
-	text := strings.TrimSpace(flattenText(n))
+	text := cleanSelectionText(goquery.NewDocumentFromNode(n).Selection)
 	lower := strings.ToLower(href)
 	score := 1
 	if strings.Contains(lower, "/models/") || strings.Contains(lower, "/model/") {
@@ -479,17 +404,21 @@ func scoreActressLink(n *html.Node, href string) int {
 }
 
 func hasAncestorKeyword(n *html.Node, keywords []string, maxDepth int) bool {
-	depth := 0
-	for p := n.Parent; p != nil && depth < maxDepth; p = p.Parent {
-		text := strings.ToLower(flattenText(p))
+	if n == nil {
+		return false
+	}
+	found := false
+	goquery.NewDocumentFromNode(n).Selection.Parents().Slice(0, maxDepth).EachWithBreak(func(_ int, parent *goquery.Selection) bool {
+		text := strings.ToLower(cleanSelectionText(parent))
 		for _, k := range keywords {
 			if strings.Contains(text, k) {
-				return true
+				found = true
+				return false
 			}
 		}
-		depth++
-	}
-	return false
+		return true
+	})
+	return found
 }
 
 func parseJavDatabaseActressInfo(root *html.Node) *ActressInfo {
@@ -549,16 +478,17 @@ func parseJavDatabaseMovieInfo(root *html.Node) *JavInfo {
 	}
 
 	info := &JavInfo{
-		Title:       title,
-		Code:        strings.TrimSpace(fields.Code),
-		Studio:      strings.TrimSpace(fields.Studio),
-		Series:      strings.TrimSpace(fields.Series),
-		ReleaseUnix: parseDateUnix(fields.ReleaseDate),
-		DurationMin: parseRuntimeMinutes(fields.Runtime),
-		Tags:        dedupeNonEmpty(fields.Tags),
-		Actors:      dedupeNonEmpty(fields.Actors),
-		CoverURL:    parseJavDatabaseCoverURL(root, ""),
-		Provider:    ProviderJavDatabase,
+		Title:        title,
+		Code:         strings.TrimSpace(fields.Code),
+		Studio:       strings.TrimSpace(fields.Studio),
+		Series:       strings.TrimSpace(fields.Series),
+		ReleaseUnix:  parseDateUnix(fields.ReleaseDate),
+		DurationMin:  parseRuntimeMinutes(fields.Runtime),
+		Tags:         dedupeNonEmpty(fields.Tags),
+		Actors:       dedupeNonEmpty(fields.Actors),
+		CoverURL:     parseJavDatabaseCoverURL(root, ""),
+		SampleImages: parseSampleImages(root, ""),
+		Provider:     ProviderJavDatabase,
 	}
 	if info.Title == "" && info.Code == "" && info.Studio == "" && info.Series == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {
 		return nil
@@ -567,39 +497,16 @@ func parseJavDatabaseMovieInfo(root *html.Node) *JavInfo {
 }
 
 func parseJavDatabaseCoverURL(root *html.Node, pageURL string) string {
-	if root == nil {
-		return ""
-	}
-
-	var cover string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if cover != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "meta" {
-			prop := strings.ToLower(strings.TrimSpace(attrValue(n, "property")))
-			content := strings.TrimSpace(attrValue(n, "content"))
-			if prop == "og:image" && content != "" {
-				cover = resolveURL(pageURL, content)
-				return
-			}
-		}
-		if n.Type == html.ElementNode && n.Data == "img" {
-			if hasClass(n, "poster") || hasClass(n, "cover") {
-				src := strings.TrimSpace(attrValue(n, "src"))
-				if src != "" {
-					cover = resolveURL(pageURL, src)
-					return
-				}
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
+	doc := documentSelection(root)
+	for _, candidate := range []string{
+		selectionAttr(doc.Find(`meta[property="og:image"]`).First(), "content"),
+		selectionAttr(doc.Find("img.poster, img.cover").First(), "src"),
+	} {
+		if cover := resolveURL(pageURL, candidate); cover != "" {
+			return cover
 		}
 	}
-	walk(root)
-	return strings.TrimSpace(cover)
+	return ""
 }
 
 func normalizeJavDatabaseCode(code string) string {
@@ -625,54 +532,18 @@ type javDatabaseMovieFields struct {
 }
 
 func findJavDatabaseMovieInfoColumn(root *html.Node) *html.Node {
-	if root == nil {
-		return nil
+	doc := documentSelection(root)
+	selector := "div.col-md-10.col-lg-10.col-xxl-10.col-8"
+	if column := doc.Find("div.movietable " + selector).First(); column.Length() > 0 {
+		return firstSelectionNode(column)
 	}
-
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "movietable") {
-			if column := findDescendantMovieInfoColumn(n); column != nil {
-				found = column
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	if found != nil {
-		return found
-	}
-	return findDescendantMovieInfoColumn(root)
+	return firstSelectionNode(doc.Find(selector).First())
 }
 
 func findDescendantMovieInfoColumn(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" &&
-			hasClass(n, "col-md-10") &&
-			hasClass(n, "col-lg-10") &&
-			hasClass(n, "col-xxl-10") &&
-			hasClass(n, "col-8") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return firstSelectionNode(documentSelection(root).
+		Find("div.col-md-10.col-lg-10.col-xxl-10.col-8").
+		First())
 }
 
 func extractJavDatabaseMovieFields(root *html.Node) javDatabaseMovieFields {
@@ -681,21 +552,13 @@ func extractJavDatabaseMovieFields(root *html.Node) javDatabaseMovieFields {
 		return out
 	}
 
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "p" && hasClass(n, "mb-1") {
-			if bold := firstChildElementByTag(n, "b"); bold != nil {
-				label := strings.TrimSpace(flattenText(bold))
-				label = strings.TrimSuffix(label, ":")
-				label = strings.TrimSuffix(label, "：")
-				assignJavDatabaseMovieField(&out, label, n, bold)
-			}
+	documentSelection(root).Find("p.mb-1").Each(func(_ int, line *goquery.Selection) {
+		bold := line.ChildrenFiltered("b").First()
+		if bold.Length() > 0 {
+			label := normalizeLabel(cleanSelectionText(bold))
+			assignJavDatabaseMovieField(&out, label, firstSelectionNode(line), firstSelectionNode(bold))
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return out
 }
 
@@ -759,27 +622,13 @@ func extractJavDatabaseProfileFields(root *html.Node) javDatabaseProfileFields {
 		return out
 	}
 
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode {
-			switch n.Data {
-			case "b":
-				label := strings.TrimSpace(flattenText(n))
-				label = strings.TrimSuffix(label, ":")
-				label = strings.TrimSuffix(label, "：")
-				if label != "" {
-					value := strings.TrimSpace(collectValueAfterBold(n))
-					if value != "" {
-						assignProfileField(&out, label, value)
-					}
-				}
-			}
+	documentSelection(root).Find("b").Each(func(_ int, bold *goquery.Selection) {
+		label := normalizeLabel(cleanSelectionText(bold))
+		value := collectValueAfterBold(firstSelectionNode(bold))
+		if label != "" && value != "" {
+			assignProfileField(&out, label, value)
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return out
 }
 
@@ -961,52 +810,20 @@ func parseMeasurements(value string) (int, int, int) {
 }
 
 func findEntryContent(root *html.Node) *html.Node {
-	var found *html.Node
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if found != nil {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "div" && hasClass(n, "entry-content") {
-			found = n
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return found
+	return firstSelectionNode(documentSelection(root).Find("div.entry-content").First())
 }
 
 func findIdolName(root *html.Node) string {
-	var name string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if name != "" {
-			return
-		}
-		if n.Type == html.ElementNode && (n.Data == "h1" || n.Data == "h2" || n.Data == "h3") {
-			if hasClass(n, "idol-name") {
-				name = strings.TrimSpace(flattenText(n))
-				return
-			}
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	if name != "" {
+	doc := documentSelection(root)
+	if name := cleanSelectionText(doc.Find("h1.idol-name, h2.idol-name, h3.idol-name").First()); name != "" {
 		return name
 	}
-	if t := strings.TrimSpace(firstTextByTag(root, "h1")); t != "" {
-		return t
+	for _, tag := range []string{"h1", "h2", "h3"} {
+		if name := cleanSelectionText(doc.Find(tag).First()); name != "" {
+			return name
+		}
 	}
-	if t := strings.TrimSpace(firstTextByTag(root, "h2")); t != "" {
-		return t
-	}
-	return strings.TrimSpace(firstTextByTag(root, "h3"))
+	return ""
 }
 
 func cleanIdolName(value string) string {
@@ -1034,46 +851,33 @@ func cleanJapaneseName(value string) string {
 }
 
 func collectValueAfterBold(b *html.Node) string {
-	for cur := b.NextSibling; cur != nil; cur = cur.NextSibling {
-		if cur.Type == html.ElementNode && (cur.Data == "b" || cur.Data == "br") {
-			break
-		}
-		if text := firstAnchorText(cur); text != "" {
-			return text
-		}
+	if b == nil {
+		return ""
 	}
+	bold := goquery.NewDocumentFromNode(b).Selection
+	var valueBuilder strings.Builder
+	afterBold := false
+	bold.Parent().Contents().EachWithBreak(func(_ int, sibling *goquery.Selection) bool {
+		if sibling.Get(0) == b {
+			afterBold = true
+			return true
+		}
+		if !afterBold {
+			return true
+		}
+		if sibling.Is("b, br") {
+			return false
+		}
+		valueBuilder.WriteString(sibling.Text())
+		return true
+	})
 
-	var bld strings.Builder
-	for cur := b.NextSibling; cur != nil; cur = cur.NextSibling {
-		if cur.Type == html.ElementNode {
-			if cur.Data == "b" || cur.Data == "br" {
-				break
-			}
-			text := strings.TrimSpace(flattenText(cur))
-			if text != "" {
-				bld.WriteString(text)
-			}
-			continue
-		}
-		if cur.Type == html.TextNode {
-			bld.WriteString(cur.Data)
-		}
-	}
-	value := strings.TrimSpace(bld.String())
+	value := strings.TrimSpace(valueBuilder.String())
 	value = strings.TrimLeft(value, "-–: ")
 	if idx := strings.Index(value, " - "); idx >= 0 {
 		value = strings.TrimSpace(value[:idx])
 	}
 	return value
-}
-
-func firstChildElementByTag(root *html.Node, tag string) *html.Node {
-	for c := root.FirstChild; c != nil; c = c.NextSibling {
-		if c.Type == html.ElementNode && c.Data == tag {
-			return c
-		}
-	}
-	return nil
 }
 
 func collectAnchorTexts(root *html.Node) []string {
@@ -1083,22 +887,15 @@ func collectAnchorTexts(root *html.Node) []string {
 
 	seen := make(map[string]struct{})
 	var texts []string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if n.Type == html.ElementNode && n.Data == "a" {
-			text := strings.TrimSpace(flattenText(n))
-			if text != "" {
-				if _, ok := seen[text]; !ok {
-					seen[text] = struct{}{}
-					texts = append(texts, text)
-				}
+	documentSelection(root).Find("a").Each(func(_ int, link *goquery.Selection) {
+		text := cleanSelectionText(link)
+		if text != "" {
+			if _, exists := seen[text]; !exists {
+				seen[text] = struct{}{}
+				texts = append(texts, text)
 			}
 		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
+	})
 	return texts
 }
 
@@ -1123,25 +920,11 @@ func firstAnchorText(root *html.Node) string {
 	if root == nil {
 		return ""
 	}
-	if root.Type == html.ElementNode && root.Data == "a" {
-		return strings.TrimSpace(flattenText(root))
+	selection := goquery.NewDocumentFromNode(root).Selection
+	if goquery.NodeName(selection) == "a" {
+		return cleanSelectionText(selection)
 	}
-	var text string
-	var walk func(*html.Node)
-	walk = func(n *html.Node) {
-		if text != "" {
-			return
-		}
-		if n.Type == html.ElementNode && n.Data == "a" {
-			text = strings.TrimSpace(flattenText(n))
-			return
-		}
-		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			walk(c)
-		}
-	}
-	walk(root)
-	return text
+	return cleanSelectionText(selection.Find("a").First())
 }
 
 func firstNonEmpty(values ...string) string {

@@ -89,28 +89,28 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderJavBus,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v4:jav:javbus:lookup_jav:ABC-001",
+			want:     "v5:jav:javbus:lookup_jav:ABC-001",
 		},
 		{
 			name:     "javdatabase lookup jav uses provider version",
 			provider: ProviderJavDatabase,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v3:jav:javdatabase:lookup_jav:ABC-001",
+			want:     "v4:jav:javdatabase:lookup_jav:ABC-001",
 		},
 		{
 			name:     "javdb lookup jav uses provider version",
 			provider: ProviderJavDB,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v3:jav:javdb:lookup_jav:ABC-001",
+			want:     "v4:jav:javdb:lookup_jav:ABC-001",
 		},
 		{
 			name:     "avmoo lookup jav uses provider version",
 			provider: ProviderAvmoo,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v4:jav:avmoo:lookup_jav:ABC-001",
+			want:     "v5:jav:avmoo:lookup_jav:ABC-001",
 		},
 		{
 			name:     "avsox lookup jav uses provider version",
@@ -118,6 +118,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			method:   "lookup_jav",
 			input:    "030919_047",
 			want:     "v3:jav:avsox:lookup_jav:030919_047",
+		},
+		{
+			name:     "javmenu lookup jav uses provider version",
+			provider: ProviderJavMenu,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v2:jav:javmenu:lookup_jav:ABC-001",
 		},
 		{
 			name:     "avsox cover uses provider version",
@@ -146,6 +153,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			method:   "lookup_actress_url_code_name",
 			input:    "HEYZO-1867|美月アンジェリア",
 			want:     "v3:jav:javdb:lookup_actress_url_code_name:HEYZO-1867|美月アンジェリア",
+		},
+		{
+			name:     "javdatabase actress lookup uses fixed parser version",
+			provider: ProviderJavDatabase,
+			method:   "lookup_actress_code",
+			input:    "ipx-228",
+			want:     "v2:jav:javdatabase:lookup_actress_code:IPX-228",
 		},
 	}
 
