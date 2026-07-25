@@ -2389,7 +2389,10 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 		}
 		javRec.SeriesID = &seriesRec.ID
 	}
-	if err := tx.Save(javRec).Error; err != nil {
+	// Sample images are resolved lazily by the detail API. Metadata scans must
+	// neither import provider sample images nor overwrite a previously resolved
+	// list.
+	if err := tx.Omit("sample_images").Save(javRec).Error; err != nil {
 		return nil, fmt.Errorf("save jav: %w", err)
 	}
 

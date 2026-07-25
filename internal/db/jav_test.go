@@ -2716,6 +2716,64 @@ func TestSetJavSampleImagesIfEmpty(t *testing.T) {
 	}
 }
 
+func TestSaveJavInfoDoesNotWriteSampleImages(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+
+	_, err := SaveJavInfo(ctx, &jav.JavInfo{
+		Code:     "SAMPLE-SCAN-001",
+		Title:    "Scanned metadata",
+		Provider: jav.ProviderJavBus,
+		SampleImages: []jav.SampleImage{{
+			ThumbnailURL: "https://provider.example/scanned-thumb.jpg",
+			DetailURL:    "https://provider.example/scanned-detail.jpg",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("SaveJavInfo create: %v", err)
+	}
+
+	var stored models.Jav
+	if err := db.Where("code = ?", "SAMPLE-SCAN-001").First(&stored).Error; err != nil {
+		t.Fatalf("load created jav: %v", err)
+	}
+	if len(stored.SampleImages) != 0 {
+		t.Fatalf("provider sample images were persisted: %#v", stored.SampleImages)
+	}
+
+	want := models.JavSampleImages{{
+		ThumbnailURL: "https://lazy.example/thumb.jpg",
+		DetailURL:    "https://lazy.example/detail.jpg",
+	}}
+	if _, err := SetJavSampleImagesIfEmpty(ctx, stored.ID, want); err != nil {
+		t.Fatalf("SetJavSampleImagesIfEmpty: %v", err)
+	}
+
+	_, err = SaveJavInfo(ctx, &jav.JavInfo{
+		Code:     "SAMPLE-SCAN-001",
+		Title:    "Refreshed metadata",
+		Provider: jav.ProviderJavBus,
+		SampleImages: []jav.SampleImage{{
+			ThumbnailURL: "https://provider.example/replacement-thumb.jpg",
+			DetailURL:    "https://provider.example/replacement-detail.jpg",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("SaveJavInfo update: %v", err)
+	}
+
+	stored = models.Jav{}
+	if err := db.Where("code = ?", "SAMPLE-SCAN-001").First(&stored).Error; err != nil {
+		t.Fatalf("load updated jav: %v", err)
+	}
+	if stored.Title != "Refreshed metadata" {
+		t.Fatalf("title = %q, want refreshed metadata", stored.Title)
+	}
+	if !reflect.DeepEqual(stored.SampleImages, want) {
+		t.Fatalf("resolved sample images were overwritten: %#v", stored.SampleImages)
+	}
+}
+
 func TestMarkJavSampleImagesNotFound(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
