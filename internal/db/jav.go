@@ -2406,6 +2406,81 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 	return javRec, nil
 }
 
+// SetJavSampleImagesIfEmpty stores sample images without replacing an existing list.
+func SetJavSampleImagesIfEmpty(ctx context.Context, javID int64, images models.JavSampleImages) (models.JavSampleImages, error) {
+	if javID <= 0 {
+		return nil, errors.New("jav id must be positive")
+	}
+	images = normalizeJavSampleImages(images)
+	if len(images) == 0 {
+		return models.JavSampleImages{}, nil
+	}
+
+	result := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Where("id = ?", javID).
+		Where(`TRIM(COALESCE(sample_images, '')) IN ('', '[]', 'null')`).
+		UpdateColumn("sample_images", images)
+	if result.Error != nil {
+		return nil, fmt.Errorf("update JAV sample images: %w", result.Error)
+	}
+
+	var stored models.Jav
+	if err := common.DB.WithContext(ctx).
+		Select("id", "sample_images").
+		Where("id = ?", javID).
+		First(&stored).Error; err != nil {
+		return nil, fmt.Errorf("load JAV sample images: %w", err)
+	}
+	if stored.SampleImages == nil {
+		stored.SampleImages = models.JavSampleImages{}
+	}
+	return stored.SampleImages, nil
+}
+
+// MarkJavSampleImagesNotFound stores a sentinel without replacing an existing result.
+func MarkJavSampleImagesNotFound(ctx context.Context, javID int64) error {
+	if javID <= 0 {
+		return errors.New("jav id must be positive")
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Where("id = ?", javID).
+		Where(`TRIM(COALESCE(sample_images, '')) IN ('', '[]', 'null')`).
+		UpdateColumn("sample_images", models.NewJavSampleImagesNotFound()).Error; err != nil {
+		return fmt.Errorf("mark JAV sample images not found: %w", err)
+	}
+	return nil
+}
+
+func normalizeJavSampleImages(images models.JavSampleImages) models.JavSampleImages {
+	normalized := make(models.JavSampleImages, 0, len(images))
+	seen := make(map[string]struct{}, len(images))
+	for _, image := range images {
+		thumbnailURL := strings.TrimSpace(image.ThumbnailURL)
+		detailURL := strings.TrimSpace(image.DetailURL)
+		if thumbnailURL == "" {
+			thumbnailURL = detailURL
+		}
+		if detailURL == "" {
+			detailURL = thumbnailURL
+		}
+		if thumbnailURL == "" {
+			continue
+		}
+		key := thumbnailURL + "\x00" + detailURL
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, models.JavSampleImage{
+			ThumbnailURL: thumbnailURL,
+			DetailURL:    detailURL,
+		})
+	}
+	return normalized
+}
+
 // UpdateJavIsUncensoredIfUnknown records an uncensored/censored classification
 // without overwriting an existing explicit value.
 func UpdateJavIsUncensoredIfUnknown(ctx context.Context, javID int64, isUncensored bool) error {

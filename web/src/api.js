@@ -3,6 +3,8 @@ import { getErrorMessage } from '@/utils/errors'
 
 const jsonHeaders = { 'Content-Type': 'application/json' }
 const javIdolResolveInFlight = new Map()
+const javSampleImagesResolveInFlight = new Map()
+const javSampleImagesResolved = new Map()
 export const authExpiredEvent = 'javboss:auth-expired'
 
 async function apiError(res) {
@@ -452,6 +454,56 @@ export async function fetchJavs({
     throw await apiError(res)
   }
   return res.json()
+}
+
+function javSampleImagesRequest(id, directoryIds) {
+  const javId = Number(id)
+  const normalizedDirectoryIds = directoryIds
+    .map((directoryId) => Number(directoryId))
+    .filter((directoryId) => Number.isFinite(directoryId) && directoryId > 0)
+  return {
+    javId,
+    normalizedDirectoryIds,
+    requestKey: `${javId}:${normalizedDirectoryIds.join(',')}`,
+  }
+}
+
+export function getResolvedJavSampleImages(id, { directoryIds = [] } = {}) {
+  const { javId, requestKey } = javSampleImagesRequest(id, directoryIds)
+  if (!Number.isFinite(javId) || javId <= 0) return null
+  return javSampleImagesResolved.get(requestKey) || null
+}
+
+export function resolveJavSampleImages(id, { directoryIds = [] } = {}) {
+  const { javId, normalizedDirectoryIds, requestKey } = javSampleImagesRequest(id, directoryIds)
+  if (!Number.isFinite(javId) || javId <= 0) return Promise.resolve([])
+  const resolved = javSampleImagesResolved.get(requestKey)
+  if (resolved) return Promise.resolve(resolved)
+
+  const params = new URLSearchParams()
+  if (normalizedDirectoryIds.length) {
+    params.set('directory_ids', normalizedDirectoryIds.join(','))
+  }
+  const query = params.toString()
+  const existing = javSampleImagesResolveInFlight.get(requestKey)
+  if (existing) return existing
+
+  const request = apiFetch(
+    `/jav/items/${encodeURIComponent(javId)}/sample-images${query ? `?${query}` : ''}`,
+    { method: 'POST', cache: 'no-store' }
+  )
+    .then(async (res) => {
+      if (!res.ok) throw await apiError(res)
+      const payload = await res.json()
+      const images = Array.isArray(payload?.sample_images) ? payload.sample_images : []
+      javSampleImagesResolved.set(requestKey, images)
+      return images
+    })
+    .finally(() => {
+      javSampleImagesResolveInFlight.delete(requestKey)
+    })
+  javSampleImagesResolveInFlight.set(requestKey, request)
+  return request
 }
 
 export async function fetchJavPrefixes({ directoryIds = [] } = {}) {

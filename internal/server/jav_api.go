@@ -3,18 +3,21 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 
 	"javboss/internal/common"
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/manager"
+	"javboss/internal/models"
 )
 
 func searchJav(c *gin.Context) {
@@ -115,6 +118,108 @@ func getJavJavDBURL(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"url": javdbURL})
+}
+
+func resolveJavSampleImages(c *gin.Context) {
+	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 作品 ID 无效", "Invalid JAV item ID")
+		return
+	}
+
+	item, err := dbpkg.GetJav(c.Request.Context(), id, parseDirectoryIDs(c.Query("directory_ids")))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "JAV 作品不存在", "JAV item was not found")
+			return
+		}
+		logging.Error("get JAV sample images item id=%d: %v", id, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "加载样品图失败", "Failed to load sample images")
+		return
+	}
+	if len(item.SampleImages) > 0 {
+		c.JSON(http.StatusOK, gin.H{"sample_images": item.SampleImages})
+		return
+	}
+
+	images, lookupErr := lookupJavSampleImagesByProvider(item.Code, jav.LookupJavByCode)
+	if len(images) == 0 {
+		if lookupErr != nil {
+			logging.Error("lookup JAV sample images code=%s: %v", item.Code, lookupErr)
+			respondLocalizedError(c, http.StatusBadGateway, "样品图来源暂时不可用，请稍后重试", "Sample image providers are temporarily unavailable; try again later")
+			return
+		}
+		if err := dbpkg.MarkJavSampleImagesNotFound(c.Request.Context(), item.ID); err != nil {
+			logging.Error("mark JAV sample images not found id=%d code=%s: %v", item.ID, item.Code, err)
+			respondLocalizedError(c, http.StatusInternalServerError, "保存样品图查询状态失败", "Failed to save sample image lookup state")
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"sample_images": models.NewJavSampleImagesNotFound()})
+		return
+	}
+
+	stored, err := dbpkg.SetJavSampleImagesIfEmpty(c.Request.Context(), item.ID, images)
+	if err != nil {
+		logging.Error("save JAV sample images id=%d code=%s: %v", item.ID, item.Code, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "保存样品图失败", "Failed to save sample images")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"sample_images": stored})
+}
+
+type javSampleImageLookupFunc func(string, jav.Provider) (*jav.JavInfo, error)
+
+func lookupJavSampleImagesByProvider(code string, lookup javSampleImageLookupFunc) (models.JavSampleImages, error) {
+	if strings.TrimSpace(code) == "" || lookup == nil {
+		return models.JavSampleImages{}, nil
+	}
+
+	var lookupErrors []error
+	for _, provider := range []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavDB} {
+		info, err := lookup(code, provider)
+		if err != nil {
+			if !errors.Is(err, jav.ResourceNotFonud) {
+				lookupErrors = append(lookupErrors, fmt.Errorf("%s: %w", provider.String(), err))
+			}
+			continue
+		}
+		images := javSampleImagesToModel(info)
+		if len(images) > 0 {
+			return images, nil
+		}
+	}
+	return models.JavSampleImages{}, errors.Join(lookupErrors...)
+}
+
+func javSampleImagesToModel(info *jav.JavInfo) models.JavSampleImages {
+	if info == nil {
+		return models.JavSampleImages{}
+	}
+	images := make(models.JavSampleImages, 0, len(info.SampleImages))
+	seen := make(map[string]struct{}, len(info.SampleImages))
+	for _, image := range info.SampleImages {
+		thumbnailURL := strings.TrimSpace(image.ThumbnailURL)
+		detailURL := strings.TrimSpace(image.DetailURL)
+		if thumbnailURL == "" {
+			thumbnailURL = detailURL
+		}
+		if detailURL == "" {
+			detailURL = thumbnailURL
+		}
+		if thumbnailURL == "" {
+			continue
+		}
+		key := thumbnailURL + "\x00" + detailURL
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		images = append(images, models.JavSampleImage{
+			ThumbnailURL: thumbnailURL,
+			DetailURL:    detailURL,
+		})
+	}
+	return images
 }
 
 func listJavTags(c *gin.Context) {

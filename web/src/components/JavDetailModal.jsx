@@ -7,7 +7,12 @@ import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { IconButton, Popper, Tooltip } from '@mui/material'
 
-import { deleteVideoScreenshot, fetchVideoScreenshotsByIds } from '@/api'
+import {
+  deleteVideoScreenshot,
+  fetchVideoScreenshotsByIds,
+  getResolvedJavSampleImages,
+  resolveJavSampleImages,
+} from '@/api'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
@@ -57,6 +62,79 @@ function screenshotItemsMatch(current, next) {
       Boolean(item?.is_cover) === Boolean(candidate?.is_cover)
     )
   })
+}
+
+function normalizeSampleImages(images) {
+  if (!Array.isArray(images)) return []
+  const seen = new Set()
+  return images.flatMap((image) => {
+    const thumbnailURL = String(image?.thumbnail_url || image?.detail_url || '').trim()
+    const detailURL = String(image?.detail_url || image?.thumbnail_url || '').trim()
+    if (thumbnailURL === ':not_found' || detailURL === ':not_found') return []
+    if (!thumbnailURL || !detailURL) return []
+    const key = `${thumbnailURL}\u0000${detailURL}`
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [{ thumbnail_url: thumbnailURL, detail_url: detailURL }]
+  })
+}
+
+function sampleImagesNotFound(images) {
+  return (
+    Array.isArray(images) &&
+    images.length === 1 &&
+    images[0]?.thumbnail_url === ':not_found' &&
+    images[0]?.detail_url === ':not_found'
+  )
+}
+
+function JavSampleImageGrid({ images }) {
+  const [previewItem, setPreviewItem] = useState(null)
+  const previewItems = useMemo(
+    () =>
+      images.map((image, index) => ({
+        name: zh(`样品图像 ${index + 1}`, `Sample image ${index + 1}`),
+        url: image.detail_url,
+      })),
+    [images]
+  )
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        {images.map((image, index) => (
+          <button
+            key={`${image.detail_url}-${index}`}
+            type="button"
+            onClick={() => setPreviewItem(previewItems[index])}
+            className="group w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm transition hover:border-gray-300 hover:shadow sm:w-40"
+            aria-label={zh(
+              `放大查看第 ${index + 1} 张样品图像`,
+              `Enlarge sample image ${index + 1}`
+            )}
+          >
+            <span className="flex aspect-video items-center justify-center overflow-hidden bg-white p-1">
+              <img
+                src={image.thumbnail_url}
+                alt={zh(`样品图像 ${index + 1}`, `Sample image ${index + 1}`)}
+                className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </span>
+          </button>
+        ))}
+      </div>
+      {previewItem ? (
+        <ScreenshotPreviewModal
+          item={previewItem}
+          items={previewItems}
+          onClose={() => setPreviewItem(null)}
+          onSelect={setPreviewItem}
+        />
+      ) : null}
+    </>
+  )
 }
 
 function JavScreenshotGrid({ videos, onPlayAtTime, onCoverChanged }) {
@@ -331,6 +409,8 @@ export default function JavDetailModal({
 }) {
   const dialogRef = useRef(null)
   const titleId = `jav-detail-title-${item?.id || 'item'}`
+  const itemId = item?.id
+  const itemSampleImages = item?.sample_images
   const code = String(item?.code || '').trim()
   const idols = useMemo(() => (Array.isArray(item?.idols) ? item.idols : []), [item?.idols])
   const videos = useMemo(() => (Array.isArray(item?.videos) ? item.videos : []), [item?.videos])
@@ -340,9 +420,13 @@ export default function JavDetailModal({
   const emptyVideoSelection = useMemo(() => new Set(), [])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
   const [hoverPreview, setHoverPreview] = useState(null)
+  const [sampleImages, setSampleImages] = useState(() => normalizeSampleImages(itemSampleImages))
+  const [sampleImagesLoading, setSampleImagesLoading] = useState(false)
+  const [sampleImagesError, setSampleImagesError] = useState('')
   const hoverCloseTimerRef = useRef(null)
   const activeHoverKeyRef = useRef('')
   const hoverPreviewLockedRef = useRef(false)
+  const directoryIdentity = (directoryIds || []).join(',')
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -363,6 +447,51 @@ export default function JavDetailModal({
       if (hoverCloseTimerRef.current) window.clearTimeout(hoverCloseTimerRef.current)
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const initialImages = normalizeSampleImages(itemSampleImages)
+    setSampleImages(initialImages)
+    setSampleImagesError('')
+    if (!itemId) {
+      setSampleImagesLoading(false)
+      return undefined
+    }
+    if (initialImages.length > 0) {
+      setSampleImagesLoading(false)
+      return undefined
+    }
+    if (sampleImagesNotFound(itemSampleImages)) {
+      setSampleImagesLoading(false)
+      return undefined
+    }
+
+    const requestOptions = {
+      directoryIds: directoryIdentity ? directoryIdentity.split(',') : [],
+    }
+    const resolvedImages = getResolvedJavSampleImages(itemId, requestOptions)
+    if (resolvedImages) {
+      setSampleImages(normalizeSampleImages(resolvedImages))
+      setSampleImagesLoading(false)
+      return undefined
+    }
+
+    setSampleImagesLoading(true)
+    void resolveJavSampleImages(itemId, requestOptions)
+      .then((images) => {
+        if (!cancelled) setSampleImages(normalizeSampleImages(images))
+      })
+      .catch((error) => {
+        if (!cancelled) setSampleImagesError(getErrorMessage(error))
+      })
+      .finally(() => {
+        if (!cancelled) setSampleImagesLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [directoryIdentity, itemId, itemSampleImages])
 
   const clearHoverCloseTimer = () => {
     if (!hoverCloseTimerRef.current) return
@@ -680,6 +809,31 @@ export default function JavDetailModal({
                 </div>
               )}
             </section>
+
+            {sampleImagesLoading || sampleImagesError || sampleImages.length > 0 ? (
+              <section
+                className="border-t border-gray-200 pt-5"
+                aria-labelledby={`${titleId}-sample-images`}
+              >
+                <h3
+                  id={`${titleId}-sample-images`}
+                  className="mb-3 text-base font-semibold text-gray-900"
+                >
+                  {zh('样品图像', 'Sample images')}
+                </h3>
+                {sampleImagesLoading ? (
+                  <div className="flex min-h-28 items-center justify-center rounded-lg border border-dashed border-gray-200 text-xs text-gray-500">
+                    {zh('正在加载样品图像…', 'Loading sample images...')}
+                  </div>
+                ) : sampleImages.length > 0 ? (
+                  <JavSampleImageGrid images={sampleImages} />
+                ) : (
+                  <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    {sampleImagesError}
+                  </div>
+                )}
+              </section>
+            ) : null}
 
             <section
               className="border-t border-gray-200 pt-5"
