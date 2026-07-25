@@ -3766,6 +3766,7 @@ export default function App() {
         onClose={() => setGlobalSettingsOpen(false)}
         directories={directories}
         browserPlaybackOnly={browserPlaybackOnly}
+        containerMode={containerMode}
         directoryPickerEnabled={directoryPickerEnabled}
         hostPathPrefixEnabled={hostPathPrefixEnabled}
         mpvEnabled={mpvEnabled}
@@ -3795,6 +3796,11 @@ export default function App() {
         proxyPort={Number.parseInt(config?.proxy_port, 10) || 0}
         onSaveProxySettings={async ({ host, port }) => {
           const cfg = await updateConfig({ proxy_host: host, proxy_port: port })
+          useStore.setState({ config: cfg })
+        }}
+        allowLANAccess={configFlag(config?.allow_lan_access)}
+        onSaveAllowLANAccess={async (enabled) => {
+          const cfg = await updateConfig({ allow_lan_access: Boolean(enabled) })
           useStore.setState({ config: cfg })
         }}
         defaultPlayer={defaultPlayer}

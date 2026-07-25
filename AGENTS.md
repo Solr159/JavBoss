@@ -10,7 +10,7 @@
 - `data/`, `web/dist/`, `release/`, `screenshot/`, `temp/`, `.gocache/`, and other scratch/build output directories are generated or runtime artifacts; keep them out of commits unless a release workflow explicitly requires them.
 
 ## Build, Test, and Development Commands
-- Backend: `go run ./cmd/server -addr :17654 -static web/dist` to serve API (and built frontend when desired).
+- Backend: `go run ./cmd/server -static web/dist` to serve API on port 17654 (and built frontend when desired).
 - Dev helper: `scripts/cli.sh dev backend|frontend` (flags: `WITH_STATIC=1`, `SKIP_NPM_INSTALL=1`, etc.).
 - Tests: `GOCACHE=$(pwd)/.gocache go test ./...` (no Go tests yet—keep it green).
 - Frontend (in `web/`): `npm install`; `npm run dev` for Vite, `npm run lint`, `npm run build` for prod bundle.

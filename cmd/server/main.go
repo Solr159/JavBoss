@@ -24,6 +24,7 @@ import (
 	"javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/models"
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/server"
 	"javboss/internal/service"
 	"javboss/internal/util"
@@ -38,10 +39,12 @@ import (
 
 var buildMode = "development"
 
-const defaultReleasePort = 8655
+const (
+	defaultDevelopmentPort = 17654
+	defaultReleasePort     = 8655
+)
 
 func main() {
-	addr := flag.String("addr", ":17654", "HTTP address to listen on")
 	staticDir := flag.String("static", "web/dist", "Path to built frontend assets")
 	flag.Parse()
 
@@ -119,7 +122,8 @@ func main() {
 	if passwordResetApplied {
 		logger.Printf("password reset applied; all existing sessions were revoked")
 	}
-	applyRuntimeConfig(ctx)
+	runtimeCfg := applyRuntimeConfig(ctx)
+	allowLANAccess := configBool(runtimeCfg["allow_lan_access"]) && !runtimeconfig.ContainerMode()
 
 	var activeDirs []models.Directory
 	if dirs, err := db.ListDirectories(ctx); err == nil {
@@ -179,9 +183,14 @@ func main() {
 	}
 
 	router := server.NewRouter(resolveStaticDir(*staticDir), authService)
+	listenAddr := configuredListenAddr(
+		defaultDevelopmentPort,
+		allowLANAccess,
+		runtimeconfig.ContainerMode(),
+	)
 
 	srv := &http.Server{
-		Addr:         *addr,
+		Addr:         listenAddr,
 		Handler:      router,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,
@@ -198,7 +207,7 @@ func main() {
 	}()
 
 	if buildMode == "release" {
-		listenAddr, err := releaseListenAddr(*addr, baseDir)
+		listenAddr, err := releaseListenAddr(baseDir, allowLANAccess)
 		if err != nil {
 			logger.Fatalf("resolve release listen address: %v", err)
 		}
@@ -221,19 +230,20 @@ func main() {
 		return
 	}
 
-	logger.Printf("server listening on %s", *addr)
+	logger.Printf("server listening on %s", listenAddr)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		logger.Fatalf("server error: %v", err)
 	}
 }
 
-func applyRuntimeConfig(ctx context.Context) {
+func applyRuntimeConfig(ctx context.Context) map[string]string {
 	cfg, err := db.ListConfig(ctx)
 	if err != nil {
 		logging.Error("load runtime config failed: %v", err)
-		return
+		return nil
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
+	return cfg
 }
 
 func buildLogger(baseDir string) (*log.Logger, func(), error) {
@@ -260,24 +270,29 @@ func buildLogger(baseDir string) (*log.Logger, func(), error) {
 	return logger, func() { _ = rotator.Close() }, nil
 }
 
-func releaseListenAddr(addr string, baseDir string) (string, error) {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		host = ""
+func configuredListenAddr(port int, allowLANAccess bool, containerMode bool) string {
+	host := "127.0.0.1"
+	if allowLANAccess || containerMode {
+		host = "0.0.0.0"
 	}
-	if host == "" {
-		host = "127.0.0.1"
-	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
+}
 
+func releaseListenAddr(baseDir string, allowLANAccess bool) (string, error) {
 	port, configured, err := releaseConfigPort(baseDir)
 	if err != nil {
 		return "", err
 	}
 	if configured {
-		return net.JoinHostPort(host, strconv.Itoa(port)), nil
+		return configuredListenAddr(port, allowLANAccess, false), nil
 	}
 
-	return net.JoinHostPort(host, strconv.Itoa(defaultReleasePort)), nil
+	return configuredListenAddr(defaultReleasePort, allowLANAccess, false), nil
+}
+
+func configBool(raw string) bool {
+	value, err := strconv.ParseBool(raw)
+	return err == nil && value
 }
 
 func releaseConfigPort(baseDir string) (int, bool, error) {

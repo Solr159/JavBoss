@@ -62,7 +62,7 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 	}
 }
 
-func TestUpdateConfigAcceptsBrowserPlayer(t *testing.T) {
+func TestUpdateConfigAcceptsBrowserPlayerAndLANAccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
 	if err != nil {
@@ -79,7 +79,11 @@ func TestUpdateConfigAcceptsBrowserPlayer(t *testing.T) {
 
 	router := gin.New()
 	router.PATCH("/config", updateConfig)
-	req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader([]byte(`{"default_player":"browser"}`)))
+	req := httptest.NewRequest(
+		http.MethodPatch,
+		"/config",
+		bytes.NewReader([]byte(`{"default_player":"browser","allow_lan_access":true}`)),
+	)
 	req.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, req)
@@ -93,6 +97,9 @@ func TestUpdateConfigAcceptsBrowserPlayer(t *testing.T) {
 	}
 	if got["default_player"] != "browser" {
 		t.Fatalf("default_player = %q, want browser", got["default_player"])
+	}
+	if got["allow_lan_access"] != "true" {
+		t.Fatalf("allow_lan_access = %q, want true", got["allow_lan_access"])
 	}
 }
 

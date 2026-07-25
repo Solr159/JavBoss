@@ -60,6 +60,7 @@ export default function GlobalSettingsModal({
   onClose,
   directories,
   browserPlaybackOnly = false,
+  containerMode = false,
   directoryPickerEnabled = true,
   hostPathPrefixEnabled = false,
   mpvEnabled = true,
@@ -70,6 +71,8 @@ export default function GlobalSettingsModal({
   proxyHost,
   proxyPort,
   onSaveProxySettings,
+  allowLANAccess = false,
+  onSaveAllowLANAccess,
   defaultPlayer,
   onSaveDefaultPlayer,
   initialViewMode,
@@ -95,6 +98,9 @@ export default function GlobalSettingsModal({
   const [savingProxy, setSavingProxy] = useState(false)
   const [proxyEditing, setProxyEditing] = useState(false)
   const [proxyEnabledInput, setProxyEnabledInput] = useState(false)
+  const [allowLANAccessInput, setAllowLANAccessInput] = useState(false)
+  const [allowLANAccessError, setAllowLANAccessError] = useState('')
+  const [savingAllowLANAccess, setSavingAllowLANAccess] = useState(false)
   const [activeSection, setActiveSection] = useState('directories')
   const [defaultPlayerInput, setDefaultPlayerInput] = useState('mpv')
   const [defaultPlayerError, setDefaultPlayerError] = useState('')
@@ -167,6 +173,8 @@ export default function GlobalSettingsModal({
       setProxyEnabledInput(Boolean(proxyPort))
       setProxyEditing(false)
       setProxyError('')
+      setAllowLANAccessInput(allowLANAccess === true)
+      setAllowLANAccessError('')
       setDefaultPlayerInput(
         defaultPlayer === 'browser' || defaultPlayer === 'system' ? defaultPlayer : 'mpv'
       )
@@ -193,6 +201,7 @@ export default function GlobalSettingsModal({
     open,
     proxyHost,
     proxyPort,
+    allowLANAccess,
     defaultPlayer,
     initialViewMode,
     showTopBarButtonTooltips,
@@ -518,6 +527,76 @@ export default function GlobalSettingsModal({
         ) : null}
       </div>
     </section>
+  )
+
+  const renderLANAccessPanel = () => {
+    if (containerMode) return null
+    const unchanged = allowLANAccessInput === (allowLANAccess === true)
+
+    const handleSave = async () => {
+      setAllowLANAccessError('')
+      setSavingAllowLANAccess(true)
+      try {
+        await onSaveAllowLANAccess?.(allowLANAccessInput)
+      } catch (err) {
+        setAllowLANAccessError(getErrorMessage(err))
+      } finally {
+        setSavingAllowLANAccess(false)
+      }
+    }
+
+    return (
+      <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-semibold text-zinc-800">
+              {zh('局域网访问', 'Local Network Access')}
+            </h4>
+            <p className="mt-1 text-sm text-zinc-500">
+              {zh(
+                '开启后，局域网设备可以通过本机 IP 地址访问 JavBoss。修改将在下次启动时生效。',
+                'When enabled, devices on your local network can access JavBoss through this computer’s IP address. Changes take effect after the next restart.'
+              )}
+            </p>
+          </div>
+
+          <label className="flex items-center gap-3 text-sm font-medium text-zinc-800">
+            <input
+              type="checkbox"
+              checked={allowLANAccessInput}
+              onChange={(event) => {
+                setAllowLANAccessInput(event.target.checked)
+                setAllowLANAccessError('')
+              }}
+              className="h-4 w-4 rounded"
+            />
+            <span>{zh('允许局域网设备访问', 'Allow access from local network devices')}</span>
+          </label>
+
+          {allowLANAccessError ? (
+            <div className="text-sm text-red-600">{allowLANAccessError}</div>
+          ) : null}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={savingAllowLANAccess || unchanged}
+              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+            >
+              {savingAllowLANAccess ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            </button>
+          </div>
+        </div>
+      </section>
+    )
+  }
+
+  const renderNetworkPanel = () => (
+    <div className="space-y-5">
+      {renderLANAccessPanel()}
+      {renderProxyPanel()}
+    </div>
   )
 
   const renderDisplayPanel = () => {
@@ -1297,7 +1376,7 @@ export default function GlobalSettingsModal({
             }`}
           >
             {currentSection === 'display' && renderDisplayPanel()}
-            {currentSection === 'network' && renderProxyPanel()}
+            {currentSection === 'network' && renderNetworkPanel()}
             {currentSection === 'tools' && renderToolsPanel()}
             {currentSection === 'player' && renderPlayerPanel()}
             {currentSection === 'directories' && renderDirectoriesPanel()}

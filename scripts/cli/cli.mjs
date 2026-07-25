@@ -352,8 +352,7 @@ async function startBackendDevChild() {
 
   await syncBundledMpvToInternal(current);
 
-  const addr = process.env.ADDR || ":17654";
-  const args = ["./cmd/server", "-addr", addr];
+  const args = ["./cmd/server"];
   if (process.env.WITH_STATIC === "1") {
     args.push("-static", process.env.STATIC || "web/dist");
   }
