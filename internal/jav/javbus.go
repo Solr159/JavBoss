@@ -80,11 +80,12 @@ func (javBus) LookupCoverURLByCode(code string) (string, error) {
 	if code == "" {
 		return "", ResourceNotFonud
 	}
+	lookupCode, _ := javBusLookupCode(code)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	doc, pageURL, err := fetchJavBusDocument(ctx, code)
+	doc, pageURL, err := fetchJavBusDocument(ctx, lookupCode)
 	if err != nil {
 		return "", err
 	}

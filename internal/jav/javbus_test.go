@@ -3,12 +3,21 @@ package jav
 import (
 	"context"
 	"errors"
+	"io"
+	"javboss/internal/util"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/net/html"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func resetJavBusRateLimiterForTest() {
 	javBusRateLimiter.Lock()
@@ -146,6 +155,60 @@ func TestJavBusLookupCodeRewritesSpecialPrefixes(t *testing.T) {
 	got, rewrite := javBusLookupCode("ABC-001")
 	if got != "ABC-001" || rewrite != nil {
 		t.Fatalf("javBusLookupCode(ABC-001) = %q, %#v; want ABC-001 without rewrite", got, rewrite)
+	}
+}
+
+func TestJavBusLookupCoverURLByCodeRewritesSpecialPrefixes(t *testing.T) {
+	client := util.DefaultHTTPClient()
+	originalTransport := client.Transport
+	t.Cleanup(func() {
+		client.Transport = originalTransport
+		resetJavBusRateLimiterForTest()
+	})
+
+	var requestedPaths []string
+	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requestedPaths = append(requestedPaths, req.URL.Path)
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Header:     make(http.Header),
+			Body: io.NopCloser(strings.NewReader(`
+				<html>
+					<head>
+						<meta property="og:image" content="/pics/cover/test_b.jpg">
+					</head>
+				</html>`)),
+			Request: req,
+		}, nil
+	})
+
+	cases := []struct {
+		code     string
+		wantPath string
+	}{
+		{code: "gana-001", wantPath: "/200gana-001"},
+		{code: "MIUM-001", wantPath: "/300mium-001"},
+		{code: "luxu-001", wantPath: "/259luxu-001"},
+	}
+	for _, tc := range cases {
+		resetJavBusRateLimiterForTest()
+		coverURL, err := (javBus{}).LookupCoverURLByCode(tc.code)
+		if err != nil {
+			t.Fatalf("LookupCoverURLByCode(%q) error: %v", tc.code, err)
+		}
+		if coverURL != "https://www.javbus.com/pics/cover/test_b.jpg" {
+			t.Fatalf("LookupCoverURLByCode(%q) = %q, want cover URL", tc.code, coverURL)
+		}
+	}
+
+	if len(requestedPaths) != len(cases) {
+		t.Fatalf("requested paths = %v, want %d requests", requestedPaths, len(cases))
+	}
+	for i, tc := range cases {
+		if requestedPaths[i] != tc.wantPath {
+			t.Errorf("request %d path = %q, want %q", i, requestedPaths[i], tc.wantPath)
+		}
 	}
 }
 
