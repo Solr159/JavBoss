@@ -355,8 +355,8 @@ export default function GlobalSettingsModal({
             </h4>
             <p className="mt-1 text-sm text-zinc-500">
               {zh(
-                '当前部署模式使用浏览器播放视频。',
-                'This deployment mode plays videos in the browser.'
+                '浏览器默认只能播放 MP4 格式视频，如果需要播放任意格式视频需前往“工具”中确认 FFmpeg 已安装。',
+                'Browsers can only play MP4 videos by default. To play videos in any format, go to Tools and make sure FFmpeg is installed.'
               )}
             </p>
           </div>
@@ -376,9 +376,9 @@ export default function GlobalSettingsModal({
                   }}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
-                  <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
-                  <option value="browser">{zh('浏览器播放器', 'Browser Player')}</option>
-                  <option value="system">{zh('系统播放器', 'System Player')}</option>
+                  <option value="mpv">MPV</option>
+                  <option value="browser">{zh('浏览器', 'Browser')}</option>
+                  <option value="system">{zh('系统', 'System')}</option>
                 </select>
                 <span
                   aria-hidden="true"
@@ -386,19 +386,14 @@ export default function GlobalSettingsModal({
                 />
               </span>
             </div>
-            <div>
+            {defaultPlayerInput === 'browser' ? (
               <p className="mt-1 text-sm text-zinc-500">
-                {defaultPlayerInput === 'browser'
-                  ? zh(
-                      '浏览器无法直接播放的视频需要 FFmpeg 转码；可在“工具”中下载安装。',
-                      'Videos the browser cannot play directly require FFmpeg transcoding. Install it under Tools.'
-                    )
-                  : zh(
-                      '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
-                      'The primary play button uses the selected player, while the bottom play button uses the other player.'
-                    )}
+                {zh(
+                  '浏览器默认只能播放 MP4 格式视频，如果需要播放任意格式视频需前往“工具”中确认 FFmpeg 已安装。',
+                  'Browsers can only play MP4 videos by default. To play videos in any format, go to Tools and make sure FFmpeg is installed.'
+                )}
               </p>
-            </div>
+            ) : null}
           </>
         )}
 
