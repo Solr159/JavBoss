@@ -132,6 +132,7 @@ func main() {
 	dataDir := filepath.Dir(cfg.DatabasePath)
 	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
 	streamManager := manager.NewStreamManager(filepath.Join(dataDir, "cache", "streams"))
+	ffmpegToolManager := manager.NewFFmpegToolManager(ctx, baseDir)
 	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
 		jav.ProviderJavDatabase,
 		jav.ProviderJavBus,
@@ -143,6 +144,7 @@ func main() {
 	common.ScreenshotManager = screenshotManager
 	common.CoverManager = coverManager
 	common.StreamManager = streamManager
+	common.FFmpegToolManager = ffmpegToolManager
 
 	javCache, err := cache.OpenSQLiteKV(filepath.Join(dataDir, "cache", "jav_cache.db"))
 	if err != nil {

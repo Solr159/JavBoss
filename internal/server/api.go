@@ -11,6 +11,8 @@ import (
 func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/config", getConfig)
 	router.PATCH("/config", updateConfig)
+	router.GET("/tools", getTools)
+	router.POST("/tools/ffmpeg/download", downloadFFmpeg)
 	router.GET("/videos", listVideos)
 	router.GET("/videos/screenshots", listVideosScreenshots)
 	router.GET("/videos/:id", getVideo)

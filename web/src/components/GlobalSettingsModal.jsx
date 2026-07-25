@@ -5,6 +5,7 @@ import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 
 import DirectoryManager from '@/components/DirectoryManager'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
+import { downloadFFmpeg, fetchTools } from '@/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -24,6 +25,11 @@ const SETTINGS_SECTIONS = [
     id: 'network',
     title: { zh: '网络与代理', en: 'Network & Proxy' },
     summary: { zh: '网络连接与代理设置', en: 'Network connection and proxy settings' },
+  },
+  {
+    id: 'tools',
+    title: { zh: '工具', en: 'Tools' },
+    summary: { zh: '下载与管理运行工具', en: 'Download and manage runtime tools' },
   },
   {
     id: 'player',
@@ -121,6 +127,10 @@ export default function GlobalSettingsModal({
   })
   const [passwordError, setPasswordError] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
+  const [ffmpegStatus, setFFmpegStatus] = useState(null)
+  const [toolsLoading, setToolsLoading] = useState(false)
+  const [toolsError, setToolsError] = useState('')
+  const [startingFFmpegDownload, setStartingFFmpegDownload] = useState(false)
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
 
@@ -151,7 +161,9 @@ export default function GlobalSettingsModal({
       setProxyEnabledInput(Boolean(proxyPort))
       setProxyEditing(false)
       setProxyError('')
-      setDefaultPlayerInput(defaultPlayer === 'system' ? 'system' : 'mpv')
+      setDefaultPlayerInput(
+        defaultPlayer === 'browser' || defaultPlayer === 'system' ? defaultPlayer : 'mpv'
+      )
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
       setInitialViewModeError('')
@@ -188,6 +200,44 @@ export default function GlobalSettingsModal({
     mpvEnabled,
     browserPlaybackOnly,
   ])
+
+  useEffect(() => {
+    if (!open || activeSection !== 'tools') return undefined
+    let cancelled = false
+    setToolsLoading(true)
+    setToolsError('')
+    fetchTools()
+      .then((tools) => {
+        if (!cancelled) setFFmpegStatus(tools?.ffmpeg || null)
+      })
+      .catch((err) => {
+        if (!cancelled) setToolsError(getErrorMessage(err))
+      })
+      .finally(() => {
+        if (!cancelled) setToolsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, activeSection])
+
+  useEffect(() => {
+    if (!open || activeSection !== 'tools' || !ffmpegStatus?.downloading) return undefined
+    let cancelled = false
+    const timer = window.setInterval(() => {
+      fetchTools()
+        .then((tools) => {
+          if (!cancelled) setFFmpegStatus(tools?.ffmpeg || null)
+        })
+        .catch((err) => {
+          if (!cancelled) setToolsError(getErrorMessage(err))
+        })
+    }, 750)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [open, activeSection, ffmpegStatus?.downloading])
 
   if (!open) return null
 
@@ -245,7 +295,10 @@ export default function GlobalSettingsModal({
   }
 
   const handleSaveDefaultPlayer = async () => {
-    const next = defaultPlayerInput === 'system' ? 'system' : 'mpv'
+    const next =
+      defaultPlayerInput === 'browser' || defaultPlayerInput === 'system'
+        ? defaultPlayerInput
+        : 'mpv'
     setDefaultPlayerError('')
     setSavingDefaultPlayer(true)
     try {
@@ -283,7 +336,8 @@ export default function GlobalSettingsModal({
   }
 
   const renderDefaultPlayerSettings = () => {
-    const currentDefaultPlayer = defaultPlayer === 'system' ? 'system' : 'mpv'
+    const currentDefaultPlayer =
+      defaultPlayer === 'browser' || defaultPlayer === 'system' ? defaultPlayer : 'mpv'
     const defaultPlayerUnchanged = defaultPlayerInput === currentDefaultPlayer
 
     return (
@@ -310,12 +364,14 @@ export default function GlobalSettingsModal({
                 <select
                   value={defaultPlayerInput}
                   onChange={(event) => {
-                    setDefaultPlayerInput(event.target.value === 'system' ? 'system' : 'mpv')
+                    const next = event.target.value
+                    setDefaultPlayerInput(next === 'browser' || next === 'system' ? next : 'mpv')
                     setDefaultPlayerError('')
                   }}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
                   <option value="mpv">{zh('MPV播放器', 'MPV Player')}</option>
+                  <option value="browser">{zh('浏览器播放器', 'Browser Player')}</option>
                   <option value="system">{zh('系统播放器', 'System Player')}</option>
                 </select>
                 <span
@@ -326,10 +382,15 @@ export default function GlobalSettingsModal({
             </div>
             <div>
               <p className="mt-1 text-sm text-zinc-500">
-                {zh(
-                  '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
-                  'The primary play button uses the selected player, while the bottom play button uses the other player.'
-                )}
+                {defaultPlayerInput === 'browser'
+                  ? zh(
+                      '浏览器无法直接播放的视频需要 FFmpeg 转码；可在“工具”中下载安装。',
+                      'Videos the browser cannot play directly require FFmpeg transcoding. Install it under Tools.'
+                    )
+                  : zh(
+                      '默认播放按钮使用所选播放器，底部播放按钮使用另一个播放器。',
+                      'The primary play button uses the selected player, while the bottom play button uses the other player.'
+                    )}
               </p>
             </div>
           </>
@@ -885,6 +946,97 @@ export default function GlobalSettingsModal({
     </div>
   )
 
+  const renderToolsPanel = () => {
+    const installed = Boolean(ffmpegStatus?.installed)
+    const downloading = Boolean(ffmpegStatus?.downloading)
+    const supported = ffmpegStatus?.supported !== false
+    const progress = Number(ffmpegStatus?.progress) || 0
+
+    const handleDownload = async () => {
+      setStartingFFmpegDownload(true)
+      setToolsError('')
+      try {
+        const status = await downloadFFmpeg()
+        setFFmpegStatus(status)
+      } catch (err) {
+        setToolsError(getErrorMessage(err))
+      } finally {
+        setStartingFFmpegDownload(false)
+      }
+    }
+
+    return (
+      <div className="space-y-5">
+        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm font-semibold text-zinc-900">FFmpeg</h4>
+                  {installed ? (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      {zh('已安装', 'Installed')}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-2 max-w-2xl text-sm text-zinc-500">
+                  {zh(
+                    '浏览器无法直接播放某些视频编码时，JavBoss 使用 FFmpeg 转码后播放。',
+                    'When a browser cannot play a video codec directly, JavBoss uses FFmpeg to transcode it for playback.'
+                  )}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={
+                  toolsLoading || startingFFmpegDownload || downloading || installed || !supported
+                }
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {toolsLoading
+                  ? zh('检查中…', 'Checking...')
+                  : downloading
+                    ? zh(`下载中 ${progress}%`, `Downloading ${progress}%`)
+                    : installed
+                      ? zh('已安装', 'Installed')
+                      : supported
+                        ? zh('下载 FFmpeg', 'Download FFmpeg')
+                        : zh('当前平台不支持', 'Unsupported platform')}
+              </button>
+            </div>
+
+            {downloading ? (
+              <div>
+                <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                  <div
+                    className="h-full rounded-full bg-blue-600 transition-[width] duration-300"
+                    style={{ width: `${Math.max(1, Math.min(100, progress))}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-zinc-500">
+                  {zh(
+                    '正在下载并校验 FFmpeg，请不要关闭 JavBoss。',
+                    'Downloading and validating FFmpeg. Keep JavBoss running.'
+                  )}
+                </p>
+              </div>
+            ) : null}
+
+            {ffmpegStatus?.error ? (
+              <div className="text-sm text-red-600">
+                {zh('下载失败：', 'Download failed: ')}
+                {ffmpegStatus.error}
+              </div>
+            ) : null}
+            {toolsError ? <div className="text-sm text-red-600">{toolsError}</div> : null}
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   const renderSecurityPanel = () => {
     const handleChangePassword = async (event) => {
       event.preventDefault()
@@ -1108,10 +1260,10 @@ export default function GlobalSettingsModal({
               {visibleSections.map((section) => {
                 const selected = currentSection === section.id
                 const badgeText =
-                  section.id === 'player'
-                    ? ''
-                    : section.id === 'directories'
-                      ? String(directories.length)
+                  section.id === 'directories'
+                    ? String(directories.length)
+                    : section.id === 'tools' && ffmpegStatus?.installed
+                      ? zh('已安装', 'Installed')
                       : ''
 
                 return (
@@ -1150,6 +1302,7 @@ export default function GlobalSettingsModal({
           >
             {currentSection === 'display' && renderDisplayPanel()}
             {currentSection === 'network' && renderProxyPanel()}
+            {currentSection === 'tools' && renderToolsPanel()}
             {currentSection === 'player' && renderPlayerPanel()}
             {currentSection === 'directories' && renderDirectoriesPanel()}
             {currentSection === 'security' && renderSecurityPanel()}

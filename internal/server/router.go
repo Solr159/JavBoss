@@ -39,7 +39,7 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 
 			router.NoRoute(func(c *gin.Context) {
 				path := c.Request.URL.Path
-				if strings.HasPrefix(path, "/videos") || strings.HasPrefix(path, "/tags") || strings.HasPrefix(path, "/sync") || strings.HasPrefix(path, "/healthz") {
+				if isAPIPath(path) {
 					respondLocalizedError(c, http.StatusNotFound, "接口不存在", "API endpoint was not found")
 					return
 				}
@@ -59,6 +59,25 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 	}
 
 	return router
+}
+
+func isAPIPath(path string) bool {
+	for _, prefix := range []string{
+		"/auth",
+		"/config",
+		"/directories",
+		"/healthz",
+		"/jav",
+		"/sync",
+		"/tags",
+		"/tools",
+		"/videos",
+	} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 func serveIndexHTML(c *gin.Context, indexPath string) {

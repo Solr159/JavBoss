@@ -12,5 +12,6 @@ var (
 	ScreenshotManager *manager.ScreenshotManager
 	CoverManager      *manager.CoverManager
 	StreamManager     *manager.StreamManager
+	FFmpegToolManager *manager.FFmpegToolManager
 	AppConfig         *Config
 )

@@ -23,6 +23,7 @@ export default defineConfig({
       '/directories': backendProxy(),
       '/jav': backendProxy(),
       '/config': backendProxy(),
+      '/tools': backendProxy(),
     },
   },
 })

@@ -22,6 +22,19 @@ async function apiFetch(input, init = {}) {
   return res
 }
 
+async function parseJSONResponse(res) {
+  const contentType = String(res.headers.get('content-type') || '').toLowerCase()
+  if (!contentType.includes('json')) {
+    throw new Error(
+      zh(
+        '服务端接口返回了网页，请确认后端已更新并重启',
+        'The server returned a web page. Make sure the backend is updated and restarted.'
+      )
+    )
+  }
+  return res.json()
+}
+
 export async function fetchAuthStatus() {
   const res = await fetch('/auth/status', { cache: 'no-store' })
   if (!res.ok) throw await apiError(res)
@@ -125,6 +138,18 @@ export async function updateConfig(payload) {
     throw await apiError(res)
   }
   return res.json()
+}
+
+export async function fetchTools() {
+  const res = await apiFetch('/tools', { cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
+export async function downloadFFmpeg() {
+  const res = await apiFetch('/tools/ffmpeg/download', { method: 'POST' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
 }
 
 export async function deleteTag(id) {

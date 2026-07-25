@@ -138,10 +138,6 @@ var (
 	ffprobeOnce sync.Once
 	ffprobePath string
 	ffprobeErr  error
-
-	ffmpegOnce sync.Once
-	ffmpegPath string
-	ffmpegErr  error
 )
 
 // ResolveFFprobePath resolves the ffprobe binary location.
@@ -154,10 +150,7 @@ func ResolveFFprobePath() (string, error) {
 
 // ResolveFFmpegPath resolves the ffmpeg binary location.
 func ResolveFFmpegPath() (string, error) {
-	ffmpegOnce.Do(func() {
-		ffmpegPath, ffmpegErr = findFFmpegPath()
-	})
-	return ffmpegPath, ffmpegErr
+	return findFFmpegPath()
 }
 
 func findFFprobePath() (string, error) {
@@ -166,6 +159,25 @@ func findFFprobePath() (string, error) {
 
 func findFFmpegPath() (string, error) {
 	return findFFBinaryPath("FFMPEG_PATH", "ffmpeg")
+}
+
+// FFmpegToolRelativePath returns the persistent project-relative path used for
+// FFmpeg downloaded from the frontend tools panel.
+func FFmpegToolRelativePath() string {
+	platformOS := runtime.GOOS
+	if platformOS == "darwin" {
+		platformOS = "macos"
+	}
+	platformArch := runtime.GOARCH
+	if platformArch == "amd64" {
+		platformArch = "x86_64"
+	}
+
+	binName := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		binName += ".exe"
+	}
+	return filepath.Join("data", "tools", platformOS+"-"+platformArch, binName)
 }
 
 func findFFBinaryPath(envKey, name string) (string, error) {
@@ -180,10 +192,16 @@ func findFFBinaryPath(envKey, name string) (string, error) {
 	}
 
 	if wd, err := os.Getwd(); err == nil {
+		if name == "ffmpeg" {
+			candidates = append(candidates, filepath.Join(wd, FFmpegToolRelativePath()))
+		}
 		candidates = append(candidates, filepath.Join(wd, "internal", "bin", binName))
 	}
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
+		if name == "ffmpeg" {
+			candidates = append(candidates, filepath.Join(execDir, FFmpegToolRelativePath()))
+		}
 		candidates = append(candidates, filepath.Join(execDir, "internal", "bin", binName))
 	}
 	candidates = append(candidates, binName)
@@ -195,6 +213,9 @@ func findFFBinaryPath(envKey, name string) (string, error) {
 		if resolved, err := exec.LookPath(candidate); err == nil {
 			return resolved, nil
 		}
+	}
+	if name == "ffmpeg" {
+		return "", fmt.Errorf("%s not found; set %s or place binary at %s", name, envKey, filepath.ToSlash(FFmpegToolRelativePath()))
 	}
 	return "", fmt.Errorf("%s not found; set %s or place binary at internal/bin/%s", name, envKey, binName)
 }

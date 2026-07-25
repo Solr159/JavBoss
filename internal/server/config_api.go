@@ -213,7 +213,7 @@ func updateConfig(c *gin.Context) {
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.DefaultPlayer)); s != "" {
 		switch s {
-		case "mpv", "system":
+		case "browser", "mpv", "system":
 			entries["default_player"] = s
 		default:
 			respondLocalizedError(c, http.StatusBadRequest, "默认播放器无效", "Invalid default player")

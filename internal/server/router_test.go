@@ -50,3 +50,28 @@ func TestIndexHTMLIgnoresStaleBrowserValidators(t *testing.T) {
 		})
 	}
 }
+
+func TestUnknownToolAPIPathDoesNotServeIndexHTML(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	staticDir := t.TempDir()
+	indexPath := filepath.Join(staticDir, "index.html")
+	if err := os.WriteFile(indexPath, []byte("<!doctype html><title>frontend</title>"), 0o600); err != nil {
+		t.Fatalf("write index: %v", err)
+	}
+
+	router := NewRouter(staticDir, testAuthService(t))
+	req := httptest.NewRequest(http.MethodGet, "/tools/missing", nil)
+	req.Header.Set("Accept", "text/html")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+	if contentType := recorder.Header().Get("Content-Type"); !strings.Contains(contentType, "application/json") {
+		t.Fatalf("Content-Type = %q, want JSON", contentType)
+	}
+	if strings.Contains(recorder.Body.String(), "<!doctype") {
+		t.Fatalf("body served frontend HTML: %s", recorder.Body.String())
+	}
+}

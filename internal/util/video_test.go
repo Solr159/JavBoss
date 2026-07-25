@@ -33,3 +33,37 @@ func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
 		t.Fatalf("detectContainer() = %q, want %q", got, "rmvb")
 	}
 }
+
+func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
+	originalWorkingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("get working directory: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(originalWorkingDir); err != nil {
+			t.Errorf("restore working directory: %v", err)
+		}
+	})
+
+	baseDir := t.TempDir()
+	if err := os.Chdir(baseDir); err != nil {
+		t.Fatalf("change working directory: %v", err)
+	}
+	t.Setenv("FFMPEG_PATH", "")
+
+	ffmpegPath := filepath.Join(baseDir, FFmpegToolRelativePath())
+	if err := os.MkdirAll(filepath.Dir(ffmpegPath), 0o755); err != nil {
+		t.Fatalf("create FFmpeg directory: %v", err)
+	}
+	if err := os.WriteFile(ffmpegPath, []byte("test ffmpeg"), 0o755); err != nil {
+		t.Fatalf("write FFmpeg fixture: %v", err)
+	}
+
+	got, err := findFFmpegPath()
+	if err != nil {
+		t.Fatalf("find FFmpeg: %v", err)
+	}
+	if filepath.Clean(got) != filepath.Clean(ffmpegPath) {
+		t.Fatalf("findFFmpegPath() = %q, want %q", got, ffmpegPath)
+	}
+}

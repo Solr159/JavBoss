@@ -61,12 +61,13 @@ import { useAuth } from '@/auth'
 const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
 const JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX = ':manual:'
 
-const normalizeDefaultPlayer = (value) =>
-  String(value || '')
+const normalizeDefaultPlayer = (value) => {
+  const normalized = String(value || '')
     .trim()
-    .toLowerCase() === 'system'
-    ? 'system'
-    : 'mpv'
+    .toLowerCase()
+  if (normalized === 'browser' || normalized === 'system') return normalized
+  return 'mpv'
+}
 
 const configFlag = (value, fallback = false) => {
   if (value == null || value === '') return fallback
@@ -520,7 +521,7 @@ export default function App() {
   const playVideoFromTime = useCallback(
     (video, startTime) => {
       if (!video) return
-      if (browserPlaybackOnly) {
+      if (browserPlaybackOnly || defaultPlayer === 'browser') {
         setPlayerStartTime(startTime || 0)
         setPlayerVideo(video)
         return
@@ -535,7 +536,7 @@ export default function App() {
         showCenterToast(getErrorMessage(err))
       })
     },
-    [browserPlaybackOnly, getVideoDirPath, getVideoRelPath, showCenterToast]
+    [browserPlaybackOnly, defaultPlayer, getVideoDirPath, getVideoRelPath, showCenterToast]
   )
 
   const handleOpenPlayer = useCallback(
