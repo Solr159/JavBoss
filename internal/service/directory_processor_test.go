@@ -20,6 +20,61 @@ func TestOrganizeCodePartsUsesUppercaseDirectories(t *testing.T) {
 	}
 }
 
+func TestDirectoryProcessModeNormalizesWhitespace(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantMode   string
+		wantStatus string
+		wantOK     bool
+	}{
+		{
+			name:       "sidecar",
+			input:      " sidecar ",
+			wantMode:   DirectoryProcessSidecar,
+			wantStatus: DirectoryWorkGeneratingSidecar,
+			wantOK:     true,
+		},
+		{
+			name:       "organize",
+			input:      "\torganize\n",
+			wantMode:   DirectoryProcessOrganize,
+			wantStatus: DirectoryWorkOrganizing,
+			wantOK:     true,
+		},
+		{
+			name:       "organize with sidecar",
+			input:      " organize_with_sidecar ",
+			wantMode:   DirectoryProcessOrganizeWithSidecar,
+			wantStatus: DirectoryWorkOrganizingWithSidecar,
+			wantOK:     true,
+		},
+		{
+			name:   "invalid",
+			input:  "unknown",
+			wantOK: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			mode, status, ok := directoryProcessMode(test.input)
+			if mode != test.wantMode || status != test.wantStatus || ok != test.wantOK {
+				t.Fatalf(
+					"directoryProcessMode(%q) = %q, %q, %t; want %q, %q, %t",
+					test.input,
+					mode,
+					status,
+					ok,
+					test.wantMode,
+					test.wantStatus,
+					test.wantOK,
+				)
+			}
+		})
+	}
+}
+
 func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 	root := t.TempDir()
 	sourceDir := filepath.Join(root, "incoming")

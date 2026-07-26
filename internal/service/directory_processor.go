@@ -51,16 +51,17 @@ type DirectoryProcessSummary struct {
 	Failed    int
 }
 
-func directoryProcessStatus(mode string) (string, bool) {
-	switch strings.TrimSpace(mode) {
+func directoryProcessMode(raw string) (mode string, status string, ok bool) {
+	mode = strings.TrimSpace(raw)
+	switch mode {
 	case DirectoryProcessSidecar:
-		return DirectoryWorkGeneratingSidecar, true
+		return mode, DirectoryWorkGeneratingSidecar, true
 	case DirectoryProcessOrganize:
-		return DirectoryWorkOrganizing, true
+		return mode, DirectoryWorkOrganizing, true
 	case DirectoryProcessOrganizeWithSidecar:
-		return DirectoryWorkOrganizingWithSidecar, true
+		return mode, DirectoryWorkOrganizingWithSidecar, true
 	default:
-		return "", false
+		return "", "", false
 	}
 }
 
@@ -82,10 +83,11 @@ func setDirectoryProcessingStatus(id int64, status string) {
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
 func StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string) error {
-	status, ok := directoryProcessStatus(mode)
+	normalizedMode, status, ok := directoryProcessMode(mode)
 	if !ok {
 		return ErrInvalidDirectoryProcessMode
 	}
+	mode = normalizedMode
 	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return ErrInvalidDirectoryProcessLayout
@@ -156,10 +158,12 @@ func ProcessDirectory(
 	mode string,
 	layout string,
 ) (*DirectoryProcessSummary, error) {
-	if _, ok := directoryProcessStatus(mode); !ok {
+	normalizedMode, _, ok := directoryProcessMode(mode)
+	if !ok {
 		return nil, ErrInvalidDirectoryProcessMode
 	}
-	layout, ok := directoryProcessLayout(layout)
+	mode = normalizedMode
+	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return nil, ErrInvalidDirectoryProcessLayout
 	}
