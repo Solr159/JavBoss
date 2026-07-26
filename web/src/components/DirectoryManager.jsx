@@ -14,26 +14,26 @@ const DIRECTORY_PROCESS_LAYOUT_IDOL = 'idol'
 const directoryProcessOptions = () => [
   {
     mode: DIRECTORY_PROCESS_SIDECAR,
-    title: zh('仅生成 Sidecar', 'Generate Sidecars only'),
+    title: zh('仅生成 NFO 和封面', 'Generate NFO and covers only'),
     description: zh(
-      '在视频旁生成 Jellyfin NFO 和封面，不移动视频。',
-      'Generate Jellyfin NFO and posters beside each video without moving it.'
+      '在视频旁生成媒体库可用的 NFO 和封面，不移动视频。',
+      'Generate media-library-compatible NFO files and covers beside each video without moving it.'
     ),
   },
   {
     mode: DIRECTORY_PROCESS_ORGANIZE,
     title: zh('仅整理目录', 'Organize only'),
     description: zh(
-      '按照选择的整理方式移动视频，保留原文件名，不生成 Sidecar。',
-      'Move videos using the selected layout, preserve filenames, and do not generate Sidecars.'
+      '按照选择的整理方式移动视频，保留原文件名，不生成 NFO 和封面。',
+      'Move videos using the selected layout, preserve filenames, and do not generate NFO files or covers.'
     ),
   },
   {
     mode: DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR,
-    title: zh('整理并生成 Sidecar', 'Organize and generate Sidecars'),
+    title: zh('整理并生成 NFO 和封面', 'Organize and generate NFO and covers'),
     description: zh(
-      '移动视频及同名附属文件，保留原文件名，然后生成 Jellyfin NFO 和封面。',
-      'Move videos and matching companion files while preserving filenames, then generate Jellyfin NFO and posters.'
+      '移动视频及同名附属文件，保留原文件名，然后生成媒体库可用的 NFO 和封面。',
+      'Move videos and matching companion files while preserving filenames, then generate media-library-compatible NFO files and covers.'
     ),
   },
 ]
@@ -70,13 +70,16 @@ const directoryWorkStatusDisplay = (status) => {
       }
     case 'generating_sidecar':
       return {
-        label: zh('当前状态：生成 Sidecar 中', 'Status: Generating Sidecars'),
+        label: zh('当前状态：生成 NFO 和封面中', 'Status: Generating NFO and covers'),
         badge: 'bg-violet-50 text-violet-700',
         dot: 'animate-pulse bg-violet-500',
       }
     case 'organizing_with_sidecar':
       return {
-        label: zh('当前状态：整理并生成 Sidecar 中', 'Status: Organizing and generating Sidecars'),
+        label: zh(
+          '当前状态：整理并生成 NFO 和封面中',
+          'Status: Organizing and generating NFO and covers'
+        ),
         badge: 'bg-amber-50 text-amber-700',
         dot: 'animate-pulse bg-amber-500',
       }
@@ -626,12 +629,14 @@ export default function DirectoryManager({
                 )}
               </div>
             )}
-            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              {zh(
-                '任务不提供预览；目标文件已存在时会跳过。同一目录的扫描、整理和 Sidecar 任务互斥。',
-                'Tasks have no preview; existing targets are skipped. Scanning, organizing, and Sidecar jobs are mutually exclusive within the same directory.'
-              )}
-            </div>
+            {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                {zh(
+                  '整理后的文件统一位于所选目录中的 JAV 文件夹下。',
+                  'Organized files are stored under the JAV folder inside the selected directory.'
+                )}
+              </div>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
