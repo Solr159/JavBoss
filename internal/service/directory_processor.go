@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,12 +27,16 @@ const (
 	DirectoryProcessSidecar             = "sidecar"
 	DirectoryProcessOrganize            = "organize"
 	DirectoryProcessOrganizeWithSidecar = "organize_with_sidecar"
+	DirectoryProcessLayoutPrefix        = "prefix"
+	DirectoryProcessLayoutIdol          = "idol"
 	directoryOrganizeParent             = "JAV"
+	directoryUnknownIdol                = "未知女优"
 )
 
 var (
-	ErrInvalidDirectoryProcessMode = errors.New("invalid directory process mode")
-	ErrDirectoryWorkInProgress     = errors.New("directory work in progress")
+	ErrInvalidDirectoryProcessMode   = errors.New("invalid directory process mode")
+	ErrInvalidDirectoryProcessLayout = errors.New("invalid directory process layout")
+	ErrDirectoryWorkInProgress       = errors.New("directory work in progress")
 
 	directoryProcessingMu     sync.Mutex
 	directoryProcessingStatus = map[int64]string{}
@@ -76,10 +81,14 @@ func setDirectoryProcessingStatus(id int64, status string) {
 }
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
-func StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode string) error {
+func StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string) error {
 	status, ok := directoryProcessStatus(mode)
 	if !ok {
 		return ErrInvalidDirectoryProcessMode
+	}
+	layout, ok = directoryProcessLayout(layout)
+	if !ok {
+		return ErrInvalidDirectoryProcessLayout
 	}
 	if directory.ID <= 0 || directory.IsDelete {
 		return errors.New("invalid directory")
@@ -103,7 +112,7 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 		defer setDirectoryProcessingStatus(directory.ID, "")
 		defer release()
 
-		summary, processErr := ProcessDirectory(context.Background(), directory, mode)
+		summary, processErr := ProcessDirectory(context.Background(), directory, mode, layout)
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
 		} else {
@@ -129,10 +138,30 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 	return nil
 }
 
+func directoryProcessLayout(layout string) (string, bool) {
+	switch strings.TrimSpace(layout) {
+	case "", DirectoryProcessLayoutPrefix:
+		return DirectoryProcessLayoutPrefix, true
+	case DirectoryProcessLayoutIdol:
+		return DirectoryProcessLayoutIdol, true
+	default:
+		return "", false
+	}
+}
+
 // ProcessDirectory organizes and/or writes Sidecar files for scraped locations.
-func ProcessDirectory(ctx context.Context, directory models.Directory, mode string) (*DirectoryProcessSummary, error) {
+func ProcessDirectory(
+	ctx context.Context,
+	directory models.Directory,
+	mode string,
+	layout string,
+) (*DirectoryProcessSummary, error) {
 	if _, ok := directoryProcessStatus(mode); !ok {
 		return nil, ErrInvalidDirectoryProcessMode
+	}
+	layout, ok := directoryProcessLayout(layout)
+	if !ok {
+		return nil, ErrInvalidDirectoryProcessLayout
 	}
 	if strings.TrimSpace(directory.Path) == "" {
 		return nil, errors.New("directory path is empty")
@@ -152,7 +181,7 @@ func ProcessDirectory(ctx context.Context, directory models.Directory, mode stri
 		if err := ctx.Err(); err != nil {
 			return summary, err
 		}
-		processJavItem(ctx, directory.Path, &items[i], mode, coverDir, summary)
+		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary)
 	}
 	return summary, nil
 }
@@ -162,6 +191,7 @@ func processJavItem(
 	root string,
 	item *models.Jav,
 	mode string,
+	layout string,
 	coverDir string,
 	summary *DirectoryProcessSummary,
 ) {
@@ -188,9 +218,13 @@ func processJavItem(
 		}
 		target := source
 		if mode != DirectoryProcessSidecar {
+			group := prefix
+			if layout == DirectoryProcessLayoutIdol {
+				group = organizeIdolComponent(item.Idols)
+			}
 			target, err = safeDirectoryFilePath(
 				root,
-				filepath.Join(directoryOrganizeParent, prefix, code, filepath.Base(source)),
+				filepath.Join(directoryOrganizeParent, group, code, filepath.Base(source)),
 			)
 			if err != nil {
 				summary.Failed++
@@ -219,6 +253,36 @@ func processJavItem(
 			summary.Sidecars++
 		}
 	}
+}
+
+func organizeIdolComponent(idols []models.JavIdol) string {
+	names := make([]string, 0, len(idols))
+	seen := make(map[string]struct{}, len(idols))
+	for i := range idols {
+		name := firstNonEmptyString(
+			idols[i].ChineseName,
+			idols[i].Name,
+			idols[i].JapaneseName,
+			idols[i].RomanName,
+		)
+		name = sanitizeOrganizeComponent(name)
+		if name == "" {
+			continue
+		}
+		key := strings.ToLower(name)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		names = append(names, name)
+	}
+	if len(names) == 0 {
+		return directoryUnknownIdol
+	}
+	sort.Slice(names, func(i, j int) bool {
+		return strings.ToLower(names[i]) < strings.ToLower(names[j])
+	})
+	return strings.Join(names, "，")
 }
 
 func organizeCodeParts(raw string) (code string, prefix string, ok bool) {

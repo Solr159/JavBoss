@@ -8,6 +8,8 @@ import { getErrorMessage } from '@/utils/errors'
 const DIRECTORY_PROCESS_SIDECAR = 'sidecar'
 const DIRECTORY_PROCESS_ORGANIZE = 'organize'
 const DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR = 'organize_with_sidecar'
+const DIRECTORY_PROCESS_LAYOUT_PREFIX = 'prefix'
+const DIRECTORY_PROCESS_LAYOUT_IDOL = 'idol'
 
 const directoryProcessOptions = () => [
   {
@@ -22,8 +24,8 @@ const directoryProcessOptions = () => [
     mode: DIRECTORY_PROCESS_ORGANIZE,
     title: zh('仅整理目录', 'Organize only'),
     description: zh(
-      '移动到“JAV/大写前缀/大写番号”，保留原文件名，不生成 Sidecar。',
-      'Move into "JAV/UPPERCASE PREFIX/UPPERCASE CODE", preserve filenames, and do not generate Sidecars.'
+      '按照选择的整理方式移动视频，保留原文件名，不生成 Sidecar。',
+      'Move videos using the selected layout, preserve filenames, and do not generate Sidecars.'
     ),
   },
   {
@@ -33,6 +35,19 @@ const directoryProcessOptions = () => [
       '移动视频及同名附属文件，保留原文件名，然后生成 Jellyfin NFO 和封面。',
       'Move videos and matching companion files while preserving filenames, then generate Jellyfin NFO and posters.'
     ),
+  },
+]
+
+const directoryProcessLayoutOptions = () => [
+  {
+    layout: DIRECTORY_PROCESS_LAYOUT_PREFIX,
+    title: zh('按番号前缀', 'By code prefix'),
+    example: 'JAV/IPX/IPX-001/...',
+  },
+  {
+    layout: DIRECTORY_PROCESS_LAYOUT_IDOL,
+    title: zh('按女优', 'By idol'),
+    example: zh('JAV/女优名/IPX-001/...', 'JAV/IDOL NAME/IPX-001/...'),
   },
 ]
 
@@ -115,6 +130,7 @@ export default function DirectoryManager({
   const [processingId, setProcessingId] = useState(null)
   const [toolDirectory, setToolDirectory] = useState(null)
   const [toolMode, setToolMode] = useState(DIRECTORY_PROCESS_SIDECAR)
+  const [toolLayout, setToolLayout] = useState(DIRECTORY_PROCESS_LAYOUT_PREFIX)
   const windowsPlatform = isWindowsPlatform()
   const pathPlaceholder = useHostPaths
     ? zh(
@@ -150,6 +166,7 @@ export default function DirectoryManager({
       setRowErrorMsg('')
       setToolDirectory(null)
       setToolMode(DIRECTORY_PROCESS_SIDECAR)
+      setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
     }
   }, [open])
 
@@ -290,7 +307,7 @@ export default function DirectoryManager({
     }
   }
 
-  const handleProcess = async (dir, mode) => {
+  const handleProcess = async (dir, mode, layout) => {
     if (!dir?.id || directoryWorkStatus(dir) !== 'idle') return
 
     setToolDirectory(null)
@@ -298,7 +315,7 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
-      await onProcess?.(dir.id, mode)
+      await onProcess?.(dir.id, mode, layout)
     } catch (err) {
       setRowErrorId(dir.id)
       setRowErrorMsg(getErrorMessage(err))
@@ -411,6 +428,7 @@ export default function DirectoryManager({
                         onClick={() => {
                           setToolDirectory(d)
                           setToolMode(DIRECTORY_PROCESS_SIDECAR)
+                          setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
                           setRowErrorId(null)
                           setRowErrorMsg('')
                         }}
@@ -565,6 +583,49 @@ export default function DirectoryManager({
                 </label>
               ))}
             </div>
+            {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+              <div className="mt-4">
+                <div className="text-sm font-medium text-zinc-900">
+                  {zh('整理方式', 'Organization layout')}
+                </div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {directoryProcessLayoutOptions().map((option) => (
+                    <label
+                      key={option.layout}
+                      htmlFor={`directory-process-layout-${option.layout}`}
+                      className={`cursor-pointer rounded-xl border p-3 transition ${
+                        toolLayout === option.layout
+                          ? 'border-blue-400 bg-blue-50'
+                          : 'border-zinc-200 hover:bg-zinc-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          id={`directory-process-layout-${option.layout}`}
+                          type="radio"
+                          name="directory-process-layout"
+                          value={option.layout}
+                          checked={toolLayout === option.layout}
+                          onChange={() => setToolLayout(option.layout)}
+                        />
+                        <span className="text-sm font-medium text-zinc-900">{option.title}</span>
+                      </span>
+                      <span className="mt-1 block pl-6 text-xs text-zinc-500">
+                        {option.example}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
+                  <div className="mt-2 text-xs leading-5 text-zinc-500">
+                    {zh(
+                      '多女优作品会将女优名排序后用“，”连接；没有女优信息时归入“未知女优”。',
+                      'For works with multiple idols, sorted names are joined with "，". Works without idol metadata go under "未知女优".'
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
                 '任务不提供预览；目标文件已存在时会跳过。同一目录的扫描、整理和 Sidecar 任务互斥。',
@@ -581,7 +642,7 @@ export default function DirectoryManager({
               </button>
               <button
                 type="button"
-                onClick={() => handleProcess(toolDirectory, toolMode)}
+                onClick={() => handleProcess(toolDirectory, toolMode, toolLayout)}
                 disabled={toolDirectoryWorking}
                 className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
               >

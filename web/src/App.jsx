@@ -3792,8 +3792,8 @@ export default function App() {
           await loadDirectories()
           return deleted
         }}
-        onProcessDirectory={async (id, mode) => {
-          const result = await processDirectory(id, mode)
+        onProcessDirectory={async (id, mode, layout) => {
+          const result = await processDirectory(id, mode, layout)
           await loadDirectories()
           showToast(zh('目录任务已启动', 'Directory task started'))
           return result

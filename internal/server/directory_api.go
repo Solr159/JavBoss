@@ -169,7 +169,8 @@ func processDirectory(c *gin.Context) {
 	}
 
 	var req struct {
-		Mode string `json:"mode"`
+		Mode   string `json:"mode"`
+		Layout string `json:"layout"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "目录处理请求无效", "Invalid directory processing request")
@@ -193,10 +194,12 @@ func processDirectory(c *gin.Context) {
 
 	startCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	if err := service.StartDirectoryProcessing(startCtx, *dir, req.Mode); err != nil {
+	if err := service.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout); err != nil {
 		switch {
 		case errors.Is(err, service.ErrInvalidDirectoryProcessMode):
 			respondLocalizedError(c, http.StatusBadRequest, "目录处理模式无效", "Invalid directory processing mode")
+		case errors.Is(err, service.ErrInvalidDirectoryProcessLayout):
+			respondLocalizedError(c, http.StatusBadRequest, "目录整理方式无效", "Invalid directory organization layout")
 		case errors.Is(err, service.ErrDirectoryWorkInProgress),
 			errors.Is(err, service.ErrDirectoryScanInProgress),
 			errors.Is(err, context.DeadlineExceeded):

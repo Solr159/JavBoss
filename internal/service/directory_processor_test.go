@@ -38,7 +38,15 @@ func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 		}},
 	}
 	summary := &DirectoryProcessSummary{}
-	processJavItem(t.Context(), root, &item, DirectoryProcessOrganize, "", summary)
+	processJavItem(
+		t.Context(),
+		root,
+		&item,
+		DirectoryProcessOrganize,
+		DirectoryProcessLayoutPrefix,
+		"",
+		summary,
+	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
 	if _, err := os.Stat(filepath.Join(targetDir, videoName)); err != nil {
@@ -81,6 +89,7 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 		root,
 		&item,
 		DirectoryProcessOrganizeWithSidecar,
+		DirectoryProcessLayoutPrefix,
 		coverDir,
 		summary,
 	)
@@ -112,6 +121,60 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 	}
 	if summary.Moved != 1 || summary.Sidecars != 1 || summary.Failed != 0 {
 		t.Fatalf("summary = %+v, want one move, one Sidecar, and no failures", summary)
+	}
+}
+
+func TestProcessJavItemOrganizesBySortedIdols(t *testing.T) {
+	root := t.TempDir()
+	videoName := "original-name.mp4"
+	writeTestFile(t, filepath.Join(root, videoName), []byte("video"))
+
+	item := models.Jav{
+		Code: "ipx-001",
+		Idols: []models.JavIdol{
+			{Name: "Third Idol", ChineseName: "女优3"},
+			{Name: "First Idol", ChineseName: "女优1"},
+			{Name: "Second Idol", ChineseName: "女优2"},
+		},
+		Videos: []models.Video{{Path: videoName}},
+	}
+	summary := &DirectoryProcessSummary{}
+	processJavItem(
+		t.Context(),
+		root,
+		&item,
+		DirectoryProcessOrganize,
+		DirectoryProcessLayoutIdol,
+		"",
+		summary,
+	)
+
+	target := filepath.Join(root, "JAV", "女优1，女优2，女优3", "IPX-001", videoName)
+	if _, err := os.Stat(target); err != nil {
+		t.Fatalf("idol-organized video missing: %v", err)
+	}
+	if summary.Moved != 1 || summary.Failed != 0 {
+		t.Fatalf("summary = %+v, want one move and no failures", summary)
+	}
+}
+
+func TestOrganizeIdolComponentFallsBackToUnknownIdol(t *testing.T) {
+	if got := organizeIdolComponent(nil); got != directoryUnknownIdol {
+		t.Fatalf("organizeIdolComponent(nil) = %q, want %q", got, directoryUnknownIdol)
+	}
+	if got := organizeIdolComponent([]models.JavIdol{{Name: " ../ "}}); got != directoryUnknownIdol {
+		t.Fatalf("unsafe idol component = %q, want %q", got, directoryUnknownIdol)
+	}
+}
+
+func TestOrganizeIdolComponentDeduplicatesNames(t *testing.T) {
+	idols := []models.JavIdol{
+		{Name: "Idol B"},
+		{Name: "idol b"},
+		{Name: "Idol A"},
+	}
+	if got := organizeIdolComponent(idols); got != "Idol_A，Idol_B" {
+		t.Fatalf("organizeIdolComponent() = %q, want %q", got, "Idol_A，Idol_B")
 	}
 }
 
