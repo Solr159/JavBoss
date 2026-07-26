@@ -61,6 +61,7 @@ func updateConfig(c *gin.Context) {
 		JavSort                string                `json:"jav_sort"`
 		IdolSort               string                `json:"idol_sort"`
 		JavIdolPreferChinese   *bool                 `json:"jav_idol_prefer_chinese_name"`
+		JavTagShowSimplified   *bool                 `json:"jav_tag_show_simplified"`
 		DefaultPlayer          string                `json:"default_player"`
 		InitialViewMode        string                `json:"initial_view_mode"`
 		ShowTopBarTooltips     *bool                 `json:"show_top_bar_button_tooltips"`
@@ -211,6 +212,9 @@ func updateConfig(c *gin.Context) {
 	}
 	if req.JavIdolPreferChinese != nil {
 		entries["jav_idol_prefer_chinese_name"] = strconv.FormatBool(*req.JavIdolPreferChinese)
+	}
+	if req.JavTagShowSimplified != nil {
+		entries["jav_tag_show_simplified"] = strconv.FormatBool(*req.JavTagShowSimplified)
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.DefaultPlayer)); s != "" {
 		switch s {

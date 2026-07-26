@@ -33,6 +33,7 @@ import VideoGrid from '@/components/VideoGrid'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { getIdolDisplayName } from '@/utils/javIdol'
+import { withJavTagDisplayName } from '@/utils/javTag'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -126,6 +127,16 @@ export default function JavGrid({
   const hideIdols = useStore((state) => configFlag(state.config?.jav_hide_idols))
   const hideTags = useStore((state) => configFlag(state.config?.jav_hide_tags))
   const hideActions = useStore((state) => configFlag(state.config?.jav_hide_actions))
+  const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
+  const displayItems = useMemo(() => {
+    if (!showSimplifiedTags) return items
+    return (items || []).map((item) => ({
+      ...item,
+      tags: Array.isArray(item?.tags)
+        ? item.tags.map((tag) => withJavTagDisplayName(tag, true))
+        : item?.tags,
+    }))
+  }, [items, showSimplifiedTags])
   const idolPreviewCacheRef = useRef(new Map())
   const idolPreviewInflightRef = useRef(new Map())
   const studioPreviewCacheRef = useRef(new Map())
@@ -147,7 +158,7 @@ export default function JavGrid({
       }) || videoManagerItem
     )
   }, [items, videoManagerItem])
-  const hasItems = Array.isArray(items) && items.length > 0
+  const hasItems = Array.isArray(displayItems) && displayItems.length > 0
   const columnCount = Number.isFinite(Number(columns)) ? Math.floor(Number(columns)) : 0
   const fixedColumnCount = columnCount > 0 ? Math.min(columnCount, 12) : 0
   const gridClassName = 'grid gap-4'
@@ -263,7 +274,7 @@ export default function JavGrid({
   return (
     <>
       <div className={gridClassName} style={gridStyle}>
-        {items.map((item) => (
+        {displayItems.map((item) => (
           <JavCard
             key={item.id || item.code}
             item={item}

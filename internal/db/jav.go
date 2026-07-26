@@ -11,6 +11,7 @@ import (
 	"javboss/internal/common"
 	"javboss/internal/jav"
 	"javboss/internal/models"
+	"javboss/internal/util"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -18,10 +19,11 @@ import (
 
 // JavTagCount represents a JAV tag with associated work count.
 type JavTagCount struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Provider int    `json:"provider"`
-	Count    int64  `json:"count"`
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	SimplifiedName string `json:"simplified_name,omitempty"`
+	Provider       int    `json:"provider"`
+	Count          int64  `json:"count"`
 }
 
 // JavPrefixSummary represents an aggregated JAV code prefix.
@@ -281,9 +283,10 @@ func attachVisibleJavTags(ctx context.Context, items []models.Jav) error {
 			continue
 		}
 		items[i].Tags = append(items[i].Tags, models.JavTag{
-			ID:       r.ID,
-			Name:     r.Name,
-			Provider: r.Provider,
+			ID:             r.ID,
+			Name:           r.Name,
+			SimplifiedName: util.SimplifyChineseName(r.Name),
+			Provider:       r.Provider,
 		})
 	}
 	return nil
@@ -461,6 +464,9 @@ func ListJavTags(ctx context.Context, directoryIDs []int64) ([]JavTagCount, erro
 		return nil, err
 	}
 	tags := append(scrapedTags, userTags...)
+	for i := range tags {
+		tags[i].SimplifiedName = util.SimplifyChineseName(tags[i].Name)
+	}
 	return tags, nil
 }
 

@@ -1353,6 +1353,39 @@ func TestCreatedUserJavTagAppearsWithZeroCount(t *testing.T) {
 	t.Fatalf("created user tag not listed: %#v", tags)
 }
 
+func TestAttachVisibleJavTagsIncludesSimplifiedName(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+
+	javRec := models.Jav{Code: "TAG-ZH-001", Title: "Traditional tag"}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+	tag := models.JavTag{Name: "無碼"}
+	if err := gdb.Create(&tag).Error; err != nil {
+		t.Fatalf("create tag: %v", err)
+	}
+	if err := gdb.Create(&models.JavTagMap{
+		JavID:     javRec.ID,
+		JavTagID:  tag.ID,
+		Provider:  int(jav.ProviderJavBus),
+		CreatedAt: time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("create tag map: %v", err)
+	}
+
+	items := []models.Jav{{ID: javRec.ID}}
+	if err := attachVisibleJavTags(ctx, items); err != nil {
+		t.Fatalf("attachVisibleJavTags: %v", err)
+	}
+	if len(items[0].Tags) != 1 {
+		t.Fatalf("attached tags = %#v, want one", items[0].Tags)
+	}
+	if items[0].Tags[0].Name != "無碼" || items[0].Tags[0].SimplifiedName != "无码" {
+		t.Fatalf("unexpected tag names: %#v", items[0].Tags[0])
+	}
+}
+
 func TestJavTagsFilterOutEnglishProviders(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

@@ -35,7 +35,8 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 		"jav_waterfall_default": true,
 		"idol_waterfall_default": false,
 		"studio_waterfall_default": true,
-		"series_waterfall_default": false
+		"series_waterfall_default": false,
+		"jav_tag_show_simplified": true
 	}`)
 	req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -54,6 +55,7 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 		"idol_waterfall_default":   "false",
 		"studio_waterfall_default": "true",
 		"series_waterfall_default": "false",
+		"jav_tag_show_simplified":  "true",
 	}
 	for key, value := range want {
 		if got[key] != value {

@@ -112,7 +112,7 @@ const controlClassName =
   'h-9 w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
 
 function normalizeSettingsTab(tab) {
-  return ['jav', 'idol', 'studio', 'series'].includes(tab) ? tab : 'jav'
+  return ['jav', 'idol', 'studio', 'series', 'tag'].includes(tab) ? tab : 'jav'
 }
 
 export default function JavSettingsModal({
@@ -157,6 +157,8 @@ export default function JavSettingsModal({
   onIdolSortChange,
   javIdolPreferChineseNameInput = false,
   onJavIdolPreferChineseNameChange,
+  javTagShowSimplifiedInput = false,
+  onJavTagShowSimplifiedChange,
   onSave,
 }) {
   const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(initialTab))
@@ -168,6 +170,7 @@ export default function JavSettingsModal({
     { key: 'idol', label: zh('女优', 'Idols') },
     { key: 'studio', label: zh('片商', 'Studios') },
     { key: 'series', label: zh('系列', 'Series') },
+    { key: 'tag', label: zh('标签', 'Tags') },
   ]
 
   const resetActiveTab = () => {
@@ -185,6 +188,9 @@ export default function JavSettingsModal({
       case 'series':
         onSeriesPageSizeChange?.(25)
         onSeriesWaterfallDefaultChange?.(false)
+        break
+      case 'tag':
+        onJavTagShowSimplifiedChange?.(false)
         break
       default:
         onJavPageSizeChange?.(24)
@@ -468,6 +474,18 @@ export default function JavSettingsModal({
                   />
                 </SettingsRow>
               </div>
+            </SettingsSection>
+          ) : null}
+
+          {activeTab === 'tag' ? (
+            <SettingsSection title={zh('标签设置', 'Tag settings')}>
+              <SettingsRow label={zh('显示简体标签', 'Show simplified Chinese tags')}>
+                <SettingsSwitch
+                  label={zh('显示简体标签', 'Show simplified Chinese tags')}
+                  checked={javTagShowSimplifiedInput}
+                  onChange={onJavTagShowSimplifiedChange}
+                />
+              </SettingsRow>
             </SettingsSection>
           ) : null}
         </div>

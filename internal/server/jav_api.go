@@ -18,6 +18,7 @@ import (
 	"javboss/internal/jav"
 	"javboss/internal/manager"
 	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 func searchJav(c *gin.Context) {
@@ -337,10 +338,11 @@ func createJavTag(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, dbpkg.JavTagCount{
-		ID:       tag.ID,
-		Name:     tag.Name,
-		Provider: tag.Provider,
-		Count:    0,
+		ID:             tag.ID,
+		Name:           tag.Name,
+		SimplifiedName: util.SimplifyChineseName(tag.Name),
+		Provider:       tag.Provider,
+		Count:          0,
 	})
 }
 

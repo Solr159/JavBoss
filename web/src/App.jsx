@@ -56,6 +56,7 @@ import VideoRoute from '@/routes/VideoRoute'
 import { isChineseLocale, zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
+import { withJavTagDisplayName } from '@/utils/javTag'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { useAuth } from '@/auth'
 
@@ -341,6 +342,9 @@ export default function App() {
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
   const [javIdolPreferChineseNameInput, setJavIdolPreferChineseNameInput] = useState(
     configFlag(config?.jav_idol_prefer_chinese_name)
+  )
+  const [javTagShowSimplifiedInput, setJavTagShowSimplifiedInput] = useState(
+    configFlag(config?.jav_tag_show_simplified)
   )
   const [javResolvedIdols, setJavResolvedIdols] = useState({})
   const [toastMessage, setToastMessage] = useState('')
@@ -1632,9 +1636,16 @@ export default function App() {
     (studioPage - 1) * studioPageSize + (studioItems?.length || 0) < (studioTotal || 0)
   const seriesWaterfallHasMore =
     (seriesPage - 1) * seriesPageSize + (seriesItems?.length || 0) < (seriesTotal || 0)
+  const displayJavTagOptions = useMemo(
+    () =>
+      (javTagOptions || []).map((tag) =>
+        withJavTagDisplayName(tag, configFlag(config?.jav_tag_show_simplified))
+      ),
+    [config?.jav_tag_show_simplified, javTagOptions]
+  )
   const javTagNameMap = useMemo(
-    () => new Map((javTagOptions || []).map((tag) => [tag.id, tag.name])),
-    [javTagOptions]
+    () => new Map(displayJavTagOptions.map((tag) => [tag.id, tag.name])),
+    [displayJavTagOptions]
   )
   const javDirectoryKey = javQueryDirectoryIds.join(',')
   const javIdolOptionMap = useMemo(() => {
@@ -2044,6 +2055,7 @@ export default function App() {
         jav_sort: normalizedSort,
         idol_sort: normalizedIdolSort,
         jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
+        jav_tag_show_simplified: Boolean(javTagShowSimplifiedInput),
       })
       const prevJavPage = javPage
       const prevIdolPage = idolPage
@@ -2114,10 +2126,12 @@ export default function App() {
       setJavSortInput(javSort)
       setIdolSortInput(idolSort)
       setJavIdolPreferChineseNameInput(configFlag(config?.jav_idol_prefer_chinese_name))
+      setJavTagShowSimplifiedInput(configFlag(config?.jav_tag_show_simplified))
     }
   }, [
     javSettingsOpen,
     config?.jav_idol_prefer_chinese_name,
+    config?.jav_tag_show_simplified,
     config?.jav_hide_series,
     config?.jav_hide_idols,
     config?.jav_hide_tags,
@@ -3443,7 +3457,7 @@ export default function App() {
         idolIds={javIdolIds}
         idolOptions={javIdolFilterOptions}
         tagIds={javTags}
-        tagOptions={javTagOptions}
+        tagOptions={displayJavTagOptions}
         studioId={javStudioId}
         studioName={javStudioName}
         seriesId={javSeriesId}
@@ -3542,6 +3556,8 @@ export default function App() {
         onIdolSortChange={setIdolSortInput}
         javIdolPreferChineseNameInput={javIdolPreferChineseNameInput}
         onJavIdolPreferChineseNameChange={setJavIdolPreferChineseNameInput}
+        javTagShowSimplifiedInput={javTagShowSimplifiedInput}
+        onJavTagShowSimplifiedChange={setJavTagShowSimplifiedInput}
         onSave={handleSaveJavSettings}
       />
 
@@ -3723,7 +3739,7 @@ export default function App() {
       <JavTagModal
         open={javTagModalOpen}
         onClose={() => setJavTagModalOpen(false)}
-        tags={javTagOptions}
+        tags={displayJavTagOptions}
         onApplyTagFilter={applyJavTagFilter}
         onCreateTag={async (name) => {
           await createJavTag(name)

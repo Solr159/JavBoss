@@ -391,7 +391,9 @@ export default function JavQueryEditorModal({
     return [...list]
       .filter((tag) => {
         if (!query) return true
-        return String(tag?.name || '')
+        return [tag?.name, tag?.original_name, tag?.simplified_name]
+          .filter(Boolean)
+          .join(' ')
           .toLowerCase()
           .includes(query)
       })
