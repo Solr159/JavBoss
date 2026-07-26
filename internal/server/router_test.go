@@ -105,11 +105,11 @@ func TestFrontendStaticFilesAreServed(t *testing.T) {
 	}{
 		{
 			method:      http.MethodGet,
-			path:        "/site.webmanifest",
+			path:        "/site.webmanifest?v=1",
 			body:        files["site.webmanifest"],
 			contentType: "application/manifest+json",
 		},
-		{method: http.MethodGet, path: "/icon-192.png", body: files["icon-192.png"], contentType: "image/png"},
+		{method: http.MethodGet, path: "/icon-192.png?v=1", body: files["icon-192.png"], contentType: "image/png"},
 		{
 			method:      http.MethodGet,
 			path:        "/assets/app.js",
@@ -122,7 +122,7 @@ func TestFrontendStaticFilesAreServed(t *testing.T) {
 			body:        files["ico/javdb.png"],
 			contentType: "image/png",
 		},
-		{method: http.MethodHead, path: "/site.webmanifest", contentType: "application/manifest+json"},
+		{method: http.MethodHead, path: "/site.webmanifest?v=1", contentType: "application/manifest+json"},
 	} {
 		t.Run(test.method+" "+test.path, func(t *testing.T) {
 			req := httptest.NewRequest(test.method, test.path, nil)
