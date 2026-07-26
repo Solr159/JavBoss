@@ -277,6 +277,18 @@ export default function JavSettingsModal({
                       ))}
                     </select>
                   </SettingsRow>
+                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                    <SettingsSwitch
+                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                      checked={javWaterfallDefaultInput}
+                      onChange={onJavWaterfallDefaultChange}
+                    />
+                  </SettingsRow>
+                </div>
+              </SettingsSection>
+
+              <SettingsSection title={zh('卡片设置', 'Card settings')}>
+                <div className="divide-y divide-slate-100 px-1">
                   <SettingsRow label={zh('标题最多行数', 'Title max rows')}>
                     <select
                       value={String(javTitleMaxRowsInput ?? 2)}
@@ -319,18 +331,6 @@ export default function JavSettingsModal({
                       ))}
                     </select>
                   </SettingsRow>
-                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
-                    <SettingsSwitch
-                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
-                      checked={javWaterfallDefaultInput}
-                      onChange={onJavWaterfallDefaultChange}
-                    />
-                  </SettingsRow>
-                </div>
-              </SettingsSection>
-
-              <SettingsSection title={zh('卡片内容', 'Card content')}>
-                <div className="divide-y divide-slate-100 px-1">
                   <SettingsRow label={zh('不显示系列', 'Hide series')}>
                     <SettingsSwitch
                       label={zh('不显示系列', 'Hide series')}
@@ -400,7 +400,7 @@ export default function JavSettingsModal({
                   </SettingsRow>
                 </div>
               </SettingsSection>
-              <SettingsSection title={zh('卡片内容', 'Card content')}>
+              <SettingsSection title={zh('卡片设置', 'Card settings')}>
                 <SettingsRow label={zh('优先显示中文名', 'Prefer Chinese name')}>
                   <SettingsSwitch
                     label={zh('优先显示中文名', 'Prefer Chinese name')}
