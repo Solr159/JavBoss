@@ -438,12 +438,14 @@ export default function DirectoryManager({
                         </span>
                       </div>
                     )}
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusDisplay.badge}`}
-                    >
-                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${statusDisplay.dot}`} />
-                      {statusDisplay.label}
-                    </span>
+                    {!isEditing && (
+                      <span
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusDisplay.badge}`}
+                      >
+                        <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${statusDisplay.dot}`} />
+                        {statusDisplay.label}
+                      </span>
+                    )}
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                         {zh('目录缺失', 'Missing')}
