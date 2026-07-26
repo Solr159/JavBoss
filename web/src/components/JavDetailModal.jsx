@@ -88,6 +88,7 @@ function sampleImagesNotFound(images) {
   )
 }
 
+/* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
 function JavSampleImageGrid({ images }) {
   const [previewItem, setPreviewItem] = useState(null)
   const previewItems = useMemo(
@@ -103,26 +104,27 @@ function JavSampleImageGrid({ images }) {
     <>
       <div className="flex flex-wrap gap-2">
         {images.map((image, index) => (
-          <button
+          <img
             key={`${image.detail_url}-${index}`}
-            type="button"
+            src={image.thumbnail_url}
+            alt={zh(`样品图像 ${index + 1}`, `Sample image ${index + 1}`)}
             onClick={() => setPreviewItem(previewItems[index])}
-            className="group w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm transition hover:border-gray-300 hover:shadow sm:w-40"
             aria-label={zh(
               `放大查看第 ${index + 1} 张样品图像`,
               `Enlarge sample image ${index + 1}`
             )}
-          >
-            <span className="flex aspect-video items-center justify-center overflow-hidden bg-white p-1">
-              <img
-                src={image.thumbnail_url}
-                alt={zh(`样品图像 ${index + 1}`, `Sample image ${index + 1}`)}
-                className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.03]"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            </span>
-          </button>
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                setPreviewItem(previewItems[index])
+              }
+            }}
+            className="h-24 w-auto cursor-pointer object-contain"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            role="button"
+            tabIndex={0}
+          />
         ))}
       </div>
       {previewItem ? (
@@ -136,6 +138,7 @@ function JavSampleImageGrid({ images }) {
     </>
   )
 }
+/* eslint-enable jsx-a11y/no-noninteractive-element-to-interactive-role */
 
 function JavScreenshotGrid({ videos, onPlayAtTime, onCoverChanged }) {
   const [items, setItems] = useState([])
