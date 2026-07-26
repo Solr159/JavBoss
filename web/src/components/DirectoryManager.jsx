@@ -5,6 +5,81 @@ import { apiHostPath, displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
+const DIRECTORY_PROCESS_SIDECAR = 'sidecar'
+const DIRECTORY_PROCESS_ORGANIZE = 'organize'
+const DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR = 'organize_with_sidecar'
+
+const directoryProcessOptions = () => [
+  {
+    mode: DIRECTORY_PROCESS_SIDECAR,
+    title: zh('仅生成 Sidecar', 'Generate Sidecars only'),
+    description: zh(
+      '在视频旁生成 Jellyfin NFO 和封面，不移动视频。',
+      'Generate Jellyfin NFO and posters beside each video without moving it.'
+    ),
+  },
+  {
+    mode: DIRECTORY_PROCESS_ORGANIZE,
+    title: zh('仅整理目录', 'Organize only'),
+    description: zh(
+      '移动到“JAV/大写前缀/大写番号”，保留原文件名，不生成 Sidecar。',
+      'Move into "JAV/UPPERCASE PREFIX/UPPERCASE CODE", preserve filenames, and do not generate Sidecars.'
+    ),
+  },
+  {
+    mode: DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR,
+    title: zh('整理并生成 Sidecar', 'Organize and generate Sidecars'),
+    description: zh(
+      '移动视频及同名附属文件，保留原文件名，然后生成 Jellyfin NFO 和封面。',
+      'Move videos and matching companion files while preserving filenames, then generate Jellyfin NFO and posters.'
+    ),
+  },
+]
+
+const directoryWorkStatus = (directory) =>
+  directory?.work_status || (directory?.is_scanning ? 'scanning' : 'idle')
+
+const directoryWorkStatusDisplay = (status) => {
+  switch (status) {
+    case 'scanning':
+      return {
+        label: zh('当前状态：扫描中', 'Status: Scanning'),
+        badge: 'bg-blue-50 text-blue-700',
+        dot: 'animate-pulse bg-blue-500',
+      }
+    case 'organizing':
+      return {
+        label: zh('当前状态：整理中', 'Status: Organizing'),
+        badge: 'bg-amber-50 text-amber-700',
+        dot: 'animate-pulse bg-amber-500',
+      }
+    case 'generating_sidecar':
+      return {
+        label: zh('当前状态：生成 Sidecar 中', 'Status: Generating Sidecars'),
+        badge: 'bg-violet-50 text-violet-700',
+        dot: 'animate-pulse bg-violet-500',
+      }
+    case 'organizing_with_sidecar':
+      return {
+        label: zh('当前状态：整理并生成 Sidecar 中', 'Status: Organizing and generating Sidecars'),
+        badge: 'bg-amber-50 text-amber-700',
+        dot: 'animate-pulse bg-amber-500',
+      }
+    case 'rescanning':
+      return {
+        label: zh('当前状态：重新扫描中', 'Status: Rescanning'),
+        badge: 'bg-blue-50 text-blue-700',
+        dot: 'animate-pulse bg-blue-500',
+      }
+    default:
+      return {
+        label: zh('当前状态：空闲', 'Status: Idle'),
+        badge: 'bg-zinc-100 text-zinc-600',
+        dot: 'bg-zinc-400',
+      }
+  }
+}
+
 function isWindowsPlatform() {
   if (typeof navigator === 'undefined') return false
 
@@ -20,6 +95,7 @@ export default function DirectoryManager({
   onCreate,
   onUpdate,
   onDelete,
+  onProcess,
   onRefresh,
   directoryPickerEnabled = true,
   useHostPaths = false,
@@ -36,6 +112,9 @@ export default function DirectoryManager({
   const [rowErrorMsg, setRowErrorMsg] = useState('')
   const [savingId, setSavingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [processingId, setProcessingId] = useState(null)
+  const [toolDirectory, setToolDirectory] = useState(null)
+  const [toolMode, setToolMode] = useState(DIRECTORY_PROCESS_SIDECAR)
   const windowsPlatform = isWindowsPlatform()
   const pathPlaceholder = useHostPaths
     ? zh(
@@ -69,8 +148,21 @@ export default function DirectoryManager({
       setEditPath('')
       setRowErrorId(null)
       setRowErrorMsg('')
+      setToolDirectory(null)
+      setToolMode(DIRECTORY_PROCESS_SIDECAR)
     }
   }, [open])
+
+  useEffect(() => {
+    if (!toolDirectory) return undefined
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setToolDirectory(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [toolDirectory])
 
   useEffect(() => {
     if (!open || !onRefresh) return undefined
@@ -198,13 +290,38 @@ export default function DirectoryManager({
     }
   }
 
+  const handleProcess = async (dir, mode) => {
+    if (!dir?.id || directoryWorkStatus(dir) !== 'idle') return
+
+    setToolDirectory(null)
+    setProcessingId(dir.id)
+    setRowErrorId(null)
+    setRowErrorMsg('')
+    try {
+      await onProcess?.(dir.id, mode)
+    } catch (err) {
+      setRowErrorId(dir.id)
+      setRowErrorMsg(getErrorMessage(err))
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const currentToolDirectory = directories.find((directory) => directory.id === toolDirectory?.id)
+  const toolDirectoryWorking =
+    processingId === toolDirectory?.id ||
+    (currentToolDirectory != null && directoryWorkStatus(currentToolDirectory) !== 'idle')
+
   return (
     <div className="space-y-3">
       {directories.length > 0 && (
         <div className="divide-y rounded border">
           {directories.map((d) => {
             const isEditing = editId === d.id
-            const working = savingId === d.id || deletingId === d.id
+            const status = directoryWorkStatus(d)
+            const statusDisplay = directoryWorkStatusDisplay(status)
+            const working =
+              savingId === d.id || deletingId === d.id || processingId === d.id || status !== 'idle'
             return (
               <div
                 key={d.id}
@@ -266,18 +383,10 @@ export default function DirectoryManager({
                       </div>
                     )}
                     <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                        d.is_scanning ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-600'
-                      }`}
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusDisplay.badge}`}
                     >
-                      <span
-                        className={`mr-1.5 h-1.5 w-1.5 rounded-full ${
-                          d.is_scanning ? 'animate-pulse bg-blue-500' : 'bg-zinc-400'
-                        }`}
-                      />
-                      {d.is_scanning
-                        ? zh('当前状态：扫描中', 'Status: Scanning')
-                        : zh('当前状态：空闲', 'Status: Idle')}
+                      <span className={`mr-1.5 h-1.5 w-1.5 rounded-full ${statusDisplay.dot}`} />
+                      {statusDisplay.label}
                     </span>
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
@@ -297,6 +406,19 @@ export default function DirectoryManager({
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {!isEditing ? (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setToolDirectory(d)
+                          setToolMode(DIRECTORY_PROCESS_SIDECAR)
+                          setRowErrorId(null)
+                          setRowErrorMsg('')
+                        }}
+                        disabled={d.is_delete || working}
+                        className="rounded border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                      >
+                        {processingId === d.id ? zh('启动中…', 'Starting...') : zh('工具', 'Tools')}
+                      </button>
                       <button
                         type="button"
                         onClick={() => startEdit(d)}
@@ -397,6 +519,76 @@ export default function DirectoryManager({
           >
             {zh('添加目录', 'Add Directory')}
           </button>
+        </div>
+      )}
+      {toolDirectory && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="directory-tools-title"
+            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <div id="directory-tools-title" className="text-base font-semibold text-zinc-900">
+              {zh('目录工具', 'Directory Tools')}
+            </div>
+            <div className="mt-1 truncate text-xs text-zinc-500">
+              {displayPath(toolDirectory.path)}
+            </div>
+            <div className="mt-4 space-y-2">
+              {directoryProcessOptions().map((option) => (
+                <label
+                  key={option.mode}
+                  htmlFor={`directory-process-${option.mode}`}
+                  aria-label={option.title}
+                  className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                    toolMode === option.mode
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-zinc-200 hover:bg-zinc-50'
+                  }`}
+                >
+                  <input
+                    id={`directory-process-${option.mode}`}
+                    type="radio"
+                    name="directory-process-mode"
+                    value={option.mode}
+                    checked={toolMode === option.mode}
+                    onChange={() => setToolMode(option.mode)}
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-zinc-900">{option.title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-zinc-600">
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              {zh(
+                '任务不提供预览；目标文件已存在时会跳过。同一目录的扫描、整理和 Sidecar 任务互斥。',
+                'Tasks have no preview; existing targets are skipped. Scanning, organizing, and Sidecar jobs are mutually exclusive within the same directory.'
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setToolDirectory(null)}
+                className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+              >
+                {zh('取消', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleProcess(toolDirectory, toolMode)}
+                disabled={toolDirectoryWorking}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {zh('执行', 'Run')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

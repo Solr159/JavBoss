@@ -445,6 +445,18 @@ export async function deleteDirectory(id) {
   return updateDirectory(id, { is_delete: true })
 }
 
+export async function processDirectory(id, mode) {
+  const res = await apiFetch(`/directories/${id}/process`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ mode }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 export async function fetchJavs({
   limit = 25,
   offset = 0,

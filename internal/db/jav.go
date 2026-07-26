@@ -330,6 +330,42 @@ func attachJavLocationVideos(ctx context.Context, items []models.Jav, directoryI
 	return nil
 }
 
+// ListJavsForDirectoryProcessing returns every JAV with an active video location
+// in directoryID, including the metadata and locations needed by filesystem jobs.
+func ListJavsForDirectoryProcessing(ctx context.Context, directoryID int64) ([]models.Jav, error) {
+	if directoryID <= 0 {
+		return nil, errors.New("directory id must be positive")
+	}
+
+	var items []models.Jav
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Preload("Studio").
+		Preload("Idols").
+		Preload("Series").
+		Where(`EXISTS (
+			SELECT 1
+			FROM video_location vl
+			JOIN directory d ON d.id = vl.directory_id
+			WHERE vl.jav_id = jav.id
+				AND vl.directory_id = ?
+				AND COALESCE(vl.is_delete, 0) = 0
+				AND COALESCE(d.is_delete, 0) = 0
+				AND COALESCE(d.missing, 0) = 0
+		)`, directoryID).
+		Order("jav.code, jav.id").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("list JAVs for directory processing: %w", err)
+	}
+	if err := attachJavLocationVideos(ctx, items, []int64{directoryID}); err != nil {
+		return nil, err
+	}
+	if err := attachVisibleJavTags(ctx, items); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 // UpdateJav applies user edits to one JAV record.
 func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directoryIDs []int64) (*models.Jav, error) {
 	if javID <= 0 {

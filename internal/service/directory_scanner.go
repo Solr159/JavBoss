@@ -92,6 +92,15 @@ type directoryScanSession struct {
 	reserve bool
 }
 
+const (
+	DirectoryWorkIdle                  = "idle"
+	DirectoryWorkScanning              = "scanning"
+	DirectoryWorkOrganizing            = "organizing"
+	DirectoryWorkGeneratingSidecar     = "generating_sidecar"
+	DirectoryWorkOrganizingWithSidecar = "organizing_with_sidecar"
+	DirectoryWorkRescanning            = "rescanning"
+)
+
 // IsDirectoryScanning reports whether a filesystem scan is currently running for id.
 // Reservations used while updating a directory are intentionally not reported as scans.
 func IsDirectoryScanning(id int64) bool {
@@ -103,6 +112,17 @@ func IsDirectoryScanning(id int64) bool {
 	defer dirScanMu.Unlock()
 	session := dirScanActive[id]
 	return session != nil && !session.reserve
+}
+
+// DirectoryWorkStatus returns the active manual job, scan, or idle status for id.
+func DirectoryWorkStatus(id int64) string {
+	if status := activeDirectoryProcessingStatus(id); status != "" {
+		return status
+	}
+	if IsDirectoryScanning(id) {
+		return DirectoryWorkScanning
+	}
+	return DirectoryWorkIdle
 }
 
 func startDirectoryScanSession(ctx context.Context, id int64) (context.Context, func(), error) {

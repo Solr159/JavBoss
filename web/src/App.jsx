@@ -27,6 +27,7 @@ import {
   reorderJavFavoriteGroupItems,
   reorderJavFavoriteGroups,
   replaceJavFavoriteGroups,
+  processDirectory,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
 import JavIdolFavoriteManageModal from '@/components/JavIdolFavoriteManageModal'
@@ -3790,6 +3791,12 @@ export default function App() {
           const deleted = await deleteDirectory(id)
           await loadDirectories()
           return deleted
+        }}
+        onProcessDirectory={async (id, mode) => {
+          const result = await processDirectory(id, mode)
+          await loadDirectories()
+          showToast(zh('目录任务已启动', 'Directory task started'))
+          return result
         }}
         onRefreshDirectories={loadDirectories}
         proxyHost={config?.proxy_host || ''}

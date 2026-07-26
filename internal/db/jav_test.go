@@ -15,6 +15,85 @@ import (
 	"gorm.io/gorm"
 )
 
+func TestListJavsForDirectoryProcessingLoadsMetadataAndLocations(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/media/processing"}
+	studio := models.JavStudio{Name: "Processing Studio"}
+	series := models.JavSeries{Name: "Processing Series"}
+	idol := models.JavIdol{Name: "Processing Idol"}
+	tag := models.JavTag{Name: "Processing Tag", IsUser: true}
+	for name, value := range map[string]any{
+		"directory": &dir,
+		"studio":    &studio,
+		"series":    &series,
+		"idol":      &idol,
+		"tag":       &tag,
+	} {
+		if err := gdb.Create(value).Error; err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+
+	javRec := models.Jav{
+		Code:        "IPX-001",
+		Title:       "Processing Title",
+		StudioID:    &studio.ID,
+		SeriesID:    &series.ID,
+		ReleaseUnix: now.Unix(),
+		DurationMin: 123,
+		FetchedAt:   now,
+	}
+	if err := gdb.Create(&javRec).Error; err != nil {
+		t.Fatalf("create JAV: %v", err)
+	}
+	if err := gdb.Create(&models.JavIdolMap{JavID: javRec.ID, JavIdolID: idol.ID}).Error; err != nil {
+		t.Fatalf("create idol map: %v", err)
+	}
+	if err := gdb.Create(&models.JavTagMap{
+		JavID: javRec.ID, JavTagID: tag.ID, Provider: int(jav.ProviderUser), CreatedAt: now,
+	}).Error; err != nil {
+		t.Fatalf("create tag map: %v", err)
+	}
+	video := models.Video{Fingerprint: "directory-processing-video"}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	location, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "incoming/original.mp4", now)
+	if err != nil {
+		t.Fatalf("create location: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("id = ?", location.ID).
+		Update("jav_id", javRec.ID).Error; err != nil {
+		t.Fatalf("link location to JAV: %v", err)
+	}
+
+	items, err := ListJavsForDirectoryProcessing(ctx, dir.ID)
+	if err != nil {
+		t.Fatalf("list JAVs for directory processing: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("item count = %d, want 1", len(items))
+	}
+	item := items[0]
+	if item.Code != javRec.Code || item.Studio == nil || item.Studio.Name != studio.Name ||
+		item.Series == nil || item.Series.Name != series.Name {
+		t.Fatalf("metadata not loaded: %+v", item)
+	}
+	if len(item.Idols) != 1 || item.Idols[0].Name != idol.Name {
+		t.Fatalf("idols = %+v, want %q", item.Idols, idol.Name)
+	}
+	if len(item.Tags) != 1 || item.Tags[0].Name != tag.Name {
+		t.Fatalf("tags = %+v, want %q", item.Tags, tag.Name)
+	}
+	if len(item.Videos) != 1 || item.Videos[0].Path != "incoming/original.mp4" {
+		t.Fatalf("videos = %+v, want processing location", item.Videos)
+	}
+}
+
 func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

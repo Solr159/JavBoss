@@ -41,6 +41,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/directories", listDirectories)
 	router.POST("/directories", createDirectory)
 	router.POST("/directories/pick", pickDirectory)
+	router.POST("/directories/:id/process", processDirectory)
 	router.PATCH("/directories/:id", updateDirectory)
 
 	router.GET("/tags", listTags)

@@ -99,6 +99,22 @@ func TestIsDirectoryScanning(t *testing.T) {
 	}
 }
 
+func TestDifferentDirectoryScansCanRunConcurrently(t *testing.T) {
+	resetDirectoryScanSessions(t)
+
+	_, finishFirst, err := startDirectoryScanSession(context.Background(), 41)
+	if err != nil {
+		t.Fatalf("begin first scan: %v", err)
+	}
+	defer finishFirst()
+
+	_, finishSecond, err := startDirectoryScanSession(context.Background(), 42)
+	if err != nil {
+		t.Fatalf("begin concurrent scan for another directory: %v", err)
+	}
+	finishSecond()
+}
+
 func resetDirectoryScanSessions(t *testing.T) {
 	t.Helper()
 
