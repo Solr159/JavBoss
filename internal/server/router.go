@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -26,6 +27,14 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 
 	if staticDir != "" {
 		if fi, err := os.Stat(staticDir); err == nil && fi.IsDir() {
+			staticRoot, rootErr := filepath.Abs(staticDir)
+			if rootErr != nil {
+				logging.Error("resolve frontend static path error: %v", rootErr)
+				staticRoot = staticDir
+			}
+			if resolvedRoot, resolveErr := filepath.EvalSymlinks(staticRoot); resolveErr == nil {
+				staticRoot = resolvedRoot
+			}
 			indexPath := filepath.Join(staticDir, "index.html")
 			indexHandler := func(c *gin.Context) {
 				serveIndexHTML(c, indexPath)
@@ -41,6 +50,9 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 				path := c.Request.URL.Path
 				if isAPIPath(path) {
 					respondLocalizedError(c, http.StatusNotFound, "接口不存在", "API endpoint was not found")
+					return
+				}
+				if serveFrontendStaticFile(c, staticRoot) {
 					return
 				}
 				if strings.Contains(c.GetHeader("Accept"), "text/html") {
@@ -78,6 +90,36 @@ func isAPIPath(path string) bool {
 		}
 	}
 	return false
+}
+
+func serveFrontendStaticFile(c *gin.Context, staticRoot string) bool {
+	if c.Request.Method != http.MethodGet && c.Request.Method != http.MethodHead {
+		return false
+	}
+
+	relativePath := strings.TrimPrefix(c.Request.URL.Path, "/")
+	if !fs.ValidPath(relativePath) || strings.Contains(relativePath, `\`) {
+		return false
+	}
+
+	filePath, err := filepath.EvalSymlinks(filepath.Join(staticRoot, filepath.FromSlash(relativePath)))
+	if err != nil {
+		return false
+	}
+	relativeToRoot, err := filepath.Rel(staticRoot, filePath)
+	if err != nil || relativeToRoot == ".." || strings.HasPrefix(relativeToRoot, ".."+string(filepath.Separator)) {
+		return false
+	}
+	info, err := os.Stat(filePath)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+
+	if strings.EqualFold(filepath.Ext(filePath), ".webmanifest") {
+		c.Header("Content-Type", "application/manifest+json")
+	}
+	c.File(filePath)
+	return true
 }
 
 func serveIndexHTML(c *gin.Context, indexPath string) {
