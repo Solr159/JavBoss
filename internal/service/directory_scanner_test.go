@@ -3,8 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"javboss/internal/common"
+	"javboss/internal/db"
+	"javboss/internal/models"
 )
 
 func TestCancelAndReserveDirectoryScanCancelsActiveSession(t *testing.T) {
@@ -113,6 +118,71 @@ func TestDifferentDirectoryScansCanRunConcurrently(t *testing.T) {
 		t.Fatalf("begin concurrent scan for another directory: %v", err)
 	}
 	finishSecond()
+}
+
+func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
+	resetDirectoryScanSessions(t)
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "scan-summary.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = gdb
+	t.Cleanup(func() {
+		common.DB = previousDB
+		sqlDB, dbErr := gdb.DB()
+		if dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dir := models.Directory{Path: t.TempDir()}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	startedAt := time.Now().Add(-time.Second).UnixMilli()
+	summary, err := SyncDirectory(t.Context(), dir)
+	if err != nil {
+		t.Fatalf("sync directory: %v", err)
+	}
+	if summary.Directories != 1 {
+		t.Fatalf("scanned directories = %d, want 1", summary.Directories)
+	}
+
+	var refreshed models.Directory
+	if err := gdb.First(&refreshed, dir.ID).Error; err != nil {
+		t.Fatalf("reload directory: %v", err)
+	}
+	got := refreshed.LastScanSummary
+	if got.FinishedAtUnixMS < startedAt || got.FinishedAtUnixMS > time.Now().UnixMilli() {
+		t.Fatalf("scan finished time = %d, want current timestamp", got.FinishedAtUnixMS)
+	}
+	if got.FilesSeen != summary.FilesSeen ||
+		got.Inserted != summary.Inserted ||
+		got.Updated != summary.Updated ||
+		got.Removed != summary.Removed {
+		t.Fatalf("stored summary = %+v, runtime summary = %+v", got, summary)
+	}
+	if got.DurationMS < 0 || got.DurationMS > summary.Duration.Milliseconds() {
+		t.Fatalf("stored duration = %dms, total runtime = %s", got.DurationMS, summary.Duration)
+	}
+
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := SyncDirectory(canceledCtx, dir); err == nil {
+		t.Fatal("canceled scan should fail")
+	}
+	var afterCanceled models.Directory
+	if err := gdb.First(&afterCanceled, dir.ID).Error; err != nil {
+		t.Fatalf("reload directory after canceled scan: %v", err)
+	}
+	if afterCanceled.LastScanSummary != got {
+		t.Fatalf(
+			"canceled scan replaced successful summary: got %+v, want %+v",
+			afterCanceled.LastScanSummary,
+			got,
+		)
+	}
 }
 
 func resetDirectoryScanSessions(t *testing.T) {

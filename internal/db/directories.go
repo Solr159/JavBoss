@@ -180,6 +180,28 @@ func SetDirectoryMissing(ctx context.Context, id int64, missing bool) error {
 	return err
 }
 
+// UpdateDirectoryLastScanSummary stores the latest successfully completed scan result.
+func UpdateDirectoryLastScanSummary(
+	ctx context.Context,
+	id int64,
+	summary models.DirectoryScanSummary,
+) error {
+	if id <= 0 {
+		return errors.New("directory id must be positive")
+	}
+	result := common.DB.WithContext(ctx).
+		Model(&models.Directory{}).
+		Where("id = ?", id).
+		UpdateColumn("last_scan_summary", summary)
+	if result.Error != nil {
+		return fmt.Errorf("update directory last scan summary: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return errors.New("directory not found")
+	}
+	return nil
+}
+
 func hideVideoLocationsByDirectoryID(tx *gorm.DB, directoryID int64) error {
 	if directoryID <= 0 {
 		return errors.New("directory id cannot be zero")

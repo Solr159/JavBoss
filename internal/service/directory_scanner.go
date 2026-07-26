@@ -212,6 +212,19 @@ func syncDirectory(ctx context.Context, directory models.Directory, javLinks *ja
 		summary.Directories = 1
 	}
 	summary.Duration = time.Since(start)
+	if scanned {
+		lastScanSummary := models.DirectoryScanSummary{
+			FilesSeen:        summary.FilesSeen,
+			Inserted:         summary.Inserted,
+			Updated:          summary.Updated,
+			Removed:          summary.Removed,
+			DurationMS:       summary.Duration.Milliseconds(),
+			FinishedAtUnixMS: time.Now().UnixMilli(),
+		}
+		if err := db.UpdateDirectoryLastScanSummary(scanCtx, directory.ID, lastScanSummary); err != nil {
+			return nil, err
+		}
+	}
 	logging.Info(
 		"sync directory summary: id=%d path=%s scanned=%t files_seen=%d inserted=%d updated=%d removed=%d duration=%s",
 		directory.ID,

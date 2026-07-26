@@ -51,6 +51,41 @@ const directoryProcessLayoutOptions = () => [
   },
 ]
 
+const formatScanFinishedAt = (summary) => {
+  const timestamp = Number(summary?.finished_at_unix_ms)
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return ''
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(zh('zh-CN', 'en-US'), {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(date)
+}
+
+const formatScanDuration = (summary) => {
+  const durationMS = Number(summary?.duration_ms)
+  if (!Number.isFinite(durationMS) || durationMS < 1000) {
+    return zh('不足 1 秒', 'Less than 1 second')
+  }
+  const totalSeconds = Math.max(1, Math.round(durationMS / 1000))
+  if (totalSeconds < 60) {
+    return zh(`${totalSeconds} 秒`, `${totalSeconds} sec`)
+  }
+  const totalMinutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (totalMinutes < 60) {
+    return zh(`${totalMinutes} 分 ${seconds} 秒`, `${totalMinutes} min ${seconds} sec`)
+  }
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return zh(`${hours} 小时 ${minutes} 分`, `${hours} hr ${minutes} min`)
+}
+
 const directoryWorkStatus = (directory) =>
   directory?.work_status || (directory?.is_scanning ? 'scanning' : 'idle')
 
@@ -340,6 +375,7 @@ export default function DirectoryManager({
             const isEditing = editId === d.id
             const status = directoryWorkStatus(d)
             const statusDisplay = directoryWorkStatusDisplay(status)
+            const lastScanFinishedAt = formatScanFinishedAt(d.last_scan_summary)
             const working =
               savingId === d.id || deletingId === d.id || processingId === d.id || status !== 'idle'
             return (
@@ -419,6 +455,29 @@ export default function DirectoryManager({
                       </span>
                     )}
                   </div>
+                  {!isEditing && (
+                    <>
+                      {lastScanFinishedAt ? (
+                        <div className="text-xs text-zinc-500">
+                          <span>{zh('上次扫描：结束时间 ', 'Last scan: Finished at ')}</span>
+                          <span className="font-semibold tabular-nums text-zinc-900">
+                            {lastScanFinishedAt}
+                          </span>
+                          <span aria-hidden="true" className="mx-2 text-zinc-300">
+                            ·
+                          </span>
+                          <span>{zh('耗时 ', 'Duration ')}</span>
+                          <span className="font-semibold tabular-nums text-zinc-900">
+                            {formatScanDuration(d.last_scan_summary)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-zinc-500">
+                          {zh('上次扫描：暂无记录', 'Last scan: No record')}
+                        </div>
+                      )}
+                    </>
+                  )}
                   {rowErrorId === d.id && rowErrorMsg && (
                     <div className="text-xs text-red-600">{rowErrorMsg}</div>
                   )}

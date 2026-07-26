@@ -76,6 +76,41 @@ func TestListDirectoriesIncludesCurrentVideoCounts(t *testing.T) {
 	}
 }
 
+func TestUpdateDirectoryLastScanSummary(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	dir := models.Directory{Path: "/media/scan-summary"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	want := models.DirectoryScanSummary{
+		FilesSeen:        20,
+		Inserted:         5,
+		Updated:          4,
+		Removed:          3,
+		DurationMS:       2345,
+		FinishedAtUnixMS: 1720000000123,
+	}
+	if err := UpdateDirectoryLastScanSummary(ctx, dir.ID, want); err != nil {
+		t.Fatalf("update directory scan summary: %v", err)
+	}
+
+	items, err := ListDirectories(ctx)
+	if err != nil {
+		t.Fatalf("list directories: %v", err)
+	}
+	if len(items) != 1 || items[0].LastScanSummary != want {
+		t.Fatalf("last scan summary = %+v, want %+v", items, want)
+	}
+}
+
+func TestDirectorySchemaIncludesLastScanSummary(t *testing.T) {
+	gdb := openTestDB(t)
+	assertTableColumns(t, gdb, "directory", []string{
+		"id", "path", "missing", "is_delete", "created_at", "updated_at", "last_scan_summary",
+	})
+}
+
 func TestMissingDirectoryContentsRemainVisible(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
