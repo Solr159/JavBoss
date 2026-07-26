@@ -683,8 +683,8 @@ export default function DirectoryManager({
                 {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
                   <div className="mt-2 text-xs leading-5 text-zinc-500">
                     {zh(
-                      '多女优作品会将女优名排序后用“，”连接；没有女优信息时归入“未知女优”。',
-                      'For works with multiple idols, sorted names are joined with "，". Works without idol metadata go under "未知女优".'
+                      '最多拼接 3 位女优名；超过 3 位时统一归入“多女优”，没有女优信息时归入“未知女优”。',
+                      'Up to 3 sorted idol names are joined with "，". Works with more than 3 idols go under "多女优", and works without idol metadata go under "未知女优".'
                     )}
                   </div>
                 )}

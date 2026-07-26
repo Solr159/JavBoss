@@ -233,6 +233,52 @@ func TestOrganizeIdolComponentDeduplicatesNames(t *testing.T) {
 	}
 }
 
+func TestOrganizeIdolComponentGroupsMoreThanThreeIdols(t *testing.T) {
+	tests := []struct {
+		name  string
+		idols []models.JavIdol
+		want  string
+	}{
+		{
+			name: "three names remain joined",
+			idols: []models.JavIdol{
+				{Name: "Idol C"},
+				{Name: "Idol A"},
+				{Name: "Idol B"},
+			},
+			want: "Idol_A，Idol_B，Idol_C",
+		},
+		{
+			name: "four names use shared folder",
+			idols: []models.JavIdol{
+				{Name: "Idol D"},
+				{Name: "Idol B"},
+				{Name: "Idol A"},
+				{Name: "Idol C"},
+			},
+			want: directoryMultipleIdols,
+		},
+		{
+			name: "duplicate names do not exceed limit",
+			idols: []models.JavIdol{
+				{Name: "Idol C"},
+				{Name: "Idol B"},
+				{Name: "Idol A"},
+				{Name: "idol a"},
+			},
+			want: "Idol_A，Idol_B，Idol_C",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := organizeIdolComponent(test.idols); got != test.want {
+				t.Fatalf("organizeIdolComponent() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestWriteJavSidecarsDoesNotOverwriteUserNFO(t *testing.T) {
 	root := t.TempDir()
 	videoPath := filepath.Join(root, "movie.mp4")

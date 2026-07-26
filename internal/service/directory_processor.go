@@ -31,6 +31,8 @@ const (
 	DirectoryProcessLayoutIdol          = "idol"
 	directoryOrganizeParent             = "JAV"
 	directoryUnknownIdol                = "未知女优"
+	directoryMultipleIdols              = "多女优"
+	directoryMaxJoinedIdols             = 3
 )
 
 var (
@@ -282,6 +284,9 @@ func organizeIdolComponent(idols []models.JavIdol) string {
 	}
 	if len(names) == 0 {
 		return directoryUnknownIdol
+	}
+	if len(names) > directoryMaxJoinedIdols {
+		return directoryMultipleIdols
 	}
 	sort.Slice(names, func(i, j int) bool {
 		return strings.ToLower(names[i]) < strings.ToLower(names[j])
