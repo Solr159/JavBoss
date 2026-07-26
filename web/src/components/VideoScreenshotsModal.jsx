@@ -384,6 +384,22 @@ function screenshotPreviewIdentity(item) {
   return `${item?.video_id || item?.video?.id || ''}:${item?.name || item?.url || ''}`
 }
 
+function PreviewImage({ item }) {
+  const [loaded, setLoaded] = useState(false)
+
+  return (
+    <img
+      src={item.url}
+      alt={item.name || zh('MPV 截图', 'MPV screenshot')}
+      className={`max-h-[78vh] max-w-full object-contain shadow-2xl ${
+        loaded ? 'visible' : 'invisible'
+      }`}
+      onLoad={() => setLoaded(true)}
+      onError={() => setLoaded(false)}
+    />
+  )
+}
+
 export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
   const lastWheelAtRef = useRef(0)
   const itemIdentity = screenshotPreviewIdentity(item)
@@ -453,11 +469,7 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
       </button>
       <div className="relative z-10 flex max-w-[82vw] items-center justify-center">
         <div className="flex max-h-[78vh] max-w-full items-center justify-center">
-          <img
-            src={item.url}
-            alt={item.name || zh('MPV 截图', 'MPV screenshot')}
-            className="max-h-[78vh] max-w-full object-contain shadow-2xl"
-          />
+          <PreviewImage key={itemIdentity} item={item} />
         </div>
       </div>
       <div className="fixed bottom-10 left-1/2 z-20 flex -translate-x-1/2 items-center justify-center gap-2.5">
