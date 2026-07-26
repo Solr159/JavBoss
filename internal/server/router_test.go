@@ -76,16 +76,22 @@ func TestUnknownToolAPIPathDoesNotServeIndexHTML(t *testing.T) {
 	}
 }
 
-func TestFrontendRootStaticFilesAreServed(t *testing.T) {
+func TestFrontendStaticFilesAreServed(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	staticDir := t.TempDir()
 	files := map[string]string{
 		"index.html":       "<!doctype html><title>frontend</title>",
 		"site.webmanifest": `{"name":"JavBoss"}`,
 		"icon-192.png":     "png data",
+		"assets/app.js":    "console.log('JavBoss')",
+		"ico/javdb.png":    "provider icon",
 	}
 	for name, content := range files {
-		if err := os.WriteFile(filepath.Join(staticDir, name), []byte(content), 0o600); err != nil {
+		filePath := filepath.Join(staticDir, name)
+		if err := os.MkdirAll(filepath.Dir(filePath), 0o700); err != nil {
+			t.Fatalf("create directory for %s: %v", name, err)
+		}
+		if err := os.WriteFile(filePath, []byte(content), 0o600); err != nil {
 			t.Fatalf("write %s: %v", name, err)
 		}
 	}
@@ -104,6 +110,18 @@ func TestFrontendRootStaticFilesAreServed(t *testing.T) {
 			contentType: "application/manifest+json",
 		},
 		{method: http.MethodGet, path: "/icon-192.png", body: files["icon-192.png"], contentType: "image/png"},
+		{
+			method:      http.MethodGet,
+			path:        "/assets/app.js",
+			body:        files["assets/app.js"],
+			contentType: "text/javascript",
+		},
+		{
+			method:      http.MethodGet,
+			path:        "/ico/javdb.png",
+			body:        files["ico/javdb.png"],
+			contentType: "image/png",
+		},
 		{method: http.MethodHead, path: "/site.webmanifest", contentType: "application/manifest+json"},
 	} {
 		t.Run(test.method+" "+test.path, func(t *testing.T) {

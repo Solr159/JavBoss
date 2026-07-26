@@ -39,8 +39,6 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 			indexHandler := func(c *gin.Context) {
 				serveIndexHTML(c, indexPath)
 			}
-			router.Static("/assets", filepath.Join(staticDir, "assets"))
-			router.Static("/ico", filepath.Join(staticDir, "ico"))
 			router.GET("/", indexHandler)
 			router.HEAD("/", indexHandler)
 			router.GET("/index.html", indexHandler)
