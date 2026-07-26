@@ -3314,6 +3314,11 @@ export default function App() {
               onSelectPrefix: handleSelectJavPrefix,
               onOpenFavorites: (studio) => handleOpenFavoriteModal('studio', studio),
               onOpenSeriesFavorites: (series) => handleOpenFavoriteModal('series', series),
+              onMerged: () => {
+                loadJavStudios({ force: true })
+                loadJavSeries({ force: true })
+                loadJavFavoriteGroups('studio', { force: true })
+              },
               waterfallMode: waterfallModes.studio,
               onWaterfallModeChange: (enabled) => setWaterfallMode('studio', enabled),
               onLoadMore: loadMoreJavStudios,

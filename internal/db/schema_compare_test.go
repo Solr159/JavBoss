@@ -35,6 +35,7 @@ func TestMigratedSchemaMatchesGormModels(t *testing.T) {
 		&models.AuthSession{},
 		&models.Directory{},
 		&models.JavStudio{},
+		&models.JavStudioAlias{},
 		&models.JavSeries{},
 		&models.Jav{},
 		&models.Video{},

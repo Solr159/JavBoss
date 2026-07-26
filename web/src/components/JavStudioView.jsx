@@ -1,13 +1,23 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Popper } from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 
-import { fetchJavSeriesPreview, fetchJavStudioJavDBURL } from '@/api'
+import {
+  fetchJavSeriesPreview,
+  fetchJavStudioJavDBURL,
+  fetchJavStudioOptions,
+  mergeJavStudios,
+  updateJavStudio,
+} from '@/api'
 import Pagination from '@/components/Pagination'
 import { SeriesCard } from '@/components/JavSeriesView'
 import WaterfallLoader from '@/components/WaterfallLoader'
+import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
 export default function JavStudioView({
@@ -37,6 +47,7 @@ export default function JavStudioView({
   onLoadMore,
   loadingMore,
   hasMore,
+  onMerged,
 }) {
   return (
     <>
@@ -73,6 +84,7 @@ export default function JavStudioView({
           buildSeriesUrl={buildSeriesUrl}
           onSelectSeries={onSelectSeries}
           directoryIds={directoryIds}
+          onMerged={onMerged}
         />
       )}
       <WaterfallLoader
@@ -95,8 +107,19 @@ function JavStudioGrid({
   buildStudioUrl,
   buildSeriesUrl,
   directoryIds,
+  onMerged,
 }) {
-  const hasItems = Array.isArray(items) && items.length > 0
+  const [editItem, setEditItem] = useState(null)
+  const [overrides, setOverrides] = useState(() => new Map())
+  const displayItems = useMemo(() => {
+    if (!Array.isArray(items)) return []
+    return items.map((item) => {
+      const id = Number(item?.id)
+      const override = Number.isFinite(id) ? overrides.get(id) : null
+      return override ? { ...item, ...override } : item
+    })
+  }, [items, overrides])
+  const hasItems = displayItems.length > 0
   if (!hasItems) {
     return (
       <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
@@ -106,25 +129,49 @@ function JavStudioGrid({
   }
 
   return (
-    <div
-      className="grid gap-4 bg-white"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))' }}
-    >
-      {items.map((item) => (
-        <StudioCard
-          key={item.id || item.name}
-          item={item}
-          href={buildStudioUrl?.(item)}
-          onSelectStudio={onSelectStudio}
-          onSelectSeries={onSelectSeries}
-          onSelectPrefix={onSelectPrefix}
-          onOpenFavorites={onOpenFavorites}
-          onOpenSeriesFavorites={onOpenSeriesFavorites}
-          buildSeriesUrl={buildSeriesUrl}
-          directoryIds={directoryIds}
-        />
-      ))}
-    </div>
+    <>
+      <div
+        className="grid gap-4 bg-white"
+        style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))' }}
+      >
+        {displayItems.map((item) => (
+          <StudioCard
+            key={item.id || item.name}
+            item={item}
+            href={buildStudioUrl?.(item)}
+            onSelectStudio={onSelectStudio}
+            onSelectSeries={onSelectSeries}
+            onSelectPrefix={onSelectPrefix}
+            onOpenFavorites={onOpenFavorites}
+            onOpenSeriesFavorites={onOpenSeriesFavorites}
+            onOpenEditor={setEditItem}
+            buildSeriesUrl={buildSeriesUrl}
+            directoryIds={directoryIds}
+          />
+        ))}
+      </div>
+      <JavStudioEditModal
+        key={`studio-edit-${editItem?.id || 'closed'}`}
+        open={Boolean(editItem)}
+        item={editItem}
+        directoryIds={directoryIds}
+        onClose={() => setEditItem(null)}
+        onSaved={(updated) => {
+          const id = Number(updated?.id)
+          if (!Number.isFinite(id) || id <= 0) return
+          setOverrides((current) => {
+            const next = new Map(current)
+            next.set(id, updated)
+            return next
+          })
+          setEditItem(updated)
+        }}
+        onMerged={(updated) => {
+          setEditItem(null)
+          onMerged?.(updated)
+        }}
+      />
+    </>
   )
 }
 
@@ -137,6 +184,7 @@ export function StudioCard({
   onOpenFavorites,
   onOpenSeriesFavorites,
   onSeriesListOpenChange,
+  onOpenEditor,
   buildSeriesUrl,
   directoryIds = [],
 }) {
@@ -173,6 +221,9 @@ export function StudioCard({
     [item?.series]
   )
   const favoriteCount = Number(item?.favorite_count) || 0
+  const aliases = Array.isArray(item?.aliases)
+    ? item.aliases.map((alias) => String(alias || '').trim()).filter(Boolean)
+    : []
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const [previewSeries, setPreviewSeries] = useState(null)
@@ -242,6 +293,12 @@ export function StudioCard({
     event.preventDefault()
     event.stopPropagation()
     onOpenFavorites?.(item)
+  }
+
+  const handleOpenEditor = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    onOpenEditor?.(item)
   }
 
   const clearSeriesHoverTimer = () => {
@@ -506,9 +563,37 @@ export function StudioCard({
             loading="lazy"
           />
         </button>
+        {onOpenEditor ? (
+          <button
+            type="button"
+            className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-focus-within:opacity-100 group-hover:opacity-100"
+            title={zh('编辑片商信息', 'Edit studio info')}
+            aria-label={zh('编辑片商信息', 'Edit studio info')}
+            onClick={handleOpenEditor}
+          >
+            <EditRoundedIcon sx={{ fontSize: 16 }} />
+          </button>
+        ) : null}
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
-        <div className="line-clamp-2 text-sm font-semibold leading-tight">{name}</div>
+        <div className="flex min-w-0 items-baseline gap-1.5 leading-tight">
+          <span
+            className={`min-w-0 truncate text-sm font-semibold ${
+              aliases.length > 0 ? 'max-w-[65%]' : 'flex-1'
+            }`}
+            title={name}
+          >
+            {name}
+          </span>
+          {aliases.length > 0 ? (
+            <span
+              className="min-w-0 flex-1 truncate text-[10px] text-gray-500"
+              title={aliases.join(', ')}
+            >
+              {zh(aliases.join('、'), aliases.join(', '))}
+            </span>
+          ) : null}
+        </div>
         {codePrefixes.length > 0 ? (
           <div
             className="mt-1 flex max-h-20 flex-wrap gap-0.5 overflow-y-auto"
@@ -709,4 +794,406 @@ export function StudioCard({
       </div>
     </a>
   )
+}
+
+function JavStudioEditModal({ open, item, directoryIds = [], onClose, onSaved, onMerged }) {
+  const [form, setForm] = useState(() => buildStudioEditForm(item))
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [mergeOpen, setMergeOpen] = useState(false)
+  const studioId = Number(item?.id)
+
+  useEffect(() => {
+    if (!open) return
+    setForm(buildStudioEditForm(item))
+    setSaving(false)
+    setError('')
+    setMergeOpen(false)
+  }, [item, open])
+
+  if (!open || !item) return null
+
+  const setField = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }))
+  }
+  const addAliases = (value) => {
+    const incoming = studioAliasTextToList(value)
+    if (!incoming.length) return
+    setForm((current) => ({
+      ...current,
+      aliases: mergeStudioAliases(current.aliases, incoming),
+      alias_input: '',
+    }))
+  }
+  const removeAlias = (alias) => {
+    setForm((current) => ({
+      ...current,
+      aliases: current.aliases.filter((value) => value !== alias),
+    }))
+  }
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!Number.isFinite(studioId) || studioId <= 0 || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateJavStudio(
+        studioId,
+        {
+          name: String(form.name || '').trim(),
+          aliases: mergeStudioAliases(form.aliases, studioAliasTextToList(form.alias_input)),
+        },
+        { directoryIds }
+      )
+      onSaved?.({
+        ...updated,
+        aliases: Array.isArray(updated?.aliases) ? updated.aliases : [],
+      })
+      onClose?.()
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/45 p-4">
+        <form
+          className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+          onSubmit={handleSubmit}
+        >
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <div className="min-w-0">
+              <div className="text-base font-semibold text-gray-950">
+                {zh('编辑片商信息', 'Edit studio info')}
+              </div>
+              <div className="truncate text-xs text-gray-500">{item.name}</div>
+            </div>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              aria-label={zh('关闭', 'Close')}
+              onClick={onClose}
+            >
+              <CloseRoundedIcon sx={{ fontSize: 20 }} />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+              <span>{zh('名称', 'Name')}</span>
+              <input
+                value={form.name}
+                required
+                onChange={(event) => setField('name', event.target.value)}
+                className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
+              />
+            </label>
+            <StudioAliasEditor
+              aliases={form.aliases}
+              inputValue={form.alias_input}
+              onInputChange={(value) => setField('alias_input', value)}
+              onAdd={addAliases}
+              onRemove={removeAlias}
+            />
+            <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
+              <button
+                type="button"
+                className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={() => setMergeOpen(true)}
+              >
+                {zh('合并到其它片商', 'Merge into another studio')}
+              </button>
+            </div>
+            {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+          </div>
+          <div className="flex justify-end gap-2 border-t px-4 py-3">
+            <button
+              type="button"
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={onClose}
+              disabled={saving}
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="submit"
+              className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+              disabled={saving || !String(form.name || '').trim()}
+            >
+              {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            </button>
+          </div>
+        </form>
+      </div>
+      <JavStudioMergeModal
+        open={mergeOpen}
+        item={item}
+        directoryIds={directoryIds}
+        onClose={() => setMergeOpen(false)}
+        onMerged={onMerged}
+      />
+    </>
+  )
+}
+
+function StudioAliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd, onRemove }) {
+  const commitInput = () => {
+    if (String(inputValue || '').trim()) onAdd?.(inputValue)
+  }
+  return (
+    <div className="mt-3 flex flex-col gap-1 text-sm font-medium text-gray-700">
+      <div className="flex flex-wrap items-center gap-2">
+        <span>{zh('别名：', 'Aliases:')}</span>
+        <span className="text-xs font-normal text-gray-400">
+          {zh('输入后按 Enter 添加', 'Press Enter to add')}
+        </span>
+      </div>
+      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900">
+        {aliases.map((alias) => (
+          <span
+            key={alias}
+            className="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800"
+          >
+            <span className="max-w-[12rem] truncate">{alias}</span>
+            <button
+              type="button"
+              className="flex h-4 w-4 items-center justify-center rounded-full text-gray-500 hover:bg-gray-300 hover:text-gray-900"
+              aria-label={zh(`移除别名 ${alias}`, `Remove alias ${alias}`)}
+              onClick={() => onRemove?.(alias)}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          value={inputValue}
+          onChange={(event) => {
+            const value = event.target.value
+            if (/[,\n]/.test(value)) {
+              onAdd?.(value)
+              return
+            }
+            onInputChange?.(value)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              commitInput()
+            } else if (event.key === 'Backspace' && !inputValue && aliases.length > 0) {
+              event.preventDefault()
+              onRemove?.(aliases[aliases.length - 1])
+            }
+          }}
+          onBlur={commitInput}
+          className="min-w-[9rem] flex-1 border-0 bg-transparent px-1 py-1 text-sm outline-none"
+        />
+      </div>
+    </div>
+  )
+}
+
+function JavStudioMergeModal({ open, item, directoryIds = [], onClose, onMerged }) {
+  const [search, setSearch] = useState('')
+  const [options, setOptions] = useState([])
+  const [selectedId, setSelectedId] = useState(0)
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const sourceId = Number(item?.id)
+  const sourceName = String(item?.name || '').trim() || zh('未知片商', 'Unknown studio')
+
+  useEffect(() => {
+    if (!open) {
+      setSearch('')
+      setOptions([])
+      setSelectedId(0)
+      setError('')
+      setSaving(false)
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (!open) return undefined
+    let cancelled = false
+    const timer = window.setTimeout(() => {
+      setLoading(true)
+      setError('')
+      fetchJavStudioOptions({ limit: 30, search })
+        .then((response) => {
+          if (cancelled) return
+          const items = Array.isArray(response?.items) ? response.items : []
+          setOptions(items.filter((option) => Number(option?.id) !== sourceId))
+        })
+        .catch((err) => {
+          if (!cancelled) setError(getErrorMessage(err))
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }, 180)
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
+  }, [open, search, sourceId])
+
+  if (!open || !item) return null
+
+  const selected = options.find((option) => Number(option?.id) === selectedId)
+  const selectedName = String(selected?.name || '').trim()
+  const canSubmit =
+    Number.isFinite(sourceId) && sourceId > 0 && Number.isFinite(selectedId) && selectedId > 0
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    if (!canSubmit || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await mergeJavStudios({
+        canonicalId: selectedId,
+        mergeIds: [sourceId],
+        directoryIds,
+      })
+      onMerged?.(updated)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/45 p-4">
+      <form
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        onSubmit={handleSubmit}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold text-gray-950">
+              {zh('合并片商', 'Merge studio')}
+            </div>
+            <div className="truncate text-xs text-gray-500">
+              {zh(`将 ${sourceName} 合并到目标片商`, `Merge ${sourceName} into target studio`)}
+            </div>
+          </div>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label={zh('关闭', 'Close')}
+            onClick={onClose}
+          >
+            <CloseRoundedIcon sx={{ fontSize: 20 }} />
+          </button>
+        </div>
+        <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
+          <label className="relative block">
+            <SearchRoundedIcon
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              sx={{ fontSize: 18 }}
+            />
+            <input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setSelectedId(0)
+              }}
+              className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
+              placeholder={zh('搜索要合并到的目标片商', 'Search target studio to merge into')}
+            />
+          </label>
+          <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
+            {loading ? (
+              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+                {zh('加载中…', 'Loading...')}
+              </div>
+            ) : options.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {options.map((option) => {
+                  const id = Number(option?.id)
+                  const aliases = Array.isArray(option?.aliases) ? option.aliases.join(', ') : ''
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                        id === selectedId ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
+                      }`}
+                      onClick={() => setSelectedId(id)}
+                    >
+                      <span className="truncate font-medium">{option.name}</span>
+                      {aliases ? (
+                        <span className="truncate text-xs text-gray-500">
+                          {zh(`别名：${aliases}`, `Aliases: ${aliases}`)}
+                        </span>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+                {zh('没有可合并的目标片商', 'No target studio found')}
+              </div>
+            )}
+          </div>
+          {selected ? (
+            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+              {zh(
+                `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前片商记录会被删除，作品、系列及收藏夹数据会自动迁移。此操作无法撤回，请仔细核实后操作。`,
+                `"${sourceName}" will exist as an alias of "${selectedName}". The current studio record will be deleted, and its works, series, and favorites will be migrated automatically. This action cannot be undone; verify carefully before continuing.`
+              )}
+            </div>
+          ) : null}
+          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        </div>
+        <div className="flex justify-end gap-2 border-t px-4 py-3">
+          <button
+            type="button"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            {zh('取消', 'Cancel')}
+          </button>
+          <button
+            type="submit"
+            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+            disabled={!canSubmit || saving}
+          >
+            {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function buildStudioEditForm(item) {
+  return {
+    name: String(item?.name || ''),
+    aliases: mergeStudioAliases([], Array.isArray(item?.aliases) ? item.aliases : []),
+    alias_input: '',
+  }
+}
+
+function studioAliasTextToList(value) {
+  return String(value || '')
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function mergeStudioAliases(current = [], incoming = []) {
+  const seen = new Set()
+  const aliases = []
+  for (const value of [...current, ...incoming]) {
+    const alias = String(value || '').trim()
+    if (!alias || seen.has(alias)) continue
+    seen.add(alias)
+    aliases.push(alias)
+  }
+  return aliases
 }

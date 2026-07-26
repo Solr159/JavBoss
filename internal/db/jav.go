@@ -82,6 +82,12 @@ type JavIdolUpdateInput struct {
 	Aliases      []string
 }
 
+// JavStudioUpdateInput contains user-editable JAV studio fields.
+type JavStudioUpdateInput struct {
+	Name    string
+	Aliases []string
+}
+
 // JavMetadataScanItem contains a JAV row that needs studio or series metadata.
 type JavMetadataScanItem struct {
 	ID         int64  `gorm:"column:id"`
@@ -811,6 +817,7 @@ func javFilterOptions(values []int64) (int64, int64, bool, int64) {
 type JavStudioSummary struct {
 	ID            int64                        `json:"id"`
 	Name          string                       `json:"name"`
+	Aliases       []string                     `json:"aliases,omitempty" gorm:"-"`
 	WorkCount     int64                        `json:"work_count"`
 	SampleCode    string                       `json:"sample_code"`
 	FavoriteCount int64                        `json:"favorite_count"`
@@ -835,7 +842,11 @@ func applyJavStudioSearch(q *gorm.DB, search string) *gorm.DB {
 		return q
 	}
 	like := fmt.Sprintf("%%%s%%", search)
-	return q.Where("js.name LIKE ?", like)
+	return q.Where(
+		"js.name LIKE ? OR EXISTS (SELECT 1 FROM jav_studio_alias jsa WHERE jsa.jav_studio_id = js.id AND jsa.alias LIKE ?)",
+		like,
+		like,
+	)
 }
 
 func applyJavSeriesSearch(q *gorm.DB, search string) *gorm.DB {
@@ -909,6 +920,9 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 	if err := attachJavStudioSeries(ctx, items, directoryIDs); err != nil {
 		return nil, 0, err
 	}
+	if err := attachJavStudioAliases(ctx, items); err != nil {
+		return nil, 0, err
+	}
 
 	return items, total, nil
 }
@@ -947,8 +961,197 @@ func GetJavStudioSummary(ctx context.Context, studioID int64, directoryIDs []int
 	if err := attachJavStudioSeries(ctx, items, directoryIDs); err != nil {
 		return nil, err
 	}
+	if err := attachJavStudioAliases(ctx, items); err != nil {
+		return nil, err
+	}
 	item = items[0]
 	return &item, nil
+}
+
+// ListJavStudioOptions returns all studios for edit and merge selectors.
+func ListJavStudioOptions(ctx context.Context, search string, limit, offset int) ([]JavStudioSummary, int64, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	base := common.DB.WithContext(ctx).Table("jav_studio js")
+	base = applyJavStudioSearch(base, search)
+
+	var total int64
+	if err := base.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count jav studio options: %w", err)
+	}
+
+	var items []JavStudioSummary
+	if err := base.
+		Select("js.id, js.name").
+		Order("js.name ASC, js.id ASC").
+		Limit(limit).
+		Offset(offset).
+		Scan(&items).Error; err != nil {
+		return nil, 0, fmt.Errorf("list jav studio options: %w", err)
+	}
+	if err := attachJavStudioAliases(ctx, items); err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+}
+
+func attachJavStudioAliases(ctx context.Context, items []JavStudioSummary) error {
+	if len(items) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(items))
+	indexByID := make(map[int64]int, len(items))
+	for i, item := range items {
+		if item.ID > 0 {
+			ids = append(ids, item.ID)
+			indexByID[item.ID] = i
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	var rows []struct {
+		JavStudioID int64  `gorm:"column:jav_studio_id"`
+		Alias       string `gorm:"column:alias"`
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.JavStudioAlias{}).
+		Select("jav_studio_id, alias").
+		Where("jav_studio_id IN ?", ids).
+		Order("alias ASC").
+		Scan(&rows).Error; err != nil {
+		return fmt.Errorf("load jav studio aliases: %w", err)
+	}
+	for _, row := range rows {
+		index, ok := indexByID[row.JavStudioID]
+		if !ok {
+			continue
+		}
+		alias := strings.TrimSpace(row.Alias)
+		if alias != "" {
+			items[index].Aliases = append(items[index].Aliases, alias)
+		}
+	}
+	return nil
+}
+
+// UpdateJavStudioProfile updates a studio name and replaces its aliases.
+func UpdateJavStudioProfile(ctx context.Context, studioID int64, input JavStudioUpdateInput, directoryIDs []int64) (*JavStudioSummary, error) {
+	if studioID <= 0 {
+		return nil, errors.New("studio id must be positive")
+	}
+	input.Name = strings.TrimSpace(input.Name)
+	if input.Name == "" {
+		return nil, errors.New("studio name cannot be empty")
+	}
+
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing models.JavStudio
+		if err := tx.Where("id = ?", studioID).First(&existing).Error; err != nil {
+			return fmt.Errorf("find jav studio: %w", err)
+		}
+
+		var duplicateNameCount int64
+		if err := tx.Model(&models.JavStudio{}).
+			Where("id <> ? AND name = ?", studioID, input.Name).
+			Count(&duplicateNameCount).Error; err != nil {
+			return fmt.Errorf("check jav studio name: %w", err)
+		}
+		if duplicateNameCount > 0 {
+			return errors.New("studio name already exists")
+		}
+		var nameAliasConflict int64
+		if err := tx.Model(&models.JavStudioAlias{}).
+			Where("jav_studio_id <> ? AND alias = ?", studioID, input.Name).
+			Count(&nameAliasConflict).Error; err != nil {
+			return fmt.Errorf("check jav studio name aliases: %w", err)
+		}
+		if nameAliasConflict > 0 {
+			return errors.New("studio name conflicts with another studio alias")
+		}
+
+		aliases := normalizeJavStudioAliases(input.Aliases, input.Name)
+		if err := validateJavStudioAliasesTx(tx, studioID, aliases); err != nil {
+			return err
+		}
+		if err := tx.Model(&models.JavStudio{}).
+			Where("id = ?", studioID).
+			Update("name", input.Name).Error; err != nil {
+			return fmt.Errorf("update jav studio: %w", err)
+		}
+		return replaceJavStudioAliasesTx(tx, studioID, aliases)
+	}); err != nil {
+		return nil, err
+	}
+
+	return GetJavStudioSummary(ctx, studioID, directoryIDs)
+}
+
+func normalizeJavStudioAliases(values []string, ownName string) []string {
+	ownName = strings.TrimSpace(ownName)
+	seen := map[string]bool{}
+	aliases := make([]string, 0, len(values))
+	for _, value := range values {
+		alias := strings.TrimSpace(value)
+		if alias == "" || alias == ownName || seen[alias] {
+			continue
+		}
+		seen[alias] = true
+		aliases = append(aliases, alias)
+	}
+	return aliases
+}
+
+func validateJavStudioAliasesTx(tx *gorm.DB, studioID int64, aliases []string) error {
+	if len(aliases) == 0 {
+		return nil
+	}
+	var nameConflict int64
+	if err := tx.Model(&models.JavStudio{}).
+		Where("id <> ? AND name IN ?", studioID, aliases).
+		Count(&nameConflict).Error; err != nil {
+		return fmt.Errorf("check jav studio alias names: %w", err)
+	}
+	if nameConflict > 0 {
+		return errors.New("studio alias conflicts with another studio name")
+	}
+	var aliasConflict int64
+	if err := tx.Model(&models.JavStudioAlias{}).
+		Where("jav_studio_id <> ? AND alias IN ?", studioID, aliases).
+		Count(&aliasConflict).Error; err != nil {
+		return fmt.Errorf("check jav studio aliases: %w", err)
+	}
+	if aliasConflict > 0 {
+		return errors.New("studio alias already exists")
+	}
+	return nil
+}
+
+func replaceJavStudioAliasesTx(tx *gorm.DB, studioID int64, aliases []string) error {
+	if err := tx.Where("jav_studio_id = ?", studioID).Delete(&models.JavStudioAlias{}).Error; err != nil {
+		return fmt.Errorf("delete jav studio aliases: %w", err)
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+	now := time.Now()
+	rows := make([]models.JavStudioAlias, 0, len(aliases))
+	for _, alias := range aliases {
+		rows = append(rows, models.JavStudioAlias{
+			JavStudioID: studioID,
+			Alias:       alias,
+			CreatedAt:   now,
+		})
+	}
+	if err := tx.Create(&rows).Error; err != nil {
+		return fmt.Errorf("create jav studio aliases: %w", err)
+	}
+	return nil
 }
 
 func attachJavStudioCodePrefixes(ctx context.Context, items []JavStudioSummary, directoryIDs []int64) error {
@@ -2560,15 +2763,35 @@ func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 	if name == "" {
 		return nil, errors.New("studio name cannot be empty")
 	}
-	studio := models.JavStudio{Name: name}
+	var studio models.JavStudio
+	err := tx.Where("name = ?", name).First(&studio).Error
+	if err == nil {
+		return &studio, nil
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("load studio %q: %w", name, err)
+	}
+	err = tx.
+		Table("jav_studio_alias jsa").
+		Select("js.*").
+		Joins("JOIN jav_studio js ON js.id = jsa.jav_studio_id").
+		Where("jsa.alias = ?", name).
+		Limit(1).
+		Scan(&studio).Error
+	if err != nil {
+		return nil, fmt.Errorf("load studio alias %q: %w", name, err)
+	}
+	if studio.ID > 0 {
+		return &studio, nil
+	}
+	studio = models.JavStudio{Name: name}
 	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&studio).Error; err != nil {
 		return nil, fmt.Errorf("ensure studio %q: %w", name, err)
 	}
-	if studio.ID != 0 {
-		return &studio, nil
-	}
-	if err := tx.Where("name = ?", name).First(&studio).Error; err != nil {
-		return nil, fmt.Errorf("load studio %q: %w", name, err)
+	if studio.ID == 0 {
+		if err := tx.Where("name = ?", name).First(&studio).Error; err != nil {
+			return nil, fmt.Errorf("load studio %q: %w", name, err)
+		}
 	}
 	return &studio, nil
 }
@@ -2835,6 +3058,135 @@ func MergeJavIdols(ctx context.Context, canonicalID int64, sourceIDs []int64, di
 	}
 
 	return GetJavIdolSummary(ctx, canonicalID, directoryIDs)
+}
+
+// MergeJavStudios moves source studio relationships onto canonicalID and records source names as aliases.
+func MergeJavStudios(ctx context.Context, canonicalID int64, sourceIDs []int64, directoryIDs []int64) (*JavStudioSummary, error) {
+	if canonicalID <= 0 {
+		return nil, errors.New("canonical_id must be positive")
+	}
+	cleanSourceIDs := make([]int64, 0, len(sourceIDs))
+	seen := map[int64]bool{}
+	for _, id := range uniqueInt64s(sourceIDs) {
+		if id <= 0 || id == canonicalID || seen[id] {
+			continue
+		}
+		seen[id] = true
+		cleanSourceIDs = append(cleanSourceIDs, id)
+	}
+	if len(cleanSourceIDs) == 0 {
+		return nil, errors.New("merge_ids required")
+	}
+
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var canonical models.JavStudio
+		if err := tx.Where("id = ?", canonicalID).First(&canonical).Error; err != nil {
+			return fmt.Errorf("find canonical jav studio: %w", err)
+		}
+		var sources []models.JavStudio
+		if err := tx.Where("id IN ?", cleanSourceIDs).Find(&sources).Error; err != nil {
+			return fmt.Errorf("find source jav studios: %w", err)
+		}
+		if len(sources) != len(cleanSourceIDs) {
+			return gorm.ErrRecordNotFound
+		}
+		if err := moveJavStudioAliasesTx(tx, canonical, sources); err != nil {
+			return err
+		}
+		if err := tx.Model(&models.Jav{}).
+			Where("studio_id IN ?", cleanSourceIDs).
+			Update("studio_id", canonicalID).Error; err != nil {
+			return fmt.Errorf("move jav studio works: %w", err)
+		}
+		if err := tx.Model(&models.JavSeries{}).
+			Where("studio_id IN ?", cleanSourceIDs).
+			Update("studio_id", canonicalID).Error; err != nil {
+			return fmt.Errorf("move jav studio series: %w", err)
+		}
+		if err := moveJavStudioFavoriteMapsTx(tx, canonicalID, cleanSourceIDs); err != nil {
+			return err
+		}
+		if err := tx.Where("id IN ?", cleanSourceIDs).Delete(&models.JavStudio{}).Error; err != nil {
+			return fmt.Errorf("delete merged jav studios: %w", err)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return GetJavStudioSummary(ctx, canonicalID, directoryIDs)
+}
+
+func moveJavStudioAliasesTx(tx *gorm.DB, canonical models.JavStudio, sources []models.JavStudio) error {
+	sourceIDs := make([]int64, 0, len(sources))
+	for _, source := range sources {
+		sourceIDs = append(sourceIDs, source.ID)
+	}
+	if len(sourceIDs) > 0 {
+		if err := tx.Exec(
+			`DELETE FROM jav_studio_alias
+			WHERE jav_studio_id IN ?
+			AND EXISTS (
+				SELECT 1
+				FROM jav_studio_alias canonical_alias
+				WHERE canonical_alias.jav_studio_id = ?
+				AND canonical_alias.alias = jav_studio_alias.alias
+			)`,
+			sourceIDs,
+			canonical.ID,
+		).Error; err != nil {
+			return fmt.Errorf("delete duplicate jav studio aliases: %w", err)
+		}
+		if err := tx.Model(&models.JavStudioAlias{}).
+			Where("jav_studio_id IN ?", sourceIDs).
+			Update("jav_studio_id", canonical.ID).Error; err != nil {
+			return fmt.Errorf("move jav studio aliases: %w", err)
+		}
+	}
+
+	aliases := make([]models.JavStudioAlias, 0, len(sources))
+	seen := map[string]bool{}
+	for _, source := range sources {
+		alias := strings.TrimSpace(source.Name)
+		if alias == "" || alias == canonical.Name || seen[alias] {
+			continue
+		}
+		seen[alias] = true
+		aliases = append(aliases, models.JavStudioAlias{
+			JavStudioID: canonical.ID,
+			Alias:       alias,
+			CreatedAt:   time.Now(),
+		})
+	}
+	if len(aliases) == 0 {
+		return nil
+	}
+	if err := tx.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "alias"}},
+		DoNothing: true,
+	}).Create(&aliases).Error; err != nil {
+		return fmt.Errorf("create jav studio aliases: %w", err)
+	}
+	return nil
+}
+
+func moveJavStudioFavoriteMapsTx(tx *gorm.DB, canonicalID int64, sourceIDs []int64) error {
+	if err := tx.Exec(
+		`INSERT OR IGNORE INTO jav_favorite_map (jav_favorite_group_id, entity_type, entity_id, created_at, sort_order)
+		SELECT jav_favorite_group_id, entity_type, ?, MIN(created_at), MIN(sort_order)
+		FROM jav_favorite_map
+		WHERE entity_type = ? AND entity_id IN ?
+		GROUP BY jav_favorite_group_id, entity_type`,
+		canonicalID,
+		JavFavoriteEntityStudio,
+		sourceIDs,
+	).Error; err != nil {
+		return fmt.Errorf("move jav studio favorite maps: %w", err)
+	}
+	if err := tx.Where("entity_type = ? AND entity_id IN ?", JavFavoriteEntityStudio, sourceIDs).
+		Delete(&models.JavFavoriteMap{}).Error; err != nil {
+		return fmt.Errorf("delete source jav studio favorite maps: %w", err)
+	}
+	return nil
 }
 
 func moveJavIdolAliasesTx(tx *gorm.DB, canonical models.JavIdol, sources []models.JavIdol) error {

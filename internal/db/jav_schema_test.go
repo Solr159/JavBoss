@@ -17,6 +17,9 @@ func TestJavSchemaOmitsFrontendEnglishMetadataColumns(t *testing.T) {
 	assertTableColumns(t, db, "jav_series", []string{
 		"id", "name", "is_english", "studio_id", "created_at", "updated_at",
 	})
+	assertTableColumns(t, db, "jav_studio_alias", []string{
+		"id", "jav_studio_id", "alias", "created_at",
+	})
 	assertTableColumns(t, db, "jav_idol", []string{
 		"id", "name", "roman_name", "japanese_name", "chinese_name", "height_cm",
 		"birth_date", "bust", "waist", "hips", "cup", "created_at", "updated_at",

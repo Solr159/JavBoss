@@ -461,6 +461,11 @@ function buildIdolSearchText(idol, preferChineseName) {
     .join(' ')
 }
 
+function buildStudioSearchText(studio) {
+  const aliases = Array.isArray(studio?.aliases) ? studio.aliases : []
+  return [studio?.name, ...aliases].filter(Boolean).join(' ')
+}
+
 function includeSelectedOptions(options, allOptions, selectedIds) {
   const selectedSet = new Set((selectedIds || []).map((id) => String(id)))
   if (selectedSet.size === 0) return options
@@ -647,7 +652,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   const visibleStudioOptions = useMemo(
     () =>
       includeSelectedOptions(
-        filterOptionsByName(mergedStudioOptions, studioSearch),
+        filterOptionsByName(mergedStudioOptions, studioSearch, buildStudioSearchText),
         mergedStudioOptions,
         [selectedStudioId]
       ),

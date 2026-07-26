@@ -111,6 +111,14 @@ type JavStudio struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type JavStudioAlias struct {
+	ID          int64     `json:"id" gorm:"primaryKey"`
+	JavStudioID int64     `json:"jav_studio_id" gorm:"not null;index"`
+	JavStudio   JavStudio `json:"-" gorm:"foreignKey:JavStudioID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Alias       string    `json:"alias" gorm:"not null;uniqueIndex"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
 type JavSeries struct {
 	ID        int64      `json:"id" gorm:"primaryKey"`
 	Name      string     `json:"name" gorm:"uniqueIndex:idx_jav_series_name_language"`

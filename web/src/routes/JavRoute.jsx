@@ -88,6 +88,7 @@ function JavStudioRoute({
   onGoToPage,
   onLast,
   onLoadMore,
+  onMerged,
   onNext,
   onOpenFavorites,
   onOpenSeriesFavorites,
@@ -153,6 +154,7 @@ function JavStudioRoute({
       onLoadMore={onLoadMore}
       loadingMore={loadingMore}
       hasMore={hasMore}
+      onMerged={onMerged}
     />
   )
 }

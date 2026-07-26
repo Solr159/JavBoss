@@ -47,6 +47,89 @@ func listJavStudios(c *gin.Context) {
 	})
 }
 
+func listJavStudioOptions(c *gin.Context) {
+	limit := queryInt(c, "limit", 100)
+	offset := queryInt(c, "offset", 0)
+	search := strings.TrimSpace(c.Query("search"))
+
+	items, total, err := dbpkg.ListJavStudioOptions(c.Request.Context(), search, limit, offset)
+	if err != nil {
+		logging.Error("list jav studio options: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "加载片商选项失败", "Failed to load studio options")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"items": items,
+		"total": total,
+	})
+}
+
+func mergeJavStudios(c *gin.Context) {
+	var req struct {
+		CanonicalID int64   `json:"canonical_id"`
+		MergeIDs    []int64 `json:"merge_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "合并片商请求无效", "Invalid studio merge request")
+		return
+	}
+	if req.CanonicalID <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "主片商 ID 不能为空", "Canonical studio ID is required")
+		return
+	}
+	if len(req.MergeIDs) == 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "待合并片商 ID 不能为空", "Studio IDs to merge are required")
+		return
+	}
+
+	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
+	item, err := dbpkg.MergeJavStudios(c.Request.Context(), req.CanonicalID, req.MergeIDs, directoryIDs)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "片商不存在", "Studio was not found")
+			return
+		}
+		logging.Error("merge jav studios canonical=%d merge=%v: %v", req.CanonicalID, req.MergeIDs, err)
+		respondLocalizedError(c, http.StatusBadRequest, "合并片商失败，请检查所选片商是否有效", "Failed to merge studios; check the selected studios")
+		return
+	}
+	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	c.JSON(http.StatusOK, item)
+}
+
+func updateJavStudio(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "片商 ID 无效", "Invalid studio ID")
+		return
+	}
+	var req struct {
+		Name    string   `json:"name"`
+		Aliases []string `json:"aliases"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "修改片商信息请求无效", "Invalid studio update request")
+		return
+	}
+
+	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
+	item, err := dbpkg.UpdateJavStudioProfile(c.Request.Context(), id, dbpkg.JavStudioUpdateInput{
+		Name:    req.Name,
+		Aliases: req.Aliases,
+	}, directoryIDs)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "片商不存在", "Studio was not found")
+			return
+		}
+		logging.Error("update jav studio id=%d: %v", id, err)
+		respondLocalizedError(c, http.StatusBadRequest, "保存片商信息失败", "Failed to save studio information")
+		return
+	}
+	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	c.JSON(http.StatusOK, item)
+}
+
 func getJavStudio(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

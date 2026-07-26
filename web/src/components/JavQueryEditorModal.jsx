@@ -61,6 +61,11 @@ function buildIdolSearchText(idol, preferChineseName) {
     .join(' ')
 }
 
+function buildStudioSearchText(studio) {
+  const aliases = Array.isArray(studio?.aliases) ? studio.aliases : []
+  return [studio?.name, ...aliases].filter(Boolean).join(' ')
+}
+
 const fetchAllJavIdols = async ({ directoryIds = [] } = {}) => {
   const all = []
   let offset = 0
@@ -454,9 +459,7 @@ export default function JavQueryEditorModal({
     return [unknownStudioOption(), ...allStudios]
       .filter((studio) => {
         if (!query) return true
-        return String(studio?.name || '')
-          .toLowerCase()
-          .includes(query)
+        return buildStudioSearchText(studio).toLowerCase().includes(query)
       })
       .sort((a, b) => {
         if (Number(a?.id) === 0) return -1

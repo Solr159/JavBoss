@@ -929,6 +929,51 @@ export async function fetchJavStudios({
   return res.json()
 }
 
+export async function fetchJavStudioOptions({ limit = 25, offset = 0, search = '' } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', String(limit))
+  params.set('offset', String(offset))
+  if (search) params.set('search', search)
+  const res = await apiFetch(`/jav/studios/options?${params.toString()}`)
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
+export async function mergeJavStudios({ canonicalId, mergeIds = [], directoryIds = [] } = {}) {
+  const params = new URLSearchParams()
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  const query = params.toString()
+  const res = await apiFetch(`/jav/studios/merge${query ? `?${query}` : ''}`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      canonical_id: canonicalId,
+      merge_ids: mergeIds,
+    }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
+export async function updateJavStudio(id, payload, { directoryIds = [] } = {}) {
+  const params = new URLSearchParams()
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  const query = params.toString()
+  const res = await apiFetch(`/jav/studios/${encodeURIComponent(id)}${query ? `?${query}` : ''}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 export async function fetchJavStudioJavDBURL({ studioId = null } = {}) {
   const params = new URLSearchParams()
   params.set('studio_id', String(studioId || ''))
