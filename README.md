@@ -1,5 +1,3 @@
-<strong>JavBoss includes native English support. For English documentation, see the <a href="./README.en.md">English README</a>.</strong>
-
 <h1 align="center">JavBoss</h1>
 
 <p align="center">本地成人视频收藏的一站式解决方案：自动扫描目录视频生成封面截图，识别 JAV 并抓取元数据，提供强大的视频和 JAV 检索功能，并通过内置 mpv 播放器快速播放。</p>
