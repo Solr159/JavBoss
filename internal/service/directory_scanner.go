@@ -289,7 +289,7 @@ func walkDirectoryAndSync(ctx context.Context, directory models.Directory, state
 		if entry.IsDir() {
 			return nil
 		}
-		if !util.IsVideo(candidatePath) {
+		if !util.IsVideoCandidate(candidatePath) {
 			return nil
 		}
 

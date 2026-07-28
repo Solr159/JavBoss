@@ -1,6 +1,7 @@
 package util
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,15 +9,87 @@ import (
 
 func TestIsVideoRecognizesMPEGTransportStreamWithMP4Extension(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "SNIS-974.mp4")
-	packet := make([]byte, 188)
-	packet[0] = 0x47
-	content := append(append(append([]byte{}, packet...), packet...), packet...)
+	content := makeMPEGTransportStreamHeader(188, 0)
 	if err := os.WriteFile(path, content, 0o600); err != nil {
 		t.Fatalf("write MPEG-TS fixture: %v", err)
 	}
 
 	if !IsVideo(path) {
 		t.Fatal("IsVideo should recognize MPEG-TS content with an .mp4 extension")
+	}
+}
+
+func TestIsVideoRecognizesCommonMPEGTransportStreamLayouts(t *testing.T) {
+	tests := []struct {
+		name       string
+		packetSize int
+		syncOffset int
+	}{
+		{name: "TS", packetSize: 188, syncOffset: 0},
+		{name: "M2TS", packetSize: 192, syncOffset: 4},
+		{name: "192 byte TS", packetSize: 192, syncOffset: 0},
+		{name: "204 byte TS", packetSize: 204, syncOffset: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "misnamed.data")
+			content := makeMPEGTransportStreamHeader(tt.packetSize, tt.syncOffset)
+			if err := os.WriteFile(path, content, 0o600); err != nil {
+				t.Fatalf("write MPEG-TS fixture: %v", err)
+			}
+
+			if !IsVideo(path) {
+				t.Fatalf("IsVideo should recognize packet size %d with sync offset %d", tt.packetSize, tt.syncOffset)
+			}
+		})
+	}
+}
+
+func TestIsVideoRecognizesGenericISOBMFFBrandsWithVideoExtensions(t *testing.T) {
+	tests := []struct {
+		name  string
+		brand string
+		ext   string
+	}{
+		{name: "VR MP4", brand: "vr1d", ext: ".mp4"},
+		{name: "QuickTime MOV", brand: "qt  ", ext: ".MOV"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "sample"+tt.ext)
+			content := make([]byte, 28)
+			binary.BigEndian.PutUint32(content[:4], uint32(len(content)))
+			copy(content[4:8], "ftyp")
+			copy(content[8:12], tt.brand)
+			if err := os.WriteFile(path, content, 0o600); err != nil {
+				t.Fatalf("write ISO-BMFF fixture: %v", err)
+			}
+
+			if !IsVideo(path) {
+				t.Fatalf("IsVideo should recognize ISO-BMFF brand %q", tt.brand)
+			}
+		})
+	}
+}
+
+func TestIsVideoCandidateUsesKnownExtensionWithoutAcceptingText(t *testing.T) {
+	dir := t.TempDir()
+	ogvPath := filepath.Join(dir, "sample.ogv")
+	if err := os.WriteFile(ogvPath, []byte("candidate validated later by ffprobe"), 0o600); err != nil {
+		t.Fatalf("write OGV candidate: %v", err)
+	}
+	if !IsVideoCandidate(ogvPath) {
+		t.Fatal("known video extension should be accepted as an ffprobe candidate")
+	}
+
+	textPath := filepath.Join(dir, "sample.txt")
+	if err := os.WriteFile(textPath, []byte("ordinary text"), 0o600); err != nil {
+		t.Fatalf("write text fixture: %v", err)
+	}
+	if IsVideoCandidate(textPath) {
+		t.Fatal("ordinary text should not be accepted as an ffprobe candidate")
 	}
 }
 
@@ -40,6 +113,15 @@ func TestIsVideoRejectsRMVBWithoutRealMediaSignature(t *testing.T) {
 	if IsVideo(path) {
 		t.Fatal("IsVideo should reject rmvb files without a RealMedia signature")
 	}
+}
+
+func makeMPEGTransportStreamHeader(packetSize, syncOffset int) []byte {
+	const packetCount = 4
+	content := make([]byte, syncOffset+packetCount*packetSize)
+	for packet := 0; packet < packetCount; packet++ {
+		content[syncOffset+packet*packetSize] = 0x47
+	}
+	return content
 }
 
 func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
