@@ -6,6 +6,20 @@ import (
 	"testing"
 )
 
+func TestIsVideoRecognizesMPEGTransportStreamWithMP4Extension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "SNIS-974.mp4")
+	packet := make([]byte, 188)
+	packet[0] = 0x47
+	content := append(append(append([]byte{}, packet...), packet...), packet...)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatalf("write MPEG-TS fixture: %v", err)
+	}
+
+	if !IsVideo(path) {
+		t.Fatal("IsVideo should recognize MPEG-TS content with an .mp4 extension")
+	}
+}
+
 func TestIsVideoRecognizesRMVBRealMediaSignature(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sample.rmvb")
 	if err := os.WriteFile(path, append([]byte(".RMF\x00\x00\x00\x12"), make([]byte, 32)...), 0o644); err != nil {

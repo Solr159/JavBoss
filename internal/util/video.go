@@ -72,43 +72,24 @@ func (m *VideoMetadata) FingerprintV2(size int64) string {
 // inspecting the initial bytes and matching known MIME signatures.
 func IsVideo(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	if ext == ".ts" || ext == ".mts" || ext == ".m2ts" {
-		f, err := os.Open(path)
-		if err != nil {
-			return false
-		}
-		defer f.Close()
-		// MPEG-TS packets start with 0x47 sync byte every 188 bytes.
-		header := make([]byte, 564) // 3 * 188
-		n, _ := f.Read(header)
-		if n < 188 {
-			return false
-		}
-		if header[0] != 0x47 {
-			return false
-		}
-		if n > 188 && header[188] != 0x47 {
-			return false
-		}
-		if n > 376 && header[376] != 0x47 {
-			return false
-		}
-		return true
-	}
-
 	f, err := os.Open(path)
 	if err != nil {
 		return false
 	}
 	defer f.Close()
 
-	// filetype recommends at least 261 bytes
-	header := make([]byte, 261)
+	// filetype recommends at least 261 bytes. Read enough MPEG-TS packets to
+	// recognize transport streams by content even when the extension is incorrect
+	// (for example, a .mp4 file containing MPEG-TS data).
+	header := make([]byte, 4*188)
 	n, err := f.Read(header)
 	if n == 0 && err != nil {
 		return false
 	}
 	buf := header[:n]
+	if isMPEGTransportStreamHeader(buf) {
+		return true
+	}
 	if isRealMediaExtension(ext) && isRealMediaHeader(buf) {
 		return true
 	}
@@ -121,6 +102,21 @@ func IsVideo(path string) bool {
 	}
 	// Accept any MIME with top-level type "video"
 	return strings.HasPrefix(kind.MIME.Value, "video/") || kind.MIME.Type == "video"
+}
+
+func isMPEGTransportStreamHeader(buf []byte) bool {
+	const packetSize = 188
+	const packetsToCheck = 3
+
+	if len(buf) < packetSize*packetsToCheck {
+		return false
+	}
+	for packet := 0; packet < packetsToCheck; packet++ {
+		if buf[packet*packetSize] != 0x47 {
+			return false
+		}
+	}
+	return true
 }
 
 func isRealMediaExtension(ext string) bool {
