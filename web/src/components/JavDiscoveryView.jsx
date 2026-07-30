@@ -223,7 +223,7 @@ export default function JavDiscoveryView() {
 
   return (
     <div className="w-full px-4 py-4 sm:px-6">
-      <div className="lg:ml-[max(0rem,calc(11rem-var(--page-x-padding)-1.5rem))]">
+      <div className="lg:ml-[max(0rem,calc(11rem-var(--page-x-padding)))]">
         <aside className="mb-4 lg:fixed lg:bottom-0 lg:left-0 lg:top-[var(--topbar-height)] lg:z-30 lg:mb-0 lg:w-44">
           <div className="rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm lg:h-full lg:rounded-none lg:border-0 lg:border-r lg:p-0 lg:shadow-none">
             <div
