@@ -190,6 +190,14 @@ export default function JavDiscoveryView() {
     () => zh(`${subscriptions.length} 个女优订阅`, `${subscriptions.length} idol subscriptions`),
     [subscriptions.length]
   )
+  const handleDetailsResolved = useCallback((resolved) => {
+    setItems((current) =>
+      current.map((item) => (item.id === resolved.id ? { ...item, ...resolved } : item))
+    )
+    setSelectedItem((current) =>
+      current?.id === resolved.id ? { ...current, ...resolved } : current
+    )
+  }, [])
 
   return (
     <div className="mx-auto w-full max-w-[1500px] px-4 pt-4 sm:px-6">
@@ -367,7 +375,7 @@ export default function JavDiscoveryView() {
                   <div className="relative block aspect-[2/3] overflow-hidden bg-gray-100">
                     {metadata.cover_url ? (
                       <img
-                        src={`/jav/discovery/items/${encodeURIComponent(item.id)}/cover?v=${encodeURIComponent(
+                        src={`/jav/discovery/items/${encodeURIComponent(item.id)}/thumbnail?v=${encodeURIComponent(
                           item.updated_at || ''
                         )}`}
                         alt=""
@@ -449,9 +457,9 @@ export default function JavDiscoveryView() {
       {selectedItem ? (
         <JavDiscoveryDetailModal
           item={selectedItem}
-          releaseText={formatReleaseDate(selectedItem.release_unix)}
           wantedBusy={busyItemIds.has(selectedItem.id)}
           onClose={() => setSelectedItem(null)}
+          onResolved={handleDetailsResolved}
           onToggleWanted={handleWanted}
         />
       ) : null}

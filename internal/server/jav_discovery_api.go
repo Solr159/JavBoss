@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -23,7 +24,12 @@ import (
 
 const maxJavDiscoveryCoverBytes = 15 * 1024 * 1024
 
-var javDiscoveryCoverHTTPDo = doJavDiscoveryCoverRequest
+const javDiscoveryDetailsTTL = 24 * time.Hour
+
+var (
+	javDiscoveryCoverHTTPDo = doJavDiscoveryCoverRequest
+	fetchJavBusDetails      = jav.FetchJavBusDiscoveryItemDetails
+)
 
 type createJavDiscoverySubscriptionRequest struct {
 	Name          string `json:"name"`
@@ -140,6 +146,64 @@ func updateJavDiscoveryItemWanted(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+func resolveJavDiscoveryItemDetails(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "作品 ID 不正确", "Invalid item ID")
+		return
+	}
+	record, err := db.GetJavDiscoveryItem(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "发现作品不存在", "Discovery item not found")
+			return
+		}
+		respondLocalizedError(c, http.StatusInternalServerError, "读取发现作品失败", "Failed to read discovery item")
+		return
+	}
+	var cached jav.JavBusDiscoveryItem
+	if json.Unmarshal([]byte(record.MetadataJSON), &cached) == nil &&
+		cached.DetailsFetchedAt != nil &&
+		cached.DetailsFetchedAt.After(time.Now().Add(-javDiscoveryDetailsTTL)) {
+		respondJavDiscoveryDetails(c, record)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+	details, err := fetchJavBusDetails(ctx, record.Code)
+	if err != nil {
+		if errors.Is(err, jav.ResourceNotFonud) {
+			respondLocalizedError(c, http.StatusNotFound, "JavBus 上未找到该作品详情", "JavBus details were not found")
+			return
+		}
+		respondLocalizedError(c, http.StatusBadGateway, "暂时无法从 JavBus 加载详情", "Unable to load details from JavBus")
+		return
+	}
+	if details == nil {
+		respondLocalizedError(c, http.StatusBadGateway, "JavBus 返回了空详情", "JavBus returned empty details")
+		return
+	}
+	record, err = db.UpdateJavDiscoveryItemDetails(c.Request.Context(), id, *details)
+	if err != nil {
+		respondLocalizedError(c, http.StatusInternalServerError, "保存发现作品详情失败", "Failed to save discovery item details")
+		return
+	}
+	respondJavDiscoveryDetails(c, record)
+}
+
+func respondJavDiscoveryDetails(c *gin.Context, record *models.JavDiscoveryItem) {
+	metadata := json.RawMessage(strings.TrimSpace(record.MetadataJSON))
+	if !json.Valid(metadata) {
+		metadata = json.RawMessage(`{}`)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"metadata":     metadata,
+		"release_unix": record.ReleaseUnix,
+		"updated_at":   record.UpdatedAt,
+	})
+}
+
 func getJavDiscoveryItemCover(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -147,6 +211,20 @@ func getJavDiscoveryItemCover(c *gin.Context) {
 		return
 	}
 	coverURL, err := db.GetJavDiscoveryItemCoverURL(c.Request.Context(), id)
+	proxyJavDiscoveryItemImage(c, coverURL, err)
+}
+
+func getJavDiscoveryItemThumbnail(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "作品 ID 不正确", "Invalid item ID")
+		return
+	}
+	coverURL, err := db.GetJavDiscoveryItemThumbnailURL(c.Request.Context(), id)
+	proxyJavDiscoveryItemImage(c, coverURL, err)
+}
+
+func proxyJavDiscoveryItemImage(c *gin.Context, coverURL string, err error) {
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "发现作品封面不存在", "Discovery item cover not found")

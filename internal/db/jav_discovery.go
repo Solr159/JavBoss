@@ -236,6 +236,14 @@ func SetJavDiscoveryItemWanted(ctx context.Context, id int64, wanted bool) error
 }
 
 func GetJavDiscoveryItemCoverURL(ctx context.Context, id int64) (string, error) {
+	return getJavDiscoveryItemImageURL(ctx, id, false)
+}
+
+func GetJavDiscoveryItemThumbnailURL(ctx context.Context, id int64) (string, error) {
+	return getJavDiscoveryItemImageURL(ctx, id, true)
+}
+
+func getJavDiscoveryItemImageURL(ctx context.Context, id int64, thumbnail bool) (string, error) {
 	if common.DB == nil {
 		return "", errors.New("get jav discovery item cover: nil db")
 	}
@@ -249,16 +257,142 @@ func GetJavDiscoveryItemCoverURL(ctx context.Context, id int64) (string, error) 
 		return "", fmt.Errorf("get jav discovery item cover: %w", err)
 	}
 	var metadata struct {
-		CoverURL string `json:"cover_url"`
+		CoverURL     string `json:"cover_url"`
+		ThumbnailURL string `json:"thumbnail_url"`
 	}
 	if err := json.Unmarshal([]byte(item.MetadataJSON), &metadata); err != nil {
 		return "", fmt.Errorf("decode jav discovery item cover metadata: %w", err)
 	}
 	coverURL := strings.TrimSpace(metadata.CoverURL)
+	if thumbnail && strings.TrimSpace(metadata.ThumbnailURL) != "" {
+		coverURL = strings.TrimSpace(metadata.ThumbnailURL)
+	}
 	if coverURL == "" {
 		return "", gorm.ErrRecordNotFound
 	}
 	return coverURL, nil
+}
+
+func GetJavDiscoveryItem(ctx context.Context, id int64) (*models.JavDiscoveryItem, error) {
+	if common.DB == nil {
+		return nil, errors.New("get jav discovery item: nil db")
+	}
+	if id <= 0 {
+		return nil, errors.New("get jav discovery item: invalid id")
+	}
+	var item models.JavDiscoveryItem
+	if err := common.DB.WithContext(ctx).First(&item, id).Error; err != nil {
+		return nil, fmt.Errorf("get jav discovery item: %w", err)
+	}
+	return &item, nil
+}
+
+func UpdateJavDiscoveryItemDetails(ctx context.Context, id int64, details jav.JavBusDiscoveryItem) (*models.JavDiscoveryItem, error) {
+	current, err := GetJavDiscoveryItem(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var existing jav.JavBusDiscoveryItem
+	_ = json.Unmarshal([]byte(current.MetadataJSON), &existing)
+	details = mergeJavDiscoveryDetails(existing, details)
+	metadata, err := json.Marshal(details)
+	if err != nil {
+		return nil, fmt.Errorf("marshal jav discovery item details: %w", err)
+	}
+	updates := map[string]any{"metadata_json": string(metadata)}
+	if details.ReleaseUnix > 0 {
+		updates["release_unix"] = details.ReleaseUnix
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.JavDiscoveryItem{}).
+		Where("id = ?", id).
+		Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("update jav discovery item details: %w", err)
+	}
+	return GetJavDiscoveryItem(ctx, id)
+}
+
+func mergeJavDiscoveryDetails(existing, details jav.JavBusDiscoveryItem) jav.JavBusDiscoveryItem {
+	if strings.TrimSpace(details.Code) == "" {
+		details.Code = existing.Code
+	}
+	if strings.TrimSpace(details.Title) == "" {
+		details.Title = existing.Title
+	}
+	if details.ReleaseUnix <= 0 {
+		details.ReleaseUnix = existing.ReleaseUnix
+	}
+	if details.DurationMin <= 0 {
+		details.DurationMin = existing.DurationMin
+	}
+	if strings.TrimSpace(details.CoverURL) == "" {
+		details.CoverURL = existing.CoverURL
+	}
+	if strings.TrimSpace(details.ThumbnailURL) == "" {
+		details.ThumbnailURL = existing.ThumbnailURL
+		if strings.TrimSpace(details.ThumbnailURL) == "" && existing.DetailsFetchedAt == nil {
+			details.ThumbnailURL = existing.CoverURL
+		}
+	}
+	if strings.TrimSpace(details.DetailURL) == "" {
+		details.DetailURL = existing.DetailURL
+	}
+	if len(details.Actresses) == 0 {
+		details.Actresses = existing.Actresses
+	}
+	if strings.TrimSpace(details.Studio) == "" {
+		details.Studio = existing.Studio
+	}
+	if strings.TrimSpace(details.Series) == "" {
+		details.Series = existing.Series
+	}
+	if len(details.Tags) == 0 {
+		details.Tags = existing.Tags
+	}
+	if len(details.SampleImages) == 0 {
+		details.SampleImages = existing.SampleImages
+	}
+	if details.IsUncensored == nil {
+		details.IsUncensored = existing.IsUncensored
+	}
+	if strings.TrimSpace(details.Source) == "" {
+		details.Source = existing.Source
+	}
+	if details.DetailsFetchedAt == nil {
+		details.DetailsFetchedAt = existing.DetailsFetchedAt
+	}
+	return details
+}
+
+func mergeJavDiscoveryListing(existing, listing jav.JavBusDiscoveryItem) jav.JavBusDiscoveryItem {
+	result := existing
+	if strings.TrimSpace(result.Code) == "" {
+		result.Code = listing.Code
+	}
+	if strings.TrimSpace(result.Title) == "" {
+		result.Title = listing.Title
+	}
+	if listing.ReleaseUnix > 0 {
+		result.ReleaseUnix = listing.ReleaseUnix
+	}
+	if strings.TrimSpace(result.CoverURL) == "" {
+		result.CoverURL = listing.CoverURL
+	}
+	if strings.TrimSpace(listing.ThumbnailURL) != "" {
+		result.ThumbnailURL = listing.ThumbnailURL
+	} else if strings.TrimSpace(listing.CoverURL) != "" {
+		result.ThumbnailURL = listing.CoverURL
+	}
+	if strings.TrimSpace(listing.DetailURL) != "" {
+		result.DetailURL = listing.DetailURL
+	}
+	if len(result.Actresses) == 0 {
+		result.Actresses = listing.Actresses
+	}
+	if strings.TrimSpace(result.Source) == "" {
+		result.Source = listing.Source
+	}
+	return result
 }
 
 // UpsertJavDiscoveryItems stores listing metadata and associates each item with
@@ -276,6 +410,21 @@ func UpsertJavDiscoveryItems(ctx context.Context, subscriptionID int64, items []
 			code := strings.ToUpper(strings.TrimSpace(item.Code))
 			if code == "" {
 				continue
+			}
+			if strings.TrimSpace(item.ThumbnailURL) == "" {
+				item.ThumbnailURL = item.CoverURL
+			}
+			var existing models.JavDiscoveryItem
+			if err := tx.Select("metadata_json").
+				Where("code = ?", code).
+				Take(&existing).Error; err == nil {
+				var existingMetadata jav.JavBusDiscoveryItem
+				if json.Unmarshal([]byte(existing.MetadataJSON), &existingMetadata) == nil &&
+					existingMetadata.DetailsFetchedAt != nil {
+					item = mergeJavDiscoveryListing(existingMetadata, item)
+				}
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return fmt.Errorf("load existing jav discovery metadata for %s: %w", code, err)
 			}
 			metadata, err := json.Marshal(item)
 			if err != nil {

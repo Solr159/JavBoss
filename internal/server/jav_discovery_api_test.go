@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"time"
 
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
@@ -100,10 +101,9 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 
 	itemID := listed.Items[0].ID
 	previousHTTPDo := javDiscoveryCoverHTTPDo
+	requestedCoverURLs := make([]string, 0, 3)
 	javDiscoveryCoverHTTPDo = func(request *http.Request) (*http.Response, error) {
-		if request.URL.String() != "https://pics.javbus.com/cover.jpg" {
-			t.Errorf("cover request URL = %q", request.URL.String())
-		}
+		requestedCoverURLs = append(requestedCoverURLs, request.URL.String())
 		if request.Header.Get("Referer") != "https://www.javbus.com/" {
 			t.Errorf("cover request referer = %q", request.Header.Get("Referer"))
 		}
@@ -129,6 +129,91 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}
 	if cacheControl := cover.Header().Get("Cache-Control"); cacheControl != "private, max-age=86400" {
 		t.Fatalf("cover cache control = %q", cacheControl)
+	}
+	if len(requestedCoverURLs) != 1 || requestedCoverURLs[0] != "https://pics.javbus.com/cover.jpg" {
+		t.Fatalf("initial cover request URLs = %#v", requestedCoverURLs)
+	}
+
+	detailsFetchedAt := time.Now().UTC()
+	detailCalls := 0
+	previousDetailsFetch := fetchJavBusDetails
+	fetchJavBusDetails = func(_ context.Context, code string) (*jav.JavBusDiscoveryItem, error) {
+		detailCalls++
+		if code != "ABC-001" {
+			t.Errorf("detail code = %q", code)
+		}
+		return &jav.JavBusDiscoveryItem{
+			Code:             code,
+			Title:            "Full JavBus title",
+			ReleaseUnix:      200,
+			DurationMin:      123,
+			CoverURL:         "https://pics.javbus.com/full-cover.jpg",
+			DetailURL:        "https://www.javbus.com/ABC-001",
+			Actresses:        []string{"Test Idol"},
+			Studio:           "Test Studio",
+			Series:           "Test Series",
+			Tags:             []string{"Tag A", "Tag B"},
+			Source:           "javbus",
+			DetailsFetchedAt: &detailsFetchedAt,
+		}, nil
+	}
+	t.Cleanup(func() { fetchJavBusDetails = previousDetailsFetch })
+	for attempt := 0; attempt < 2; attempt++ {
+		details := performDiscoveryRequest(
+			t,
+			router,
+			http.MethodPost,
+			"/jav/discovery/items/"+strconv.FormatInt(itemID, 10)+"/details",
+			nil,
+		)
+		if details.Code != http.StatusOK {
+			t.Fatalf("details status = %d body=%s", details.Code, details.Body.String())
+		}
+		var payload struct {
+			Metadata struct {
+				Title  string   `json:"title"`
+				Studio string   `json:"studio"`
+				Series string   `json:"series"`
+				Tags   []string `json:"tags"`
+			} `json:"metadata"`
+		}
+		if err := json.Unmarshal(details.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("decode details: %v", err)
+		}
+		if payload.Metadata.Title != "Full JavBus title" ||
+			payload.Metadata.Studio != "Test Studio" ||
+			payload.Metadata.Series != "Test Series" ||
+			len(payload.Metadata.Tags) != 2 {
+			t.Fatalf("unexpected details payload: %+v", payload)
+		}
+	}
+	if detailCalls != 1 {
+		t.Fatalf("detail fetch calls = %d, want cached second response", detailCalls)
+	}
+	for _, path := range []string{"thumbnail", "cover"} {
+		image := performDiscoveryRequest(
+			t,
+			router,
+			http.MethodGet,
+			"/jav/discovery/items/"+strconv.FormatInt(itemID, 10)+"/"+path,
+			nil,
+		)
+		if image.Code != http.StatusOK {
+			t.Fatalf("%s status = %d body=%s", path, image.Code, image.Body.String())
+		}
+	}
+	wantCoverURLs := []string{
+		"https://pics.javbus.com/cover.jpg",
+		"https://pics.javbus.com/cover.jpg",
+		"https://pics.javbus.com/full-cover.jpg",
+	}
+	if len(requestedCoverURLs) != len(wantCoverURLs) {
+		t.Fatalf("cover request URLs = %#v, want %#v", requestedCoverURLs, wantCoverURLs)
+	}
+	for index := range wantCoverURLs {
+		if requestedCoverURLs[index] != wantCoverURLs[index] {
+			t.Fatalf("cover request URLs = %#v, want %#v", requestedCoverURLs, wantCoverURLs)
+		}
 	}
 
 	update := performDiscoveryRequest(

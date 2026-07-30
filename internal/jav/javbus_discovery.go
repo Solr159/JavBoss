@@ -37,13 +37,64 @@ type JavBusActressSubscription struct {
 
 // JavBusDiscoveryItem is the metadata available from a JavBus actress listing.
 type JavBusDiscoveryItem struct {
-	Code        string   `json:"code"`
-	Title       string   `json:"title"`
-	ReleaseUnix int64    `json:"release_unix"`
-	CoverURL    string   `json:"cover_url"`
-	DetailURL   string   `json:"detail_url"`
-	Actresses   []string `json:"actresses"`
-	Source      string   `json:"source"`
+	Code             string        `json:"code"`
+	Title            string        `json:"title"`
+	ReleaseUnix      int64         `json:"release_unix"`
+	DurationMin      int           `json:"duration_min"`
+	CoverURL         string        `json:"cover_url"`
+	ThumbnailURL     string        `json:"thumbnail_url"`
+	DetailURL        string        `json:"detail_url"`
+	Actresses        []string      `json:"actresses"`
+	Studio           string        `json:"studio"`
+	Series           string        `json:"series"`
+	Tags             []string      `json:"tags"`
+	SampleImages     []SampleImage `json:"sample_images"`
+	IsUncensored     *bool         `json:"is_uncensored,omitempty"`
+	Source           string        `json:"source"`
+	DetailsFetchedAt *time.Time    `json:"details_fetched_at,omitempty"`
+}
+
+// FetchJavBusDiscoveryItemDetails resolves full metadata from a JavBus movie
+// detail page without adding the work to the main JAV catalog.
+func FetchJavBusDiscoveryItemDetails(ctx context.Context, code string) (*JavBusDiscoveryItem, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return nil, ResourceNotFonud
+	}
+	lookupCode, rewrite := javBusLookupCode(code)
+	doc, detailURL, err := fetchJavBusDocument(ctx, lookupCode)
+	if err != nil {
+		return nil, err
+	}
+	if isJavBusVerificationPage(doc) {
+		return nil, errJavBusVerificationRequired
+	}
+	info := parseDocument(doc)
+	if info == nil || strings.TrimSpace(info.Code) == "" || strings.TrimSpace(info.Title) == "" {
+		return nil, ResourceNotFonud
+	}
+	info.CoverURL = parseJavBusCoverURL(doc, detailURL)
+	info.SampleImages = parseSampleImages(doc, detailURL)
+	if rewrite != nil {
+		normalizeJavBusRewrittenInfo(info, rewrite)
+	}
+	fetchedAt := time.Now().UTC()
+	return &JavBusDiscoveryItem{
+		Code:             strings.TrimSpace(info.Code),
+		Title:            strings.TrimSpace(info.Title),
+		ReleaseUnix:      info.ReleaseUnix,
+		DurationMin:      info.DurationMin,
+		CoverURL:         strings.TrimSpace(info.CoverURL),
+		DetailURL:        detailURL,
+		Actresses:        append([]string(nil), info.Actors...),
+		Studio:           strings.TrimSpace(info.Studio),
+		Series:           strings.TrimSpace(info.Series),
+		Tags:             append([]string(nil), info.Tags...),
+		SampleImages:     append([]SampleImage(nil), info.SampleImages...),
+		IsUncensored:     info.IsUncensored,
+		Source:           "javbus",
+		DetailsFetchedAt: &fetchedAt,
+	}, nil
 }
 
 // ValidateJavBusActressSubscription verifies that referenceCode is a solo work

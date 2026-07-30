@@ -535,6 +535,15 @@ export async function updateJavDiscoveryWanted(id, wanted) {
   if (!res.ok) throw await apiError(res)
 }
 
+export async function resolveJavDiscoveryDetails(id) {
+  const res = await apiFetch(`/jav/discovery/items/${encodeURIComponent(id)}/details`, {
+    method: 'POST',
+    cache: 'no-store',
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
 export async function triggerJavDiscoverySync() {
   const res = await apiFetch('/jav/discovery/sync', { method: 'POST' })
   if (!res.ok) throw await apiError(res)
