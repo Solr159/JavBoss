@@ -210,35 +210,25 @@ export default function JavDiscoveryView() {
     {
       id: 'subscriptions',
       label: zh('订阅规则', 'Subscription rules'),
-      description: zh('管理女优订阅', 'Manage idol subscriptions'),
     },
     {
       id: 'discovered',
       label: zh('已发现', 'Discovered'),
-      description: zh('全部发现作品', 'All discovered works'),
     },
     {
       id: 'wanted',
       label: zh('我想要', 'Wanted'),
-      description: zh('已标记的作品', 'Marked works'),
     },
   ]
 
   return (
     <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
-      <div className="grid gap-5 lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start">
-        <aside className="lg:sticky lg:top-4">
-          <div className="rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
-            <div className="hidden px-3 pb-3 pt-2 lg:block">
-              <h1 className="text-xl font-bold text-gray-900">{zh('发现 JAV', 'Discover JAV')}</h1>
-              <p className="mt-1 text-xs leading-5 text-gray-500">
-                {zh('独立于现有 JAV 资料库', 'Separate from the main JAV catalog')}
-              </p>
-            </div>
+      <div className="lg:ml-10">
+        <aside className="mb-4 lg:fixed lg:left-0 lg:top-[calc(var(--topbar-height)+1rem)] lg:z-30 lg:mb-0 lg:w-24">
+          <div className="rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm lg:rounded-l-none lg:border-l-0">
             <div
               className="flex gap-1 overflow-x-auto lg:flex-col"
               role="tablist"
-              aria-orientation="vertical"
               aria-label={zh('发现页面导航', 'Discovery navigation')}
             >
               {tabs.map((tab) => {
@@ -251,7 +241,7 @@ export default function JavDiscoveryView() {
                     aria-selected={selected}
                     aria-controls="jav-discovery-tab-panel"
                     onClick={() => handleTabChange(tab.id)}
-                    className={`min-w-max rounded-xl px-3 py-2.5 text-left transition lg:w-full ${
+                    className={`min-w-max whitespace-nowrap rounded-lg px-2.5 py-2 text-center text-sm font-semibold transition lg:w-full ${
                       selected
                         ? tab.id === 'wanted'
                           ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200'
@@ -259,10 +249,7 @@ export default function JavDiscoveryView() {
                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
-                    <span className="block text-sm font-semibold">{tab.label}</span>
-                    <span className="mt-0.5 hidden text-xs opacity-70 lg:block">
-                      {tab.description}
-                    </span>
+                    {tab.label}
                   </button>
                 )
               })}
