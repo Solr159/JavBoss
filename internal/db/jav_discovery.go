@@ -26,6 +26,7 @@ type JavDiscoveryItemResult struct {
 	ReleaseUnix   int64           `json:"release_unix"`
 	Metadata      json.RawMessage `json:"metadata"`
 	Wanted        bool            `json:"wanted"`
+	Owned         bool            `json:"owned"`
 	Subscriptions []string        `json:"subscriptions"`
 	CreatedAt     time.Time       `json:"created_at"`
 	UpdatedAt     time.Time       `json:"updated_at"`
@@ -133,6 +134,10 @@ func ListJavDiscoveryItems(ctx context.Context, wantedOnly bool, limit, offset i
 	if err != nil {
 		return nil, 0, err
 	}
+	ownedCodes, err := listOwnedDiscoveryCodes(ctx, records)
+	if err != nil {
+		return nil, 0, err
+	}
 
 	items := make([]JavDiscoveryItemResult, 0, len(records))
 	for _, record := range records {
@@ -146,12 +151,47 @@ func ListJavDiscoveryItems(ctx context.Context, wantedOnly bool, limit, offset i
 			ReleaseUnix:   record.ReleaseUnix,
 			Metadata:      metadata,
 			Wanted:        record.Wanted,
+			Owned:         ownedCodes[strings.ToUpper(strings.TrimSpace(record.Code))],
 			Subscriptions: subscriptionsByItem[record.ID],
 			CreatedAt:     record.CreatedAt,
 			UpdatedAt:     record.UpdatedAt,
 		})
 	}
 	return items, total, nil
+}
+
+func listOwnedDiscoveryCodes(ctx context.Context, items []models.JavDiscoveryItem) (map[string]bool, error) {
+	result := make(map[string]bool)
+	if len(items) == 0 {
+		return result, nil
+	}
+	codes := make([]string, 0, len(items))
+	for _, item := range items {
+		code := strings.ToUpper(strings.TrimSpace(item.Code))
+		if code != "" {
+			codes = append(codes, code)
+		}
+	}
+	if len(codes) == 0 {
+		return result, nil
+	}
+	var rows []struct {
+		Code string `gorm:"column:code"`
+	}
+	if err := common.DB.WithContext(ctx).
+		Table("jav").
+		Select("DISTINCT UPPER(jav.code) AS code").
+		Joins("JOIN video_location AS vl ON vl.jav_id = jav.id").
+		Joins("JOIN directory AS d ON d.id = vl.directory_id").
+		Where("UPPER(jav.code) IN ?", codes).
+		Where(activeLocationWhereSQL("vl", "d")).
+		Scan(&rows).Error; err != nil {
+		return nil, fmt.Errorf("list owned jav discovery codes: %w", err)
+	}
+	for _, row := range rows {
+		result[strings.ToUpper(strings.TrimSpace(row.Code))] = true
+	}
+	return result, nil
 }
 
 func listDiscoveryItemSubscriptions(ctx context.Context, itemIDs []int64) (map[int64][]string, error) {

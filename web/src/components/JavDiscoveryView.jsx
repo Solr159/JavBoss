@@ -7,6 +7,7 @@ import {
   triggerJavDiscoverySync,
   updateJavDiscoveryWanted,
 } from '@/api'
+import JavDiscoveryDetailModal from '@/components/JavDiscoveryDetailModal'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
@@ -49,6 +50,7 @@ export default function JavDiscoveryView() {
   const [busyItemIds, setBusyItemIds] = useState(() => new Set())
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [selectedItem, setSelectedItem] = useState(null)
 
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
@@ -158,6 +160,9 @@ export default function JavDiscoveryView() {
     setItems((current) =>
       current.map((entry) => (entry.id === item.id ? { ...entry, wanted: nextWanted } : entry))
     )
+    setSelectedItem((current) =>
+      current?.id === item.id ? { ...current, wanted: nextWanted } : current
+    )
     try {
       await updateJavDiscoveryWanted(item.id, nextWanted)
       if (wantedOnly && !nextWanted) {
@@ -167,6 +172,9 @@ export default function JavDiscoveryView() {
     } catch (updateError) {
       setItems((current) =>
         current.map((entry) => (entry.id === item.id ? { ...entry, wanted: item.wanted } : entry))
+      )
+      setSelectedItem((current) =>
+        current?.id === item.id ? { ...current, wanted: item.wanted } : current
       )
       setError(getErrorMessage(updateError))
     } finally {
@@ -348,14 +356,15 @@ export default function JavDiscoveryView() {
               return (
                 <article
                   key={item.id}
-                  className="group overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+                  className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-blue-300 hover:shadow-md"
                 >
-                  <a
-                    href={metadata.detail_url || undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block aspect-[2/3] overflow-hidden bg-gray-100"
-                  >
+                  <button
+                    type="button"
+                    onClick={() => setSelectedItem(item)}
+                    aria-label={zh(`查看 ${item.code} 详情`, `View details for ${item.code}`)}
+                    className="absolute inset-0 z-10 cursor-pointer rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+                  />
+                  <div className="relative block aspect-[2/3] overflow-hidden bg-gray-100">
                     {metadata.cover_url ? (
                       <img
                         src={`/jav/discovery/items/${encodeURIComponent(item.id)}/cover?v=${encodeURIComponent(
@@ -370,15 +379,23 @@ export default function JavDiscoveryView() {
                         className="h-full w-full object-cover"
                       />
                     ) : null}
-                  </a>
+                    {item.owned ? (
+                      <span className="absolute left-2 top-2 rounded bg-emerald-600/95 px-2 py-1 text-[11px] font-semibold text-white shadow">
+                        {zh('已拥有', 'Owned')}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="font-mono text-sm font-bold text-gray-900">{item.code}</div>
                       <button
                         type="button"
                         disabled={busyItemIds.has(item.id)}
-                        onClick={() => handleWanted(item)}
-                        className={`shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleWanted(item)
+                        }}
+                        className={`relative z-20 shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
                           item.wanted
                             ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
                             : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
@@ -429,6 +446,15 @@ export default function JavDiscoveryView() {
           </div>
         ) : null}
       </section>
+      {selectedItem ? (
+        <JavDiscoveryDetailModal
+          item={selectedItem}
+          releaseText={formatReleaseDate(selectedItem.release_unix)}
+          wantedBusy={busyItemIds.has(selectedItem.id)}
+          onClose={() => setSelectedItem(null)}
+          onToggleWanted={handleWanted}
+        />
+      ) : null}
     </div>
   )
 }

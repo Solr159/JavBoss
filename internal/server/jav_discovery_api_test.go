@@ -51,6 +51,27 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}}); err != nil {
 		t.Fatalf("create discovery item: %v", err)
 	}
+	mainJav := models.Jav{Code: "ABC-001", Title: "Owned title"}
+	directory := models.Directory{Path: "/media/owned"}
+	video := models.Video{Fingerprint: "owned-discovery-video"}
+	for name, value := range map[string]any{
+		"main JAV":  &mainJav,
+		"directory": &directory,
+		"video":     &video,
+	} {
+		if err := database.Create(value).Error; err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+	if err := database.Create(&models.VideoLocation{
+		VideoID:      video.ID,
+		DirectoryID:  directory.ID,
+		RelativePath: "ABC-001.mp4",
+		Filename:     "ABC-001.mp4",
+		JavID:        &mainJav.ID,
+	}).Error; err != nil {
+		t.Fatalf("create owned video location: %v", err)
+	}
 
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -62,7 +83,8 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}
 	var listed struct {
 		Items []struct {
-			ID int64 `json:"id"`
+			ID    int64 `json:"id"`
+			Owned bool  `json:"owned"`
 		} `json:"items"`
 		Total int64 `json:"total"`
 	}
@@ -71,6 +93,9 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}
 	if listed.Total != 1 || len(listed.Items) != 1 {
 		t.Fatalf("unexpected list response: %+v", listed)
+	}
+	if !listed.Items[0].Owned {
+		t.Fatalf("discovery item should be marked owned: %+v", listed.Items[0])
 	}
 
 	itemID := listed.Items[0].ID
