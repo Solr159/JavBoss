@@ -358,7 +358,9 @@ export default function JavDiscoveryView() {
                   >
                     {metadata.cover_url ? (
                       <img
-                        src={metadata.cover_url}
+                        src={`/jav/discovery/items/${encodeURIComponent(item.id)}/cover?v=${encodeURIComponent(
+                          item.updated_at || ''
+                        )}`}
                         alt=""
                         loading="lazy"
                         referrerPolicy="no-referrer"

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -45,6 +46,7 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 		Code:        "ABC-001",
 		Title:       "Discovered title",
 		ReleaseUnix: 100,
+		CoverURL:    "https://pics.javbus.com/cover.jpg",
 		Source:      "javbus",
 	}}); err != nil {
 		t.Fatalf("create discovery item: %v", err)
@@ -72,6 +74,38 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}
 
 	itemID := listed.Items[0].ID
+	previousHTTPDo := javDiscoveryCoverHTTPDo
+	javDiscoveryCoverHTTPDo = func(request *http.Request) (*http.Response, error) {
+		if request.URL.String() != "https://pics.javbus.com/cover.jpg" {
+			t.Errorf("cover request URL = %q", request.URL.String())
+		}
+		if request.Header.Get("Referer") != "https://www.javbus.com/" {
+			t.Errorf("cover request referer = %q", request.Header.Get("Referer"))
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"image/jpeg"}},
+			Body:       io.NopCloser(bytes.NewReader([]byte{0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10})),
+		}, nil
+	}
+	t.Cleanup(func() { javDiscoveryCoverHTTPDo = previousHTTPDo })
+	cover := performDiscoveryRequest(
+		t,
+		router,
+		http.MethodGet,
+		"/jav/discovery/items/"+strconv.FormatInt(itemID, 10)+"/cover",
+		nil,
+	)
+	if cover.Code != http.StatusOK {
+		t.Fatalf("cover status = %d body=%s", cover.Code, cover.Body.String())
+	}
+	if contentType := cover.Header().Get("Content-Type"); contentType != "image/jpeg" {
+		t.Fatalf("cover content type = %q", contentType)
+	}
+	if cacheControl := cover.Header().Get("Cache-Control"); cacheControl != "private, max-age=86400" {
+		t.Fatalf("cover cache control = %q", cacheControl)
+	}
+
 	update := performDiscoveryRequest(
 		t,
 		router,
@@ -96,6 +130,19 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	}
 	if wantedList.Total != 1 || len(wantedList.Items) != 1 {
 		t.Fatalf("wanted list is not a subset: %+v", wantedList)
+	}
+}
+
+func TestIsAllowedJavDiscoveryCoverHost(t *testing.T) {
+	for _, host := range []string{"www.javbus.com", "pics.javbus.com", "pics.dmm.co.jp"} {
+		if !isAllowedJavDiscoveryCoverHost(host) {
+			t.Fatalf("expected host %q to be allowed", host)
+		}
+	}
+	for _, host := range []string{"javbus.com.example.org", "localhost", "127.0.0.1"} {
+		if isAllowedJavDiscoveryCoverHost(host) {
+			t.Fatalf("expected host %q to be rejected", host)
+		}
 	}
 }
 

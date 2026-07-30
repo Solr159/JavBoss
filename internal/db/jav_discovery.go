@@ -195,6 +195,32 @@ func SetJavDiscoveryItemWanted(ctx context.Context, id int64, wanted bool) error
 	return nil
 }
 
+func GetJavDiscoveryItemCoverURL(ctx context.Context, id int64) (string, error) {
+	if common.DB == nil {
+		return "", errors.New("get jav discovery item cover: nil db")
+	}
+	if id <= 0 {
+		return "", errors.New("get jav discovery item cover: invalid id")
+	}
+	var item models.JavDiscoveryItem
+	if err := common.DB.WithContext(ctx).
+		Select("id", "metadata_json").
+		First(&item, id).Error; err != nil {
+		return "", fmt.Errorf("get jav discovery item cover: %w", err)
+	}
+	var metadata struct {
+		CoverURL string `json:"cover_url"`
+	}
+	if err := json.Unmarshal([]byte(item.MetadataJSON), &metadata); err != nil {
+		return "", fmt.Errorf("decode jav discovery item cover metadata: %w", err)
+	}
+	coverURL := strings.TrimSpace(metadata.CoverURL)
+	if coverURL == "" {
+		return "", gorm.ErrRecordNotFound
+	}
+	return coverURL, nil
+}
+
 // UpsertJavDiscoveryItems stores listing metadata and associates each item with
 // its source subscription without changing a user's wanted selections.
 func UpsertJavDiscoveryItems(ctx context.Context, subscriptionID int64, items []jav.JavBusDiscoveryItem) error {

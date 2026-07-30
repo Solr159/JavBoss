@@ -71,6 +71,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.POST("/jav/discovery/subscriptions", createJavDiscoverySubscription)
 	router.DELETE("/jav/discovery/subscriptions/:id", deleteJavDiscoverySubscription)
 	router.GET("/jav/discovery/items", listJavDiscoveryItems)
+	router.GET("/jav/discovery/items/:id/cover", getJavDiscoveryItemCover)
 	router.PATCH("/jav/discovery/items/:id/wanted", updateJavDiscoveryItemWanted)
 	router.POST("/jav/discovery/sync", triggerJavDiscoverySync)
 	router.POST("/jav/items/:id/sample-images", resolveJavSampleImages)

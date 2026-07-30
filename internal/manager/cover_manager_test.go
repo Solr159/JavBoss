@@ -19,7 +19,7 @@ func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
 		t.Fatalf("build request: %v", err)
 	}
 
-	setCoverDownloadHeaders(req)
+	SetCoverDownloadHeaders(req)
 
 	if got := req.Header.Get("Referer"); got != "https://www.javbus.com/" {
 		t.Fatalf("Referer = %q, want javbus referer", got)

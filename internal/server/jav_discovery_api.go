@@ -1,19 +1,29 @@
 package server
 
 import (
+	"context"
 	"errors"
+	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"javboss/internal/db"
 	"javboss/internal/jav"
+	"javboss/internal/manager"
 	"javboss/internal/models"
 	"javboss/internal/service"
+	"javboss/internal/util"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+const maxJavDiscoveryCoverBytes = 15 * 1024 * 1024
+
+var javDiscoveryCoverHTTPDo = doJavDiscoveryCoverRequest
 
 type createJavDiscoverySubscriptionRequest struct {
 	Name          string `json:"name"`
@@ -128,6 +138,105 @@ func updateJavDiscoveryItemWanted(c *gin.Context) {
 		return
 	}
 	c.Status(http.StatusNoContent)
+}
+
+func getJavDiscoveryItemCover(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "作品 ID 不正确", "Invalid item ID")
+		return
+	}
+	coverURL, err := db.GetJavDiscoveryItemCoverURL(c.Request.Context(), id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "发现作品封面不存在", "Discovery item cover not found")
+			return
+		}
+		respondLocalizedError(c, http.StatusInternalServerError, "读取发现作品封面失败", "Failed to read discovery item cover")
+		return
+	}
+	parsed, err := url.Parse(coverURL)
+	if err != nil ||
+		!strings.EqualFold(parsed.Scheme, "https") ||
+		!isAllowedJavDiscoveryCoverHost(parsed.Hostname()) {
+		respondLocalizedError(c, http.StatusUnprocessableEntity, "发现作品封面地址不受支持", "Unsupported discovery cover URL")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
+	if err != nil {
+		respondLocalizedError(c, http.StatusInternalServerError, "创建封面请求失败", "Failed to build cover request")
+		return
+	}
+	manager.SetCoverDownloadHeaders(request)
+	response, err := javDiscoveryCoverHTTPDo(request)
+	if err != nil {
+		respondLocalizedError(c, http.StatusBadGateway, "下载发现作品封面失败", "Failed to download discovery item cover")
+		return
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		respondLocalizedError(c, http.StatusBadGateway, "封面图片源返回异常", "The cover image source returned an error")
+		return
+	}
+	data, err := io.ReadAll(io.LimitReader(response.Body, maxJavDiscoveryCoverBytes+1))
+	if err != nil {
+		respondLocalizedError(c, http.StatusBadGateway, "读取封面图片失败", "Failed to read the cover image")
+		return
+	}
+	if len(data) == 0 || len(data) > maxJavDiscoveryCoverBytes {
+		respondLocalizedError(c, http.StatusBadGateway, "封面图片大小无效", "Invalid cover image size")
+		return
+	}
+	contentType, ok := discoveryCoverContentType(response.Header.Get("Content-Type"), data)
+	if !ok {
+		respondLocalizedError(c, http.StatusBadGateway, "封面地址未返回有效图片", "The cover URL did not return a valid image")
+		return
+	}
+
+	c.Header("Cache-Control", "private, max-age=86400")
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func isAllowedJavDiscoveryCoverHost(host string) bool {
+	host = strings.ToLower(strings.TrimSpace(host))
+	for _, domain := range []string{"javbus.com", "dmm.co.jp"} {
+		if host == domain || strings.HasSuffix(host, "."+domain) {
+			return true
+		}
+	}
+	return false
+}
+
+func doJavDiscoveryCoverRequest(request *http.Request) (*http.Response, error) {
+	client := *util.DefaultHTTPClient()
+	client.CheckRedirect = func(next *http.Request, _ []*http.Request) error {
+		if next.URL == nil ||
+			!strings.EqualFold(next.URL.Scheme, "https") ||
+			!isAllowedJavDiscoveryCoverHost(next.URL.Hostname()) {
+			return errors.New("discovery cover redirect is not allowed")
+		}
+		manager.SetCoverDownloadHeaders(next)
+		return nil
+	}
+	return client.Do(request)
+}
+
+func discoveryCoverContentType(declared string, data []byte) (string, bool) {
+	declared = strings.ToLower(strings.TrimSpace(strings.SplitN(declared, ";", 2)[0]))
+	detected := strings.ToLower(http.DetectContentType(data))
+	for _, contentType := range []string{declared, detected} {
+		if contentType == "image/svg+xml" {
+			continue
+		}
+		if strings.HasPrefix(contentType, "image/") {
+			return contentType, true
+		}
+	}
+	return "", false
 }
 
 func triggerJavDiscoverySync(c *gin.Context) {
