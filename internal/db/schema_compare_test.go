@@ -50,6 +50,9 @@ func TestMigratedSchemaMatchesGormModels(t *testing.T) {
 		&models.JavFavoriteMap{},
 		&models.JavTagMap{},
 		&models.JavIdolMap{},
+		&models.JavDiscoverySubscription{},
+		&models.JavDiscoveryItem{},
+		&models.JavDiscoverySubscriptionItem{},
 	); err != nil {
 		t.Fatalf("automigrate reference schema: %v", err)
 	}

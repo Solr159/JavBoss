@@ -206,3 +206,40 @@ type JavIdolMap struct {
 	JavIdol   JavIdol   `gorm:"foreignKey:JavIdolID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
+
+// JavDiscoverySubscription is an external discovery source. Kind is kept
+// explicit so series subscriptions can be added later without changing the
+// storage model.
+type JavDiscoverySubscription struct {
+	ID            int64      `json:"id" gorm:"primaryKey"`
+	Kind          string     `json:"kind" gorm:"not null;default:idol;uniqueIndex:idx_jav_discovery_subscription_kind_provider_key,priority:1"`
+	Name          string     `json:"name" gorm:"not null"`
+	ReferenceCode string     `json:"reference_code" gorm:"not null"`
+	ProviderKey   string     `json:"-" gorm:"not null;uniqueIndex:idx_jav_discovery_subscription_kind_provider_key,priority:2"`
+	LastSyncedAt  *time.Time `json:"last_synced_at"`
+	LastError     string     `json:"last_error" gorm:"not null;default:''"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
+}
+
+// JavDiscoveryItem stores discovered JAV independently from the main jav
+// catalog. Wanted is deliberately a property of an existing discovery item,
+// making the wanted collection a strict subset of discovered items.
+type JavDiscoveryItem struct {
+	ID           int64     `json:"id" gorm:"primaryKey"`
+	Code         string    `json:"code" gorm:"not null;uniqueIndex"`
+	ReleaseUnix  int64     `json:"release_unix" gorm:"not null;default:0;index"`
+	MetadataJSON string    `json:"-" gorm:"type:text;not null;default:'{}'"`
+	Wanted       bool      `json:"wanted" gorm:"not null;default:0;index"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+// JavDiscoverySubscriptionItem records which subscriptions yielded an item.
+type JavDiscoverySubscriptionItem struct {
+	JavDiscoverySubscriptionID int64                    `gorm:"primaryKey"`
+	JavDiscoverySubscription   JavDiscoverySubscription `gorm:"foreignKey:JavDiscoverySubscriptionID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	JavDiscoveryItemID         int64                    `gorm:"primaryKey;index"`
+	JavDiscoveryItem           JavDiscoveryItem         `gorm:"foreignKey:JavDiscoveryItemID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	CreatedAt                  time.Time                `gorm:"autoCreateTime"`
+}

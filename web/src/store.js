@@ -215,7 +215,7 @@ export const useStore = create((set, get) => ({
   javRandomMode: false,
   javRandomSeed: null,
   viewMode: 'video', // video | jav
-  javTab: 'list', // list | idol | studio | series
+  javTab: 'list', // list | idol | studio | series | discover
   javPage: 1,
   javPageSize: JAV_PAGE_SIZE,
   javGridColumns: JAV_GRID_COLUMNS_AUTO,
@@ -430,7 +430,14 @@ export const useStore = create((set, get) => ({
     })
   },
   setJavTab: (tab) => {
-    if (tab !== 'list' && tab !== 'idol' && tab !== 'studio' && tab !== 'series') return
+    if (
+      tab !== 'list' &&
+      tab !== 'idol' &&
+      tab !== 'studio' &&
+      tab !== 'series' &&
+      tab !== 'discover'
+    )
+      return
     set({ javTab: tab, javTempSort: '', idolTempSort: '' })
   },
   setJavIdolIds: (idolIds) => {
