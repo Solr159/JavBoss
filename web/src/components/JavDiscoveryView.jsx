@@ -342,7 +342,7 @@ export default function JavDiscoveryView() {
               : zh('等待后台完成首次同步', 'Waiting for the first background sync')}
           </div>
         ) : (
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
             {items.map((item) => {
               const metadata = item.metadata || {}
               return (
@@ -354,7 +354,7 @@ export default function JavDiscoveryView() {
                     href={metadata.detail_url || undefined}
                     target="_blank"
                     rel="noreferrer"
-                    className="block aspect-[3/2] overflow-hidden bg-gray-100"
+                    className="block aspect-[2/3] overflow-hidden bg-gray-100"
                   >
                     {metadata.cover_url ? (
                       <img
@@ -367,7 +367,7 @@ export default function JavDiscoveryView() {
                         onError={(event) => {
                           event.currentTarget.style.display = 'none'
                         }}
-                        className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+                        className="h-full w-full object-cover"
                       />
                     ) : null}
                   </a>
