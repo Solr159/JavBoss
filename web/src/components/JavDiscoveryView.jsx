@@ -222,12 +222,12 @@ export default function JavDiscoveryView() {
   ]
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6">
-      <div className="lg:ml-10">
-        <aside className="mb-4 lg:fixed lg:left-0 lg:top-[calc(var(--topbar-height)+1rem)] lg:z-30 lg:mb-0 lg:w-24">
-          <div className="rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm lg:rounded-l-none lg:border-l-0">
+    <div className="w-full px-4 py-4 sm:px-6">
+      <div className="lg:ml-[max(0rem,calc(11rem-var(--page-x-padding)-1.5rem))]">
+        <aside className="mb-4 lg:fixed lg:bottom-0 lg:left-0 lg:top-[var(--topbar-height)] lg:z-30 lg:mb-0 lg:w-44">
+          <div className="rounded-xl border border-gray-200 bg-white p-1.5 shadow-sm lg:h-full lg:rounded-none lg:border-0 lg:border-r lg:p-0 lg:shadow-none">
             <div
-              className="flex gap-1 overflow-x-auto lg:flex-col"
+              className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-0 lg:pt-4"
               role="tablist"
               aria-label={zh('发现页面导航', 'Discovery navigation')}
             >
@@ -241,12 +241,12 @@ export default function JavDiscoveryView() {
                     aria-selected={selected}
                     aria-controls="jav-discovery-tab-panel"
                     onClick={() => handleTabChange(tab.id)}
-                    className={`min-w-max whitespace-nowrap rounded-lg px-2.5 py-2 text-center text-sm font-semibold transition lg:w-full ${
+                    className={`min-w-max whitespace-nowrap rounded-lg border-l-4 px-2.5 py-2 text-center text-sm font-semibold transition lg:w-full lg:rounded-none lg:px-5 lg:py-3 lg:text-left ${
                       selected
                         ? tab.id === 'wanted'
-                          ? 'bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200'
-                          : 'bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-transparent text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                     }`}
                   >
                     {tab.label}
