@@ -190,7 +190,7 @@ export default function JavDiscoveryDetailModal({
             </div>
           ) : null}
           <div className="grid gap-6 md:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)] xl:grid-cols-[minmax(26rem,40rem)_minmax(0,32rem)] xl:justify-center">
-            <div className="relative mx-auto h-[min(72vh,50rem)] w-full max-w-[28rem] overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm xl:max-w-[40rem]">
+            <div className="relative mx-auto h-[min(48vh,33.333rem)] w-full max-w-[28rem] overflow-hidden rounded-lg border border-gray-200 bg-gray-100 shadow-sm xl:max-w-[40rem]">
               {detailsResolved && metadata.cover_url ? (
                 <>
                   {!coverLoaded && !coverError ? (
