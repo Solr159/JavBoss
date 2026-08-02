@@ -297,25 +297,33 @@ body.has-page-scroll .sticky-pagination {
     0 1px 2px rgba(15, 23, 42, 0.16);
 }
 
+.player-card {
+  /* 视频比例由 React 通过 --player-ar 传入；宽度公式驱动等比例缩放 */
+  --player-ar: 16 / 9;
+  width: min(80vw, calc((80vh - 5rem) * var(--player-ar) + 2rem));
+}
+
+/* 移动端（触摸设备）：贴边全屏，隐藏白卡片边框；标题悬浮不占布局，因此无需预留标题高度。
+   用 pointer: coarse 而非宽度断点，覆盖横屏手机（宽度可能超过 640px） */
+@media (pointer: coarse) {
+  .player-card {
+    width: min(100vw, calc(100vh * var(--player-ar)));
+  }
+  @supports (height: 100dvh) {
+    .player-card {
+      width: min(100vw, calc(100dvh * var(--player-ar)));
+    }
+  }
+}
+
 .player-shell {
-  --player-controls-height: 30px;
-  height: 75vh;
-  padding-bottom: var(--player-controls-height);
-  box-sizing: border-box;
-  overflow: visible;
+  position: relative;
+  background: #000;
 }
 
 .player-shell .video-js {
   width: 100%;
   height: 100%;
-}
-
-.player-shell .vjs-control-bar {
-  transform: translateY(100%);
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: auto !important;
-  display: flex !important;
 }
 
 .player-shell .vjs-volume-panel,
@@ -334,10 +342,6 @@ body.has-page-scroll .sticky-pagination {
   height: 3em;
   margin: 0;
   transition: none;
-}
-
-.player-shell .video-js.vjs-fullscreen .vjs-control-bar {
-  transform: none;
 }
 
 .skeuo-tag {
