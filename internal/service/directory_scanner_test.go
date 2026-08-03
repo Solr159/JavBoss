@@ -185,6 +185,63 @@ func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
 	}
 }
 
+func TestDirectoryAutoScanDue(t *testing.T) {
+	now := time.Unix(1750000000, 0)
+	tests := []struct {
+		name      string
+		directory models.Directory
+		want      bool
+	}{
+		{
+			name:      "disabled",
+			directory: models.Directory{ID: 1, AutoScanEnabled: false, AutoScanIntervalMinutes: 1},
+			want:      false,
+		},
+		{
+			name:      "never scanned",
+			directory: models.Directory{ID: 1, AutoScanEnabled: true, AutoScanIntervalMinutes: 30},
+			want:      true,
+		},
+		{
+			name: "interval not elapsed",
+			directory: models.Directory{
+				ID:                      1,
+				AutoScanEnabled:         true,
+				AutoScanIntervalMinutes: 30,
+				LastScanSummary: models.DirectoryScanSummary{
+					FinishedAtUnixMS: now.Add(-29 * time.Minute).UnixMilli(),
+				},
+			},
+			want: false,
+		},
+		{
+			name: "interval elapsed",
+			directory: models.Directory{
+				ID:                      1,
+				AutoScanEnabled:         true,
+				AutoScanIntervalMinutes: 30,
+				LastScanSummary: models.DirectoryScanSummary{
+					FinishedAtUnixMS: now.Add(-30 * time.Minute).UnixMilli(),
+				},
+			},
+			want: true,
+		},
+		{
+			name:      "deleted",
+			directory: models.Directory{ID: 1, IsDelete: true, AutoScanEnabled: true, AutoScanIntervalMinutes: 1},
+			want:      false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := directoryAutoScanDue(test.directory, now); got != test.want {
+				t.Fatalf("directoryAutoScanDue() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func resetDirectoryScanSessions(t *testing.T) {
 	t.Helper()
 

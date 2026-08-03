@@ -108,7 +108,40 @@ func TestDirectorySchemaIncludesLastScanSummary(t *testing.T) {
 	gdb := openTestDB(t)
 	assertTableColumns(t, gdb, "directory", []string{
 		"id", "path", "missing", "is_delete", "created_at", "updated_at", "last_scan_summary",
+		"auto_scan_enabled", "auto_scan_interval_minutes",
 	})
+}
+
+func TestDirectoryAutoScanSettingsDefaultAndUpdate(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	dir := models.Directory{Path: "/media/auto-scan-settings"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	if !dir.AutoScanEnabled || dir.AutoScanIntervalMinutes != 1 {
+		t.Fatalf("default auto scan settings = enabled %t interval %d, want true and 1", dir.AutoScanEnabled, dir.AutoScanIntervalMinutes)
+	}
+
+	enabled := false
+	intervalMinutes := 30
+	wantSummary := models.DirectoryScanSummary{
+		FilesSeen:        12,
+		FinishedAtUnixMS: 1750000000000,
+	}
+	if err := UpdateDirectoryLastScanSummary(ctx, dir.ID, wantSummary); err != nil {
+		t.Fatalf("set directory scan summary: %v", err)
+	}
+	updated, err := UpdateDirectoryScanSettings(ctx, dir.ID, &enabled, &intervalMinutes)
+	if err != nil {
+		t.Fatalf("update directory auto scan settings: %v", err)
+	}
+	if updated == nil || updated.AutoScanEnabled || updated.AutoScanIntervalMinutes != intervalMinutes {
+		t.Fatalf("updated auto scan settings = %#v, want disabled and %d minutes", updated, intervalMinutes)
+	}
+	if updated.LastScanSummary != wantSummary {
+		t.Fatalf("scan settings update changed last scan summary: got %+v want %+v", updated.LastScanSummary, wantSummary)
+	}
 }
 
 func TestMissingDirectoryContentsRemainVisible(t *testing.T) {

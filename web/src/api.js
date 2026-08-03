@@ -457,6 +457,16 @@ export async function processDirectory(id, mode, layout = 'prefix') {
   return res.json()
 }
 
+export async function scanDirectory(id) {
+  const res = await apiFetch(`/directories/${id}/scan`, {
+    method: 'POST',
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 export async function fetchJavs({
   limit = 25,
   offset = 0,

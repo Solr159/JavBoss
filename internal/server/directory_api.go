@@ -18,6 +18,8 @@ import (
 	"javboss/internal/util/dirpicker"
 )
 
+const maxDirectoryAutoScanIntervalMinutes = 525600
+
 func listDirectories(c *gin.Context) {
 	dirs, err := dbpkg.ListDirectories(c.Request.Context())
 	if err != nil {
@@ -102,8 +104,10 @@ func updateDirectory(c *gin.Context) {
 	}
 
 	var req struct {
-		Path     *string `json:"path"`
-		IsDelete *bool   `json:"is_delete"`
+		Path                    *string `json:"path"`
+		IsDelete                *bool   `json:"is_delete"`
+		AutoScanEnabled         *bool   `json:"auto_scan_enabled"`
+		AutoScanIntervalMinutes *int    `json:"auto_scan_interval_minutes"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "修改目录请求无效", "Invalid directory update request")
@@ -111,6 +115,11 @@ func updateDirectory(c *gin.Context) {
 	}
 	if req.Path != nil && strings.TrimSpace(*req.Path) == "" {
 		respondLocalizedError(c, http.StatusBadRequest, "目录路径不能为空", "Directory path is required")
+		return
+	}
+	if req.AutoScanIntervalMinutes != nil &&
+		(*req.AutoScanIntervalMinutes < 1 || *req.AutoScanIntervalMinutes > maxDirectoryAutoScanIntervalMinutes) {
+		respondLocalizedError(c, http.StatusBadRequest, "自动扫描周期必须在 1 到 525600 分钟之间", "The automatic scan interval must be between 1 and 525600 minutes")
 		return
 	}
 
@@ -132,7 +141,12 @@ func updateDirectory(c *gin.Context) {
 		}()
 	}
 
-	dir, err := dbpkg.UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete)
+	var dir *models.Directory
+	if req.Path != nil || req.IsDelete != nil {
+		dir, err = dbpkg.UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete)
+	} else {
+		dir, err = dbpkg.GetDirectory(c.Request.Context(), id)
+	}
 	if err != nil {
 		logging.Error("update directory error: %v", err)
 		respondLocalizedError(c, http.StatusBadRequest, "修改目录失败，请检查路径是否有效或已存在", "Failed to update directory; check whether the path is valid or already exists")
@@ -142,12 +156,30 @@ func updateDirectory(c *gin.Context) {
 		respondLocalizedError(c, http.StatusNotFound, "目录不存在", "Directory does not exist")
 		return
 	}
+	if req.AutoScanEnabled != nil || req.AutoScanIntervalMinutes != nil {
+		dir, err = dbpkg.UpdateDirectoryScanSettings(
+			c.Request.Context(),
+			id,
+			req.AutoScanEnabled,
+			req.AutoScanIntervalMinutes,
+		)
+		if err != nil {
+			logging.Error("update directory scan settings error: %v", err)
+			respondLocalizedError(c, http.StatusBadRequest, "修改目录扫描设置失败", "Failed to update directory scan settings")
+			return
+		}
+		if dir == nil {
+			respondLocalizedError(c, http.StatusNotFound, "目录不存在", "Directory does not exist")
+			return
+		}
+	}
 	if releaseScanReservation != nil {
 		releaseScanReservation()
 		releaseScanReservation = nil
 	}
-	go func(updated models.Directory) {
-		if updated.IsDelete {
+	shouldScan := req.Path != nil || (req.IsDelete != nil && !*req.IsDelete)
+	go func(updated models.Directory, scan bool) {
+		if updated.IsDelete || !scan {
 			return
 		}
 		ctx := context.Background()
@@ -157,8 +189,41 @@ func updateDirectory(c *gin.Context) {
 			}
 			logging.Error("scan after update failed id=%d path=%s err=%v", updated.ID, updated.Path, err)
 		}
-	}(*dir)
+	}(*dir, shouldScan)
 	c.JSON(http.StatusOK, dir)
+}
+
+func scanDirectory(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "目录 ID 无效", "Invalid directory ID")
+		return
+	}
+
+	dir, err := dbpkg.GetDirectory(c.Request.Context(), id)
+	if err != nil {
+		logging.Error("get directory for manual scan failed id=%d err=%v", id, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "读取目录失败", "Failed to load directory")
+		return
+	}
+	if dir == nil || dir.IsDelete {
+		respondLocalizedError(c, http.StatusNotFound, "目录不存在", "Directory does not exist")
+		return
+	}
+	if service.DirectoryWorkStatus(id) != service.DirectoryWorkIdle {
+		respondLocalizedError(c, http.StatusConflict, "目录正在执行其他任务，请稍后重试", "The directory is busy; please try again later")
+		return
+	}
+	if err := service.StartDirectoryScan(*dir); err != nil {
+		if errors.Is(err, service.ErrDirectoryScanInProgress) {
+			respondLocalizedError(c, http.StatusConflict, "目录正在执行其他任务，请稍后重试", "The directory is busy; please try again later")
+			return
+		}
+		logging.Error("start manual directory scan failed id=%d err=%v", id, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "启动目录扫描失败", "Failed to start the directory scan")
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"work_status": service.DirectoryWorkScanning})
 }
 
 func processDirectory(c *gin.Context) {

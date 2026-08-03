@@ -28,6 +28,7 @@ import {
   reorderJavFavoriteGroups,
   replaceJavFavoriteGroups,
   processDirectory,
+  scanDirectory,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
 import JavIdolFavoriteManageModal from '@/components/JavIdolFavoriteManageModal'
@@ -3817,6 +3818,12 @@ export default function App() {
           const result = await processDirectory(id, mode, layout)
           await loadDirectories()
           showToast(zh('目录任务已启动', 'Directory task started'))
+          return result
+        }}
+        onScanDirectory={async (id) => {
+          const result = await scanDirectory(id)
+          await loadDirectories()
+          showToast(zh('目录扫描已启动', 'Directory scan started'))
           return result
         }}
         onRefreshDirectories={loadDirectories}

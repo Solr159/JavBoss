@@ -170,14 +170,52 @@ func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool
 	})
 }
 
+// UpdateDirectoryScanSettings updates only automatic-scan fields. The targeted update is safe to
+// run while a scan is active because it cannot overwrite scan state or the latest scan summary.
+func UpdateDirectoryScanSettings(
+	ctx context.Context,
+	id int64,
+	autoScanEnabled *bool,
+	autoScanIntervalMinutes *int,
+) (*models.Directory, error) {
+	if id <= 0 {
+		return nil, errors.New("directory id cannot be zero")
+	}
+	updates := map[string]any{}
+	if autoScanEnabled != nil {
+		updates["auto_scan_enabled"] = *autoScanEnabled
+	}
+	if autoScanIntervalMinutes != nil {
+		if *autoScanIntervalMinutes <= 0 {
+			return nil, errors.New("automatic scan interval must be positive")
+		}
+		updates["auto_scan_interval_minutes"] = *autoScanIntervalMinutes
+	}
+	if len(updates) > 0 {
+		result := common.DB.WithContext(ctx).
+			Model(&models.Directory{}).
+			Where("id = ?", id).
+			Updates(updates)
+		if result.Error != nil {
+			return nil, fmt.Errorf("update directory scan settings: %w", result.Error)
+		}
+	}
+	return GetDirectory(ctx, id)
+}
+
 // SetDirectoryMissing updates whether a directory is temporarily unavailable.
 // Missing directories and their videos remain visible until explicitly deleted.
 func SetDirectoryMissing(ctx context.Context, id int64, missing bool) error {
-	_, err := updateDirectoryWithVisibility(ctx, id, func(tx *gorm.DB, dir *models.Directory) error {
-		dir.Missing = missing
-		return nil
-	})
-	return err
+	if id <= 0 {
+		return errors.New("directory id cannot be zero")
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Directory{}).
+		Where("id = ?", id).
+		Update("missing", missing).Error; err != nil {
+		return fmt.Errorf("update directory missing status: %w", err)
+	}
+	return nil
 }
 
 // UpdateDirectoryLastScanSummary stores the latest successfully completed scan result.

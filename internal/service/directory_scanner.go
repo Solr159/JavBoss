@@ -187,7 +187,10 @@ func syncDirectory(ctx context.Context, directory models.Directory, javLinks *ja
 		return nil, err
 	}
 	defer finish()
+	return syncDirectoryInSession(scanCtx, directory, javLinks)
+}
 
+func syncDirectoryInSession(scanCtx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
 	start := time.Now()
 	summary := &Summary{}
 	logging.Info("sync directory start: id=%d path=%s", directory.ID, directory.Path)
@@ -198,7 +201,7 @@ func syncDirectory(ctx context.Context, directory models.Directory, javLinks *ja
 	}
 	scanned, err := syncDirectoryWithState(scanCtx, directory, state, summary)
 	if err != nil {
-		if errors.Is(err, context.Canceled) && ctx.Err() == nil {
+		if errors.Is(err, context.Canceled) {
 			logging.Info("sync directory canceled: id=%d path=%s", directory.ID, directory.Path)
 		} else {
 			logging.Error("sync directory failed: id=%d path=%s err=%v", directory.ID, directory.Path, err)
@@ -237,6 +240,38 @@ func syncDirectory(ctx context.Context, directory models.Directory, javLinks *ja
 		summary.Duration,
 	)
 	return summary, nil
+}
+
+// StartDirectoryScan claims a directory's scan slot and performs the scan asynchronously.
+// Claiming the slot before returning makes simultaneous manual requests deterministic.
+func StartDirectoryScan(directory models.Directory) error {
+	if common.DB == nil {
+		return errors.New("nil database")
+	}
+	if directory.ID <= 0 || directory.IsDelete {
+		return errors.New("invalid directory")
+	}
+
+	scanCtx, finish, err := startDirectoryScanSession(context.Background(), directory.ID)
+	if err != nil {
+		return err
+	}
+	go func() {
+		defer finish()
+		javLinks := newJavLinkBatch(scanCtx)
+		_, scanErr := syncDirectoryInSession(scanCtx, directory, javLinks)
+		finishJavLinkBatch(javLinks)
+		if scanErr != nil && !errors.Is(scanErr, context.Canceled) {
+			logging.Error("manual directory scan failed: id=%d path=%s err=%v", directory.ID, directory.Path, scanErr)
+			return
+		}
+		if scanErr == nil {
+			if err := enqueueMissingCovers(scanCtx); err != nil && !errors.Is(err, context.Canceled) {
+				logging.Error("jav cover enqueue after manual scan failed: id=%d err=%v", directory.ID, err)
+			}
+		}
+	}()
+	return nil
 }
 
 func syncDirectoryWithState(ctx context.Context, dir models.Directory, state *syncState, summary *Summary) (bool, error) {
@@ -602,15 +637,54 @@ func ScanDirectories(ctx context.Context) error {
 	return nil
 }
 
-// StartDirectoryScanner periodically scans configured media directories.
-// It runs ScanDirectories immediately and then on every interval until ctx is done, keeping video
-// rows and video_locations aligned with the files currently present on disk.
-func StartDirectoryScanner(ctx context.Context, interval time.Duration) {
+func directoryAutoScanDue(directory models.Directory, now time.Time) bool {
+	if directory.ID <= 0 || directory.IsDelete || !directory.AutoScanEnabled {
+		return false
+	}
+	intervalMinutes := directory.AutoScanIntervalMinutes
+	if intervalMinutes <= 0 {
+		intervalMinutes = 1
+	}
+	finishedAt := directory.LastScanSummary.FinishedAtUnixMS
+	if finishedAt <= 0 {
+		return true
+	}
+	return !now.Before(time.UnixMilli(finishedAt).Add(time.Duration(intervalMinutes) * time.Minute))
+}
+
+// ScanDueDirectories scans only active directories whose individual automatic-scan interval has
+// elapsed. Directories with automatic scanning disabled are intentionally skipped.
+func ScanDueDirectories(ctx context.Context, now time.Time) error {
+	if common.DB == nil {
+		return errors.New("nil db")
+	}
+	dirs, err := db.ListActiveDirectories(ctx)
+	if err != nil {
+		return err
+	}
+	due := make([]models.Directory, 0, len(dirs))
+	for _, dir := range dirs {
+		if directoryAutoScanDue(dir, now) {
+			due = append(due, dir)
+		}
+	}
+	if _, err := SyncAllDirectories(ctx, due); err != nil {
+		if errors.Is(err, ErrDirectoryScanInProgress) {
+			return nil
+		}
+		return err
+	}
+	return nil
+}
+
+// StartDirectoryScanner periodically checks which configured media directories are due to scan.
+// It performs a due check immediately and then on every poll interval until ctx is done.
+func StartDirectoryScanner(ctx context.Context, pollInterval time.Duration) {
 	go func() {
-		ticker := time.NewTicker(interval)
+		ticker := time.NewTicker(pollInterval)
 		defer ticker.Stop()
 		for {
-			if err := ScanDirectories(ctx); err != nil {
+			if err := ScanDueDirectories(ctx, time.Now()); err != nil {
 				logging.Error("periodic directory scan failed: %v", err)
 			}
 			select {

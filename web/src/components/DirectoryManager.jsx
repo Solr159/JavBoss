@@ -149,6 +149,7 @@ export default function DirectoryManager({
   onUpdate,
   onDelete,
   onProcess,
+  onScan,
   onRefresh,
   directoryPickerEnabled = true,
   useHostPaths = false,
@@ -166,6 +167,12 @@ export default function DirectoryManager({
   const [savingId, setSavingId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [processingId, setProcessingId] = useState(null)
+  const [scanningId, setScanningId] = useState(null)
+  const [scanSettingsDirectory, setScanSettingsDirectory] = useState(null)
+  const [scanSettingsEnabled, setScanSettingsEnabled] = useState(true)
+  const [scanSettingsIntervalMinutes, setScanSettingsIntervalMinutes] = useState('1')
+  const [savingScanSettingsId, setSavingScanSettingsId] = useState(null)
+  const [scanSettingsError, setScanSettingsError] = useState('')
   const [toolDirectory, setToolDirectory] = useState(null)
   const [toolMode, setToolMode] = useState(DIRECTORY_PROCESS_SIDECAR)
   const [toolLayout, setToolLayout] = useState(DIRECTORY_PROCESS_LAYOUT_PREFIX)
@@ -202,6 +209,8 @@ export default function DirectoryManager({
       setEditPath('')
       setRowErrorId(null)
       setRowErrorMsg('')
+      setScanSettingsDirectory(null)
+      setScanSettingsError('')
       setToolDirectory(null)
       setToolMode(DIRECTORY_PROCESS_SIDECAR)
       setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
@@ -218,6 +227,18 @@ export default function DirectoryManager({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [toolDirectory])
+
+  useEffect(() => {
+    if (!scanSettingsDirectory) return undefined
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && savingScanSettingsId == null) {
+        setScanSettingsDirectory(null)
+        setScanSettingsError('')
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [savingScanSettingsId, scanSettingsDirectory])
 
   useEffect(() => {
     if (!open || !onRefresh) return undefined
@@ -310,7 +331,13 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
-      await onUpdate?.(editId, { path: apiPath(trimmed) })
+      const original = directories.find((directory) => directory.id === editId)
+      const nextPath = apiPath(trimmed)
+      if (original && nextPath === original.path) {
+        cancelEdit()
+        return
+      }
+      await onUpdate?.(editId, { path: nextPath })
       cancelEdit()
     } catch (err) {
       setRowErrorId(editId)
@@ -362,10 +389,72 @@ export default function DirectoryManager({
     }
   }
 
+  const handleScan = async (dir) => {
+    if (!dir?.id || directoryWorkStatus(dir) !== 'idle') return
+
+    setScanningId(dir.id)
+    setRowErrorId(null)
+    setRowErrorMsg('')
+    try {
+      await onScan?.(dir.id)
+    } catch (err) {
+      setRowErrorId(dir.id)
+      setRowErrorMsg(getErrorMessage(err))
+    } finally {
+      setScanningId(null)
+    }
+  }
+
+  const openScanSettings = (dir) => {
+    if (!dir?.id || dir.is_delete) return
+    setScanSettingsDirectory(dir)
+    setScanSettingsEnabled(dir.auto_scan_enabled !== false)
+    setScanSettingsIntervalMinutes(String(Number(dir.auto_scan_interval_minutes) || 1))
+    setScanSettingsError('')
+    setRowErrorId(null)
+    setRowErrorMsg('')
+  }
+
+  const handleScanSettingsSubmit = async (event) => {
+    event?.preventDefault?.()
+    const id = scanSettingsDirectory?.id
+    if (!id) return
+    const intervalMinutes = Number(scanSettingsIntervalMinutes)
+    if (!Number.isInteger(intervalMinutes) || intervalMinutes < 1 || intervalMinutes > 525600) {
+      setScanSettingsError(
+        zh(
+          '自动扫描周期必须是 1 到 525600 之间的整数分钟',
+          'The automatic scan interval must be a whole number between 1 and 525600 minutes'
+        )
+      )
+      return
+    }
+
+    setSavingScanSettingsId(id)
+    setScanSettingsError('')
+    try {
+      await onUpdate?.(id, {
+        auto_scan_enabled: scanSettingsEnabled,
+        auto_scan_interval_minutes: intervalMinutes,
+      })
+      setScanSettingsDirectory(null)
+    } catch (err) {
+      setScanSettingsError(getErrorMessage(err))
+    } finally {
+      setSavingScanSettingsId(null)
+    }
+  }
+
   const currentToolDirectory = directories.find((directory) => directory.id === toolDirectory?.id)
   const toolDirectoryWorking =
     processingId === toolDirectory?.id ||
     (currentToolDirectory != null && directoryWorkStatus(currentToolDirectory) !== 'idle')
+  const currentScanSettingsDirectory =
+    directories.find((directory) => directory.id === scanSettingsDirectory?.id) ||
+    scanSettingsDirectory
+  const scanSettingsWorkStatus = directoryWorkStatus(currentScanSettingsDirectory)
+  const scanSettingsRunning =
+    scanSettingsWorkStatus === 'scanning' || scanSettingsWorkStatus === 'rescanning'
 
   return (
     <div className="space-y-3">
@@ -377,7 +466,11 @@ export default function DirectoryManager({
             const statusDisplay = directoryWorkStatusDisplay(status)
             const lastScanFinishedAt = formatScanFinishedAt(d.last_scan_summary)
             const working =
-              savingId === d.id || deletingId === d.id || processingId === d.id || status !== 'idle'
+              savingId === d.id ||
+              deletingId === d.id ||
+              processingId === d.id ||
+              scanningId === d.id ||
+              status !== 'idle'
             return (
               <div
                 key={d.id}
@@ -487,6 +580,30 @@ export default function DirectoryManager({
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {!isEditing ? (
                     <>
+                      {scanningId !== d.id && status !== 'scanning' && status !== 'rescanning' && (
+                        <button
+                          type="button"
+                          onClick={() => handleScan(d)}
+                          title={zh(
+                            '点击立刻开始一次目录扫描和 JAV 刮削',
+                            'Click to immediately scan the directory and scrape JAV metadata'
+                          )}
+                          disabled={d.is_delete || working}
+                          className="rounded border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                        >
+                          {zh('手动扫描', 'Scan now')}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => openScanSettings(d)}
+                        disabled={d.is_delete || savingScanSettingsId === d.id}
+                        className="rounded border border-violet-200 px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-60"
+                      >
+                        {savingScanSettingsId === d.id
+                          ? zh('保存中…', 'Saving...')
+                          : zh('扫描设置', 'Scan settings')}
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -716,6 +833,106 @@ export default function DirectoryManager({
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {scanSettingsDirectory && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
+          <form
+            onSubmit={handleScanSettingsSubmit}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="directory-scan-settings-title"
+            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          >
+            <div
+              id="directory-scan-settings-title"
+              className="text-base font-semibold text-zinc-900"
+            >
+              {zh('扫描设置', 'Scan Settings')}
+            </div>
+            <div
+              title={displayPath(currentScanSettingsDirectory.path)}
+              className="mt-2 truncate rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-500"
+            >
+              {displayPath(currentScanSettingsDirectory.path)}
+            </div>
+            <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+              <label
+                aria-label={zh('自动扫描', 'Automatic scan')}
+                className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3"
+              >
+                <span>
+                  <span className="block text-sm font-medium text-zinc-900">
+                    {zh('自动扫描', 'Automatic scan')}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    {scanSettingsEnabled
+                      ? zh(
+                          '按设定周期进行目录扫描和 JAV 刮削',
+                          'Scan the directory and scrape JAV metadata on a schedule'
+                        )
+                      : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
+                  </span>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={scanSettingsEnabled}
+                  onChange={(event) => setScanSettingsEnabled(event.target.checked)}
+                  className="peer sr-only"
+                />
+                <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2" />
+              </label>
+              {scanSettingsEnabled && (
+                <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                  <span>{zh('每', 'Every')}</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="525600"
+                    step="1"
+                    value={scanSettingsIntervalMinutes}
+                    onChange={(event) => setScanSettingsIntervalMinutes(event.target.value)}
+                    className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                  <span>{zh('分钟扫描一次', 'minutes')}</span>
+                </label>
+              )}
+            </div>
+            {scanSettingsRunning && (
+              <div className="mt-3 flex items-center gap-2 text-xs text-blue-700">
+                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
+                <span>
+                  {zh(
+                    '当前进行中的扫描会持续到结束，不受此次修改影响。',
+                    'The scan currently in progress will continue until completion and will not be affected by this change.'
+                  )}
+                </span>
+              </div>
+            )}
+            {scanSettingsError && (
+              <div className="mt-3 text-sm text-red-600">{scanSettingsError}</div>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setScanSettingsDirectory(null)
+                  setScanSettingsError('')
+                }}
+                disabled={savingScanSettingsId != null}
+                className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              >
+                {zh('取消', 'Cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={savingScanSettingsId != null}
+                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {savingScanSettingsId != null ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

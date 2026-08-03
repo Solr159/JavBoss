@@ -68,6 +68,7 @@ export default function GlobalSettingsModal({
   onUpdateDirectory,
   onDeleteDirectory,
   onProcessDirectory,
+  onScanDirectory,
   onRefreshDirectories,
   proxyHost,
   proxyPort,
@@ -1020,6 +1021,7 @@ export default function GlobalSettingsModal({
           onUpdate={onUpdateDirectory}
           onDelete={onDeleteDirectory}
           onProcess={onProcessDirectory}
+          onScan={onScanDirectory}
           onRefresh={onRefreshDirectories}
           directoryPickerEnabled={directoryPickerEnabled}
           useHostPaths={hostPathPrefixEnabled}
