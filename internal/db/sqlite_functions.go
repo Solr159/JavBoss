@@ -19,6 +19,9 @@ func registerSQLiteFunctions() string {
 				if _, err := conn.Exec("PRAGMA foreign_keys=ON", []driver.Value{}); err != nil {
 					return err
 				}
+				if _, err := conn.Exec("PRAGMA busy_timeout=5000", []driver.Value{}); err != nil {
+					return err
+				}
 				if err := conn.RegisterFunc("splitmix64", splitmix64SQL, true); err != nil {
 					return err
 				}

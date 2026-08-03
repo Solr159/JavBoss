@@ -134,7 +134,7 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 
 		release()
 		setDirectoryProcessingStatus(directory.ID, DirectoryWorkRescanning)
-		if _, err := SyncDirectory(context.Background(), directory); err != nil &&
+		if _, err := ScanDirectory(context.Background(), directory); err != nil &&
 			!errors.Is(err, ErrDirectoryScanInProgress) {
 			logging.Error("rescan after directory processing failed id=%d err=%v", directory.ID, err)
 		}

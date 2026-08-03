@@ -65,7 +65,7 @@ func createDirectory(c *gin.Context) {
 	}
 	go func(created models.Directory) {
 		ctx := context.Background()
-		if _, err := service.SyncDirectory(ctx, created); err != nil {
+		if _, err := service.ScanDirectory(ctx, created); err != nil {
 			if errors.Is(err, service.ErrDirectoryScanInProgress) {
 				return
 			}
@@ -183,7 +183,7 @@ func updateDirectory(c *gin.Context) {
 			return
 		}
 		ctx := context.Background()
-		if _, err := service.SyncDirectory(ctx, updated); err != nil {
+		if _, err := service.ScanDirectory(ctx, updated); err != nil {
 			if errors.Is(err, service.ErrDirectoryScanInProgress) {
 				return
 			}
@@ -214,7 +214,7 @@ func scanDirectory(c *gin.Context) {
 		respondLocalizedError(c, http.StatusConflict, "目录正在执行其他任务，请稍后重试", "The directory is busy; please try again later")
 		return
 	}
-	if err := service.StartDirectoryScan(*dir); err != nil {
+	if err := service.StartManualDirectoryScan(*dir); err != nil {
 		if errors.Is(err, service.ErrDirectoryScanInProgress) {
 			respondLocalizedError(c, http.StatusConflict, "目录正在执行其他任务，请稍后重试", "The directory is busy; please try again later")
 			return

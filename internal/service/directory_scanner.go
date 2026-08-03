@@ -20,6 +20,7 @@ import (
 	"javboss/internal/util"
 )
 
+// FileEntry 表示扫描过程中发现的一个视频文件及其可持久化元数据。
 type FileEntry struct {
 	DirectoryID   int64
 	DirectoryPath string
@@ -33,7 +34,7 @@ type FileEntry struct {
 	DurationSec   int64
 }
 
-// Summary captures the results of a directory synchronisation run.
+// Summary 汇总一次目录扫描产生的文件与目录变更数量。
 type Summary struct {
 	FilesSeen   int
 	Inserted    int
@@ -43,6 +44,7 @@ type Summary struct {
 	Directories int
 }
 
+// makePathKey 生成目录内相对路径的唯一索引键。
 func makePathKey(directoryID int64, relativePath string) string {
 	return strconv.FormatInt(directoryID, 10) + ":" + relativePath
 }
@@ -54,7 +56,8 @@ type syncState struct {
 	javLinks               *javLinkBatch
 }
 
-func newSyncState(ctx context.Context, directoryID int64, javLinks *javLinkBatch) (*syncState, error) {
+// loadDirectorySyncState 加载单个目录已有的视频与文件位置，供本次扫描增量对账使用。
+func loadDirectorySyncState(ctx context.Context, directoryID int64, javLinks *javLinkBatch) (*syncState, error) {
 	existingLocations, err := db.VideoLocationsByDirectory(ctx, directoryID)
 	if err != nil {
 		return nil, err
@@ -86,6 +89,7 @@ var (
 	dirScanActive              = map[int64]*directoryScanSession{}
 )
 
+// directoryScanSession 表示一个正在运行或被目录更新操作暂时占用的扫描会话。
 type directoryScanSession struct {
 	cancel  context.CancelFunc
 	done    chan struct{}
@@ -93,6 +97,7 @@ type directoryScanSession struct {
 }
 
 const (
+	directoryScanWorkerCount           = 4
 	DirectoryWorkIdle                  = "idle"
 	DirectoryWorkScanning              = "scanning"
 	DirectoryWorkOrganizing            = "organizing"
@@ -101,8 +106,7 @@ const (
 	DirectoryWorkRescanning            = "rescanning"
 )
 
-// IsDirectoryScanning reports whether a filesystem scan is currently running for id.
-// Reservations used while updating a directory are intentionally not reported as scans.
+// IsDirectoryScanning 判断指定目录是否正在执行文件扫描；目录更新使用的临时占用不算扫描中。
 func IsDirectoryScanning(id int64) bool {
 	if id <= 0 {
 		return false
@@ -114,7 +118,7 @@ func IsDirectoryScanning(id int64) bool {
 	return session != nil && !session.reserve
 }
 
-// DirectoryWorkStatus returns the active manual job, scan, or idle status for id.
+// DirectoryWorkStatus 返回目录当前的处理任务、扫描任务或空闲状态。
 func DirectoryWorkStatus(id int64) string {
 	if status := activeDirectoryProcessingStatus(id); status != "" {
 		return status
@@ -125,7 +129,8 @@ func DirectoryWorkStatus(id int64) string {
 	return DirectoryWorkIdle
 }
 
-func startDirectoryScanSession(ctx context.Context, id int64) (context.Context, func(), error) {
+// acquireDirectoryScanSession 获取单目录扫描会话，保证同一目录同一时间只运行一个扫描任务。
+func acquireDirectoryScanSession(ctx context.Context, id int64) (context.Context, func(), error) {
 	if id <= 0 {
 		return nil, nil, errors.New("directory id cannot be zero")
 	}
@@ -161,13 +166,11 @@ func startDirectoryScanSession(ctx context.Context, id int64) (context.Context, 
 	return scanCtx, finish, nil
 }
 
-// SyncDirectory scans one configured media directory from disk and reconciles it with the database.
-// It also queues every seen video location for asynchronous JAV metadata linking and waits for
-// that queue before returning.
-func SyncDirectory(ctx context.Context, directory models.Directory) (*Summary, error) {
+// ScanDirectory 同步扫描一个目录并与数据库对账，同时等待本次 JAV 关联队列处理完成。
+func ScanDirectory(ctx context.Context, directory models.Directory) (*Summary, error) {
 	start := time.Now()
 	javLinks := newJavLinkBatch(ctx)
-	summary, err := syncDirectory(ctx, directory, javLinks)
+	summary, err := scanDirectoryWithJAVBatch(ctx, directory, javLinks)
 	finishJavLinkBatch(javLinks)
 	if summary != nil {
 		summary.Duration = time.Since(start)
@@ -175,31 +178,33 @@ func SyncDirectory(ctx context.Context, directory models.Directory) (*Summary, e
 	return summary, err
 }
 
-func syncDirectory(ctx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
+// scanDirectoryWithJAVBatch 扫描单个目录，并将 JAV 关联任务写入调用方提供的共享批次。
+func scanDirectoryWithJAVBatch(ctx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
 	if common.DB == nil {
 		return nil, errors.New("nil database")
 	}
 	if directory.ID == 0 || directory.IsDelete {
 		return &Summary{}, nil
 	}
-	scanCtx, finish, err := startDirectoryScanSession(ctx, directory.ID)
+	scanCtx, finish, err := acquireDirectoryScanSession(ctx, directory.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer finish()
-	return syncDirectoryInSession(scanCtx, directory, javLinks)
+	return runDirectoryScanWithSession(scanCtx, directory, javLinks)
 }
 
-func syncDirectoryInSession(scanCtx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
+// runDirectoryScanWithSession 在已取得目录扫描会话的前提下执行文件对账并保存扫描摘要。
+func runDirectoryScanWithSession(scanCtx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
 	start := time.Now()
 	summary := &Summary{}
 	logging.Info("sync directory start: id=%d path=%s", directory.ID, directory.Path)
 
-	state, err := newSyncState(scanCtx, directory.ID, javLinks)
+	state, err := loadDirectorySyncState(scanCtx, directory.ID, javLinks)
 	if err != nil {
 		return nil, err
 	}
-	scanned, err := syncDirectoryWithState(scanCtx, directory, state, summary)
+	scanned, err := reconcileDirectoryContents(scanCtx, directory, state, summary)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			logging.Info("sync directory canceled: id=%d path=%s", directory.ID, directory.Path)
@@ -242,9 +247,9 @@ func syncDirectoryInSession(scanCtx context.Context, directory models.Directory,
 	return summary, nil
 }
 
-// StartDirectoryScan claims a directory's scan slot and performs the scan asynchronously.
-// Claiming the slot before returning makes simultaneous manual requests deterministic.
-func StartDirectoryScan(directory models.Directory) error {
+// StartManualDirectoryScan 先占用目录扫描会话，再异步执行一次手动扫描。
+// 在返回前完成会话占用，可确保并发手动请求得到确定的冲突响应。
+func StartManualDirectoryScan(directory models.Directory) error {
 	if common.DB == nil {
 		return errors.New("nil database")
 	}
@@ -252,14 +257,14 @@ func StartDirectoryScan(directory models.Directory) error {
 		return errors.New("invalid directory")
 	}
 
-	scanCtx, finish, err := startDirectoryScanSession(context.Background(), directory.ID)
+	scanCtx, finish, err := acquireDirectoryScanSession(context.Background(), directory.ID)
 	if err != nil {
 		return err
 	}
 	go func() {
 		defer finish()
 		javLinks := newJavLinkBatch(scanCtx)
-		_, scanErr := syncDirectoryInSession(scanCtx, directory, javLinks)
+		_, scanErr := runDirectoryScanWithSession(scanCtx, directory, javLinks)
 		finishJavLinkBatch(javLinks)
 		if scanErr != nil && !errors.Is(scanErr, context.Canceled) {
 			logging.Error("manual directory scan failed: id=%d path=%s err=%v", directory.ID, directory.Path, scanErr)
@@ -274,7 +279,8 @@ func StartDirectoryScan(directory models.Directory) error {
 	return nil
 }
 
-func syncDirectoryWithState(ctx context.Context, dir models.Directory, state *syncState, summary *Summary) (bool, error) {
+// reconcileDirectoryContents 校验目录可用性，并将磁盘内容与数据库文件位置进行对账。
+func reconcileDirectoryContents(ctx context.Context, dir models.Directory, state *syncState, summary *Summary) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -301,14 +307,14 @@ func syncDirectoryWithState(ctx context.Context, dir models.Directory, state *sy
 		}
 	}
 
-	if err := walkDirectoryAndSync(ctx, dir, state, summary); err != nil {
+	if err := walkAndReconcileVideoFiles(ctx, dir, state, summary); err != nil {
 		return false, err
 	}
 	return true, nil
 }
 
-// walkDirectoryAndSync 扫描单个目录下的文件，实时 upsert 并记录统计/缩略图/JAV 关联任务。
-func walkDirectoryAndSync(ctx context.Context, directory models.Directory, state *syncState, summary *Summary) error {
+// walkAndReconcileVideoFiles 遍历单个目录，实时写入视频位置并记录统计、缩略图和 JAV 关联任务。
+func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory, state *syncState, summary *Summary) error {
 	// 边遍历文件边做指纹计算和 DB 更新，避免一次性构建全量快照
 	normalizedRoot := filepath.Clean(directory.Path)
 	return filepath.WalkDir(normalizedRoot, func(candidatePath string, entry fs.DirEntry, walkErr error) error {
@@ -406,6 +412,7 @@ func walkDirectoryAndSync(ctx context.Context, directory models.Directory, state
 	})
 }
 
+// upsertVideo 根据文件指纹复用或创建视频，并写入当前目录中的文件位置。
 func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summary *Summary) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -441,7 +448,18 @@ func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summar
 	}
 
 	if err := db.CreateVideo(ctx, video); err != nil {
-		logging.Error("create video failed, skip: path=%s err=%v", entry.AbsolutePath, err)
+		// Another directory scan may have inserted the same globally unique fingerprint between
+		// our lookup and create. Reuse that row so this directory's location is not skipped.
+		existingVideo, lookupErr := db.GetVideoByFingerprint(ctx, entry.Fingerprint)
+		if lookupErr != nil || existingVideo == nil {
+			logging.Error("create video failed, skip: path=%s err=%v", entry.AbsolutePath, err)
+			return nil
+		}
+		video = existingVideo
+		state.existingByID[video.ID] = video
+		if err := upsertLocationForEntry(ctx, video, entry, state); err != nil {
+			logging.Error("save video location after concurrent insert failed, skip: path=%s err=%v", entry.AbsolutePath, err)
+		}
 		return nil
 	}
 	summary.Inserted++
@@ -455,6 +473,7 @@ func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summar
 	return nil
 }
 
+// upsertLocationForEntry 保存视频文件位置，并加入本次 JAV 关联队列。
 func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *FileEntry, state *syncState) error {
 	loc, err := db.UpsertVideoLocation(ctx, video.ID, entry.DirectoryID, entry.RelativePath, entry.ModifiedAt)
 	if err != nil {
@@ -469,7 +488,7 @@ func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *Fil
 	return nil
 }
 
-// hideUnprocessedVideoLocations marks file locations missing from this directory scan as deleted.
+// hideUnprocessedVideoLocations 隐藏本次成功扫描中未再次发现的旧文件位置。
 func hideUnprocessedVideoLocations(ctx context.Context, processedLocationIDs map[int64]struct{}, summary *Summary, directoryID int64) error {
 	locations, err := db.VideoLocationsByDirectory(ctx, directoryID)
 	if err != nil {
@@ -502,6 +521,7 @@ func hideUnprocessedVideoLocations(ctx context.Context, processedLocationIDs map
 	return nil
 }
 
+// cleanRelativePath 规范化用于数据库存储的目录内相对路径。
 func cleanRelativePath(p string) string {
 	if p == "" {
 		return ""
@@ -513,8 +533,8 @@ func cleanRelativePath(p string) string {
 	return filepath.ToSlash(cleaned)
 }
 
-// CancelAndReserveDirectoryScan cancels any active scan for id, waits until it exits,
-// then reserves the scan slot until the returned release function is called.
+// CancelAndReserveDirectoryScan 取消并等待指定目录的活动扫描结束，然后占用扫描会话；
+// 调用返回的 release 函数后，其他扫描任务才可再次进入。
 func CancelAndReserveDirectoryScan(ctx context.Context, id int64) (func(), error) {
 	if id <= 0 {
 		return nil, errors.New("directory id cannot be zero")
@@ -558,86 +578,8 @@ func CancelAndReserveDirectoryScan(ctx context.Context, id int64) (func(), error
 	}
 }
 
-// SyncAllDirectories scans all configured active media directories one by one.
-// Each directory is reconciled independently so stale location cleanup is scoped to that
-// directory, while fingerprint matching remains global so moved or duplicated files can keep
-// their existing video metadata, tags, and JAV associations. JAV links are processed as one
-// batch, and the global missing-cover sweep runs once after the whole pass.
-func SyncAllDirectories(ctx context.Context, directories []models.Directory) (*Summary, error) {
-	if common.DB == nil {
-		return nil, errors.New("nil database")
-	}
-	if len(directories) == 0 {
-		return &Summary{}, nil
-	}
-
-	start := time.Now()
-	summary := &Summary{}
-	javLinks := newJavLinkBatch(ctx)
-	finishJavLinks := func() {
-		if javLinks == nil {
-			return
-		}
-		finishJavLinkBatch(javLinks)
-		javLinks = nil
-	}
-	defer finishJavLinks()
-
-	for _, dir := range directories {
-		if dir.ID == 0 || dir.IsDelete {
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		dirSummary, err := syncDirectory(ctx, dir, javLinks)
-		if err != nil {
-			if errors.Is(err, ErrDirectoryScanInProgress) {
-				continue
-			}
-			if errors.Is(err, context.Canceled) && ctx.Err() == nil {
-				continue
-			}
-			return nil, err
-		}
-		summary.FilesSeen += dirSummary.FilesSeen
-		summary.Inserted += dirSummary.Inserted
-		summary.Updated += dirSummary.Updated
-		summary.Removed += dirSummary.Removed
-		summary.Directories += dirSummary.Directories
-	}
-
-	finishJavLinks()
-	if err := enqueueMissingCovers(ctx); err != nil {
-		logging.Error("jav cover enqueue failed: %v", err)
-		return nil, err
-	}
-	summary.Duration = time.Since(start)
-	return summary, nil
-}
-
-// ScanDirectories loads every active directory configured in the database and runs the directory
-// reconciliation scanner. The scanner compares filesystem video files against stored video
-// locations, creates or relinks videos, marks missing directories, and hides locations whose files
-// disappeared from a successfully scanned directory.
-func ScanDirectories(ctx context.Context) error {
-	if common.DB == nil {
-		return errors.New("nil db")
-	}
-	dirs, err := db.ListActiveDirectories(ctx)
-	if err != nil {
-		return err
-	}
-	if _, err := SyncAllDirectories(ctx, dirs); err != nil {
-		if errors.Is(err, ErrDirectoryScanInProgress) {
-			return nil
-		}
-		return err
-	}
-	return nil
-}
-
-func directoryAutoScanDue(directory models.Directory, now time.Time) bool {
+// isAutomaticDirectoryScanDue 根据目录的最新开关、周期和上次完成时间判断是否到期。
+func isAutomaticDirectoryScanDue(directory models.Directory, now time.Time) bool {
 	if directory.ID <= 0 || directory.IsDelete || !directory.AutoScanEnabled {
 		return false
 	}
@@ -652,9 +594,9 @@ func directoryAutoScanDue(directory models.Directory, now time.Time) bool {
 	return !now.Before(time.UnixMilli(finishedAt).Add(time.Duration(intervalMinutes) * time.Minute))
 }
 
-// ScanDueDirectories scans only active directories whose individual automatic-scan interval has
-// elapsed. Directories with automatic scanning disabled are intentionally skipped.
-func ScanDueDirectories(ctx context.Context, now time.Time) error {
+// RunDueAutomaticDirectoryScans 并行扫描所有已到期的自动扫描目录。
+// worker 真正开始任务前会重新读取目录，确保使用最新设置、扫描时间和目录路径。
+func RunDueAutomaticDirectoryScans(ctx context.Context, now time.Time) error {
 	if common.DB == nil {
 		return errors.New("nil db")
 	}
@@ -662,29 +604,100 @@ func ScanDueDirectories(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	due := make([]models.Directory, 0, len(dirs))
+	dueIDs := make([]int64, 0, len(dirs))
 	for _, dir := range dirs {
-		if directoryAutoScanDue(dir, now) {
-			due = append(due, dir)
+		if isAutomaticDirectoryScanDue(dir, now) {
+			dueIDs = append(dueIDs, dir.ID)
 		}
 	}
-	if _, err := SyncAllDirectories(ctx, due); err != nil {
-		if errors.Is(err, ErrDirectoryScanInProgress) {
-			return nil
+	if len(dueIDs) == 0 {
+		return nil
+	}
+
+	javLinks := newJavLinkBatch(ctx)
+	jobs := make(chan int64)
+	errs := make(chan error, len(dueIDs))
+	scanned := make(chan struct{}, len(dueIDs))
+	var workers sync.WaitGroup
+	for range min(directoryScanWorkerCount, len(dueIDs)) {
+		workers.Add(1)
+		go func() {
+			defer workers.Done()
+			for id := range jobs {
+				dir, err := loadDirectoryIfAutomaticScanDue(ctx, id, now)
+				if err != nil {
+					errs <- err
+					continue
+				}
+				if dir == nil {
+					continue
+				}
+				if _, err := scanDirectoryWithJAVBatch(ctx, *dir, javLinks); err != nil {
+					if errors.Is(err, ErrDirectoryScanInProgress) ||
+						(errors.Is(err, context.Canceled) && ctx.Err() == nil) {
+						continue
+					}
+					errs <- err
+					continue
+				}
+				scanned <- struct{}{}
+			}
+		}()
+	}
+
+sendDueDirectories:
+	for _, id := range dueIDs {
+		select {
+		case jobs <- id:
+		case <-ctx.Done():
+			break sendDueDirectories
 		}
+	}
+	close(jobs)
+	workers.Wait()
+	finishJavLinkBatch(javLinks)
+	select {
+	case err := <-errs:
 		return err
+	default:
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if len(scanned) > 0 {
+		if err := enqueueMissingCovers(ctx); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-// StartDirectoryScanner periodically checks which configured media directories are due to scan.
-// It performs a due check immediately and then on every poll interval until ctx is done.
-func StartDirectoryScanner(ctx context.Context, pollInterval time.Duration) {
+// loadDirectoryIfAutomaticScanDue 重新读取排队目录；若目录已删除、已关闭或尚未到期则返回 nil。
+func loadDirectoryIfAutomaticScanDue(ctx context.Context, id int64, notBefore time.Time) (*models.Directory, error) {
+	dir, err := db.GetDirectory(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if dir == nil {
+		return nil, nil
+	}
+	checkAt := time.Now()
+	if checkAt.Before(notBefore) {
+		checkAt = notBefore
+	}
+	if !isAutomaticDirectoryScanDue(*dir, checkAt) {
+		return nil, nil
+	}
+	return dir, nil
+}
+
+// StartAutomaticDirectoryScanScheduler 启动自动扫描调度器；立即检查一次，之后按轮询周期检查到期目录。
+func StartAutomaticDirectoryScanScheduler(ctx context.Context, pollInterval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(pollInterval)
 		defer ticker.Stop()
 		for {
-			if err := ScanDueDirectories(ctx, time.Now()); err != nil {
+			if err := RunDueAutomaticDirectoryScans(ctx, time.Now()); err != nil {
 				logging.Error("periodic directory scan failed: %v", err)
 			}
 			select {

@@ -170,7 +170,7 @@ func main() {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			service.StartDirectoryScanner(ctx, 30*time.Second)
+			service.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
 			service.StartJavMetadataScanner(ctx, time.Minute)
 			service.StartSlowJavMetadataScanner(ctx, time.Minute)
 			service.StartIdolProfileScanner(ctx, time.Minute)

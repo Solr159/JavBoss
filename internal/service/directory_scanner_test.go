@@ -15,7 +15,7 @@ import (
 func TestCancelAndReserveDirectoryScanCancelsActiveSession(t *testing.T) {
 	resetDirectoryScanSessions(t)
 
-	scanCtx, finish, err := startDirectoryScanSession(context.Background(), 42)
+	scanCtx, finish, err := acquireDirectoryScanSession(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("begin scan: %v", err)
 	}
@@ -41,13 +41,13 @@ func TestCancelAndReserveDirectoryScanCancelsActiveSession(t *testing.T) {
 	default:
 		t.Fatal("active scan should be canceled and finished before reservation is returned")
 	}
-	if _, _, err := startDirectoryScanSession(context.Background(), 42); !errors.Is(err, ErrDirectoryScanInProgress) {
+	if _, _, err := acquireDirectoryScanSession(context.Background(), 42); !errors.Is(err, ErrDirectoryScanInProgress) {
 		t.Fatalf("reservation should block new scans: %v", err)
 	}
 
 	release()
 	release = nil
-	_, nextFinish, err := startDirectoryScanSession(context.Background(), 42)
+	_, nextFinish, err := acquireDirectoryScanSession(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("begin scan after reservation release: %v", err)
 	}
@@ -57,7 +57,7 @@ func TestCancelAndReserveDirectoryScanCancelsActiveSession(t *testing.T) {
 func TestCancelAndReserveDirectoryScanHonorsContext(t *testing.T) {
 	resetDirectoryScanSessions(t)
 
-	_, finish, err := startDirectoryScanSession(context.Background(), 42)
+	_, finish, err := acquireDirectoryScanSession(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("begin scan: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestIsDirectoryScanning(t *testing.T) {
 		t.Fatal("directory should be idle before a scan starts")
 	}
 
-	_, finish, err := startDirectoryScanSession(context.Background(), 42)
+	_, finish, err := acquireDirectoryScanSession(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("begin scan: %v", err)
 	}
@@ -107,20 +107,20 @@ func TestIsDirectoryScanning(t *testing.T) {
 func TestDifferentDirectoryScansCanRunConcurrently(t *testing.T) {
 	resetDirectoryScanSessions(t)
 
-	_, finishFirst, err := startDirectoryScanSession(context.Background(), 41)
+	_, finishFirst, err := acquireDirectoryScanSession(context.Background(), 41)
 	if err != nil {
 		t.Fatalf("begin first scan: %v", err)
 	}
 	defer finishFirst()
 
-	_, finishSecond, err := startDirectoryScanSession(context.Background(), 42)
+	_, finishSecond, err := acquireDirectoryScanSession(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("begin concurrent scan for another directory: %v", err)
 	}
 	finishSecond()
 }
 
-func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
+func TestScanDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
 	resetDirectoryScanSessions(t)
 	gdb, err := db.Open(filepath.Join(t.TempDir(), "scan-summary.db"))
 	if err != nil {
@@ -141,7 +141,7 @@ func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
 		t.Fatalf("create directory: %v", err)
 	}
 	startedAt := time.Now().Add(-time.Second).UnixMilli()
-	summary, err := SyncDirectory(t.Context(), dir)
+	summary, err := ScanDirectory(t.Context(), dir)
 	if err != nil {
 		t.Fatalf("sync directory: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
 
 	canceledCtx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := SyncDirectory(canceledCtx, dir); err == nil {
+	if _, err := ScanDirectory(canceledCtx, dir); err == nil {
 		t.Fatal("canceled scan should fail")
 	}
 	var afterCanceled models.Directory
@@ -185,7 +185,7 @@ func TestSyncDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
 	}
 }
 
-func TestDirectoryAutoScanDue(t *testing.T) {
+func TestIsAutomaticDirectoryScanDue(t *testing.T) {
 	now := time.Unix(1750000000, 0)
 	tests := []struct {
 		name      string
@@ -235,10 +235,78 @@ func TestDirectoryAutoScanDue(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := directoryAutoScanDue(test.directory, now); got != test.want {
-				t.Fatalf("directoryAutoScanDue() = %t, want %t", got, test.want)
+			if got := isAutomaticDirectoryScanDue(test.directory, now); got != test.want {
+				t.Fatalf("isAutomaticDirectoryScanDue() = %t, want %t", got, test.want)
 			}
 		})
+	}
+}
+
+func TestLoadDirectoryIfAutomaticScanDueRechecksLatestState(t *testing.T) {
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "scan-recheck.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = gdb
+	t.Cleanup(func() {
+		common.DB = previousDB
+		sqlDB, dbErr := gdb.DB()
+		if dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dir := models.Directory{Path: t.TempDir()}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	now := time.Now()
+	enabled := false
+	if _, err := db.UpdateDirectoryScanSettings(t.Context(), dir.ID, &enabled, nil); err != nil {
+		t.Fatalf("disable automatic scan: %v", err)
+	}
+	current, err := loadDirectoryIfAutomaticScanDue(t.Context(), dir.ID, now)
+	if err != nil {
+		t.Fatalf("recheck disabled directory: %v", err)
+	}
+	if current != nil {
+		t.Fatalf("disabled directory remained queued: %#v", current)
+	}
+
+	enabled = true
+	intervalMinutes := 60
+	if _, err := db.UpdateDirectoryScanSettings(t.Context(), dir.ID, &enabled, &intervalMinutes); err != nil {
+		t.Fatalf("enable automatic scan: %v", err)
+	}
+	if err := db.UpdateDirectoryLastScanSummary(t.Context(), dir.ID, models.DirectoryScanSummary{
+		FinishedAtUnixMS: now.Add(-time.Minute).UnixMilli(),
+	}); err != nil {
+		t.Fatalf("record newer manual scan: %v", err)
+	}
+	current, err = loadDirectoryIfAutomaticScanDue(t.Context(), dir.ID, now)
+	if err != nil {
+		t.Fatalf("recheck recently scanned directory: %v", err)
+	}
+	if current != nil {
+		t.Fatalf("recently scanned directory remained queued: %#v", current)
+	}
+
+	newPath := t.TempDir()
+	if err := gdb.Model(&models.Directory{}).Where("id = ?", dir.ID).Update("path", newPath).Error; err != nil {
+		t.Fatalf("update directory path: %v", err)
+	}
+	if err := db.UpdateDirectoryLastScanSummary(t.Context(), dir.ID, models.DirectoryScanSummary{
+		FinishedAtUnixMS: now.Add(-2 * time.Hour).UnixMilli(),
+	}); err != nil {
+		t.Fatalf("make directory due: %v", err)
+	}
+	current, err = loadDirectoryIfAutomaticScanDue(t.Context(), dir.ID, now)
+	if err != nil {
+		t.Fatalf("load refreshed directory: %v", err)
+	}
+	if current == nil || current.Path != newPath {
+		t.Fatalf("directory scan did not use latest path: got %#v want %q", current, newPath)
 	}
 }
 
