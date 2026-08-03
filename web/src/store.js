@@ -1386,7 +1386,18 @@ export const useStore = create((set, get) => ({
     const dir = await updateDirectory(id, payload)
     const state = get()
     const next = state.directories
-      .map((d) => (d.id === id ? dir : d))
+      .map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              ...dir,
+              scanned_video_count: d.scanned_video_count,
+              scraped_video_count: d.scraped_video_count,
+              is_scanning: d.is_scanning,
+              work_status: d.work_status,
+            }
+          : d
+      )
       .filter((d) => d && !d.is_delete)
     const active = cleanDirectoryIds(next.map((directory) => directory?.id))
     const activeSet = new Set(active)
