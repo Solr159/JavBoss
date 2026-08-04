@@ -868,8 +868,8 @@ export default function DirectoryManager({
                   <span className="mt-0.5 block text-xs text-zinc-500">
                     {scanSettingsEnabled
                       ? zh(
-                          '按设定周期进行目录扫描和 JAV 刮削',
-                          'Scan the directory and scrape JAV metadata on a schedule'
+                          '按指定间隔进行目录扫描和 JAV 刮削',
+                          'Scan the directory and scrape JAV metadata at the specified interval'
                         )
                       : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
                   </span>
@@ -884,7 +884,7 @@ export default function DirectoryManager({
               </label>
               {scanSettingsEnabled && (
                 <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700">
-                  <span>{zh('每', 'Every')}</span>
+                  <span>{zh('扫描间隔：', 'Scan interval:')}</span>
                   <input
                     type="number"
                     min="1"
@@ -894,7 +894,7 @@ export default function DirectoryManager({
                     onChange={(event) => setScanSettingsIntervalMinutes(event.target.value)}
                     className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
-                  <span>{zh('分钟扫描一次', 'minutes')}</span>
+                  <span>{zh('分钟', 'minutes')}</span>
                 </label>
               )}
             </div>
