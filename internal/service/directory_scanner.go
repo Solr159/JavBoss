@@ -97,7 +97,6 @@ type directoryScanSession struct {
 }
 
 const (
-	directoryScanWorkerCount           = 4
 	DirectoryWorkIdle                  = "idle"
 	DirectoryWorkScanning              = "scanning"
 	DirectoryWorkOrganizing            = "organizing"
@@ -594,9 +593,14 @@ func isAutomaticDirectoryScanDue(directory models.Directory, now time.Time) bool
 	return !now.Before(time.UnixMilli(finishedAt).Add(time.Duration(intervalMinutes) * time.Minute))
 }
 
-// RunDueAutomaticDirectoryScans 并行扫描所有已到期的自动扫描目录。
-// worker 真正开始任务前会重新读取目录，确保使用最新设置、扫描时间和目录路径。
-func RunDueAutomaticDirectoryScans(ctx context.Context, now time.Time) error {
+// dispatchDueAutomaticDirectoryScans 为每个已到期目录启动独立扫描任务并立即返回。
+// 同一目录在 activeScans 中只允许存在一个任务，任务开始前还会重新读取最新目录设置。
+func dispatchDueAutomaticDirectoryScans(
+	ctx context.Context,
+	now time.Time,
+	activeScans *sync.Map,
+	runningScans *sync.WaitGroup,
+) error {
 	if common.DB == nil {
 		return errors.New("nil db")
 	}
@@ -604,70 +608,38 @@ func RunDueAutomaticDirectoryScans(ctx context.Context, now time.Time) error {
 	if err != nil {
 		return err
 	}
-	dueIDs := make([]int64, 0, len(dirs))
 	for _, dir := range dirs {
-		if isAutomaticDirectoryScanDue(dir, now) {
-			dueIDs = append(dueIDs, dir.ID)
+		if !isAutomaticDirectoryScanDue(dir, now) {
+			continue
 		}
-	}
-	if len(dueIDs) == 0 {
-		return nil
-	}
+		if _, alreadyActive := activeScans.LoadOrStore(dir.ID, struct{}{}); alreadyActive {
+			continue
+		}
+		runningScans.Add(1)
+		go func(id int64, queuedAt time.Time) {
+			defer runningScans.Done()
+			defer activeScans.Delete(id)
 
-	javLinks := newJavLinkBatch(ctx)
-	jobs := make(chan int64)
-	errs := make(chan error, len(dueIDs))
-	scanned := make(chan struct{}, len(dueIDs))
-	var workers sync.WaitGroup
-	for range min(directoryScanWorkerCount, len(dueIDs)) {
-		workers.Add(1)
-		go func() {
-			defer workers.Done()
-			for id := range jobs {
-				dir, err := loadDirectoryIfAutomaticScanDue(ctx, id, now)
-				if err != nil {
-					errs <- err
-					continue
+			current, err := loadDirectoryIfAutomaticScanDue(ctx, id, queuedAt)
+			if err != nil {
+				if !errors.Is(err, context.Canceled) {
+					logging.Error("reload automatic scan directory failed id=%d err=%v", id, err)
 				}
-				if dir == nil {
-					continue
-				}
-				if _, err := scanDirectoryWithJAVBatch(ctx, *dir, javLinks); err != nil {
-					if errors.Is(err, ErrDirectoryScanInProgress) ||
-						(errors.Is(err, context.Canceled) && ctx.Err() == nil) {
-						continue
-					}
-					errs <- err
-					continue
-				}
-				scanned <- struct{}{}
+				return
 			}
-		}()
-	}
-
-sendDueDirectories:
-	for _, id := range dueIDs {
-		select {
-		case jobs <- id:
-		case <-ctx.Done():
-			break sendDueDirectories
-		}
-	}
-	close(jobs)
-	workers.Wait()
-	finishJavLinkBatch(javLinks)
-	select {
-	case err := <-errs:
-		return err
-	default:
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if len(scanned) > 0 {
-		if err := enqueueMissingCovers(ctx); err != nil {
-			return err
-		}
+			if current == nil {
+				return
+			}
+			if _, err := ScanDirectory(ctx, *current); err != nil {
+				if !errors.Is(err, ErrDirectoryScanInProgress) && !errors.Is(err, context.Canceled) {
+					logging.Error("automatic directory scan failed id=%d path=%s err=%v", current.ID, current.Path, err)
+				}
+				return
+			}
+			if err := enqueueMissingCovers(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				logging.Error("jav cover enqueue after automatic scan failed id=%d err=%v", current.ID, err)
+			}
+		}(dir.ID, now)
 	}
 	return nil
 }
@@ -694,10 +666,19 @@ func loadDirectoryIfAutomaticScanDue(ctx context.Context, id int64, notBefore ti
 // StartAutomaticDirectoryScanScheduler 启动自动扫描调度器；立即检查一次，之后按轮询周期检查到期目录。
 func StartAutomaticDirectoryScanScheduler(ctx context.Context, pollInterval time.Duration) {
 	go func() {
+		var activeScans sync.Map
+		var runningScans sync.WaitGroup
+		defer runningScans.Wait()
+
 		ticker := time.NewTicker(pollInterval)
 		defer ticker.Stop()
 		for {
-			if err := RunDueAutomaticDirectoryScans(ctx, time.Now()); err != nil {
+			if err := dispatchDueAutomaticDirectoryScans(
+				ctx,
+				time.Now(),
+				&activeScans,
+				&runningScans,
+			); err != nil {
 				logging.Error("periodic directory scan failed: %v", err)
 			}
 			select {
