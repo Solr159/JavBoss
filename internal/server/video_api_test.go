@@ -97,12 +97,18 @@ func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
 	router := gin.New()
 	RegisterRoutes(router)
 
+	foundList := false
+	foundUpload := false
 	for _, route := range router.Routes() {
-		if route.Method == "GET" && route.Path == "/videos/screenshots" {
-			return
-		}
+		foundList = foundList || route.Method == "GET" && route.Path == "/videos/screenshots"
+		foundUpload = foundUpload || route.Method == "PUT" && route.Path == "/videos/:id/screenshots/:name"
 	}
-	t.Fatal("GET /videos/screenshots route is not registered")
+	if !foundList {
+		t.Fatal("GET /videos/screenshots route is not registered")
+	}
+	if !foundUpload {
+		t.Fatal("PUT /videos/:id/screenshots/:name route is not registered")
+	}
 }
 
 func TestIsScreenshotImageName(t *testing.T) {

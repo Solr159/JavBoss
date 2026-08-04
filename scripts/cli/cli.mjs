@@ -512,6 +512,9 @@ async function createReleaseConfig(outDir) {
     "# JavBoss release config",
     "# This file uses TOML format.",
     "# The default browser URL is http://localhost:8655.",
+    "# Set mode to client to connect to another JavBoss server and play with local MPV.",
+    'mode = "server"',
+    'server_url = ""',
     "port = 8655",
     "",
   ].join("\n");

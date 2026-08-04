@@ -385,7 +385,15 @@ export default function App() {
     : normalizeDefaultPlayer(config?.default_player)
   const initialViewMode = normalizeInitialViewMode(config?.initial_view_mode)
   const showTopBarButtonTooltips = configFlag(config?.show_top_bar_button_tooltips, true)
-  const alternatePlayer = browserPlaybackOnly ? '' : defaultPlayer === 'system' ? 'mpv' : 'system'
+  const alternatePlayer = browserPlaybackOnly
+    ? ''
+    : defaultPlayer === 'system'
+      ? mpvEnabled
+        ? 'mpv'
+        : ''
+      : desktopIntegrationEnabled
+        ? 'system'
+        : ''
   const alternatePlayerLabel =
     alternatePlayer === 'mpv'
       ? zh('使用MPV播放器播放', 'Play with MPV player')
@@ -495,6 +503,7 @@ export default function App() {
       }
       const payload = {
         id: video.id,
+        locationId: video.location_id,
         path: getVideoRelPath(video),
         dirPath: getVideoDirPath(video),
       }
@@ -534,6 +543,7 @@ export default function App() {
       }
       playVideoFile({
         id: video.id,
+        locationId: video.location_id,
         path: getVideoRelPath(video),
         dirPath: getVideoDirPath(video),
         startTime,

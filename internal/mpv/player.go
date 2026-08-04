@@ -29,9 +29,10 @@ const (
 )
 
 type PlayOptions struct {
-	DataDir      string
-	VideoID      int64
-	StartTimeSec float64
+	DataDir                string
+	VideoID                int64
+	StartTimeSec           float64
+	EnableNetworkThumbnail bool
 }
 
 type playerSession struct {
@@ -104,7 +105,7 @@ func (s *playerSession) PlayVideo(path string, options PlayOptions) error {
 
 	var lastErr error
 	for attempt := 0; attempt < 2; attempt++ {
-		if err := s.ensureRunningLocked(); err != nil {
+		if err := s.ensureRunningLocked(options); err != nil {
 			return err
 		}
 		if err := s.playVideoLocked(path, options); err != nil {
@@ -134,12 +135,12 @@ func (s *playerSession) Reset() {
 	s.stopLocked()
 }
 
-func (s *playerSession) ensureRunningLocked() error {
+func (s *playerSession) ensureRunningLocked(options PlayOptions) error {
 	if s.cmd != nil && s.cmd.ProcessState == nil && s.ipcPath != "" {
 		return nil
 	}
 
-	cmd, ipcPath, err := buildCommandWithIPC("", PlayOptions{})
+	cmd, ipcPath, err := buildCommandWithIPC("", options)
 	if err != nil {
 		return err
 	}
@@ -276,7 +277,7 @@ func buildCommandArgs(path string, options PlayOptions, ipcPath string) (*exec.C
 		args = append(args, "--force-window=yes")
 		args = append(args, "--input-ipc-server="+ipcPath)
 	}
-	args = append(args, buildThumbfastScriptArgs(mpvPath)...)
+	args = append(args, buildThumbfastScriptArgs(mpvPath, options.EnableNetworkThumbnail)...)
 	args = append(args, "--script="+modernZ.ScriptPath)
 	args = append(args, "--script="+modernZ.ThumbfastScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
@@ -297,11 +298,15 @@ func buildCommandArgs(path string, options PlayOptions, ipcPath string) (*exec.C
 	return exec.Command(mpvPath, args...), nil
 }
 
-func buildThumbfastScriptArgs(mpvPath string) []string {
+func buildThumbfastScriptArgs(mpvPath string, enableNetworkThumbnail bool) []string {
 	if strings.TrimSpace(mpvPath) == "" {
 		return nil
 	}
-	return []string{"--script-opt=thumbfast-mpv_path=" + mpvPath}
+	args := []string{"--script-opt=thumbfast-mpv_path=" + mpvPath}
+	if enableNetworkThumbnail {
+		args = append(args, "--script-opt=thumbfast-network=yes")
+	}
+	return args
 }
 
 func buildPlaybackStartArgs(options PlayOptions) []string {

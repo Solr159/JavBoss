@@ -266,6 +266,24 @@ The frontend is designed around finding the right video quickly. Common operatio
   <img src="screenshot/en/image1_12.png" style="width: 100%; height: auto;">
 </p>
 
+## Client mode
+
+Client mode connects to a JavBoss Server on another machine and uses MPV on the current computer to play remote videos. The client listens on loopback only and does not open a local media-library database or start scanners and metadata jobs.
+
+Edit `config.toml` in the release directory:
+
+```toml
+mode = "client"
+server_url = ""
+port = 8655
+```
+
+After restarting, enter the complete remote address on the setup page, for example `https://javboss.example.com`. You can also run `javboss -client -server https://javboss.example.com`. The remote server must be reachable from the client computer; HTTPS is recommended over the public internet.
+
+Player window, volume, and hotkey settings are stored on the client. Library, tag, and directory settings remain on the remote server. To return to normal server mode, change `mode` back to `server` and restart.
+
+MPV screenshots are staged under `data/client/<server-id>/` and then uploaded automatically to the remote server's video screenshot library. The local copy is removed only after a successful upload; files are retained and retried after network or authentication failures.
+
 ## Notes
 
 - JavBoss is a local media library manager, not an online streaming site.

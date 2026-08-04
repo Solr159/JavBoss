@@ -274,13 +274,31 @@ JavBoss 集成 [mpv](https://github.com/mpv-player/mpv) 播放能力，点击视
 - 所有可见信息将尽可能展示，不做复杂的页面嵌套。
 - 所有的操作按钮都放在触手可及的位置，尽可能的降低用户心智负担。
 
+## Client 模式
+
+Client 模式用于连接另一台机器上的 JavBoss Server，并调用当前电脑上的 MPV 播放远端视频。Client 只监听本机回环地址，不会打开本地媒体库数据库，也不会启动目录扫描和刮削任务。
+
+编辑发布包根目录的 `config.toml`：
+
+```toml
+mode = "client"
+server_url = ""
+port = 8655
+```
+
+重新启动后，浏览器会显示远端地址配置页。输入完整的远端地址，例如 `https://javboss.example.com`。也可以直接运行 `javboss -client -server https://javboss.example.com`。远端 Server 需要允许当前电脑访问，公网连接建议使用 HTTPS。
+
+播放器窗口、音量、快捷键等设置保存在 Client 本机；媒体库、标签和目录等设置仍保存在远端 Server。要切回普通 Server 模式，将 `mode` 改回 `server` 并重启。
+
+Client 使用 MPV 截图时，图片会先暂存在 `data/client/<server-id>/`，随后自动上传到远端 Server 的视频截图库。上传成功后删除本地副本；网络中断或登录失效时保留文件，并在连接恢复后自动重试。
+
 
 ## 注意事项
 
 - JavBoss 是本地媒体库管理工具，不是在线视频站。
 - JAV 元数据、封面资料首次抓取依赖外部站点可访问性，中国大陆地区请自备梯子。
 - 首次导入大库时，扫描、封面抓取、资料补全和缩略图生成需要一些时间。
-- 发布包根目录会包含 `config.toml` 文件，程序默认启动端口为 8655，如有需要可修改其中 port 的值更换启动端口。
+- 发布包根目录会包含 `config.toml` 文件，程序默认启动端口为 8655，如有需要可修改其中 `port` 的值更换启动端口。
 
 ## Q&A
 

@@ -225,11 +225,17 @@ export async function openVideoFile({ path, dirPath }) {
   }
 }
 
-export async function playVideoFile({ id, path, dirPath, startTime }) {
+export async function playVideoFile({ id, locationId, path, dirPath, startTime }) {
   const res = await apiFetch('/videos/play', {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ video_id: id, path, dir_path: dirPath, start_time: startTime }),
+    body: JSON.stringify({
+      video_id: id,
+      location_id: locationId,
+      path,
+      dir_path: dirPath,
+      start_time: startTime,
+    }),
   })
   if (!res.ok) {
     throw await apiError(res)

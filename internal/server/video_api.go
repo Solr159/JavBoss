@@ -422,6 +422,9 @@ func serveVideoFile(c *gin.Context, fullPath string) {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取视频文件失败", "Failed to inspect video file")
 		return
 	}
+	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		logging.Error("disable video stream write deadline error: %v", err)
+	}
 	c.File(fullPath)
 }
 

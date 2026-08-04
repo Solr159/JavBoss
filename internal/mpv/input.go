@@ -64,7 +64,34 @@ var (
 	configPath    string
 	configContent string
 	configReady   bool
+
+	playerConfigProviderMu sync.RWMutex
+	playerConfigProvider   func() (map[string]string, error)
 )
+
+// SetPlayerConfigProvider overrides player configuration loading. It is used by
+// the standalone client mode, which intentionally does not open the server DB.
+// Passing nil restores the default DB-backed behavior.
+func SetPlayerConfigProvider(provider func() (map[string]string, error)) {
+	playerConfigProviderMu.Lock()
+	playerConfigProvider = provider
+	playerConfigProviderMu.Unlock()
+	InvalidateHotkeysCache()
+	InvalidatePlayerConfigCache()
+}
+
+func loadPlayerConfig() (map[string]string, error) {
+	playerConfigProviderMu.RLock()
+	provider := playerConfigProvider
+	playerConfigProviderMu.RUnlock()
+	if provider != nil {
+		return provider()
+	}
+	if common.DB == nil {
+		return nil, nil
+	}
+	return dbpkg.ListConfig(context.Background())
+}
 
 func InvalidateHotkeysCache() {
 	inputConfMu.Lock()
@@ -209,11 +236,7 @@ func buildEscapeHotkeyHint() string {
 }
 
 func loadConfiguredHotkeys() ([]hotkeyConfig, error) {
-	if common.DB == nil {
-		return cloneDefaultHotkeys(), nil
-	}
-
-	cfg, err := dbpkg.ListConfig(context.Background())
+	cfg, err := loadPlayerConfig()
 	if err != nil {
 		logging.Error("list player_hotkeys config failed, using defaults: %v", err)
 		return cloneDefaultHotkeys(), nil
@@ -433,11 +456,7 @@ func centeredWindowGeometry(width, height int) string {
 }
 
 func loadConfiguredPlayerBaseSettings() (int, int, int, bool, error) {
-	if common.DB == nil {
-		return defaultWindowWidth, defaultWindowHeight, defaultVolume, defaultOntop, nil
-	}
-
-	cfg, err := dbpkg.ListConfig(context.Background())
+	cfg, err := loadPlayerConfig()
 	if err != nil {
 		logging.Error("list player base config failed, using defaults: %v", err)
 		return defaultWindowWidth, defaultWindowHeight, defaultVolume, defaultOntop, nil
@@ -483,11 +502,7 @@ func loadConfiguredPlayerBaseSettings() (int, int, int, bool, error) {
 }
 
 func loadConfiguredPlayerReuseWindow() bool {
-	if common.DB == nil {
-		return defaultReuseWindow
-	}
-
-	cfg, err := dbpkg.ListConfig(context.Background())
+	cfg, err := loadPlayerConfig()
 	if err != nil {
 		logging.Error("list player reuse window config failed, using default: %v", err)
 		return defaultReuseWindow
@@ -508,11 +523,7 @@ func loadConfiguredPlayerReuseWindow() bool {
 }
 
 func loadConfiguredPlayerResumePlayback() bool {
-	if common.DB == nil {
-		return defaultResume
-	}
-
-	cfg, err := dbpkg.ListConfig(context.Background())
+	cfg, err := loadPlayerConfig()
 	if err != nil {
 		logging.Error("list player resume playback config failed, using default: %v", err)
 		return defaultResume
@@ -533,11 +544,7 @@ func loadConfiguredPlayerResumePlayback() bool {
 }
 
 func loadConfiguredPlayerShowHotkeyHint() (bool, error) {
-	if common.DB == nil {
-		return true, nil
-	}
-
-	cfg, err := dbpkg.ListConfig(context.Background())
+	cfg, err := loadPlayerConfig()
 	if err != nil {
 		logging.Error("list player hotkey hint config failed, using defaults: %v", err)
 		return true, nil

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -61,5 +62,43 @@ func TestConfiguredListenAddr(t *testing.T) {
 				t.Fatalf("configuredListenAddr() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestReleaseClientStartupHintIncludesModeAndRemoteServer(t *testing.T) {
+	localURL := "http://localhost:8655"
+	remoteURL := "https://server.example.com"
+
+	for _, test := range []struct {
+		name     string
+		chinese  bool
+		contains []string
+	}{
+		{
+			name:     "Chinese",
+			chinese:  true,
+			contains: []string{"JavBoss 已通过 Client 模式启动，访问地址：" + localURL, "远程 Server 地址：" + remoteURL},
+		},
+		{
+			name:     "English",
+			chinese:  false,
+			contains: []string{"JavBoss started in Client mode. URL: " + localURL, "Remote Server: " + remoteURL},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			hint := releaseClientStartupHint(localURL, remoteURL, test.chinese)
+			for _, expected := range test.contains {
+				if !strings.Contains(hint, expected) {
+					t.Fatalf("startup hint %q does not contain %q", hint, expected)
+				}
+			}
+		})
+	}
+}
+
+func TestReleaseClientStartupHintShowsUnconfiguredRemoteServer(t *testing.T) {
+	hint := releaseClientStartupHint("http://localhost:8655", "", true)
+	if !strings.Contains(hint, "远程 Server 地址：未配置") {
+		t.Fatalf("startup hint = %q", hint)
 	}
 }

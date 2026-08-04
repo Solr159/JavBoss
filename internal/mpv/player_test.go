@@ -160,8 +160,20 @@ func TestBuildBeforeLoadCommandsUsesFallbackScreenshotDirWithoutVideoID(t *testi
 
 func TestBuildThumbfastScriptArgsUsesResolvedMPVPath(t *testing.T) {
 	mpvPath := filepath.Join(t.TempDir(), "mpv with spaces")
-	args := buildThumbfastScriptArgs(mpvPath)
+	args := buildThumbfastScriptArgs(mpvPath, false)
 	if len(args) != 1 || args[0] != "--script-opt=thumbfast-mpv_path="+mpvPath {
 		t.Fatalf("expected thumbfast mpv path script option, got %v", args)
+	}
+}
+
+func TestBuildThumbfastScriptArgsEnablesNetworkThumbnail(t *testing.T) {
+	mpvPath := filepath.Join(t.TempDir(), "mpv")
+	args := buildThumbfastScriptArgs(mpvPath, true)
+	expected := []string{
+		"--script-opt=thumbfast-mpv_path=" + mpvPath,
+		"--script-opt=thumbfast-network=yes",
+	}
+	if !reflect.DeepEqual(args, expected) {
+		t.Fatalf("expected thumbfast network script option %v, got %v", expected, args)
 	}
 }
