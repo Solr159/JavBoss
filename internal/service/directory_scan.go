@@ -85,17 +85,6 @@ func loadDirectorySyncState(ctx context.Context, directoryID int64, javLinks *ja
 // ScanDirectory 同步扫描一个目录并与数据库对账，同时等待本次 JAV 关联队列处理完成。
 func ScanDirectory(ctx context.Context, directory models.Directory) (*Summary, error) {
 	start := time.Now()
-	javLinks := newJavLinkBatch(ctx)
-	summary, err := scanDirectoryWithJAVBatch(ctx, directory, javLinks)
-	finishJavLinkBatch(javLinks)
-	if summary != nil {
-		summary.Duration = time.Since(start)
-	}
-	return summary, err
-}
-
-// scanDirectoryWithJAVBatch 扫描单个目录，并将 JAV 关联任务写入调用方提供的共享批次。
-func scanDirectoryWithJAVBatch(ctx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
 	if common.DB == nil {
 		return nil, errors.New("nil database")
 	}
@@ -107,7 +96,14 @@ func scanDirectoryWithJAVBatch(ctx context.Context, directory models.Directory, 
 		return nil, err
 	}
 	defer finish()
-	return runDirectoryScanWithSession(scanCtx, directory, javLinks)
+
+	javLinks := newJavLinkBatch(scanCtx)
+	summary, err := runDirectoryScanWithSession(scanCtx, directory, javLinks)
+	finishJavLinkBatch(javLinks)
+	if summary != nil {
+		summary.Duration = time.Since(start)
+	}
+	return summary, err
 }
 
 // runDirectoryScanWithSession 在已取得目录扫描会话的前提下执行文件对账并保存扫描摘要。
