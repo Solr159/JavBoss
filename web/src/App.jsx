@@ -375,6 +375,7 @@ export default function App() {
       }
     : null
   const browserPlaybackOnly = configFlag(config?.browser_playback_only)
+  const clientMode = configFlag(config?.runtime_client)
   const containerMode = configFlag(config?.runtime_container)
   const hostPathPrefixEnabled = configFlag(config?.host_path_prefix_enabled, containerMode)
   const desktopIntegrationEnabled = configFlag(config?.desktop_integration_enabled, true)
@@ -392,8 +393,12 @@ export default function App() {
         ? 'mpv'
         : ''
       : defaultPlayer === 'browser'
-        ? mpvEnabled
-          ? 'mpv'
+        ? clientMode
+          ? mpvEnabled
+            ? 'mpv'
+            : desktopIntegrationEnabled
+              ? 'system'
+              : ''
           : desktopIntegrationEnabled
             ? 'system'
             : ''
