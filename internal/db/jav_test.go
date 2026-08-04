@@ -94,6 +94,77 @@ func TestListJavsForDirectoryProcessingLoadsMetadataAndLocations(t *testing.T) {
 	}
 }
 
+func TestListJavCodesForDirectoryOnlyReturnsVisibleDistinctCodes(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	directories := []models.Directory{{Path: "/media/one"}, {Path: "/media/two"}}
+	javRecords := []models.Jav{
+		{Code: "AAA-001", Title: "First"},
+		{Code: "BBB-002", Title: "Hidden"},
+		{Code: "CCC-003", Title: "Other directory"},
+	}
+	videos := []models.Video{
+		{Fingerprint: "cover-sweep-one"},
+		{Fingerprint: "cover-sweep-duplicate"},
+		{Fingerprint: "cover-sweep-hidden"},
+		{Fingerprint: "cover-sweep-other"},
+	}
+	for name, value := range map[string]any{
+		"directories": &directories,
+		"jav records": &javRecords,
+		"videos":      &videos,
+	} {
+		if err := gdb.Create(value).Error; err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+
+	locations := make([]*models.VideoLocation, 0, len(videos))
+	for i, input := range []struct {
+		directoryID int64
+		path        string
+	}{
+		{directories[0].ID, "one.mp4"},
+		{directories[0].ID, "duplicate.mp4"},
+		{directories[0].ID, "hidden.mp4"},
+		{directories[1].ID, "other.mp4"},
+	} {
+		location, err := UpsertVideoLocation(ctx, videos[i].ID, input.directoryID, input.path, now)
+		if err != nil {
+			t.Fatalf("create location %q: %v", input.path, err)
+		}
+		locations = append(locations, location)
+	}
+	for locationID, javID := range map[int64]int64{
+		locations[0].ID: javRecords[0].ID,
+		locations[1].ID: javRecords[0].ID,
+		locations[2].ID: javRecords[1].ID,
+		locations[3].ID: javRecords[2].ID,
+	} {
+		if err := gdb.Model(&models.VideoLocation{}).
+			Where("id = ?", locationID).
+			Update("jav_id", javID).Error; err != nil {
+			t.Fatalf("link location %d: %v", locationID, err)
+		}
+	}
+	if err := gdb.Model(&models.VideoLocation{}).
+		Where("id = ?", locations[2].ID).
+		Update("is_delete", true).Error; err != nil {
+		t.Fatalf("hide location: %v", err)
+	}
+
+	got, err := ListJavCodesForDirectory(ctx, directories[0].ID)
+	if err != nil {
+		t.Fatalf("list directory JAV codes: %v", err)
+	}
+	want := []string{"AAA-001"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("directory JAV codes = %#v, want %#v", got, want)
+	}
+}
+
 func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

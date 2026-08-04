@@ -2295,11 +2295,23 @@ func DeleteOrphanJavs(ctx context.Context) error {
 	})
 }
 
-// ListJavCodes returns all jav codes.
-func ListJavCodes(ctx context.Context) ([]string, error) {
+// ListJavCodesForDirectory 返回指定目录中可见视频关联的去重 JAV 番号。
+func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string, error) {
+	if directoryID <= 0 {
+		return nil, errors.New("directory id must be positive")
+	}
 	var codes []string
-	if err := common.DB.WithContext(ctx).Model(&models.Jav{}).Pluck("code", &codes).Error; err != nil {
-		return nil, fmt.Errorf("list jav codes: %w", err)
+	if err := common.DB.WithContext(ctx).
+		Table("jav j").
+		Joins("JOIN video_location vl ON vl.jav_id = j.id").
+		Joins("JOIN directory d ON d.id = vl.directory_id").
+		Where("vl.directory_id = ?", directoryID).
+		Where(activeLocationWhereSQL("vl", "d")).
+		Where("COALESCE(j.code, '') <> ''").
+		Distinct("j.code").
+		Order("j.code").
+		Pluck("j.code", &codes).Error; err != nil {
+		return nil, fmt.Errorf("list jav codes for directory: %w", err)
 	}
 	return codes, nil
 }

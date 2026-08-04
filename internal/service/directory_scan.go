@@ -183,12 +183,14 @@ func StartManualDirectoryScan(directory models.Directory) error {
 		defer finish()
 		javLinks := newJavLinkBatch(scanCtx)
 		_, scanErr := runDirectoryScanWithSession(scanCtx, directory, javLinks)
+		// 封面补漏是扫描完成后的目录级维护任务，不应继续占用扫描会话。
+		finish()
 		if scanErr != nil && !errors.Is(scanErr, context.Canceled) {
 			logging.Error("manual directory scan failed: id=%d path=%s err=%v", directory.ID, directory.Path, scanErr)
 			return
 		}
 		if scanErr == nil {
-			if err := enqueueMissingCovers(scanCtx); err != nil && !errors.Is(err, context.Canceled) {
+			if err := enqueueMissingCoversForDirectory(context.Background(), directory.ID); err != nil {
 				logging.Error("jav cover enqueue after manual scan failed: id=%d err=%v", directory.ID, err)
 			}
 		}

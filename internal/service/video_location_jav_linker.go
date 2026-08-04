@@ -265,12 +265,13 @@ func enqueueCover(code string) {
 	mgr.Enqueue(code)
 }
 
-func enqueueMissingCovers(ctx context.Context) error {
+// enqueueMissingCoversForDirectory 只补充指定目录中已关联 JAV 的缺失封面。
+func enqueueMissingCoversForDirectory(ctx context.Context, directoryID int64) error {
 	mgr := common.CoverManager
 	if common.DB == nil || mgr == nil {
 		return nil
 	}
-	codes, err := db.ListJavCodes(ctx)
+	codes, err := db.ListJavCodesForDirectory(ctx, directoryID)
 	if err != nil {
 		return err
 	}

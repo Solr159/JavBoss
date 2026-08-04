@@ -199,7 +199,7 @@ func dispatchDueAutomaticDirectoryScans(
 				}
 				return
 			}
-			if err := enqueueMissingCovers(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			if err := enqueueMissingCoversForDirectory(ctx, current.ID); err != nil && !errors.Is(err, context.Canceled) {
 				logging.Error("jav cover enqueue after automatic scan failed id=%d err=%v", current.ID, err)
 			}
 		}(dir.ID, now)
