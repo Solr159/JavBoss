@@ -84,7 +84,6 @@ func loadDirectorySyncState(ctx context.Context, directoryID int64, javLinks *ja
 
 // ScanDirectory 同步扫描一个目录并与数据库对账，同时等待本次 JAV 关联队列处理完成。
 func ScanDirectory(ctx context.Context, directory models.Directory) (*Summary, error) {
-	start := time.Now()
 	if common.DB == nil {
 		return nil, errors.New("nil database")
 	}
@@ -99,17 +98,19 @@ func ScanDirectory(ctx context.Context, directory models.Directory) (*Summary, e
 
 	javLinks := newJavLinkBatch(scanCtx)
 	summary, err := runDirectoryScanWithSession(scanCtx, directory, javLinks)
-	finishJavLinkBatch(javLinks)
-	if summary != nil {
-		summary.Duration = time.Since(start)
-	}
 	return summary, err
 }
 
-// runDirectoryScanWithSession 在已取得目录扫描会话的前提下执行文件对账并保存扫描摘要。
+// runDirectoryScanWithSession 在已取得目录扫描会话的前提下执行文件对账、等待 JAV 关联，最后保存扫描摘要。
 func runDirectoryScanWithSession(scanCtx context.Context, directory models.Directory, javLinks *javLinkBatch) (*Summary, error) {
 	start := time.Now()
 	summary := &Summary{}
+	javLinksFinished := false
+	defer func() {
+		if !javLinksFinished {
+			finishJavLinkBatch(javLinks)
+		}
+	}()
 	logging.Info("sync directory start: id=%d path=%s", directory.ID, directory.Path)
 
 	state, err := loadDirectorySyncState(scanCtx, directory.ID, javLinks)
@@ -131,6 +132,11 @@ func runDirectoryScanWithSession(scanCtx context.Context, directory models.Direc
 		}
 		summary.Directories = 1
 	}
+
+	// JAV 关联属于本次目录扫描的一部分。必须等待该目录自己的批次完成后，
+	// 才记录完成时间并允许外层释放扫描会话。
+	finishJavLinkBatch(javLinks)
+	javLinksFinished = true
 	summary.Duration = time.Since(start)
 	if scanned {
 		lastScanSummary := models.DirectoryScanSummary{
@@ -177,7 +183,6 @@ func StartManualDirectoryScan(directory models.Directory) error {
 		defer finish()
 		javLinks := newJavLinkBatch(scanCtx)
 		_, scanErr := runDirectoryScanWithSession(scanCtx, directory, javLinks)
-		finishJavLinkBatch(javLinks)
 		if scanErr != nil && !errors.Is(scanErr, context.Canceled) {
 			logging.Error("manual directory scan failed: id=%d path=%s err=%v", directory.ID, directory.Path, scanErr)
 			return

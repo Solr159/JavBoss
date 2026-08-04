@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -118,6 +119,104 @@ func TestDifferentDirectoryScansCanRunConcurrently(t *testing.T) {
 		t.Fatalf("begin concurrent scan for another directory: %v", err)
 	}
 	finishSecond()
+}
+
+func TestDirectoryScanStaysActiveUntilJAVBatchCompletes(t *testing.T) {
+	resetDirectoryScanSessions(t)
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "scan-jav-wait.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = gdb
+	t.Cleanup(func() {
+		common.DB = previousDB
+		sqlDB, dbErr := gdb.DB()
+		if dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dir := models.Directory{Path: t.TempDir()}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	scanCtx, finish, err := acquireDirectoryScanSession(t.Context(), dir.ID)
+	if err != nil {
+		t.Fatalf("acquire scan session: %v", err)
+	}
+
+	javWaitStarted := make(chan struct{})
+	releaseJAVWorker := make(chan struct{})
+	batch := &javLinkBatch{
+		ctx:   scanCtx,
+		tasks: make(chan int64),
+		seen:  make(map[int64]struct{}),
+	}
+	batch.workers.Add(1)
+	go func() {
+		defer batch.workers.Done()
+		for range batch.tasks {
+		}
+		close(javWaitStarted)
+		<-releaseJAVWorker
+	}()
+
+	scanDone := make(chan error, 1)
+	go func() {
+		_, scanErr := runDirectoryScanWithSession(scanCtx, dir, batch)
+		finish()
+		scanDone <- scanErr
+	}()
+
+	var releaseOnce sync.Once
+	scanCompleted := false
+	releaseWorker := func() {
+		releaseOnce.Do(func() { close(releaseJAVWorker) })
+	}
+	defer func() {
+		releaseWorker()
+		if scanCompleted {
+			return
+		}
+		select {
+		case <-scanDone:
+		case <-time.After(5 * time.Second):
+		}
+	}()
+
+	select {
+	case <-javWaitStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("directory scan did not reach JAV batch wait")
+	}
+	if !IsDirectoryScanning(dir.ID) {
+		t.Fatal("directory should remain scanning while its JAV batch is incomplete")
+	}
+	var waiting models.Directory
+	if err := gdb.First(&waiting, dir.ID).Error; err != nil {
+		t.Fatalf("reload directory while waiting for JAV: %v", err)
+	}
+	if waiting.LastScanSummary.FinishedAtUnixMS != 0 {
+		t.Fatalf("scan summary was completed before JAV batch: %+v", waiting.LastScanSummary)
+	}
+
+	releaseWorker()
+	scanErr := <-scanDone
+	scanCompleted = true
+	if scanErr != nil {
+		t.Fatalf("scan directory: %v", scanErr)
+	}
+	if IsDirectoryScanning(dir.ID) {
+		t.Fatal("directory should become idle after its JAV batch completes")
+	}
+	var completed models.Directory
+	if err := gdb.First(&completed, dir.ID).Error; err != nil {
+		t.Fatalf("reload completed directory: %v", err)
+	}
+	if completed.LastScanSummary.FinishedAtUnixMS == 0 {
+		t.Fatal("scan summary should be completed after JAV batch")
+	}
 }
 
 func TestScanDirectoryPersistsLatestSuccessfulSummary(t *testing.T) {
