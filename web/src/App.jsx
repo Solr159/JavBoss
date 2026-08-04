@@ -391,9 +391,15 @@ export default function App() {
       ? mpvEnabled
         ? 'mpv'
         : ''
-      : desktopIntegrationEnabled
-        ? 'system'
-        : ''
+      : defaultPlayer === 'browser'
+        ? mpvEnabled
+          ? 'mpv'
+          : desktopIntegrationEnabled
+            ? 'system'
+            : ''
+        : desktopIntegrationEnabled
+          ? 'system'
+          : ''
   const alternatePlayerLabel =
     alternatePlayer === 'mpv'
       ? zh('使用MPV播放器播放', 'Play with MPV player')
@@ -3799,6 +3805,7 @@ export default function App() {
         onClose={() => setGlobalSettingsOpen(false)}
         directories={directories}
         browserPlaybackOnly={browserPlaybackOnly}
+        desktopIntegrationEnabled={desktopIntegrationEnabled}
         containerMode={containerMode}
         directoryPickerEnabled={directoryPickerEnabled}
         hostPathPrefixEnabled={hostPathPrefixEnabled}

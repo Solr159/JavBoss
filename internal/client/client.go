@@ -56,6 +56,7 @@ type Client struct {
 	screenshotCancel     context.CancelFunc
 	screenshotJobs       map[int64]*screenshotSyncJob
 	screenshotClosed     bool
+	screenshotCookie     string
 	screenshotLastResume time.Time
 	screenshotWG         sync.WaitGroup
 }
@@ -109,6 +110,7 @@ func New(options Options) (*Client, error) {
 	if err := client.setRemoteURL(remoteURL); err != nil {
 		return nil, err
 	}
+	client.startScreenshotResumeLoop()
 	mpv.SetPlayerConfigProvider(settings.playerConfig)
 	return client, nil
 }
@@ -194,7 +196,6 @@ func (c *Client) setRemoteURL(raw string) error {
 	c.configMu.Lock()
 	c.config = nil
 	c.configMu.Unlock()
-	c.resetScreenshotSync()
 	return nil
 }
 

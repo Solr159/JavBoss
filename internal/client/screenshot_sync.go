@@ -22,6 +22,8 @@ import (
 const (
 	screenshotSyncInterval   = 300 * time.Millisecond
 	screenshotSyncMaxBackoff = time.Minute
+	screenshotSyncIdleTime   = time.Minute
+	screenshotResumeInterval = 30 * time.Second
 )
 
 type screenshotSyncJob struct {
@@ -34,6 +36,7 @@ type screenshotSyncJob struct {
 	mu                 sync.RWMutex
 	cookie             string
 	credentialsChanged bool
+	lastActivated      time.Time
 	files              map[string]*screenshotFileState
 }
 
@@ -65,18 +68,20 @@ func (c *Client) startScreenshotSync(videoID int64, cookie, dataDir string) erro
 	if c.screenshotClosed {
 		return nil
 	}
+	c.screenshotCookie = cookie
 	if job := c.screenshotJobs[videoID]; job != nil && filepath.Clean(job.dir) == filepath.Clean(dir) {
-		job.updateCookie(cookie)
+		job.activate(cookie)
 		return nil
 	}
 	job := &screenshotSyncJob{
-		client:  c,
-		ctx:     c.screenshotCtx,
-		videoID: videoID,
-		dir:     dir,
-		wake:    make(chan struct{}, 1),
-		cookie:  cookie,
-		files:   make(map[string]*screenshotFileState),
+		client:        c,
+		ctx:           c.screenshotCtx,
+		videoID:       videoID,
+		dir:           dir,
+		wake:          make(chan struct{}, 1),
+		cookie:        cookie,
+		lastActivated: time.Now(),
+		files:         make(map[string]*screenshotFileState),
 	}
 	c.screenshotJobs[videoID] = job
 	c.screenshotWG.Add(1)
@@ -87,17 +92,27 @@ func (c *Client) startScreenshotSync(videoID int64, cookie, dataDir string) erro
 	return nil
 }
 
-func (c *Client) resetScreenshotSync() {
-	c.screenshotMu.Lock()
-	if c.screenshotClosed {
-		c.screenshotMu.Unlock()
-		return
-	}
-	c.screenshotCancel()
-	c.screenshotCtx, c.screenshotCancel = context.WithCancel(context.Background())
-	c.screenshotJobs = make(map[int64]*screenshotSyncJob)
-	c.screenshotLastResume = time.Time{}
-	c.screenshotMu.Unlock()
+func (c *Client) startScreenshotResumeLoop() {
+	c.screenshotWG.Add(1)
+	go func() {
+		defer c.screenshotWG.Done()
+		ticker := time.NewTicker(screenshotResumeInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-c.screenshotCtx.Done():
+				return
+			case <-ticker.C:
+				c.screenshotMu.Lock()
+				cookie := c.screenshotCookie
+				closed := c.screenshotClosed
+				c.screenshotMu.Unlock()
+				if !closed && cookie != "" {
+					c.resumePendingScreenshotSync(cookie)
+				}
+			}
+		}
+	}()
 }
 
 func (c *Client) closeScreenshotSync() {
@@ -115,6 +130,7 @@ func (c *Client) refreshScreenshotCookies(cookies []*http.Cookie) {
 		return
 	}
 	c.screenshotMu.Lock()
+	c.screenshotCookie = mergeCookieHeader(c.screenshotCookie, cookies)
 	jobs := make([]*screenshotSyncJob, 0, len(c.screenshotJobs))
 	for _, job := range c.screenshotJobs {
 		jobs = append(jobs, job)
@@ -130,9 +146,15 @@ func (c *Client) refreshScreenshotCookies(cookies []*http.Cookie) {
 		job.mu.RUnlock()
 		job.updateCookie(mergeCookieHeader(current, cookies))
 	}
-	if freshCookie := mergeCookieHeader("", cookies); shouldResume && freshCookie != "" {
+	if freshCookie := c.latestScreenshotCookie(); shouldResume && freshCookie != "" {
 		c.resumePendingScreenshotSync(freshCookie)
 	}
+}
+
+func (c *Client) latestScreenshotCookie() string {
+	c.screenshotMu.Lock()
+	defer c.screenshotMu.Unlock()
+	return c.screenshotCookie
 }
 
 func (c *Client) resumePendingScreenshotSync(cookie string) {
@@ -190,11 +212,34 @@ func (j *screenshotSyncJob) updateCookie(cookie string) {
 	}
 }
 
+func (j *screenshotSyncJob) activate(cookie string) {
+	j.mu.Lock()
+	if j.cookie != cookie {
+		j.cookie = cookie
+		j.credentialsChanged = true
+	}
+	j.lastActivated = time.Now()
+	j.mu.Unlock()
+	select {
+	case j.wake <- struct{}{}:
+	default:
+	}
+}
+
+func (j *screenshotSyncJob) lastActivatedAt() time.Time {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	return j.lastActivated
+}
+
 func (j *screenshotSyncJob) run() {
 	ticker := time.NewTicker(screenshotSyncInterval)
 	defer ticker.Stop()
 	for {
-		j.syncOnce()
+		pending := j.syncOnce()
+		if !pending && j.client.retireScreenshotJob(j, time.Now()) {
+			return
+		}
 		select {
 		case <-j.ctx.Done():
 			return
@@ -204,7 +249,17 @@ func (j *screenshotSyncJob) run() {
 	}
 }
 
-func (j *screenshotSyncJob) syncOnce() {
+func (c *Client) retireScreenshotJob(job *screenshotSyncJob, now time.Time) bool {
+	c.screenshotMu.Lock()
+	defer c.screenshotMu.Unlock()
+	if c.screenshotJobs[job.videoID] != job || now.Sub(job.lastActivatedAt()) < screenshotSyncIdleTime {
+		return false
+	}
+	delete(c.screenshotJobs, job.videoID)
+	return true
+}
+
+func (j *screenshotSyncJob) syncOnce() bool {
 	if j.takeCredentialsChanged() {
 		for _, state := range j.files {
 			if !state.uploaded {
@@ -217,8 +272,9 @@ func (j *screenshotSyncJob) syncOnce() {
 	if err != nil {
 		if !os.IsNotExist(err) {
 			logging.Error("read client screenshot sync directory failed: %v", err)
+			return true
 		}
-		return
+		return false
 	}
 	now := time.Now()
 	seen := make(map[string]struct{}, len(entries))
@@ -265,6 +321,7 @@ func (j *screenshotSyncJob) syncOnce() {
 			delete(j.files, name)
 		}
 	}
+	return len(seen) > 0 || len(j.files) > 0
 }
 
 func (j *screenshotSyncJob) takeCredentialsChanged() bool {

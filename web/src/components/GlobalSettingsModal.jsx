@@ -60,6 +60,7 @@ export default function GlobalSettingsModal({
   onClose,
   directories,
   browserPlaybackOnly = false,
+  desktopIntegrationEnabled = true,
   containerMode = false,
   directoryPickerEnabled = true,
   hostPathPrefixEnabled = false,
@@ -178,7 +179,9 @@ export default function GlobalSettingsModal({
       setAllowLANAccessInput(allowLANAccess === true)
       setAllowLANAccessError('')
       setDefaultPlayerInput(
-        defaultPlayer === 'browser' || defaultPlayer === 'system' ? defaultPlayer : 'mpv'
+        defaultPlayer === 'browser' || (defaultPlayer === 'system' && desktopIntegrationEnabled)
+          ? defaultPlayer
+          : 'mpv'
       )
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
@@ -216,6 +219,7 @@ export default function GlobalSettingsModal({
     playerShowHotkeyHint,
     mpvEnabled,
     browserPlaybackOnly,
+    desktopIntegrationEnabled,
   ])
 
   useEffect(() => {
@@ -313,7 +317,8 @@ export default function GlobalSettingsModal({
 
   const handleSaveDefaultPlayer = async () => {
     const next =
-      defaultPlayerInput === 'browser' || defaultPlayerInput === 'system'
+      defaultPlayerInput === 'browser' ||
+      (defaultPlayerInput === 'system' && desktopIntegrationEnabled)
         ? defaultPlayerInput
         : 'mpv'
     setDefaultPlayerError('')
@@ -354,7 +359,9 @@ export default function GlobalSettingsModal({
 
   const renderDefaultPlayerSettings = () => {
     const currentDefaultPlayer =
-      defaultPlayer === 'browser' || defaultPlayer === 'system' ? defaultPlayer : 'mpv'
+      defaultPlayer === 'browser' || (defaultPlayer === 'system' && desktopIntegrationEnabled)
+        ? defaultPlayer
+        : 'mpv'
     const defaultPlayerUnchanged = defaultPlayerInput === currentDefaultPlayer
 
     return (
@@ -382,14 +389,20 @@ export default function GlobalSettingsModal({
                   value={defaultPlayerInput}
                   onChange={(event) => {
                     const next = event.target.value
-                    setDefaultPlayerInput(next === 'browser' || next === 'system' ? next : 'mpv')
+                    setDefaultPlayerInput(
+                      next === 'browser' || (next === 'system' && desktopIntegrationEnabled)
+                        ? next
+                        : 'mpv'
+                    )
                     setDefaultPlayerError('')
                   }}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
                   <option value="mpv">MPV</option>
                   <option value="browser">{zh('浏览器', 'Browser')}</option>
-                  <option value="system">{zh('系统', 'System')}</option>
+                  {desktopIntegrationEnabled ? (
+                    <option value="system">{zh('系统', 'System')}</option>
+                  ) : null}
                 </select>
                 <span
                   aria-hidden="true"
