@@ -48,8 +48,6 @@ const (
 
 func main() {
 	staticDir := flag.String("static", "web/dist", "Path to built frontend assets")
-	clientMode := flag.Bool("client", false, "Run as a lightweight local client")
-	remoteServer := flag.String("server", "", "Remote JavBoss server address for client mode")
 	flag.Parse()
 
 	_ = os.Setenv("JAVBOSS_BUILD_MODE", buildMode)
@@ -77,12 +75,8 @@ func main() {
 	if err != nil {
 		logger.Fatalf("load bootstrap config: %v", err)
 	}
-	useClientMode := *clientMode || strings.EqualFold(strings.TrimSpace(bootstrapCfg.Mode), "client")
-	if useClientMode {
-		serverURL := strings.TrimSpace(*remoteServer)
-		if serverURL == "" {
-			serverURL = bootstrapCfg.ServerURL
-		}
+	serverURL := strings.TrimSpace(bootstrapCfg.ServerURL)
+	if shouldRunClientMode(serverURL) {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		if err := runClientMode(ctx, stop, baseDir, serverURL, bootstrapCfg.Port, logger); err != nil {
@@ -257,6 +251,10 @@ func main() {
 	}
 }
 
+func shouldRunClientMode(serverURL string) bool {
+	return strings.TrimSpace(serverURL) != ""
+}
+
 func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, serverURL string, configuredPort int, logger *log.Logger) error {
 	port := configuredPort
 	if port == 0 {
@@ -271,14 +269,11 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 	}
 	listenAddr := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	localURL := fmt.Sprintf("http://127.0.0.1:%d", port)
-	if strings.TrimSpace(serverURL) != "" {
-		if normalized, err := clientpkg.NormalizeServerURL(serverURL); err != nil {
-			logger.Printf("configured remote server is invalid; opening client setup: %v", err)
-			serverURL = ""
-		} else {
-			serverURL = normalized
-		}
+	normalizedServerURL, err := clientpkg.NormalizeServerURL(serverURL)
+	if err != nil {
+		return fmt.Errorf("invalid configured remote server: %w", err)
 	}
+	serverURL = normalizedServerURL
 	clientHandler, err := clientpkg.New(clientpkg.Options{
 		BaseDir:      baseDir,
 		LocalBaseURL: localURL,
@@ -427,17 +422,11 @@ func printReleaseClientStartupHint(localURL, serverURL string) {
 func releaseClientStartupHint(localURL, serverURL string, chinese bool) string {
 	remote := strings.TrimSpace(serverURL)
 	if chinese {
-		if remote == "" {
-			remote = "未配置（请在 Client 设置页填写）"
-		}
 		return fmt.Sprintf(
 			"JavBoss 已通过 Client 模式启动，访问地址：%s\n远程 Server 地址：%s\n按 1 打开新页面，按 2 或者关闭此窗口退出应用。\n",
 			localURL,
 			remote,
 		)
-	}
-	if remote == "" {
-		remote = "not configured (open Client Setup to configure it)"
 	}
 	return fmt.Sprintf(
 		"JavBoss started in Client mode. URL: %s\nRemote Server: %s\nPress 1 to open a new page. Press 2 or close this window to exit the app.\n",

@@ -45,18 +45,28 @@ func TestNormalizeServerURL(t *testing.T) {
 	}
 }
 
-func TestSaveAndLoadBootstrapConfig(t *testing.T) {
+func TestLoadBootstrapConfig(t *testing.T) {
 	baseDir := t.TempDir()
-	want := BootstrapConfig{Mode: "client", ServerURL: "https://example.com/", Port: 9000}
-	if err := SaveBootstrapConfig(baseDir, want); err != nil {
-		t.Fatalf("SaveBootstrapConfig: %v", err)
+	config := []byte("server_url = \"https://example.com\"\nport = 9000\n")
+	if err := os.WriteFile(filepath.Join(baseDir, bootstrapConfigName), config, 0o600); err != nil {
+		t.Fatalf("write bootstrap config: %v", err)
 	}
 	got, err := LoadBootstrapConfig(baseDir)
 	if err != nil {
 		t.Fatalf("LoadBootstrapConfig: %v", err)
 	}
-	if got.Mode != "client" || got.ServerURL != "https://example.com" || got.Port != 9000 {
+	if got.ServerURL != "https://example.com" || got.Port != 9000 {
 		t.Fatalf("loaded config = %#v", got)
+	}
+}
+
+func TestNewClientRequiresRemoteServerURL(t *testing.T) {
+	_, err := New(Options{
+		BaseDir:      t.TempDir(),
+		LocalBaseURL: "http://127.0.0.1:8655",
+	})
+	if err == nil || !strings.Contains(err.Error(), "remote server URL is required") {
+		t.Fatalf("New() error = %v", err)
 	}
 }
 

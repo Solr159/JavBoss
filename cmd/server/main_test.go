@@ -65,6 +65,24 @@ func TestConfiguredListenAddr(t *testing.T) {
 	}
 }
 
+func TestShouldRunClientModeDependsOnlyOnServerURL(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		serverURL string
+		want      bool
+	}{
+		{name: "missing server URL"},
+		{name: "blank server URL", serverURL: "  "},
+		{name: "configured server URL", serverURL: "http://localhost:17654", want: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := shouldRunClientMode(test.serverURL); got != test.want {
+				t.Fatalf("shouldRunClientMode(%q) = %t, want %t", test.serverURL, got, test.want)
+			}
+		})
+	}
+}
+
 func TestReleaseClientStartupHintIncludesModeAndRemoteServer(t *testing.T) {
 	localURL := "http://localhost:8655"
 	remoteURL := "https://server.example.com"
@@ -93,12 +111,5 @@ func TestReleaseClientStartupHintIncludesModeAndRemoteServer(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestReleaseClientStartupHintShowsUnconfiguredRemoteServer(t *testing.T) {
-	hint := releaseClientStartupHint("http://localhost:8655", "", true)
-	if !strings.Contains(hint, "远程 Server 地址：未配置") {
-		t.Fatalf("startup hint = %q", hint)
 	}
 }

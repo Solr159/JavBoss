@@ -227,13 +227,6 @@ func (c *Client) cleanupMediaGrantsLocked(now time.Time) {
 	}
 }
 
-func (c *Client) clearMediaGrants() {
-	c.grantsMu.Lock()
-	c.grants = make(map[string]*mediaGrant)
-	c.grantKeys = make(map[string]string)
-	c.grantsMu.Unlock()
-}
-
 func (c *Client) incrementRemotePlayCount(videoID int64, cookie string) {
 	headers := make(http.Header)
 	headers.Set("Cookie", cookie)

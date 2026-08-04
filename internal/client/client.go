@@ -69,6 +69,13 @@ func New(options Options) (*Client, error) {
 	if err != nil || parsedLocal.Scheme != "http" || parsedLocal.Host == "" {
 		return nil, errors.New("create JavBoss client: local base URL is invalid")
 	}
+	if strings.TrimSpace(options.RemoteURL) == "" {
+		return nil, errors.New("create JavBoss client: remote server URL is required")
+	}
+	remoteURL, err := NormalizeServerURL(options.RemoteURL)
+	if err != nil {
+		return nil, err
+	}
 	transport := options.Transport
 	if transport == nil {
 		defaultTransport := http.DefaultTransport.(*http.Transport).Clone()
@@ -99,10 +106,8 @@ func New(options Options) (*Client, error) {
 		screenshotCancel: screenshotCancel,
 		screenshotJobs:   make(map[int64]*screenshotSyncJob),
 	}
-	if strings.TrimSpace(options.RemoteURL) != "" {
-		if err := client.setRemoteURL(options.RemoteURL); err != nil {
-			return nil, err
-		}
+	if err := client.setRemoteURL(remoteURL); err != nil {
+		return nil, err
 	}
 	mpv.SetPlayerConfigProvider(settings.playerConfig)
 	return client, nil
@@ -125,10 +130,6 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case r.URL.Path == "/healthz":
 		c.handleHealth(w)
-	case r.URL.Path == "/__client" || r.URL.Path == "/__client/":
-		http.Redirect(w, r, "/__client/setup", http.StatusSeeOther)
-	case r.URL.Path == "/__client/setup":
-		c.handleSetup(w, r)
 	case strings.HasPrefix(r.URL.Path, "/__client/media/"):
 		c.handleMedia(w, r)
 	case r.URL.Path == "/videos/play":
@@ -140,7 +141,7 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		state := c.remoteState()
 		if state == nil {
-			http.Redirect(w, r, "/__client/setup", http.StatusSeeOther)
+			respondJSONError(w, http.StatusServiceUnavailable, "远程 JavBoss Server 未配置", "The remote JavBoss server is not configured")
 			return
 		}
 		state.proxy.ServeHTTP(w, r)
@@ -158,53 +159,6 @@ func (c *Client) handleHealth(w http.ResponseWriter) {
 		"mode":       "client",
 		"remote_url": remoteURL,
 	})
-}
-
-func (c *Client) handleSetup(w http.ResponseWriter, r *http.Request) {
-	currentURL := ""
-	if state := c.remoteState(); state != nil {
-		currentURL = state.base.String()
-	}
-	if r.Method == http.MethodGet {
-		renderSetup(w, http.StatusOK, setupPageData{ServerURL: currentURL})
-		return
-	}
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	if !localRequestOriginAllowed(r) {
-		respondJSONError(w, http.StatusForbidden, "请求来源无效", "Invalid request origin")
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxClientRequestBody)
-	if err := r.ParseForm(); err != nil {
-		renderSetup(w, http.StatusBadRequest, setupPageData{ServerURL: currentURL, Error: "请求格式无效"})
-		return
-	}
-	serverURL, err := NormalizeServerURL(r.FormValue("server_url"))
-	if err != nil {
-		renderSetup(w, http.StatusBadRequest, setupPageData{ServerURL: r.FormValue("server_url"), Error: err.Error()})
-		return
-	}
-	bootstrap, err := LoadBootstrapConfig(c.baseDir)
-	if err != nil {
-		renderSetup(w, http.StatusInternalServerError, setupPageData{ServerURL: serverURL, Error: err.Error()})
-		return
-	}
-	bootstrap.Mode = "client"
-	bootstrap.ServerURL = serverURL
-	if err := SaveBootstrapConfig(c.baseDir, bootstrap); err != nil {
-		renderSetup(w, http.StatusInternalServerError, setupPageData{ServerURL: serverURL, Error: err.Error()})
-		return
-	}
-	if err := c.setRemoteURL(serverURL); err != nil {
-		renderSetup(w, http.StatusBadRequest, setupPageData{ServerURL: serverURL, Error: err.Error()})
-		return
-	}
-	c.clearMediaGrants()
-	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (c *Client) setRemoteURL(raw string) error {
