@@ -1618,6 +1618,8 @@ function JavCard({
   const [favoriteRatingSaving, setFavoriteRatingSaving] = useState(false)
   const [favoriteRatingError, setFavoriteRatingError] = useState('')
   const [favoriteRatingEditing, setFavoriteRatingEditing] = useState(false)
+  const [favoriteRatingPreview, setFavoriteRatingPreview] = useState(null)
+  const favoriteRatingTooltipValue = favoriteRatingPreview ?? favoriteRating
   const favoriteRatingDisplayCount = Math.ceil(favoriteRating)
   const favoriteRatingWidth =
     favoriteRatingDisplayCount > 0 && !favoriteRatingEditing
@@ -2156,10 +2158,10 @@ function JavCard({
           <Tooltip
             title={
               favoriteRatingError ||
-              (favoriteRating > 0
+              (favoriteRatingTooltipValue > 0
                 ? zh(
-                    `喜爱度：${favoriteRating.toFixed(1)} 分`,
-                    `Favorite rating: ${favoriteRating.toFixed(1)}`
+                    `喜爱度：${favoriteRatingTooltipValue.toFixed(1)} 分`,
+                    `Favorite rating: ${favoriteRatingTooltipValue.toFixed(1)}`
                   )
                 : zh('设置喜爱度评分', 'Set favorite rating'))
             }
@@ -2167,7 +2169,7 @@ function JavCard({
             arrow
           >
             <span
-              className={`absolute left-2 top-2 z-10 flex rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
+              className={`absolute left-2 top-2 z-10 flex items-center rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
                 favoriteRatingSaving
                   ? 'opacity-60'
                   : favoriteRating > 0
@@ -2191,9 +2193,18 @@ function JavCard({
                   onClick={(event) => event.stopPropagation()}
                   onMouseDown={(event) => event.stopPropagation()}
                   onMouseEnter={() => setFavoriteRatingEditing(true)}
-                  onMouseLeave={() => setFavoriteRatingEditing(false)}
+                  onMouseLeave={() => {
+                    setFavoriteRatingEditing(false)
+                    setFavoriteRatingPreview(null)
+                  }}
                   onFocus={() => setFavoriteRatingEditing(true)}
-                  onBlur={() => setFavoriteRatingEditing(false)}
+                  onBlur={() => {
+                    setFavoriteRatingEditing(false)
+                    setFavoriteRatingPreview(null)
+                  }}
+                  onChangeActive={(_, value) =>
+                    setFavoriteRatingPreview(value >= 0.5 ? value : null)
+                  }
                   sx={{
                     flexShrink: 0,
                     color: '#fbbf24',
@@ -2204,6 +2215,11 @@ function JavCard({
                   }}
                 />
               </span>
+              {favoriteRating > 0 && !favoriteRatingEditing ? (
+                <span className="ml-1 shrink-0 text-xs font-semibold tabular-nums leading-none text-white">
+                  {favoriteRating.toFixed(1)}
+                </span>
+              ) : null}
             </span>
           </Tooltip>
           {externalLinks.length > 0 ? (
