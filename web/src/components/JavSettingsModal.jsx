@@ -137,6 +137,8 @@ export default function JavSettingsModal({
   onJavHideTagsChange,
   javHideActionsInput = false,
   onJavHideActionsChange,
+  javFavoriteRatingShowFullInput = false,
+  onJavFavoriteRatingShowFullChange,
   javWaterfallDefaultInput = false,
   onJavWaterfallDefaultChange,
   idolPageSizeInput,
@@ -203,6 +205,7 @@ export default function JavSettingsModal({
         onJavHideIdolsChange?.(false)
         onJavHideTagsChange?.(false)
         onJavHideActionsChange?.(false)
+        onJavFavoriteRatingShowFullChange?.(false)
         onJavSortChange?.(JAV_SORT_OPTIONS[0]?.defaultValue || 'recent')
         break
     }
@@ -363,6 +366,13 @@ export default function JavSettingsModal({
                       label={zh('不显示操作按钮', 'Hide action buttons')}
                       checked={javHideActionsInput}
                       onChange={onJavHideActionsChange}
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
+                    <SettingsSwitch
+                      label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
+                      checked={javFavoriteRatingShowFullInput}
+                      onChange={onJavFavoriteRatingShowFullChange}
                     />
                   </SettingsRow>
                 </div>

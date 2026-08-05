@@ -324,6 +324,9 @@ export default function App() {
   const [javHideActionsInput, setJavHideActionsInput] = useState(
     configFlag(config?.jav_hide_actions)
   )
+  const [javFavoriteRatingShowFullInput, setJavFavoriteRatingShowFullInput] = useState(
+    configFlag(config?.jav_favorite_rating_show_full, false)
+  )
   const [javWaterfallDefaultInput, setJavWaterfallDefaultInput] = useState(
     configFlag(config?.jav_waterfall_default)
   )
@@ -1927,6 +1930,7 @@ export default function App() {
     setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
     setJavHideTagsInput(configFlag(config?.jav_hide_tags))
     setJavHideActionsInput(configFlag(config?.jav_hide_actions))
+    setJavFavoriteRatingShowFullInput(configFlag(config?.jav_favorite_rating_show_full, false))
     setJavWaterfallDefaultInput(configFlag(config?.jav_waterfall_default))
     setIdolPageSizeInput(idolPageSize)
     setIdolWaterfallDefaultInput(configFlag(config?.idol_waterfall_default))
@@ -1947,6 +1951,7 @@ export default function App() {
     config?.jav_hide_idols,
     config?.jav_hide_tags,
     config?.jav_hide_actions,
+    config?.jav_favorite_rating_show_full,
     config?.jav_waterfall_default,
     config?.idol_waterfall_default,
     config?.studio_waterfall_default,
@@ -2067,6 +2072,7 @@ export default function App() {
         jav_hide_idols: Boolean(javHideIdolsInput),
         jav_hide_tags: Boolean(javHideTagsInput),
         jav_hide_actions: Boolean(javHideActionsInput),
+        jav_favorite_rating_show_full: Boolean(javFavoriteRatingShowFullInput),
         jav_waterfall_default: waterfallDefaults.jav,
         idol_page_size: idolSize,
         idol_waterfall_default: waterfallDefaults.idol,
@@ -2138,6 +2144,7 @@ export default function App() {
       setJavHideIdolsInput(configFlag(config?.jav_hide_idols))
       setJavHideTagsInput(configFlag(config?.jav_hide_tags))
       setJavHideActionsInput(configFlag(config?.jav_hide_actions))
+      setJavFavoriteRatingShowFullInput(configFlag(config?.jav_favorite_rating_show_full, false))
       setJavWaterfallDefaultInput(configFlag(config?.jav_waterfall_default))
       setIdolPageSizeInput(idolPageSize)
       setIdolWaterfallDefaultInput(configFlag(config?.idol_waterfall_default))
@@ -2158,6 +2165,7 @@ export default function App() {
     config?.jav_hide_idols,
     config?.jav_hide_tags,
     config?.jav_hide_actions,
+    config?.jav_favorite_rating_show_full,
     config?.jav_waterfall_default,
     config?.idol_waterfall_default,
     config?.studio_waterfall_default,
@@ -3558,6 +3566,8 @@ export default function App() {
         onJavHideTagsChange={setJavHideTagsInput}
         javHideActionsInput={javHideActionsInput}
         onJavHideActionsChange={setJavHideActionsInput}
+        javFavoriteRatingShowFullInput={javFavoriteRatingShowFullInput}
+        onJavFavoriteRatingShowFullChange={setJavFavoriteRatingShowFullInput}
         javWaterfallDefaultInput={javWaterfallDefaultInput}
         onJavWaterfallDefaultChange={setJavWaterfallDefaultInput}
         idolPageSizeInput={idolPageSizeInput}

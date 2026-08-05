@@ -130,6 +130,9 @@ export default function JavGrid({
   const hideIdols = useStore((state) => configFlag(state.config?.jav_hide_idols))
   const hideTags = useStore((state) => configFlag(state.config?.jav_hide_tags))
   const hideActions = useStore((state) => configFlag(state.config?.jav_hide_actions))
+  const showFullFavoriteRating = useStore((state) =>
+    configFlag(state.config?.jav_favorite_rating_show_full, false)
+  )
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
   const displayItems = useMemo(() => {
     if (!showSimplifiedTags) return items
@@ -321,6 +324,7 @@ export default function JavGrid({
             hideIdols={hideIdols}
             hideTags={hideTags}
             hideActions={hideActions}
+            showFullFavoriteRating={showFullFavoriteRating}
           />
         ))}
       </div>
@@ -1568,6 +1572,7 @@ function JavCard({
   hideIdols = false,
   hideTags = false,
   hideActions = false,
+  showFullFavoriteRating = false,
 }) {
   const primaryVideo = useMemo(() => (item?.videos || [])[0], [item])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
@@ -1622,7 +1627,11 @@ function JavCard({
   const [favoriteRatingPreview, setFavoriteRatingPreview] = useState(null)
   const favoriteRatingTooltipValue = favoriteRatingPreview ?? favoriteRating
   const hasFavoriteRatingTooltipValue = favoriteRatingPreview !== null || favoriteRating > 0
-  const favoriteRatingDisplayCount = Math.ceil(favoriteRating)
+  const favoriteRatingDisplayCount = showFullFavoriteRating
+    ? Math.ceil(favoriteRating)
+    : favoriteRating > 0
+      ? 1
+      : 0
   const favoriteRatingWidth =
     favoriteRatingDisplayCount > 0 && !favoriteRatingEditing
       ? favoriteRatingDisplayCount * 21
