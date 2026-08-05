@@ -1770,19 +1770,14 @@ function JavCard({
       const updated = await updateJavItem(javID, { favorite_rating: nextRating }, { directoryIds })
       const savedRating = Number(updated?.favorite_rating) || nextRating
       setFavoriteRating(savedRating)
-      useStore.setState((state) => ({
-        javItems: Array.isArray(state.javItems)
-          ? state.javItems.map((current) =>
-              Number(current?.id) === javID ? { ...current, ...updated } : current
-            )
-          : state.javItems,
-      }))
-
-      const state = useStore.getState()
-      const activeSort = state.javTempSort || state.javSort
-      if (String(activeSort || '').startsWith('favorite_rating')) {
-        await state.loadJavs?.({ force: true })
-      }
+      useStore.setState((state) => {
+        if (!Array.isArray(state.javItems)) return {}
+        return {
+          javItems: state.javItems.map((current) =>
+            Number(current?.id) === javID ? { ...current, ...updated } : current
+          ),
+        }
+      })
     } catch (error) {
       const message = getErrorMessage(error)
       setFavoriteRating(previousRating)
