@@ -412,8 +412,8 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 		if input.FavoriteRating != nil {
 			favoriteRating := *input.FavoriteRating
 			if math.IsNaN(favoriteRating) || math.IsInf(favoriteRating, 0) ||
-				favoriteRating < 0.5 || favoriteRating > 5 || favoriteRating*2 != math.Trunc(favoriteRating*2) {
-				return errors.New("favorite rating must be between 0.5 and 5 in 0.5 increments")
+				favoriteRating < 0 || favoriteRating > 5 || favoriteRating*2 != math.Trunc(favoriteRating*2) {
+				return errors.New("favorite rating must be 0 or between 0.5 and 5 in 0.5 increments")
 			}
 			updates["favorite_rating"] = favoriteRating
 		}

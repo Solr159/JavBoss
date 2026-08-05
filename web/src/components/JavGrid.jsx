@@ -10,6 +10,7 @@ import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import MovieCreationIcon from '@mui/icons-material/MovieCreation'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
+import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
@@ -1620,6 +1621,7 @@ function JavCard({
   const [favoriteRatingEditing, setFavoriteRatingEditing] = useState(false)
   const [favoriteRatingPreview, setFavoriteRatingPreview] = useState(null)
   const favoriteRatingTooltipValue = favoriteRatingPreview ?? favoriteRating
+  const hasFavoriteRatingTooltipValue = favoriteRatingPreview !== null || favoriteRating > 0
   const favoriteRatingDisplayCount = Math.ceil(favoriteRating)
   const favoriteRatingWidth =
     favoriteRatingDisplayCount > 0 && !favoriteRatingEditing
@@ -1752,13 +1754,14 @@ function JavCard({
   const handleFavoriteRatingChange = async (event, value) => {
     event?.stopPropagation()
     const javID = Number(item?.id)
-    const nextRating = Math.round(Number(value) * 2) / 2
+    const numericValue = value == null ? 0 : Number(value)
+    const nextRating = Math.round(numericValue * 2) / 2
     if (
       favoriteRatingSaving ||
       !Number.isFinite(javID) ||
       javID <= 0 ||
       !Number.isFinite(nextRating) ||
-      nextRating < 0.5 ||
+      nextRating < 0 ||
       nextRating > 5
     ) {
       return
@@ -2158,17 +2161,30 @@ function JavCard({
           <Tooltip
             title={
               favoriteRatingError ||
-              (favoriteRatingTooltipValue > 0
-                ? zh(
-                    `喜爱度：${favoriteRatingTooltipValue.toFixed(1)} 分`,
-                    `Favorite rating: ${favoriteRatingTooltipValue.toFixed(1)}`
-                  )
-                : zh('设置喜爱度评分', 'Set favorite rating'))
+              (favoriteRatingPreview === 0
+                ? zh('清空喜爱度', 'Clear favorite rating')
+                : hasFavoriteRatingTooltipValue
+                  ? zh(
+                      `喜爱度：${favoriteRatingTooltipValue.toFixed(1)} 分`,
+                      `Favorite rating: ${favoriteRatingTooltipValue.toFixed(1)}`
+                    )
+                  : zh('设置喜爱度评分', 'Set favorite rating'))
             }
             placement="top"
             arrow
           >
             <span
+              role="group"
+              aria-label={zh('喜爱度评分', 'Favorite rating')}
+              onMouseLeave={() => {
+                setFavoriteRatingEditing(false)
+                setFavoriteRatingPreview(null)
+              }}
+              onBlur={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget)) return
+                setFavoriteRatingEditing(false)
+                setFavoriteRatingPreview(null)
+              }}
               className={`absolute left-2 top-2 z-10 flex items-center rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
                 favoriteRatingSaving
                   ? 'opacity-60'
@@ -2193,15 +2209,7 @@ function JavCard({
                   onClick={(event) => event.stopPropagation()}
                   onMouseDown={(event) => event.stopPropagation()}
                   onMouseEnter={() => setFavoriteRatingEditing(true)}
-                  onMouseLeave={() => {
-                    setFavoriteRatingEditing(false)
-                    setFavoriteRatingPreview(null)
-                  }}
                   onFocus={() => setFavoriteRatingEditing(true)}
-                  onBlur={() => {
-                    setFavoriteRatingEditing(false)
-                    setFavoriteRatingPreview(null)
-                  }}
                   onChangeActive={(_, value) =>
                     setFavoriteRatingPreview(value >= 0.5 ? value : null)
                   }
@@ -2215,6 +2223,20 @@ function JavCard({
                   }}
                 />
               </span>
+              {favoriteRatingEditing && favoriteRating > 0 ? (
+                <button
+                  type="button"
+                  className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20"
+                  disabled={favoriteRatingSaving || !item?.id}
+                  aria-label={zh('清除喜爱度评分', 'Clear favorite rating')}
+                  onMouseEnter={() => setFavoriteRatingPreview(0)}
+                  onMouseLeave={() => setFavoriteRatingPreview(null)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={(event) => handleFavoriteRatingChange(event, 0)}
+                >
+                  <RemoveCircleOutlineRoundedIcon sx={{ fontSize: 15 }} />
+                </button>
+              ) : null}
               {favoriteRating > 0 && !favoriteRatingEditing ? (
                 <span className="ml-1 shrink-0 text-xs font-semibold tabular-nums leading-none text-white">
                   {favoriteRating.toFixed(1)}

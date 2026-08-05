@@ -928,7 +928,16 @@ func TestUpdateJavFavoriteRating(t *testing.T) {
 		t.Fatalf("favorite rating = %v, want %v", updated.FavoriteRating, rating)
 	}
 
-	for _, invalid := range []float64{0, 0.25, 5.5} {
+	clearRating := float64(0)
+	updated, err = UpdateJav(ctx, javRec.ID, JavUpdateInput{FavoriteRating: &clearRating}, nil)
+	if err != nil {
+		t.Fatalf("clear JAV favorite rating: %v", err)
+	}
+	if updated.FavoriteRating != 0 {
+		t.Fatalf("favorite rating after clear = %v, want 0", updated.FavoriteRating)
+	}
+
+	for _, invalid := range []float64{-0.5, 0.25, 5.5} {
 		invalid := invalid
 		if _, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{FavoriteRating: &invalid}, nil); err == nil {
 			t.Fatalf("UpdateJav accepted invalid favorite rating %v", invalid)
