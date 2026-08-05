@@ -1632,10 +1632,9 @@ function JavCard({
     : favoriteRating > 0
       ? 1
       : 0
-  const favoriteRatingWidth =
-    favoriteRatingDisplayCount > 0 && !favoriteRatingEditing
-      ? favoriteRatingDisplayCount * 21
-      : 5 * 21
+  const favoriteRatingWidth = !favoriteRatingEditing
+    ? Math.max(favoriteRatingDisplayCount, 1) * 21
+    : 5 * 21
 
   useEffect(() => {
     setJavdbURL('')
