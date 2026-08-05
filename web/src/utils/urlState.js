@@ -32,6 +32,14 @@ const parseJavPrefix = (raw) => {
   return /^[A-Z0-9]+$/.test(value) ? value : ''
 }
 
+const parseFavoriteRating = (raw) => {
+  const value = Number(String(raw || '').trim())
+  if (!Number.isFinite(value) || value < 0.5 || value > 5 || !Number.isInteger(value * 2)) {
+    return null
+  }
+  return value
+}
+
 const parseDirectoryIds = (sp) => {
   if (!sp.has('directory_ids')) return null
   const raw = (sp.get('directory_ids') || '').trim()
@@ -74,6 +82,12 @@ export const parseUrlState = (searchString = window.location.search, options = {
   const rawJavTempSort = (sp.get('temp_sort') || '').trim()
   const javTempSort =
     javTab === 'idol' ? normalizeIdolSort(rawJavTempSort, '') : normalizeJavSort(rawJavTempSort, '')
+  const favoriteRatingMin = parseFavoriteRating(sp.get('favorite_rating_min'))
+  const favoriteRatingMax = parseFavoriteRating(sp.get('favorite_rating_max'))
+  const favoriteRatingEnabled =
+    favoriteRatingMin !== null &&
+    favoriteRatingMax !== null &&
+    favoriteRatingMin <= favoriteRatingMax
 
   const jav = {
     tab: javTab,
@@ -87,6 +101,9 @@ export const parseUrlState = (searchString = window.location.search, options = {
     seriesName: (sp.get('series_name') || '').trim(),
     prefix: parseJavPrefix(sp.get('prefix')),
     soloOnly: sp.get('solo') === '1',
+    favoriteRatingEnabled,
+    favoriteRatingMin: favoriteRatingEnabled ? favoriteRatingMin : 0.5,
+    favoriteRatingMax: favoriteRatingEnabled ? favoriteRatingMax : 5,
     favoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
     idolFavoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
     tempSort: javTempSort,
@@ -133,6 +150,10 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     }
     if (state.jav.tab === 'list' && state.jav.soloOnly) {
       sp.set('solo', '1')
+    }
+    if (state.jav.tab === 'list' && state.jav.favoriteRatingEnabled) {
+      sp.set('favorite_rating_min', String(state.jav.favoriteRatingMin))
+      sp.set('favorite_rating_max', String(state.jav.favoriteRatingMax))
     }
     if (
       (state.jav.tab === 'list' ||
@@ -251,6 +272,9 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       seriesName: (store.javSeriesName || '').trim(),
       prefix: store.javPrefix || '',
       soloOnly: Boolean(store.javSoloOnly),
+      favoriteRatingEnabled: Boolean(store.javFavoriteRatingEnabled),
+      favoriteRatingMin: store.javFavoriteRatingMin ?? 0.5,
+      favoriteRatingMax: store.javFavoriteRatingMax ?? 5,
       favoriteGroupId:
         store.javTab === 'idol'
           ? store.idolFavoriteGroupId || null

@@ -483,6 +483,9 @@ export async function fetchJavs({
   seriesId = null,
   prefix = '',
   soloOnly = false,
+  favoriteRatingEnabled = false,
+  favoriteRatingMin = 0.5,
+  favoriteRatingMax = 5,
   sort = '',
   seed = null,
   directoryIds = [],
@@ -498,6 +501,10 @@ export async function fetchJavs({
   if (seriesId) params.set('series_id', String(seriesId))
   if (prefix) params.set('prefix', prefix)
   if (soloOnly) params.set('solo', '1')
+  if (favoriteRatingEnabled) {
+    params.set('favorite_rating_min', String(favoriteRatingMin))
+    params.set('favorite_rating_max', String(favoriteRatingMax))
+  }
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))

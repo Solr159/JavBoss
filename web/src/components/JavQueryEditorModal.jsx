@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
+import { Slider } from '@mui/material'
 
 import { fetchJavIdols, fetchJavPrefixes, fetchJavSeries, fetchJavStudios } from '@/api'
 import { isChineseLocale, zh } from '@/utils/i18n'
@@ -20,6 +21,12 @@ const cleanJavPrefix = (value) =>
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, '')
+
+const cleanFavoriteRating = (value, fallback) => {
+  const parsed = Number(value)
+  if (!Number.isFinite(parsed)) return fallback
+  return Math.min(5, Math.max(0.5, Math.round(parsed * 2) / 2))
+}
 
 const studioListSeparator = () => (isChineseLocale() ? '、' : ', ')
 const unknownStudioOption = () => ({ id: 0, name: zh('未知片商', 'Unknown studio') })
@@ -169,6 +176,9 @@ export default function JavQueryEditorModal({
   seriesName = '',
   prefix = '',
   soloOnly = false,
+  favoriteRatingEnabled = false,
+  favoriteRatingMin = 0.5,
+  favoriteRatingMax = 5,
   directoryIds = [],
   preferChineseName = false,
 }) {
@@ -199,6 +209,8 @@ export default function JavQueryEditorModal({
   const [studioError, setStudioError] = useState('')
   const [selectedSeries, setSelectedSeries] = useState(null)
   const [selectedSoloOnly, setSelectedSoloOnly] = useState(false)
+  const [selectedFavoriteRatingEnabled, setSelectedFavoriteRatingEnabled] = useState(false)
+  const [selectedFavoriteRatingRange, setSelectedFavoriteRatingRange] = useState([0.5, 5])
   const [seriesSearch, setSeriesSearch] = useState('')
   const [seriesPickerOpen, setSeriesPickerOpen] = useState(false)
   const [allSeries, setAllSeries] = useState([])
@@ -245,10 +257,32 @@ export default function JavQueryEditorModal({
         : null
     )
     setSelectedSoloOnly(Boolean(soloOnly))
+    setSelectedFavoriteRatingEnabled(Boolean(favoriteRatingEnabled))
+    const nextFavoriteRatingMin = cleanFavoriteRating(favoriteRatingMin, 0.5)
+    const nextFavoriteRatingMax = cleanFavoriteRating(favoriteRatingMax, 5)
+    setSelectedFavoriteRatingRange(
+      nextFavoriteRatingMin <= nextFavoriteRatingMax
+        ? [nextFavoriteRatingMin, nextFavoriteRatingMax]
+        : [0.5, 5]
+    )
     setSeriesSearch('')
     setSeriesPickerOpen(false)
     setSeriesError('')
-  }, [idolIds, open, prefix, search, seriesId, seriesName, soloOnly, studioId, studioName, tagIds])
+  }, [
+    favoriteRatingEnabled,
+    favoriteRatingMax,
+    favoriteRatingMin,
+    idolIds,
+    open,
+    prefix,
+    search,
+    seriesId,
+    seriesName,
+    soloOnly,
+    studioId,
+    studioName,
+    tagIds,
+  ])
 
   useEffect(() => {
     if (!open) return
@@ -536,6 +570,8 @@ export default function JavQueryEditorModal({
     setStudioPickerOpen(false)
     setSelectedSeries(null)
     setSelectedSoloOnly(false)
+    setSelectedFavoriteRatingEnabled(false)
+    setSelectedFavoriteRatingRange([0.5, 5])
     setSeriesSearch('')
     setSeriesPickerOpen(false)
   }
@@ -549,6 +585,9 @@ export default function JavQueryEditorModal({
       studio: selectedStudio,
       series: selectedSeries,
       soloOnly: selectedSoloOnly,
+      favoriteRatingEnabled: selectedFavoriteRatingEnabled,
+      favoriteRatingMin: selectedFavoriteRatingRange[0],
+      favoriteRatingMax: selectedFavoriteRatingRange[1],
     })
   }
 
@@ -594,6 +633,47 @@ export default function JavQueryEditorModal({
               />
               <span>{zh('只看单体作品', 'Solo works only')}</span>
             </label>
+          </section>
+
+          <section className="space-y-2">
+            <div className="text-sm font-semibold text-slate-800">
+              {zh('喜爱度', 'Favorite Rating')}
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <input
+                type="checkbox"
+                checked={selectedFavoriteRatingEnabled}
+                onChange={(event) => setSelectedFavoriteRatingEnabled(event.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              />
+              <span>{zh('按喜爱度范围筛选', 'Filter by favorite rating range')}</span>
+            </label>
+            {selectedFavoriteRatingEnabled ? (
+              <div className="rounded border border-slate-200 bg-slate-50 px-5 pb-2 pt-3">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+                  <span>{selectedFavoriteRatingRange[0].toFixed(1)}</span>
+                  <span>{selectedFavoriteRatingRange[1].toFixed(1)}</span>
+                </div>
+                <Slider
+                  value={selectedFavoriteRatingRange}
+                  onChange={(_, value) => {
+                    if (Array.isArray(value)) setSelectedFavoriteRatingRange(value)
+                  }}
+                  min={0.5}
+                  max={5}
+                  step={0.5}
+                  disableSwap
+                  valueLabelDisplay="auto"
+                  valueLabelFormat={(value) => Number(value).toFixed(1)}
+                  getAriaLabel={(index) =>
+                    index === 0
+                      ? zh('最低喜爱度', 'Minimum favorite rating')
+                      : zh('最高喜爱度', 'Maximum favorite rating')
+                  }
+                  sx={{ color: '#2563eb', py: 1 }}
+                />
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-2">

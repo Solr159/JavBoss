@@ -995,6 +995,20 @@ func TestSearchJavSortByFavoriteRating(t *testing.T) {
 		items[0].Code != "RATE-LOW" || items[1].Code != "RATE-HIGH" || items[2].Code != "RATE-NONE" {
 		t.Fatalf("favorite rating asc order = %#v (total %d)", items, total)
 	}
+
+	minRating := 2.0
+	maxRating := 5.0
+	items, total, err = SearchJavWithPrefixFilters(ctx, nil, nil, "", "", "code", 20, 0, nil, nil, JavSearchFilters{
+		StudioID:          -1,
+		FavoriteRatingMin: &minRating,
+		FavoriteRatingMax: &maxRating,
+	})
+	if err != nil {
+		t.Fatalf("SearchJav favorite rating range: %v", err)
+	}
+	if total != 1 || len(items) != 1 || items[0].Code != "RATE-HIGH" {
+		t.Fatalf("favorite rating range result = %#v (total %d)", items, total)
+	}
 }
 
 func TestListJavStudiosAndSearchByStudio(t *testing.T) {
