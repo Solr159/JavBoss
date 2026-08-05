@@ -49,6 +49,15 @@ export const JAV_SORT_OPTIONS = [
     asc: ['少→多', 'low→high'],
     desc: ['多→少', 'high→low'],
   },
+  {
+    base: 'favorite_rating',
+    defaultValue: 'favorite_rating',
+    ascValue: 'favorite_rating_asc',
+    descValue: 'favorite_rating',
+    label: ['喜爱度', 'Favorite rating'],
+    asc: ['低→高', 'low→high'],
+    desc: ['高→低', 'high→low'],
+  },
 ]
 
 export const IDOL_SORT_OPTIONS = [
@@ -157,6 +166,7 @@ export function normalizeJavSort(sort, fallback = 'recent') {
     duration_desc: 'duration',
     release_desc: 'release',
     play_count_desc: 'play_count',
+    favorite_rating_desc: 'favorite_rating',
   })
 }
 

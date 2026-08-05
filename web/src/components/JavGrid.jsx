@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { IconButton, Popper, Tooltip } from '@mui/material'
+import { IconButton, Popper, Rating, Tooltip } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import { MovieEdit } from '@mui/icons-material'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import MovieCreationIcon from '@mui/icons-material/MovieCreation'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
@@ -1611,11 +1613,19 @@ function JavCard({
   const encodedCode = code ? encodeURIComponent(code) : ''
   const javdbSearchURL = encodedCode ? `https://javdb.com/search?q=${encodedCode}&f=all` : ''
   const favoriteCount = Number(item?.favorite_count) || 0
+  const itemFavoriteRating = Number(item?.favorite_rating) || 0
+  const [favoriteRating, setFavoriteRating] = useState(itemFavoriteRating)
+  const [favoriteRatingSaving, setFavoriteRatingSaving] = useState(false)
+  const [favoriteRatingError, setFavoriteRatingError] = useState('')
 
   useEffect(() => {
     setJavdbURL('')
     setJavdbOpening(false)
   }, [code])
+
+  useEffect(() => {
+    setFavoriteRating(itemFavoriteRating)
+  }, [item?.id, itemFavoriteRating])
 
   const openExternalURL = (popup, targetURL) => {
     if (!targetURL) {
@@ -1729,6 +1739,52 @@ function JavCard({
     event.preventDefault()
     event.stopPropagation()
     onOpenJavFavorites?.(item)
+  }
+
+  const handleFavoriteRatingChange = async (event, value) => {
+    event?.stopPropagation()
+    const javID = Number(item?.id)
+    const nextRating = Math.round(Number(value) * 2) / 2
+    if (
+      favoriteRatingSaving ||
+      !Number.isFinite(javID) ||
+      javID <= 0 ||
+      !Number.isFinite(nextRating) ||
+      nextRating < 0.5 ||
+      nextRating > 5
+    ) {
+      return
+    }
+
+    const previousRating = favoriteRating
+    setFavoriteRating(nextRating)
+    setFavoriteRatingSaving(true)
+    setFavoriteRatingError('')
+    try {
+      const updated = await updateJavItem(javID, { favorite_rating: nextRating }, { directoryIds })
+      const savedRating = Number(updated?.favorite_rating) || nextRating
+      setFavoriteRating(savedRating)
+      useStore.setState((state) => ({
+        javItems: Array.isArray(state.javItems)
+          ? state.javItems.map((current) =>
+              Number(current?.id) === javID ? { ...current, ...updated } : current
+            )
+          : state.javItems,
+      }))
+
+      const state = useStore.getState()
+      const activeSort = state.javTempSort || state.javSort
+      if (String(activeSort || '').startsWith('favorite_rating')) {
+        await state.loadJavs?.({ force: true })
+      }
+    } catch (error) {
+      const message = getErrorMessage(error)
+      setFavoriteRating(previousRating)
+      setFavoriteRatingError(message)
+      useStore.setState({ javError: message })
+    } finally {
+      setFavoriteRatingSaving(false)
+    }
   }
 
   const handleEditorSaved = (updated, coverUpdated) => {
@@ -2096,8 +2152,49 @@ function JavCard({
               </svg>
             </button>
           </div>
+          <Tooltip
+            title={
+              favoriteRatingError ||
+              (favoriteRating > 0
+                ? zh(
+                    `喜爱度：${favoriteRating.toFixed(1)} 分`,
+                    `Favorite rating: ${favoriteRating.toFixed(1)}`
+                  )
+                : zh('设置喜爱度评分', 'Set favorite rating'))
+            }
+            placement="top"
+            arrow
+          >
+            <span
+              className={`absolute left-2 top-2 z-10 flex rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
+                favoriteRatingSaving
+                  ? 'opacity-60'
+                  : favoriteRating > 0
+                    ? 'opacity-100'
+                    : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+              }`}
+            >
+              <Rating
+                name={`jav-favorite-rating-${item?.id || code || 'unknown'}`}
+                value={favoriteRating}
+                precision={0.5}
+                size="small"
+                icon={<FavoriteRoundedIcon fontSize="inherit" />}
+                emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
+                disabled={favoriteRatingSaving || !item?.id}
+                onChange={handleFavoriteRatingChange}
+                onClick={(event) => event.stopPropagation()}
+                onMouseDown={(event) => event.stopPropagation()}
+                sx={{
+                  color: '#fbbf24',
+                  fontSize: 21,
+                  '& .MuiRating-iconEmpty': { color: 'rgba(255,255,255,0.7)' },
+                }}
+              />
+            </span>
+          </Tooltip>
           {externalLinks.length > 0 ? (
-            <div className="absolute left-2 top-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               {externalLinks.map((site) => (
                 <Tooltip
                   key={site.key}
@@ -2142,7 +2239,7 @@ function JavCard({
             )}
           </button>
           {cover || canOpen ? (
-            <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
               {cover ? (
                 <button
                   type="button"

@@ -60,13 +60,14 @@ type JavScanVideo struct {
 
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
-	Title       *string
-	StudioID    *int64
-	SeriesID    *int64
-	IdolIDs     *[]int64
-	UserTagIDs  *[]int64
-	ReleaseUnix *int64
-	DurationMin *int
+	Title          *string
+	StudioID       *int64
+	SeriesID       *int64
+	IdolIDs        *[]int64
+	UserTagIDs     *[]int64
+	ReleaseUnix    *int64
+	DurationMin    *int
+	FavoriteRating *float64
 }
 
 // JavIdolUpdateInput contains user-editable JAV idol profile fields.
@@ -179,6 +180,10 @@ func SearchJavWithPrefix(ctx context.Context, idolIDs []int64, tagIDs []int64, s
 		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs) + "), 0) DESC, jav.created_at DESC, jav.id DESC"
 	case "play_count_asc":
 		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs) + "), 0) ASC, jav.created_at ASC, jav.id ASC"
+	case "favorite_rating", "favorite_rating_desc":
+		order = "jav.favorite_rating DESC, jav.created_at DESC, jav.id DESC"
+	case "favorite_rating_asc":
+		order = "jav.favorite_rating = 0 ASC, jav.favorite_rating ASC, jav.created_at DESC, jav.id DESC"
 	case "recent_asc":
 		order = "jav.created_at ASC, jav.id ASC"
 	case "random":
@@ -403,6 +408,14 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 				durationMin = 0
 			}
 			updates["duration_min"] = durationMin
+		}
+		if input.FavoriteRating != nil {
+			favoriteRating := *input.FavoriteRating
+			if math.IsNaN(favoriteRating) || math.IsInf(favoriteRating, 0) ||
+				favoriteRating < 0.5 || favoriteRating > 5 || favoriteRating*2 != math.Trunc(favoriteRating*2) {
+				return errors.New("favorite rating must be between 0.5 and 5 in 0.5 increments")
+			}
+			updates["favorite_rating"] = favoriteRating
 		}
 		if input.StudioID != nil {
 			studioID := *input.StudioID

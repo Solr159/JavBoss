@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -908,6 +909,83 @@ func TestUpdateJavEditsTitle(t *testing.T) {
 		t.Fatalf("unexpected title: %q", updated.Title)
 	}
 	assertJavTitle(t, db, javRec.Code, zhTitle)
+}
+
+func TestUpdateJavFavoriteRating(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	javRec := models.Jav{Code: "RATING-EDIT", Title: "Rating"}
+	if err := db.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+
+	rating := 4.5
+	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{FavoriteRating: &rating}, nil)
+	if err != nil {
+		t.Fatalf("UpdateJav favorite rating: %v", err)
+	}
+	if updated.FavoriteRating != rating {
+		t.Fatalf("favorite rating = %v, want %v", updated.FavoriteRating, rating)
+	}
+
+	for _, invalid := range []float64{0, 0.25, 5.5} {
+		invalid := invalid
+		if _, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{FavoriteRating: &invalid}, nil); err == nil {
+			t.Fatalf("UpdateJav accepted invalid favorite rating %v", invalid)
+		}
+	}
+}
+
+func TestSearchJavSortByFavoriteRating(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/rated-media"}
+	if err := db.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	javs := []models.Jav{
+		{Code: "RATE-LOW", Title: "Low", FavoriteRating: 1.5, FetchedAt: now},
+		{Code: "RATE-HIGH", Title: "High", FavoriteRating: 4.5, FetchedAt: now},
+		{Code: "RATE-NONE", Title: "Unrated", FetchedAt: now},
+	}
+	if err := db.Create(&javs).Error; err != nil {
+		t.Fatalf("create javs: %v", err)
+	}
+	videos := make([]models.Video, 0, len(javs))
+	for index := range javs {
+		videos = append(videos, models.Video{
+			DirectoryID: dir.ID,
+			Path:        strings.ToLower(javs[index].Code) + ".mp4",
+			Filename:    strings.ToLower(javs[index].Code) + ".mp4",
+			Fingerprint: fmt.Sprintf("fp-rating-%d", index),
+			JavID:       int64Ptr(javs[index].ID),
+			ModifiedAt:  now,
+		})
+	}
+	if err := db.Create(&videos).Error; err != nil {
+		t.Fatalf("create videos: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, videos...)
+
+	items, total, err := SearchJav(ctx, nil, nil, "", "favorite_rating", 20, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("SearchJav favorite rating: %v", err)
+	}
+	if total != 3 || len(items) != 3 ||
+		items[0].Code != "RATE-HIGH" || items[1].Code != "RATE-LOW" || items[2].Code != "RATE-NONE" {
+		t.Fatalf("favorite rating desc order = %#v (total %d)", items, total)
+	}
+
+	items, total, err = SearchJav(ctx, nil, nil, "", "favorite_rating_asc", 20, 0, nil, nil)
+	if err != nil {
+		t.Fatalf("SearchJav favorite rating asc: %v", err)
+	}
+	if total != 3 || len(items) != 3 ||
+		items[0].Code != "RATE-LOW" || items[1].Code != "RATE-HIGH" || items[2].Code != "RATE-NONE" {
+		t.Fatalf("favorite rating asc order = %#v (total %d)", items, total)
+	}
 }
 
 func TestListJavStudiosAndSearchByStudio(t *testing.T) {
