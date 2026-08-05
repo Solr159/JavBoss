@@ -2606,6 +2606,10 @@ function JavCard({
           }}
           onOpenFavorites={() => onOpenJavFavorites?.(item)}
           onEdit={() => setEditorOpen(true)}
+          favoriteRating={favoriteRating}
+          favoriteRatingSaving={favoriteRatingSaving}
+          favoriteRatingError={favoriteRatingError}
+          onFavoriteRatingChange={handleFavoriteRatingChange}
           onSelectStudio={onStudioClick}
           onSelectSeries={onSeriesClick}
           onSelectIdol={onIdolClick}

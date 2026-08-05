@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import { MovieEdit } from '@mui/icons-material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
+import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
-import { IconButton, Popper, Tooltip } from '@mui/material'
+import { IconButton, Popper, Rating, Tooltip } from '@mui/material'
 
 import {
   deleteVideoScreenshot,
@@ -85,6 +88,87 @@ function sampleImagesNotFound(images) {
     images.length === 1 &&
     images[0]?.thumbnail_url === ':not_found' &&
     images[0]?.detail_url === ':not_found'
+  )
+}
+
+function JavFavoriteRatingEditor({ value, saving, error, onChange }) {
+  const rating = Number(value) || 0
+  const [editing, setEditing] = useState(false)
+  const [preview, setPreview] = useState(null)
+  const tooltipValue = preview ?? rating
+  const hasTooltipValue = preview !== null || rating > 0
+  const displayCount = Math.ceil(rating)
+  const ratingWidth = !editing ? Math.max(displayCount, 1) * 21 : 5 * 21
+  const tooltipTitle = error
+    ? error
+    : preview === 0
+      ? zh('清空喜爱度', 'Clear favorite rating')
+      : hasTooltipValue
+        ? zh(`喜爱度：${tooltipValue.toFixed(1)} 分`, `Favorite rating: ${tooltipValue.toFixed(1)}`)
+        : zh('设置喜爱度评分', 'Set favorite rating')
+
+  return (
+    <Tooltip title={tooltipTitle} placement="top" arrow>
+      <span
+        role="group"
+        aria-label={zh('喜爱度评分', 'Favorite rating')}
+        className={`inline-flex items-center rounded-full bg-gray-100 px-1.5 py-0.5 transition-opacity ${
+          saving ? 'opacity-60' : 'opacity-100'
+        }`}
+        onMouseLeave={() => {
+          setEditing(false)
+          setPreview(null)
+        }}
+        onBlur={(event) => {
+          if (event.currentTarget.contains(event.relatedTarget)) return
+          setEditing(false)
+          setPreview(null)
+        }}
+      >
+        <span
+          className="flex overflow-hidden transition-[width] duration-150"
+          style={{ width: ratingWidth }}
+        >
+          <Rating
+            name="jav-detail-favorite-rating"
+            value={rating}
+            precision={0.5}
+            size="small"
+            icon={<FavoriteRoundedIcon fontSize="inherit" />}
+            emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
+            disabled={saving}
+            onChange={onChange}
+            onMouseEnter={() => setEditing(true)}
+            onFocus={() => setEditing(true)}
+            onChangeActive={(_, nextValue) => setPreview(nextValue >= 0.5 ? nextValue : null)}
+            sx={{
+              flexShrink: 0,
+              color: '#fbbf24',
+              fontSize: 21,
+              '& .MuiRating-iconEmpty': { color: '#9ca3af' },
+            }}
+          />
+        </span>
+        {editing && rating > 0 ? (
+          <button
+            type="button"
+            className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-200 hover:text-gray-800"
+            disabled={saving}
+            aria-label={zh('清空喜爱度', 'Clear favorite rating')}
+            onMouseEnter={() => setPreview(0)}
+            onMouseLeave={() => setPreview(null)}
+            onClick={(event) => onChange?.(event, 0)}
+          >
+            <RemoveCircleOutlineRoundedIcon sx={{ fontSize: 16 }} />
+          </button>
+        ) : null}
+        {rating > 0 && !editing ? (
+          <span className="ml-1 shrink-0 text-xs font-semibold tabular-nums leading-none text-gray-700">
+            {rating.toFixed(1)}
+          </span>
+        ) : null}
+      </span>
+    </Tooltip>
   )
 }
 
@@ -380,6 +464,10 @@ export default function JavDetailModal({
   onPlay,
   onOpenFavorites,
   onEdit,
+  favoriteRating,
+  favoriteRatingSaving,
+  favoriteRatingError,
+  onFavoriteRatingChange,
   onSelectStudio,
   onSelectSeries,
   onSelectIdol,
@@ -752,7 +840,7 @@ export default function JavDetailModal({
                 <h3 className="mb-2 text-sm font-semibold text-gray-800">
                   {zh('操作栏', 'Actions')}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="group flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:border-gray-400 hover:bg-gray-50"
@@ -773,6 +861,12 @@ export default function JavDetailModal({
                     <MovieEdit sx={{ fontSize: 16 }} />
                     {zh('编辑', 'Edit')}
                   </button>
+                  <JavFavoriteRatingEditor
+                    value={favoriteRating}
+                    saving={favoriteRatingSaving}
+                    error={favoriteRatingError}
+                    onChange={onFavoriteRatingChange}
+                  />
                 </div>
               </section>
             </div>
