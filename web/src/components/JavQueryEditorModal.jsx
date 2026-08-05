@@ -649,11 +649,7 @@ export default function JavQueryEditorModal({
               <span>{zh('按喜爱度范围筛选', 'Filter by favorite rating range')}</span>
             </label>
             {selectedFavoriteRatingEnabled ? (
-              <div className="rounded border border-slate-200 bg-slate-50 px-5 pb-2 pt-3">
-                <div className="flex items-center justify-between text-xs font-medium text-slate-600">
-                  <span>{selectedFavoriteRatingRange[0].toFixed(1)}</span>
-                  <span>{selectedFavoriteRatingRange[1].toFixed(1)}</span>
-                </div>
+              <div className="rounded border border-slate-200 bg-slate-50 px-5 pb-2 pt-7">
                 <Slider
                   value={selectedFavoriteRatingRange}
                   onChange={(_, value) => {
@@ -663,14 +659,26 @@ export default function JavQueryEditorModal({
                   max={5}
                   step={0.5}
                   disableSwap
-                  valueLabelDisplay="auto"
+                  valueLabelDisplay="on"
                   valueLabelFormat={(value) => Number(value).toFixed(1)}
                   getAriaLabel={(index) =>
                     index === 0
                       ? zh('最低喜爱度', 'Minimum favorite rating')
                       : zh('最高喜爱度', 'Maximum favorite rating')
                   }
-                  sx={{ color: '#2563eb', py: 1 }}
+                  sx={{
+                    color: '#2563eb',
+                    py: 1,
+                    '& .MuiSlider-valueLabel': {
+                      top: -4,
+                      padding: 0,
+                      background: 'transparent',
+                      color: '#475569',
+                      fontSize: '0.75rem',
+                      fontWeight: 500,
+                    },
+                    '& .MuiSlider-valueLabel::before': { display: 'none' },
+                  }}
                 />
               </div>
             ) : null}
