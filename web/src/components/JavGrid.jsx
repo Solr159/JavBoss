@@ -1617,6 +1617,12 @@ function JavCard({
   const [favoriteRating, setFavoriteRating] = useState(itemFavoriteRating)
   const [favoriteRatingSaving, setFavoriteRatingSaving] = useState(false)
   const [favoriteRatingError, setFavoriteRatingError] = useState('')
+  const [favoriteRatingEditing, setFavoriteRatingEditing] = useState(false)
+  const favoriteRatingDisplayCount = Math.ceil(favoriteRating)
+  const favoriteRatingWidth =
+    favoriteRatingDisplayCount > 0 && !favoriteRatingEditing
+      ? favoriteRatingDisplayCount * 21
+      : 5 * 21
 
   useEffect(() => {
     setJavdbURL('')
@@ -2174,23 +2180,35 @@ function JavCard({
                     : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
               }`}
             >
-              <Rating
-                name={`jav-favorite-rating-${item?.id || code || 'unknown'}`}
-                value={favoriteRating}
-                precision={0.5}
-                size="small"
-                icon={<FavoriteRoundedIcon fontSize="inherit" />}
-                emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
-                disabled={favoriteRatingSaving || !item?.id}
-                onChange={handleFavoriteRatingChange}
-                onClick={(event) => event.stopPropagation()}
-                onMouseDown={(event) => event.stopPropagation()}
-                sx={{
-                  color: '#fbbf24',
-                  fontSize: 21,
-                  '& .MuiRating-iconEmpty': { color: 'rgba(255,255,255,0.7)' },
-                }}
-              />
+              <span
+                className="flex overflow-hidden transition-[width] duration-150"
+                style={{ width: favoriteRatingWidth }}
+              >
+                <Rating
+                  name={`jav-favorite-rating-${item?.id || code || 'unknown'}`}
+                  value={favoriteRating}
+                  precision={0.5}
+                  size="small"
+                  icon={<FavoriteRoundedIcon fontSize="inherit" />}
+                  emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
+                  disabled={favoriteRatingSaving || !item?.id}
+                  onChange={handleFavoriteRatingChange}
+                  onClick={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onMouseEnter={() => setFavoriteRatingEditing(true)}
+                  onMouseLeave={() => setFavoriteRatingEditing(false)}
+                  onFocus={() => setFavoriteRatingEditing(true)}
+                  onBlur={() => setFavoriteRatingEditing(false)}
+                  sx={{
+                    flexShrink: 0,
+                    color: '#fbbf24',
+                    fontSize: 21,
+                    '& .MuiRating-iconEmpty': {
+                      color: 'rgba(255,255,255,0.85)',
+                    },
+                  }}
+                />
+              </span>
             </span>
           </Tooltip>
           {externalLinks.length > 0 ? (
