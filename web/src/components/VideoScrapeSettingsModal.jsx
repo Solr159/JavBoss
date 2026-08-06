@@ -257,7 +257,13 @@ export default function VideoScrapeSettingsModal({
                   onChange={() => setMode('auto')}
                   disabled={saving || lookupLoading}
                 />
-                <span>{zh('自动刮削', 'Automatic Scrape')}</span>
+                <span className="shrink-0">{zh('自动刮削', 'Automatic Scrape')}</span>
+                <span className="min-w-0 text-xs font-normal text-gray-500">
+                  {zh(
+                    '根据文件名或指定番号在扫描过程中自动获取影片信息',
+                    'Automatically fetch metadata during scans by filename or a specified code'
+                  )}
+                </span>
               </label>
               {mode === 'auto' ? (
                 <div className="space-y-2 border-t border-blue-100 px-3 py-3">
@@ -307,7 +313,7 @@ export default function VideoScrapeSettingsModal({
                         onFocus={() => setAutoSource(AUTO_SOURCE_CODE)}
                         onChange={(event) => updateCode(event.target.value)}
                         disabled={saving || lookupLoading || autoSource !== AUTO_SOURCE_CODE}
-                        placeholder="ABC-001"
+                        placeholder="IPX-001"
                         pattern="[A-Z0-9_-]+"
                         aria-label={zh('指定番号', 'Specified code')}
                         aria-invalid={autoSource === AUTO_SOURCE_CODE && codeInvalid}
@@ -345,7 +351,13 @@ export default function VideoScrapeSettingsModal({
                   onChange={() => setMode('manual')}
                   disabled={saving || lookupLoading}
                 />
-                <span>{zh('手动刮削', 'Manual Scrape')}</span>
+                <span className="shrink-0">{zh('手动刮削', 'Manual Scrape')}</span>
+                <span className="min-w-0 text-xs font-normal text-gray-500">
+                  {zh(
+                    '自行编辑影片信息，也可输入番号后选择数据源根据自动填充',
+                    'Edit metadata manually, or enter a code and select a provider to autofill it'
+                  )}
+                </span>
               </label>
               {mode === 'manual' ? (
                 <div className="grid gap-3 border-t border-blue-100 px-3 py-3 md:grid-cols-2">
@@ -358,7 +370,7 @@ export default function VideoScrapeSettingsModal({
                       value={code}
                       onChange={(event) => updateCode(event.target.value)}
                       disabled={saving || lookupLoading}
-                      placeholder="ABC-001"
+                      placeholder="IPX-001"
                       pattern="[A-Z0-9_-]+"
                       aria-invalid={codeInvalid}
                       className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
@@ -533,7 +545,13 @@ export default function VideoScrapeSettingsModal({
                 onChange={() => setMode('skip')}
                 disabled={saving || lookupLoading}
               />
-              <span>{zh('不刮削', 'Do Not Scrape')}</span>
+              <span className="shrink-0">{zh('不刮削', 'Do Not Scrape')}</span>
+              <span className="min-w-0 text-xs font-normal text-gray-500">
+                {zh(
+                  '扫描过程中跳过此视频，不获取影片信息',
+                  'Skip this video during scans without fetching metadata'
+                )}
+              </span>
             </label>
           </div>
         </div>
