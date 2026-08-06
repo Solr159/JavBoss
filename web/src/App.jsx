@@ -2528,6 +2528,7 @@ export default function App() {
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
+        javFavoriteGroupId: null,
         idolFavoriteGroupId: null,
         javSearchTerm: '',
         javPage: 1,
