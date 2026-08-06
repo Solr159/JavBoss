@@ -51,6 +51,7 @@ function JavIdolRoute({
           idolIds: [idol.id],
           tagIds: [],
           prefix: '',
+          favoriteRatingEnabled: false,
           tempSort: '',
         })
       }
@@ -120,6 +121,7 @@ function JavStudioRoute({
           studioId: studio.id,
           studioName: studio.name,
           prefix: '',
+          favoriteRatingEnabled: false,
           tempSort: '',
         })
       }
@@ -134,6 +136,7 @@ function JavStudioRoute({
           seriesId: series.id,
           seriesName: series.name,
           prefix: '',
+          favoriteRatingEnabled: false,
           tempSort: '',
         })
       }
@@ -202,6 +205,7 @@ function JavSeriesRoute({
           seriesId: series.id,
           seriesName: series.name,
           prefix: '',
+          favoriteRatingEnabled: false,
           tempSort: '',
         })
       }

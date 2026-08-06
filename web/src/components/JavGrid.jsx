@@ -1869,6 +1869,7 @@ function JavCard({
         seriesId: null,
         seriesName: '',
         prefix: '',
+        favoriteRatingEnabled: false,
         random: false,
         tempSort: '',
       }) || '#'
@@ -1890,6 +1891,7 @@ function JavCard({
         seriesId: null,
         seriesName: '',
         prefix: '',
+        favoriteRatingEnabled: false,
         random: false,
         tempSort: '',
       }) || '#'
@@ -1911,6 +1913,7 @@ function JavCard({
         seriesId: id,
         seriesName: series?.name || '',
         prefix: '',
+        favoriteRatingEnabled: false,
         random: false,
         tempSort: '',
       }) || '#'
@@ -1932,6 +1935,7 @@ function JavCard({
         seriesId: null,
         seriesName: '',
         prefix: '',
+        favoriteRatingEnabled: false,
         random: false,
         tempSort: '',
       }) || '#'
