@@ -354,7 +354,7 @@ export default function VideoScrapeSettingsModal({
                 <span className="shrink-0">{zh('手动刮削', 'Manual Scrape')}</span>
                 <span className="min-w-0 text-xs font-normal text-gray-500">
                   {zh(
-                    '自行编辑影片信息，也可输入番号后选择数据源根据自动填充',
+                    '自行编辑影片信息，也可输入番号后选择数据源自动填充',
                     'Edit metadata manually, or enter a code and select a provider to autofill it'
                   )}
                 </span>
