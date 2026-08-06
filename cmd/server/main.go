@@ -48,6 +48,7 @@ const (
 
 func main() {
 	staticDir := flag.String("static", "web/dist", "Path to built frontend assets")
+	serverURLFlag := flag.String("server-url", "", "Remote JavBoss Server URL (enables Client mode)")
 	flag.Parse()
 
 	_ = os.Setenv("JAVBOSS_BUILD_MODE", buildMode)
@@ -75,7 +76,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("load bootstrap config: %v", err)
 	}
-	serverURL := strings.TrimSpace(bootstrapCfg.ServerURL)
+	serverURL := resolveClientServerURL(*serverURLFlag, bootstrapCfg.ServerURL)
 	if shouldRunClientMode(serverURL) {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
@@ -253,6 +254,13 @@ func main() {
 
 func shouldRunClientMode(serverURL string) bool {
 	return strings.TrimSpace(serverURL) != ""
+}
+
+func resolveClientServerURL(flagValue, configuredValue string) string {
+	if value := strings.TrimSpace(flagValue); value != "" {
+		return value
+	}
+	return strings.TrimSpace(configuredValue)
 }
 
 func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, serverURL string, configuredPort int, logger *log.Logger) error {

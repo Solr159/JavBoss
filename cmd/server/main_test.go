@@ -83,6 +83,28 @@ func TestShouldRunClientModeDependsOnlyOnServerURL(t *testing.T) {
 	}
 }
 
+func TestResolveClientServerURLPrefersCommandLineFlag(t *testing.T) {
+	tests := []struct {
+		name       string
+		flagValue  string
+		configured string
+		want       string
+	}{
+		{name: "command line overrides config", flagValue: " https://client.example.com ", configured: "https://config.example.com", want: "https://client.example.com"},
+		{name: "config is used without command line flag", configured: " https://config.example.com ", want: "https://config.example.com"},
+		{name: "blank command line flag falls back to config", flagValue: "  ", configured: "https://config.example.com", want: "https://config.example.com"},
+		{name: "both values are blank", flagValue: " ", configured: "  ", want: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolveClientServerURL(tt.flagValue, tt.configured); got != tt.want {
+				t.Fatalf("resolveClientServerURL(%q, %q) = %q, want %q", tt.flagValue, tt.configured, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestReleaseClientStartupHintIncludesModeAndRemoteServer(t *testing.T) {
 	localURL := "http://localhost:8655"
 	remoteURL := "https://server.example.com"
