@@ -3339,6 +3339,7 @@ export default function App() {
             seriesId: null,
             prefix: item?.prefix || '',
             soloOnly: false,
+            favoriteRatingEnabled: false,
             favoriteGroupId: null,
             random: false,
             tempSort: '',
