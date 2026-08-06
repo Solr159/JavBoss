@@ -87,7 +87,7 @@ function manualPayload(info) {
   return payload
 }
 
-function infoFromJavDB(data, fallbackCode = '') {
+function infoFromProvider(data, fallbackCode = '') {
   return {
     code: String(data?.code || fallbackCode || '')
       .trim()
@@ -112,7 +112,7 @@ export default function VideoScrapeSettingsModal({
   onClose,
   onSave,
   onFetchPossibleCodes,
-  onLookupJavDB,
+  onLookupMetadata,
   onManualScrape,
 }) {
   const [mode, setMode] = useState('auto')
@@ -120,6 +120,7 @@ export default function VideoScrapeSettingsModal({
   const [code, setCode] = useState('')
   const [manualInfo, setManualInfo] = useState(emptyManualInfo)
   const [lookupLoading, setLookupLoading] = useState(false)
+  const [lookupProvider, setLookupProvider] = useState('')
   const [lookupError, setLookupError] = useState('')
   const [possibleCodesOpen, setPossibleCodesOpen] = useState(false)
   const [possibleCodesLoading, setPossibleCodesLoading] = useState(false)
@@ -134,6 +135,7 @@ export default function VideoScrapeSettingsModal({
     setCode(next.code)
     setManualInfo(initialManualInfo(video))
     setLookupLoading(false)
+    setLookupProvider('')
     setLookupError('')
     setPossibleCodesOpen(false)
     setPossibleCodesLoading(false)
@@ -185,19 +187,21 @@ export default function VideoScrapeSettingsModal({
     }
   }
 
-  const lookupJavDB = async () => {
+  const lookupMetadata = async (provider) => {
     if (!codeValid || lookupLoading || saving) return
     setLookupLoading(true)
+    setLookupProvider(provider)
     setLookupError('')
     try {
-      const data = await onLookupJavDB?.(normalizedCode)
-      const nextInfo = infoFromJavDB(data, normalizedCode)
+      const data = await onLookupMetadata?.(normalizedCode, provider)
+      const nextInfo = infoFromProvider(data, normalizedCode)
       setCode(nextInfo.code)
       setManualInfo((current) => ({ ...current, ...nextInfo }))
     } catch (err) {
       setLookupError(getErrorMessage(err))
     } finally {
       setLookupLoading(false)
+      setLookupProvider('')
     }
   }
 
@@ -349,31 +353,41 @@ export default function VideoScrapeSettingsModal({
                     <label className="mb-1 block text-xs font-medium text-gray-500">
                       {zh('番号', 'Code')}
                     </label>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <input
-                        type="text"
-                        value={code}
-                        onChange={(event) => updateCode(event.target.value)}
-                        disabled={saving || lookupLoading}
-                        placeholder="ABC-001"
-                        pattern="[A-Z0-9_-]+"
-                        aria-invalid={codeInvalid}
-                        className={`min-w-0 flex-1 rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
-                          codeInvalid
-                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                            : 'focus:border-blue-500 focus:ring-blue-500'
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={lookupJavDB}
-                        disabled={!codeValid || saving || lookupLoading}
-                        className="shrink-0 rounded border bg-white px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {lookupLoading
-                          ? zh('填充中…', 'Filling...')
-                          : zh('通过JavDB填充', 'Fill via JavDB')}
-                      </button>
+                    <input
+                      type="text"
+                      value={code}
+                      onChange={(event) => updateCode(event.target.value)}
+                      disabled={saving || lookupLoading}
+                      placeholder="ABC-001"
+                      pattern="[A-Z0-9_-]+"
+                      aria-invalid={codeInvalid}
+                      className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
+                        codeInvalid
+                          ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                          : 'focus:border-blue-500 focus:ring-blue-500'
+                      }`}
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="mr-1 text-xs font-medium text-gray-500">
+                        {zh('自动填充', 'Autofill')}
+                      </span>
+                      {[
+                        ['javdb', 'JavDB'],
+                        ['javbus', 'JavBus'],
+                        ['avsox', 'AVSOX'],
+                      ].map(([provider, label]) => (
+                        <button
+                          key={provider}
+                          type="button"
+                          onClick={() => lookupMetadata(provider)}
+                          disabled={!codeValid || saving || lookupLoading}
+                          className="rounded border bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
+                        >
+                          {lookupLoading && lookupProvider === provider
+                            ? zh('填充中…', 'Filling...')
+                            : label}
+                        </button>
+                      ))}
                     </div>
                     {codeInvalid ? (
                       <div className="mt-1 text-xs text-red-600">

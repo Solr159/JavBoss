@@ -368,10 +368,11 @@ export async function updateVideoJavScrapeSettings(videoId, { mode = 'auto', cod
   return res.json()
 }
 
-export async function lookupVideoJavScrapeJavDB(videoId, code) {
+export async function lookupVideoJavScrape(videoId, code, provider = 'javdb') {
   const params = new URLSearchParams()
   params.set('code', String(code || '').trim())
-  const res = await apiFetch(`/videos/${videoId}/jav-scrape/javdb?${params.toString()}`)
+  params.set('provider', String(provider || '').trim())
+  const res = await apiFetch(`/videos/${videoId}/jav-scrape/lookup?${params.toString()}`)
   if (!res.ok) {
     throw await apiError(res)
   }

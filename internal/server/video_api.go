@@ -700,7 +700,16 @@ func getVideoJavScrapePossibleCodes(c *gin.Context) {
 	})
 }
 
-func lookupVideoJavScrapeJavDB(c *gin.Context) {
+func lookupVideoJavScrape(c *gin.Context) {
+	provider, ok := parseVideoJavScrapeLookupProvider(c.Query("provider"))
+	if !ok {
+		respondLocalizedError(c, http.StatusBadRequest, "自动填充来源无效", "Invalid autofill provider")
+		return
+	}
+	lookupVideoJavScrapeByProvider(c, provider)
+}
+
+func lookupVideoJavScrapeByProvider(c *gin.Context, provider jav.Provider) {
 	if _, ok := parsePositiveVideoID(c); !ok {
 		return
 	}
@@ -710,21 +719,61 @@ func lookupVideoJavScrapeJavDB(c *gin.Context) {
 		return
 	}
 
-	info, err := jav.LookupJavByCode(code, jav.ProviderJavDB)
+	providerLabel := videoJavScrapeLookupProviderLabel(provider)
+	info, err := jav.LookupJavByCode(code, provider)
 	if err != nil {
 		if errors.Is(err, jav.ResourceNotFonud) {
-			respondLocalizedError(c, http.StatusNotFound, "JavDB 中未找到对应元数据", "JavDB metadata was not found")
+			respondLocalizedError(
+				c,
+				http.StatusNotFound,
+				fmt.Sprintf("%s 中未找到对应元数据", providerLabel),
+				fmt.Sprintf("%s metadata was not found", providerLabel),
+			)
 			return
 		}
-		logging.Error("lookup javdb metadata code=%s: %v", code, err)
-		respondLocalizedError(c, http.StatusInternalServerError, "从 JavDB 获取元数据失败", "Failed to fetch metadata from JavDB")
+		logging.Error("lookup %s metadata code=%s: %v", provider.String(), code, err)
+		respondLocalizedError(
+			c,
+			http.StatusInternalServerError,
+			fmt.Sprintf("从 %s 获取元数据失败", providerLabel),
+			fmt.Sprintf("Failed to fetch metadata from %s", providerLabel),
+		)
 		return
 	}
 	if info == nil {
-		respondLocalizedError(c, http.StatusNotFound, "JavDB 中未找到对应元数据", "JavDB metadata was not found")
+		respondLocalizedError(
+			c,
+			http.StatusNotFound,
+			fmt.Sprintf("%s 中未找到对应元数据", providerLabel),
+			fmt.Sprintf("%s metadata was not found", providerLabel),
+		)
 		return
 	}
 	c.JSON(http.StatusOK, javInfoToVideoScrapeResponse(info))
+}
+
+func parseVideoJavScrapeLookupProvider(value string) (jav.Provider, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "javdb":
+		return jav.ProviderJavDB, true
+	case "javbus":
+		return jav.ProviderJavBus, true
+	case "avsox":
+		return jav.ProviderAvsox, true
+	default:
+		return jav.ProviderUnknown, false
+	}
+}
+
+func videoJavScrapeLookupProviderLabel(provider jav.Provider) string {
+	switch provider {
+	case jav.ProviderJavBus:
+		return "JavBus"
+	case jav.ProviderAvsox:
+		return "AVSOX"
+	default:
+		return "JavDB"
+	}
 }
 
 func manualVideoJavScrape(c *gin.Context) {

@@ -14,6 +14,7 @@ import (
 
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/jav"
 	"javboss/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -99,15 +100,46 @@ func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
 
 	foundList := false
 	foundUpload := false
+	foundScrapeLookup := false
+	foundLegacyJavDBLookup := false
 	for _, route := range router.Routes() {
 		foundList = foundList || route.Method == "GET" && route.Path == "/videos/screenshots"
 		foundUpload = foundUpload || route.Method == "PUT" && route.Path == "/videos/:id/screenshots/:name"
+		foundScrapeLookup = foundScrapeLookup || route.Method == "GET" && route.Path == "/videos/:id/jav-scrape/lookup"
+		foundLegacyJavDBLookup = foundLegacyJavDBLookup || route.Method == "GET" && route.Path == "/videos/:id/jav-scrape/javdb"
 	}
 	if !foundList {
 		t.Fatal("GET /videos/screenshots route is not registered")
 	}
 	if !foundUpload {
 		t.Fatal("PUT /videos/:id/screenshots/:name route is not registered")
+	}
+	if !foundScrapeLookup {
+		t.Fatal("GET /videos/:id/jav-scrape/lookup route is not registered")
+	}
+	if foundLegacyJavDBLookup {
+		t.Fatal("legacy GET /videos/:id/jav-scrape/javdb route must not be registered")
+	}
+}
+
+func TestParseVideoJavScrapeLookupProvider(t *testing.T) {
+	tests := []struct {
+		value string
+		want  jav.Provider
+		ok    bool
+	}{
+		{value: "javdb", want: jav.ProviderJavDB, ok: true},
+		{value: " JavBus ", want: jav.ProviderJavBus, ok: true},
+		{value: "AVSOX", want: jav.ProviderAvsox, ok: true},
+		{value: "avmoo", want: jav.ProviderUnknown, ok: false},
+		{value: "", want: jav.ProviderUnknown, ok: false},
+	}
+
+	for _, tt := range tests {
+		got, ok := parseVideoJavScrapeLookupProvider(tt.value)
+		if got != tt.want || ok != tt.ok {
+			t.Errorf("parseVideoJavScrapeLookupProvider(%q) = (%v, %v), want (%v, %v)", tt.value, got, ok, tt.want, tt.ok)
+		}
 	}
 }
 

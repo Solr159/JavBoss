@@ -12,7 +12,7 @@ import {
   revealVideoLocation,
   updateVideoJavScrapeSettings,
   fetchVideoJavScrapePossibleCodes,
-  lookupVideoJavScrapeJavDB,
+  lookupVideoJavScrape,
   manualVideoJavScrape,
   createJavTag,
   renameJavTag,
@@ -739,11 +739,11 @@ export default function App() {
     [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
   )
 
-  const handleLookupScrapeJavDB = useCallback(
-    async (code) => {
+  const handleLookupScrapeMetadata = useCallback(
+    async (code, provider) => {
       const video = scrapeSettingsVideo
       if (!video?.id) throw new Error(zh('缺少视频 ID', 'Missing video ID'))
-      return lookupVideoJavScrapeJavDB(video.id, code)
+      return lookupVideoJavScrape(video.id, code, provider)
     },
     [scrapeSettingsVideo]
   )
@@ -3639,7 +3639,7 @@ export default function App() {
         }}
         onSave={handleSaveScrapeSettings}
         onFetchPossibleCodes={handleFetchScrapePossibleCodes}
-        onLookupJavDB={handleLookupScrapeJavDB}
+        onLookupMetadata={handleLookupScrapeMetadata}
         onManualScrape={handleManualScrape}
       />
 
