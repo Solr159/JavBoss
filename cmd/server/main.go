@@ -44,11 +44,12 @@ var buildMode = "development"
 const (
 	defaultDevelopmentPort = 17654
 	defaultReleasePort     = 8655
+	defaultStaticDir       = "web/dist"
 )
 
 func main() {
-	staticDir := flag.String("static", "web/dist", "Path to built frontend assets")
 	serverURLFlag := flag.String("server-url", "", "Remote JavBoss Server URL (enables Client mode)")
+	serverPortFlag := flag.Int("port", 0, "Listening port (overrides config.toml)")
 	flag.Parse()
 
 	_ = os.Setenv("JAVBOSS_BUILD_MODE", buildMode)
@@ -76,11 +77,16 @@ func main() {
 	if err != nil {
 		logger.Fatalf("load bootstrap config: %v", err)
 	}
+	portOverride, err := normalizePortOverride(*serverPortFlag)
+	if err != nil {
+		logger.Fatalf("resolve listening port: %v", err)
+	}
 	serverURL := resolveClientServerURL(*serverURLFlag, bootstrapCfg.ServerURL)
 	if shouldRunClientMode(serverURL) {
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		if err := runClientMode(ctx, stop, baseDir, serverURL, bootstrapCfg.Port, logger); err != nil {
+		clientPort := configuredPortWithOverride(bootstrapCfg.Port, portOverride)
+		if err := runClientMode(ctx, stop, baseDir, serverURL, clientPort, logger); err != nil {
 			logger.Fatalf("run client mode: %v", err)
 		}
 		return
@@ -198,9 +204,13 @@ func main() {
 		logger.Fatalf("initialize authentication: %v", err)
 	}
 
-	router := server.NewRouter(resolveStaticDir(*staticDir), authService)
+	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
+	serverPort := defaultDevelopmentPort
+	if portOverride > 0 {
+		serverPort = portOverride
+	}
 	listenAddr := configuredListenAddr(
-		defaultDevelopmentPort,
+		serverPort,
 		allowLANAccess,
 		runtimeconfig.ContainerMode(),
 	)
@@ -223,7 +233,7 @@ func main() {
 	}()
 
 	if buildMode == "release" {
-		listenAddr, err := releaseListenAddr(baseDir, allowLANAccess)
+		listenAddr, err := releaseListenAddr(baseDir, allowLANAccess, portOverride)
 		if err != nil {
 			logger.Fatalf("resolve release listen address: %v", err)
 		}
@@ -369,7 +379,27 @@ func configuredListenAddr(port int, allowLANAccess bool, containerMode bool) str
 	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
-func releaseListenAddr(baseDir string, allowLANAccess bool) (string, error) {
+func normalizePortOverride(value int) (int, error) {
+	if value == 0 {
+		return 0, nil
+	}
+	if value < 1 || value > 65535 {
+		return 0, fmt.Errorf("invalid port %d", value)
+	}
+	return value, nil
+}
+
+func configuredPortWithOverride(configured, override int) int {
+	if override > 0 {
+		return override
+	}
+	return configured
+}
+
+func releaseListenAddr(baseDir string, allowLANAccess bool, portOverride int) (string, error) {
+	if portOverride > 0 {
+		return configuredListenAddr(portOverride, allowLANAccess, false), nil
+	}
 	port, configured, err := releaseConfigPort(baseDir)
 	if err != nil {
 		return "", err

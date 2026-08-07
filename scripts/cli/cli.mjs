@@ -353,9 +353,6 @@ async function startBackendDevChild() {
   await syncBundledMpvToInternal(current);
 
   const args = ["./cmd/server"];
-  if (process.env.WITH_STATIC === "1") {
-    args.push("-static", process.env.STATIC || "web/dist");
-  }
   console.log(`[dev] 后端启动：go run ${args.join(" ")}`);
   const env = {
     ...process.env,
@@ -515,6 +512,7 @@ async function createReleaseConfig(outDir) {
     "# Set server_url to run as a client connected to another JavBoss server.",
     "# You can override server_url at startup with --server-url <URL>.",
     "# Leave server_url empty to run in server mode.",
+    "# You can override port at startup with --port <PORT>.",
     'server_url = ""',
     "port = 8655",
     "",

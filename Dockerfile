@@ -54,4 +54,4 @@ ENV JAVBOSS_CONTAINER=1 \
 EXPOSE 17654
 VOLUME ["/app/data"]
 
-CMD ["./javboss", "-static", "web/dist"]
+CMD ["./javboss"]

@@ -11,6 +11,7 @@ func TestReleaseListenAddr(t *testing.T) {
 	tests := []struct {
 		name       string
 		config     string
+		port       int
 		want       string
 		wantErr    bool
 		withConfig bool
@@ -19,6 +20,7 @@ func TestReleaseListenAddr(t *testing.T) {
 		{name: "missing config uses default", want: "127.0.0.1:8655"},
 		{name: "legacy zero uses default", config: "port = 0\n", want: "127.0.0.1:8655", withConfig: true},
 		{name: "custom port is preserved", config: "port = 9123\n", want: "127.0.0.1:9123", withConfig: true},
+		{name: "command line port overrides config", config: "port = 9123\n", port: 9456, want: "127.0.0.1:9456", withConfig: true},
 		{name: "LAN access listens on all interfaces", want: "0.0.0.0:8655", allowLAN: true},
 		{name: "invalid port is rejected", config: "port = 65536\n", wantErr: true, withConfig: true},
 	}
@@ -32,7 +34,7 @@ func TestReleaseListenAddr(t *testing.T) {
 				}
 			}
 
-			got, err := releaseListenAddr(baseDir, tt.allowLAN)
+			got, err := releaseListenAddr(baseDir, tt.allowLAN, tt.port)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("releaseListenAddr() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -40,6 +42,37 @@ func TestReleaseListenAddr(t *testing.T) {
 				t.Fatalf("releaseListenAddr() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestNormalizePortOverride(t *testing.T) {
+	for _, tt := range []struct {
+		value   int
+		want    int
+		wantErr bool
+	}{
+		{value: 0, want: 0},
+		{value: 1, want: 1},
+		{value: 65535, want: 65535},
+		{value: -1, wantErr: true},
+		{value: 65536, wantErr: true},
+	} {
+		got, err := normalizePortOverride(tt.value)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("normalizePortOverride(%d) error = %v, wantErr %v", tt.value, err, tt.wantErr)
+		}
+		if got != tt.want {
+			t.Errorf("normalizePortOverride(%d) = %d, want %d", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestConfiguredPortWithOverride(t *testing.T) {
+	if got := configuredPortWithOverride(8655, 9123); got != 9123 {
+		t.Fatalf("configuredPortWithOverride() = %d, want command-line port 9123", got)
+	}
+	if got := configuredPortWithOverride(8655, 0); got != 8655 {
+		t.Fatalf("configuredPortWithOverride() = %d, want configured port 8655", got)
 	}
 }
 
