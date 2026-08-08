@@ -271,8 +271,8 @@ export default function TopBar({
                 type="button"
                 className="filter-add-button"
                 onClick={onOpenFilterEditor}
-                title={zh('添加条件', 'Add filter')}
-                aria-label={zh('添加条件', 'Add filter')}
+                title={zh('添加筛选条件', 'Add filter')}
+                aria-label={zh('添加筛选条件', 'Add filter')}
               >
                 <AddRoundedIcon fontSize="small" />
               </button>
