@@ -3179,6 +3179,18 @@ export default function App() {
       const nextPrefix = String(query?.prefix || '')
         .trim()
         .toUpperCase()
+      const nextFavoriteRatingEnabled = Boolean(query?.favoriteRatingEnabled)
+      const normalizeFavoriteRating = (value, fallback) => {
+        const parsed = Number(value)
+        if (!Number.isFinite(parsed)) return fallback
+        return Math.min(5, Math.max(0.5, Math.round(parsed * 2) / 2))
+      }
+      let nextFavoriteRatingMin = normalizeFavoriteRating(query?.favoriteRatingMin, 0.5)
+      let nextFavoriteRatingMax = normalizeFavoriteRating(query?.favoriteRatingMax, 5)
+      if (nextFavoriteRatingMin > nextFavoriteRatingMax) {
+        nextFavoriteRatingMin = 0.5
+        nextFavoriteRatingMax = 5
+      }
       saveScrollBeforeUrlStateChange()
       useStore.setState({
         viewMode: 'jav',
@@ -3197,6 +3209,9 @@ export default function App() {
         javSeriesName: nextSeriesName,
         javPrefix: nextPrefix,
         javSoloOnly: Boolean(query?.soloOnly),
+        javFavoriteRatingEnabled: nextFavoriteRatingEnabled,
+        javFavoriteRatingMin: nextFavoriteRatingMin,
+        javFavoriteRatingMax: nextFavoriteRatingMax,
         idolFavoriteGroupId: null,
         javPage: 1,
         idolPage: 1,
@@ -3669,6 +3684,10 @@ export default function App() {
         soloOnly={javSoloOnly}
         directoryIds={javQueryDirectoryIds}
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
+        favoriteGroupId={javFavoriteGroupId}
+        favoriteRatingEnabled={javFavoriteRatingEnabled}
+        favoriteRatingMin={javFavoriteRatingMin}
+        favoriteRatingMax={javFavoriteRatingMax}
       />
 
       <VideoSettingsModal

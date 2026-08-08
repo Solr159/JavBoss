@@ -95,6 +95,151 @@ func TestListJavsForDirectoryProcessingLoadsMetadataAndLocations(t *testing.T) {
 	}
 }
 
+func TestListJavFilterOptionsUsesCurrentFilterIntersection(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	directory := models.Directory{Path: "/media/filter-options"}
+	studios := []models.JavStudio{{Name: "Facet Studio A"}, {Name: "Facet Studio B"}}
+	series := []models.JavSeries{{Name: "Facet Series A"}, {Name: "Facet Series B"}}
+	idols := []models.JavIdol{{Name: "Facet Idol A"}, {Name: "Facet Idol B"}, {Name: "Facet Idol C"}}
+	tags := []models.JavTag{
+		{Name: "Facet Tag One", IsUser: true},
+		{Name: "Facet Tag Two", IsUser: true},
+		{Name: "Facet Tag Three", IsUser: true},
+	}
+	for name, value := range map[string]any{
+		"directory": &directory,
+		"studios":   &studios,
+		"series":    &series,
+		"idols":     &idols,
+		"tags":      &tags,
+	} {
+		if err := gdb.Create(value).Error; err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+	}
+
+	javs := []models.Jav{
+		{Code: "AAA-001", Title: "First", StudioID: &studios[0].ID, SeriesID: &series[0].ID},
+		{Code: "AAA-002", Title: "Second", StudioID: &studios[0].ID, SeriesID: &series[1].ID},
+		{Code: "BBB-001", Title: "Third", StudioID: &studios[1].ID, SeriesID: &series[0].ID},
+		{Code: "CCC-001", Title: "Fourth"},
+	}
+	if err := gdb.Create(&javs).Error; err != nil {
+		t.Fatalf("create JAVs: %v", err)
+	}
+
+	idolAssignments := [][]int{{0}, {0, 1}, {1}, {0, 2}}
+	tagAssignments := [][]int{{0, 1}, {0, 2}, {1}, {0, 1}}
+	for index := range javs {
+		for _, idolIndex := range idolAssignments[index] {
+			if err := gdb.Create(&models.JavIdolMap{JavID: javs[index].ID, JavIdolID: idols[idolIndex].ID}).Error; err != nil {
+				t.Fatalf("create idol map: %v", err)
+			}
+		}
+		for _, tagIndex := range tagAssignments[index] {
+			if err := gdb.Create(&models.JavTagMap{JavID: javs[index].ID, JavTagID: tags[tagIndex].ID, Provider: int(jav.ProviderUser), CreatedAt: now}).Error; err != nil {
+				t.Fatalf("create tag map: %v", err)
+			}
+		}
+		video := models.Video{Fingerprint: fmt.Sprintf("filter-option-video-%d", index)}
+		if err := gdb.Create(&video).Error; err != nil {
+			t.Fatalf("create video: %v", err)
+		}
+		location, err := UpsertVideoLocation(ctx, video.ID, directory.ID, fmt.Sprintf("work-%d.mp4", index), now)
+		if err != nil {
+			t.Fatalf("create location: %v", err)
+		}
+		if err := gdb.Model(&models.VideoLocation{}).Where("id = ?", location.ID).Update("jav_id", javs[index].ID).Error; err != nil {
+			t.Fatalf("link location: %v", err)
+		}
+	}
+
+	options, err := ListJavFilterOptions(
+		ctx,
+		[]int64{idols[0].ID},
+		[]int64{tags[0].ID},
+		"",
+		"",
+		[]int64{directory.ID},
+		JavSearchFilters{StudioID: -1},
+		JavFilterOptionSearches{},
+		120,
+	)
+	if err != nil {
+		t.Fatalf("ListJavFilterOptions: %v", err)
+	}
+	if options.Total != 3 || options.SoloCount != 1 {
+		t.Fatalf("counts = total %d solo %d, want 3 and 1", options.Total, options.SoloCount)
+	}
+
+	idolCounts := make(map[string]int64)
+	for _, item := range options.Idols {
+		idolCounts[item.Name] = item.WorkCount
+	}
+	if idolCounts[idols[0].Name] != 3 || idolCounts[idols[1].Name] != 1 || idolCounts[idols[2].Name] != 1 {
+		t.Fatalf("idol counts = %#v", idolCounts)
+	}
+	tagCounts := make(map[string]int64)
+	for _, item := range options.Tags {
+		tagCounts[item.Name] = item.Count
+	}
+	if tagCounts[tags[0].Name] != 3 || tagCounts[tags[1].Name] != 2 || tagCounts[tags[2].Name] != 1 {
+		t.Fatalf("tag counts = %#v", tagCounts)
+	}
+	studioCounts := make(map[string]int64)
+	for _, item := range options.Studios {
+		studioCounts[item.Name] = item.WorkCount
+	}
+	if studioCounts[studios[0].Name] != 2 || studioCounts[""] != 1 {
+		t.Fatalf("studio counts = %#v", studioCounts)
+	}
+	seriesCounts := make(map[string]int64)
+	for _, item := range options.Series {
+		seriesCounts[item.Name] = item.WorkCount
+	}
+	if seriesCounts[series[0].Name] != 1 || seriesCounts[series[1].Name] != 1 {
+		t.Fatalf("series counts = %#v", seriesCounts)
+	}
+	prefixCounts := make(map[string]int64)
+	for _, item := range options.Prefixes {
+		prefixCounts[item.Prefix] = item.WorkCount
+	}
+	if prefixCounts["AAA"] != 2 || prefixCounts["CCC"] != 1 {
+		t.Fatalf("prefix counts = %#v", prefixCounts)
+	}
+
+	searched, err := ListJavFilterOptions(
+		ctx,
+		[]int64{idols[0].ID},
+		[]int64{tags[0].ID},
+		"",
+		"",
+		[]int64{directory.ID},
+		JavSearchFilters{StudioID: -1},
+		JavFilterOptionSearches{
+			Prefix: "CCC",
+			Idol:   "Idol B",
+			Tag:    "Tag Three",
+			Studio: "Studio A",
+			Series: "Series B",
+		},
+		120,
+	)
+	if err != nil {
+		t.Fatalf("ListJavFilterOptions with searches: %v", err)
+	}
+	if len(searched.Prefixes) != 1 || searched.Prefixes[0].Prefix != "CCC" ||
+		len(searched.Idols) != 1 || searched.Idols[0].Name != idols[1].Name ||
+		len(searched.Tags) != 1 || searched.Tags[0].Name != tags[2].Name ||
+		len(searched.Studios) != 1 || searched.Studios[0].Name != studios[0].Name ||
+		len(searched.Series) != 1 || searched.Series[0].Name != series[1].Name {
+		t.Fatalf("searched options = %#v", searched)
+	}
+}
+
 func TestListJavCodesForDirectoryOnlyReturnsVisibleDistinctCodes(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

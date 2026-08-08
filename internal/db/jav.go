@@ -42,6 +42,28 @@ type JavStudioCodePrefixSummary struct {
 	WorkCount int64  `json:"work_count"`
 }
 
+// JavFilterOptionSearches contains independent searches for each filter facet.
+type JavFilterOptionSearches struct {
+	Prefix string
+	Idol   string
+	Tag    string
+	Studio string
+	Series string
+}
+
+// JavFilterOptions contains filter candidates whose counts are scoped to the
+// currently matching JAV works. A candidate count is the result size after
+// adding that candidate to the current filters.
+type JavFilterOptions struct {
+	Total     int64              `json:"total"`
+	SoloCount int64              `json:"solo_count"`
+	Prefixes  []JavPrefixSummary `json:"prefixes"`
+	Idols     []JavIdolSummary   `json:"idols"`
+	Tags      []JavTagCount      `json:"tags"`
+	Studios   []JavStudioSummary `json:"studios"`
+	Series    []JavSeriesSummary `json:"series"`
+}
+
 func javCodePrefixSQL(column string) string {
 	return fmt.Sprintf("CASE WHEN INSTR(%[1]s, '-') > 1 AND (INSTR(%[1]s, '_') = 0 OR INSTR(%[1]s, '-') < INSTR(%[1]s, '_')) THEN UPPER(SUBSTR(%[1]s, 1, INSTR(%[1]s, '-') - 1)) WHEN INSTR(%[1]s, '_') > 1 THEN UPPER(SUBSTR(%[1]s, 1, INSTR(%[1]s, '_') - 1)) ELSE '' END", column)
 }
@@ -822,6 +844,141 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 			Having("COUNT(DISTINCT jim.jav_idol_id) = ?", len(idolIDs))
 	}
 	return q
+}
+
+// ListJavFilterOptions returns faceted filter candidates for the current JAV
+// result set. All counts use the same AND semantics as SearchJav.
+func ListJavFilterOptions(ctx context.Context, idolIDs []int64, tagIDs []int64, search, prefix string, directoryIDs []int64, filters JavSearchFilters, optionSearches JavFilterOptionSearches, limit int) (JavFilterOptions, error) {
+	if limit <= 0 {
+		limit = 120
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	idolIDs = uniqueInt64s(idolIDs)
+	tagIDs = uniqueInt64s(tagIDs)
+	search = strings.TrimSpace(search)
+	prefix = normalizeJavCodePrefix(prefix)
+	matched := func() *gorm.DB {
+		return buildJavFilter(ctx, idolIDs, tagIDs, search, prefix, directoryIDs, filters).
+			Select("jav.id")
+	}
+
+	result := JavFilterOptions{
+		Prefixes: []JavPrefixSummary{},
+		Idols:    []JavIdolSummary{},
+		Tags:     []JavTagCount{},
+		Studios:  []JavStudioSummary{},
+		Series:   []JavSeriesSummary{},
+	}
+	if err := common.DB.WithContext(ctx).Table("(?) matched", matched()).Count(&result.Total).Error; err != nil {
+		return result, fmt.Errorf("count JAV filter matches: %w", err)
+	}
+
+	soloJavs := common.DB.WithContext(ctx).
+		Table("jav_idol_map jim_solo_option").
+		Select("jim_solo_option.jav_id").
+		Group("jim_solo_option.jav_id").
+		Having("COUNT(DISTINCT jim_solo_option.jav_idol_id) = 1")
+	if !filters.SoloOnly {
+		if err := common.DB.WithContext(ctx).
+			Table("(?) matched", matched()).
+			Joins("JOIN (?) solo_jav ON solo_jav.jav_id = matched.id", soloJavs).
+			Count(&result.SoloCount).Error; err != nil {
+			return result, fmt.Errorf("count solo JAV filter option: %w", err)
+		}
+	}
+
+	idolQuery := common.DB.WithContext(ctx).
+		Table("(?) matched", matched()).
+		Joins("JOIN jav_idol_map jim_option ON jim_option.jav_id = matched.id").
+		Joins("JOIN jav_idol ji ON ji.id = jim_option.jav_idol_id")
+	idolQuery = applyJavIdolSearch(idolQuery, optionSearches.Idol)
+	if err := idolQuery.
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, COUNT(DISTINCT matched.id) AS work_count").
+		Group("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name").
+		Order("work_count DESC, ji.name ASC, ji.id ASC").
+		Limit(limit).
+		Scan(&result.Idols).Error; err != nil {
+		return result, fmt.Errorf("list JAV idol filter options: %w", err)
+	}
+	if err := attachJavIdolAliases(ctx, result.Idols); err != nil {
+		return result, err
+	}
+
+	visibleProviders := visibleJavTagProviders()
+	tagQuery := common.DB.WithContext(ctx).
+		Table("(?) matched", matched()).
+		Joins("JOIN jav_tag_map jtm_option ON jtm_option.jav_id = matched.id AND jtm_option.provider IN ?", visibleProviders).
+		Joins("JOIN jav_tag jt ON jt.id = jtm_option.jav_tag_id")
+	if tagSearch := strings.TrimSpace(optionSearches.Tag); tagSearch != "" {
+		tagQuery = tagQuery.Where("jt.name LIKE ?", fmt.Sprintf("%%%s%%", tagSearch))
+	}
+	if err := tagQuery.
+		Select("jt.id, jt.name, CASE WHEN COALESCE(jt.is_user, 0) = 1 THEN ? ELSE ? END AS provider, COUNT(DISTINCT matched.id) AS count", int(jav.ProviderUser), int(jav.ProviderJavBus)).
+		Group("jt.id, jt.name, jt.is_user").
+		Order("count DESC, jt.name ASC, jt.id ASC").
+		Limit(limit).
+		Scan(&result.Tags).Error; err != nil {
+		return result, fmt.Errorf("list JAV tag filter options: %w", err)
+	}
+	for i := range result.Tags {
+		result.Tags[i].SimplifiedName = util.SimplifyChineseName(result.Tags[i].Name)
+	}
+
+	studioQuery := common.DB.WithContext(ctx).
+		Table("(?) matched", matched()).
+		Joins("JOIN jav j_option_studio ON j_option_studio.id = matched.id").
+		Joins("LEFT JOIN jav_studio js ON js.id = j_option_studio.studio_id")
+	if studioSearch := strings.TrimSpace(optionSearches.Studio); studioSearch != "" {
+		studioQuery = applyJavStudioSearch(studioQuery, studioSearch)
+	}
+	if err := studioQuery.
+		Select("COALESCE(js.id, 0) AS id, COALESCE(js.name, '') AS name, COUNT(DISTINCT matched.id) AS work_count").
+		Group("js.id, js.name").
+		Order("work_count DESC, name ASC, id ASC").
+		Limit(limit).
+		Scan(&result.Studios).Error; err != nil {
+		return result, fmt.Errorf("list JAV studio filter options: %w", err)
+	}
+	if err := attachJavStudioAliases(ctx, result.Studios); err != nil {
+		return result, err
+	}
+
+	seriesQuery := common.DB.WithContext(ctx).
+		Table("(?) matched", matched()).
+		Joins("JOIN jav j_option_series ON j_option_series.id = matched.id").
+		Joins("JOIN jav_series js ON js.id = j_option_series.series_id")
+	seriesQuery = applyJavSeriesSearch(seriesQuery, optionSearches.Series)
+	if err := seriesQuery.
+		Select("js.id, js.name, js.studio_id, COUNT(DISTINCT matched.id) AS work_count").
+		Group("js.id, js.name, js.studio_id").
+		Order("work_count DESC, js.name ASC, js.id ASC").
+		Limit(limit).
+		Scan(&result.Series).Error; err != nil {
+		return result, fmt.Errorf("list JAV series filter options: %w", err)
+	}
+
+	prefixExpr := javCodePrefixSQL("j_option_prefix.code")
+	prefixQuery := common.DB.WithContext(ctx).
+		Table("(?) matched", matched()).
+		Joins("JOIN jav j_option_prefix ON j_option_prefix.id = matched.id").
+		Joins("LEFT JOIN jav_studio js ON js.id = j_option_prefix.studio_id").
+		Where(prefixExpr + " <> ''")
+	if prefixSearch := strings.TrimSpace(optionSearches.Prefix); prefixSearch != "" {
+		like := fmt.Sprintf("%%%s%%", strings.ToUpper(prefixSearch))
+		prefixQuery = prefixQuery.Where(prefixExpr+" LIKE ? OR js.name LIKE ?", like, fmt.Sprintf("%%%s%%", prefixSearch))
+	}
+	if err := prefixQuery.
+		Select(prefixExpr + " AS prefix, GROUP_CONCAT(DISTINCT js.name) AS studio_name, COUNT(DISTINCT matched.id) AS work_count, MIN(j_option_prefix.code) AS sample_code").
+		Group(prefixExpr).
+		Order("work_count DESC, prefix ASC").
+		Limit(limit).
+		Scan(&result.Prefixes).Error; err != nil {
+		return result, fmt.Errorf("list JAV prefix filter options: %w", err)
+	}
+
+	return result, nil
 }
 
 func normalizeJavCodePrefix(prefix string) string {

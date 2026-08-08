@@ -517,6 +517,54 @@ export async function fetchJavs({
   return res.json()
 }
 
+export async function fetchJavFilterOptions({
+  search = '',
+  idolIds = [],
+  tagIds = [],
+  studioId = null,
+  seriesId = null,
+  prefix = '',
+  soloOnly = false,
+  favoriteRatingEnabled = false,
+  favoriteRatingMin = 0.5,
+  favoriteRatingMax = 5,
+  favoriteGroupId = null,
+  directoryIds = [],
+  prefixSearch = '',
+  idolSearch = '',
+  tagSearch = '',
+  studioSearch = '',
+  seriesSearch = '',
+  optionLimit = 120,
+  signal,
+} = {}) {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  if (idolIds.length) params.set('idol_ids', idolIds.join(','))
+  if (tagIds.length) params.set('tag_ids', tagIds.join(','))
+  if (studioId !== null && studioId !== undefined) params.set('studio_id', String(studioId))
+  if (seriesId) params.set('series_id', String(seriesId))
+  if (prefix) params.set('prefix', prefix)
+  if (soloOnly) params.set('solo', '1')
+  if (favoriteRatingEnabled) {
+    params.set('favorite_rating_min', String(favoriteRatingMin))
+    params.set('favorite_rating_max', String(favoriteRatingMax))
+  }
+  if (favoriteGroupId) params.set('favorite_group_id', String(favoriteGroupId))
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
+  if (prefixSearch) params.set('prefix_search', prefixSearch)
+  if (idolSearch) params.set('idol_search', idolSearch)
+  if (tagSearch) params.set('tag_search', tagSearch)
+  if (studioSearch) params.set('studio_search', studioSearch)
+  if (seriesSearch) params.set('series_search', seriesSearch)
+  params.set('option_limit', String(optionLimit))
+  const res = await apiFetch(`/jav/filter-options?${params.toString()}`, { signal })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 function javSampleImagesRequest(id, directoryIds) {
   const javId = Number(id)
   const normalizedDirectoryIds = directoryIds
