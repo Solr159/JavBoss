@@ -487,14 +487,32 @@ export default function JavQueryEditorModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4 backdrop-blur-sm">
       <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-200">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-5 py-4">
-          <h2 className="text-base font-semibold text-slate-900">
+        <div className="flex items-center gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
+          <h2 className="shrink-0 text-base font-semibold text-slate-900">
             {zh('编辑 JAV 查询条件', 'Edit JAV Filters')}
           </h2>
+          <div
+            className={`ml-auto min-w-0 rounded-lg border px-3 py-1.5 text-xs ${
+              filterOptionsError
+                ? 'border-rose-200 bg-rose-50 text-rose-700'
+                : 'border-blue-100 bg-blue-50 text-blue-700'
+            }`}
+          >
+            <div className="truncate">
+              {filterOptionsError
+                ? filterOptionsError
+                : filterOptionsLoading
+                  ? zh('正在更新可添加条件…', 'Updating available filters…')
+                  : zh(
+                      `当前条件匹配 ${filterOptions.total} 部，候选数字表示添加后剩余的作品数。`,
+                      `${filterOptions.total} works match. Candidate counts show the remaining works after adding a filter.`
+                    )}
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-8 w-8 items-center justify-center rounded text-slate-500 hover:bg-slate-200"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-slate-500 hover:bg-slate-200"
             aria-label={zh('关闭查询条件编辑', 'Close query editor')}
           >
             <CloseOutlinedIcon fontSize="small" />
@@ -502,23 +520,6 @@ export default function JavQueryEditorModal({
         </div>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-          <div
-            className={`rounded-lg border px-3 py-2 text-sm ${
-              filterOptionsError
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-blue-100 bg-blue-50 text-blue-700'
-            }`}
-          >
-            {filterOptionsError
-              ? filterOptionsError
-              : filterOptionsLoading
-                ? zh('正在更新可添加条件…', 'Updating available filters…')
-                : zh(
-                    `当前条件匹配 ${filterOptions.total} 部，候选数字表示添加后剩余的作品数。`,
-                    `${filterOptions.total} works match. Candidate counts show the remaining works after adding a filter.`
-                  )}
-          </div>
-
           <section className="space-y-2">
             <div className="text-sm font-semibold text-slate-800">
               {zh('作品类型', 'Work Type')}
