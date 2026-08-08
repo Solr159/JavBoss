@@ -10,6 +10,8 @@
   <a href="https://t.me/+4dje8gAi2dI2ZTE1"><img alt="Telegram Group" src="https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white"></a>
 </p>
 
+**此项目仍处于快速迭代中，点个 Star ⭐支持一下，不错过任何新版本功能更新，你的支持是作者积极更新的动力😊。**
+
 
 ## 为什么选择 JavBoss？
 
