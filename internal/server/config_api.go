@@ -65,7 +65,6 @@ func updateConfig(c *gin.Context) {
 		JavTagShowSimplified   *bool                 `json:"jav_tag_show_simplified"`
 		DefaultPlayer          string                `json:"default_player"`
 		InitialViewMode        string                `json:"initial_view_mode"`
-		ShowTopBarTooltips     *bool                 `json:"show_top_bar_button_tooltips"`
 		AllowLANAccess         *bool                 `json:"allow_lan_access"`
 		ProxyHost              *string               `json:"proxy_host"`
 		ProxyPort              *int                  `json:"proxy_port"`
@@ -237,9 +236,6 @@ func updateConfig(c *gin.Context) {
 			respondLocalizedError(c, http.StatusBadRequest, "初始页面模式无效", "Invalid initial page mode")
 			return
 		}
-	}
-	if req.ShowTopBarTooltips != nil {
-		entries["show_top_bar_button_tooltips"] = strconv.FormatBool(*req.ShowTopBarTooltips)
 	}
 	if req.AllowLANAccess != nil {
 		entries["allow_lan_access"] = strconv.FormatBool(*req.AllowLANAccess)

@@ -11,7 +11,6 @@ import NumbersRoundedIcon from '@mui/icons-material/NumbersRounded'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
-import { Tooltip } from '@mui/material'
 import { fetchJavPrefixes } from '@/api'
 import JavPrefixModal from '@/components/JavPrefixModal'
 import { getErrorMessage } from '@/utils/errors'
@@ -28,19 +27,17 @@ const tabs = [
 
 function RailButton({ active = false, disabled = false, icon: Icon, label, onClick }) {
   return (
-    <Tooltip title={label} placement="right" arrow>
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={onClick}
-        aria-label={label}
-        aria-current={active ? 'page' : undefined}
-        className={`side-tabs__button ${active ? 'side-tabs__button--active' : ''}`}
-      >
-        <Icon className="side-tabs__icon" fontSize="small" />
-        <span className="side-tabs__label">{label}</span>
-      </button>
-    </Tooltip>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+      className={`side-tabs__button ${active ? 'side-tabs__button--active' : ''}`}
+    >
+      <Icon className="side-tabs__icon" fontSize="small" />
+      <span className="side-tabs__label">{label}</span>
+    </button>
   )
 }
 
@@ -199,37 +196,31 @@ export default function SideTabs({
           onClick={isJavMode ? onOpenJavSettings : onOpenVideoSettings}
         />
         <div ref={directoryMenuRef} className="relative">
-          <Tooltip
-            title={zh(`启用目录：${directorySummary}`, `Directories: ${directorySummary}`)}
-            placement="right"
-            arrow
+          <button
+            type="button"
+            onClick={() => setDirectoryMenuOpen((open) => !open)}
+            className={`side-tabs__button w-full ${
+              showDirectorySetupHint ? 'side-tabs__button--warning' : ''
+            }`}
+            aria-label={zh('选择启用目录', 'Choose enabled directories')}
+            aria-haspopup="menu"
+            aria-expanded={directoryMenuOpen}
           >
-            <button
-              type="button"
-              onClick={() => setDirectoryMenuOpen((open) => !open)}
-              className={`side-tabs__button w-full ${
-                showDirectorySetupHint ? 'side-tabs__button--warning' : ''
-              }`}
-              aria-label={zh('选择启用目录', 'Choose enabled directories')}
-              aria-haspopup="menu"
-              aria-expanded={directoryMenuOpen}
-            >
-              <FolderOpenOutlinedIcon className="side-tabs__icon" fontSize="small" />
-              <span className="side-tabs__label">{zh('目录', 'Folders')}</span>
-              {enabledDirectoryCount !== activeDirectories.length ? (
-                <span className="side-tabs__directory-count">
-                  {enabledDirectoryCount}/{activeDirectories.length}
-                </span>
-              ) : null}
-            </button>
-          </Tooltip>
+            <FolderOpenOutlinedIcon className="side-tabs__icon" fontSize="small" />
+            <span className="side-tabs__label">{zh('目录', 'Folders')}</span>
+            {enabledDirectoryCount !== activeDirectories.length ? (
+              <span className="side-tabs__directory-count">
+                {enabledDirectoryCount}/{activeDirectories.length}
+              </span>
+            ) : null}
+          </button>
 
           {directoryMenuOpen ? (
             <div role="menu" className="filter-menu side-tabs__directory-menu">
               <div className="filter-menu__header">
                 <div>
                   <div className="text-sm font-semibold text-slate-800">
-                    {zh('数据目录', 'Data directories')}
+                    {zh('启用目录', 'Enabled directories')}
                   </div>
                   <div className="text-xs text-slate-500">{directorySummary}</div>
                 </div>

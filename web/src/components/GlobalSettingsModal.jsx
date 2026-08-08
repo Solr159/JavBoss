@@ -80,8 +80,6 @@ export default function GlobalSettingsModal({
   onSaveDefaultPlayer,
   initialViewMode,
   onSaveInitialViewMode,
-  showTopBarButtonTooltips = true,
-  onSaveShowTopBarButtonTooltips,
   playerWindowWidth,
   playerWindowHeight,
   playerOntop,
@@ -111,9 +109,6 @@ export default function GlobalSettingsModal({
   const [initialViewModeInput, setInitialViewModeInput] = useState('video')
   const [initialViewModeError, setInitialViewModeError] = useState('')
   const [savingInitialViewMode, setSavingInitialViewMode] = useState(false)
-  const [showTopBarButtonTooltipsInput, setShowTopBarButtonTooltipsInput] = useState(true)
-  const [showTopBarButtonTooltipsError, setShowTopBarButtonTooltipsError] = useState('')
-  const [savingShowTopBarButtonTooltips, setSavingShowTopBarButtonTooltips] = useState(false)
   const [playerTab, setPlayerTab] = useState('basic')
   const [playerBasicError, setPlayerBasicError] = useState('')
   const [playerBasicSuccess, setPlayerBasicSuccess] = useState('')
@@ -186,8 +181,6 @@ export default function GlobalSettingsModal({
       setDefaultPlayerError('')
       setInitialViewModeInput(initialViewMode === 'jav' ? 'jav' : 'video')
       setInitialViewModeError('')
-      setShowTopBarButtonTooltipsInput(showTopBarButtonTooltips !== false)
-      setShowTopBarButtonTooltipsError('')
       setPlayerWindowWidthInput(String(playerWindowWidth ?? PLAYER_BASIC_DEFAULTS.windowWidth))
       setPlayerWindowHeightInput(String(playerWindowHeight ?? PLAYER_BASIC_DEFAULTS.windowHeight))
       setPlayerOntopInput(playerOntop ?? PLAYER_BASIC_DEFAULTS.ontop)
@@ -209,7 +202,6 @@ export default function GlobalSettingsModal({
     allowLANAccess,
     defaultPlayer,
     initialViewMode,
-    showTopBarButtonTooltips,
     playerWindowWidth,
     playerWindowHeight,
     playerOntop,
@@ -342,18 +334,6 @@ export default function GlobalSettingsModal({
       setInitialViewModeError(getErrorMessage(err))
     } finally {
       setSavingInitialViewMode(false)
-    }
-  }
-
-  const handleSaveShowTopBarButtonTooltips = async () => {
-    setShowTopBarButtonTooltipsError('')
-    setSavingShowTopBarButtonTooltips(true)
-    try {
-      await onSaveShowTopBarButtonTooltips?.(showTopBarButtonTooltipsInput)
-    } catch (err) {
-      setShowTopBarButtonTooltipsError(getErrorMessage(err))
-    } finally {
-      setSavingShowTopBarButtonTooltips(false)
     }
   }
 
@@ -615,7 +595,6 @@ export default function GlobalSettingsModal({
   )
 
   const renderDisplayPanel = () => {
-    const unchanged = showTopBarButtonTooltipsInput === (showTopBarButtonTooltips !== false)
     const currentInitialViewMode = initialViewMode === 'jav' ? 'jav' : 'video'
     const initialViewModeUnchanged = initialViewModeInput === currentInitialViewMode
 
@@ -664,41 +643,6 @@ export default function GlobalSettingsModal({
                 className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
               >
                 {savingInitialViewMode ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
-            </div>
-          </div>
-        </section>
-        <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <div className="space-y-4">
-            <label className="flex items-start gap-3 text-sm font-semibold text-zinc-800">
-              <input
-                type="checkbox"
-                checked={showTopBarButtonTooltipsInput}
-                onChange={(event) => {
-                  setShowTopBarButtonTooltipsInput(event.target.checked)
-                  setShowTopBarButtonTooltipsError('')
-                }}
-                className="mt-0.5 h-4 w-4 rounded"
-              />
-              <span>
-                {zh(
-                  '鼠标移动到顶部控制栏按钮时显示对应说明',
-                  'Show descriptions when hovering over top control bar buttons'
-                )}
-              </span>
-            </label>
-            {showTopBarButtonTooltipsError && (
-              <div className="text-sm text-red-600">{showTopBarButtonTooltipsError}</div>
-            )}
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSaveShowTopBarButtonTooltips}
-                disabled={savingShowTopBarButtonTooltips || unchanged}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingShowTopBarButtonTooltips ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
               </button>
             </div>
           </div>

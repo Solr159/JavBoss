@@ -389,7 +389,6 @@ export default function App() {
     ? 'browser'
     : normalizeDefaultPlayer(config?.default_player)
   const initialViewMode = normalizeInitialViewMode(config?.initial_view_mode)
-  const showTopBarButtonTooltips = configFlag(config?.show_top_bar_button_tooltips, true)
   const alternatePlayer = browserPlaybackOnly
     ? ''
     : defaultPlayer === 'system'
@@ -4052,11 +4051,6 @@ export default function App() {
         initialViewMode={initialViewMode}
         onSaveInitialViewMode={async (mode) => {
           const cfg = await updateConfig({ initial_view_mode: normalizeInitialViewMode(mode) })
-          useStore.setState({ config: cfg })
-        }}
-        showTopBarButtonTooltips={showTopBarButtonTooltips}
-        onSaveShowTopBarButtonTooltips={async (enabled) => {
-          const cfg = await updateConfig({ show_top_bar_button_tooltips: Boolean(enabled) })
           useStore.setState({ config: cfg })
         }}
         playerWindowWidth={
