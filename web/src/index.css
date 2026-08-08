@@ -220,15 +220,16 @@ body.has-page-scroll .sticky-pagination {
 
 .filter-topbar__brand {
   display: flex;
-  width: var(--side-tabs-width);
+  width: calc(var(--side-tabs-width) + 16px);
   flex-shrink: 0;
   align-items: center;
   justify-content: flex-start;
-  padding-left: 12px;
+  padding-left: 14px;
   color: #0f172a;
-  font-size: 1.125rem;
+  font-size: 1.1875rem;
   font-weight: 800;
-  letter-spacing: -0.045em;
+  letter-spacing: -0.025em;
+  line-height: 1;
 }
 
 .filter-topbar__brand:hover {
@@ -277,6 +278,7 @@ body.has-page-scroll .sticky-pagination {
   display: flex;
   width: clamp(8.5rem, 9.5vw, 10.5rem);
   height: 36px;
+  margin-left: -8px;
   flex-shrink: 0;
   align-items: center;
   gap: 7px;
