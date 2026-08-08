@@ -492,7 +492,7 @@ export default function JavQueryEditorModal({
             {zh('编辑 JAV 查询条件', 'Edit JAV Filters')}
           </h2>
           <div
-            className={`ml-auto min-w-0 rounded-lg border px-3 py-1.5 text-xs ${
+            className={`ml-auto min-w-0 rounded-lg border px-3.5 py-2 text-[13px] ${
               filterOptionsError
                 ? 'border-rose-200 bg-rose-50 text-rose-700'
                 : 'border-blue-100 bg-blue-50 text-blue-700'
@@ -504,8 +504,8 @@ export default function JavQueryEditorModal({
                 : filterOptionsLoading
                   ? zh('正在更新可添加条件…', 'Updating available filters…')
                   : zh(
-                      `当前条件匹配 ${filterOptions.total} 部，候选数字表示添加后剩余的作品数。`,
-                      `${filterOptions.total} works match. Candidate counts show the remaining works after adding a filter.`
+                      `当前条件匹配 ${filterOptions.total} 部，选项右侧数字表示添加该选项后剩余作品数。`,
+                      `${filterOptions.total} works match. The number to the right of an option shows how many works remain after adding it.`
                     )}
             </div>
           </div>
