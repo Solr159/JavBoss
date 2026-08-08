@@ -689,7 +689,7 @@ export default function JavDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-[40] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-[2px] sm:p-6"
+      className="fixed inset-0 z-[1300] flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-[2px] sm:p-6"
       role="presentation"
     >
       <button
