@@ -182,6 +182,8 @@ docker compose up -d
 
 ## 部分截图
 
+**软件功能迭代比较快，更新可能不及时，以最新实物为准**
+
 <p align="center">
   <img src="screenshot/jav_work_1.png" width="49%">
   <img src="screenshot/jav_idol_1.png" width="49%">
