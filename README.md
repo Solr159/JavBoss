@@ -9,10 +9,6 @@
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
-<p align="center">
-  <a href="./README.md">中文</a> | <a href="./README.en.md">English</a>
-</p>
-
 <p>
   <img alt="Telegram" src="https://cdn.simpleicons.org/telegram/26A5E4" width="18" height="18" align="absmiddle">
   <a href="https://t.me/+4dje8gAi2dI2ZTE1">Telegram交流群</a>
