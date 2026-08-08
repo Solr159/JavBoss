@@ -532,7 +532,7 @@ export default function JavQueryEditorModal({
                 className="h-4 w-4 rounded border-slate-300 text-blue-600"
               />
               <span className="min-w-0 flex-1">{zh('只看单体作品', 'Solo works only')}</span>
-              {!selectedSoloOnly && Number(filterOptions.solo_count) > 0 ? (
+              {!selectedSoloOnly ? (
                 <span className="shrink-0 text-xs text-slate-400">
                   {zh(`${filterOptions.solo_count} 部`, `${filterOptions.solo_count} works`)}
                 </span>
