@@ -2543,9 +2543,9 @@ export default function App() {
     setJavSettingsOpen(false)
     setGlobalSettingsOpen(false)
     if (isJavMode) {
-      useStore.setState({
+      const updates = {
         viewMode: 'jav',
-        javTab: 'list',
+        javTab,
         videoTempSort: '',
         javTempSort: '',
         idolTempSort: '',
@@ -2562,16 +2562,19 @@ export default function App() {
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
-        javFavoriteGroupId: null,
-        idolFavoriteGroupId: null,
         javSearchTerm: '',
         javPage: 1,
         idolPage: 1,
         studioPage: 1,
         seriesPage: 1,
-      })
+      }
+      if (javTab === 'idol') updates.idolFavoriteGroupId = null
+      else if (javTab === 'studio') updates.studioFavoriteGroupId = null
+      else if (javTab === 'series') updates.seriesFavoriteGroupId = null
+      else updates.javFavoriteGroupId = null
+      useStore.setState(updates)
       setJavSearchInput('')
-      forceReloadJavByTab('list')
+      forceReloadJavByTab(javTab)
     } else {
       useStore.setState({
         viewMode: 'video',
