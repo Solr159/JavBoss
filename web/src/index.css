@@ -70,9 +70,13 @@ body.has-page-scroll .sticky-pagination {
   width: var(--side-tabs-width);
   flex-direction: column;
   align-items: stretch;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   border-right: 1px solid #dbe2ea;
   background: linear-gradient(180deg, #f8fafc 0%, #fff 46%, #f8fafc 100%);
   box-shadow: 4px 0 12px -11px rgba(15, 23, 42, 0.32);
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
 }
 
 .side-tabs__history {
@@ -190,10 +194,11 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .filter-menu.side-tabs__directory-menu {
+  position: fixed;
   top: auto;
   right: auto;
-  bottom: 0;
-  left: calc(100% + 8px);
+  bottom: 10px;
+  left: calc(var(--side-tabs-width) + 8px);
   width: 22rem;
 }
 
