@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
-import BusinessOutlinedIcon from '@mui/icons-material/BusinessOutlined'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import DisplaySettingsOutlinedIcon from '@mui/icons-material/DisplaySettingsOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
@@ -10,6 +9,7 @@ import MovieCreationOutlinedIcon from '@mui/icons-material/MovieCreationOutlined
 import NumbersRoundedIcon from '@mui/icons-material/NumbersRounded'
 import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import { fetchJavPrefixes } from '@/api'
 import JavPrefixModal from '@/components/JavPrefixModal'
@@ -21,11 +21,18 @@ const tabs = [
   { id: 'video', label: zh('视频', 'Video'), icon: VideoLibraryOutlinedIcon },
   { id: 'list', label: zh('作品', 'Works'), icon: MovieCreationOutlinedIcon },
   { id: 'idol', label: zh('女优', 'Idols'), icon: PeopleAltOutlinedIcon },
-  { id: 'studio', label: zh('片商', 'Studios'), icon: BusinessOutlinedIcon },
+  { id: 'studio', label: zh('片商', 'Studios'), icon: VideocamOutlinedIcon },
   { id: 'series', label: zh('系列', 'Series'), icon: CollectionsBookmarkOutlinedIcon },
 ]
 
-function RailButton({ active = false, disabled = false, icon: Icon, label, onClick }) {
+function RailButton({
+  active = false,
+  className = '',
+  disabled = false,
+  icon: Icon,
+  label,
+  onClick,
+}) {
   return (
     <button
       type="button"
@@ -33,7 +40,7 @@ function RailButton({ active = false, disabled = false, icon: Icon, label, onCli
       onClick={onClick}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className={`side-tabs__button ${active ? 'side-tabs__button--active' : ''}`}
+      className={`side-tabs__button ${active ? 'side-tabs__button--active' : ''} ${className}`}
     >
       <Icon className="side-tabs__icon" fontSize="small" />
       <span className="side-tabs__label">{label}</span>
@@ -199,9 +206,7 @@ export default function SideTabs({
           <button
             type="button"
             onClick={() => setDirectoryMenuOpen((open) => !open)}
-            className={`side-tabs__button w-full ${
-              showDirectorySetupHint ? 'side-tabs__button--warning' : ''
-            }`}
+            className="side-tabs__button w-full"
             aria-label={zh('选择启用目录', 'Choose enabled directories')}
             aria-haspopup="menu"
             aria-expanded={directoryMenuOpen}
@@ -247,8 +252,8 @@ export default function SideTabs({
                 {activeDirectories.length === 0 ? (
                   <div className="px-3 py-4 text-sm text-amber-700">
                     {zh(
-                      '还没有添加目录，请在全局设置中添加。',
-                      'No directories. Add one in global settings.'
+                      '还没有添加目录，请在“设置”->“目录管理”中添加。',
+                      'No directories. Add one in Settings > Directory Management.'
                     )}
                   </div>
                 ) : (
@@ -279,11 +284,29 @@ export default function SideTabs({
             </div>
           ) : null}
         </div>
-        <RailButton
-          icon={SettingsOutlinedIcon}
-          label={zh('设置', 'Settings')}
-          onClick={onOpenGlobalSettings}
-        />
+        <div className="relative w-full">
+          {showDirectorySetupHint && !directoryMenuOpen ? (
+            <div className="directory-setup-hint side-tabs__directory-setup-hint" role="status">
+              <ArrowBackRoundedIcon
+                className="directory-setup-hint__arrow shrink-0"
+                fontSize="small"
+                aria-hidden="true"
+              />
+              <span>
+                {zh(
+                  '您还没有添加目录，点击此处在目录管理内添加',
+                  'No directories yet. Click here to add one in Directory Management'
+                )}
+              </span>
+            </div>
+          ) : null}
+          <RailButton
+            className="w-full"
+            icon={SettingsOutlinedIcon}
+            label={zh('设置', 'Settings')}
+            onClick={onOpenGlobalSettings}
+          />
+        </div>
       </div>
       <JavPrefixModal
         open={prefixModalOpen}
