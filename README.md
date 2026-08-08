@@ -7,11 +7,7 @@
   <a href="https://github.com/Solr159/JavBoss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/JavBoss?style=social"></a>
   <a href="https://github.com/Solr159/JavBoss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
-</p>
-
-<p>
-  <img alt="Telegram" src="https://cdn.simpleicons.org/telegram/26A5E4" width="18" height="18" align="absmiddle">
-  <a href="https://t.me/+4dje8gAi2dI2ZTE1">Telegram交流群</a>
+  <a href="https://t.me/+4dje8gAi2dI2ZTE1"><img alt="Telegram Group" src="https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white"></a>
 </p>
 
 
