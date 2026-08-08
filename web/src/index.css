@@ -363,7 +363,7 @@ body.has-page-scroll .sticky-pagination {
 .filter-topbar__filter-cluster {
   display: flex;
   min-width: 0;
-  max-width: min(48vw, 42rem);
+  max-width: min(56vw, 52rem);
   flex: 0 1 auto;
   align-items: center;
   gap: 4px;
