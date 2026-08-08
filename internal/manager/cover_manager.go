@@ -207,7 +207,7 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 	if err != nil {
 		return fmt.Errorf("build cover request: %w", err)
 	}
-	setCoverDownloadHeaders(req)
+	SetCoverDownloadHeaders(req)
 	resp, err := util.DoRequest(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
@@ -274,7 +274,9 @@ func removeCoverFiles(coverDir, code string) {
 	}
 }
 
-func setCoverDownloadHeaders(req *http.Request) {
+// SetCoverDownloadHeaders applies provider-compatible headers to an outbound
+// cover request. It is also used by same-origin image proxy endpoints.
+func SetCoverDownloadHeaders(req *http.Request) {
 	if req == nil || req.URL == nil {
 		return
 	}

@@ -196,6 +196,7 @@ func main() {
 			service.StartJavMetadataScanner(ctx, time.Minute)
 			service.StartSlowJavMetadataScanner(ctx, time.Minute)
 			service.StartIdolProfileScanner(ctx, time.Minute)
+			service.StartJavDiscoveryScanner(ctx, 6*time.Hour)
 		}
 	}()
 

@@ -120,6 +120,7 @@ func TestParseJavBusMovieInfoIncludesSeries(t *testing.T) {
 			<body>
 				<h3>ABC-001 Test Title</h3>
 				<p><span>識別碼:</span><span>ABC-001</span></p>
+				<p><span>製作商:</span><span><a href="/studio/abc">测试厂商</a></span></p>
 				<p><span>系列:</span><span><a href="/series/abc">测试系列</a></span></p>
 			</body>
 		</html>`))
@@ -133,6 +134,9 @@ func TestParseJavBusMovieInfoIncludesSeries(t *testing.T) {
 	}
 	if info.Series != "测试系列" {
 		t.Fatalf("unexpected series: %q", info.Series)
+	}
+	if info.Studio != "测试厂商" {
+		t.Fatalf("unexpected studio: %q", info.Studio)
 	}
 }
 

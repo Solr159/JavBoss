@@ -1,4 +1,5 @@
 import JavIdolView from '@/components/JavIdolView'
+import JavDiscoveryView from '@/components/JavDiscoveryView'
 import JavSeriesView from '@/components/JavSeriesView'
 import JavStudioView from '@/components/JavStudioView'
 import JavView from '@/components/JavView'
@@ -330,6 +331,7 @@ function JavListRoute({
 }
 
 export default function JavRoute({ tab, ...props }) {
+  if (tab === 'discover') return <JavDiscoveryView />
   if (tab === 'idol') return <JavIdolRoute {...props.idol} buildJavUrl={props.buildJavUrl} />
   if (tab === 'studio') return <JavStudioRoute {...props.studio} buildJavUrl={props.buildJavUrl} />
   if (tab === 'series') {
