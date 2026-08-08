@@ -111,6 +111,7 @@ export default function TopBar({
   favoriteGroups = [],
   favoriteGroupsError = null,
   favoriteGroupsLoading = false,
+  favoriteManagerOpen = false,
   favoriteRatingEnabled = false,
   favoriteRatingMin = 0.5,
   favoriteRatingMax = 5,
@@ -191,7 +192,7 @@ export default function TopBar({
   }, [])
 
   useEffect(() => {
-    if (!favoriteMenuOpen) return undefined
+    if (!favoriteMenuOpen || favoriteManagerOpen) return undefined
     const handlePointerDown = (event) => {
       if (favoriteMenuRef.current?.contains(event.target)) return
       setFavoriteMenuOpen(false)
@@ -206,7 +207,7 @@ export default function TopBar({
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [favoriteMenuOpen])
+  }, [favoriteManagerOpen, favoriteMenuOpen])
 
   const activeSearchInput = isJavMode ? javSearchInput : searchInput
   const activeSearchHref = isJavMode ? javSearchHref : searchHref
@@ -354,10 +355,7 @@ export default function TopBar({
                       onFavoriteGroupSelect?.(groupId)
                       setFavoriteMenuOpen(false)
                     }}
-                    onOpenManager={(group) => {
-                      setFavoriteMenuOpen(false)
-                      onOpenFavoriteManager?.(group)
-                    }}
+                    onOpenManager={(group) => onOpenFavoriteManager?.(group)}
                   />
                 ) : null}
               </div>

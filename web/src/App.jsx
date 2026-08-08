@@ -3437,6 +3437,7 @@ export default function App() {
         favoriteGroups={activeFavoriteGroups}
         favoriteGroupsLoading={activeFavoriteGroupsLoading}
         favoriteGroupsError={activeFavoriteGroupsError}
+        favoriteManagerOpen={idolFavoriteManageOpen}
         favoriteRatingEnabled={javFavoriteRatingEnabled}
         favoriteRatingMin={javFavoriteRatingMin}
         favoriteRatingMax={javFavoriteRatingMax}
