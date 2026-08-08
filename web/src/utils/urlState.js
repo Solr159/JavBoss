@@ -238,7 +238,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
     directoryIds,
     video: {
       page: store.randomMode ? 1 : store.page,
-      search: store.randomMode ? '' : (store.searchTerm || '').trim(),
+      search: (store.searchTerm || '').trim(),
       tempSort: store.randomMode ? '' : store.videoTempSort || '',
       tagIds: selectedIds,
       random: store.randomMode,

@@ -1,146 +1,167 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, IconButton, Tooltip } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
-import EditRoundedIcon from '@mui/icons-material/EditRounded'
-import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
-import NumbersRoundedIcon from '@mui/icons-material/NumbersRounded'
-import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
-import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined'
-import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined'
-import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
-import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
-import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
-import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
-import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import TuneOutlinedIcon from '@mui/icons-material/TuneOutlined'
-import { fetchJavPrefixes } from '@/api'
-import JavPrefixModal from '@/components/JavPrefixModal'
-import { displayHostPath } from '@/utils/hostPath'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
+import SearchIcon from '@mui/icons-material/Search'
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
+import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
+import { Button, IconButton, Slider, Tooltip } from '@mui/material'
 import { zh } from '@/utils/i18n'
-import { getErrorMessage } from '@/utils/errors'
 
-function ButtonTooltip({ enabled = true, title, ...props }) {
-  return <Tooltip {...props} title={enabled ? title : ''} />
+function isModifiedClick(event) {
+  return Boolean(
+    event &&
+      (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+  )
+}
+
+function FilterChip({ label, onRemove }) {
+  return (
+    <span className="filter-chip" title={label}>
+      <span className="filter-chip__label">{label}</span>
+      {onRemove ? (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="filter-chip__remove"
+          aria-label={zh(`删除筛选条件 ${label}`, `Remove filter ${label}`)}
+        >
+          <CloseRoundedIcon fontSize="inherit" />
+        </button>
+      ) : null}
+    </span>
+  )
+}
+
+function FavoriteRatingFilter({ enabled, min, max, onEnabledChange, onRangeChange }) {
+  const normalizedMin = Number.isFinite(Number(min)) ? Number(min) : 0.5
+  const normalizedMax = Number.isFinite(Number(max)) ? Number(max) : 5
+  const range = normalizedMin <= normalizedMax ? [normalizedMin, normalizedMax] : [0.5, 5]
+  const formatValue = (value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))
+
+  return (
+    <div className={`favorite-rating-filter ${enabled ? 'favorite-rating-filter--active' : ''}`}>
+      <Tooltip
+        title={
+          enabled
+            ? zh('关闭喜爱度筛选', 'Disable favorite rating filter')
+            : zh('启用喜爱度筛选', 'Enable favorite rating filter')
+        }
+        arrow
+      >
+        <button
+          type="button"
+          className="favorite-rating-filter__toggle"
+          onClick={() => onEnabledChange?.(!enabled)}
+          aria-label={
+            enabled
+              ? zh('关闭喜爱度筛选', 'Disable favorite rating filter')
+              : zh('启用喜爱度筛选', 'Enable favorite rating filter')
+          }
+          aria-pressed={Boolean(enabled)}
+        >
+          {enabled ? (
+            <FavoriteRoundedIcon fontSize="inherit" />
+          ) : (
+            <FavoriteBorderRoundedIcon fontSize="inherit" />
+          )}
+        </button>
+      </Tooltip>
+      <Slider
+        value={range}
+        onChange={(_, value) => {
+          if (Array.isArray(value)) onRangeChange?.(value)
+        }}
+        min={0.5}
+        max={5}
+        step={0.5}
+        disableSwap
+        disabled={!enabled}
+        getAriaLabel={(index) =>
+          index === 0
+            ? zh('最低喜爱度', 'Minimum favorite rating')
+            : zh('最高喜爱度', 'Maximum favorite rating')
+        }
+        sx={{
+          gridColumn: 3,
+          width: '100%',
+          minWidth: 0,
+          alignSelf: 'center',
+          transform: 'translateY(-1px)',
+          p: 0,
+          height: 3,
+          '& .MuiSlider-rail, & .MuiSlider-track': { height: 3 },
+          '& .MuiSlider-thumb': { width: 10, height: 10 },
+          '& .MuiSlider-thumb::after': { width: 16, height: 16 },
+        }}
+      />
+      <span className="favorite-rating-filter__value">
+        {formatValue(range[0])}–{formatValue(range[1])}
+      </span>
+    </div>
+  )
 }
 
 export default function TopBar({
-  onHome,
-  canGoBack,
-  canGoForward,
-  onBrowserBack,
-  onBrowserForward,
-  isJavMode,
-  onToggleMode,
-  videoSearchInput,
-  onVideoSearchInputChange,
-  onSubmitVideoSearch,
-  videoSearchHref,
-  randomHref,
-  onRandomClick,
-  onOpenTagModal,
-  onOpenJavTagModal,
-  onOpenVideoSettings,
-  onOpenJavSettings,
-  onOpenGlobalSettings,
-  javSearchInput,
-  onJavSearchInputChange,
-  onSubmitJavSearch,
-  javSearchHref,
-  javRandomHref,
-  javRandomMode,
-  onJavRandomClick,
-  onJavFilterRandomClick,
-  onCancelJavFilterRandom,
-  showJavFilterRandomButton,
-  isModifiedClick,
-  javTab,
-  javPrefix = '',
-  javPrefixDirectoryIds = [],
-  buildJavPrefixUrl,
-  onJavPrefixClick,
-  onSwitchJavTab,
   favoriteEntityType = 'idol',
   favoriteGroups = [],
-  favoriteGroupsLoading = false,
   favoriteGroupsError = null,
-  selectedFavoriteGroupId = null,
-  idolFavoriteEditorOpen = false,
-  buildIdolFavoriteGroupUrl,
-  onOpenIdolFavoriteGroups,
-  onIdolFavoriteGroupSelect,
-  onOpenIdolFavoriteManager,
-  filterSummary,
-  onOpenJavQueryEditor,
-  showDirectorySetupHint,
-  directories = [],
-  enabledDirectoryIds = [],
-  onEnabledDirectoryIdsChange,
-  hostPathPrefixEnabled = false,
-  selectedCount = 0,
+  favoriteGroupsLoading = false,
+  favoriteRatingEnabled = false,
+  favoriteRatingMin = 0.5,
+  favoriteRatingMax = 5,
+  buildFavoriteGroupUrl,
+  filterItems = [],
+  hasActiveControlFilter = false,
+  isJavMode,
+  javSearchHref,
+  javSearchInput,
+  javTab,
+  onClearFilters,
+  onFavoriteGroupSelect,
+  onFavoriteRatingEnabledChange,
+  onFavoriteRatingRangeChange,
+  onHome,
+  onRandomClick,
+  onOpenFavoriteGroups,
+  onOpenFilterEditor,
+  onOpenFavoriteManager,
+  onSearchInputChange,
+  onSubmitSearch,
   onOpenSelectionOps,
   onClearSelection,
-  showButtonTooltips = true,
+  searchHref,
+  searchInput,
+  selectedCount = 0,
+  selectedFavoriteGroupId = null,
 }) {
   const headerRef = useRef(null)
-  const directoryMenuRef = useRef(null)
-  const idolFavoriteMenuRef = useRef(null)
-  const [directoryMenuOpen, setDirectoryMenuOpen] = useState(false)
-  const [idolFavoriteMenuOpen, setIdolFavoriteMenuOpen] = useState(false)
-  const [prefixModalOpen, setPrefixModalOpen] = useState(false)
-  const [prefixItems, setPrefixItems] = useState([])
-  const [prefixLoading, setPrefixLoading] = useState(false)
-  const [prefixError, setPrefixError] = useState('')
-  const headerClassName = ['sticky top-0 z-40 border-b bg-white/80 backdrop-blur', 'relative']
-    .filter(Boolean)
-    .join(' ')
-  const activeDirectories = useMemo(
-    () =>
-      Array.isArray(directories) ? directories.filter((directory) => !directory?.is_delete) : [],
-    [directories]
-  )
-  const enabledDirectorySet = useMemo(
-    () => new Set((enabledDirectoryIds || []).map((id) => Number(id))),
-    [enabledDirectoryIds]
-  )
-  const activeDirectoryIds = useMemo(
-    () =>
-      activeDirectories
-        .map((directory) => Number(directory.id))
-        .filter((id) => Number.isFinite(id)),
-    [activeDirectories]
-  )
-  const enabledDirectoryCount = activeDirectoryIds.filter((id) =>
-    enabledDirectorySet.has(id)
-  ).length
-  const selectedVideoCount = Number(selectedCount)
-  const hasVideoSelection =
-    !isJavMode && Number.isFinite(selectedVideoCount) && selectedVideoCount > 0
-  const headerBodyClassName = [
-    'flex w-full flex-wrap items-start gap-3 py-2 pl-[6.5rem]',
-    hasVideoSelection ? 'pr-[27rem]' : 'pr-[18rem]',
-  ].join(' ')
-  const idolSelectedFavoriteGroupName = useMemo(() => {
+  const favoriteMenuRef = useRef(null)
+  const [favoriteMenuOpen, setFavoriteMenuOpen] = useState(false)
+
+  const selectedFavoriteGroup = useMemo(() => {
     const selectedId = Number(selectedFavoriteGroupId)
-    if (!Number.isFinite(selectedId) || selectedId <= 0) return ''
-    const group = (favoriteGroups || []).find((item) => Number(item?.id) === selectedId)
-    return String(group?.name || '').trim()
+    if (!Number.isFinite(selectedId) || selectedId <= 0) return null
+    return favoriteGroups.find((group) => Number(group?.id) === selectedId) || null
   }, [favoriteGroups, selectedFavoriteGroupId])
+
   const favoriteLabel = useMemo(() => {
     switch (favoriteEntityType) {
       case 'jav':
-        return zh('作品收藏夹', 'JAV favorites')
+        return zh('作品收藏夹', 'Work favorites')
       case 'studio':
         return zh('片商收藏夹', 'Studio favorites')
       case 'series':
         return zh('系列收藏夹', 'Series favorites')
-      case 'idol':
       default:
         return zh('女优收藏夹', 'Idol favorites')
     }
   }, [favoriteEntityType])
+
   const favoriteAllLabel = useMemo(() => {
     switch (favoriteEntityType) {
       case 'jav':
@@ -149,555 +170,123 @@ export default function TopBar({
         return zh('全部片商', 'All studios')
       case 'series':
         return zh('全部系列', 'All series')
-      case 'idol':
       default:
         return zh('全部女优', 'All idols')
     }
   }, [favoriteEntityType])
-  const directorySummary =
-    activeDirectories.length === 0
-      ? zh('无目录', 'No directories')
-      : enabledDirectoryCount === activeDirectories.length
-        ? zh('全部目录', 'All directories')
-        : enabledDirectoryCount === 0
-          ? zh('未启用目录', 'No directories enabled')
-          : zh(
-              `启用 ${enabledDirectoryCount}/${activeDirectories.length}`,
-              `${enabledDirectoryCount}/${activeDirectories.length} enabled`
-            )
-
-  const updateTopbarOffset = () => {
-    const height = headerRef.current?.getBoundingClientRect().height || 0
-    document.documentElement.style.setProperty('--topbar-height', `${Math.round(height)}px`)
-  }
 
   useEffect(() => {
-    updateTopbarOffset()
-    window.addEventListener('resize', updateTopbarOffset)
-    return () => window.removeEventListener('resize', updateTopbarOffset)
+    const updateHeight = () => {
+      const height = headerRef.current?.getBoundingClientRect().height || 0
+      document.documentElement.style.setProperty('--topbar-height', `${Math.round(height)}px`)
+    }
+    updateHeight()
+    const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(updateHeight) : null
+    if (headerRef.current) observer?.observe(headerRef.current)
+    window.addEventListener('resize', updateHeight)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateHeight)
+    }
   }, [])
 
   useEffect(() => {
-    updateTopbarOffset()
-  }, [isJavMode, javTab, javRandomMode])
-
-  useEffect(() => {
-    if (!prefixModalOpen) return undefined
-    let cancelled = false
-    setPrefixLoading(true)
-    setPrefixError('')
-    fetchJavPrefixes({ directoryIds: javPrefixDirectoryIds })
-      .then((items) => {
-        if (cancelled) return
-        setPrefixItems(Array.isArray(items) ? items : [])
-      })
-      .catch((error) => {
-        if (cancelled) return
-        setPrefixError(getErrorMessage(error))
-      })
-      .finally(() => {
-        if (!cancelled) setPrefixLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [javPrefixDirectoryIds, prefixModalOpen])
-
-  useEffect(() => {
-    if (!directoryMenuOpen) return
-
+    if (!favoriteMenuOpen) return undefined
     const handlePointerDown = (event) => {
-      if (directoryMenuRef.current?.contains(event.target)) return
-      setDirectoryMenuOpen(false)
+      if (favoriteMenuRef.current?.contains(event.target)) return
+      setFavoriteMenuOpen(false)
     }
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setDirectoryMenuOpen(false)
-      }
+      if (event.key !== 'Escape') return
+      setFavoriteMenuOpen(false)
     }
-
     document.addEventListener('mousedown', handlePointerDown)
     document.addEventListener('keydown', handleKeyDown)
     return () => {
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [directoryMenuOpen])
+  }, [favoriteMenuOpen])
 
-  useEffect(() => {
-    if (!idolFavoriteMenuOpen) return
-
-    const handlePointerDown = (event) => {
-      if (idolFavoriteEditorOpen) return
-      if (idolFavoriteMenuRef.current?.contains(event.target)) return
-      setIdolFavoriteMenuOpen(false)
-    }
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setIdolFavoriteMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [idolFavoriteEditorOpen, idolFavoriteMenuOpen])
-
-  const handleSettingsClick = () => {
-    if (isJavMode) {
-      onOpenJavSettings?.()
-    } else {
-      onOpenVideoSettings?.()
-    }
-  }
-
-  const filterLabelPrefix = zh('筛选条件：', 'Filters:')
-
-  const setDirectoryEnabled = (id, checked) => {
-    const next = new Set(enabledDirectorySet)
-    if (checked) {
-      next.add(id)
-    } else {
-      next.delete(id)
-    }
-    onEnabledDirectoryIdsChange?.(Array.from(next))
-  }
-
-  const handleIdolFavoriteMenuToggle = () => {
-    setIdolFavoriteMenuOpen((open) => {
-      const next = !open
-      if (next) onOpenIdolFavoriteGroups?.()
-      return next
-    })
-  }
-
-  const searchForm = isJavMode ? (
-    <form
-      onSubmit={onSubmitJavSearch}
-      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
-    >
-      <input
-        value={javSearchInput}
-        onChange={(e) => onJavSearchInputChange(e.target.value)}
-        placeholder={
-          javTab === 'idol'
-            ? zh('搜索女优名称', 'Search idol name')
-            : javTab === 'studio'
-              ? zh('搜索片商名称', 'Search studio name')
-              : javTab === 'series'
-                ? zh('搜索系列名称', 'Search series name')
-                : zh('搜索番号或标题', 'Search code or title')
-        }
-        className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label={zh('搜索JAV', 'Search JAV')}
-      />
-      <ButtonTooltip enabled={showButtonTooltips} title={zh('搜索JAV', 'Search JAV')} arrow>
-        <Button
-          component="a"
-          href={javSearchHref}
-          aria-label={zh('搜索JAV', 'Search JAV')}
-          variant="contained"
-          size="medium"
-          onClick={(e) => {
-            if (isModifiedClick(e)) return
-            onSubmitJavSearch(e)
-          }}
-          sx={{
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            minWidth: 40,
-            minHeight: '40px',
-            height: '40px',
-            px: 1.25,
-          }}
-        >
-          <SearchIcon fontSize="small" />
-        </Button>
-      </ButtonTooltip>
-    </form>
-  ) : (
-    <form
-      onSubmit={onSubmitVideoSearch}
-      className="flex items-center overflow-hidden rounded-full border border-gray-200 bg-white shadow-sm"
-    >
-      <input
-        value={videoSearchInput}
-        onChange={(e) => onVideoSearchInputChange(e.target.value)}
-        placeholder={zh('搜索文件名', 'Search filename')}
-        className="h-10 w-36 border-0 bg-white px-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label={zh('搜索视频', 'Search videos')}
-      />
-      <ButtonTooltip enabled={showButtonTooltips} title={zh('搜索视频', 'Search videos')} arrow>
-        <Button
-          component="a"
-          href={videoSearchHref}
-          aria-label={zh('搜索视频', 'Search videos')}
-          variant="contained"
-          size="medium"
-          onClick={(e) => {
-            if (isModifiedClick(e)) return
-            onSubmitVideoSearch(e)
-          }}
-          sx={{
-            borderTopLeftRadius: 0,
-            borderBottomLeftRadius: 0,
-            minWidth: 40,
-            minHeight: '40px',
-            height: '40px',
-            px: 1.25,
-          }}
-        >
-          <SearchIcon fontSize="small" />
-        </Button>
-      </ButtonTooltip>
-    </form>
-  )
+  const activeSearchInput = isJavMode ? javSearchInput : searchInput
+  const activeSearchHref = isJavMode ? javSearchHref : searchHref
+  const selectedVideoCount = Number(selectedCount)
+  const hasVideoSelection =
+    !isJavMode && Number.isFinite(selectedVideoCount) && selectedVideoCount > 0
+  const placeholder = isJavMode
+    ? javTab === 'idol'
+      ? zh('搜索女优名称', 'Search idol name')
+      : javTab === 'studio'
+        ? zh('搜索片商名称', 'Search studio name')
+        : javTab === 'series'
+          ? zh('搜索系列名称', 'Search series name')
+          : zh('搜索番号或标题', 'Search code or title')
+    : zh('搜索文件名', 'Search filename')
 
   return (
-    <header ref={headerRef} className={headerClassName}>
-      <div className="absolute left-6 top-1/2 z-10 flex -translate-y-1/2 items-center overflow-hidden rounded border border-gray-200 bg-white shadow-sm">
-        <Button
+    <header ref={headerRef} className="filter-topbar">
+      <div className="filter-topbar__body">
+        <button
           type="button"
-          variant="text"
-          onClick={onBrowserBack}
-          disabled={!canGoBack}
-          title={showButtonTooltips ? zh('浏览器后退', 'Browser back') : undefined}
-          aria-label={zh('浏览器后退', 'Browser back')}
-          sx={{
-            minWidth: 30,
-            width: 30,
-            height: 30,
-            p: 0,
-            borderRadius: 0,
-            color: 'text.secondary',
-          }}
+          onClick={onHome}
+          className="filter-topbar__brand"
+          aria-label={zh('返回当前页面首页', 'Return to current section home')}
         >
-          <ArrowBackRoundedIcon fontSize="small" />
-        </Button>
-        <span className="h-4 w-px bg-gray-200" aria-hidden="true" />
-        <Button
-          type="button"
-          variant="text"
-          onClick={onBrowserForward}
-          disabled={!canGoForward}
-          title={showButtonTooltips ? zh('浏览器前进', 'Browser forward') : undefined}
-          aria-label={zh('浏览器前进', 'Browser forward')}
-          sx={{
-            minWidth: 30,
-            width: 30,
-            height: 30,
-            p: 0,
-            borderRadius: 0,
-            color: 'text.secondary',
-          }}
-        >
-          <ArrowForwardRoundedIcon fontSize="small" />
-        </Button>
-      </div>
-      <div className={headerBodyClassName}>
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <div className="relative flex min-w-0 items-center gap-3">
-            <button
-              type="button"
-              onClick={onHome}
-              className="cursor-pointer select-none rounded text-left text-xl font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          JavBoss
+        </button>
+        <div className="filter-topbar__controls">
+          <form onSubmit={onSubmitSearch} className="filter-search">
+            <input
+              value={activeSearchInput}
+              onChange={(event) => onSearchInputChange?.(event.target.value)}
+              placeholder={placeholder}
+              aria-label={placeholder}
+            />
+            <Button
+              component="a"
+              href={activeSearchHref}
+              type="submit"
+              variant="contained"
+              size="small"
+              onClick={(event) => {
+                if (isModifiedClick(event)) return
+                event.preventDefault()
+                onSubmitSearch?.(event)
+              }}
+              sx={{ minWidth: 34, width: 34, height: 30, p: 0, borderRadius: '8px' }}
+              aria-label={zh('应用搜索', 'Apply search')}
             >
-              JavBoss
-            </button>
-            {searchForm}
-          </div>
+              <SearchIcon sx={{ fontSize: 17 }} />
+            </Button>
+          </form>
 
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <div className="flex flex-wrap items-center gap-2">
-              {isJavMode ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={javTab === 'list' ? 'contained' : 'outlined'}
-                    onClick={() => onSwitchJavTab('list')}
-                  >
-                    {zh('作品', 'JAV')}
-                  </Button>
-                  <Button
-                    variant={javTab === 'idol' ? 'contained' : 'outlined'}
-                    onClick={() => onSwitchJavTab('idol')}
-                  >
-                    {zh('女优', 'Idol')}
-                  </Button>
-                  <Button
-                    variant={javTab === 'studio' ? 'contained' : 'outlined'}
-                    onClick={() => onSwitchJavTab('studio')}
-                  >
-                    {zh('片商', 'Studio')}
-                  </Button>
-                  <Button
-                    variant={javTab === 'series' ? 'contained' : 'outlined'}
-                    onClick={() => onSwitchJavTab('series')}
-                  >
-                    {zh('系列', 'Series')}
-                  </Button>
-                  <ButtonTooltip enabled={showButtonTooltips} title={zh('随机', 'Random')} arrow>
-                    <Button
-                      component="a"
-                      href={javRandomHref}
-                      variant="outlined"
-                      aria-label={zh('随机', 'Random')}
-                      onClick={(e) => {
-                        if (isModifiedClick(e)) return
-                        e.preventDefault()
-                        onJavRandomClick?.()
-                      }}
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        p: 0,
-                      }}
-                    >
-                      <ShuffleOutlinedIcon fontSize="small" />
-                    </Button>
-                  </ButtonTooltip>
-                  <ButtonTooltip
-                    enabled={showButtonTooltips}
-                    title={zh('标签管理', 'Tag management')}
-                    arrow
-                  >
-                    <Button
-                      variant="outlined"
-                      onClick={onOpenJavTagModal}
-                      aria-label={zh('标签管理', 'Tag management')}
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        p: 0,
-                      }}
-                    >
-                      <LocalOfferOutlinedIcon fontSize="small" />
-                    </Button>
-                  </ButtonTooltip>
-                  <ButtonTooltip enabled={showButtonTooltips} title={zh('番号', 'JAV codes')} arrow>
-                    <Button
-                      type="button"
-                      variant="outlined"
-                      onClick={() => setPrefixModalOpen(true)}
-                      aria-label={zh('番号', 'JAV codes')}
-                      sx={{
-                        minWidth: 36,
-                        width: 36,
-                        height: 36,
-                        p: 0,
-                      }}
-                    >
-                      <NumbersRoundedIcon fontSize="small" />
-                    </Button>
-                  </ButtonTooltip>
-                  {isJavMode ? (
-                    <div ref={idolFavoriteMenuRef} className="relative">
-                      <ButtonTooltip enabled={showButtonTooltips} title={favoriteLabel} arrow>
-                        <Button
-                          type="button"
-                          variant="outlined"
-                          onClick={handleIdolFavoriteMenuToggle}
-                          aria-label={favoriteLabel}
-                          aria-haspopup="dialog"
-                          aria-expanded={idolFavoriteMenuOpen}
-                          sx={{
-                            minWidth: 36,
-                            width: idolSelectedFavoriteGroupName ? 'auto' : 36,
-                            maxWidth: 180,
-                            height: 36,
-                            px: idolSelectedFavoriteGroupName ? 1.25 : 0,
-                            py: 0,
-                            gap: 0.75,
-                          }}
-                        >
-                          <BookmarksOutlinedIcon fontSize="small" />
-                          {idolSelectedFavoriteGroupName ? (
-                            <span className="min-w-0 truncate text-sm">
-                              {idolSelectedFavoriteGroupName}
-                            </span>
-                          ) : null}
-                        </Button>
-                      </ButtonTooltip>
-                      {idolFavoriteMenuOpen ? (
-                        <IdolFavoriteGroupMenu
-                          showButtonTooltips={showButtonTooltips}
-                          title={favoriteLabel}
-                          allLabel={favoriteAllLabel}
-                          groups={favoriteGroups}
-                          selectedGroupId={selectedFavoriteGroupId}
-                          loading={favoriteGroupsLoading}
-                          error={favoriteGroupsError}
-                          buildGroupUrl={buildIdolFavoriteGroupUrl}
-                          onSelect={(groupId) => {
-                            onIdolFavoriteGroupSelect?.(groupId)
-                            setIdolFavoriteMenuOpen(false)
-                          }}
-                          onOpenManager={(group) => {
-                            onOpenIdolFavoriteManager?.(group)
-                          }}
-                        />
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      component="a"
-                      href={randomHref}
-                      startIcon={<ShuffleOutlinedIcon fontSize="small" />}
-                      variant="outlined"
-                      onClick={(e) => {
-                        if (isModifiedClick(e)) return
-                        e.preventDefault()
-                        onRandomClick()
-                      }}
-                    >
-                      {zh('随机', 'Random')}
-                    </Button>
-                  </div>
-                  <Button
-                    startIcon={<LocalOfferOutlinedIcon fontSize="small" />}
-                    variant="outlined"
-                    onClick={onOpenTagModal}
-                  >
-                    {zh('标签', 'Tag')}
-                  </Button>
-                </>
-              )}
-
-              {isJavMode ? (
-                <ButtonTooltip
-                  enabled={showButtonTooltips}
-                  title={zh('显示设置', 'Display settings')}
-                  arrow
-                >
-                  <Button
-                    variant="outlined"
-                    onClick={handleSettingsClick}
-                    aria-label={zh('显示设置', 'Display settings')}
-                    sx={{
-                      minWidth: 36,
-                      width: 36,
-                      height: 36,
-                      p: 0,
-                    }}
-                  >
-                    <DisplaySettingsIcon fontSize="small" />
-                  </Button>
-                </ButtonTooltip>
-              ) : (
-                <Button
-                  startIcon={<DisplaySettingsIcon fontSize="small" />}
-                  variant="outlined"
-                  onClick={handleSettingsClick}
-                  aria-label={zh('设置', 'Settings')}
-                >
-                  {zh('设置', 'Settings')}
-                </Button>
-              )}
-            </div>
-
-            {isJavMode && javTab === 'list' ? (
-              <div className="flex min-w-0 flex-1 items-center gap-1">
-                {filterSummary ? (
-                  <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
-                    <span className="min-w-0 truncate whitespace-nowrap text-xs text-gray-500">
-                      {filterLabelPrefix}
-                      <span className="font-semibold text-gray-700">{filterSummary}</span>
-                    </span>
-                  </Tooltip>
-                ) : null}
-                <ButtonTooltip
-                  enabled={showButtonTooltips}
-                  title={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
-                  arrow
-                >
-                  <button
-                    type="button"
-                    onClick={onOpenJavQueryEditor}
-                    className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm text-gray-400 hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    aria-label={zh('编辑 JAV 查询条件', 'Edit JAV filters')}
-                  >
-                    <TuneOutlinedIcon fontSize="inherit" className="text-[16px]" />
-                  </button>
-                </ButtonTooltip>
-                {showJavFilterRandomButton ? (
-                  <span className="inline-flex shrink-0 items-center">
-                    <ButtonTooltip
-                      enabled={showButtonTooltips}
-                      title={zh('基于当前筛选条件随机', 'Random within current filters')}
-                      arrow
-                    >
-                      <button
-                        type="button"
-                        onClick={onJavFilterRandomClick}
-                        className={`inline-flex h-5 w-5 items-center justify-center rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                          javRandomMode
-                            ? 'bg-amber-50 text-amber-600 hover:bg-amber-100'
-                            : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
-                        }`}
-                        aria-label={zh('基于当前筛选条件随机', 'Random within current filters')}
-                      >
-                        <ShuffleOutlinedIcon fontSize="inherit" className="text-[16px]" />
-                      </button>
-                    </ButtonTooltip>
-                    {javRandomMode ? (
-                      <ButtonTooltip
-                        enabled={showButtonTooltips}
-                        title={zh('取消筛选随机', 'Cancel filter random')}
-                        arrow
-                      >
-                        <button
-                          type="button"
-                          onClick={onCancelJavFilterRandom}
-                          className="-ml-0.5 inline-flex h-4 w-4 items-center justify-center rounded-sm text-amber-500 hover:bg-amber-100 hover:text-amber-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                          aria-label={zh('取消筛选随机', 'Cancel filter random')}
-                        >
-                          <CloseRoundedIcon fontSize="inherit" className="text-[14px]" />
-                        </button>
-                      </ButtonTooltip>
-                    ) : null}
-                  </span>
-                ) : null}
-              </div>
-            ) : filterSummary ? (
-              <div className="min-w-0 flex-1">
-                <Tooltip title={`${filterLabelPrefix}${filterSummary}`} arrow>
-                  <span className="inline-block max-w-full truncate whitespace-nowrap text-xs text-gray-500">
-                    {filterLabelPrefix}
-                    <span className="font-semibold text-gray-700">{filterSummary}</span>
-                  </span>
-                </Tooltip>
+          <div className="filter-topbar__filter-cluster">
+            {filterItems.length > 0 ? (
+              <div
+                className="filter-topbar__conditions"
+                aria-label={zh('当前筛选条件', 'Active filters')}
+              >
+                {filterItems.map((item) => (
+                  <FilterChip key={item.key} label={item.label} onRemove={item.onRemove} />
+                ))}
               </div>
             ) : null}
+
+            {onOpenFilterEditor ? (
+              <Tooltip title={zh('添加条件', 'Add filter')} arrow>
+                <button
+                  type="button"
+                  className="filter-add-button"
+                  onClick={onOpenFilterEditor}
+                  aria-label={zh('添加条件', 'Add filter')}
+                >
+                  <AddRoundedIcon fontSize="small" />
+                </button>
+              </Tooltip>
+            ) : null}
           </div>
-        </div>
-        <div className="absolute right-6 top-1/2 z-10 flex flex-shrink-0 -translate-y-1/2 flex-wrap items-center justify-end gap-2">
-          {showDirectorySetupHint ? (
-            <div
-              className="directory-setup-hint flex max-w-full items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm"
-              role="status"
-            >
-              <span className="min-w-0 truncate">
-                {zh(
-                  '您还没有添加目录，点击此处在目录管理内添加',
-                  'No directories yet. Click here to add one in Directory Management'
-                )}
-              </span>
-              <ArrowForwardRoundedIcon
-                className="directory-setup-hint__arrow shrink-0"
-                fontSize="small"
-                aria-hidden="true"
-              />
-            </div>
-          ) : null}
-          <div ref={directoryMenuRef} className="relative inline-flex gap-2">
+
+          <div className="filter-topbar__actions">
             {hasVideoSelection ? (
               <div className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-1.5 py-1">
                 <span className="whitespace-nowrap px-1.5 text-xs font-medium text-sky-700">
@@ -721,167 +310,79 @@ export default function TopBar({
                 </Button>
               </div>
             ) : null}
-            <ButtonTooltip
-              enabled={showButtonTooltips}
-              title={zh('全局设置', 'Global settings')}
-              arrow
-            >
-              <Button
-                variant="outlined"
-                onClick={onOpenGlobalSettings}
-                aria-label={zh('全局设置', 'Global settings')}
-                sx={{
-                  minWidth: 36,
-                  width: 36,
-                  height: 36,
-                  p: 0,
-                }}
-              >
-                <SettingsOutlinedIcon fontSize="small" />
-              </Button>
-            </ButtonTooltip>
-            <ButtonTooltip
-              enabled={showButtonTooltips}
-              title={zh('选择启用目录', 'Choose enabled directories')}
-              arrow
-            >
-              <Button
-                type="button"
-                onClick={() => setDirectoryMenuOpen((open) => !open)}
-                aria-label={zh('选择启用目录', 'Choose enabled directories')}
-                aria-haspopup="menu"
-                aria-expanded={directoryMenuOpen}
-                variant="outlined"
-                sx={{
-                  minWidth: 54,
-                  width: 54,
-                  height: 36,
-                  p: 0,
-                  gap: 0.25,
-                }}
-              >
-                <FolderOpenOutlinedIcon fontSize="small" />
-                <KeyboardArrowDownRoundedIcon
-                  fontSize="small"
-                  className={
-                    directoryMenuOpen ? 'rotate-180 transition-transform' : 'transition-transform'
-                  }
-                />
-              </Button>
-            </ButtonTooltip>
 
-            {directoryMenuOpen ? (
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded border border-gray-200 bg-white text-left shadow-lg"
-              >
-                <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
-                  <div className="min-w-0">
-                    <div className="text-xs font-semibold text-gray-700">
-                      {zh('启用目录', 'Enabled directories')}
-                    </div>
-                    <div className="truncate text-xs text-gray-500">{directorySummary}</div>
-                  </div>
-                  {activeDirectories.length > 0 ? (
-                    <div className="flex shrink-0 items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => onEnabledDirectoryIdsChange?.(activeDirectoryIds)}
-                        className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-                      >
-                        {zh('全选', 'All')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onEnabledDirectoryIdsChange?.([])}
-                        className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-100"
-                      >
-                        {zh('清空', 'None')}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="max-h-[60vh] overflow-y-auto py-1">
-                  {activeDirectories.length === 0 ? (
-                    <div className="px-3 py-3 text-sm text-gray-500">
-                      {zh('还没有添加目录', 'No directories yet')}
-                    </div>
-                  ) : (
-                    activeDirectories.map((directory) => {
-                      const id = Number(directory.id)
-                      const checked = enabledDirectorySet.has(id)
-                      const directoryPath = displayHostPath(directory.path, hostPathPrefixEnabled)
-                      return (
-                        <label
-                          key={directory.id}
-                          className="flex cursor-pointer items-start gap-2 px-3 py-2 text-sm hover:bg-gray-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={(event) => setDirectoryEnabled(id, event.target.checked)}
-                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600"
-                            aria-label={zh(
-                              `启用目录 ${directoryPath}`,
-                              `Enable directory ${directoryPath}`
-                            )}
-                          />
-                          <span className="min-w-0 flex-1 text-gray-700">
-                            <span className="break-all">{directoryPath}</span>
-                            {directory.missing ? (
-                              <span className="ml-2 inline-flex rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                                {zh('目录缺失', 'Missing')}
-                              </span>
-                            ) : null}
-                          </span>
-                        </label>
-                      )
-                    })
-                  )}
-                </div>
+            {isJavMode && javTab === 'list' ? (
+              <FavoriteRatingFilter
+                enabled={favoriteRatingEnabled}
+                min={favoriteRatingMin}
+                max={favoriteRatingMax}
+                onEnabledChange={onFavoriteRatingEnabledChange}
+                onRangeChange={onFavoriteRatingRangeChange}
+              />
+            ) : null}
+
+            {isJavMode ? (
+              <div ref={favoriteMenuRef} className="relative">
+                <Tooltip title={favoriteLabel} arrow>
+                  <button
+                    type="button"
+                    className={`filter-action-button ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
+                    onClick={() => {
+                      setFavoriteMenuOpen((open) => !open)
+                      if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
+                    }}
+                    aria-label={favoriteLabel}
+                    aria-haspopup="dialog"
+                    aria-expanded={favoriteMenuOpen}
+                  >
+                    <BookmarksOutlinedIcon fontSize="small" />
+                    <span className="max-w-28 truncate">
+                      {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
+                    </span>
+                  </button>
+                </Tooltip>
+                {favoriteMenuOpen ? (
+                  <FavoriteGroupMenu
+                    title={favoriteLabel}
+                    allLabel={favoriteAllLabel}
+                    groups={favoriteGroups}
+                    selectedGroupId={selectedFavoriteGroupId}
+                    loading={favoriteGroupsLoading}
+                    error={favoriteGroupsError}
+                    buildGroupUrl={buildFavoriteGroupUrl}
+                    onSelect={(groupId) => {
+                      onFavoriteGroupSelect?.(groupId)
+                      setFavoriteMenuOpen(false)
+                    }}
+                    onOpenManager={(group) => {
+                      setFavoriteMenuOpen(false)
+                      onOpenFavoriteManager?.(group)
+                    }}
+                  />
+                ) : null}
               </div>
             ) : null}
+
+            {onRandomClick ? (
+              <button type="button" className="filter-action-button" onClick={onRandomClick}>
+                <ShuffleOutlinedIcon fontSize="small" />
+                <span>{zh('随机', 'Random')}</span>
+              </button>
+            ) : null}
+
+            {hasActiveControlFilter || filterItems.length > 0 ? (
+              <button type="button" className="filter-clear-button" onClick={onClearFilters}>
+                {zh('清空', 'Clear')}
+              </button>
+            ) : null}
           </div>
-          <ButtonTooltip
-            enabled={showButtonTooltips}
-            title={
-              isJavMode ? zh('切换到视频', 'Switch to Video') : zh('切换到 JAV', 'Switch to JAV')
-            }
-            arrow
-          >
-            <Button
-              variant="contained"
-              color={isJavMode ? 'secondary' : 'primary'}
-              startIcon={<SwapHorizOutlinedIcon fontSize="small" />}
-              onClick={onToggleMode}
-              aria-label={
-                isJavMode ? zh('切换到视频', 'Switch to Video') : zh('切换到 JAV', 'Switch to JAV')
-              }
-            >
-              {isJavMode ? zh('视频', 'Video') : 'JAV'}
-            </Button>
-          </ButtonTooltip>
         </div>
       </div>
-      <JavPrefixModal
-        open={prefixModalOpen}
-        items={prefixItems}
-        loading={prefixLoading}
-        error={prefixError}
-        activePrefix={javPrefix}
-        buildPrefixUrl={buildJavPrefixUrl}
-        onSelectPrefix={(item) => {
-          setPrefixModalOpen(false)
-          onJavPrefixClick?.(item)
-        }}
-        onClose={() => setPrefixModalOpen(false)}
-      />
     </header>
   )
 }
 
-function IdolFavoriteGroupMenu({
-  showButtonTooltips,
+function FavoriteGroupMenu({
   title,
   allLabel,
   groups,
@@ -899,14 +400,14 @@ function IdolFavoriteGroupMenu({
     <div
       role="dialog"
       aria-label={title || zh('女优收藏夹', 'Idol favorites')}
-      className="absolute left-1/2 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
+      className="absolute right-0 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
     >
       <span
-        className="absolute left-1/2 top-0 h-0 w-0 -translate-x-1/2 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200"
+        className="absolute right-4 top-0 h-0 w-0 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200"
         aria-hidden="true"
       />
       <span
-        className="absolute left-1/2 top-px h-0 w-0 -translate-x-1/2 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-gray-50"
+        className="absolute right-[17px] top-px h-0 w-0 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-gray-50"
         aria-hidden="true"
       />
       <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
@@ -920,11 +421,7 @@ function IdolFavoriteGroupMenu({
               : zh(`${list.length} 个收藏夹`, `${list.length} favorites`)}
           </div>
         </div>
-        <ButtonTooltip
-          enabled={showButtonTooltips}
-          title={zh('管理收藏夹', 'Manage favorites')}
-          arrow
-        >
+        <Tooltip title={zh('管理收藏夹', 'Manage favorites')} arrow>
           <IconButton
             type="button"
             size="small"
@@ -934,7 +431,7 @@ function IdolFavoriteGroupMenu({
           >
             <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
           </IconButton>
-        </ButtonTooltip>
+        </Tooltip>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto bg-slate-50/80 p-2">
         {error ? (
@@ -987,15 +484,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
       <a
         href={href || '#'}
         onClick={(event) => {
-          if (
-            event.metaKey ||
-            event.ctrlKey ||
-            event.shiftKey ||
-            event.altKey ||
-            event.button !== 0
-          ) {
-            return
-          }
+          if (isModifiedClick(event)) return
           event.preventDefault()
           onClick?.()
         }}
