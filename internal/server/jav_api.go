@@ -312,6 +312,107 @@ func listJavTags(c *gin.Context) {
 	c.JSON(http.StatusOK, tags)
 }
 
+func organizeJavTags(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 45*time.Second)
+	defer cancel()
+
+	genres, err := jav.FetchJavBusGenreCategories(ctx)
+	if err != nil {
+		logging.Error("fetch javbus tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusBadGateway, "读取 JavBus 标签分类失败，请确认网络或代理可访问 JavBus", "Failed to read JavBus tag categories; check JavBus network or proxy access")
+		return
+	}
+	result, err := dbpkg.OrganizeJavTagCategories(ctx, genres)
+	if err != nil {
+		logging.Error("organize jav tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "整理 JAV 标签分类失败", "Failed to organize JAV tag categories")
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func listJavTagCategories(c *gin.Context) {
+	categories, err := dbpkg.ListJavTagCategories(c.Request.Context())
+	if err != nil {
+		logging.Error("list jav tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 标签分类失败", "Failed to load JAV tag categories")
+		return
+	}
+	if categories == nil {
+		categories = []models.JavTagCategory{}
+	}
+	c.JSON(http.StatusOK, categories)
+}
+
+func createJavTagCategory(c *gin.Context) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签分类请求无效", "Invalid tag category creation request")
+		return
+	}
+	category, err := dbpkg.CreateJavTagCategory(c.Request.Context(), req.Name)
+	if err != nil {
+		logging.Error("create jav tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签分类失败，名称可能为空或已存在", "Failed to create tag category; the name may be empty or already exist")
+		return
+	}
+	c.JSON(http.StatusCreated, category)
+}
+
+func renameJavTagCategory(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "标签分类 ID 无效", "Invalid tag category ID")
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "修改标签分类请求无效", "Invalid tag category update request")
+		return
+	}
+	if err := dbpkg.RenameJavTagCategory(c.Request.Context(), id, req.Name); err != nil {
+		logging.Error("rename jav tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "修改标签分类失败，名称可能为空或已存在", "Failed to rename tag category; the name may be empty or already exist")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func deleteJavTagCategory(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "标签分类 ID 无效", "Invalid tag category ID")
+		return
+	}
+	if err := dbpkg.DeleteJavTagCategory(c.Request.Context(), id); err != nil {
+		logging.Error("delete jav tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "删除标签分类失败", "Failed to delete tag category")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func assignJavTagsCategory(c *gin.Context) {
+	var req struct {
+		TagIDs     []int64 `json:"tag_ids"`
+		CategoryID *int64  `json:"category_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "批量调整标签分类请求无效", "Invalid batch tag category request")
+		return
+	}
+	if err := dbpkg.AssignJavTagsCategory(c.Request.Context(), req.TagIDs, req.CategoryID); err != nil {
+		logging.Error("assign jav tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "批量调整标签分类失败", "Failed to assign tag categories")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 type javItemUpdateRequest struct {
 	Title          *string  `json:"title"`
 	CoverURL       *string  `json:"cover_url"`

@@ -637,6 +637,14 @@ export async function fetchJavTags({ directoryIds = [] } = {}) {
   return res.json()
 }
 
+export async function fetchJavTagCategories() {
+  const res = await apiFetch('/jav/tag-categories')
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 export async function updateJavCover(code, url) {
   const res = await apiFetch(`/jav/${encodeURIComponent(code)}/cover`, {
     method: 'PUT',
@@ -674,6 +682,55 @@ export async function createJavTag(name) {
     throw await apiError(res)
   }
   return res.json()
+}
+
+export async function organizeJavTags() {
+  const res = await apiFetch('/jav/tags/organize', { method: 'POST' })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
+export async function createJavTagCategory(name) {
+  const res = await apiFetch('/jav/tag-categories', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
+export async function renameJavTagCategory(id, name) {
+  const res = await apiFetch(`/jav/tag-categories/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+}
+
+export async function deleteJavTagCategory(id) {
+  const res = await apiFetch(`/jav/tag-categories/${id}`, { method: 'DELETE' })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+}
+
+export async function assignJavTagsCategory(tagIds, categoryId) {
+  const res = await apiFetch('/jav/tags/category', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ tag_ids: tagIds, category_id: categoryId }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
 }
 
 export async function renameJavTag(id, name) {

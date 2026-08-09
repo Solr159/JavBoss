@@ -15,6 +15,12 @@ import {
   lookupVideoJavScrape,
   manualVideoJavScrape,
   createJavTag,
+  organizeJavTags,
+  fetchJavTagCategories,
+  createJavTagCategory,
+  renameJavTagCategory,
+  deleteJavTagCategory,
+  assignJavTagsCategory,
   renameJavTag,
   deleteJavTag,
   resolveJavIdols,
@@ -242,6 +248,7 @@ export default function App() {
   const [javSettingsOpen, setJavSettingsOpen] = useState(false)
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false)
   const [javTagModalOpen, setJavTagModalOpen] = useState(false)
+  const [javTagCategories, setJavTagCategories] = useState([])
   const [javQueryEditorOpen, setJavQueryEditorOpen] = useState(false)
   const [javVideoPickerOpen, setJavVideoPickerOpen] = useState(false)
   const [javVideoPickerItem, setJavVideoPickerItem] = useState(null)
@@ -3170,10 +3177,17 @@ export default function App() {
     [applyJavTagFilter]
   )
 
+  const loadJavTagCategories = useCallback(async () => {
+    const categories = await fetchJavTagCategories()
+    setJavTagCategories(Array.isArray(categories) ? categories : [])
+    return categories
+  }, [])
+
   const handleOpenJavTagModal = useCallback(() => {
     setJavTagModalOpen(true)
     loadJavTags()
-  }, [loadJavTags])
+    loadJavTagCategories().catch(() => setJavTagCategories([]))
+  }, [loadJavTagCategories, loadJavTags])
 
   const handleApplyJavQuery = useCallback(
     (query) => {
@@ -3990,10 +4004,32 @@ export default function App() {
         open={javTagModalOpen}
         onClose={() => setJavTagModalOpen(false)}
         tags={displayJavTagOptions}
+        categories={javTagCategories}
         onApplyTagFilter={applyJavTagFilter}
         onCreateTag={async (name) => {
           await createJavTag(name)
           await loadJavTags()
+        }}
+        onOrganizeTags={async () => {
+          const result = await organizeJavTags()
+          await Promise.all([loadJavTags({ force: true }), loadJavTagCategories()])
+          return result
+        }}
+        onCreateCategory={async (name) => {
+          await createJavTagCategory(name)
+          await loadJavTagCategories()
+        }}
+        onRenameCategory={async (id, name) => {
+          await renameJavTagCategory(id, name)
+          await Promise.all([loadJavTags({ force: true }), loadJavTagCategories()])
+        }}
+        onDeleteCategory={async (id) => {
+          await deleteJavTagCategory(id)
+          await Promise.all([loadJavTags({ force: true }), loadJavTagCategories()])
+        }}
+        onAssignCategory={async (tagIds, categoryId) => {
+          await assignJavTagsCategory(tagIds, categoryId)
+          await Promise.all([loadJavTags({ force: true }), loadJavTagCategories()])
         }}
         onRenameTag={async (id, name) => {
           await renameJavTag(id, name)

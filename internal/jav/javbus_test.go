@@ -80,6 +80,59 @@ func TestParseJavBusCoverURL(t *testing.T) {
 	}
 }
 
+func TestParseJavBusGenreCategories(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+		<html><body>
+			<h4>主題</h4>
+			<div class="row genre-box">
+				<a href="https://www.javbus.com/genre/62">折磨</a>
+				<a href="/genre/59">觸手</a>
+				<a href="/star/not-a-genre">忽略</a>
+			</div>
+			<h4>服裝</h4>
+			<div class="row genre-box">
+				<a href="/genre/4f">制服</a>
+			</div>
+		</body></html>`))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	got := parseJavBusGenreCategories(doc, "/genre/")
+	want := []JavBusGenreCategory{
+		{Name: "折磨", Category: "主题"},
+		{Name: "觸手", Category: "主题"},
+		{Name: "制服", Category: "服装"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("categories length = %d, want %d: %#v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("category %d = %#v, want %#v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestParseJavBusUncensoredGenreCategoriesOnlyUsesRequestedPath(t *testing.T) {
+	doc, err := html.Parse(strings.NewReader(`
+		<html><body>
+			<h4>場景</h4>
+			<div class="genre-box">
+				<a href="/uncensored/genre/abc">室外</a>
+				<a href="/genre/abc">有码标签</a>
+			</div>
+		</body></html>`))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+
+	got := parseJavBusGenreCategories(doc, "/uncensored/genre/")
+	if len(got) != 1 || got[0].Name != "室外" || got[0].Category != "场景" {
+		t.Fatalf("unexpected categories: %#v", got)
+	}
+}
+
 func TestParseJavBusMovieInfoIncludesCoverURL(t *testing.T) {
 	doc, err := html.Parse(strings.NewReader(`
 		<html>

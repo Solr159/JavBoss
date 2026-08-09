@@ -7,6 +7,7 @@ import (
 	"io"
 	"javboss/internal/util"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -21,6 +22,12 @@ import (
 
 // javBus implements lookupProvider.
 type javBus struct{}
+
+// JavBusGenreCategory maps a JavBus genre label to its section on the genre page.
+type JavBusGenreCategory struct {
+	Name     string
+	Category string
+}
 
 var javBusProvider lookupProvider = javBus{}
 
@@ -221,6 +228,106 @@ func fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, 
 		return nil, "", ResourceNotFonud
 	}
 	return doc, url, nil
+}
+
+// FetchJavBusGenreCategories loads the censored and uncensored JavBus genre
+// indexes and returns the category assigned to each label by JavBus.
+func FetchJavBusGenreCategories(ctx context.Context) ([]JavBusGenreCategory, error) {
+	pages := []struct {
+		url        string
+		pathPrefix string
+	}{
+		{url: "https://www.javbus.com/genre", pathPrefix: "/genre/"},
+		{url: "https://www.javbus.com/uncensored/genre", pathPrefix: "/uncensored/genre/"},
+	}
+
+	seen := make(map[string]struct{})
+	genres := make([]JavBusGenreCategory, 0, 256)
+	for _, page := range pages {
+		doc, err := fetchJavBusGenreDocument(ctx, page.url)
+		if err != nil {
+			return nil, err
+		}
+		for _, genre := range parseJavBusGenreCategories(doc, page.pathPrefix) {
+			key := genre.Name + "\x00" + genre.Category
+			if _, ok := seen[key]; ok {
+				continue
+			}
+			seen[key] = struct{}{}
+			genres = append(genres, genre)
+		}
+	}
+	if len(genres) == 0 {
+		return nil, errors.New("javbus: genre pages did not contain any categories")
+	}
+	return genres, nil
+}
+
+func fetchJavBusGenreDocument(ctx context.Context, targetURL string) (*html.Node, error) {
+	req, err := buildRequest(ctx, targetURL)
+	if err != nil {
+		return nil, err
+	}
+	logging.Info("javbus genre request: %s", targetURL)
+	resp, err := doJavBusRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetch javbus genre page: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("javbus genre page returned %s", resp.Status)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read javbus genre page: %w", err)
+	}
+	doc, err := parseHTMLDocument(body)
+	if err != nil {
+		return nil, fmt.Errorf("parse javbus genre page: %w", err)
+	}
+	if resp.Request != nil && resp.Request.URL != nil && strings.Contains(resp.Request.URL.Path, "driver-verify") {
+		return nil, errors.New("javbus requires browser verification before its genre pages can be read")
+	}
+	return doc, nil
+}
+
+func parseJavBusGenreCategories(doc *html.Node, pathPrefix string) []JavBusGenreCategory {
+	if doc == nil {
+		return nil
+	}
+	var genres []JavBusGenreCategory
+	documentSelection(doc).Find(".genre-box").Each(func(_ int, box *goquery.Selection) {
+		category := util.SimplifyChineseName(cleanSelectionText(box.PrevAllFiltered("h4").First()))
+		if category == "" {
+			return
+		}
+		box.Find("a[href]").Each(func(_ int, link *goquery.Selection) {
+			href := selectionAttr(link, "href")
+			if !isJavBusGenreLink(href, pathPrefix) {
+				return
+			}
+			name := strings.TrimSpace(cleanSelectionText(link))
+			if name == "" {
+				return
+			}
+			genres = append(genres, JavBusGenreCategory{Name: name, Category: category})
+		})
+	})
+	return genres
+}
+
+func isJavBusGenreLink(href, pathPrefix string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(href))
+	if err != nil {
+		return false
+	}
+	path := strings.TrimSuffix(parsed.Path, "/")
+	prefix := strings.TrimSuffix(pathPrefix, "/") + "/"
+	if !strings.HasPrefix(path, prefix) {
+		return false
+	}
+	id := strings.TrimPrefix(path, prefix)
+	return id != "" && !strings.Contains(id, "/")
 }
 
 func doJavBusRequest(req *http.Request) (*http.Response, error) {

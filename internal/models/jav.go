@@ -131,13 +131,22 @@ type JavSeries struct {
 }
 
 type JavTag struct {
-	ID             int64     `json:"id" gorm:"primaryKey"`
-	Name           string    `json:"name" gorm:"uniqueIndex:idx_jav_tag_name_user"`
-	SimplifiedName string    `json:"simplified_name,omitempty" gorm:"-"`
-	IsUser         bool      `json:"is_user" gorm:"not null;default:0;uniqueIndex:idx_jav_tag_name_user"`
-	Provider       int       `json:"provider" gorm:"-"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	ID             int64           `json:"id" gorm:"primaryKey"`
+	Name           string          `json:"name" gorm:"uniqueIndex:idx_jav_tag_name_user"`
+	SimplifiedName string          `json:"simplified_name,omitempty" gorm:"-"`
+	IsUser         bool            `json:"is_user" gorm:"not null;default:0;uniqueIndex:idx_jav_tag_name_user"`
+	Provider       int             `json:"provider" gorm:"-"`
+	CreatedAt      time.Time       `json:"created_at"`
+	UpdatedAt      time.Time       `json:"updated_at"`
+	CategoryID     *int64          `json:"category_id,omitempty" gorm:"index"`
+	Category       *JavTagCategory `json:"category,omitempty" gorm:"foreignKey:CategoryID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
+}
+
+type JavTagCategory struct {
+	ID        int64     `json:"id" gorm:"primaryKey"`
+	Name      string    `json:"name" gorm:"not null;uniqueIndex"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type JavIdol struct {

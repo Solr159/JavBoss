@@ -7,6 +7,7 @@ export default function TagBar({
   selectedIds,
   onSelect,
   variant = 'default',
+  tagClassName,
 }) {
   const neumorphic = variant === 'neumorphic'
   return (
@@ -14,13 +15,14 @@ export default function TagBar({
       {tags.map((t) => {
         const checked = selectedIds?.includes(t.id)
         const count = Number.isFinite(t.count) ? t.count : null
+        const extraClassName = tagClassName?.(t) || ''
         if (multiSelect) {
           return (
             <label
               key={`${t.id}-${t.provider || 0}`}
               className={
                 neumorphic
-                  ? `skeuo-tag skeuo-tag--toggle ${checked ? 'skeuo-tag--selected' : ''}`
+                  ? `skeuo-tag skeuo-tag--toggle ${extraClassName} ${checked ? 'skeuo-tag--selected' : ''}`
                   : 'inline-flex items-center gap-2 rounded px-2 py-1 text-sm text-slate-700 transition hover:bg-slate-100'
               }
             >
@@ -55,7 +57,7 @@ export default function TagBar({
             type="button"
             className={
               neumorphic
-                ? 'skeuo-tag skeuo-tag--button'
+                ? `skeuo-tag skeuo-tag--button ${extraClassName}`
                 : 'rounded px-2 py-1 text-sm text-slate-700 transition hover:bg-slate-100'
             }
             onClick={() => onToggle(t.name)}
