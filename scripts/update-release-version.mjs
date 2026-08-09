@@ -54,6 +54,5 @@ await replaceRequired("scripts/install.ps1", [
 ]);
 
 await replaceRequired("README.md", [[releaseUrlPattern, releaseUrlReplacement]]);
-await replaceRequired("README.en.md", [[releaseUrlPattern, releaseUrlReplacement]]);
 
 console.log(`updated release version to ${version}`);

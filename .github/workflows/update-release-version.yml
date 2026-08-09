@@ -52,7 +52,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin "refs/heads/${branch}:refs/remotes/origin/${branch}" || true
           git checkout -b "$branch"
-          git add scripts/install.sh scripts/install.ps1 README.md README.en.md
+          git add scripts/install.sh scripts/install.ps1 README.md
           git commit -m "chore: update release version to ${VERSION_INPUT}"
           git push --force-with-lease origin "$branch"
 
@@ -60,12 +60,12 @@ jobs:
             gh pr edit "$branch" \
               --repo "$GH_REPO" \
               --title "chore: update release version to ${VERSION_INPUT}" \
-              --body "Updates installer scripts and README download links to ${VERSION_INPUT}."
+              --body "Updates installer scripts and the README download links to ${VERSION_INPUT}."
           else
             gh pr create \
               --repo "$GH_REPO" \
               --head "$branch" \
               --base "${GITHUB_REF_NAME}" \
               --title "chore: update release version to ${VERSION_INPUT}" \
-              --body "Updates installer scripts and README download links to ${VERSION_INPUT}."
+              --body "Updates installer scripts and the README download links to ${VERSION_INPUT}."
           fi
