@@ -237,6 +237,7 @@ export default function App() {
   } = useStore()
 
   const [tagModalOpen, setTagModalOpen] = useState(false)
+  const [tagModalApplyMode, setTagModalApplyMode] = useState('replace')
   const [videoSettingsOpen, setVideoSettingsOpen] = useState(false)
   const [javSettingsOpen, setJavSettingsOpen] = useState(false)
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false)
@@ -428,6 +429,12 @@ export default function App() {
   }, [])
   const handleOpenTagModal = useCallback(() => {
     loadTags()
+    setTagModalApplyMode('replace')
+    setTagModalOpen(true)
+  }, [loadTags])
+  const handleOpenTagFilterEditor = useCallback(() => {
+    loadTags()
+    setTagModalApplyMode('append')
     setTagModalOpen(true)
   }, [loadTags])
 
@@ -3481,7 +3488,7 @@ export default function App() {
                   loadJavTags()
                 }
               : null
-            : handleOpenTagModal
+            : handleOpenTagFilterEditor
         }
         onOpenSelectionOps={() => setSelectionOpsOpen(true)}
         onClearSelection={clearSelection}
@@ -3970,6 +3977,10 @@ export default function App() {
           await loadTags()
         }}
         onApplyTagFilter={(names) => {
+          if (tagModalApplyMode === 'append') {
+            setSelectedTags([...selectedTags, ...names])
+            return
+          }
           setSearchTerm('', { resetPage: false, triggerLoad: false })
           setSelectedTags(names)
         }}
