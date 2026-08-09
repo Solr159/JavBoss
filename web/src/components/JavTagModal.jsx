@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, IconButton, MenuItem, TextField } from '@mui/material'
+import { Button, IconButton, TextField } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined'
 import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
@@ -80,6 +80,7 @@ export default function JavTagModal({
   const [categoryBusyId, setCategoryBusyId] = useState(null)
   const [categoryError, setCategoryError] = useState('')
   const [batchCategoryValue, setBatchCategoryValue] = useState('')
+  const [batchNewCategoryName, setBatchNewCategoryName] = useState('')
   const [batchCategoryOpen, setBatchCategoryOpen] = useState(false)
   const [assigningCategory, setAssigningCategory] = useState(false)
 
@@ -115,6 +116,7 @@ export default function JavTagModal({
       setCategoryBusyId(null)
       setCategoryError('')
       setBatchCategoryValue('')
+      setBatchNewCategoryName('')
       setBatchCategoryOpen(false)
       setAssigningCategory(false)
     }
@@ -215,11 +217,20 @@ export default function JavTagModal({
 
   const handleAssignCategory = async () => {
     if (assigningCategory || selectedIds.length === 0 || !batchCategoryValue) return
-    const categoryId = batchCategoryValue === '__uncategorized' ? null : Number(batchCategoryValue)
     setAssigningCategory(true)
     setBatchError('')
     setActionMessage('')
     try {
+      let categoryId = batchCategoryValue === '__uncategorized' ? null : Number(batchCategoryValue)
+      if (batchCategoryValue === '__new') {
+        const name = batchNewCategoryName.trim()
+        if (!name) return
+        const created = await onCreateCategory?.(name)
+        categoryId = Number(created?.id)
+        if (!Number.isFinite(categoryId) || categoryId <= 0) {
+          throw new Error(zh('新建分类失败', 'Failed to create category'))
+        }
+      }
       await onAssignCategory?.(selectedIds, categoryId)
       setActionMessage(
         zh(
@@ -229,6 +240,7 @@ export default function JavTagModal({
       )
       setSelectedTagIds([])
       setBatchCategoryValue('')
+      setBatchNewCategoryName('')
       setBatchCategoryOpen(false)
     } catch (err) {
       setBatchError(getErrorMessage(err))
@@ -482,6 +494,7 @@ export default function JavTagModal({
                 variant="contained"
                 onClick={() => {
                   setBatchCategoryValue('')
+                  setBatchNewCategoryName('')
                   setBatchError('')
                   setBatchCategoryOpen(true)
                 }}
@@ -541,21 +554,79 @@ export default function JavTagModal({
               <CloseOutlinedIcon fontSize="small" />
             </IconButton>
           </div>
-          <TextField
-            select
-            fullWidth
-            size="small"
-            value={batchCategoryValue}
-            onChange={(event) => setBatchCategoryValue(event.target.value)}
-            label={zh('目标分类', 'Target category')}
+          <div
+            role="radiogroup"
+            aria-label={zh('目标分类', 'Target category')}
+            className="max-h-[48vh] space-y-2 overflow-y-auto pr-1"
           >
-            <MenuItem value="__uncategorized">{zh('未分类', 'Uncategorized')}</MenuItem>
-            {categories.map((category) => (
-              <MenuItem key={category.id} value={String(category.id)}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </TextField>
+            <label
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
+                batchCategoryValue === '__uncategorized'
+                  ? 'border-slate-700 bg-slate-50 text-slate-900'
+                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="batch-tag-category"
+                value="__uncategorized"
+                checked={batchCategoryValue === '__uncategorized'}
+                onChange={(event) => setBatchCategoryValue(event.target.value)}
+                className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400"
+              />
+              <span>{zh('未分类', 'Uncategorized')}</span>
+            </label>
+            {categories.map((category) => {
+              const value = String(category.id)
+              const selected = batchCategoryValue === value
+              return (
+                <label
+                  key={category.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
+                    selected
+                      ? 'border-slate-700 bg-slate-50 text-slate-900'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="batch-tag-category"
+                    value={value}
+                    checked={selected}
+                    onChange={(event) => setBatchCategoryValue(event.target.value)}
+                    className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400"
+                  />
+                  <span className="truncate">{category.name}</span>
+                </label>
+              )
+            })}
+            <label
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
+                batchCategoryValue === '__new'
+                  ? 'border-blue-500 bg-blue-50 text-blue-900'
+                  : 'border-dashed border-slate-300 text-slate-600 hover:border-blue-300 hover:bg-blue-50/50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="batch-tag-category"
+                value="__new"
+                checked={batchCategoryValue === '__new'}
+                onChange={(event) => setBatchCategoryValue(event.target.value)}
+                className="h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-400"
+              />
+              <span>{zh('新建分类', 'New category')}</span>
+            </label>
+            {batchCategoryValue === '__new' && (
+              <TextField
+                fullWidth
+                size="small"
+                value={batchNewCategoryName}
+                onChange={(event) => setBatchNewCategoryName(event.target.value)}
+                placeholder={zh('请输入新分类名称', 'Enter a new category name')}
+              />
+            )}
+          </div>
           {batchError && <div className="mt-2 text-sm text-rose-600">{batchError}</div>}
           <div className="mt-5 flex justify-end gap-2">
             <Button
@@ -573,7 +644,11 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="contained"
-              disabled={assigningCategory || !batchCategoryValue}
+              disabled={
+                assigningCategory ||
+                !batchCategoryValue ||
+                (batchCategoryValue === '__new' && !batchNewCategoryName.trim())
+              }
               onClick={handleAssignCategory}
               sx={compactButtonSx}
             >

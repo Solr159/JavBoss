@@ -4016,8 +4016,9 @@ export default function App() {
           return result
         }}
         onCreateCategory={async (name) => {
-          await createJavTagCategory(name)
+          const category = await createJavTagCategory(name)
           await loadJavTagCategories()
+          return category
         }}
         onRenameCategory={async (id, name) => {
           await renameJavTagCategory(id, name)
