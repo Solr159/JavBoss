@@ -172,7 +172,9 @@ export default function VideoTagModal({
               return (
                 <div
                   key={t.id}
-                  className={`skeuo-tag ${interactiveClass} ${editMode ? 'skeuo-tag--edit-mode' : ''}`}
+                  className={`skeuo-tag skeuo-tag--main-button ${interactiveClass} ${
+                    editMode ? 'skeuo-tag--edit-mode' : ''
+                  }`}
                   onMouseEnter={() => {
                     if (editMode) setHoverTagId(t.id)
                   }}

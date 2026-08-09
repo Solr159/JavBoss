@@ -362,7 +362,7 @@ export default function JavTagModal({
           return (
             <div
               key={`${t.id}-${t.provider || 0}`}
-              className={`skeuo-tag ${baseTagClass} ${interactiveTagClass} ${
+              className={`skeuo-tag skeuo-tag--main-button ${baseTagClass} ${interactiveTagClass} ${
                 editMode ? 'skeuo-tag--edit-mode' : ''
               }`}
               onMouseEnter={() => {
