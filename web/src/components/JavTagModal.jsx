@@ -490,12 +490,12 @@ export default function JavTagModal({
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          {!multiSelect && (
+          {!multiSelect && !editMode && (
             <Button
               size="small"
               variant="outlined"
               onClick={handleOrganizeTags}
-              disabled={organizing || editMode}
+              disabled={organizing}
               title={zh(
                 '从 JavBus 读取标签分类进行整理',
                 'Read tag categories from JavBus and organize them'
