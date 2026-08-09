@@ -386,8 +386,8 @@ body.has-page-scroll .sticky-pagination {
 
 .filter-add-button {
   display: inline-flex;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
