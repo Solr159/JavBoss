@@ -81,6 +81,9 @@ export default function JavTagModal({
   const [categoryError, setCategoryError] = useState('')
   const [batchCategoryValue, setBatchCategoryValue] = useState('')
   const [batchNewCategoryName, setBatchNewCategoryName] = useState('')
+  const [batchCreateCategoryOpen, setBatchCreateCategoryOpen] = useState(false)
+  const [batchCreateCategoryError, setBatchCreateCategoryError] = useState('')
+  const [batchCreatingCategory, setBatchCreatingCategory] = useState(false)
   const [batchCategoryOpen, setBatchCategoryOpen] = useState(false)
   const [assigningCategory, setAssigningCategory] = useState(false)
 
@@ -117,6 +120,9 @@ export default function JavTagModal({
       setCategoryError('')
       setBatchCategoryValue('')
       setBatchNewCategoryName('')
+      setBatchCreateCategoryOpen(false)
+      setBatchCreateCategoryError('')
+      setBatchCreatingCategory(false)
       setBatchCategoryOpen(false)
       setAssigningCategory(false)
     }
@@ -142,7 +148,10 @@ export default function JavTagModal({
   }
 
   const handleToggleEditMode = () => {
-    setEditMode((prev) => !prev)
+    const nextEditMode = !editMode
+    setEditMode(nextEditMode)
+    setActionMessage(nextEditMode ? zh('只可编辑我创建的标签', 'Only my tags can be edited') : '')
+    setBatchError('')
     setHoverTagId(null)
   }
 
@@ -221,16 +230,8 @@ export default function JavTagModal({
     setBatchError('')
     setActionMessage('')
     try {
-      let categoryId = batchCategoryValue === '__uncategorized' ? null : Number(batchCategoryValue)
-      if (batchCategoryValue === '__new') {
-        const name = batchNewCategoryName.trim()
-        if (!name) return
-        const created = await onCreateCategory?.(name)
-        categoryId = Number(created?.id)
-        if (!Number.isFinite(categoryId) || categoryId <= 0) {
-          throw new Error(zh('新建分类失败', 'Failed to create category'))
-        }
-      }
+      const categoryId =
+        batchCategoryValue === '__uncategorized' ? null : Number(batchCategoryValue)
       await onAssignCategory?.(selectedIds, categoryId)
       setActionMessage(
         zh(
@@ -420,16 +421,18 @@ export default function JavTagModal({
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="small"
-            variant="contained"
-            startIcon={<AutoFixHighOutlinedIcon fontSize="small" />}
-            onClick={handleOrganizeTags}
-            disabled={organizing || editMode || multiSelect}
-            sx={compactButtonSx}
-          >
-            {organizing ? zh('整理中…', 'Organizing...') : zh('自动整理', 'Auto organize')}
-          </Button>
+          {!multiSelect && (
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<AutoFixHighOutlinedIcon fontSize="small" />}
+              onClick={handleOrganizeTags}
+              disabled={organizing || editMode}
+              sx={compactButtonSx}
+            >
+              {organizing ? zh('整理中…', 'Organizing...') : zh('自动整理', 'Auto organize')}
+            </Button>
+          )}
           {!editMode && !multiSelect && (
             <Button
               size="small"
@@ -600,43 +603,86 @@ export default function JavTagModal({
                 </label>
               )
             })}
-            <label
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
-                batchCategoryValue === '__new'
-                  ? 'border-blue-500 bg-blue-50 text-blue-900'
-                  : 'border-dashed border-slate-300 text-slate-600 hover:border-blue-300 hover:bg-blue-50/50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="batch-tag-category"
-                value="__new"
-                checked={batchCategoryValue === '__new'}
-                onChange={(event) => setBatchCategoryValue(event.target.value)}
-                className="h-4 w-4 border-slate-300 text-blue-600 focus:ring-blue-400"
-              />
-              <span>{zh('新建分类', 'New category')}</span>
-            </label>
-            {batchCategoryValue === '__new' && (
-              <TextField
-                fullWidth
-                size="small"
-                value={batchNewCategoryName}
-                onChange={(event) => setBatchNewCategoryName(event.target.value)}
-                placeholder={zh('请输入新分类名称', 'Enter a new category name')}
-              />
-            )}
           </div>
           {batchError && <div className="mt-2 text-sm text-rose-600">{batchError}</div>}
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-5 flex items-center justify-between gap-2">
             <Button
               size="small"
               variant="outlined"
               disabled={assigningCategory}
               onClick={() => {
-                setBatchCategoryOpen(false)
-                setBatchError('')
+                setBatchNewCategoryName('')
+                setBatchCreateCategoryError('')
+                setBatchCreateCategoryOpen(true)
               }}
+              sx={compactButtonSx}
+            >
+              {zh('新建分类', 'New category')}
+            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="small"
+                variant="outlined"
+                disabled={assigningCategory}
+                onClick={() => {
+                  setBatchCategoryOpen(false)
+                  setBatchError('')
+                }}
+                sx={compactButtonSx}
+              >
+                {zh('取消', 'Cancel')}
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                disabled={assigningCategory || !batchCategoryValue}
+                onClick={handleAssignCategory}
+                sx={compactButtonSx}
+              >
+                {assigningCategory ? zh('调整中…', 'Updating...') : zh('确认调整', 'Confirm')}
+              </Button>
+            </div>
+          </div>
+        </AppModal>
+      )}
+      {batchCreateCategoryOpen && (
+        <AppModal
+          ariaLabel={zh('新建分类', 'New category')}
+          className="px-4"
+          closeDisabled={batchCreatingCategory}
+          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          onClose={() => setBatchCreateCategoryOpen(false)}
+          zIndex={1500}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-base font-semibold text-slate-900">
+              {zh('新建分类', 'New category')}
+            </h3>
+            <IconButton
+              size="small"
+              disabled={batchCreatingCategory}
+              onClick={() => setBatchCreateCategoryOpen(false)}
+              aria-label={zh('关闭新建分类', 'Close new category')}
+            >
+              <CloseOutlinedIcon fontSize="small" />
+            </IconButton>
+          </div>
+          <TextField
+            fullWidth
+            size="small"
+            value={batchNewCategoryName}
+            onChange={(event) => setBatchNewCategoryName(event.target.value)}
+            placeholder={zh('请输入分类名称', 'Enter category name')}
+          />
+          {batchCreateCategoryError && (
+            <div className="mt-2 text-sm text-rose-600">{batchCreateCategoryError}</div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={batchCreatingCategory}
+              onClick={() => setBatchCreateCategoryOpen(false)}
               sx={compactButtonSx}
             >
               {zh('取消', 'Cancel')}
@@ -644,15 +690,30 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="contained"
-              disabled={
-                assigningCategory ||
-                !batchCategoryValue ||
-                (batchCategoryValue === '__new' && !batchNewCategoryName.trim())
-              }
-              onClick={handleAssignCategory}
+              disabled={batchCreatingCategory || !batchNewCategoryName.trim()}
+              onClick={async () => {
+                const name = batchNewCategoryName.trim()
+                if (!name) return
+                setBatchCreatingCategory(true)
+                setBatchCreateCategoryError('')
+                try {
+                  const created = await onCreateCategory?.(name)
+                  const categoryId = Number(created?.id)
+                  if (!Number.isFinite(categoryId) || categoryId <= 0) {
+                    throw new Error(zh('新建分类失败', 'Failed to create category'))
+                  }
+                  setBatchCategoryValue(String(categoryId))
+                  setBatchCreateCategoryOpen(false)
+                  setBatchNewCategoryName('')
+                } catch (err) {
+                  setBatchCreateCategoryError(getErrorMessage(err))
+                } finally {
+                  setBatchCreatingCategory(false)
+                }
+              }}
               sx={compactButtonSx}
             >
-              {assigningCategory ? zh('调整中…', 'Updating...') : zh('确认调整', 'Confirm')}
+              {batchCreatingCategory ? zh('创建中…', 'Creating...') : zh('创建', 'Create')}
             </Button>
           </div>
         </AppModal>
