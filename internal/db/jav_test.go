@@ -1805,6 +1805,47 @@ func TestManageAndAssignJavTagCategories(t *testing.T) {
 	}
 }
 
+func TestDeleteJavTagCategoryPreservesVirtualDefaultPosition(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+
+	categoryA, err := CreateJavTagCategory(ctx, "A")
+	if err != nil {
+		t.Fatalf("create category A: %v", err)
+	}
+	categoryB, err := CreateJavTagCategory(ctx, "B")
+	if err != nil {
+		t.Fatalf("create category B: %v", err)
+	}
+	categoryC, err := CreateJavTagCategory(ctx, "C")
+	if err != nil {
+		t.Fatalf("create category C: %v", err)
+	}
+	if err := ReorderJavTagCategories(ctx, []int64{categoryA.ID, categoryB.ID, 0, categoryC.ID}); err != nil {
+		t.Fatalf("reorder categories: %v", err)
+	}
+
+	if err := DeleteJavTagCategory(ctx, categoryA.ID); err != nil {
+		t.Fatalf("delete category A: %v", err)
+	}
+	var categories []models.JavTagCategory
+	if err := gdb.Order("sort_order, id").Find(&categories).Error; err != nil {
+		t.Fatalf("list categories after delete: %v", err)
+	}
+	if len(categories) != 2 {
+		t.Fatalf("category count after delete = %d, want 2", len(categories))
+	}
+	if categories[0].ID != categoryB.ID || categories[0].SortOrder != 0 {
+		t.Fatalf("category B after delete = %#v, want sort order 0", categories[0])
+	}
+	if categories[1].ID != categoryC.ID || categories[1].SortOrder != 2 {
+		t.Fatalf("category C after delete = %#v, want sort order 2", categories[1])
+	}
+	if got := javTagCategoryOrderWithDefault(categories); !reflect.DeepEqual(got, []int64{categoryB.ID, 0, categoryC.ID}) {
+		t.Fatalf("category order after delete = %v, want [B default C]", got)
+	}
+}
+
 func TestAttachVisibleJavTagsIncludesSimplifiedName(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()

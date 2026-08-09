@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -669,6 +670,23 @@ func DeleteJavTagCategory(ctx context.Context, id int64) error {
 		return errors.New("category id must be positive")
 	}
 	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var categories []models.JavTagCategory
+		if err := tx.Order("sort_order, id").Find(&categories).Error; err != nil {
+			return fmt.Errorf("list jav tag categories for delete: %w", err)
+		}
+		categoryOrder := javTagCategoryOrderWithDefault(categories)
+		found := false
+		nextOrder := make([]int64, 0, len(categoryOrder)-1)
+		for _, categoryID := range categoryOrder {
+			if categoryID == id {
+				found = true
+				continue
+			}
+			nextOrder = append(nextOrder, categoryID)
+		}
+		if !found {
+			return gorm.ErrRecordNotFound
+		}
 		if err := tx.Model(&models.JavTag{}).Where("category_id = ?", id).Update("category_id", nil).Error; err != nil {
 			return fmt.Errorf("clear jav tag category: %w", err)
 		}
@@ -679,8 +697,56 @@ func DeleteJavTagCategory(ctx context.Context, id int64) error {
 		if result.RowsAffected == 0 {
 			return gorm.ErrRecordNotFound
 		}
+		for sortOrder, categoryID := range nextOrder {
+			if categoryID == 0 {
+				continue
+			}
+			if err := tx.Model(&models.JavTagCategory{}).
+				Where("id = ?", categoryID).
+				Update("sort_order", sortOrder).Error; err != nil {
+				return fmt.Errorf("normalize jav tag category %d position after delete: %w", categoryID, err)
+			}
+		}
 		return nil
 	})
+}
+
+func javTagCategoryOrderWithDefault(categories []models.JavTagCategory) []int64 {
+	occupiedSortOrders := make(map[int]struct{}, len(categories))
+	for _, category := range categories {
+		if category.SortOrder >= 0 {
+			occupiedSortOrders[category.SortOrder] = struct{}{}
+		}
+	}
+	defaultSortOrder := 0
+	for {
+		if _, occupied := occupiedSortOrders[defaultSortOrder]; !occupied {
+			break
+		}
+		defaultSortOrder++
+	}
+
+	type orderedCategory struct {
+		id        int64
+		sortOrder int
+	}
+	ordered := make([]orderedCategory, 0, len(categories)+1)
+	for _, category := range categories {
+		ordered = append(ordered, orderedCategory{id: category.ID, sortOrder: category.SortOrder})
+	}
+	ordered = append(ordered, orderedCategory{id: 0, sortOrder: defaultSortOrder})
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].sortOrder != ordered[j].sortOrder {
+			return ordered[i].sortOrder < ordered[j].sortOrder
+		}
+		return ordered[i].id < ordered[j].id
+	})
+
+	ids := make([]int64, 0, len(ordered))
+	for _, category := range ordered {
+		ids = append(ids, category.id)
+	}
+	return ids
 }
 
 // AssignJavTagsCategory moves multiple tags into one category. A nil category
