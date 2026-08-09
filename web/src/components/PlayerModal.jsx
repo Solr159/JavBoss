@@ -258,6 +258,7 @@ export default function PlayerModal({
   return (
     <AppModal
       ariaLabel={displayName || zh('视频播放', 'Video playback')}
+      backdropColor="rgba(0, 0, 0, 0.7)"
       className="px-4"
       contentClassName="relative w-full max-w-6xl rounded-lg bg-white shadow-lg"
       onClose={onClose}
