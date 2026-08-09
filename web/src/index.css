@@ -384,26 +384,6 @@ body.has-page-scroll .sticky-pagination {
   scrollbar-width: thin;
 }
 
-.filter-add-button {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #dbe3ec;
-  border-radius: 8px;
-  background: #fff;
-  color: #64748b;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-.filter-add-button:hover {
-  border-color: #bfdbfe;
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
 .filter-chip {
   display: inline-flex;
   height: 28px;

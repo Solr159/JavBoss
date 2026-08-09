@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
@@ -286,12 +285,12 @@ export default function TopBar({
             {onOpenFilterEditor ? (
               <button
                 type="button"
-                className="filter-add-button"
+                className="filter-clear-button"
                 onClick={onOpenFilterEditor}
-                title={zh('添加筛选条件', 'Add filter')}
-                aria-label={zh('添加筛选条件', 'Add filter')}
+                title={zh('编辑筛选条件', 'Edit filters')}
+                aria-label={zh('编辑筛选条件', 'Edit filters')}
               >
-                <AddRoundedIcon fontSize="small" />
+                {zh('编辑', 'Edit')}
               </button>
             ) : null}
 
