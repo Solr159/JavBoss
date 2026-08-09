@@ -593,25 +593,41 @@ func CreateJavTagCategory(ctx context.Context, name string) (*models.JavTagCateg
 	return &category, nil
 }
 
-// ReorderJavTagCategories saves the complete category order.
+// ReorderJavTagCategories saves the complete category order. ID 0 reserves a
+// sortable position for the virtual default category without storing a row.
 func ReorderJavTagCategories(ctx context.Context, ids []int64) error {
-	cleanIDs := uniqueInt64s(ids)
-	if len(ids) == 0 || len(cleanIDs) != len(ids) {
-		return errors.New("category ids must be unique positive integers")
+	if len(ids) == 0 {
+		return errors.New("category ids are required")
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id < 0 {
+			return errors.New("category ids cannot be negative")
+		}
+		if _, exists := seen[id]; exists {
+			return errors.New("category ids must be unique")
+		}
+		seen[id] = struct{}{}
+	}
+	if _, hasDefaultCategory := seen[0]; !hasDefaultCategory {
+		return errors.New("category order must include the default category")
 	}
 	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var storedIDs []int64
 		if err := tx.Model(&models.JavTagCategory{}).Pluck("id", &storedIDs).Error; err != nil {
 			return fmt.Errorf("list jav tag categories for reorder: %w", err)
 		}
-		if len(storedIDs) != len(cleanIDs) {
+		if len(storedIDs)+1 != len(ids) {
 			return errors.New("category order must include every category")
 		}
 		stored := make(map[int64]struct{}, len(storedIDs))
 		for _, id := range storedIDs {
 			stored[id] = struct{}{}
 		}
-		for sortOrder, id := range cleanIDs {
+		for sortOrder, id := range ids {
+			if id == 0 {
+				continue
+			}
 			if _, exists := stored[id]; !exists {
 				return fmt.Errorf("jav tag category %d not found", id)
 			}

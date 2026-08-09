@@ -37,6 +37,7 @@ const footerButtonSx = {
 }
 
 const categoryEnglishLabels = {
+  默认分类: 'Default',
   主题: 'Theme',
   角色: 'Role',
   服装: 'Clothing',
@@ -47,6 +48,12 @@ const categoryEnglishLabels = {
   场景: 'Scene',
   其他: 'Other',
 }
+
+const DEFAULT_CATEGORY_ID = 0
+const DEFAULT_CATEGORY_VALUE = '__default'
+
+const categoryDisplayName = (category) =>
+  category?.is_default ? zh('默认分类', 'Default') : String(category?.name || '')
 
 export default function JavTagModal({
   open,
@@ -66,7 +73,7 @@ export default function JavTagModal({
 }) {
   const [createOpen, setCreateOpen] = useState(false)
   const [newTagName, setNewTagName] = useState('')
-  const [newTagCategoryValue, setNewTagCategoryValue] = useState('__uncategorized')
+  const [newTagCategoryValue, setNewTagCategoryValue] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [renameOpen, setRenameOpen] = useState(false)
@@ -98,9 +105,40 @@ export default function JavTagModal({
   const [batchCategoryOpen, setBatchCategoryOpen] = useState(false)
   const [assigningCategory, setAssigningCategory] = useState(false)
 
-  useEffect(() => {
-    setLocalCategories(categories)
+  const categoriesWithDefault = useMemo(() => {
+    const storedCategories = [...categories]
+    const occupiedSortOrders = new Set(
+      storedCategories
+        .map((category) => Number(category?.sort_order))
+        .filter((sortOrder) => Number.isInteger(sortOrder) && sortOrder >= 0)
+    )
+    let defaultSortOrder = 0
+    while (occupiedSortOrders.has(defaultSortOrder)) defaultSortOrder += 1
+    return [
+      ...storedCategories,
+      {
+        id: DEFAULT_CATEGORY_ID,
+        name: '默认分类',
+        is_default: true,
+        sort_order: defaultSortOrder,
+      },
+    ].sort((a, b) => {
+      const orderA = Number(a?.sort_order) || 0
+      const orderB = Number(b?.sort_order) || 0
+      if (orderA !== orderB) return orderA - orderB
+      return Number(a?.id) - Number(b?.id)
+    })
   }, [categories])
+
+  useEffect(() => {
+    setLocalCategories(categoriesWithDefault)
+  }, [categoriesWithDefault])
+
+  useEffect(() => {
+    if (createOpen && !newTagCategoryValue) {
+      setNewTagCategoryValue(DEFAULT_CATEGORY_VALUE)
+    }
+  }, [createOpen, newTagCategoryValue])
 
   const handleTagClick = (tagId) => {
     onApplyTagFilter?.([tagId])
@@ -111,7 +149,7 @@ export default function JavTagModal({
     if (!open) {
       setCreateOpen(false)
       setNewTagName('')
-      setNewTagCategoryValue('__uncategorized')
+      setNewTagCategoryValue('')
       setCreating(false)
       setCreateError('')
       setRenameOpen(false)
@@ -188,19 +226,20 @@ export default function JavTagModal({
       groups.get(category).push(tag)
     }
     const categoryOrder = new Map(
-      categories.map((category, index) => [String(category?.name || '').trim(), index])
+      categoriesWithDefault.map((category, index) => [
+        category?.is_default ? '' : String(category?.name || '').trim(),
+        index,
+      ])
     )
     return Array.from(groups.entries())
       .map(([category, groupTags]) => ({ category, tags: groupTags }))
       .sort((a, b) => {
-        if (!a.category) return 1
-        if (!b.category) return -1
         const orderA = categoryOrder.get(a.category) ?? categoryOrder.size
         const orderB = categoryOrder.get(b.category) ?? categoryOrder.size
         if (orderA !== orderB) return orderA - orderB
         return a.category.localeCompare(b.category)
       })
-  }, [categories, displayTags])
+  }, [categoriesWithDefault, displayTags])
 
   const selectedIds = useMemo(() => {
     if (selectedTagIds.length === 0) return []
@@ -212,8 +251,10 @@ export default function JavTagModal({
     const counts = new Map()
     for (const tag of displayTags) {
       const categoryId = Number(tag?.category_id)
-      if (!Number.isFinite(categoryId) || categoryId <= 0) continue
-      counts.set(categoryId, (counts.get(categoryId) || 0) + 1)
+      const countCategoryId =
+        Number.isFinite(categoryId) && categoryId > 0 ? categoryId : DEFAULT_CATEGORY_ID
+      if (!Number.isFinite(countCategoryId) || countCategoryId < 0) continue
+      counts.set(countCategoryId, (counts.get(countCategoryId) || 0) + 1)
     }
     return counts
   }, [displayTags])
@@ -245,7 +286,7 @@ export default function JavTagModal({
     setActionMessage('')
     try {
       const categoryId =
-        batchCategoryValue === '__uncategorized' ? null : Number(batchCategoryValue)
+        batchCategoryValue === DEFAULT_CATEGORY_VALUE ? null : Number(batchCategoryValue)
       await onAssignCategory?.(selectedIds, categoryId)
       setActionMessage(
         zh(
@@ -271,7 +312,7 @@ export default function JavTagModal({
     try {
       await onReorderCategories?.(reordered.map((category) => category.id))
     } catch (err) {
-      setLocalCategories(categories)
+      setLocalCategories(categoriesWithDefault)
       setCategoryError(getErrorMessage(err))
     } finally {
       setCategoryBusyId(null)
@@ -422,12 +463,12 @@ export default function JavTagModal({
         {categoryGroups.length > 0 ? (
           <div className="space-y-6">
             {categoryGroups.map((group) => (
-              <div key={group.category || '__uncategorized'} className="space-y-2">
+              <div key={group.category || DEFAULT_CATEGORY_VALUE} className="space-y-2">
                 <div className="flex items-center gap-2 text-base font-semibold text-slate-800">
                   <span>
                     {group.category
                       ? zh(group.category, categoryEnglishLabels[group.category] || group.category)
-                      : zh('未分类', 'Uncategorized')}
+                      : zh('默认分类', 'Default')}
                   </span>
                   <span className="text-sm font-normal text-slate-400">{group.tags.length}</span>
                 </div>
@@ -484,7 +525,7 @@ export default function JavTagModal({
               onClick={() => {
                 setCreateError('')
                 setNewTagName('')
-                setNewTagCategoryValue('__uncategorized')
+                setNewTagCategoryValue(DEFAULT_CATEGORY_VALUE)
                 setCreateOpen(true)
               }}
               sx={footerButtonSx}
@@ -589,25 +630,8 @@ export default function JavTagModal({
             aria-label={zh('目标分类', 'Target category')}
             className="max-h-[48vh] space-y-2 overflow-y-auto pr-1"
           >
-            <label
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
-                batchCategoryValue === '__uncategorized'
-                  ? 'border-slate-700 bg-slate-50 text-slate-900'
-                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
-              }`}
-            >
-              <input
-                type="radio"
-                name="batch-tag-category"
-                value="__uncategorized"
-                checked={batchCategoryValue === '__uncategorized'}
-                onChange={(event) => setBatchCategoryValue(event.target.value)}
-                className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400"
-              />
-              <span>{zh('未分类', 'Uncategorized')}</span>
-            </label>
-            {categories.map((category) => {
-              const value = String(category.id)
+            {categoriesWithDefault.map((category) => {
+              const value = category.is_default ? DEFAULT_CATEGORY_VALUE : String(category.id)
               const selected = batchCategoryValue === value
               return (
                 <label
@@ -626,7 +650,7 @@ export default function JavTagModal({
                     onChange={(event) => setBatchCategoryValue(event.target.value)}
                     className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400"
                   />
-                  <span className="truncate">{category.name}</span>
+                  <span className="truncate">{categoryDisplayName(category)}</span>
                 </label>
               )
             })}
@@ -807,7 +831,7 @@ export default function JavTagModal({
                 items={localCategories}
                 onReorder={setLocalCategories}
                 onReorderCommit={handleCategoryReorderCommit}
-                getLabel={(category) => category.name}
+                getLabel={categoryDisplayName}
                 getMeta={(category) =>
                   categoryEditingId === category.id
                     ? null
@@ -826,11 +850,12 @@ export default function JavTagModal({
                     />
                   ) : (
                     <div className="truncate text-sm font-medium text-slate-700">
-                      {category.name}
+                      {categoryDisplayName(category)}
                     </div>
                   )
                 }
                 renderActions={(category) => {
+                  if (category.is_default) return null
                   const editing = categoryEditingId === category.id
                   const busy = categoryBusyId === category.id
                   return editing ? (
@@ -891,8 +916,8 @@ export default function JavTagModal({
                           if (
                             !window.confirm(
                               zh(
-                                `确定删除分类“${category.name}”吗？该分类中的标签将变为未分类。`,
-                                `Delete category "${category.name}"? Its tags will become uncategorized.`
+                                `确定删除分类“${category.name}”吗？该分类中的标签将移至默认分类。`,
+                                `Delete category "${category.name}"? Its tags will move to the default category.`
                               )
                             )
                           )
@@ -964,10 +989,12 @@ export default function JavTagModal({
                 },
               }}
             >
-              <MenuItem value="__uncategorized">{zh('未分类', 'Uncategorized')}</MenuItem>
-              {categories.map((category) => (
-                <MenuItem key={category.id} value={String(category.id)}>
-                  {category.name}
+              {categoriesWithDefault.map((category) => (
+                <MenuItem
+                  key={category.id}
+                  value={category.is_default ? DEFAULT_CATEGORY_VALUE : String(category.id)}
+                >
+                  {categoryDisplayName(category)}
                 </MenuItem>
               ))}
             </TextField>
@@ -995,18 +1022,20 @@ export default function JavTagModal({
                 setCreateError('')
                 try {
                   const categoryId =
-                    newTagCategoryValue === '__uncategorized' ? null : Number(newTagCategoryValue)
+                    newTagCategoryValue === DEFAULT_CATEGORY_VALUE
+                      ? null
+                      : Number(newTagCategoryValue)
                   await onCreateTag?.(trimmed, categoryId)
                   setCreateOpen(false)
                   setNewTagName('')
-                  setNewTagCategoryValue('__uncategorized')
+                  setNewTagCategoryValue(DEFAULT_CATEGORY_VALUE)
                 } catch (err) {
                   setCreateError(getErrorMessage(err))
                 } finally {
                   setCreating(false)
                 }
               }}
-              disabled={creating}
+              disabled={creating || !newTagCategoryValue}
               sx={compactButtonSx}
             >
               {creating ? zh('创建中…', 'Creating...') : zh('创建', 'Create')}

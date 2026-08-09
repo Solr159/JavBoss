@@ -1758,8 +1758,11 @@ func TestManageAndAssignJavTagCategories(t *testing.T) {
 	if secondCategory.SortOrder != 1 {
 		t.Fatalf("second category sort order = %d, want 1", secondCategory.SortOrder)
 	}
-	if err := ReorderJavTagCategories(ctx, []int64{secondCategory.ID, category.ID}); err != nil {
+	if err := ReorderJavTagCategories(ctx, []int64{secondCategory.ID, 0, category.ID}); err != nil {
 		t.Fatalf("ReorderJavTagCategories: %v", err)
+	}
+	if err := ReorderJavTagCategories(ctx, []int64{secondCategory.ID, category.ID}); err == nil {
+		t.Fatal("expected reorder without virtual default category to fail")
 	}
 
 	if err := AssignJavTagsCategory(ctx, []int64{tags[0].ID, tags[1].ID}, &category.ID); err != nil {
@@ -1783,7 +1786,7 @@ func TestManageAndAssignJavTagCategories(t *testing.T) {
 	if len(categories) != 2 || categories[0].ID != secondCategory.ID || categories[1].Name != "已修改" {
 		t.Fatalf("unexpected categories: %#v", categories)
 	}
-	if categories[0].SortOrder != 0 || categories[1].SortOrder != 1 {
+	if categories[0].SortOrder != 0 || categories[1].SortOrder != 2 {
 		t.Fatalf("unexpected category sort orders: %#v", categories)
 	}
 
