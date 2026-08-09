@@ -3925,6 +3925,7 @@ export default function App() {
         tags={tags}
         selectedIds={tagPickerSelected}
         onToggleChoice={handleTagPickerToggle}
+        onCreateTag={createTag}
         onClose={handleTagPickerClose}
         onSave={handleApplyTags}
         saveDisabled={!tagPickerDirty}

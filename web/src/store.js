@@ -1235,6 +1235,7 @@ export const useStore = create((set, get) => ({
   createTag: async (name) => {
     const tag = await createTag(name)
     set({ tags: [...get().tags, tag] })
+    return tag
   },
   deleteTag: async (id) => {
     await deleteTag(id)
