@@ -1763,14 +1763,12 @@ export default function App() {
   const searchHref = buildVideoUrl({
     search: searchInput,
     page: 1,
-    random: false,
     tempSort: '',
   })
   const javSearchHref = buildJavUrl({
     search: javSearchInput,
     page: 1,
     tab: javTab,
-    random: false,
     tempSort: '',
   })
   const handleJavRandomClick = useCallback(() => {
@@ -1798,8 +1796,6 @@ export default function App() {
       saveScrollBeforeUrlStateChange()
       useStore.setState({
         videoTempSort: '',
-        randomMode: false,
-        randomSeed: null,
         page: 1,
         ...updates,
       })
@@ -1813,8 +1809,6 @@ export default function App() {
       useStore.setState({
         javTempSort: '',
         idolTempSort: '',
-        javRandomMode: false,
-        javRandomSeed: null,
         javPage: 1,
         ...updates,
       })
@@ -1869,7 +1863,7 @@ export default function App() {
         items.push({
           key: 'video-random',
           label: zh('随机', 'Random'),
-          onRemove: () => updateVideoFilters({}),
+          onRemove: () => updateVideoFilters({ randomMode: false, randomSeed: null }),
         })
       }
       return items
@@ -1968,7 +1962,7 @@ export default function App() {
       items.push({
         key: 'jav-random',
         label: zh('随机', 'Random'),
-        onRemove: () => updateJavFilters({}),
+        onRemove: () => updateJavFilters({ javRandomMode: false, javRandomSeed: null }),
       })
     }
     return items
@@ -2001,7 +1995,12 @@ export default function App() {
   const handleClearActiveFilters = useCallback(() => {
     if (!isJavMode) {
       setSearchInput('')
-      updateVideoFilters({ selectedTags: [], searchTerm: '' })
+      updateVideoFilters({
+        selectedTags: [],
+        searchTerm: '',
+        randomMode: false,
+        randomSeed: null,
+      })
       return
     }
     setJavSearchInput('')
@@ -2019,6 +2018,8 @@ export default function App() {
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
+        javRandomMode: false,
+        javRandomSeed: null,
       })
     } else if (javTab === 'idol') {
       Object.assign(updates, { idolPage: 1 })
@@ -2088,8 +2089,6 @@ export default function App() {
       searchTerm: nextSearch,
       videoTempSort: '',
       page: 1,
-      randomMode: false,
-      randomSeed: null,
     })
   }
 
@@ -2100,8 +2099,6 @@ export default function App() {
       videoTempSort: '',
       javTempSort: '',
       idolTempSort: '',
-      javRandomMode: false,
-      javRandomSeed: null,
       javSearchTerm: (javSearchInput || '').trim(),
       javPage: 1,
       idolPage: 1,
@@ -3216,8 +3213,6 @@ export default function App() {
         javTab: 'list',
         javTempSort: '',
         idolTempSort: '',
-        javRandomMode: false,
-        javRandomSeed: null,
         javSearchTerm: nextSearch,
         javIdolIds: nextIdolIds,
         javTags: nextTags,
