@@ -936,6 +936,23 @@ body.has-page-scroll .sticky-pagination {
   color: #475569;
 }
 
+.jav-tag-modal-list .skeuo-tag {
+  gap: 0.35rem;
+  min-height: 1.85rem;
+  padding: 0.25rem 0.48rem 0.25rem 0.65rem;
+}
+
+.jav-tag-modal-list .skeuo-tag-label {
+  font-size: 0.75rem;
+}
+
+.jav-tag-modal-list .skeuo-tag-count {
+  min-width: 1.3rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  font-size: 0.56rem;
+}
+
 .skeuo-tag-delete {
   display: inline-flex;
   align-items: center;

@@ -380,7 +380,7 @@ export default function JavTagModal({
           {zh('关闭', 'Close')}
         </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+      <div className="jav-tag-modal-list min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full border border-orange-300 bg-orange-50" />
@@ -395,15 +395,13 @@ export default function JavTagModal({
           <div className="space-y-6">
             {categoryGroups.map((group) => (
               <div key={group.category || '__uncategorized'} className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                <div className="flex items-center gap-2 text-base font-semibold text-slate-800">
                   <span>
                     {group.category
                       ? zh(group.category, categoryEnglishLabels[group.category] || group.category)
                       : zh('未分类', 'Uncategorized')}
                   </span>
-                  <span className="font-normal tracking-normal text-slate-300">
-                    {group.tags.length}
-                  </span>
+                  <span className="text-sm font-normal text-slate-400">{group.tags.length}</span>
                 </div>
                 {renderTagGroup(group.tags)}
               </div>
