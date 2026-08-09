@@ -12,7 +12,7 @@ import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
 import { Button, IconButton, Slider } from '@mui/material'
 import { zh } from '@/utils/i18n'
 
-const FAVORITE_MENU_RIGHT_SHIFT = 104
+const FAVORITE_MENU_RIGHT_SHIFT = 32
 
 function isModifiedClick(event) {
   return Boolean(
@@ -314,6 +314,13 @@ export default function TopBar({
               />
             ) : null}
 
+            {onRandomClick ? (
+              <button type="button" className="filter-action-button" onClick={onRandomClick}>
+                <ShuffleOutlinedIcon fontSize="small" />
+                <span>{zh('随机', 'Random')}</span>
+              </button>
+            ) : null}
+
             {isJavMode ? (
               <div ref={favoriteMenuRef} className="relative">
                 <button
@@ -349,13 +356,6 @@ export default function TopBar({
                   />
                 ) : null}
               </div>
-            ) : null}
-
-            {onRandomClick ? (
-              <button type="button" className="filter-action-button" onClick={onRandomClick}>
-                <ShuffleOutlinedIcon fontSize="small" />
-                <span>{zh('随机', 'Random')}</span>
-              </button>
             ) : null}
 
             {hasActiveControlFilter || filterItems.length > 0 ? (
