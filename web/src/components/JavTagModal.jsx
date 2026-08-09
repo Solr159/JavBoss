@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, IconButton, TextField } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined'
-import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined'
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 
 import AppModal from '@/components/AppModal'
 import TagBar from '@/components/TagBar'
@@ -422,8 +417,7 @@ export default function JavTagModal({
           {!multiSelect && (
             <Button
               size="small"
-              variant="contained"
-              startIcon={<AutoFixHighOutlinedIcon fontSize="small" />}
+              variant="outlined"
               onClick={handleOrganizeTags}
               disabled={organizing || editMode}
               sx={compactButtonSx}
@@ -435,7 +429,6 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="outlined"
-              startIcon={<CategoryOutlinedIcon fontSize="small" />}
               onClick={() => {
                 setCategoryError('')
                 setCategoryManageOpen(true)
@@ -449,7 +442,6 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="outlined"
-              startIcon={<AddIcon fontSize="small" />}
               onClick={() => {
                 setCreateError('')
                 setNewTagName('')
@@ -464,7 +456,6 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="outlined"
-              startIcon={editMode ? null : <EditOutlinedIcon fontSize="small" />}
               onClick={handleToggleEditMode}
               sx={compactButtonSx}
             >
@@ -475,7 +466,6 @@ export default function JavTagModal({
             <Button
               size="small"
               variant="outlined"
-              startIcon={multiSelect ? null : <CheckBoxOutlinedIcon fontSize="small" />}
               onClick={() => {
                 setMultiSelect((prev) => !prev)
                 setSelectedTagIds([])
@@ -507,7 +497,6 @@ export default function JavTagModal({
               <Button
                 size="small"
                 variant="outlined"
-                startIcon={<SearchOutlinedIcon fontSize="small" />}
                 onClick={() => {
                   if (selectedIds.length === 0) return
                   onApplyTagFilter(selectedIds)
