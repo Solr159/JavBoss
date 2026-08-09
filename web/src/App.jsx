@@ -1952,6 +1952,18 @@ export default function App() {
         onRemove: () => updateJavFilters({ javSoloOnly: false }),
       })
     }
+    if (javFavoriteRatingEnabled) {
+      const formatRating = (value) => {
+        const rating = Number(value)
+        return Number.isInteger(rating) ? String(rating) : rating.toFixed(1)
+      }
+      const range = `${formatRating(javFavoriteRatingMin)}–${formatRating(javFavoriteRatingMax)}`
+      items.push({
+        key: 'jav-favorite-rating',
+        label: zh(`喜爱度: ${range}`, `Favorite rating: ${range}`),
+        onRemove: () => updateJavFilters({ javFavoriteRatingEnabled: false }),
+      })
+    }
     if (javRandomMode) {
       items.push({
         key: 'jav-random',
@@ -1963,6 +1975,9 @@ export default function App() {
   }, [
     config?.jav_idol_prefer_chinese_name,
     isJavMode,
+    javFavoriteRatingEnabled,
+    javFavoriteRatingMax,
+    javFavoriteRatingMin,
     javIdolIds,
     javIdolOptionMap,
     javPrefix,
