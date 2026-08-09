@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, IconButton, TextField } from '@mui/material'
-import AddIcon from '@mui/icons-material/Add'
-import CheckBoxOutlinedIcon from '@mui/icons-material/CheckBoxOutlined'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
-import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 
 import AppModal from '@/components/AppModal'
 import TagBar from '@/components/TagBar'
@@ -22,6 +18,18 @@ const compactButtonSx = {
     '& svg': {
       fontSize: 16,
     },
+  },
+}
+
+const footerButtonSx = {
+  ...compactButtonSx,
+  color: '#475569',
+  backgroundColor: '#fff',
+  borderColor: '#cbd5e1',
+  '&:hover': {
+    color: '#1e293b',
+    backgroundColor: '#f8fafc',
+    borderColor: '#94a3b8',
   },
 }
 
@@ -115,10 +123,10 @@ export default function VideoTagModal({
   return (
     <AppModal
       ariaLabel={zh('标签管理', 'Tag Management')}
-      contentClassName="mx-4 w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200/70"
+      contentClassName="mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200/70"
       onClose={onClose}
     >
-      <div className="flex items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-6 py-4">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate-900">{zh('标签管理', 'Tag Management')}</h2>
         <Button
           size="small"
@@ -130,177 +138,172 @@ export default function VideoTagModal({
           {zh('关闭', 'Close')}
         </Button>
       </div>
-      <div className="space-y-6 p-6">
-        <section className="space-y-4">
-          <div className="max-h-[65vh] overflow-y-auto pr-1">
-            {multiSelect ? (
-              <TagBar
-                tags={tags}
-                onToggle={handleTagClick}
-                multiSelect={multiSelect}
-                selectedIds={selectedTagIds}
-                variant="neumorphic"
-                onSelect={(id) => {
-                  setSelectedTagIds((prev) => {
-                    const next = new Set(prev)
-                    if (next.has(id)) {
-                      next.delete(id)
-                    } else {
-                      next.add(id)
-                    }
-                    return Array.from(next)
-                  })
-                }}
-              />
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {tags.map((t) => {
-                  const count = Number.isFinite(t.count) ? t.count : null
-                  const showRenameHint = editMode && hoverTagId === t.id
-                  const showDelete = editMode && hoverTagId === t.id
-                  return (
-                    <div
-                      key={t.id}
-                      className={`skeuo-tag ${editMode ? (showRenameHint ? 'skeuo-tag--active' : 'skeuo-tag--editing') : 'skeuo-tag--button'}`}
-                      onMouseEnter={() => {
-                        if (editMode) setHoverTagId(t.id)
-                      }}
-                      onMouseLeave={() => {
-                        if (editMode) setHoverTagId((prev) => (prev === t.id ? null : prev))
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="flex min-w-0 items-center gap-2 text-left"
-                        onClick={() => {
-                          if (editMode) {
-                            handleStartRename(t)
-                            return
-                          }
-                          handleTagClick(t.name)
-                        }}
-                        title={t.name}
-                      >
-                        <span className="skeuo-tag-label">{t.name}</span>
-                        {!editMode && count !== null && (
-                          <span className="skeuo-tag-count">{count}</span>
-                        )}
-                        {showRenameHint && (
-                          <span className="skeuo-tag-hint">
-                            {zh('单击重命名', 'Click to rename')}
-                          </span>
-                        )}
-                      </button>
-                      {showDelete && (
-                        <IconButton
-                          size="small"
-                          type="button"
-                          aria-label={zh('删除标签', 'Delete tag')}
-                          disabled={deletingId === t.id}
-                          className="skeuo-tag-delete"
-                          sx={{
-                            borderRadius: 0,
-                            padding: 0,
-                            width: '1.5rem',
-                            height: '1.5rem',
-                          }}
-                          onClick={async (event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            if (deletingId === t.id) return
-                            if (
-                              !window.confirm(
-                                zh(`确定删除标签“${t.name}”吗？`, `Delete tag "${t.name}"?`)
-                              )
-                            )
-                              return
-                            setDeletingId(t.id)
-                            setBatchError('')
-                            try {
-                              await onDeleteTag?.(t)
-                            } catch (err) {
-                              setBatchError(getErrorMessage(err))
-                            } finally {
-                              setDeletingId(null)
-                            }
-                          }}
-                        >
-                          <CloseOutlinedIcon fontSize="inherit" className="h-3.5 w-3.5" />
-                        </IconButton>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              {!editMode && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={multiSelect ? null : <CheckBoxOutlinedIcon fontSize="small" />}
-                  onClick={() => {
-                    setBatchError('')
-                    setMultiSelect((prev) => !prev)
-                    setSelectedTagIds([])
-                    setEditMode(false)
-                    setHoverTagId(null)
+      <div className="tag-management-modal-list min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        {multiSelect ? (
+          <TagBar
+            tags={tags}
+            onToggle={handleTagClick}
+            multiSelect={multiSelect}
+            selectedIds={selectedTagIds}
+            variant="neumorphic"
+            onSelect={(id) => {
+              setSelectedTagIds((prev) => {
+                const next = new Set(prev)
+                if (next.has(id)) {
+                  next.delete(id)
+                } else {
+                  next.add(id)
+                }
+                return Array.from(next)
+              })
+            }}
+          />
+        ) : tags.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {tags.map((t) => {
+              const count = Number.isFinite(t.count) ? t.count : null
+              const showRenameHint = editMode && hoverTagId === t.id
+              const showDelete = editMode && hoverTagId === t.id
+              const interactiveClass = editMode
+                ? showRenameHint
+                  ? 'skeuo-tag--active'
+                  : 'skeuo-tag--editing'
+                : 'skeuo-tag--button'
+              return (
+                <div
+                  key={t.id}
+                  className={`skeuo-tag ${interactiveClass} ${editMode ? 'skeuo-tag--edit-mode' : ''}`}
+                  onMouseEnter={() => {
+                    if (editMode) setHoverTagId(t.id)
                   }}
-                  sx={compactButtonSx}
+                  onMouseLeave={() => {
+                    if (editMode) setHoverTagId((prev) => (prev === t.id ? null : prev))
+                  }}
                 >
-                  {multiSelect ? zh('退出多选', 'Exit multi-select') : zh('多选', 'Multi-select')}
-                </Button>
-              )}
-              {!multiSelect && (
-                <>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    startIcon={editMode ? null : <EditOutlinedIcon fontSize="small" />}
-                    onClick={handleToggleEditMode}
-                    sx={compactButtonSx}
+                  <button
+                    type="button"
+                    className="skeuo-tag-main flex min-w-0 items-center gap-2 text-left"
+                    onClick={() => {
+                      if (editMode) {
+                        handleStartRename(t)
+                        return
+                      }
+                      handleTagClick(t.name)
+                    }}
+                    title={t.name}
                   >
-                    {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
-                  </Button>
-                  {!editMode && (
-                    <Button
+                    <span className="skeuo-tag-label">{t.name}</span>
+                    {!editMode && count !== null && (
+                      <span className="skeuo-tag-count">{count}</span>
+                    )}
+                    {showRenameHint && (
+                      <span className="skeuo-tag-hint">{zh('单击重命名', 'Click to rename')}</span>
+                    )}
+                  </button>
+                  {showDelete && (
+                    <IconButton
                       size="small"
-                      variant="outlined"
-                      startIcon={<AddIcon fontSize="small" />}
-                      onClick={() => {
-                        setCreateError('')
-                        setNewTagName('')
-                        setCreateOpen(true)
+                      type="button"
+                      aria-label={zh('删除标签', 'Delete tag')}
+                      disabled={deletingId === t.id}
+                      className="skeuo-tag-delete"
+                      sx={{
+                        borderRadius: 0,
+                        padding: 0,
+                        width: '1.5rem',
+                        height: '1.5rem',
                       }}
-                      sx={compactButtonSx}
+                      onClick={async (event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        if (deletingId === t.id) return
+                        if (
+                          !window.confirm(
+                            zh(`确定删除标签“${t.name}”吗？`, `Delete tag "${t.name}"?`)
+                          )
+                        )
+                          return
+                        setDeletingId(t.id)
+                        setBatchError('')
+                        try {
+                          await onDeleteTag?.(t)
+                        } catch (err) {
+                          setBatchError(getErrorMessage(err))
+                        } finally {
+                          setDeletingId(null)
+                        }
+                      }}
                     >
-                      {zh('新增标签', 'New tag')}
-                    </Button>
+                      <CloseOutlinedIcon fontSize="inherit" className="h-3.5 w-3.5" />
+                    </IconButton>
                   )}
-                </>
-              )}
-              {multiSelect && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  startIcon={<SearchOutlinedIcon fontSize="small" />}
-                  onClick={() => {
-                    if (selectedNames.length === 0) return
-                    onApplyTagFilter(selectedNames)
-                    onClose()
-                  }}
-                  disabled={selectedNames.length === 0}
-                  sx={compactButtonSx}
-                >
-                  {zh('查找视频', 'Find videos')}
-                </Button>
-              )}
-            </div>
+                </div>
+              )
+            })}
           </div>
-          {batchError && <div className="text-sm text-rose-600">{batchError}</div>}
-        </section>
+        ) : (
+          <div className="text-sm text-slate-400">{zh('暂无标签', 'No tags')}</div>
+        )}
+      </div>
+      <div className="shrink-0 border-t border-slate-200/70 bg-slate-50/80 px-6 py-4">
+        {batchError && <div className="mb-3 text-sm text-rose-600">{batchError}</div>}
+        <div className="flex flex-wrap items-center gap-2">
+          {!editMode && !multiSelect && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                setCreateError('')
+                setNewTagName('')
+                setCreateOpen(true)
+              }}
+              sx={footerButtonSx}
+            >
+              {zh('新增标签', 'New tag')}
+            </Button>
+          )}
+          {!multiSelect && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleToggleEditMode}
+              sx={footerButtonSx}
+            >
+              {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
+            </Button>
+          )}
+          {!editMode && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                setBatchError('')
+                setMultiSelect((prev) => !prev)
+                setSelectedTagIds([])
+                setEditMode(false)
+                setHoverTagId(null)
+              }}
+              sx={footerButtonSx}
+            >
+              {multiSelect ? zh('退出多选', 'Exit multi-select') : zh('多选', 'Multi-select')}
+            </Button>
+          )}
+          {multiSelect && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                if (selectedNames.length === 0) return
+                onApplyTagFilter(selectedNames)
+                onClose()
+              }}
+              disabled={selectedNames.length === 0}
+              sx={footerButtonSx}
+            >
+              {zh('查找视频', 'Find videos')}
+            </Button>
+          )}
+        </div>
       </div>
       {renameOpen && (
         <AppModal

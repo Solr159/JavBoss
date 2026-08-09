@@ -936,41 +936,41 @@ body.has-page-scroll .sticky-pagination {
   color: #475569;
 }
 
-.jav-tag-modal-list .skeuo-tag {
+.tag-management-modal-list .skeuo-tag {
   gap: 0.35rem;
   min-height: 1.85rem;
   padding: 0.25rem 0.56rem;
 }
 
-.jav-tag-modal-list .skeuo-tag--edit-mode {
+.tag-management-modal-list .skeuo-tag--edit-mode {
   justify-content: center;
 }
 
-.jav-tag-modal-list .skeuo-tag--edit-mode .skeuo-tag-main {
+.tag-management-modal-list .skeuo-tag--edit-mode .skeuo-tag-main {
   min-height: 1.35rem;
   justify-content: center;
   line-height: 1;
   text-align: center;
 }
 
-.jav-tag-modal-list .skeuo-tag--active {
+.tag-management-modal-list .skeuo-tag--active {
   position: relative;
   padding-right: 2.1rem;
   padding-left: 0.56rem;
 }
 
-.jav-tag-modal-list .skeuo-tag--active .skeuo-tag-delete {
+.tag-management-modal-list .skeuo-tag--active .skeuo-tag-delete {
   position: absolute;
   top: 50%;
   right: 0.3rem;
   transform: translateY(-50%);
 }
 
-.jav-tag-modal-list .skeuo-tag-label {
+.tag-management-modal-list .skeuo-tag-label {
   font-size: 0.75rem;
 }
 
-.jav-tag-modal-list .skeuo-tag-count {
+.tag-management-modal-list .skeuo-tag-count {
   min-width: 1.3rem;
   height: 1.05rem;
   padding: 0 0.28rem;
