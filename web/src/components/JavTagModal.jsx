@@ -80,6 +80,7 @@ export default function JavTagModal({
   const [categoryBusyId, setCategoryBusyId] = useState(null)
   const [categoryError, setCategoryError] = useState('')
   const [batchCategoryValue, setBatchCategoryValue] = useState('')
+  const [batchCategoryOpen, setBatchCategoryOpen] = useState(false)
   const [assigningCategory, setAssigningCategory] = useState(false)
 
   const handleTagClick = (tagId) => {
@@ -114,6 +115,7 @@ export default function JavTagModal({
       setCategoryBusyId(null)
       setCategoryError('')
       setBatchCategoryValue('')
+      setBatchCategoryOpen(false)
       setAssigningCategory(false)
     }
   }, [open])
@@ -227,6 +229,7 @@ export default function JavTagModal({
       )
       setSelectedTagIds([])
       setBatchCategoryValue('')
+      setBatchCategoryOpen(false)
     } catch (err) {
       setBatchError(getErrorMessage(err))
     } finally {
@@ -474,29 +477,18 @@ export default function JavTagModal({
           )}
           {multiSelect && (
             <>
-              <TextField
-                select
-                size="small"
-                value={batchCategoryValue}
-                onChange={(event) => setBatchCategoryValue(event.target.value)}
-                label={zh('目标分类', 'Target category')}
-                sx={{ minWidth: 150 }}
-              >
-                <MenuItem value="__uncategorized">{zh('未分类', 'Uncategorized')}</MenuItem>
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={String(category.id)}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </TextField>
               <Button
                 size="small"
                 variant="contained"
-                onClick={handleAssignCategory}
-                disabled={assigningCategory || selectedIds.length === 0 || !batchCategoryValue}
+                onClick={() => {
+                  setBatchCategoryValue('')
+                  setBatchError('')
+                  setBatchCategoryOpen(true)
+                }}
+                disabled={selectedIds.length === 0}
                 sx={compactButtonSx}
               >
-                {assigningCategory ? zh('调整中…', 'Updating...') : zh('调整分类', 'Move tags')}
+                {zh('调整分类', 'Move tags')}
               </Button>
               <Button
                 size="small"
@@ -516,6 +508,80 @@ export default function JavTagModal({
           )}
         </div>
       </div>
+      {batchCategoryOpen && (
+        <AppModal
+          ariaLabel={zh('调整标签分类', 'Move tags to category')}
+          className="px-4"
+          closeDisabled={assigningCategory}
+          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          onClose={() => {
+            setBatchCategoryOpen(false)
+            setBatchError('')
+          }}
+          zIndex={1400}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-semibold text-slate-900">
+                {zh('调整标签分类', 'Move tags to category')}
+              </h3>
+              <div className="mt-1 text-xs text-slate-400">
+                {zh(`已选择 ${selectedIds.length} 个标签`, `${selectedIds.length} tags selected`)}
+              </div>
+            </div>
+            <IconButton
+              size="small"
+              disabled={assigningCategory}
+              onClick={() => {
+                setBatchCategoryOpen(false)
+                setBatchError('')
+              }}
+              aria-label={zh('关闭调整分类', 'Close category assignment')}
+            >
+              <CloseOutlinedIcon fontSize="small" />
+            </IconButton>
+          </div>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            value={batchCategoryValue}
+            onChange={(event) => setBatchCategoryValue(event.target.value)}
+            label={zh('目标分类', 'Target category')}
+          >
+            <MenuItem value="__uncategorized">{zh('未分类', 'Uncategorized')}</MenuItem>
+            {categories.map((category) => (
+              <MenuItem key={category.id} value={String(category.id)}>
+                {category.name}
+              </MenuItem>
+            ))}
+          </TextField>
+          {batchError && <div className="mt-2 text-sm text-rose-600">{batchError}</div>}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              size="small"
+              variant="outlined"
+              disabled={assigningCategory}
+              onClick={() => {
+                setBatchCategoryOpen(false)
+                setBatchError('')
+              }}
+              sx={compactButtonSx}
+            >
+              {zh('取消', 'Cancel')}
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              disabled={assigningCategory || !batchCategoryValue}
+              onClick={handleAssignCategory}
+              sx={compactButtonSx}
+            >
+              {assigningCategory ? zh('调整中…', 'Updating...') : zh('确认调整', 'Confirm')}
+            </Button>
+          </div>
+        </AppModal>
+      )}
       {categoryManageOpen && (
         <AppModal
           ariaLabel={zh('分类管理', 'Category management')}
