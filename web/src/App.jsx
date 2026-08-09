@@ -4007,9 +4007,11 @@ export default function App() {
         tags={displayJavTagOptions}
         categories={javTagCategories}
         onApplyTagFilter={applyJavTagFilter}
-        onCreateTag={async (name) => {
-          await createJavTag(name)
-          await loadJavTags()
+        onCreateTag={async (name, categoryId) => {
+          const tag = await createJavTag(name)
+          await assignJavTagsCategory([tag.id], categoryId)
+          await loadJavTags({ force: true })
+          return tag
         }}
         onOrganizeTags={async () => {
           const result = await organizeJavTags()

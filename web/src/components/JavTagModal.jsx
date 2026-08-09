@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, IconButton, TextField } from '@mui/material'
+import { Button, IconButton, MenuItem, TextField } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
@@ -66,6 +66,7 @@ export default function JavTagModal({
 }) {
   const [createOpen, setCreateOpen] = useState(false)
   const [newTagName, setNewTagName] = useState('')
+  const [newTagCategoryValue, setNewTagCategoryValue] = useState('__uncategorized')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
   const [renameOpen, setRenameOpen] = useState(false)
@@ -110,6 +111,7 @@ export default function JavTagModal({
     if (!open) {
       setCreateOpen(false)
       setNewTagName('')
+      setNewTagCategoryValue('__uncategorized')
       setCreating(false)
       setCreateError('')
       setRenameOpen(false)
@@ -451,9 +453,15 @@ export default function JavTagModal({
               variant="outlined"
               onClick={handleOrganizeTags}
               disabled={organizing || editMode}
+              title={zh(
+                '从 JavBus 读取标签分类进行整理',
+                'Read tag categories from JavBus and organize them'
+              )}
               sx={footerButtonSx}
             >
-              {organizing ? zh('整理中…', 'Organizing...') : zh('自动整理', 'Auto organize')}
+              {organizing
+                ? zh('整理分类中…', 'Organizing categories...')
+                : zh('自动整理分类', 'Auto organize categories')}
             </Button>
           )}
           {!editMode && !multiSelect && (
@@ -476,6 +484,7 @@ export default function JavTagModal({
               onClick={() => {
                 setCreateError('')
                 setNewTagName('')
+                setNewTagCategoryValue('__uncategorized')
                 setCreateOpen(true)
               }}
               sx={footerButtonSx}
@@ -942,6 +951,26 @@ export default function JavTagModal({
               onChange={(e) => setNewTagName(e.target.value)}
               placeholder={zh('请输入标签名', 'Enter tag name')}
             />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              label={zh('分类', 'Category')}
+              value={newTagCategoryValue}
+              onChange={(event) => setNewTagCategoryValue(event.target.value)}
+              SelectProps={{
+                MenuProps: {
+                  sx: { zIndex: 1500 },
+                },
+              }}
+            >
+              <MenuItem value="__uncategorized">{zh('未分类', 'Uncategorized')}</MenuItem>
+              {categories.map((category) => (
+                <MenuItem key={category.id} value={String(category.id)}>
+                  {category.name}
+                </MenuItem>
+              ))}
+            </TextField>
             {createError && <div className="text-sm text-red-600">{createError}</div>}
           </div>
           <div className="mt-4 flex justify-end gap-2">
@@ -965,9 +994,12 @@ export default function JavTagModal({
                 setCreating(true)
                 setCreateError('')
                 try {
-                  await onCreateTag?.(trimmed)
+                  const categoryId =
+                    newTagCategoryValue === '__uncategorized' ? null : Number(newTagCategoryValue)
+                  await onCreateTag?.(trimmed, categoryId)
                   setCreateOpen(false)
                   setNewTagName('')
+                  setNewTagCategoryValue('__uncategorized')
                 } catch (err) {
                   setCreateError(getErrorMessage(err))
                 } finally {
