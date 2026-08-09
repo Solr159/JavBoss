@@ -254,6 +254,23 @@ export default function TopBar({
             </Button>
           </form>
 
+          {isJavMode && javTab === 'list' ? (
+            <FavoriteRatingFilter
+              enabled={favoriteRatingEnabled}
+              min={favoriteRatingMin}
+              max={favoriteRatingMax}
+              onEnabledChange={onFavoriteRatingEnabledChange}
+              onRangeChange={onFavoriteRatingRangeChange}
+            />
+          ) : null}
+
+          {onRandomClick ? (
+            <button type="button" className="filter-action-button" onClick={onRandomClick}>
+              <ShuffleOutlinedIcon fontSize="small" />
+              <span>{zh('随机', 'Random')}</span>
+            </button>
+          ) : null}
+
           <div className="filter-topbar__filter-cluster">
             {filterItems.length > 0 ? (
               <div
@@ -275,6 +292,12 @@ export default function TopBar({
                 aria-label={zh('添加筛选条件', 'Add filter')}
               >
                 <AddRoundedIcon fontSize="small" />
+              </button>
+            ) : null}
+
+            {hasActiveControlFilter || filterItems.length > 0 ? (
+              <button type="button" className="filter-clear-button" onClick={onClearFilters}>
+                {zh('清空', 'Clear')}
               </button>
             ) : null}
           </div>
@@ -302,23 +325,6 @@ export default function TopBar({
                   {zh('清空', 'Clear')}
                 </Button>
               </div>
-            ) : null}
-
-            {isJavMode && javTab === 'list' ? (
-              <FavoriteRatingFilter
-                enabled={favoriteRatingEnabled}
-                min={favoriteRatingMin}
-                max={favoriteRatingMax}
-                onEnabledChange={onFavoriteRatingEnabledChange}
-                onRangeChange={onFavoriteRatingRangeChange}
-              />
-            ) : null}
-
-            {onRandomClick ? (
-              <button type="button" className="filter-action-button" onClick={onRandomClick}>
-                <ShuffleOutlinedIcon fontSize="small" />
-                <span>{zh('随机', 'Random')}</span>
-              </button>
             ) : null}
 
             {isJavMode ? (
@@ -356,12 +362,6 @@ export default function TopBar({
                   />
                 ) : null}
               </div>
-            ) : null}
-
-            {hasActiveControlFilter || filterItems.length > 0 ? (
-              <button type="button" className="filter-clear-button" onClick={onClearFilters}>
-                {zh('清空', 'Clear')}
-              </button>
             ) : null}
           </div>
         </div>
