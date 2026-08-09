@@ -23,6 +23,18 @@ const compactButtonSx = {
   },
 }
 
+const footerButtonSx = {
+  ...compactButtonSx,
+  color: '#475569',
+  backgroundColor: '#fff',
+  borderColor: '#cbd5e1',
+  '&:hover': {
+    color: '#1e293b',
+    backgroundColor: '#f8fafc',
+    borderColor: '#94a3b8',
+  },
+}
+
 const categoryEnglishLabels = {
   主题: 'Theme',
   角色: 'Role',
@@ -420,7 +432,7 @@ export default function JavTagModal({
               variant="outlined"
               onClick={handleOrganizeTags}
               disabled={organizing || editMode}
-              sx={compactButtonSx}
+              sx={footerButtonSx}
             >
               {organizing ? zh('整理中…', 'Organizing...') : zh('自动整理', 'Auto organize')}
             </Button>
@@ -433,7 +445,7 @@ export default function JavTagModal({
                 setCategoryError('')
                 setCategoryManageOpen(true)
               }}
-              sx={compactButtonSx}
+              sx={footerButtonSx}
             >
               {zh('分类管理', 'Manage categories')}
             </Button>
@@ -447,7 +459,7 @@ export default function JavTagModal({
                 setNewTagName('')
                 setCreateOpen(true)
               }}
-              sx={compactButtonSx}
+              sx={footerButtonSx}
             >
               {zh('新增标签', 'New tag')}
             </Button>
@@ -457,7 +469,7 @@ export default function JavTagModal({
               size="small"
               variant="outlined"
               onClick={handleToggleEditMode}
-              sx={compactButtonSx}
+              sx={footerButtonSx}
             >
               {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
             </Button>
@@ -473,7 +485,7 @@ export default function JavTagModal({
                 setEditMode(false)
                 setHoverTagId(null)
               }}
-              sx={compactButtonSx}
+              sx={footerButtonSx}
             >
               {multiSelect ? zh('退出多选', 'Exit multi-select') : zh('多选', 'Multi-select')}
             </Button>
@@ -482,7 +494,7 @@ export default function JavTagModal({
             <>
               <Button
                 size="small"
-                variant="contained"
+                variant="outlined"
                 onClick={() => {
                   setBatchCategoryValue('')
                   setBatchNewCategoryName('')
@@ -490,7 +502,7 @@ export default function JavTagModal({
                   setBatchCategoryOpen(true)
                 }}
                 disabled={selectedIds.length === 0}
-                sx={compactButtonSx}
+                sx={footerButtonSx}
               >
                 {zh('调整分类', 'Move tags')}
               </Button>
@@ -503,7 +515,7 @@ export default function JavTagModal({
                   onClose()
                 }}
                 disabled={selectedIds.length === 0}
-                sx={compactButtonSx}
+                sx={footerButtonSx}
               >
                 {zh('查找视频', 'Find videos')}
               </Button>
