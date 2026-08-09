@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, IconButton, TextField } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
-import ArrowDownwardOutlinedIcon from '@mui/icons-material/ArrowDownwardOutlined'
-import ArrowUpwardOutlinedIcon from '@mui/icons-material/ArrowUpwardOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 import AppModal from '@/components/AppModal'
+import SortableList from '@/components/SortableList'
 import TagBar from '@/components/TagBar'
 import { isUserJavTag } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
@@ -84,6 +83,7 @@ export default function JavTagModal({
   const [organizing, setOrganizing] = useState(false)
   const [actionMessage, setActionMessage] = useState('')
   const [categoryManageOpen, setCategoryManageOpen] = useState(false)
+  const [localCategories, setLocalCategories] = useState([])
   const [newCategoryName, setNewCategoryName] = useState('')
   const [categoryEditingId, setCategoryEditingId] = useState(null)
   const [categoryEditingName, setCategoryEditingName] = useState('')
@@ -96,6 +96,10 @@ export default function JavTagModal({
   const [batchCreatingCategory, setBatchCreatingCategory] = useState(false)
   const [batchCategoryOpen, setBatchCategoryOpen] = useState(false)
   const [assigningCategory, setAssigningCategory] = useState(false)
+
+  useEffect(() => {
+    setLocalCategories(categories)
+  }, [categories])
 
   const handleTagClick = (tagId) => {
     onApplyTagFilter?.([tagId])
@@ -258,18 +262,14 @@ export default function JavTagModal({
     }
   }
 
-  const handleMoveCategory = async (categoryId, offset) => {
-    if (categoryBusyId !== null) return
-    const index = categories.findIndex((category) => category.id === categoryId)
-    const targetIndex = index + offset
-    if (index < 0 || targetIndex < 0 || targetIndex >= categories.length) return
-    const reordered = [...categories]
-    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
-    setCategoryBusyId(categoryId)
+  const handleCategoryReorderCommit = async (reordered) => {
+    if (categoryBusyId !== null || reordered.length === 0) return
+    setCategoryBusyId('__order')
     setCategoryError('')
     try {
       await onReorderCategories?.(reordered.map((category) => category.id))
     } catch (err) {
+      setLocalCategories(categories)
       setCategoryError(getErrorMessage(err))
     } finally {
       setCategoryBusyId(null)
@@ -793,133 +793,120 @@ export default function JavTagModal({
             {categoryError && <div className="mt-2 text-sm text-rose-600">{categoryError}</div>}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {categories.length > 0 ? (
-              <div className="divide-y divide-slate-100">
-                {categories.map((category, index) => {
-                  const editing = categoryEditingId === category.id
-                  const busy = categoryBusyId === category.id
-                  return (
-                    <div key={category.id} className="flex min-h-12 items-center gap-2 py-2">
-                      {editing ? (
-                        <TextField
-                          size="small"
-                          fullWidth
-                          value={categoryEditingName}
-                          onChange={(event) => setCategoryEditingName(event.target.value)}
-                        />
-                      ) : (
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-medium text-slate-700">
-                            {category.name}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            {zh(
-                              `${categoryUsageCounts.get(category.id) || 0} 个标签`,
-                              `${categoryUsageCounts.get(category.id) || 0} tags`
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {editing ? (
-                        <>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            disabled={busy || !categoryEditingName.trim()}
-                            onClick={async () => {
-                              const name = categoryEditingName.trim()
-                              if (!name) return
-                              setCategoryBusyId(category.id)
-                              setCategoryError('')
-                              try {
-                                await onRenameCategory?.(category.id, name)
-                                setCategoryEditingId(null)
-                                setCategoryEditingName('')
-                              } catch (err) {
-                                setCategoryError(getErrorMessage(err))
-                              } finally {
-                                setCategoryBusyId(null)
-                              }
-                            }}
-                            sx={compactButtonSx}
-                          >
-                            {zh('保存', 'Save')}
-                          </Button>
-                          <Button
-                            size="small"
-                            disabled={busy}
-                            onClick={() => {
-                              setCategoryEditingId(null)
-                              setCategoryEditingName('')
-                            }}
-                            sx={compactButtonSx}
-                          >
-                            {zh('取消', 'Cancel')}
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <IconButton
-                            size="small"
-                            disabled={categoryBusyId !== null || index === 0}
-                            onClick={() => handleMoveCategory(category.id, -1)}
-                            aria-label={zh('上移分类', 'Move category up')}
-                          >
-                            <ArrowUpwardOutlinedIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            disabled={categoryBusyId !== null || index === categories.length - 1}
-                            onClick={() => handleMoveCategory(category.id, 1)}
-                            aria-label={zh('下移分类', 'Move category down')}
-                          >
-                            <ArrowDownwardOutlinedIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            disabled={categoryBusyId !== null}
-                            onClick={() => {
-                              setCategoryEditingId(category.id)
-                              setCategoryEditingName(category.name || '')
-                              setCategoryError('')
-                            }}
-                            aria-label={zh('修改分类', 'Rename category')}
-                          >
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            disabled={categoryBusyId !== null}
-                            onClick={async () => {
-                              if (
-                                !window.confirm(
-                                  zh(
-                                    `确定删除分类“${category.name}”吗？该分类中的标签将变为未分类。`,
-                                    `Delete category "${category.name}"? Its tags will become uncategorized.`
-                                  )
-                                )
-                              )
-                                return
-                              setCategoryBusyId(category.id)
-                              setCategoryError('')
-                              try {
-                                await onDeleteCategory?.(category.id)
-                              } catch (err) {
-                                setCategoryError(getErrorMessage(err))
-                              } finally {
-                                setCategoryBusyId(null)
-                              }
-                            }}
-                            aria-label={zh('删除分类', 'Delete category')}
-                          >
-                            <CloseOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
+            {localCategories.length > 0 ? (
+              <SortableList
+                items={localCategories}
+                onReorder={setLocalCategories}
+                onReorderCommit={handleCategoryReorderCommit}
+                getLabel={(category) => category.name}
+                getMeta={(category) =>
+                  categoryEditingId === category.id
+                    ? null
+                    : zh(
+                        `${categoryUsageCounts.get(category.id) || 0} 个标签`,
+                        `${categoryUsageCounts.get(category.id) || 0} tags`
+                      )
+                }
+                renderLabel={(category) =>
+                  categoryEditingId === category.id ? (
+                    <TextField
+                      size="small"
+                      fullWidth
+                      value={categoryEditingName}
+                      onChange={(event) => setCategoryEditingName(event.target.value)}
+                    />
+                  ) : (
+                    <div className="truncate text-sm font-medium text-slate-700">
+                      {category.name}
                     </div>
                   )
-                })}
-              </div>
+                }
+                renderActions={(category) => {
+                  const editing = categoryEditingId === category.id
+                  const busy = categoryBusyId === category.id
+                  return editing ? (
+                    <>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={busy || !categoryEditingName.trim()}
+                        onClick={async () => {
+                          const name = categoryEditingName.trim()
+                          if (!name) return
+                          setCategoryBusyId(category.id)
+                          setCategoryError('')
+                          try {
+                            await onRenameCategory?.(category.id, name)
+                            setCategoryEditingId(null)
+                            setCategoryEditingName('')
+                          } catch (err) {
+                            setCategoryError(getErrorMessage(err))
+                          } finally {
+                            setCategoryBusyId(null)
+                          }
+                        }}
+                        sx={compactButtonSx}
+                      >
+                        {zh('保存', 'Save')}
+                      </Button>
+                      <Button
+                        size="small"
+                        disabled={busy}
+                        onClick={() => {
+                          setCategoryEditingId(null)
+                          setCategoryEditingName('')
+                        }}
+                        sx={compactButtonSx}
+                      >
+                        {zh('取消', 'Cancel')}
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <IconButton
+                        size="small"
+                        disabled={categoryBusyId !== null}
+                        onClick={() => {
+                          setCategoryEditingId(category.id)
+                          setCategoryEditingName(category.name || '')
+                          setCategoryError('')
+                        }}
+                        aria-label={zh('修改分类', 'Rename category')}
+                      >
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        disabled={categoryBusyId !== null}
+                        onClick={async () => {
+                          if (
+                            !window.confirm(
+                              zh(
+                                `确定删除分类“${category.name}”吗？该分类中的标签将变为未分类。`,
+                                `Delete category "${category.name}"? Its tags will become uncategorized.`
+                              )
+                            )
+                          )
+                            return
+                          setCategoryBusyId(category.id)
+                          setCategoryError('')
+                          try {
+                            await onDeleteCategory?.(category.id)
+                          } catch (err) {
+                            setCategoryError(getErrorMessage(err))
+                          } finally {
+                            setCategoryBusyId(null)
+                          }
+                        }}
+                        aria-label={zh('删除分类', 'Delete category')}
+                      >
+                        <CloseOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </>
+                  )
+                }}
+                disabled={categoryBusyId !== null || categoryEditingId !== null}
+              />
             ) : (
               <div className="py-6 text-center text-sm text-slate-400">
                 {zh('暂无分类', 'No categories')}

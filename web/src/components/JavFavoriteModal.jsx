@@ -7,7 +7,7 @@ import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
-export default function JavIdolFavoriteModal({
+export default function JavFavoriteModal({
   open,
   idol,
   entityType = 'idol',

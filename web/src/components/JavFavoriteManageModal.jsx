@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
-import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import { Button, IconButton } from '@mui/material'
 import AppModal from '@/components/AppModal'
+import SortableList from '@/components/SortableList'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
 
-export default function JavIdolFavoriteManageModal({
+export default function JavFavoriteManageModal({
   open,
   entityType = 'idol',
   groups,
@@ -537,199 +537,6 @@ function IdolOrderList({
       )}
     />
   )
-}
-
-function SortableList({
-  items,
-  onReorder,
-  onReorderCommit,
-  getLabel,
-  getMeta,
-  isActive = () => false,
-  renderLeading = null,
-}) {
-  const containerRef = useRef(null)
-  const rowRefs = useRef(new Map())
-  const draftItemsRef = useRef(null)
-  const [drag, setDrag] = useState(null)
-
-  useEffect(() => {
-    if (!drag) return undefined
-
-    const handlePointerMove = (event) => {
-      event.preventDefault()
-      setDrag((current) =>
-        current
-          ? {
-              ...current,
-              pointerX: event.clientX,
-              pointerY: event.clientY,
-            }
-          : current
-      )
-
-      const nextIndex = calculateDropIndex(items, rowRefs.current, drag.id, event.clientY)
-      const currentIndex = items.findIndex((item) => String(item.id) === drag.id)
-      if (nextIndex >= 0 && currentIndex >= 0 && nextIndex !== currentIndex) {
-        const nextItems = moveItemToIndex(items, drag.id, nextIndex)
-        draftItemsRef.current = nextItems
-        onReorder?.(nextItems)
-      }
-    }
-
-    const handlePointerUp = () => {
-      const nextItems = draftItemsRef.current
-      draftItemsRef.current = null
-      setDrag(null)
-      if (nextItems) onReorderCommit?.(nextItems)
-    }
-
-    window.addEventListener('pointermove', handlePointerMove, { passive: false })
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointercancel', handlePointerUp)
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove)
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointercancel', handlePointerUp)
-    }
-  }, [drag, items, onReorder, onReorderCommit])
-
-  const startDrag = (event, item) => {
-    if (event.button !== 0) return
-    const id = String(item.id)
-    const row = rowRefs.current.get(id)
-    if (!row) return
-    const rect = row.getBoundingClientRect()
-    event.preventDefault()
-    setDrag({
-      id,
-      pointerX: event.clientX,
-      pointerY: event.clientY,
-      offsetX: event.clientX - rect.left,
-      offsetY: event.clientY - rect.top,
-      left: rect.left,
-      top: rect.top,
-      width: rect.width,
-      height: rect.height,
-    })
-  }
-
-  return (
-    <div
-      ref={containerRef}
-      className={`rounded border border-gray-200 p-1 ${drag ? 'select-none' : ''}`}
-    >
-      {items.map((item) => {
-        const id = String(item.id)
-        const isDragging = drag?.id === id
-        return (
-          <SortableRow
-            key={id}
-            refCallback={(node) => {
-              if (node) rowRefs.current.set(id, node)
-              else rowRefs.current.delete(id)
-            }}
-            item={item}
-            label={getLabel(item)}
-            meta={getMeta?.(item)}
-            leading={renderLeading?.(item)}
-            active={isActive(item)}
-            dragging={isDragging}
-            onHandlePointerDown={(event) => startDrag(event, item)}
-          />
-        )
-      })}
-      {drag ? (
-        <div
-          className="pointer-events-none fixed z-[80]"
-          style={{
-            left: drag.pointerX - drag.offsetX,
-            top: drag.pointerY - drag.offsetY,
-            width: drag.width,
-            height: drag.height,
-          }}
-        >
-          {(() => {
-            const item = items.find((candidate) => String(candidate.id) === drag.id)
-            if (!item) return null
-            return (
-              <SortableRow
-                item={item}
-                label={getLabel(item)}
-                meta={getMeta?.(item)}
-                leading={renderLeading?.(item)}
-                active={isActive(item)}
-                dragging={false}
-                floating
-              />
-            )
-          })()}
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function SortableRow({
-  item,
-  label,
-  meta,
-  leading = null,
-  active = false,
-  dragging = false,
-  floating = false,
-  refCallback,
-  onHandlePointerDown,
-}) {
-  return (
-    <div
-      ref={refCallback}
-      className={`mb-1 flex items-center gap-2 rounded border px-2 py-1.5 last:mb-0 ${
-        floating ? 'shadow-lg ring-1 ring-blue-200' : 'transition-[background-color,opacity]'
-      } ${dragging ? 'opacity-0' : 'opacity-100'} ${
-        active ? 'border-blue-200 bg-blue-50' : 'border-transparent bg-gray-50'
-      }`}
-      data-sortable-id={item.id}
-    >
-      {leading}
-      <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{label}</span>
-      <span className="shrink-0 text-xs text-gray-500">{meta}</span>
-      <button
-        type="button"
-        onPointerDown={onHandlePointerDown}
-        className="inline-flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded border border-gray-200 bg-white text-gray-500 active:cursor-grabbing"
-        aria-label={zh('拖动排序', 'Drag to reorder')}
-        title={zh('拖动排序', 'Drag to reorder')}
-      >
-        <MenuRoundedIcon sx={{ fontSize: 17 }} />
-      </button>
-    </div>
-  )
-}
-
-function calculateDropIndex(items, refs, draggingId, pointerY) {
-  let nextIndex = 0
-  for (const item of items) {
-    const id = String(item.id)
-    if (id === draggingId) continue
-    const row = refs.get(id)
-    if (!row) continue
-    const rect = row.getBoundingClientRect()
-    if (pointerY > rect.top + rect.height / 2) {
-      nextIndex += 1
-    }
-  }
-  return Math.min(nextIndex, items.length - 1)
-}
-
-function moveItemToIndex(items, sourceId, targetIndex) {
-  const next = [...items]
-  const from = next.findIndex((item) => String(item.id) === String(sourceId))
-  if (from < 0) return next
-  const [item] = next.splice(from, 1)
-  const safeIndex = Math.max(0, Math.min(targetIndex, next.length))
-  next.splice(safeIndex, 0, item)
-  return next
 }
 
 function normalizeGroups(groups) {

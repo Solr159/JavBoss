@@ -38,8 +38,8 @@ import {
   scanDirectory,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
-import JavIdolFavoriteManageModal from '@/components/JavIdolFavoriteManageModal'
-import JavIdolFavoriteModal from '@/components/JavIdolFavoriteModal'
+import JavFavoriteManageModal from '@/components/JavFavoriteManageModal'
+import JavFavoriteModal from '@/components/JavFavoriteModal'
 import JavQueryEditorModal from '@/components/JavQueryEditorModal'
 import JavSettingsModal from '@/components/JavSettingsModal'
 import JavTagModal from '@/components/JavTagModal'
@@ -3834,7 +3834,7 @@ export default function App() {
         onSelectVideo={handleSelectJavVideo}
       />
 
-      <JavIdolFavoriteModal
+      <JavFavoriteModal
         open={idolFavoriteModalOpen}
         entityType={favoriteModalEntityType}
         idol={idolFavoriteModalItem}
@@ -3852,7 +3852,7 @@ export default function App() {
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       />
 
-      <JavIdolFavoriteManageModal
+      <JavFavoriteManageModal
         open={idolFavoriteManageOpen}
         entityType={favoriteManageEntityType}
         groups={favoriteGroupsByType?.[favoriteManageEntityType] || []}
