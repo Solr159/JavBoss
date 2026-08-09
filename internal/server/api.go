@@ -64,6 +64,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/jav/tags", listJavTags)
 	router.GET("/jav/tag-categories", listJavTagCategories)
 	router.POST("/jav/tag-categories", createJavTagCategory)
+	router.PUT("/jav/tag-categories/order", reorderJavTagCategories)
 	router.PATCH("/jav/tag-categories/:id", renameJavTagCategory)
 	router.DELETE("/jav/tag-categories/:id", deleteJavTagCategory)
 	router.GET("/jav/studios", listJavStudios)

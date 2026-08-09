@@ -704,6 +704,17 @@ export async function createJavTagCategory(name) {
   return res.json()
 }
 
+export async function reorderJavTagCategories(categoryIds) {
+  const res = await apiFetch('/jav/tag-categories/order', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ category_ids: categoryIds }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+}
+
 export async function renameJavTagCategory(id, name) {
   const res = await apiFetch(`/jav/tag-categories/${id}`, {
     method: 'PATCH',

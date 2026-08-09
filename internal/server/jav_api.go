@@ -361,6 +361,22 @@ func createJavTagCategory(c *gin.Context) {
 	c.JSON(http.StatusCreated, category)
 }
 
+func reorderJavTagCategories(c *gin.Context) {
+	var req struct {
+		CategoryIDs []int64 `json:"category_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "调整标签分类顺序请求无效", "Invalid tag category reorder request")
+		return
+	}
+	if err := dbpkg.ReorderJavTagCategories(c.Request.Context(), req.CategoryIDs); err != nil {
+		logging.Error("reorder jav tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "调整标签分类顺序失败", "Failed to reorder tag categories")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
 func renameJavTagCategory(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

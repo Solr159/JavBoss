@@ -147,6 +147,7 @@ type JavTagCategory struct {
 	Name      string    `json:"name" gorm:"not null;uniqueIndex"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	SortOrder int       `json:"sort_order" gorm:"not null;default:0"`
 }
 
 type JavIdol struct {

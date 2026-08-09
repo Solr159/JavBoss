@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, IconButton, TextField } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
+import ArrowDownwardOutlinedIcon from '@mui/icons-material/ArrowDownwardOutlined'
+import ArrowUpwardOutlinedIcon from '@mui/icons-material/ArrowUpwardOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 import AppModal from '@/components/AppModal'
@@ -56,6 +58,7 @@ export default function JavTagModal({
   onCreateTag,
   onOrganizeTags,
   onCreateCategory,
+  onReorderCategories,
   onRenameCategory,
   onDeleteCategory,
   onAssignCategory,
@@ -179,9 +182,7 @@ export default function JavTagModal({
       groups.get(category).push(tag)
     }
     const categoryOrder = new Map(
-      ['主题', '角色', '服装', '体型', '行为', '玩法', '类别', '场景', '其他'].map(
-        (name, index) => [name, index]
-      )
+      categories.map((category, index) => [String(category?.name || '').trim(), index])
     )
     return Array.from(groups.entries())
       .map(([category, groupTags]) => ({ category, tags: groupTags }))
@@ -193,7 +194,7 @@ export default function JavTagModal({
         if (orderA !== orderB) return orderA - orderB
         return a.category.localeCompare(b.category)
       })
-  }, [displayTags])
+  }, [categories, displayTags])
 
   const selectedIds = useMemo(() => {
     if (selectedTagIds.length === 0) return []
@@ -254,6 +255,24 @@ export default function JavTagModal({
       setBatchError(getErrorMessage(err))
     } finally {
       setAssigningCategory(false)
+    }
+  }
+
+  const handleMoveCategory = async (categoryId, offset) => {
+    if (categoryBusyId !== null) return
+    const index = categories.findIndex((category) => category.id === categoryId)
+    const targetIndex = index + offset
+    if (index < 0 || targetIndex < 0 || targetIndex >= categories.length) return
+    const reordered = [...categories]
+    ;[reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]]
+    setCategoryBusyId(categoryId)
+    setCategoryError('')
+    try {
+      await onReorderCategories?.(reordered.map((category) => category.id))
+    } catch (err) {
+      setCategoryError(getErrorMessage(err))
+    } finally {
+      setCategoryBusyId(null)
     }
   }
 
@@ -776,7 +795,7 @@ export default function JavTagModal({
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {categories.length > 0 ? (
               <div className="divide-y divide-slate-100">
-                {categories.map((category) => {
+                {categories.map((category, index) => {
                   const editing = categoryEditingId === category.id
                   const busy = categoryBusyId === category.id
                   return (
@@ -840,6 +859,22 @@ export default function JavTagModal({
                         </>
                       ) : (
                         <>
+                          <IconButton
+                            size="small"
+                            disabled={categoryBusyId !== null || index === 0}
+                            onClick={() => handleMoveCategory(category.id, -1)}
+                            aria-label={zh('上移分类', 'Move category up')}
+                          >
+                            <ArrowUpwardOutlinedIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            disabled={categoryBusyId !== null || index === categories.length - 1}
+                            onClick={() => handleMoveCategory(category.id, 1)}
+                            aria-label={zh('下移分类', 'Move category down')}
+                          >
+                            <ArrowDownwardOutlinedIcon fontSize="small" />
+                          </IconButton>
                           <IconButton
                             size="small"
                             disabled={categoryBusyId !== null}

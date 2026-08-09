@@ -21,7 +21,8 @@ func addJavTagCategories(ctx context.Context, tx *sql.Tx) error {
 			id integer PRIMARY KEY AUTOINCREMENT,
 			name text NOT NULL,
 			created_at datetime,
-			updated_at datetime
+			updated_at datetime,
+			sort_order integer NOT NULL DEFAULT 0
 		)`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS "idx_jav_tag_category_name" ON "jav_tag_category" ("name")`,
 	); err != nil {

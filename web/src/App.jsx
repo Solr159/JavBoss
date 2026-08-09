@@ -18,6 +18,7 @@ import {
   organizeJavTags,
   fetchJavTagCategories,
   createJavTagCategory,
+  reorderJavTagCategories,
   renameJavTagCategory,
   deleteJavTagCategory,
   assignJavTagsCategory,
@@ -4019,6 +4020,10 @@ export default function App() {
           const category = await createJavTagCategory(name)
           await loadJavTagCategories()
           return category
+        }}
+        onReorderCategories={async (categoryIds) => {
+          await reorderJavTagCategories(categoryIds)
+          await loadJavTagCategories()
         }}
         onRenameCategory={async (id, name) => {
           await renameJavTagCategory(id, name)

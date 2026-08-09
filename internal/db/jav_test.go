@@ -1745,8 +1745,21 @@ func TestManageAndAssignJavTagCategories(t *testing.T) {
 	if category.Name != "自定义" {
 		t.Fatalf("created category name = %q, want 自定义", category.Name)
 	}
+	if category.SortOrder != 0 {
+		t.Fatalf("created category sort order = %d, want 0", category.SortOrder)
+	}
 	if _, err := CreateJavTagCategory(ctx, "自定义"); err == nil {
 		t.Fatal("expected duplicate category error")
+	}
+	secondCategory, err := CreateJavTagCategory(ctx, "第二个分类")
+	if err != nil {
+		t.Fatalf("create second category: %v", err)
+	}
+	if secondCategory.SortOrder != 1 {
+		t.Fatalf("second category sort order = %d, want 1", secondCategory.SortOrder)
+	}
+	if err := ReorderJavTagCategories(ctx, []int64{secondCategory.ID, category.ID}); err != nil {
+		t.Fatalf("ReorderJavTagCategories: %v", err)
 	}
 
 	if err := AssignJavTagsCategory(ctx, []int64{tags[0].ID, tags[1].ID}, &category.ID); err != nil {
@@ -1767,8 +1780,11 @@ func TestManageAndAssignJavTagCategories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListJavTagCategories: %v", err)
 	}
-	if len(categories) != 1 || categories[0].Name != "已修改" {
+	if len(categories) != 2 || categories[0].ID != secondCategory.ID || categories[1].Name != "已修改" {
 		t.Fatalf("unexpected categories: %#v", categories)
+	}
+	if categories[0].SortOrder != 0 || categories[1].SortOrder != 1 {
+		t.Fatalf("unexpected category sort orders: %#v", categories)
 	}
 
 	if err := AssignJavTagsCategory(ctx, []int64{tags[0].ID}, nil); err != nil {
