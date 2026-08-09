@@ -4,6 +4,7 @@ import ImageRoundedIcon from '@mui/icons-material/ImageRounded'
 import RestartAltRoundedIcon from '@mui/icons-material/RestartAltRounded'
 import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import { fetchJavIdolCoverOptions, updateJavIdolCover } from '@/api'
+import AppModal from '@/components/AppModal'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -181,194 +182,198 @@ export default function JavIdolCoverModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-          <div className="min-w-0">
-            <div className="truncate text-base font-semibold text-slate-950">
-              {getIdolDisplayName(item, preferChineseName)}
-            </div>
-            <div className="text-xs text-slate-500">{zh('封面', 'Cover')}</div>
+    <AppModal
+      ariaLabel={zh('女优封面', 'Idol cover')}
+      className="px-4 py-6"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+      onClose={onClose}
+    >
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+        <div className="min-w-0">
+          <div className="truncate text-base font-semibold text-slate-950">
+            {getIdolDisplayName(item, preferChineseName)}
           </div>
+          <div className="text-xs text-slate-500">{zh('封面', 'Cover')}</div>
+        </div>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+          onClick={onClose}
+          aria-label={zh('关闭', 'Close')}
+        >
+          <CloseOutlinedIcon sx={{ fontSize: 18 }} />
+        </button>
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-0 overflow-hidden md:grid-cols-[18rem_minmax(0,1fr)]">
+        <div className="min-h-[12rem] overflow-y-auto border-b border-slate-200 md:border-b-0 md:border-r">
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
-            onClick={onClose}
-            aria-label={zh('关闭', 'Close')}
-          >
-            <CloseOutlinedIcon sx={{ fontSize: 18 }} />
-          </button>
-        </div>
-
-        <div className="grid min-h-0 flex-1 gap-0 overflow-hidden md:grid-cols-[18rem_minmax(0,1fr)]">
-          <div className="min-h-[12rem] overflow-y-auto border-b border-slate-200 md:border-b-0 md:border-r">
-            <button
-              type="button"
-              className={`flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm ${
-                selectedJavId === 0 ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
-              }`}
-              onClick={() => {
-                setSelectedJavId(0)
-                setImageFailed(false)
-              }}
-            >
-              <ImageRoundedIcon sx={{ fontSize: 17 }} />
-              <span className="min-w-0 flex-1 truncate">{zh('自动选择', 'Auto')}</span>
-            </button>
-            {loading ? (
-              <div className="px-3 py-4 text-sm text-slate-500">{zh('加载中…', 'Loading...')}</div>
-            ) : options.length > 0 ? (
-              options.map((option) => {
-                const active = Number(option.id) === Number(selectedJavId)
-                const optionTitle = getJavDisplayTitle(option)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={`flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left text-sm ${
-                      active ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
-                    }`}
-                    onClick={() => {
-                      setSelectedJavId(Number(option.id))
-                      setImageFailed(false)
-                    }}
-                  >
-                    <span className="flex w-full items-center gap-2">
-                      <span className="font-semibold">{option.code}</span>
-                      {option.solo ? (
-                        <span
-                          className={`rounded px-1.5 py-0.5 text-[10px] ${
-                            active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'
-                          }`}
-                        >
-                          {zh('单人', 'Solo')}
-                        </span>
-                      ) : null}
-                    </span>
-                    {optionTitle && optionTitle !== option.code ? (
-                      <span className="line-clamp-2 text-xs opacity-75">{optionTitle}</span>
-                    ) : null}
-                  </button>
-                )
-              })
-            ) : (
-              <div className="px-3 py-4 text-sm text-slate-500">
-                {zh('暂无可用作品', 'No available works')}
-              </div>
-            )}
-          </div>
-
-          <div className="min-h-0 overflow-y-auto p-4">
-            <div className="mx-auto max-w-3xl">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-900">
-                    {previewCode || zh('无封面', 'No cover')}
-                  </div>
-                  {title && title !== previewCode ? (
-                    <div className="truncate text-xs text-slate-500">{title}</div>
-                  ) : null}
-                </div>
-                <div className="text-xs tabular-nums text-slate-500">
-                  {Math.round(displayCropLeft * 100)}%
-                </div>
-              </div>
-
-              <div
-                ref={previewRef}
-                className="relative w-full select-none overflow-hidden rounded bg-slate-100"
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-              >
-                {coverSrc && !imageFailed ? (
-                  <img
-                    src={coverSrc}
-                    alt={previewCode}
-                    className="block w-full"
-                    draggable={false}
-                    onLoad={(event) => {
-                      const img = event.currentTarget
-                      setImageSize({ width: img.naturalWidth, height: img.naturalHeight })
-                    }}
-                    onError={() => {
-                      setImageFailed(true)
-                      setImageSize(null)
-                    }}
-                  />
-                ) : (
-                  <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500">
-                    {zh('封面待下载', 'Cover pending')}
-                  </div>
-                )}
-                {previewCode && !imageFailed ? (
-                  <div
-                    className="absolute inset-y-0 border-2 border-white bg-white/10 shadow-[0_0_0_999px_rgba(15,23,42,0.75)]"
-                    style={{
-                      left: `${displayCropLeft * 100}%`,
-                      width: `${visibleRatio * 100}%`,
-                    }}
-                  >
-                    <div className="absolute inset-y-0 left-0 w-1 bg-white/80" />
-                    <div className="absolute inset-y-0 right-0 w-1 bg-white/80" />
-                  </div>
-                ) : null}
-              </div>
-
-              <label className="mt-4 flex items-center gap-3 text-sm text-slate-700">
-                <span className="w-10 shrink-0">{zh('起点', 'Start')}</span>
-                <input
-                  type="range"
-                  min="0"
-                  max={maxCropLeft}
-                  step="0.001"
-                  value={displayCropLeft}
-                  onChange={(event) =>
-                    setCropLeft(normalizeDynamicCropLeft(event.target.value, maxCropLeft))
-                  }
-                  className="min-w-0 flex-1 accent-slate-900"
-                />
-              </label>
-
-              {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className={`flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm ${
+              selectedJavId === 0 ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
+            }`}
             onClick={() => {
               setSelectedJavId(0)
-              setCropLeft(IDOL_COVER_DEFAULT_CROP_LEFT)
               setImageFailed(false)
             }}
           >
-            <RestartAltRoundedIcon sx={{ fontSize: 17 }} />
-            {zh('重置', 'Reset')}
+            <ImageRoundedIcon sx={{ fontSize: 17 }} />
+            <span className="min-w-0 flex-1 truncate">{zh('自动选择', 'Auto')}</span>
           </button>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
-              onClick={onClose}
+          {loading ? (
+            <div className="px-3 py-4 text-sm text-slate-500">{zh('加载中…', 'Loading...')}</div>
+          ) : options.length > 0 ? (
+            options.map((option) => {
+              const active = Number(option.id) === Number(selectedJavId)
+              const optionTitle = getJavDisplayTitle(option)
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={`flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left text-sm ${
+                    active ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
+                  }`}
+                  onClick={() => {
+                    setSelectedJavId(Number(option.id))
+                    setImageFailed(false)
+                  }}
+                >
+                  <span className="flex w-full items-center gap-2">
+                    <span className="font-semibold">{option.code}</span>
+                    {option.solo ? (
+                      <span
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'
+                        }`}
+                      >
+                        {zh('单人', 'Solo')}
+                      </span>
+                    ) : null}
+                  </span>
+                  {optionTitle && optionTitle !== option.code ? (
+                    <span className="line-clamp-2 text-xs opacity-75">{optionTitle}</span>
+                  ) : null}
+                </button>
+              )
+            })
+          ) : (
+            <div className="px-3 py-4 text-sm text-slate-500">
+              {zh('暂无可用作品', 'No available works')}
+            </div>
+          )}
+        </div>
+
+        <div className="min-h-0 overflow-y-auto p-4">
+          <div className="mx-auto max-w-3xl">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-slate-900">
+                  {previewCode || zh('无封面', 'No cover')}
+                </div>
+                {title && title !== previewCode ? (
+                  <div className="truncate text-xs text-slate-500">{title}</div>
+                ) : null}
+              </div>
+              <div className="text-xs tabular-nums text-slate-500">
+                {Math.round(displayCropLeft * 100)}%
+              </div>
+            </div>
+
+            <div
+              ref={previewRef}
+              className="relative w-full select-none overflow-hidden rounded bg-slate-100"
+              onPointerDown={handlePointerDown}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
             >
-              {zh('取消', 'Cancel')}
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={saving || loading}
-              onClick={handleSave}
-            >
-              <SaveRoundedIcon sx={{ fontSize: 17 }} />
-              {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-            </button>
+              {coverSrc && !imageFailed ? (
+                <img
+                  src={coverSrc}
+                  alt={previewCode}
+                  className="block w-full"
+                  draggable={false}
+                  onLoad={(event) => {
+                    const img = event.currentTarget
+                    setImageSize({ width: img.naturalWidth, height: img.naturalHeight })
+                  }}
+                  onError={() => {
+                    setImageFailed(true)
+                    setImageSize(null)
+                  }}
+                />
+              ) : (
+                <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500">
+                  {zh('封面待下载', 'Cover pending')}
+                </div>
+              )}
+              {previewCode && !imageFailed ? (
+                <div
+                  className="absolute inset-y-0 border-2 border-white bg-white/10 shadow-[0_0_0_999px_rgba(15,23,42,0.75)]"
+                  style={{
+                    left: `${displayCropLeft * 100}%`,
+                    width: `${visibleRatio * 100}%`,
+                  }}
+                >
+                  <div className="absolute inset-y-0 left-0 w-1 bg-white/80" />
+                  <div className="absolute inset-y-0 right-0 w-1 bg-white/80" />
+                </div>
+              ) : null}
+            </div>
+
+            <label className="mt-4 flex items-center gap-3 text-sm text-slate-700">
+              <span className="w-10 shrink-0">{zh('起点', 'Start')}</span>
+              <input
+                type="range"
+                min="0"
+                max={maxCropLeft}
+                step="0.001"
+                value={displayCropLeft}
+                onChange={(event) =>
+                  setCropLeft(normalizeDynamicCropLeft(event.target.value, maxCropLeft))
+                }
+                className="min-w-0 flex-1 accent-slate-900"
+              />
+            </label>
+
+            {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}
           </div>
         </div>
       </div>
-    </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          onClick={() => {
+            setSelectedJavId(0)
+            setCropLeft(IDOL_COVER_DEFAULT_CROP_LEFT)
+            setImageFailed(false)
+          }}
+        >
+          <RestartAltRoundedIcon sx={{ fontSize: 17 }} />
+          {zh('重置', 'Reset')}
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            onClick={onClose}
+          >
+            {zh('取消', 'Cancel')}
+          </button>
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={saving || loading}
+            onClick={handleSave}
+          >
+            <SaveRoundedIcon sx={{ fontSize: 17 }} />
+            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+          </button>
+        </div>
+      </div>
+    </AppModal>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import SearchIcon from '@mui/icons-material/Search'
+import AppModal from '@/components/AppModal'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
@@ -218,432 +219,440 @@ export default function VideoScrapeSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
-        <div className="shrink-0 p-3 pb-0">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <h2 className="min-w-0 truncate text-base font-semibold">
-              {zh('刮削设置', 'Scrape Settings')}
-            </h2>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-              aria-label={zh('关闭设置', 'Close settings')}
-            >
-              ✕
-            </button>
-          </div>
-          {displayName ? (
-            <div className="mb-3 truncate text-xs text-gray-500" title={displayName}>
-              {displayName}
-            </div>
-          ) : null}
+    <AppModal
+      ariaLabel={zh('刮削设置', 'Scrape Settings')}
+      className="px-4"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl"
+      onClose={onClose}
+    >
+      <div className="shrink-0 p-3 pb-0">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="min-w-0 truncate text-base font-semibold">
+            {zh('刮削设置', 'Scrape Settings')}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+            aria-label={zh('关闭设置', 'Close settings')}
+          >
+            ✕
+          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-3">
-          <div className="space-y-2">
-            <section
-              className={`overflow-hidden rounded-lg border ${
-                mode === 'auto' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
-              }`}
-            >
-              <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800">
-                <input
-                  type="radio"
-                  name="video-scrape-mode"
-                  value="auto"
-                  checked={mode === 'auto'}
-                  onChange={() => setMode('auto')}
-                  disabled={saving || lookupLoading}
-                />
-                <span className="shrink-0">{zh('自动刮削', 'Automatic Scrape')}</span>
-                <span className="min-w-0 text-xs font-normal text-gray-500">
-                  {zh(
-                    '根据文件名或指定番号在扫描过程中自动获取影片信息',
-                    'Automatically fetch metadata during scans by filename or a specified code'
-                  )}
-                </span>
-              </label>
-              {mode === 'auto' ? (
-                <div className="space-y-2 border-t border-blue-100 px-3 py-3">
-                  <div className="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                    <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 font-medium">
+        {displayName ? (
+          <div className="mb-3 truncate text-xs text-gray-500" title={displayName}>
+            {displayName}
+          </div>
+        ) : null}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3">
+        <div className="space-y-2">
+          <section
+            className={`overflow-hidden rounded-lg border ${
+              mode === 'auto' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
+            }`}
+          >
+            <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800">
+              <input
+                type="radio"
+                name="video-scrape-mode"
+                value="auto"
+                checked={mode === 'auto'}
+                onChange={() => setMode('auto')}
+                disabled={saving || lookupLoading}
+              />
+              <span className="shrink-0">{zh('自动刮削', 'Automatic Scrape')}</span>
+              <span className="min-w-0 text-xs font-normal text-gray-500">
+                {zh(
+                  '根据文件名或指定番号在扫描过程中自动获取影片信息',
+                  'Automatically fetch metadata during scans by filename or a specified code'
+                )}
+              </span>
+            </label>
+            {mode === 'auto' ? (
+              <div className="space-y-2 border-t border-blue-100 px-3 py-3">
+                <div className="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 font-medium">
+                    <input
+                      type="radio"
+                      name="video-auto-scrape-source"
+                      value={AUTO_SOURCE_FILENAME}
+                      checked={autoSource === AUTO_SOURCE_FILENAME}
+                      onChange={() => setAutoSource(AUTO_SOURCE_FILENAME)}
+                      disabled={saving || lookupLoading}
+                    />
+                    <span>{zh('根据文件名', 'By filename')}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={testPossibleCodes}
+                    disabled={saving || lookupLoading || possibleCodesLoading}
+                    className="inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    title={zh('提取番号测试', 'Test code extraction')}
+                  >
+                    <SearchIcon fontSize="inherit" />
+                    <span>
+                      {possibleCodesLoading
+                        ? zh('提取中…', 'Extracting...')
+                        : zh('提取番号测试', 'Test')}
+                    </span>
+                  </button>
+                </div>
+                <div className="rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <label className="flex flex-1 cursor-pointer items-center gap-2 font-medium">
                       <input
                         type="radio"
                         name="video-auto-scrape-source"
-                        value={AUTO_SOURCE_FILENAME}
-                        checked={autoSource === AUTO_SOURCE_FILENAME}
-                        onChange={() => setAutoSource(AUTO_SOURCE_FILENAME)}
+                        value={AUTO_SOURCE_CODE}
+                        checked={autoSource === AUTO_SOURCE_CODE}
+                        onChange={() => setAutoSource(AUTO_SOURCE_CODE)}
                         disabled={saving || lookupLoading}
                       />
-                      <span>{zh('根据文件名', 'By filename')}</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={testPossibleCodes}
-                      disabled={saving || lookupLoading || possibleCodesLoading}
-                      className="inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      title={zh('提取番号测试', 'Test code extraction')}
-                    >
-                      <SearchIcon fontSize="inherit" />
-                      <span>
-                        {possibleCodesLoading
-                          ? zh('提取中…', 'Extracting...')
-                          : zh('提取番号测试', 'Test')}
-                      </span>
-                    </button>
-                  </div>
-                  <div className="rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <label className="flex flex-1 cursor-pointer items-center gap-2 font-medium">
-                        <input
-                          type="radio"
-                          name="video-auto-scrape-source"
-                          value={AUTO_SOURCE_CODE}
-                          checked={autoSource === AUTO_SOURCE_CODE}
-                          onChange={() => setAutoSource(AUTO_SOURCE_CODE)}
-                          disabled={saving || lookupLoading}
-                        />
-                        <span>{zh('指定番号', 'Specified code')}</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={code}
-                        onFocus={() => setAutoSource(AUTO_SOURCE_CODE)}
-                        onChange={(event) => updateCode(event.target.value)}
-                        disabled={saving || lookupLoading || autoSource !== AUTO_SOURCE_CODE}
-                        placeholder="IPX-001"
-                        pattern="[A-Z0-9_-]+"
-                        aria-label={zh('指定番号', 'Specified code')}
-                        aria-invalid={autoSource === AUTO_SOURCE_CODE && codeInvalid}
-                        className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 sm:w-44 ${
-                          autoSource === AUTO_SOURCE_CODE && codeInvalid
-                            ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-                            : 'focus:border-blue-500 focus:ring-blue-500'
-                        }`}
-                      />
-                    </div>
-                    {autoSource === AUTO_SOURCE_CODE && codeInvalid ? (
-                      <div className="mt-2 text-xs text-red-600">
-                        {zh(
-                          '番号只能包含大写字母、数字、_、-',
-                          'Code can only contain uppercase letters, numbers, _, and -'
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-            </section>
-
-            <section
-              className={`overflow-hidden rounded-lg border ${
-                mode === 'manual' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
-              }`}
-            >
-              <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800">
-                <input
-                  type="radio"
-                  name="video-scrape-mode"
-                  value="manual"
-                  checked={mode === 'manual'}
-                  onChange={() => setMode('manual')}
-                  disabled={saving || lookupLoading}
-                />
-                <span className="shrink-0">{zh('手动刮削', 'Manual Scrape')}</span>
-                <span className="min-w-0 text-xs font-normal text-gray-500">
-                  {zh(
-                    '自行编辑影片信息，也可输入番号后选择数据源自动填充',
-                    'Edit metadata manually, or enter a code and select a provider to autofill it'
-                  )}
-                </span>
-              </label>
-              {mode === 'manual' ? (
-                <div className="grid gap-3 border-t border-blue-100 px-3 py-3 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('番号', 'Code')}
+                      <span>{zh('指定番号', 'Specified code')}</span>
                     </label>
                     <input
                       type="text"
                       value={code}
+                      onFocus={() => setAutoSource(AUTO_SOURCE_CODE)}
                       onChange={(event) => updateCode(event.target.value)}
-                      disabled={saving || lookupLoading}
+                      disabled={saving || lookupLoading || autoSource !== AUTO_SOURCE_CODE}
                       placeholder="IPX-001"
                       pattern="[A-Z0-9_-]+"
-                      aria-invalid={codeInvalid}
-                      className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
-                        codeInvalid
+                      aria-label={zh('指定番号', 'Specified code')}
+                      aria-invalid={autoSource === AUTO_SOURCE_CODE && codeInvalid}
+                      className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 sm:w-44 ${
+                        autoSource === AUTO_SOURCE_CODE && codeInvalid
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                           : 'focus:border-blue-500 focus:ring-blue-500'
                       }`}
                     />
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="mr-1 text-xs font-medium text-gray-500">
-                        {zh('自动填充', 'Autofill')}
-                      </span>
-                      {[
-                        ['javdb', 'JavDB'],
-                        ['javbus', 'JavBus'],
-                        ['avsox', 'AVSOX'],
-                      ].map(([provider, label]) => (
-                        <button
-                          key={provider}
-                          type="button"
-                          onClick={() => lookupMetadata(provider)}
-                          disabled={!codeValid || saving || lookupLoading}
-                          className="rounded border bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
-                        >
-                          {lookupLoading && lookupProvider === provider
-                            ? zh('填充中…', 'Filling...')
-                            : label}
-                        </button>
-                      ))}
+                  </div>
+                  {autoSource === AUTO_SOURCE_CODE && codeInvalid ? (
+                    <div className="mt-2 text-xs text-red-600">
+                      {zh(
+                        '番号只能包含大写字母、数字、_、-',
+                        'Code can only contain uppercase letters, numbers, _, and -'
+                      )}
                     </div>
-                    {codeInvalid ? (
-                      <div className="mt-1 text-xs text-red-600">
-                        {zh(
-                          '番号只能包含大写字母、数字、_、-',
-                          'Code can only contain uppercase letters, numbers, _, and -'
-                        )}
-                      </div>
-                    ) : null}
-                    {lookupError ? (
-                      <div className="mt-1 text-xs text-red-600">{lookupError}</div>
-                    ) : null}
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('标题', 'Title')}
-                    </label>
-                    <input
-                      type="text"
-                      value={manualInfo.title}
-                      onChange={(event) => updateManual({ title: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('片商', 'Studio')}
-                    </label>
-                    <input
-                      type="text"
-                      value={manualInfo.studio}
-                      onChange={(event) => updateManual({ studio: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      placeholder={zh('优先填写英文名称', 'English name preferred')}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('系列', 'Series')}
-                    </label>
-                    <input
-                      type="text"
-                      value={manualInfo.series}
-                      onChange={(event) => updateManual({ series: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('发行日期', 'Release Date')}
-                    </label>
-                    <input
-                      type="date"
-                      value={manualInfo.release_date}
-                      onChange={(event) => updateManual({ release_date: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('时长（分钟）', 'Duration (min)')}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={manualInfo.duration_min}
-                      onChange={(event) => updateManual({ duration_min: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('标签', 'Tags')}
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={manualInfo.tags_text}
-                      onChange={(event) => updateManual({ tags_text: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      placeholder={zh('每行一个，不要有多余空格', 'One per line, no extra spaces')}
-                      className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('女优', 'Actors')}
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={manualInfo.actors_text}
-                      onChange={(event) => updateManual({ actors_text: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      placeholder={zh('每行一个，不要有多余空格', 'One per line, no extra spaces')}
-                      className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('封面链接', 'Cover URL')}
-                    </label>
-                    <input
-                      type="url"
-                      value={manualInfo.cover_url}
-                      onChange={(event) => updateManual({ cover_url: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-500">
-                      {zh('有码状态', 'Censor State')}
-                    </label>
-                    <select
-                      value={manualInfo.is_uncensored}
-                      onChange={(event) => updateManual({ is_uncensored: event.target.value })}
-                      disabled={saving || lookupLoading}
-                      className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
-                    >
-                      <option value="">{zh('未知', 'Unknown')}</option>
-                      <option value="false">{zh('有码', 'Censored')}</option>
-                      <option value="true">{zh('无码', 'Uncensored')}</option>
-                    </select>
-                  </div>
+                  ) : null}
                 </div>
-              ) : null}
-            </section>
+              </div>
+            ) : null}
+          </section>
 
-            <label
-              className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold text-gray-800 ${
-                mode === 'skip' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
-              }`}
-            >
+          <section
+            className={`overflow-hidden rounded-lg border ${
+              mode === 'manual' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
+            }`}
+          >
+            <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800">
               <input
                 type="radio"
                 name="video-scrape-mode"
-                value="skip"
-                checked={mode === 'skip'}
-                onChange={() => setMode('skip')}
+                value="manual"
+                checked={mode === 'manual'}
+                onChange={() => setMode('manual')}
                 disabled={saving || lookupLoading}
               />
-              <span className="shrink-0">{zh('不刮削', 'Do Not Scrape')}</span>
+              <span className="shrink-0">{zh('手动刮削', 'Manual Scrape')}</span>
               <span className="min-w-0 text-xs font-normal text-gray-500">
                 {zh(
-                  '扫描过程中跳过此视频，不获取影片信息',
-                  'Skip this video during scans without fetching metadata'
+                  '自行编辑影片信息，也可输入番号后选择数据源自动填充',
+                  'Edit metadata manually, or enter a code and select a provider to autofill it'
                 )}
               </span>
             </label>
-          </div>
+            {mode === 'manual' ? (
+              <div className="grid gap-3 border-t border-blue-100 px-3 py-3 md:grid-cols-2">
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('番号', 'Code')}
+                  </label>
+                  <input
+                    type="text"
+                    value={code}
+                    onChange={(event) => updateCode(event.target.value)}
+                    disabled={saving || lookupLoading}
+                    placeholder="IPX-001"
+                    pattern="[A-Z0-9_-]+"
+                    aria-invalid={codeInvalid}
+                    className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
+                      codeInvalid
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                        : 'focus:border-blue-500 focus:ring-blue-500'
+                    }`}
+                  />
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="mr-1 text-xs font-medium text-gray-500">
+                      {zh('自动填充', 'Autofill')}
+                    </span>
+                    {[
+                      ['javdb', 'JavDB'],
+                      ['javbus', 'JavBus'],
+                      ['avsox', 'AVSOX'],
+                    ].map(([provider, label]) => (
+                      <button
+                        key={provider}
+                        type="button"
+                        onClick={() => lookupMetadata(provider)}
+                        disabled={!codeValid || saving || lookupLoading}
+                        className="rounded border bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
+                      >
+                        {lookupLoading && lookupProvider === provider
+                          ? zh('填充中…', 'Filling...')
+                          : label}
+                      </button>
+                    ))}
+                  </div>
+                  {codeInvalid ? (
+                    <div className="mt-1 text-xs text-red-600">
+                      {zh(
+                        '番号只能包含大写字母、数字、_、-',
+                        'Code can only contain uppercase letters, numbers, _, and -'
+                      )}
+                    </div>
+                  ) : null}
+                  {lookupError ? (
+                    <div className="mt-1 text-xs text-red-600">{lookupError}</div>
+                  ) : null}
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('标题', 'Title')}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualInfo.title}
+                    onChange={(event) => updateManual({ title: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('片商', 'Studio')}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualInfo.studio}
+                    onChange={(event) => updateManual({ studio: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    placeholder={zh('优先填写英文名称', 'English name preferred')}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('系列', 'Series')}
+                  </label>
+                  <input
+                    type="text"
+                    value={manualInfo.series}
+                    onChange={(event) => updateManual({ series: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('发行日期', 'Release Date')}
+                  </label>
+                  <input
+                    type="date"
+                    value={manualInfo.release_date}
+                    onChange={(event) => updateManual({ release_date: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('时长（分钟）', 'Duration (min)')}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={manualInfo.duration_min}
+                    onChange={(event) => updateManual({ duration_min: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('标签', 'Tags')}
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={manualInfo.tags_text}
+                    onChange={(event) => updateManual({ tags_text: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    placeholder={zh('每行一个，不要有多余空格', 'One per line, no extra spaces')}
+                    className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('女优', 'Actors')}
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={manualInfo.actors_text}
+                    onChange={(event) => updateManual({ actors_text: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    placeholder={zh('每行一个，不要有多余空格', 'One per line, no extra spaces')}
+                    className="w-full resize-y rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('封面链接', 'Cover URL')}
+                  </label>
+                  <input
+                    type="url"
+                    value={manualInfo.cover_url}
+                    onChange={(event) => updateManual({ cover_url: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">
+                    {zh('有码状态', 'Censor State')}
+                  </label>
+                  <select
+                    value={manualInfo.is_uncensored}
+                    onChange={(event) => updateManual({ is_uncensored: event.target.value })}
+                    disabled={saving || lookupLoading}
+                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                  >
+                    <option value="">{zh('未知', 'Unknown')}</option>
+                    <option value="false">{zh('有码', 'Censored')}</option>
+                    <option value="true">{zh('无码', 'Uncensored')}</option>
+                  </select>
+                </div>
+              </div>
+            ) : null}
+          </section>
+
+          <label
+            className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold text-gray-800 ${
+              mode === 'skip' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'
+            }`}
+          >
+            <input
+              type="radio"
+              name="video-scrape-mode"
+              value="skip"
+              checked={mode === 'skip'}
+              onChange={() => setMode('skip')}
+              disabled={saving || lookupLoading}
+            />
+            <span className="shrink-0">{zh('不刮削', 'Do Not Scrape')}</span>
+            <span className="min-w-0 text-xs font-normal text-gray-500">
+              {zh(
+                '扫描过程中跳过此视频，不获取影片信息',
+                'Skip this video during scans without fetching metadata'
+              )}
+            </span>
+          </label>
         </div>
-        <div className="shrink-0 p-3">
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
-            >
-              {zh('取消', 'Cancel')}
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!canSave}
-              className="ml-2 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:bg-gray-300"
-            >
-              {saving
-                ? zh('保存中…', 'Saving...')
-                : mode === 'manual'
-                  ? zh('手动刮削', 'Manual Scrape')
-                  : zh('保存', 'Save')}
-            </button>
-          </div>
+      </div>
+      <div className="shrink-0 p-3">
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            {zh('取消', 'Cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!canSave}
+            className="ml-2 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:bg-gray-300"
+          >
+            {saving
+              ? zh('保存中…', 'Saving...')
+              : mode === 'manual'
+                ? zh('手动刮削', 'Manual Scrape')
+                : zh('保存', 'Save')}
+          </button>
         </div>
       </div>
       {possibleCodesOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30 px-4">
-          <div className="w-full max-w-md rounded-lg bg-white p-4 shadow-xl">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="min-w-0 truncate text-base font-semibold">
-                {zh('提取番号测试', 'Code Extraction Test')}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setPossibleCodesOpen(false)}
-                className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
-                aria-label={zh('关闭', 'Close')}
-              >
-                ✕
-              </button>
-            </div>
-            <p className="mb-3 text-sm leading-6 text-gray-600">
-              {zh(
-                '自动刮削会依次尝试以下番号进行刮削。如果一直未刮削或者刮削错误，可以修改文件名或修改刮削设置为：不刮削/指定番号刮削。',
-                'Automatic scraping will try the following codes in order. If scraping keeps failing or matches the wrong item, rename the file or change the scrape setting to: Do not scrape / Force scrape code.'
-              )}
-            </p>
-            {possibleCodesResult?.filename ? (
-              <div
-                className="mb-3 truncate rounded bg-gray-50 px-2 py-1 text-xs text-gray-500"
-                title={possibleCodesResult.filename}
-              >
-                {possibleCodesResult.filename}
-              </div>
-            ) : null}
-            {possibleCodesLoading ? (
-              <div className="rounded border border-dashed px-3 py-6 text-center text-sm text-gray-500">
-                {zh('正在提取…', 'Extracting...')}
-              </div>
-            ) : possibleCodesError ? (
-              <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {possibleCodesError}
-              </div>
-            ) : Array.isArray(possibleCodesResult?.possible_codes) &&
-              possibleCodesResult.possible_codes.length > 0 ? (
-              <ol className="max-h-64 list-decimal space-y-1 overflow-y-auto rounded border bg-gray-50 px-8 py-3 text-sm text-gray-800">
-                {possibleCodesResult.possible_codes.map((item) => (
-                  <li key={item} className="font-mono">
-                    {item}
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <div className="rounded border border-dashed px-3 py-6 text-center text-sm text-gray-500">
-                {zh('没有提取到番号', 'No codes extracted')}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setPossibleCodesOpen(false)}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
-              >
-                {zh('知道了', 'OK')}
-              </button>
-            </div>
+        <AppModal
+          ariaLabel={zh('提取番号测试', 'Code Extraction Test')}
+          className="px-4"
+          contentClassName="w-full max-w-md rounded-lg bg-white p-4 shadow-xl"
+          onClose={() => setPossibleCodesOpen(false)}
+          zIndex={1400}
+        >
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="min-w-0 truncate text-base font-semibold">
+              {zh('提取番号测试', 'Code Extraction Test')}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setPossibleCodesOpen(false)}
+              className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+              aria-label={zh('关闭', 'Close')}
+            >
+              ✕
+            </button>
           </div>
-        </div>
+          <p className="mb-3 text-sm leading-6 text-gray-600">
+            {zh(
+              '自动刮削会依次尝试以下番号进行刮削。如果一直未刮削或者刮削错误，可以修改文件名或修改刮削设置为：不刮削/指定番号刮削。',
+              'Automatic scraping will try the following codes in order. If scraping keeps failing or matches the wrong item, rename the file or change the scrape setting to: Do not scrape / Force scrape code.'
+            )}
+          </p>
+          {possibleCodesResult?.filename ? (
+            <div
+              className="mb-3 truncate rounded bg-gray-50 px-2 py-1 text-xs text-gray-500"
+              title={possibleCodesResult.filename}
+            >
+              {possibleCodesResult.filename}
+            </div>
+          ) : null}
+          {possibleCodesLoading ? (
+            <div className="rounded border border-dashed px-3 py-6 text-center text-sm text-gray-500">
+              {zh('正在提取…', 'Extracting...')}
+            </div>
+          ) : possibleCodesError ? (
+            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {possibleCodesError}
+            </div>
+          ) : Array.isArray(possibleCodesResult?.possible_codes) &&
+            possibleCodesResult.possible_codes.length > 0 ? (
+            <ol className="max-h-64 list-decimal space-y-1 overflow-y-auto rounded border bg-gray-50 px-8 py-3 text-sm text-gray-800">
+              {possibleCodesResult.possible_codes.map((item) => (
+                <li key={item} className="font-mono">
+                  {item}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="rounded border border-dashed px-3 py-6 text-center text-sm text-gray-500">
+              {zh('没有提取到番号', 'No codes extracted')}
+            </div>
+          )}
+          <div className="mt-4 flex justify-end">
+            <button
+              type="button"
+              onClick={() => setPossibleCodesOpen(false)}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+            >
+              {zh('知道了', 'OK')}
+            </button>
+          </div>
+        </AppModal>
       ) : null}
-    </div>
+    </AppModal>
   )
 }

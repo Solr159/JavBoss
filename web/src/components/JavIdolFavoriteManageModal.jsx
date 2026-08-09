@@ -4,6 +4,7 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded'
 import { Button, IconButton } from '@mui/material'
+import AppModal from '@/components/AppModal'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
@@ -112,54 +113,57 @@ export default function JavIdolFavoriteManageModal({
   return (
     <>
       {!directEditMode ? (
-        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="pointer-events-auto flex max-h-[82vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="text-base font-semibold text-gray-950">{labels.manageTitle}</h2>
-              <IconButton
-                type="button"
-                size="small"
-                onClick={onClose}
-                disabled={saving}
-                aria-label={zh('关闭收藏夹管理', 'Close favorite manager')}
-              >
-                <CloseRoundedIcon fontSize="small" />
-              </IconButton>
-            </div>
-
-            <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              {error ? (
-                <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                  {error}
-                </div>
-              ) : null}
-
-              <GroupOrderList
-                groups={localGroups}
-                selectedGroupId={selectedGroupId}
-                emptyText={loading ? zh('加载中…', 'Loading...') : zh('暂无收藏夹', 'No favorites')}
-                labels={labels}
-                onReorder={setLocalGroups}
-                onReorderCommit={commitGroupOrder}
-                onEdit={(group) => setEditingGroup(group)}
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 border-t px-4 py-3">
-              <Button variant="outlined" onClick={() => setCreatingOpen(true)} disabled={saving}>
-                {zh('新增收藏夹', 'Add favorite')}
-              </Button>
-              <Button variant="outlined" onClick={onClose} disabled={saving}>
-                {zh('关闭', 'Close')}
-              </Button>
-            </div>
+        <AppModal
+          ariaLabel={labels.manageTitle}
+          className="px-4"
+          closeDisabled={saving}
+          contentClassName="flex max-h-[82vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-xl"
+          onClose={onClose}
+        >
+          <div className="flex items-center justify-between border-b px-4 py-3">
+            <h2 className="text-base font-semibold text-gray-950">{labels.manageTitle}</h2>
+            <IconButton
+              type="button"
+              size="small"
+              onClick={onClose}
+              disabled={saving}
+              aria-label={zh('关闭收藏夹管理', 'Close favorite manager')}
+            >
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
           </div>
-        </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            {error ? (
+              <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            <GroupOrderList
+              groups={localGroups}
+              selectedGroupId={selectedGroupId}
+              emptyText={loading ? zh('加载中…', 'Loading...') : zh('暂无收藏夹', 'No favorites')}
+              labels={labels}
+              onReorder={setLocalGroups}
+              onReorderCommit={commitGroupOrder}
+              onEdit={(group) => setEditingGroup(group)}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 border-t px-4 py-3">
+            <Button variant="outlined" onClick={() => setCreatingOpen(true)} disabled={saving}>
+              {zh('新增收藏夹', 'Add favorite')}
+            </Button>
+            <Button variant="outlined" onClick={onClose} disabled={saving}>
+              {zh('关闭', 'Close')}
+            </Button>
+          </div>
+        </AppModal>
       ) : null}
 
       <FavoriteGroupEditModal
         group={editingGroup}
-        directMode={directEditMode}
         onClose={directEditMode ? onClose : () => setEditingGroup(null)}
         onRename={handleRename}
         onDelete={handleDelete}
@@ -190,41 +194,48 @@ function CreateGroupModal({ open, name, creating, onNameChange, onClose, onSubmi
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="text-base font-semibold text-gray-950">
-            {zh('新增收藏夹', 'Add favorite')}
-          </h2>
-          <IconButton
-            type="button"
-            size="small"
-            onClick={onClose}
-            disabled={creating}
-            aria-label={zh('关闭新增收藏夹', 'Close add favorite')}
-          >
-            <CloseRoundedIcon fontSize="small" />
-          </IconButton>
-        </div>
-        <div className="p-4">
-          <input
-            value={name}
-            onChange={(event) => onNameChange(event.target.value)}
-            placeholder={zh('收藏夹名称', 'Favorite name')}
-            className="h-9 w-full rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            disabled={creating}
-          />
-        </div>
-        <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <Button variant="outlined" onClick={onClose} disabled={creating}>
-            {zh('取消', 'Cancel')}
-          </Button>
-          <Button type="submit" variant="contained" disabled={!name.trim() || creating}>
-            {creating ? zh('添加中…', 'Adding...') : zh('添加', 'Add')}
-          </Button>
-        </div>
-      </form>
-    </div>
+    <AppModal
+      ariaLabel={zh('新增收藏夹', 'Add favorite')}
+      className="px-4"
+      closeDisabled={creating}
+      contentClassName="w-full max-w-sm rounded-lg bg-white shadow-xl"
+      contentComponent="form"
+      contentProps={{ onSubmit }}
+      onClose={onClose}
+      zIndex={1400}
+    >
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="text-base font-semibold text-gray-950">
+          {zh('新增收藏夹', 'Add favorite')}
+        </h2>
+        <IconButton
+          type="button"
+          size="small"
+          onClick={onClose}
+          disabled={creating}
+          aria-label={zh('关闭新增收藏夹', 'Close add favorite')}
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </div>
+      <div className="p-4">
+        <input
+          value={name}
+          onChange={(event) => onNameChange(event.target.value)}
+          placeholder={zh('收藏夹名称', 'Favorite name')}
+          className="h-9 w-full rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          disabled={creating}
+        />
+      </div>
+      <div className="flex justify-end gap-2 border-t px-4 py-3">
+        <Button variant="outlined" onClick={onClose} disabled={creating}>
+          {zh('取消', 'Cancel')}
+        </Button>
+        <Button type="submit" variant="contained" disabled={!name.trim() || creating}>
+          {creating ? zh('添加中…', 'Adding...') : zh('添加', 'Add')}
+        </Button>
+      </div>
+    </AppModal>
   )
 }
 
@@ -270,7 +281,6 @@ function GroupOrderList({
 
 function FavoriteGroupEditModal({
   group,
-  directMode = false,
   onClose,
   onRename,
   onDelete,
@@ -407,87 +417,88 @@ function FavoriteGroupEditModal({
   }
 
   return (
-    <div
-      className={`fixed inset-0 z-[60] flex items-center justify-center px-4 ${
-        directMode ? 'pointer-events-none' : 'bg-black/40'
-      }`}
+    <AppModal
+      ariaLabel={zh('编辑收藏夹', 'Edit favorite')}
+      className="px-4"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[86vh] w-full max-w-xl flex-col rounded-lg bg-white shadow-xl"
+      onClose={onClose}
+      zIndex={1400}
     >
-      <div className="pointer-events-auto flex max-h-[86vh] w-full max-w-xl flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h2 className="min-w-0 truncate text-base font-semibold text-gray-950">
-            {zh('编辑收藏夹', 'Edit favorite')}
-          </h2>
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <h2 className="min-w-0 truncate text-base font-semibold text-gray-950">
+          {zh('编辑收藏夹', 'Edit favorite')}
+        </h2>
+        <IconButton
+          type="button"
+          size="small"
+          onClick={onClose}
+          disabled={saving}
+          aria-label={zh('关闭编辑收藏夹', 'Close favorite editor')}
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {error ? (
+          <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <input
+            value={groupName}
+            onChange={(event) => setGroupName(event.target.value)}
+            className="h-8 min-w-0 flex-1 rounded border border-gray-200 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={saving}
+          />
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={saveRename}
+            disabled={saving || !groupName.trim()}
+          >
+            {zh('重命名', 'Rename')}
+          </Button>
           <IconButton
             type="button"
             size="small"
-            onClick={onClose}
+            onClick={deleteGroup}
             disabled={saving}
-            aria-label={zh('关闭编辑收藏夹', 'Close favorite editor')}
+            aria-label={zh('删除收藏夹', 'Delete favorite')}
           >
-            <CloseRoundedIcon fontSize="small" />
+            <DeleteOutlineRoundedIcon fontSize="small" />
           </IconButton>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {error ? (
-            <div className="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <input
-              value={groupName}
-              onChange={(event) => setGroupName(event.target.value)}
-              className="h-8 min-w-0 flex-1 rounded border border-gray-200 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              disabled={saving}
-            />
-            <Button
-              variant="outlined"
-              size="small"
-              onClick={saveRename}
-              disabled={saving || !groupName.trim()}
-            >
-              {zh('重命名', 'Rename')}
-            </Button>
-            <IconButton
-              type="button"
-              size="small"
-              onClick={deleteGroup}
-              disabled={saving}
-              aria-label={zh('删除收藏夹', 'Delete favorite')}
-            >
-              <DeleteOutlineRoundedIcon fontSize="small" />
-            </IconButton>
-          </div>
-
-          <IdolOrderList
-            idols={idols}
-            loading={loading}
-            selectedIds={selectedIds}
-            onToggleSelected={toggleSelected}
-            onReorder={setIdols}
-            onReorderCommit={commitIdolOrder}
-            labels={labels}
-            preferChineseName={preferChineseName}
-          />
-        </div>
-
-        <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <Button
-            variant="outlined"
-            color="error"
-            onClick={removeSelected}
-            disabled={saving || loading || selectedIds.length === 0}
-          >
-            {zh('移除', 'Remove')}
-          </Button>
-          <Button variant="outlined" onClick={onClose} disabled={saving}>
-            {zh('关闭', 'Close')}
-          </Button>
-        </div>
+        <IdolOrderList
+          idols={idols}
+          loading={loading}
+          selectedIds={selectedIds}
+          onToggleSelected={toggleSelected}
+          onReorder={setIdols}
+          onReorderCommit={commitIdolOrder}
+          labels={labels}
+          preferChineseName={preferChineseName}
+        />
       </div>
-    </div>
+
+      <div className="flex justify-end gap-2 border-t px-4 py-3">
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={removeSelected}
+          disabled={saving || loading || selectedIds.length === 0}
+        >
+          {zh('移除', 'Remove')}
+        </Button>
+        <Button variant="outlined" onClick={onClose} disabled={saving}>
+          {zh('关闭', 'Close')}
+        </Button>
+      </div>
+    </AppModal>
   )
 }
 

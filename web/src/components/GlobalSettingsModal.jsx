@@ -4,6 +4,7 @@ import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined
 import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined'
 
 import DirectoryManager from '@/components/DirectoryManager'
+import AppModal from '@/components/AppModal'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
 import { downloadFFmpeg, fetchTools } from '@/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
@@ -1152,199 +1153,201 @@ export default function GlobalSettingsModal({
         </div>
 
         {passwordDialogOpen ? (
-          <div
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 px-4"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="change-password-title"
+          <AppModal
+            ariaLabelledby="change-password-title"
+            className="px-4"
+            closeDisabled={savingPassword}
+            contentClassName="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
+            contentComponent="form"
+            contentProps={{ onSubmit: handleChangePassword }}
+            onClose={closePasswordDialog}
+            zIndex={1400}
           >
-            <form
-              onSubmit={handleChangePassword}
-              className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl"
-            >
-              <div className="mb-5 flex items-center justify-between gap-4">
-                <h3 id="change-password-title" className="text-lg font-semibold text-zinc-900">
-                  {zh('修改密码', 'Change password')}
-                </h3>
-                <button
-                  type="button"
-                  onClick={closePasswordDialog}
-                  disabled={savingPassword}
-                  className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
-                  aria-label={zh('关闭', 'Close')}
-                >
-                  ✕
-                </button>
-              </div>
+            <div className="mb-5 flex items-center justify-between gap-4">
+              <h3 id="change-password-title" className="text-lg font-semibold text-zinc-900">
+                {zh('修改密码', 'Change password')}
+              </h3>
+              <button
+                type="button"
+                onClick={closePasswordDialog}
+                disabled={savingPassword}
+                className="rounded-lg px-2 py-1 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50"
+                aria-label={zh('关闭', 'Close')}
+              >
+                ✕
+              </button>
+            </div>
 
-              <div className="space-y-4">
-                {[
-                  {
-                    id: 'current-password',
-                    label: zh('旧密码', 'Current password'),
-                    value: currentPassword,
-                    setter: setCurrentPassword,
-                    autoComplete: 'current-password',
-                    visibilityKey: 'current',
-                  },
-                  {
-                    id: 'new-password',
-                    label: zh('新密码', 'New password'),
-                    value: newPassword,
-                    setter: setNewPassword,
-                    autoComplete: 'new-password',
-                    visibilityKey: 'new',
-                  },
-                  {
-                    id: 'confirm-password',
-                    label: zh('确认新密码', 'Confirm new password'),
-                    value: confirmPassword,
-                    setter: setConfirmPassword,
-                    autoComplete: 'new-password',
-                    visibilityKey: 'confirm',
-                  },
-                ].map((field) => (
-                  <div key={field.id}>
-                    <label
-                      htmlFor={field.id}
-                      className="mb-1.5 block text-sm font-medium text-zinc-700"
+            <div className="space-y-4">
+              {[
+                {
+                  id: 'current-password',
+                  label: zh('旧密码', 'Current password'),
+                  value: currentPassword,
+                  setter: setCurrentPassword,
+                  autoComplete: 'current-password',
+                  visibilityKey: 'current',
+                },
+                {
+                  id: 'new-password',
+                  label: zh('新密码', 'New password'),
+                  value: newPassword,
+                  setter: setNewPassword,
+                  autoComplete: 'new-password',
+                  visibilityKey: 'new',
+                },
+                {
+                  id: 'confirm-password',
+                  label: zh('确认新密码', 'Confirm new password'),
+                  value: confirmPassword,
+                  setter: setConfirmPassword,
+                  autoComplete: 'new-password',
+                  visibilityKey: 'confirm',
+                },
+              ].map((field) => (
+                <div key={field.id}>
+                  <label
+                    htmlFor={field.id}
+                    className="mb-1.5 block text-sm font-medium text-zinc-700"
+                  >
+                    {field.label}
+                  </label>
+                  <div className="relative">
+                    <input
+                      id={field.id}
+                      type={visiblePasswords[field.visibilityKey] ? 'text' : 'password'}
+                      autoComplete={field.autoComplete}
+                      value={field.value}
+                      onChange={(event) => {
+                        field.setter(event.target.value)
+                        setPasswordError('')
+                      }}
+                      className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-16 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisiblePasswords((current) => ({
+                          ...current,
+                          [field.visibilityKey]: !current[field.visibilityKey],
+                        }))
+                      }
+                      className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                      aria-label={
+                        visiblePasswords[field.visibilityKey]
+                          ? zh(`隐藏${field.label}`, `Hide ${field.label.toLowerCase()}`)
+                          : zh(`显示${field.label}`, `Show ${field.label.toLowerCase()}`)
+                      }
                     >
-                      {field.label}
-                    </label>
-                    <div className="relative">
-                      <input
-                        id={field.id}
-                        type={visiblePasswords[field.visibilityKey] ? 'text' : 'password'}
-                        autoComplete={field.autoComplete}
-                        value={field.value}
-                        onChange={(event) => {
-                          field.setter(event.target.value)
-                          setPasswordError('')
-                        }}
-                        className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-16 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setVisiblePasswords((current) => ({
-                            ...current,
-                            [field.visibilityKey]: !current[field.visibilityKey],
-                          }))
-                        }
-                        className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                        aria-label={
-                          visiblePasswords[field.visibilityKey]
-                            ? zh(`隐藏${field.label}`, `Hide ${field.label.toLowerCase()}`)
-                            : zh(`显示${field.label}`, `Show ${field.label.toLowerCase()}`)
-                        }
-                      >
-                        {visiblePasswords[field.visibilityKey] ? (
-                          <VisibilityOutlinedIcon fontSize="small" aria-hidden="true" />
-                        ) : (
-                          <VisibilityOffOutlinedIcon fontSize="small" aria-hidden="true" />
-                        )}
-                      </button>
-                    </div>
+                      {visiblePasswords[field.visibilityKey] ? (
+                        <VisibilityOutlinedIcon fontSize="small" aria-hidden="true" />
+                      ) : (
+                        <VisibilityOffOutlinedIcon fontSize="small" aria-hidden="true" />
+                      )}
+                    </button>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
+            </div>
 
-              {passwordError ? (
-                <div className="mt-4 text-sm text-red-600">{passwordError}</div>
-              ) : null}
+            {passwordError ? (
+              <div className="mt-4 text-sm text-red-600">{passwordError}</div>
+            ) : null}
 
-              <div className="mt-6 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={closePasswordDialog}
-                  disabled={savingPassword}
-                  className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  {zh('取消', 'Cancel')}
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {savingPassword ? zh('保存中…', 'Saving...') : zh('确认修改', 'Change password')}
-                </button>
-              </div>
-            </form>
-          </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={closePasswordDialog}
+                disabled={savingPassword}
+                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {zh('取消', 'Cancel')}
+              </button>
+              <button
+                type="submit"
+                disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {savingPassword ? zh('保存中…', 'Saving...') : zh('确认修改', 'Change password')}
+              </button>
+            </div>
+          </AppModal>
         ) : null}
       </>
     )
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-      <div className="flex h-[min(86vh,820px)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#f5f5f7] shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-200 bg-white/70 px-6 py-4 backdrop-blur">
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">
-              {zh('全局设置', 'Global Settings')}
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500">{zh(activeTitle.zh, activeTitle.en)}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
-          >
-            {zh('关闭', 'Close')}
-          </button>
+    <AppModal
+      ariaLabelledby="global-settings-title"
+      className="px-4"
+      contentClassName="flex h-[min(86vh,820px)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#f5f5f7] shadow-2xl"
+      onClose={onClose}
+    >
+      <div className="flex items-center justify-between border-b border-zinc-200 bg-white/70 px-6 py-4 backdrop-blur">
+        <div>
+          <h2 id="global-settings-title" className="text-lg font-semibold text-zinc-900">
+            {zh('全局设置', 'Global Settings')}
+          </h2>
+          <p className="mt-1 text-sm text-zinc-500">{zh(activeTitle.zh, activeTitle.en)}</p>
         </div>
-
-        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-          <aside className="border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:border-b-0 md:border-r">
-            <div className="flex gap-2 overflow-x-auto md:flex-col">
-              {visibleSections.map((section) => {
-                const selected = currentSection === section.id
-                const badgeText = section.id === 'directories' ? String(directories.length) : ''
-
-                return (
-                  <button
-                    key={section.id}
-                    type="button"
-                    onClick={() => setActiveSection(section.id)}
-                    className={`min-w-[220px] rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
-                      selected
-                        ? 'border-zinc-200 bg-white shadow-sm'
-                        : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="text-sm font-semibold text-zinc-900">
-                          {zh(section.title.zh, section.title.en)}
-                        </div>
-                      </div>
-                      {badgeText ? (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
-                          {badgeText}
-                        </span>
-                      ) : null}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </aside>
-
-          <section
-            className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 ${
-              currentSection === 'directories' ? 'md:pt-3' : 'md:pt-6'
-            }`}
-          >
-            {currentSection === 'display' && renderDisplayPanel()}
-            {currentSection === 'network' && renderNetworkPanel()}
-            {currentSection === 'tools' && renderToolsPanel()}
-            {currentSection === 'player' && renderPlayerPanel()}
-            {currentSection === 'directories' && renderDirectoriesPanel()}
-            {currentSection === 'security' && renderSecurityPanel()}
-          </section>
-        </div>
+        <button
+          onClick={onClose}
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-50"
+        >
+          {zh('关闭', 'Close')}
+        </button>
       </div>
-    </div>
+
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <aside className="border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:border-b-0 md:border-r">
+          <div className="flex gap-2 overflow-x-auto md:flex-col">
+            {visibleSections.map((section) => {
+              const selected = currentSection === section.id
+              const badgeText = section.id === 'directories' ? String(directories.length) : ''
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  className={`min-w-[220px] rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
+                    selected
+                      ? 'border-zinc-200 bg-white shadow-sm'
+                      : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-zinc-900">
+                        {zh(section.title.zh, section.title.en)}
+                      </div>
+                    </div>
+                    {badgeText ? (
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                        {badgeText}
+                      </span>
+                    ) : null}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </aside>
+
+        <section
+          className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 ${
+            currentSection === 'directories' ? 'md:pt-3' : 'md:pt-6'
+          }`}
+        >
+          {currentSection === 'display' && renderDisplayPanel()}
+          {currentSection === 'network' && renderNetworkPanel()}
+          {currentSection === 'tools' && renderToolsPanel()}
+          {currentSection === 'player' && renderPlayerPanel()}
+          {currentSection === 'directories' && renderDirectoriesPanel()}
+          {currentSection === 'security' && renderSecurityPanel()}
+        </section>
+      </div>
+    </AppModal>
   )
 }

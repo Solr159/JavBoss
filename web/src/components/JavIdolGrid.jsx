@@ -6,6 +6,7 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { fetchJavIdolJavDBURL, fetchJavIdolOptions, mergeJavIdols, updateJavIdol } from '@/api'
+import AppModal from '@/components/AppModal'
 import JavIdolCoverModal, {
   IDOL_COVER_DEFAULT_CROP_LEFT,
   IDOL_COVER_VISIBLE_RATIO,
@@ -487,142 +488,146 @@ export function JavIdolEditModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/45 p-4">
-        <form
-          className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-          onSubmit={handleSubmit}
-        >
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="min-w-0">
-              <div className="text-base font-semibold text-gray-950">
-                {zh('编辑女优信息', 'Edit idol info')}
-              </div>
-              <div className="truncate text-xs text-gray-500">{displayName}</div>
+      <AppModal
+        ariaLabel={zh('编辑女优信息', 'Edit idol info')}
+        className="p-4"
+        closeDisabled={saving}
+        contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        contentComponent="form"
+        contentProps={{ onSubmit: handleSubmit }}
+        onClose={onClose}
+        zIndex={1600}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold text-gray-950">
+              {zh('编辑女优信息', 'Edit idol info')}
             </div>
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              aria-label={zh('关闭', 'Close')}
-              onClick={onClose}
-            >
-              <CloseRoundedIcon sx={{ fontSize: 20 }} />
-            </button>
+            <div className="truncate text-xs text-gray-500">{displayName}</div>
           </div>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label={zh('关闭', 'Close')}
+            onClick={onClose}
+          >
+            <CloseRoundedIcon sx={{ fontSize: 20 }} />
+          </button>
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-4">
-            <div className="grid gap-3 md:grid-cols-2">
-              <TextField
-                label={zh('名称', 'Name')}
-                value={form.name}
-                onChange={(value) => setField('name', value)}
-                required
-              />
-              <TextField
-                label={zh('日文名', 'Japanese name')}
-                value={form.japanese_name}
-                onChange={(value) => setField('japanese_name', value)}
-              />
-              <TextField
-                label={zh('罗马名', 'Roman name')}
-                value={form.roman_name}
-                onChange={(value) => setField('roman_name', value)}
-              />
-              <TextField
-                label={zh('中文名', 'Chinese name')}
-                value={form.chinese_name}
-                onChange={(value) => setField('chinese_name', value)}
-              />
-              <TextField
-                label={zh('身高', 'Height')}
-                value={form.height_cm}
-                type="number"
-                min="1"
-                onChange={(value) => setField('height_cm', value)}
-              />
-              <TextField
-                label={zh('生日', 'Birth date')}
-                value={form.birth_date}
-                type="date"
-                onChange={(value) => setField('birth_date', value)}
-              />
-              <TextField
-                label={zh('胸围', 'Bust')}
-                value={form.bust}
-                type="number"
-                min="1"
-                onChange={(value) => setField('bust', value)}
-              />
-              <TextField
-                label={zh('腰围', 'Waist')}
-                value={form.waist}
-                type="number"
-                min="1"
-                onChange={(value) => setField('waist', value)}
-              />
-              <TextField
-                label={zh('臀围', 'Hips')}
-                value={form.hips}
-                type="number"
-                min="1"
-                onChange={(value) => setField('hips', value)}
-              />
-              <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-                <span>{zh('罩杯', 'Cup')}</span>
-                <select
-                  value={form.cup}
-                  onChange={(event) => setField('cup', event.target.value)}
-                  className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
-                >
-                  <option value="">{zh('未设置', 'Unset')}</option>
-                  {Array.from({ length: 26 }, (_, index) => index + 1).map((value) => (
-                    <option key={value} value={String(value)}>
-                      {String.fromCharCode(64 + value)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <AliasEditor
-              aliases={form.aliases}
-              inputValue={form.alias_input}
-              onInputChange={(value) => setField('alias_input', value)}
-              onAdd={addAliases}
-              onRemove={removeAlias}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="grid gap-3 md:grid-cols-2">
+            <TextField
+              label={zh('名称', 'Name')}
+              value={form.name}
+              onChange={(value) => setField('name', value)}
+              required
             />
-
-            <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
-              <button
-                type="button"
-                className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setMergeOpen(true)}
+            <TextField
+              label={zh('日文名', 'Japanese name')}
+              value={form.japanese_name}
+              onChange={(value) => setField('japanese_name', value)}
+            />
+            <TextField
+              label={zh('罗马名', 'Roman name')}
+              value={form.roman_name}
+              onChange={(value) => setField('roman_name', value)}
+            />
+            <TextField
+              label={zh('中文名', 'Chinese name')}
+              value={form.chinese_name}
+              onChange={(value) => setField('chinese_name', value)}
+            />
+            <TextField
+              label={zh('身高', 'Height')}
+              value={form.height_cm}
+              type="number"
+              min="1"
+              onChange={(value) => setField('height_cm', value)}
+            />
+            <TextField
+              label={zh('生日', 'Birth date')}
+              value={form.birth_date}
+              type="date"
+              onChange={(value) => setField('birth_date', value)}
+            />
+            <TextField
+              label={zh('胸围', 'Bust')}
+              value={form.bust}
+              type="number"
+              min="1"
+              onChange={(value) => setField('bust', value)}
+            />
+            <TextField
+              label={zh('腰围', 'Waist')}
+              value={form.waist}
+              type="number"
+              min="1"
+              onChange={(value) => setField('waist', value)}
+            />
+            <TextField
+              label={zh('臀围', 'Hips')}
+              value={form.hips}
+              type="number"
+              min="1"
+              onChange={(value) => setField('hips', value)}
+            />
+            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+              <span>{zh('罩杯', 'Cup')}</span>
+              <select
+                value={form.cup}
+                onChange={(event) => setField('cup', event.target.value)}
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
               >
-                {zh('合并到其它女优', 'Merge into another idol')}
-              </button>
-            </div>
-
-            {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+                <option value="">{zh('未设置', 'Unset')}</option>
+                {Array.from({ length: 26 }, (_, index) => index + 1).map((value) => (
+                  <option key={value} value={String(value)}>
+                    {String.fromCharCode(64 + value)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
-          <div className="flex justify-end gap-2 border-t px-4 py-3">
+          <AliasEditor
+            aliases={form.aliases}
+            inputValue={form.alias_input}
+            onInputChange={(value) => setField('alias_input', value)}
+            onAdd={addAliases}
+            onRemove={removeAlias}
+          />
+
+          <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
             <button
               type="button"
               className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              onClick={onClose}
-              disabled={saving}
+              onClick={() => setMergeOpen(true)}
             >
-              {zh('取消', 'Cancel')}
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-              disabled={saving || !String(form.name || '').trim()}
-            >
-              {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+              {zh('合并到其它女优', 'Merge into another idol')}
             </button>
           </div>
-        </form>
-      </div>
+
+          {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+        </div>
+
+        <div className="flex justify-end gap-2 border-t px-4 py-3">
+          <button
+            type="button"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            {zh('取消', 'Cancel')}
+          </button>
+          <button
+            type="submit"
+            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+            disabled={saving || !String(form.name || '').trim()}
+          >
+            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+          </button>
+        </div>
+      </AppModal>
       <JavIdolMergeModal
         open={mergeOpen}
         item={item}
@@ -789,122 +794,126 @@ function JavIdolMergeModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/45 p-4">
-      <form
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-        onSubmit={handleSubmit}
-      >
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="min-w-0">
-            <div className="text-base font-semibold text-gray-950">
-              {zh('合并女优', 'Merge idol')}
-            </div>
-            <div className="truncate text-xs text-gray-500">
-              {zh(`将 ${sourceName} 合并到目标女优`, `Merge ${sourceName} into target idol`)}
-            </div>
+    <AppModal
+      ariaLabel={zh('合并女优', 'Merge idol')}
+      className="p-4"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+      contentComponent="form"
+      contentProps={{ onSubmit: handleSubmit }}
+      onClose={onClose}
+      zIndex={1700}
+    >
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-base font-semibold text-gray-950">
+            {zh('合并女优', 'Merge idol')}
           </div>
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            aria-label={zh('关闭', 'Close')}
-            onClick={onClose}
-          >
-            <CloseRoundedIcon sx={{ fontSize: 20 }} />
-          </button>
+          <div className="truncate text-xs text-gray-500">
+            {zh(`将 ${sourceName} 合并到目标女优`, `Merge ${sourceName} into target idol`)}
+          </div>
+        </div>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          aria-label={zh('关闭', 'Close')}
+          onClick={onClose}
+        >
+          <CloseRoundedIcon sx={{ fontSize: 20 }} />
+        </button>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
+        <label className="relative block">
+          <SearchRoundedIcon
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            sx={{ fontSize: 18 }}
+          />
+          <input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setSelectedId(0)
+            }}
+            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
+            placeholder={zh('搜索要合并到的目标女优', 'Search target idol to merge into')}
+          />
+        </label>
+
+        <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
+          {loading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+              {zh('加载中…', 'Loading...')}
+            </div>
+          ) : options.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {options.map((option) => {
+                const id = Number(option?.id)
+                const { primaryName: optionName, secondaryName: optionSecondaryName } =
+                  getIdolDisplayNames(option, preferChineseName)
+                const optionMeta = buildMergeOptionMeta(option)
+                const checked = id === selectedId
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                      checked ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
+                    }`}
+                    onClick={() => setSelectedId(id)}
+                  >
+                    <span className="flex w-full min-w-0 items-center gap-2">
+                      <span className="min-w-0 truncate font-medium">{optionName}</span>
+                      {optionSecondaryName ? (
+                        <span className="shrink-0 truncate text-xs text-gray-500">
+                          {optionSecondaryName}
+                        </span>
+                      ) : null}
+                    </span>
+                    {optionMeta ? (
+                      <span className="w-full truncate text-xs text-gray-500">{optionMeta}</span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+              {zh('没有可合并的目标女优', 'No target idol found')}
+            </div>
+          )}
         </div>
 
-        <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-          <label className="relative block">
-            <SearchRoundedIcon
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              sx={{ fontSize: 18 }}
-            />
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setSelectedId(0)
-              }}
-              className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
-              placeholder={zh('搜索要合并到的目标女优', 'Search target idol to merge into')}
-            />
-          </label>
-
-          <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
-            {loading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-                {zh('加载中…', 'Loading...')}
-              </div>
-            ) : options.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {options.map((option) => {
-                  const id = Number(option?.id)
-                  const { primaryName: optionName, secondaryName: optionSecondaryName } =
-                    getIdolDisplayNames(option, preferChineseName)
-                  const optionMeta = buildMergeOptionMeta(option)
-                  const checked = id === selectedId
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                        checked ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
-                      }`}
-                      onClick={() => setSelectedId(id)}
-                    >
-                      <span className="flex w-full min-w-0 items-center gap-2">
-                        <span className="min-w-0 truncate font-medium">{optionName}</span>
-                        {optionSecondaryName ? (
-                          <span className="shrink-0 truncate text-xs text-gray-500">
-                            {optionSecondaryName}
-                          </span>
-                        ) : null}
-                      </span>
-                      {optionMeta ? (
-                        <span className="w-full truncate text-xs text-gray-500">{optionMeta}</span>
-                      ) : null}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-                {zh('没有可合并的目标女优', 'No target idol found')}
-              </div>
+        {selected ? (
+          <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {zh(
+              `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前女优记录会被删除，相关数据迁移会自动完成。此操作无法撤回，请仔细核实后操作。`,
+              `"${sourceName}" will exist as an alias of "${selectedName}". The current idol record will be deleted, and related data migration will be completed automatically. This action cannot be undone; verify carefully before continuing.`
             )}
           </div>
+        ) : null}
 
-          {selected ? (
-            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              {zh(
-                `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前女优记录会被删除，相关数据迁移会自动完成。此操作无法撤回，请仔细核实后操作。`,
-                `"${sourceName}" will exist as an alias of "${selectedName}". The current idol record will be deleted, and related data migration will be completed automatically. This action cannot be undone; verify carefully before continuing.`
-              )}
-            </div>
-          ) : null}
+        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+      </div>
 
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
-        </div>
-
-        <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <button
-            type="button"
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={onClose}
-            disabled={saving}
-          >
-            {zh('取消', 'Cancel')}
-          </button>
-          <button
-            type="submit"
-            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-            disabled={!canSubmit || saving}
-          >
-            {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}
-          </button>
-        </div>
-      </form>
-    </div>
+      <div className="flex justify-end gap-2 border-t px-4 py-3">
+        <button
+          type="button"
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          onClick={onClose}
+          disabled={saving}
+        >
+          {zh('取消', 'Cancel')}
+        </button>
+        <button
+          type="submit"
+          className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+          disabled={!canSubmit || saving}
+        >
+          {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}
+        </button>
+      </div>
+    </AppModal>
   )
 }
 

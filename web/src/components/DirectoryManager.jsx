@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { pickDirectory } from '@/api'
+import AppModal from '@/components/AppModal'
 import { apiHostPath, displayHostPath } from '@/utils/hostPath'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -721,219 +722,218 @@ export default function DirectoryManager({
         </div>
       )}
       {toolDirectory && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="directory-tools-title"
-            className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"
-          >
-            <div id="directory-tools-title" className="text-base font-semibold text-zinc-900">
-              {zh('目录工具', 'Directory Tools')}
-            </div>
-            <div className="mt-1 truncate text-xs text-zinc-500">
-              {displayPath(toolDirectory.path)}
-            </div>
-            <div className="mt-4 space-y-2">
-              {directoryProcessOptions().map((option) => (
-                <label
-                  key={option.mode}
-                  htmlFor={`directory-process-${option.mode}`}
-                  aria-label={option.title}
-                  className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
-                    toolMode === option.mode
-                      ? 'border-blue-400 bg-blue-50'
-                      : 'border-zinc-200 hover:bg-zinc-50'
-                  }`}
-                >
-                  <input
-                    id={`directory-process-${option.mode}`}
-                    type="radio"
-                    name="directory-process-mode"
-                    value={option.mode}
-                    checked={toolMode === option.mode}
-                    onChange={() => setToolMode(option.mode)}
-                    className="mt-0.5"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-zinc-900">{option.title}</span>
-                    <span className="mt-0.5 block text-xs leading-5 text-zinc-600">
-                      {option.description}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-            {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
-              <div className="mt-4">
-                <div className="text-sm font-medium text-zinc-900">
-                  {zh('整理方式', 'Organization layout')}
-                </div>
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {directoryProcessLayoutOptions().map((option) => (
-                    <label
-                      key={option.layout}
-                      htmlFor={`directory-process-layout-${option.layout}`}
-                      className={`cursor-pointer rounded-xl border p-3 transition ${
-                        toolLayout === option.layout
-                          ? 'border-blue-400 bg-blue-50'
-                          : 'border-zinc-200 hover:bg-zinc-50'
-                      }`}
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          id={`directory-process-layout-${option.layout}`}
-                          type="radio"
-                          name="directory-process-layout"
-                          value={option.layout}
-                          checked={toolLayout === option.layout}
-                          onChange={() => setToolLayout(option.layout)}
-                        />
-                        <span className="text-sm font-medium text-zinc-900">{option.title}</span>
-                      </span>
-                      <span className="mt-1 block pl-6 text-xs text-zinc-500">
-                        {option.example}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-                {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
-                  <div className="mt-2 text-xs leading-5 text-zinc-500">
-                    {zh(
-                      '最多拼接 3 位女优名；超过 3 位时统一归入“多女优”，没有女优信息时归入“未知女优”。',
-                      'Up to 3 sorted idol names are joined with "，". Works with more than 3 idols go under "多女优", and works without idol metadata go under "未知女优".'
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
-              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                {zh(
-                  '整理后的文件统一位于所选目录中的 JAV 文件夹下。',
-                  'Organized files are stored under the JAV folder inside the selected directory.'
-                )}
-              </div>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setToolDirectory(null)}
-                className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-              >
-                {zh('取消', 'Cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleProcess(toolDirectory, toolMode, toolLayout)}
-                disabled={toolDirectoryWorking}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {zh('执行', 'Run')}
-              </button>
-            </div>
+        <AppModal
+          ariaLabelledby="directory-tools-title"
+          className="p-4"
+          closeDisabled={toolDirectoryWorking}
+          contentClassName="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"
+          onClose={() => setToolDirectory(null)}
+          zIndex={1400}
+        >
+          <div id="directory-tools-title" className="text-base font-semibold text-zinc-900">
+            {zh('目录工具', 'Directory Tools')}
           </div>
-        </div>
-      )}
-      {scanSettingsDirectory && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 p-4">
-          <form
-            onSubmit={handleScanSettingsSubmit}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="directory-scan-settings-title"
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
-          >
-            <div
-              id="directory-scan-settings-title"
-              className="text-base font-semibold text-zinc-900"
-            >
-              {zh('扫描设置', 'Scan Settings')}
-            </div>
-            <div
-              title={displayPath(currentScanSettingsDirectory.path)}
-              className="mt-2 truncate rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-500"
-            >
-              {displayPath(currentScanSettingsDirectory.path)}
-            </div>
-            <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+          <div className="mt-1 truncate text-xs text-zinc-500">
+            {displayPath(toolDirectory.path)}
+          </div>
+          <div className="mt-4 space-y-2">
+            {directoryProcessOptions().map((option) => (
               <label
-                aria-label={zh('自动扫描', 'Automatic scan')}
-                className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3"
+                key={option.mode}
+                htmlFor={`directory-process-${option.mode}`}
+                aria-label={option.title}
+                className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                  toolMode === option.mode
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-zinc-200 hover:bg-zinc-50'
+                }`}
               >
+                <input
+                  id={`directory-process-${option.mode}`}
+                  type="radio"
+                  name="directory-process-mode"
+                  value={option.mode}
+                  checked={toolMode === option.mode}
+                  onChange={() => setToolMode(option.mode)}
+                  className="mt-0.5"
+                />
                 <span>
-                  <span className="block text-sm font-medium text-zinc-900">
-                    {zh('自动扫描', 'Automatic scan')}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-zinc-500">
-                    {scanSettingsEnabled
-                      ? zh(
-                          '按指定间隔进行目录扫描和 JAV 刮削',
-                          'Scan the directory and scrape JAV metadata at the specified interval'
-                        )
-                      : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
+                  <span className="block text-sm font-medium text-zinc-900">{option.title}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-zinc-600">
+                    {option.description}
                   </span>
                 </span>
-                <input
-                  type="checkbox"
-                  checked={scanSettingsEnabled}
-                  onChange={(event) => setScanSettingsEnabled(event.target.checked)}
-                  className="peer sr-only"
-                />
-                <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2" />
               </label>
-              {scanSettingsEnabled && (
-                <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700">
-                  <span>{zh('扫描间隔：', 'Scan interval:')}</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="525600"
-                    step="1"
-                    value={scanSettingsIntervalMinutes}
-                    onChange={(event) => setScanSettingsIntervalMinutes(event.target.value)}
-                    className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-                  <span>{zh('分钟', 'minutes')}</span>
-                </label>
+            ))}
+          </div>
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+            <div className="mt-4">
+              <div className="text-sm font-medium text-zinc-900">
+                {zh('整理方式', 'Organization layout')}
+              </div>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                {directoryProcessLayoutOptions().map((option) => (
+                  <label
+                    key={option.layout}
+                    htmlFor={`directory-process-layout-${option.layout}`}
+                    className={`cursor-pointer rounded-xl border p-3 transition ${
+                      toolLayout === option.layout
+                        ? 'border-blue-400 bg-blue-50'
+                        : 'border-zinc-200 hover:bg-zinc-50'
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <input
+                        id={`directory-process-layout-${option.layout}`}
+                        type="radio"
+                        name="directory-process-layout"
+                        value={option.layout}
+                        checked={toolLayout === option.layout}
+                        onChange={() => setToolLayout(option.layout)}
+                      />
+                      <span className="text-sm font-medium text-zinc-900">{option.title}</span>
+                    </span>
+                    <span className="mt-1 block pl-6 text-xs text-zinc-500">{option.example}</span>
+                  </label>
+                ))}
+              </div>
+              {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
+                <div className="mt-2 text-xs leading-5 text-zinc-500">
+                  {zh(
+                    '最多拼接 3 位女优名；超过 3 位时统一归入“多女优”，没有女优信息时归入“未知女优”。',
+                    'Up to 3 sorted idol names are joined with "，". Works with more than 3 idols go under "多女优", and works without idol metadata go under "未知女优".'
+                  )}
+                </div>
               )}
             </div>
-            {scanSettingsRunning && (
-              <div className="mt-3 flex items-center gap-2 text-xs text-blue-700">
-                <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
-                <span>
-                  {zh(
-                    '当前进行中的扫描会持续到结束，不受此次修改影响。',
-                    'The scan currently in progress will continue until completion and will not be affected by this change.'
-                  )}
-                </span>
-              </div>
-            )}
-            {scanSettingsError && (
-              <div className="mt-3 text-sm text-red-600">{scanSettingsError}</div>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setScanSettingsDirectory(null)
-                  setScanSettingsError('')
-                }}
-                disabled={savingScanSettingsId != null}
-                className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-              >
-                {zh('取消', 'Cancel')}
-              </button>
-              <button
-                type="submit"
-                disabled={savingScanSettingsId != null}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
-              >
-                {savingScanSettingsId != null ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
+          )}
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              {zh(
+                '整理后的文件统一位于所选目录中的 JAV 文件夹下。',
+                'Organized files are stored under the JAV folder inside the selected directory.'
+              )}
             </div>
-          </form>
-        </div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setToolDirectory(null)}
+              className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleProcess(toolDirectory, toolMode, toolLayout)}
+              disabled={toolDirectoryWorking}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {zh('执行', 'Run')}
+            </button>
+          </div>
+        </AppModal>
+      )}
+      {scanSettingsDirectory && (
+        <AppModal
+          ariaLabelledby="directory-scan-settings-title"
+          className="p-4"
+          closeDisabled={savingScanSettingsId != null}
+          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          contentComponent="form"
+          contentProps={{ onSubmit: handleScanSettingsSubmit }}
+          onClose={() => {
+            setScanSettingsDirectory(null)
+            setScanSettingsError('')
+          }}
+          zIndex={1410}
+        >
+          <div id="directory-scan-settings-title" className="text-base font-semibold text-zinc-900">
+            {zh('扫描设置', 'Scan Settings')}
+          </div>
+          <div
+            title={displayPath(currentScanSettingsDirectory.path)}
+            className="mt-2 truncate rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-500"
+          >
+            {displayPath(currentScanSettingsDirectory.path)}
+          </div>
+          <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200">
+            <label
+              aria-label={zh('自动扫描', 'Automatic scan')}
+              className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3"
+            >
+              <span>
+                <span className="block text-sm font-medium text-zinc-900">
+                  {zh('自动扫描', 'Automatic scan')}
+                </span>
+                <span className="mt-0.5 block text-xs text-zinc-500">
+                  {scanSettingsEnabled
+                    ? zh(
+                        '按指定间隔进行目录扫描和 JAV 刮削',
+                        'Scan the directory and scrape JAV metadata at the specified interval'
+                      )
+                    : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={scanSettingsEnabled}
+                onChange={(event) => setScanSettingsEnabled(event.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500 peer-focus-visible:ring-offset-2" />
+            </label>
+            {scanSettingsEnabled && (
+              <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700">
+                <span>{zh('扫描间隔：', 'Scan interval:')}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="525600"
+                  step="1"
+                  value={scanSettingsIntervalMinutes}
+                  onChange={(event) => setScanSettingsIntervalMinutes(event.target.value)}
+                  className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+                <span>{zh('分钟', 'minutes')}</span>
+              </label>
+            )}
+          </div>
+          {scanSettingsRunning && (
+            <div className="mt-3 flex items-center gap-2 text-xs text-blue-700">
+              <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
+              <span>
+                {zh(
+                  '当前进行中的扫描会持续到结束，不受此次修改影响。',
+                  'The scan currently in progress will continue until completion and will not be affected by this change.'
+                )}
+              </span>
+            </div>
+          )}
+          {scanSettingsError && (
+            <div className="mt-3 text-sm text-red-600">{scanSettingsError}</div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setScanSettingsDirectory(null)
+                setScanSettingsError('')
+              }}
+              disabled={savingScanSettingsId != null}
+              className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="submit"
+              disabled={savingScanSettingsId != null}
+              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {savingScanSettingsId != null ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            </button>
+          </div>
+        </AppModal>
       )}
     </div>
   )

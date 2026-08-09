@@ -28,6 +28,7 @@ import {
   updateJavItem,
 } from '@/api'
 import JavDetailModal from '@/components/JavDetailModal'
+import AppModal from '@/components/AppModal'
 import JavIdolCoverModal from '@/components/JavIdolCoverModal'
 import { IdolCard, JavIdolEditModal, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
@@ -356,8 +357,6 @@ function CoverPreviewModal({ preview, onClose }) {
   useEffect(() => {
     if (!preview?.src) return undefined
 
-    const previousOverflow = document.body.style.overflow
-    const previousHtmlOverflow = document.documentElement.style.overflow
     const handleWheel = (event) => {
       event.preventDefault()
       event.stopPropagation()
@@ -365,13 +364,9 @@ function CoverPreviewModal({ preview, onClose }) {
       setScale((current) => Math.min(5, Math.max(0.5, current + direction * 0.2)))
     }
 
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
     window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
 
     return () => {
-      document.body.style.overflow = previousOverflow
-      document.documentElement.style.overflow = previousHtmlOverflow
       window.removeEventListener('wheel', handleWheel, true)
     }
   }, [preview?.src])
@@ -379,22 +374,17 @@ function CoverPreviewModal({ preview, onClose }) {
   if (!preview?.src) return null
 
   return (
-    <div
-      className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/80 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={zh('封面预览', 'Cover preview')}
+    <AppModal
+      ariaLabel={zh('封面预览', 'Cover preview')}
+      className="p-4"
+      contentClassName="relative flex max-h-[92vh] max-w-[94vw] items-center justify-center"
+      onClose={onClose}
+      zIndex={1500}
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label={zh('关闭封面预览', 'Close cover preview')}
         onClick={onClose}
-      />
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-4 top-4 z-10 rounded bg-black/50 px-3 py-1 text-xl leading-none text-white hover:bg-black/70"
+        className="fixed right-4 top-4 z-10 rounded bg-black/50 px-3 py-1 text-xl leading-none text-white hover:bg-black/70"
         aria-label={zh('关闭封面预览', 'Close cover preview')}
       >
         ×
@@ -402,10 +392,10 @@ function CoverPreviewModal({ preview, onClose }) {
       <img
         src={preview.src}
         alt={preview.alt || zh('JAV 封面', 'JAV cover')}
-        className="relative z-10 max-h-[92vh] max-w-[94vw] transform-gpu cursor-zoom-in object-contain shadow-2xl"
+        className="max-h-[92vh] max-w-[94vw] transform-gpu cursor-zoom-in object-contain shadow-2xl"
         style={{ transform: `scale(${scale})` }}
       />
-    </div>
+    </AppModal>
   )
 }
 
@@ -860,299 +850,291 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/60 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={zh('编辑 JAV 信息', 'Edit JAV info')}
+    <AppModal
+      ariaLabel={zh('编辑 JAV 信息', 'Edit JAV info')}
+      className="p-4"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl"
+      onClose={onClose}
+      zIndex={1600}
     >
-      <button
-        type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label={zh('关闭', 'Close')}
-        onClick={onClose}
-      />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="min-w-0 p-5 pb-0">
-            <div className="text-base font-semibold text-gray-900">
-              {zh('编辑 JAV', 'Edit JAV')}
-            </div>
-            <div className="mt-1 truncate text-xs text-gray-500">
-              {code}
-              {itemTitle ? ` · ${itemTitle}` : ''}
-            </div>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="min-w-0 p-5 pb-0">
+          <div className="text-base font-semibold text-gray-900">{zh('编辑 JAV', 'Edit JAV')}</div>
+          <div className="mt-1 truncate text-xs text-gray-500">
+            {code}
+            {itemTitle ? ` · ${itemTitle}` : ''}
           </div>
-          <button
-            type="button"
-            className="mr-5 mt-5 rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            onClick={onClose}
-            aria-label={zh('关闭', 'Close')}
-          >
-            ×
-          </button>
         </div>
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
-          <div>
-            <label
-              className="block text-sm font-medium text-gray-700"
-              htmlFor={`jav-title-${item?.id || 'new'}`}
-            >
-              {zh('标题', 'Title')}
-            </label>
-            <textarea
-              id={`jav-title-${item?.id || 'new'}`}
-              rows={3}
-              value={title}
-              onChange={(event) => {
-                setTitle(event.target.value)
-                if (error) setError('')
-              }}
-              className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              disabled={saving}
-            />
+        <button
+          type="button"
+          className="mr-5 mt-5 rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          onClick={onClose}
+          aria-label={zh('关闭', 'Close')}
+        >
+          ×
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
+        <div>
+          <label
+            className="block text-sm font-medium text-gray-700"
+            htmlFor={`jav-title-${item?.id || 'new'}`}
+          >
+            {zh('标题', 'Title')}
+          </label>
+          <textarea
+            id={`jav-title-${item?.id || 'new'}`}
+            rows={3}
+            value={title}
+            onChange={(event) => {
+              setTitle(event.target.value)
+              if (error) setError('')
+            }}
+            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={saving}
+          />
+        </div>
+        <div>
+          <label
+            className="block text-sm font-medium text-gray-700"
+            htmlFor={`jav-cover-url-${item?.id || 'new'}`}
+          >
+            {zh('封面链接', 'Cover URL')}
+          </label>
+          <input
+            id={`jav-cover-url-${item?.id || 'new'}`}
+            type="url"
+            value={coverUrl}
+            onChange={(event) => {
+              setCoverUrl(event.target.value)
+              if (error) setError('')
+            }}
+            placeholder="https://..."
+            className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={saving}
+          />
+          <div className="mt-1 text-xs text-gray-500">
+            {zh(
+              '当封面缺失或显示错误时，可手动输入封面图片链接；保存后会自动下载到本地并完成更新。',
+              'If the cover is missing or incorrect, enter an image URL; saving downloads it locally and updates the cover.'
+            )}
           </div>
-          <div>
-            <label
-              className="block text-sm font-medium text-gray-700"
-              htmlFor={`jav-cover-url-${item?.id || 'new'}`}
-            >
-              {zh('封面链接', 'Cover URL')}
-            </label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="block text-sm font-medium text-gray-700">
+            {zh('发行日期', 'Release date')}
             <input
-              id={`jav-cover-url-${item?.id || 'new'}`}
-              type="url"
-              value={coverUrl}
-              onChange={(event) => {
-                setCoverUrl(event.target.value)
-                if (error) setError('')
-              }}
-              placeholder="https://..."
+              type="date"
+              value={releaseDate}
+              onChange={(event) => setReleaseDate(event.target.value)}
               className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
-            <div className="mt-1 text-xs text-gray-500">
-              {zh(
-                '当封面缺失或显示错误时，可手动输入封面图片链接；保存后会自动下载到本地并完成更新。',
-                'If the cover is missing or incorrect, enter an image URL; saving downloads it locally and updates the cover.'
-              )}
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium text-gray-700">
-              {zh('发行日期', 'Release date')}
-              <input
-                type="date"
-                value={releaseDate}
-                onChange={(event) => setReleaseDate(event.target.value)}
-                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                disabled={saving}
-              />
-            </label>
-            <label className="block text-sm font-medium text-gray-700">
-              {zh('时长（分钟）', 'Duration (min)')}
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={durationMin}
-                onChange={(event) => setDurationMin(event.target.value)}
-                className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                disabled={saving}
-              />
-            </label>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <JavEditDropdown
-              label={zh('厂商', 'Studio')}
-              selectedId={selectedStudioId}
-              options={visibleStudioOptions}
-              search={studioSearch}
-              onSearchChange={setStudioSearch}
-              onSelect={setSelectedStudioId}
-              open={studioDropdownOpen}
-              onOpenChange={setStudioDropdownOpen}
-              emptyLabel={zh('无厂商', 'No studio')}
-              searchPlaceholder={zh('搜索已有厂商', 'Search existing studios')}
-              disabled={saving || optionsLoading}
+          </label>
+          <label className="block text-sm font-medium text-gray-700">
+            {zh('时长（分钟）', 'Duration (min)')}
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={durationMin}
+              onChange={(event) => setDurationMin(event.target.value)}
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              disabled={saving}
             />
-            <JavEditDropdown
-              label={zh('系列', 'Series')}
-              selectedId={selectedSeriesId}
-              options={visibleSeriesOptions}
-              search={seriesSearch}
-              onSearchChange={setSeriesSearch}
-              onSelect={setSelectedSeriesId}
-              open={seriesDropdownOpen}
-              onOpenChange={setSeriesDropdownOpen}
-              emptyLabel={zh('无系列', 'No series')}
-              searchPlaceholder={zh('搜索已有系列', 'Search existing series')}
+          </label>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <JavEditDropdown
+            label={zh('厂商', 'Studio')}
+            selectedId={selectedStudioId}
+            options={visibleStudioOptions}
+            search={studioSearch}
+            onSearchChange={setStudioSearch}
+            onSelect={setSelectedStudioId}
+            open={studioDropdownOpen}
+            onOpenChange={setStudioDropdownOpen}
+            emptyLabel={zh('无厂商', 'No studio')}
+            searchPlaceholder={zh('搜索已有厂商', 'Search existing studios')}
+            disabled={saving || optionsLoading}
+          />
+          <JavEditDropdown
+            label={zh('系列', 'Series')}
+            selectedId={selectedSeriesId}
+            options={visibleSeriesOptions}
+            search={seriesSearch}
+            onSearchChange={setSeriesSearch}
+            onSelect={setSelectedSeriesId}
+            open={seriesDropdownOpen}
+            onOpenChange={setSeriesDropdownOpen}
+            emptyLabel={zh('无系列', 'No series')}
+            searchPlaceholder={zh('搜索已有系列', 'Search existing series')}
+            disabled={saving || optionsLoading}
+          />
+        </div>
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium text-gray-700">{zh('女优', 'Idols')}</div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setIdolPickerOpen((current) => !current)}
               disabled={saving || optionsLoading}
-            />
+            >
+              <AddIcon sx={{ fontSize: 15 }} />
+              {zh('新增', 'Add')}
+            </button>
           </div>
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-medium text-gray-700">{zh('女优', 'Idols')}</div>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => setIdolPickerOpen((current) => !current)}
-                disabled={saving || optionsLoading}
-              >
-                <AddIcon sx={{ fontSize: 15 }} />
-                {zh('新增', 'Add')}
-              </button>
+          {selectedIdolOptions.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedIdolOptions.map((idol) => (
+                <SelectedChip
+                  key={idol.id}
+                  label={getIdolDisplayName(idol, preferChineseName)}
+                  disabled={saving}
+                  onRemove={() => toggleIdol(idol.id, false)}
+                />
+              ))}
             </div>
-            {selectedIdolOptions.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedIdolOptions.map((idol) => (
-                  <SelectedChip
-                    key={idol.id}
-                    label={getIdolDisplayName(idol, preferChineseName)}
-                    disabled={saving}
-                    onRemove={() => toggleIdol(idol.id, false)}
-                  />
-                ))}
+          ) : null}
+          {idolPickerOpen ? (
+            <div className="mt-2 rounded-md border border-gray-200 p-2">
+              <div className="mb-2 flex items-center gap-2">
+                <input
+                  type="search"
+                  value={idolSearch}
+                  onChange={(event) => setIdolSearch(event.target.value)}
+                  placeholder={zh('搜索已有女优', 'Search existing idols')}
+                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  disabled={saving || optionsLoading}
+                />
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => setIdolPickerOpen(false)}
+                >
+                  <CloseOutlinedIcon sx={{ fontSize: 14 }} />
+                  {zh('完成', 'Done')}
+                </button>
               </div>
-            ) : null}
-            {idolPickerOpen ? (
-              <div className="mt-2 rounded-md border border-gray-200 p-2">
-                <div className="mb-2 flex items-center gap-2">
-                  <input
-                    type="search"
-                    value={idolSearch}
-                    onChange={(event) => setIdolSearch(event.target.value)}
-                    placeholder={zh('搜索已有女优', 'Search existing idols')}
-                    className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    disabled={saving || optionsLoading}
-                  />
-                  <button
-                    type="button"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    onClick={() => setIdolPickerOpen(false)}
-                  >
-                    <CloseOutlinedIcon sx={{ fontSize: 14 }} />
-                    {zh('完成', 'Done')}
-                  </button>
-                </div>
-                <div className="max-h-44 overflow-y-auto">
-                  {optionsLoading ? (
-                    <div className="px-2 py-1 text-sm text-gray-500">
-                      {zh('加载中...', 'Loading...')}
-                    </div>
-                  ) : availableIdolOptions.length === 0 ? (
-                    <div className="px-2 py-1 text-sm text-gray-500">
-                      {zh('暂无可添加女优', 'No idols to add')}
-                    </div>
-                  ) : (
-                    availableIdolOptions.map((idol) => (
-                      <button
-                        key={idol.id}
-                        type="button"
-                        className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                        onClick={() => toggleIdol(idol.id, true)}
-                        disabled={saving}
-                      >
-                        {getIdolDisplayName(idol, preferChineseName)}
-                      </button>
-                    ))
-                  )}
-                </div>
+              <div className="max-h-44 overflow-y-auto">
+                {optionsLoading ? (
+                  <div className="px-2 py-1 text-sm text-gray-500">
+                    {zh('加载中...', 'Loading...')}
+                  </div>
+                ) : availableIdolOptions.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-gray-500">
+                    {zh('暂无可添加女优', 'No idols to add')}
+                  </div>
+                ) : (
+                  availableIdolOptions.map((idol) => (
+                    <button
+                      key={idol.id}
+                      type="button"
+                      className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      onClick={() => toggleIdol(idol.id, true)}
+                      disabled={saving}
+                    >
+                      {getIdolDisplayName(idol, preferChineseName)}
+                    </button>
+                  ))
+                )}
               </div>
-            ) : null}
-          </div>
-          {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
-          <div>
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-medium text-gray-700">{zh('标签', 'Tags')}</div>
-              <button
-                type="button"
-                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => setTagPickerOpen((current) => !current)}
-                disabled={saving}
-              >
-                <AddIcon sx={{ fontSize: 15 }} />
-                {zh('新增', 'Add')}
-              </button>
             </div>
-            {selectedTagOptions.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {selectedTagOptions.map((tag) => (
-                  <SelectedChip
-                    key={`${tag.id}-${tag.provider || 0}`}
-                    label={tag.name}
-                    disabled={saving}
-                    onRemove={() => toggleTag(tag.id, false)}
-                  />
-                ))}
-              </div>
-            ) : null}
-            {tagPickerOpen ? (
-              <div className="mt-2 rounded-md border border-gray-200 p-2">
-                <div className="mb-2 flex items-center gap-2">
-                  <input
-                    type="search"
-                    value={tagSearch}
-                    onChange={(event) => setTagSearch(event.target.value)}
-                    placeholder={zh('搜索已有标签', 'Search existing tags')}
-                    className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    disabled={saving}
-                  />
-                  <button
-                    type="button"
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    onClick={() => setTagPickerOpen(false)}
-                  >
-                    <CloseOutlinedIcon sx={{ fontSize: 14 }} />
-                    {zh('完成', 'Done')}
-                  </button>
-                </div>
-                <div className="max-h-40 overflow-y-auto">
-                  {availableTagOptions.length === 0 ? (
-                    <div className="px-2 py-1 text-sm text-gray-500">
-                      {zh('暂无可添加标签', 'No tags to add')}
-                    </div>
-                  ) : (
-                    availableTagOptions.map((tag) => (
-                      <button
-                        key={`${tag.id}-${tag.provider || 0}`}
-                        type="button"
-                        className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                        onClick={() => toggleTag(tag.id, true)}
-                        disabled={saving}
-                      >
-                        {tag.name}
-                      </button>
-                    ))
-                  )}
-                </div>
-              </div>
-            ) : null}
+          ) : null}
+        </div>
+        {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-sm font-medium text-gray-700">{zh('标签', 'Tags')}</div>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={() => setTagPickerOpen((current) => !current)}
+              disabled={saving}
+            >
+              <AddIcon sx={{ fontSize: 15 }} />
+              {zh('新增', 'Add')}
+            </button>
           </div>
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+          {selectedTagOptions.length > 0 ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedTagOptions.map((tag) => (
+                <SelectedChip
+                  key={`${tag.id}-${tag.provider || 0}`}
+                  label={tag.name}
+                  disabled={saving}
+                  onRemove={() => toggleTag(tag.id, false)}
+                />
+              ))}
+            </div>
+          ) : null}
+          {tagPickerOpen ? (
+            <div className="mt-2 rounded-md border border-gray-200 p-2">
+              <div className="mb-2 flex items-center gap-2">
+                <input
+                  type="search"
+                  value={tagSearch}
+                  onChange={(event) => setTagSearch(event.target.value)}
+                  placeholder={zh('搜索已有标签', 'Search existing tags')}
+                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  disabled={saving}
+                />
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => setTagPickerOpen(false)}
+                >
+                  <CloseOutlinedIcon sx={{ fontSize: 14 }} />
+                  {zh('完成', 'Done')}
+                </button>
+              </div>
+              <div className="max-h-40 overflow-y-auto">
+                {availableTagOptions.length === 0 ? (
+                  <div className="px-2 py-1 text-sm text-gray-500">
+                    {zh('暂无可添加标签', 'No tags to add')}
+                  </div>
+                ) : (
+                  availableTagOptions.map((tag) => (
+                    <button
+                      key={`${tag.id}-${tag.provider || 0}`}
+                      type="button"
+                      className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      onClick={() => toggleTag(tag.id, true)}
+                      disabled={saving}
+                    >
+                      {tag.name}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
-        <div className="flex justify-end gap-2 border-t border-gray-200 p-5">
-          <button
-            type="button"
-            className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={onClose}
-            disabled={saving}
-          >
-            {zh('取消', 'Cancel')}
-          </button>
-          <button
-            type="button"
-            className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-              saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
-            }`}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? zh('保存中...', 'Saving...') : zh('保存', 'Save')}
-          </button>
-        </div>
+        {error ? <div className="text-sm text-red-600">{error}</div> : null}
       </div>
-    </div>
+      <div className="flex justify-end gap-2 border-t border-gray-200 p-5">
+        <button
+          type="button"
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          onClick={onClose}
+          disabled={saving}
+        >
+          {zh('取消', 'Cancel')}
+        </button>
+        <button
+          type="button"
+          className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
+            saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          {saving ? zh('保存中...', 'Saving...') : zh('保存', 'Save')}
+        </button>
+      </div>
+    </AppModal>
   )
 }
 
@@ -2694,60 +2676,63 @@ function JavVideoManagerModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
-      <div className="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-lg bg-white p-4 shadow-xl">
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold">{zh('视频管理', 'Manage videos')}</h2>
-            <div className="mt-1 truncate text-xs text-gray-500">
-              {item?.code || zh('未知番号', 'Unknown code')}
-              {title && title !== item?.code ? ` · ${title}` : ''}
-            </div>
+    <AppModal
+      ariaLabel={zh('视频管理', 'Manage videos')}
+      className="px-4"
+      contentClassName="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-lg bg-white p-4 shadow-xl"
+      onClose={onClose}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold">{zh('视频管理', 'Manage videos')}</h2>
+          <div className="mt-1 truncate text-xs text-gray-500">
+            {item?.code || zh('未知番号', 'Unknown code')}
+            {title && title !== item?.code ? ` · ${title}` : ''}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
-            aria-label={zh('关闭视频管理', 'Close video manager')}
-          >
-            ✕
-          </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-          {videos.length > 0 ? (
-            <VideoGrid
-              videos={videos}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelectVideo}
-              showSelection={false}
-              onPlay={onPlay}
-              onOpenFile={onOpenFile}
-              onRevealFile={onRevealFile}
-              openFileLabel={openFileLabel}
-              onOpenTagPicker={onOpenTagPicker}
-              showTagEditor={false}
-              onOpenScreenshots={onOpenScreenshots}
-              onOpenScrapeSettings={onOpenScrapeSettings}
-              onRenameVideo={onRenameVideo}
-              onDeleteVideo={onDeleteVideo}
-              onTagClick={onTagClick}
-            />
-          ) : (
-            <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
-              {zh('暂无关联视频', 'No linked videos')}
-            </div>
-          )}
-        </div>
-        <div className="mt-3 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
-          >
-            {zh('关闭', 'Close')}
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+          aria-label={zh('关闭视频管理', 'Close video manager')}
+        >
+          ✕
+        </button>
       </div>
-    </div>
+      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+        {videos.length > 0 ? (
+          <VideoGrid
+            videos={videos}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelectVideo}
+            showSelection={false}
+            onPlay={onPlay}
+            onOpenFile={onOpenFile}
+            onRevealFile={onRevealFile}
+            openFileLabel={openFileLabel}
+            onOpenTagPicker={onOpenTagPicker}
+            showTagEditor={false}
+            onOpenScreenshots={onOpenScreenshots}
+            onOpenScrapeSettings={onOpenScrapeSettings}
+            onRenameVideo={onRenameVideo}
+            onDeleteVideo={onDeleteVideo}
+            onTagClick={onTagClick}
+          />
+        ) : (
+          <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
+            {zh('暂无关联视频', 'No linked videos')}
+          </div>
+        )}
+      </div>
+      <div className="mt-3 flex justify-end">
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+        >
+          {zh('关闭', 'Close')}
+        </button>
+      </div>
+    </AppModal>
   )
 }

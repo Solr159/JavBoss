@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { Popper } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
@@ -14,6 +13,7 @@ import {
   mergeJavStudios,
   updateJavStudio,
 } from '@/api'
+import AppModal from '@/components/AppModal'
 import Pagination from '@/components/Pagination'
 import { SeriesCard } from '@/components/JavSeriesView'
 import WaterfallLoader from '@/components/WaterfallLoader'
@@ -726,69 +726,57 @@ export function StudioCard({
                 ) : null}
               </div>
             </Popper>
-            {seriesListOpen
-              ? createPortal(
-                  <div className="fixed inset-0 z-[1500] flex items-center justify-center bg-black/40 p-4">
-                    <button
-                      type="button"
-                      className="absolute inset-0 h-full w-full cursor-default bg-transparent"
-                      aria-label={zh('关闭', 'Close')}
-                      onClick={(event) => {
-                        event.preventDefault()
-                        event.stopPropagation()
-                        closeSeriesList()
-                      }}
-                    />
-                    {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */}
-                    <div
-                      className="relative z-10 max-h-[84vh] w-[min(72rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
-                      role="dialog"
-                      aria-modal="true"
-                      aria-label={zh('片商系列', 'Studio series')}
-                      tabIndex={-1}
-                      onClick={(event) => event.stopPropagation()}
-                    >
-                      <div className="sticky top-0 z-10 mb-2 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-2">
-                        <div className="text-xs font-semibold text-gray-700">
-                          {zh(
-                            `片商：${name}，共${seriesItems.length}个系列`,
-                            `Studio: ${name}, ${seriesItems.length} series`
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-800"
-                          onClick={(event) => {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            closeSeriesList()
-                          }}
-                        >
-                          {zh('关闭', 'Close')}
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-3 p-3 md:grid-cols-4 xl:grid-cols-5">
-                        {seriesItems.map((series) => {
-                          return (
-                            <SeriesCard
-                              key={series.id}
-                              item={series}
-                              href={buildSeriesUrl?.(series)}
-                              onSelectSeries={(selectedSeries) => {
-                                closeSeriesList()
-                                onSelectSeries?.(selectedSeries)
-                              }}
-                              onSelectStudio={(studio) => onSelectStudio?.(studio)}
-                              onOpenFavorites={onOpenSeriesFavorites}
-                            />
-                          )
-                        })}
-                      </div>
-                    </div>
-                  </div>,
-                  document.body
-                )
-              : null}
+            {seriesListOpen ? (
+              <AppModal
+                ariaLabel={zh('片商系列', 'Studio series')}
+                className="p-4"
+                contentClassName="max-h-[84vh] w-[min(72rem,calc(100vw-2rem))] overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-xl"
+                contentProps={{ onClick: (event) => event.stopPropagation() }}
+                onClose={(event) => {
+                  event?.preventDefault()
+                  event?.stopPropagation()
+                  closeSeriesList()
+                }}
+                zIndex={1500}
+              >
+                <div className="sticky top-0 z-10 mb-2 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-2">
+                  <div className="text-xs font-semibold text-gray-700">
+                    {zh(
+                      `片商：${name}，共${seriesItems.length}个系列`,
+                      `Studio: ${name}, ${seriesItems.length} series`
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                    onClick={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      closeSeriesList()
+                    }}
+                  >
+                    {zh('关闭', 'Close')}
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-3 p-3 md:grid-cols-4 xl:grid-cols-5">
+                  {seriesItems.map((series) => {
+                    return (
+                      <SeriesCard
+                        key={series.id}
+                        item={series}
+                        href={buildSeriesUrl?.(series)}
+                        onSelectSeries={(selectedSeries) => {
+                          closeSeriesList()
+                          onSelectSeries?.(selectedSeries)
+                        }}
+                        onSelectStudio={(studio) => onSelectStudio?.(studio)}
+                        onOpenFavorites={onOpenSeriesFavorites}
+                      />
+                    )
+                  })}
+                </div>
+              </AppModal>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -859,74 +847,78 @@ function JavStudioEditModal({ open, item, directoryIds = [], onClose, onSaved, o
 
   return (
     <>
-      <div className="fixed inset-0 z-[1600] flex items-center justify-center bg-black/45 p-4">
-        <form
-          className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-          onSubmit={handleSubmit}
-        >
-          <div className="flex items-center justify-between border-b px-4 py-3">
-            <div className="min-w-0">
-              <div className="text-base font-semibold text-gray-950">
-                {zh('编辑片商信息', 'Edit studio info')}
-              </div>
-              <div className="truncate text-xs text-gray-500">{item.name}</div>
+      <AppModal
+        ariaLabel={zh('编辑片商信息', 'Edit studio info')}
+        className="p-4"
+        closeDisabled={saving}
+        contentClassName="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        contentComponent="form"
+        contentProps={{ onSubmit: handleSubmit }}
+        onClose={onClose}
+        zIndex={1600}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div className="min-w-0">
+            <div className="text-base font-semibold text-gray-950">
+              {zh('编辑片商信息', 'Edit studio info')}
             </div>
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-              aria-label={zh('关闭', 'Close')}
-              onClick={onClose}
-            >
-              <CloseRoundedIcon sx={{ fontSize: 20 }} />
-            </button>
+            <div className="truncate text-xs text-gray-500">{item.name}</div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
-              <span>{zh('名称', 'Name')}</span>
-              <input
-                value={form.name}
-                required
-                onChange={(event) => setField('name', event.target.value)}
-                className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
-              />
-            </label>
-            <StudioAliasEditor
-              aliases={form.aliases}
-              inputValue={form.alias_input}
-              onInputChange={(value) => setField('alias_input', value)}
-              onAdd={addAliases}
-              onRemove={removeAlias}
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            aria-label={zh('关闭', 'Close')}
+            onClick={onClose}
+          >
+            <CloseRoundedIcon sx={{ fontSize: 20 }} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+            <span>{zh('名称', 'Name')}</span>
+            <input
+              value={form.name}
+              required
+              onChange={(event) => setField('name', event.target.value)}
+              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
             />
-            <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
-              <button
-                type="button"
-                className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                onClick={() => setMergeOpen(true)}
-              >
-                {zh('合并到其它片商', 'Merge into another studio')}
-              </button>
-            </div>
-            {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
-          </div>
-          <div className="flex justify-end gap-2 border-t px-4 py-3">
+          </label>
+          <StudioAliasEditor
+            aliases={form.aliases}
+            inputValue={form.alias_input}
+            onInputChange={(value) => setField('alias_input', value)}
+            onAdd={addAliases}
+            onRemove={removeAlias}
+          />
+          <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
             <button
               type="button"
               className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-              onClick={onClose}
-              disabled={saving}
+              onClick={() => setMergeOpen(true)}
             >
-              {zh('取消', 'Cancel')}
-            </button>
-            <button
-              type="submit"
-              className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-              disabled={saving || !String(form.name || '').trim()}
-            >
-              {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+              {zh('合并到其它片商', 'Merge into another studio')}
             </button>
           </div>
-        </form>
-      </div>
+          {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+        </div>
+        <div className="flex justify-end gap-2 border-t px-4 py-3">
+          <button
+            type="button"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={onClose}
+            disabled={saving}
+          >
+            {zh('取消', 'Cancel')}
+          </button>
+          <button
+            type="submit"
+            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+            disabled={saving || !String(form.name || '').trim()}
+          >
+            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+          </button>
+        </div>
+      </AppModal>
       <JavStudioMergeModal
         open={mergeOpen}
         item={item}
@@ -1065,109 +1057,113 @@ function JavStudioMergeModal({ open, item, directoryIds = [], onClose, onMerged 
   }
 
   return (
-    <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/45 p-4">
-      <form
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
-        onSubmit={handleSubmit}
-      >
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="min-w-0">
-            <div className="text-base font-semibold text-gray-950">
-              {zh('合并片商', 'Merge studio')}
-            </div>
-            <div className="truncate text-xs text-gray-500">
-              {zh(`将 ${sourceName} 合并到目标片商`, `Merge ${sourceName} into target studio`)}
-            </div>
+    <AppModal
+      ariaLabel={zh('合并片商', 'Merge studio')}
+      className="p-4"
+      closeDisabled={saving}
+      contentClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+      contentComponent="form"
+      contentProps={{ onSubmit: handleSubmit }}
+      onClose={onClose}
+      zIndex={1700}
+    >
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-base font-semibold text-gray-950">
+            {zh('合并片商', 'Merge studio')}
           </div>
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-            aria-label={zh('关闭', 'Close')}
-            onClick={onClose}
-          >
-            <CloseRoundedIcon sx={{ fontSize: 20 }} />
-          </button>
+          <div className="truncate text-xs text-gray-500">
+            {zh(`将 ${sourceName} 合并到目标片商`, `Merge ${sourceName} into target studio`)}
+          </div>
         </div>
-        <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
-          <label className="relative block">
-            <SearchRoundedIcon
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-              sx={{ fontSize: 18 }}
-            />
-            <input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setSelectedId(0)
-              }}
-              className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
-              placeholder={zh('搜索要合并到的目标片商', 'Search target studio to merge into')}
-            />
-          </label>
-          <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
-            {loading ? (
-              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-                {zh('加载中…', 'Loading...')}
-              </div>
-            ) : options.length > 0 ? (
-              <div className="divide-y divide-gray-100">
-                {options.map((option) => {
-                  const id = Number(option?.id)
-                  const aliases = Array.isArray(option?.aliases) ? option.aliases.join(', ') : ''
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                        id === selectedId ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
-                      }`}
-                      onClick={() => setSelectedId(id)}
-                    >
-                      <span className="truncate font-medium">{option.name}</span>
-                      {aliases ? (
-                        <span className="truncate text-xs text-gray-500">
-                          {zh(`别名：${aliases}`, `Aliases: ${aliases}`)}
-                        </span>
-                      ) : null}
-                    </button>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="flex h-32 items-center justify-center text-sm text-gray-500">
-                {zh('没有可合并的目标片商', 'No target studio found')}
-              </div>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          aria-label={zh('关闭', 'Close')}
+          onClick={onClose}
+        >
+          <CloseRoundedIcon sx={{ fontSize: 20 }} />
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
+        <label className="relative block">
+          <SearchRoundedIcon
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            sx={{ fontSize: 18 }}
+          />
+          <input
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value)
+              setSelectedId(0)
+            }}
+            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
+            placeholder={zh('搜索要合并到的目标片商', 'Search target studio to merge into')}
+          />
+        </label>
+        <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
+          {loading ? (
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+              {zh('加载中…', 'Loading...')}
+            </div>
+          ) : options.length > 0 ? (
+            <div className="divide-y divide-gray-100">
+              {options.map((option) => {
+                const id = Number(option?.id)
+                const aliases = Array.isArray(option?.aliases) ? option.aliases.join(', ') : ''
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                      id === selectedId ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
+                    }`}
+                    onClick={() => setSelectedId(id)}
+                  >
+                    <span className="truncate font-medium">{option.name}</span>
+                    {aliases ? (
+                      <span className="truncate text-xs text-gray-500">
+                        {zh(`别名：${aliases}`, `Aliases: ${aliases}`)}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+              {zh('没有可合并的目标片商', 'No target studio found')}
+            </div>
+          )}
+        </div>
+        {selected ? (
+          <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            {zh(
+              `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前片商记录会被删除，作品、系列及收藏夹数据会自动迁移。此操作无法撤回，请仔细核实后操作。`,
+              `"${sourceName}" will exist as an alias of "${selectedName}". The current studio record will be deleted, and its works, series, and favorites will be migrated automatically. This action cannot be undone; verify carefully before continuing.`
             )}
           </div>
-          {selected ? (
-            <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              {zh(
-                `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前片商记录会被删除，作品、系列及收藏夹数据会自动迁移。此操作无法撤回，请仔细核实后操作。`,
-                `"${sourceName}" will exist as an alias of "${selectedName}". The current studio record will be deleted, and its works, series, and favorites will be migrated automatically. This action cannot be undone; verify carefully before continuing.`
-              )}
-            </div>
-          ) : null}
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
-        </div>
-        <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <button
-            type="button"
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={onClose}
-            disabled={saving}
-          >
-            {zh('取消', 'Cancel')}
-          </button>
-          <button
-            type="submit"
-            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
-            disabled={!canSubmit || saving}
-          >
-            {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}
-          </button>
-        </div>
-      </form>
-    </div>
+        ) : null}
+        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+      </div>
+      <div className="flex justify-end gap-2 border-t px-4 py-3">
+        <button
+          type="button"
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          onClick={onClose}
+          disabled={saving}
+        >
+          {zh('取消', 'Cancel')}
+        </button>
+        <button
+          type="submit"
+          className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+          disabled={!canSubmit || saving}
+        >
+          {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}
+        </button>
+      </div>
+    </AppModal>
   )
 }
 

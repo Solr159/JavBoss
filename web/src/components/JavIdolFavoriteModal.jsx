@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { Button, IconButton } from '@mui/material'
+import AppModal from '@/components/AppModal'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
@@ -83,104 +84,109 @@ export default function JavIdolFavoriteModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[1800] flex items-center justify-center bg-black/35 px-4">
-      <div className="flex max-h-[82vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-gray-950">
-              {zh('选择收藏夹', 'Choose favorite groups')}
-            </h2>
-            <div className="mt-0.5 truncate text-sm text-gray-500">{itemName}</div>
-          </div>
-          <IconButton
-            type="button"
-            size="small"
-            onClick={onClose}
-            disabled={saving}
-            aria-label={zh('关闭收藏夹选择', 'Close favorite group picker')}
-          >
-            <CloseRoundedIcon fontSize="small" />
-          </IconButton>
+    <AppModal
+      ariaLabel={zh('选择收藏夹', 'Choose favorite groups')}
+      className="px-4"
+      closeDisabled={saving || creating}
+      contentClassName="flex max-h-[82vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl"
+      onClose={onClose}
+      zIndex={1800}
+    >
+      <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-950">
+            {zh('选择收藏夹', 'Choose favorite groups')}
+          </h2>
+          <div className="mt-0.5 truncate text-sm text-gray-500">{itemName}</div>
         </div>
+        <IconButton
+          type="button"
+          size="small"
+          onClick={onClose}
+          disabled={saving}
+          aria-label={zh('关闭收藏夹选择', 'Close favorite group picker')}
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </div>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-          {error ? (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : null}
-
-          <form onSubmit={handleCreate} className="flex gap-2">
-            <input
-              value={newGroupName}
-              onChange={(event) => setNewGroupName(event.target.value)}
-              placeholder={zh(`新建${entityLabel}收藏夹`, `New ${entityLabel} favorite group`)}
-              className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              disabled={creating || saving}
-            />
-            <Button
-              type="submit"
-              variant="outlined"
-              startIcon={<AddRoundedIcon fontSize="small" />}
-              disabled={!newGroupName.trim() || creating || saving}
-            >
-              {zh('新建', 'Create')}
-            </Button>
-          </form>
-          {createError ? <div className="text-sm text-red-600">{createError}</div> : null}
-
-          <div className="rounded border border-gray-200">
-            {loading ? (
-              <div className="px-3 py-8 text-center text-sm text-gray-500">
-                {zh('加载中…', 'Loading...')}
-              </div>
-            ) : groupList.length === 0 ? (
-              <div className="px-3 py-8 text-center text-sm text-gray-500">
-                {zh('暂无收藏夹', 'No favorite groups')}
-              </div>
-            ) : (
-              <div className="max-h-72 overflow-y-auto p-1">
-                {groupList.map((group) => {
-                  const id = Number(group?.id)
-                  const checked = selectedSet.has(id)
-                  const count = Number.isFinite(group?.count) ? group.count : 0
-                  return (
-                    <label
-                      key={id}
-                      className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-gray-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={saving}
-                        onChange={(event) => toggleGroup(id, event.target.checked)}
-                      />
-                      <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
-                        {group?.name || zh('未命名收藏夹', 'Untitled favorite group')}
-                      </span>
-                      <span className="shrink-0 text-xs text-gray-500">{count}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            )}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+        {error ? (
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
           </div>
-        </div>
+        ) : null}
 
-        <div className="flex justify-end gap-2 border-t px-4 py-3">
-          <Button variant="outlined" onClick={onClose} disabled={saving}>
-            {zh('取消', 'Cancel')}
-          </Button>
+        <form onSubmit={handleCreate} className="flex gap-2">
+          <input
+            value={newGroupName}
+            onChange={(event) => setNewGroupName(event.target.value)}
+            placeholder={zh(`新建${entityLabel}收藏夹`, `New ${entityLabel} favorite group`)}
+            className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={creating || saving}
+          />
           <Button
-            variant="contained"
-            onClick={() => onSave?.(localSelectedIds)}
-            disabled={loading || saving}
+            type="submit"
+            variant="outlined"
+            startIcon={<AddRoundedIcon fontSize="small" />}
+            disabled={!newGroupName.trim() || creating || saving}
           >
-            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+            {zh('新建', 'Create')}
           </Button>
+        </form>
+        {createError ? <div className="text-sm text-red-600">{createError}</div> : null}
+
+        <div className="rounded border border-gray-200">
+          {loading ? (
+            <div className="px-3 py-8 text-center text-sm text-gray-500">
+              {zh('加载中…', 'Loading...')}
+            </div>
+          ) : groupList.length === 0 ? (
+            <div className="px-3 py-8 text-center text-sm text-gray-500">
+              {zh('暂无收藏夹', 'No favorite groups')}
+            </div>
+          ) : (
+            <div className="max-h-72 overflow-y-auto p-1">
+              {groupList.map((group) => {
+                const id = Number(group?.id)
+                const checked = selectedSet.has(id)
+                const count = Number.isFinite(group?.count) ? group.count : 0
+                return (
+                  <label
+                    key={id}
+                    className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={saving}
+                      onChange={(event) => toggleGroup(id, event.target.checked)}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                      {group?.name || zh('未命名收藏夹', 'Untitled favorite group')}
+                    </span>
+                    <span className="shrink-0 text-xs text-gray-500">{count}</span>
+                  </label>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
-    </div>
+
+      <div className="flex justify-end gap-2 border-t px-4 py-3">
+        <Button variant="outlined" onClick={onClose} disabled={saving}>
+          {zh('取消', 'Cancel')}
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => onSave?.(localSelectedIds)}
+          disabled={loading || saving}
+        >
+          {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+        </Button>
+      </div>
+    </AppModal>
   )
 }
 

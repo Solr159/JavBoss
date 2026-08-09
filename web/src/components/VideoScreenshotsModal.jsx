@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -18,6 +17,7 @@ import {
 import { getVideoDisplayName } from '@/utils/display'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
+import AppModal from '@/components/AppModal'
 import {
   PLAYER_HOTKEY_ACTIONS,
   formatPlayerHotkeyKey,
@@ -160,183 +160,186 @@ export default function VideoScreenshotsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6">
-      <div className="flex max-h-full w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-base font-semibold text-gray-900">
-              {zh('视频截图', 'Video Screenshots')}
-            </h2>
-            <div className="truncate text-xs text-gray-500" title={title}>
-              {title}
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            {allowSetCover && currentCoverName ? (
-              <Tooltip
-                arrow
-                placement="left"
-                title={zh('恢复默认封面', 'Restore default cover')}
-                slotProps={{
-                  popper: {
-                    sx: {
-                      pointerEvents: 'none',
-                      zIndex: (theme) => theme.zIndex.modal + 1000,
-                    },
-                    modifiers: [
-                      {
-                        name: 'offset',
-                        options: {
-                          offset: [0, 4],
-                        },
-                      },
-                    ],
-                  },
-                }}
-              >
-                <span className="group relative inline-flex">
-                  <IconButton
-                    size="small"
-                    onClick={handleResetCover}
-                    disabled={Boolean(settingCoverName)}
-                    aria-label={zh('恢复默认封面', 'Restore default cover')}
-                  >
-                    <RestoreIcon fontSize="inherit" />
-                  </IconButton>
-                  <DefaultCoverPreview src={defaultCoverPreviewSrc} />
-                </span>
-              </Tooltip>
-            ) : null}
-            <IconButton
-              size="small"
-              onClick={onClose}
-              aria-label={zh('关闭截图弹窗', 'Close screenshots modal')}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
+    <AppModal
+      ariaLabel={zh('视频截图', 'Video Screenshots')}
+      className="px-4 py-6"
+      contentClassName="flex max-h-full w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl"
+      onClose={onClose}
+    >
+      <div className="flex items-center justify-between border-b px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-base font-semibold text-gray-900">
+            {zh('视频截图', 'Video Screenshots')}
+          </h2>
+          <div className="truncate text-xs text-gray-500" title={title}>
+            {title}
           </div>
         </div>
+        <div className="flex items-center gap-1">
+          {allowSetCover && currentCoverName ? (
+            <Tooltip
+              arrow
+              placement="left"
+              title={zh('恢复默认封面', 'Restore default cover')}
+              slotProps={{
+                popper: {
+                  sx: {
+                    pointerEvents: 'none',
+                    zIndex: (theme) => theme.zIndex.modal + 1000,
+                  },
+                  modifiers: [
+                    {
+                      name: 'offset',
+                      options: {
+                        offset: [0, 4],
+                      },
+                    },
+                  ],
+                },
+              }}
+            >
+              <span className="group relative inline-flex">
+                <IconButton
+                  size="small"
+                  onClick={handleResetCover}
+                  disabled={Boolean(settingCoverName)}
+                  aria-label={zh('恢复默认封面', 'Restore default cover')}
+                >
+                  <RestoreIcon fontSize="inherit" />
+                </IconButton>
+                <DefaultCoverPreview src={defaultCoverPreviewSrc} />
+              </span>
+            </Tooltip>
+          ) : null}
+          <IconButton
+            size="small"
+            onClick={onClose}
+            aria-label={zh('关闭截图弹窗', 'Close screenshots modal')}
+          >
+            <CloseIcon fontSize="inherit" />
+          </IconButton>
+        </div>
+      </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {loading ? (
-            <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
-              {zh('加载中...', 'Loading...')}
-            </div>
-          ) : error ? (
-            <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
-          ) : items.length === 0 ? (
-            <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 px-4 text-center text-sm text-gray-500">
-              {zh(
-                `暂无截图。使用 MPV播放器 播放时按 ${screenshotKey} 键截图，会显示在此处。`,
-                `No screenshots yet. Press ${screenshotKey} while playing with the MPV player to capture one, and it will appear here.`
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((item) => {
-                const displayName = formatScreenshotName(item.name)
-                const startTime = screenshotStartTime(item.name)
-                return (
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {loading ? (
+          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
+            {zh('加载中...', 'Loading...')}
+          </div>
+        ) : error ? (
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 px-4 text-center text-sm text-gray-500">
+            {zh(
+              `暂无截图。使用 MPV播放器 播放时按 ${screenshotKey} 键截图，会显示在此处。`,
+              `No screenshots yet. Press ${screenshotKey} while playing with the MPV player to capture one, and it will appear here.`
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {items.map((item) => {
+              const displayName = formatScreenshotName(item.name)
+              const startTime = screenshotStartTime(item.name)
+              return (
+                <div
+                  key={item.name}
+                  className="group overflow-hidden rounded border border-gray-200 bg-white"
+                >
                   <div
-                    key={item.name}
-                    className="group overflow-hidden rounded border border-gray-200 bg-white"
+                    className="relative aspect-video cursor-pointer bg-gray-100"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setPreviewItem(item)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        setPreviewItem(item)
+                      }
+                    }}
                   >
-                    <div
-                      className="relative aspect-video cursor-pointer bg-gray-100"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setPreviewItem(item)}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          setPreviewItem(item)
-                        }
-                      }}
-                    >
-                      <img
-                        src={item.url}
-                        alt={item.name}
-                        loading="lazy"
-                        className="h-full w-full object-contain"
-                      />
-                      {item.is_cover ? (
-                        <div className="absolute left-2 top-2 z-10 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded bg-emerald-600/90 px-2 py-1 text-xs font-medium text-white">
-                          <CheckCircleOutlineIcon className="h-4 w-4" fontSize="inherit" />
-                          <span className="truncate">{zh('当前封面', 'Current cover')}</span>
-                        </div>
-                      ) : null}
-                      <Tooltip title={zh('删除截图', 'Delete screenshot')}>
-                        <IconButton
-                          size="small"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleDeleteScreenshot(item)
-                          }}
-                          disabled={deletingName === item.name}
-                          aria-label={zh('删除截图', 'Delete screenshot')}
-                          className="!absolute !right-2 !top-2 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100"
-                        >
-                          <DeleteOutlineIcon fontSize="small" />
-                        </IconButton>
+                    <img
+                      src={item.url}
+                      alt={item.name}
+                      loading="lazy"
+                      className="h-full w-full object-contain"
+                    />
+                    {item.is_cover ? (
+                      <div className="absolute left-2 top-2 z-10 inline-flex max-w-[calc(100%-1rem)] items-center gap-1 rounded bg-emerald-600/90 px-2 py-1 text-xs font-medium text-white">
+                        <CheckCircleOutlineIcon className="h-4 w-4" fontSize="inherit" />
+                        <span className="truncate">{zh('当前封面', 'Current cover')}</span>
+                      </div>
+                    ) : null}
+                    <Tooltip title={zh('删除截图', 'Delete screenshot')}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          handleDeleteScreenshot(item)
+                        }}
+                        disabled={deletingName === item.name}
+                        aria-label={zh('删除截图', 'Delete screenshot')}
+                        className="!absolute !right-2 !top-2 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100"
+                      >
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <div className="absolute inset-0 flex items-center justify-center gap-5 bg-transparent opacity-0 transition-opacity group-hover:opacity-100">
+                      <Tooltip title={zh('从此处播放', 'Play from here')}>
+                        <span>
+                          <IconButton
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onPlayAtTime?.(video, startTime)
+                            }}
+                            disabled={startTime == null}
+                            aria-label={zh('从此处播放', 'Play from here')}
+                            className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                          >
+                            <PlayArrowIcon fontSize="medium" />
+                          </IconButton>
+                        </span>
                       </Tooltip>
-                      <div className="absolute inset-0 flex items-center justify-center gap-5 bg-transparent opacity-0 transition-opacity group-hover:opacity-100">
-                        <Tooltip title={zh('从此处播放', 'Play from here')}>
+                      {allowSetCover ? (
+                        <Tooltip
+                          title={
+                            item.is_cover
+                              ? zh('当前封面', 'Current cover')
+                              : zh('设为封面', 'Set as cover')
+                          }
+                        >
                           <span>
                             <IconButton
                               onClick={(event) => {
                                 event.stopPropagation()
-                                onPlayAtTime?.(video, startTime)
+                                handleSetCover(item)
                               }}
-                              disabled={startTime == null}
-                              aria-label={zh('从此处播放', 'Play from here')}
+                              disabled={Boolean(settingCoverName) || item.is_cover}
+                              aria-label={
+                                item.is_cover
+                                  ? zh('当前封面', 'Current cover')
+                                  : zh('设为封面', 'Set as cover')
+                              }
                               className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
                             >
-                              <PlayArrowIcon fontSize="medium" />
+                              {item.is_cover ? (
+                                <CheckCircleOutlineIcon fontSize="medium" />
+                              ) : (
+                                <ImageOutlinedIcon fontSize="medium" />
+                              )}
                             </IconButton>
                           </span>
                         </Tooltip>
-                        {allowSetCover ? (
-                          <Tooltip
-                            title={
-                              item.is_cover
-                                ? zh('当前封面', 'Current cover')
-                                : zh('设为封面', 'Set as cover')
-                            }
-                          >
-                            <span>
-                              <IconButton
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  handleSetCover(item)
-                                }}
-                                disabled={Boolean(settingCoverName) || item.is_cover}
-                                aria-label={
-                                  item.is_cover
-                                    ? zh('当前封面', 'Current cover')
-                                    : zh('设为封面', 'Set as cover')
-                                }
-                                className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
-                              >
-                                {item.is_cover ? (
-                                  <CheckCircleOutlineIcon fontSize="medium" />
-                                ) : (
-                                  <ImageOutlinedIcon fontSize="medium" />
-                                )}
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        ) : null}
-                      </div>
+                      ) : null}
                     </div>
-                    <div className="truncate px-2 py-1 text-xs text-gray-600">{displayName}</div>
                   </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  <div className="truncate px-2 py-1 text-xs text-gray-600">{displayName}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
       {previewItem ? (
         <ScreenshotPreviewModal
@@ -346,7 +349,7 @@ export default function VideoScreenshotsModal({
           onSelect={setPreviewItem}
         />
       ) : null}
-    </div>
+    </AppModal>
   )
 }
 
@@ -422,8 +425,6 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
   useEffect(() => {
     if (!item?.url) return undefined
 
-    const previousOverflow = document.body.style.overflow
-    const previousHtmlOverflow = document.documentElement.style.overflow
     const handleWheel = (event) => {
       event.preventDefault()
       event.stopPropagation()
@@ -433,36 +434,27 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
       goBy(event.deltaY > 0 ? 1 : -1)
     }
 
-    document.body.style.overflow = 'hidden'
-    document.documentElement.style.overflow = 'hidden'
     window.addEventListener('wheel', handleWheel, { passive: false, capture: true })
 
     return () => {
-      document.body.style.overflow = previousOverflow
-      document.documentElement.style.overflow = previousHtmlOverflow
       window.removeEventListener('wheel', handleWheel, true)
     }
   }, [goBy, item?.url])
 
   if (!item?.url) return null
 
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[1900] flex flex-col items-center justify-center bg-black/80 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={zh('截图预览', 'Screenshot preview')}
+  return (
+    <AppModal
+      ariaLabel={zh('截图预览', 'Screenshot preview')}
+      className="p-4"
+      contentClassName="relative flex flex-col items-center justify-center"
+      onClose={onClose}
+      zIndex={1900}
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-default"
-        aria-label={zh('关闭截图预览', 'Close screenshot preview')}
         onClick={onClose}
-      />
-      <button
-        type="button"
-        onClick={onClose}
-        className="absolute right-4 top-4 z-10 rounded bg-black/50 px-3 py-1 text-xl leading-none text-white hover:bg-black/70"
+        className="fixed right-4 top-4 z-10 rounded bg-black/50 px-3 py-1 text-xl leading-none text-white hover:bg-black/70"
         aria-label={zh('关闭截图预览', 'Close screenshot preview')}
       >
         ×
@@ -501,7 +493,6 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
           </IconButton>
         ) : null}
       </div>
-    </div>,
-    document.body
+    </AppModal>
   )
 }

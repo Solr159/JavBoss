@@ -9,6 +9,7 @@ import {
   parsePlayerHotkeys,
 } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
+import AppModal from '@/components/AppModal'
 import { getErrorMessage } from '@/utils/errors'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
@@ -255,47 +256,51 @@ export default function PlayerModal({
   const displayName = getVideoDisplayName(video)
 
   return (
-    <div className="fixed inset-0 z-[1700] flex items-center justify-center bg-black/70">
-      <div className="relative mx-4 w-full max-w-6xl rounded-lg bg-white shadow-lg">
-        <button
-          aria-label={zh('关闭', 'Close')}
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-1 text-sm text-white hover:bg-black/80"
-        >
-          ×
-        </button>
-        <div className="flex flex-col gap-4 p-4">
-          <h2 className="truncate text-lg font-semibold" title={displayName}>
-            {displayName}
-          </h2>
-          <div className="player-shell relative w-full bg-black">
-            {screenshotNotice ? (
-              <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
-                {zh('截图成功', 'Screenshot saved')}
-              </div>
-            ) : null}
-            {loadingPlayback ? (
-              <div className="flex aspect-video items-center justify-center text-sm text-white">
-                {zh('加载播放信息中…', 'Loading playback info...')}
-              </div>
-            ) : playbackError ? (
-              <div className="flex aspect-video items-center justify-center px-6 text-center text-sm text-red-200">
-                {playbackError}
-              </div>
-            ) : (
-              <div data-vjs-player className="h-full w-full">
-                <video
-                  ref={videoRef}
-                  className="video-js vjs-big-play-centered h-full w-full"
-                  playsInline
-                >
-                  <track kind="captions" />
-                </video>
-              </div>
-            )}
-          </div>
+    <AppModal
+      ariaLabel={displayName || zh('视频播放', 'Video playback')}
+      className="px-4"
+      contentClassName="relative w-full max-w-6xl rounded-lg bg-white shadow-lg"
+      onClose={onClose}
+      zIndex={1700}
+    >
+      <button
+        aria-label={zh('关闭', 'Close')}
+        onClick={onClose}
+        className="absolute right-3 top-3 rounded-full bg-black/60 px-2 py-1 text-sm text-white hover:bg-black/80"
+      >
+        ×
+      </button>
+      <div className="flex flex-col gap-4 p-4">
+        <h2 className="truncate text-lg font-semibold" title={displayName}>
+          {displayName}
+        </h2>
+        <div className="player-shell relative w-full bg-black">
+          {screenshotNotice ? (
+            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
+              {zh('截图成功', 'Screenshot saved')}
+            </div>
+          ) : null}
+          {loadingPlayback ? (
+            <div className="flex aspect-video items-center justify-center text-sm text-white">
+              {zh('加载播放信息中…', 'Loading playback info...')}
+            </div>
+          ) : playbackError ? (
+            <div className="flex aspect-video items-center justify-center px-6 text-center text-sm text-red-200">
+              {playbackError}
+            </div>
+          ) : (
+            <div data-vjs-player className="h-full w-full">
+              <video
+                ref={videoRef}
+                className="video-js vjs-big-play-centered h-full w-full"
+                playsInline
+              >
+                <track kind="captions" />
+              </video>
+            </div>
+          )}
         </div>
       </div>
-    </div>
+    </AppModal>
   )
 }

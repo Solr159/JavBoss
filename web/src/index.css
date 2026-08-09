@@ -15,6 +15,10 @@ html {
   scrollbar-gutter: stable; /* 始终保留原生滚动条空间，避免跳转加载时滚动条闪现 */
 }
 
+html.app-modal-open {
+  overflow-y: hidden;
+}
+
 body {
   min-height: 100%;
 }
