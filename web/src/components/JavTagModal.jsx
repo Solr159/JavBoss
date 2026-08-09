@@ -362,7 +362,9 @@ export default function JavTagModal({
           return (
             <div
               key={`${t.id}-${t.provider || 0}`}
-              className={`skeuo-tag ${baseTagClass} ${interactiveTagClass}`}
+              className={`skeuo-tag ${baseTagClass} ${interactiveTagClass} ${
+                editMode ? 'skeuo-tag--edit-mode' : ''
+              }`}
               onMouseEnter={() => {
                 if (editMode) setHoverTagId(t.id)
               }}
@@ -372,7 +374,7 @@ export default function JavTagModal({
             >
               <button
                 type="button"
-                className="flex min-w-0 items-center gap-2 text-left"
+                className="skeuo-tag-main flex min-w-0 items-center gap-2 text-left"
                 onClick={() => {
                   if (editMode) {
                     if (canRename) handleStartRename(t)
