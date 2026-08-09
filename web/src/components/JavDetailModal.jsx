@@ -676,6 +676,8 @@ export default function JavDetailModal({
   return (
     <AppModal
       ariaLabelledby={titleId}
+      backdropBlur="2px"
+      backdropColor="rgba(2, 6, 23, 0.7)"
       className="p-3 sm:p-6"
       contentClassName="flex max-h-[92vh] w-full max-w-[90rem] flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
       onClose={onClose}

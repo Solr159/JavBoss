@@ -6,6 +6,8 @@ let openModalCount = 0
 export default function AppModal({
   ariaLabel,
   ariaLabelledby,
+  backdropBlur,
+  backdropColor = 'rgba(0, 0, 0, 0.5)',
   children,
   className = '',
   closeDisabled = false,
@@ -46,7 +48,8 @@ export default function AppModal({
       slotProps={{
         backdrop: {
           sx: {
-            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backgroundColor: backdropColor,
+            backdropFilter: backdropBlur ? `blur(${backdropBlur})` : undefined,
           },
         },
       }}
