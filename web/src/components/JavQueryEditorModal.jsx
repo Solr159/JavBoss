@@ -97,6 +97,8 @@ export default function JavQueryEditorModal({
   favoriteRatingMax = 5,
 }) {
   const prefixInputRef = useRef(null)
+  const idolInputRef = useRef(null)
+  const tagInputRef = useRef(null)
   const studioInputRef = useRef(null)
   const seriesInputRef = useRef(null)
   const [keyword, setKeyword] = useState('')
@@ -742,6 +744,7 @@ export default function JavQueryEditorModal({
             ) : null}
             <div onBlur={closePickerOnBlur(setIdolPickerOpen)}>
               <input
+                ref={idolInputRef}
                 value={idolSearch}
                 onFocus={() => setIdolPickerOpen(true)}
                 onChange={(event) => {
@@ -767,7 +770,12 @@ export default function JavQueryEditorModal({
                           aria-checked={checked}
                           key={idol.id}
                           onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => toggleIdol(idol.id)}
+                          onClick={() => {
+                            toggleIdol(idol.id)
+                            setIdolSearch('')
+                            setIdolPickerOpen(false)
+                            idolInputRef.current?.blur()
+                          }}
                           className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
                         >
                           <input
@@ -823,6 +831,7 @@ export default function JavQueryEditorModal({
             ) : null}
             <div onBlur={closePickerOnBlur(setTagPickerOpen)}>
               <input
+                ref={tagInputRef}
                 value={tagSearch}
                 onFocus={() => setTagPickerOpen(true)}
                 onChange={(event) => {
@@ -848,7 +857,12 @@ export default function JavQueryEditorModal({
                           aria-checked={checked}
                           key={`${tag.id}-${tag.provider || 0}`}
                           onMouseDown={(event) => event.preventDefault()}
-                          onClick={() => toggleTag(tag.id)}
+                          onClick={() => {
+                            toggleTag(tag.id)
+                            setTagSearch('')
+                            setTagPickerOpen(false)
+                            tagInputRef.current?.blur()
+                          }}
                           className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-slate-50"
                         >
                           <input
