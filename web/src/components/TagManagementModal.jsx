@@ -456,13 +456,12 @@ export default function TagManagementModal({
           <div className="space-y-6">
             {categoryGroups.map((group) => (
               <div key={group.category || DEFAULT_CATEGORY_VALUE} className="space-y-2">
-                <div className="flex items-center gap-2 text-base font-semibold text-slate-800">
+                <div className="text-base font-semibold text-slate-800">
                   <span>
                     {group.category
                       ? zh(group.category, categoryEnglishLabels[group.category] || group.category)
                       : zh('默认分类', 'Default')}
                   </span>
-                  <span className="text-sm font-normal text-slate-400">{group.tags.length}</span>
                 </div>
                 {renderTagGroup(group.tags)}
               </div>
