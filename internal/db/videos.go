@@ -15,18 +15,30 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+func firstBool(values []bool) bool {
+	return len(values) > 0 && values[0]
+}
+
 // ListVideos returns paginated active video locations as video-like rows.
 // By default it includes locations already associated with JAV metadata.
 func ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
+	return listVideos(ctx, limit, offset, tagNames, nil, search, sort, seed, directoryIDs, firstBool(hideJav), false)
+}
+
+func ListVideosWithFilters(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav, westernOnly bool) ([]models.Video, error) {
+	return listVideos(ctx, limit, offset, tagNames, nil, search, sort, seed, directoryIDs, hideJav, westernOnly)
+}
+
+func ListVideosWithWesternFilters(ctx context.Context, limit, offset int, tagNames, westernTagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav, westernOnly bool) ([]models.Video, error) {
+	return listVideos(ctx, limit, offset, tagNames, westernTagNames, search, sort, seed, directoryIDs, hideJav, westernOnly)
+}
+
+func listVideos(ctx context.Context, limit, offset int, tagNames, westernTagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideRecognizedJav, showWesternOnly bool) ([]models.Video, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	if offset < 0 {
 		offset = 0
-	}
-	hideRecognizedJav := false
-	if len(hideJav) > 0 {
-		hideRecognizedJav = hideJav[0]
 	}
 
 	orderClause := "video.created_at DESC, video_location.id DESC" // default: newest first
@@ -72,10 +84,14 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		Preload("DirectoryRef").
 		Preload("Video").
 		Preload("Video.Tags").
+		Preload("Video.WesternMetadata").
 		Limit(limit).
 		Offset(offset)
 	if hideRecognizedJav {
 		query = query.Where("video_location.jav_id IS NULL")
+	}
+	if showWesternOnly {
+		query = query.Where("(video_location.jav_id IS NULL OR video.media_category = ?) AND video.media_category != ? AND EXISTS (SELECT 1 FROM western_metadata WHERE western_metadata.video_id = video_location.video_id)", models.MediaCategoryWestern, models.MediaCategoryJAV)
 	}
 	query = applyDirectoryFilter(query, "video_location", directoryIDs)
 	if useExpr {
@@ -99,6 +115,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 			Group("video_location.id").
 			Having("COUNT(DISTINCT tag.name) = ?", len(cleanedTags))
 	}
+	query = applyWesternTagFilter(query, westernTagNames)
 
 	var locations []models.VideoLocation
 	if err := query.Find(&locations).Error; err != nil {
@@ -117,15 +134,37 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	return videos, nil
 }
 
+func applyWesternTagFilter(query *gorm.DB, tagNames []string) *gorm.DB {
+	cleaned := normalizeTagNames(tagNames)
+	for _, tagName := range cleaned {
+		query = query.Where(`EXISTS (
+			SELECT 1 FROM western_metadata wm
+			WHERE wm.video_id = video.id AND (
+				EXISTS (SELECT 1 FROM json_each(COALESCE(wm.labels, '[]')) WHERE json_each.value = ?)
+				OR EXISTS (SELECT 1 FROM json_each(COALESCE(wm.genres, '[]')) WHERE json_each.value = ?)
+			)
+		)`, tagName, tagName)
+	}
+	return query
+}
+
 // CountVideos returns the total number of active locations that match optional filters.
 // By default it includes locations already associated with JAV metadata.
 func CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
+	return countVideos(ctx, tagNames, nil, search, directoryIDs, firstBool(hideJav), false)
+}
+
+func CountVideosWithFilters(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav, westernOnly bool) (int64, error) {
+	return countVideos(ctx, tagNames, nil, search, directoryIDs, hideJav, westernOnly)
+}
+
+func CountVideosWithWesternFilters(ctx context.Context, tagNames, westernTagNames []string, search string, directoryIDs []int64, hideJav, westernOnly bool) (int64, error) {
+	return countVideos(ctx, tagNames, westernTagNames, search, directoryIDs, hideJav, westernOnly)
+}
+
+func countVideos(ctx context.Context, tagNames, westernTagNames []string, search string, directoryIDs []int64, hideRecognizedJav, showWesternOnly bool) (int64, error) {
 	cleanedTags := normalizeTagNames(tagNames)
 	cleanedSearch := strings.TrimSpace(search)
-	hideRecognizedJav := false
-	if len(hideJav) > 0 {
-		hideRecognizedJav = hideJav[0]
-	}
 	like := ""
 	if cleanedSearch != "" {
 		like = fmt.Sprintf("%%%s%%", cleanedSearch)
@@ -137,11 +176,16 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 		base := common.DB.WithContext(ctx).
 			Model(&models.VideoLocation{}).
 			Joins("JOIN directory ON directory.id = video_location.directory_id").
+			Joins("JOIN video ON video.id = video_location.video_id").
 			Where(activeLocationWhereSQL("video_location", "directory"))
 		if hideRecognizedJav {
 			base = base.Where("video_location.jav_id IS NULL")
 		}
+		if showWesternOnly {
+			base = base.Where("(video_location.jav_id IS NULL OR video.media_category = ?) AND video.media_category != ? AND EXISTS (SELECT 1 FROM western_metadata WHERE western_metadata.video_id = video_location.video_id)", models.MediaCategoryWestern, models.MediaCategoryJAV)
+		}
 		base = applyDirectoryFilter(base, "video_location", directoryIDs)
+		base = applyWesternTagFilter(base, westernTagNames)
 		if like != "" {
 			base = base.Where("video_location.filename LIKE ? COLLATE NOCASE", like)
 		}
@@ -156,6 +200,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	sub := common.DB.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
+		Joins("JOIN video ON video.id = video_location.video_id").
 		Where(activeLocationWhereSQL("video_location", "directory")).
 		Select("video_location.id").
 		Joins("JOIN video_tag ON video_tag.video_id = video_location.video_id").
@@ -164,7 +209,11 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	if hideRecognizedJav {
 		sub = sub.Where("video_location.jav_id IS NULL")
 	}
+	if showWesternOnly {
+		sub = sub.Where("(video_location.jav_id IS NULL OR video.media_category = ?) AND video.media_category != ? AND EXISTS (SELECT 1 FROM western_metadata WHERE western_metadata.video_id = video_location.video_id)", models.MediaCategoryWestern, models.MediaCategoryJAV)
+	}
 	sub = applyDirectoryFilter(sub, "video_location", directoryIDs)
+	sub = applyWesternTagFilter(sub, westernTagNames)
 
 	if like != "" {
 		sub = sub.Where("video_location.filename LIKE ? COLLATE NOCASE", like)
@@ -247,6 +296,51 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 	}
 
 	return GetVideo(ctx, videoID)
+}
+
+// UpdateVideoMediaCategory stores the user's manual JAV/Western classification.
+func UpdateVideoMediaCategory(ctx context.Context, videoID int64, category string) (*models.Video, error) {
+	if videoID <= 0 {
+		return nil, errors.New("video id cannot be zero")
+	}
+	category = strings.ToLower(strings.TrimSpace(category))
+	if category == "" {
+		category = models.MediaCategoryAuto
+	}
+	if category != models.MediaCategoryAuto && category != models.MediaCategoryJAV && category != models.MediaCategoryWestern {
+		return nil, errors.New("invalid media category")
+	}
+	res := common.DB.WithContext(ctx).
+		Model(&models.Video{}).
+		Where("id = ?", videoID).
+		Updates(map[string]any{"media_category": category, "updated_at": time.Now()})
+	if res.Error != nil {
+		return nil, fmt.Errorf("update video media category: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return nil, nil
+	}
+	return GetVideo(ctx, videoID)
+}
+
+// UpdateVideoMediaCategories stores one manual classification for multiple videos.
+func UpdateVideoMediaCategories(ctx context.Context, videoIDs []int64, category string) error {
+	ids := uniqueInt64s(videoIDs)
+	if len(ids) == 0 {
+		return errors.New("video ids are required")
+	}
+	category = strings.ToLower(strings.TrimSpace(category))
+	if category != models.MediaCategoryAuto && category != models.MediaCategoryJAV && category != models.MediaCategoryWestern {
+		return errors.New("invalid media category")
+	}
+	res := common.DB.WithContext(ctx).
+		Model(&models.Video{}).
+		Where("id IN ?", ids).
+		Updates(map[string]any{"media_category": category, "updated_at": time.Now()})
+	if res.Error != nil {
+		return fmt.Errorf("update video media categories: %w", res.Error)
+	}
+	return nil
 }
 
 // UpdateVideoCoverScreenshotName stores the screenshot filename used as a video's custom cover.
@@ -395,6 +489,7 @@ func GetVideo(ctx context.Context, id int64) (*models.Video, error) {
 		Model(&models.Video{}).
 		Where("EXISTS (?)", activeVideoLocationSubquery(ctx)).
 		Preload("Tags").
+		Preload("WesternMetadata").
 		Scopes(preloadActiveLocations).
 		First(&video, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -446,6 +541,7 @@ func GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*model
 		Preload("DirectoryRef").
 		Preload("Video").
 		Preload("Video.Tags").
+		Preload("Video.WesternMetadata").
 		First(loc).Error; err != nil {
 		return nil, fmt.Errorf("get video for location: %w", err)
 	}

@@ -106,6 +106,9 @@ func processVideoLocationJavLink(ctx context.Context, locationID int64) error {
 	if err != nil || v == nil {
 		return err
 	}
+	if v.MediaCategory == models.MediaCategoryWestern {
+		return nil
+	}
 
 	override := normalizeJavScrapeOverride(v.JavScrapeOverride)
 	if override == models.JavScrapeOverrideSkip {

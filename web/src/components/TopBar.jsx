@@ -111,6 +111,7 @@ export default function TopBar({
   filterItems = [],
   hasActiveControlFilter = false,
   isJavMode,
+  viewMode = 'video',
   javSearchHref,
   javSearchInput,
   javTab,
@@ -125,6 +126,7 @@ export default function TopBar({
   onOpenFavoriteManager,
   onSearchInputChange,
   onSubmitSearch,
+  onViewModeChange,
   onOpenSelectionOps,
   onClearSelection,
   searchHref,
@@ -219,14 +221,26 @@ export default function TopBar({
   return (
     <header ref={headerRef} className="filter-topbar">
       <div className="filter-topbar__body">
-        <button
-          type="button"
-          onClick={onHome}
-          className="filter-topbar__brand"
-          aria-label={zh('返回当前页面首页', 'Return to current section home')}
-        >
-          JavBoss
-        </button>
+        <div className="filter-topbar__brand">
+          <button
+            type="button"
+            onClick={onHome}
+            className="filter-topbar__brand-label"
+            aria-label={zh('返回当前页面首页', 'Return to current section home')}
+          >
+            JavBoss
+          </button>
+          <select
+            value={viewMode}
+            onChange={(event) => onViewModeChange?.(event.target.value)}
+            className="filter-topbar__mode-select"
+            aria-label={zh('切换资源类型', 'Switch media type')}
+          >
+            <option value="jav">JAV</option>
+            <option value="western">Western</option>
+            <option value="video">Video</option>
+          </select>
+        </div>
         <div className="filter-topbar__controls">
           <form onSubmit={onSubmitSearch} className="filter-search">
             <input

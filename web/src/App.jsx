@@ -11,9 +11,13 @@ import {
   openVideoFile,
   revealVideoLocation,
   updateVideoJavScrapeSettings,
+  updateVideoMediaCategories,
   fetchVideoJavScrapePossibleCodes,
   lookupVideoJavScrape,
   manualVideoJavScrape,
+  searchVideoWesternMetadata,
+  saveVideoWesternMetadata,
+  deleteVideoWesternMetadata,
   createJavTag,
   organizeJavTags,
   fetchJavTagCategories,
@@ -54,6 +58,9 @@ import TopBar from '@/components/TopBar'
 import PlayerModal from '@/components/PlayerModal'
 import VideoSettingsModal from '@/components/VideoSettingsModal'
 import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
+import WesternScrapeModal from '@/components/WesternScrapeModal'
+import WesternLibrary from '@/components/WesternLibrary'
+import WesternTagModal from '@/components/WesternTagModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
 import VideoTagModal from '@/components/VideoTagModal'
 import { IDOL_FAVORITE_ORDER_SORT, normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
@@ -86,11 +93,18 @@ const configFlag = (value, fallback = false) => {
 }
 
 const normalizeInitialViewMode = (value) =>
-  String(value || '')
-    .trim()
-    .toLowerCase() === 'jav'
-    ? 'jav'
+  ['jav', 'western'].includes(String(value || '').trim().toLowerCase())
+    ? String(value).trim().toLowerCase()
     : 'video'
+
+const westernTabToSideTab = (tab) =>
+  tab === 'performers'
+    ? 'idol'
+    : tab === 'studios'
+      ? 'studio'
+      : tab === 'series'
+        ? 'series'
+        : 'list'
 
 function applyScrapeOverrideToVideo(video, override) {
   const nextOverride = String(override || '').trim()
@@ -126,6 +140,7 @@ export default function App() {
     config,
     tags,
     selectedTags,
+    westernTags,
     selectedVideoIds,
     selectedVideoMeta,
     loadVideos,
@@ -249,6 +264,7 @@ export default function App() {
   const [javSettingsOpen, setJavSettingsOpen] = useState(false)
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false)
   const [javTagModalOpen, setJavTagModalOpen] = useState(false)
+  const [westernTagModalOpen, setWesternTagModalOpen] = useState(false)
   const [javTagCategories, setJavTagCategories] = useState([])
   const [javQueryEditorOpen, setJavQueryEditorOpen] = useState(false)
   const [javVideoPickerOpen, setJavVideoPickerOpen] = useState(false)
@@ -274,6 +290,8 @@ export default function App() {
   const [screenshotsAllowSetCover, setScreenshotsAllowSetCover] = useState(true)
   const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
   const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
+  const [westernScrapeVideo, setWesternScrapeVideo] = useState(null)
+  const [westernTab, setWesternTab] = useState('list')
   const [searchInput, setSearchInput] = useState('')
   const [javSearchInput, setJavSearchInput] = useState('')
   const [waterfallModes, setWaterfallModes] = useState({
@@ -286,6 +304,7 @@ export default function App() {
   const [hydrated, setHydrated] = useState(false)
   const [configLoaded, setConfigLoaded] = useState(false)
   const isJavMode = viewMode === 'jav'
+  const isWesternMode = viewMode === 'western'
   const selectedTagIds = useMemo(
     () =>
       tags
@@ -320,6 +339,7 @@ export default function App() {
   const [selectionTagAction, setSelectionTagAction] = useState('add')
   const [selectionTagChoices, setSelectionTagChoices] = useState([])
   const [selectionDeleting, setSelectionDeleting] = useState(false)
+  const [selectionCategorizing, setSelectionCategorizing] = useState(false)
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
   const [videoHideJavInput, setVideoHideJavInput] = useState(videoHideJav)
@@ -714,13 +734,44 @@ export default function App() {
     setScrapeSettingsVideo(video)
   }, [])
 
+  const handleOpenWesternScrape = useCallback((video) => {
+    setWesternScrapeVideo(video)
+  }, [])
+
+  const handleSearchWesternMetadata = useCallback(
+    async (query) => {
+      if (!westernScrapeVideo?.id) return { items: [] }
+      return searchVideoWesternMetadata(westernScrapeVideo.id, query)
+    },
+    [westernScrapeVideo]
+  )
+
+  const handleSaveWesternMetadata = useCallback(
+    async (metadata) => {
+      if (!westernScrapeVideo?.id) return
+      await saveVideoWesternMetadata(westernScrapeVideo.id, metadata)
+      setWesternScrapeVideo(null)
+      await loadVideos({ force: true })
+      showToast(zh('欧美元数据已保存', 'Western metadata saved'))
+    },
+    [loadVideos, showToast, westernScrapeVideo]
+  )
+
+  const handleDeleteWesternMetadata = useCallback(async () => {
+    if (!westernScrapeVideo?.id) return
+    await deleteVideoWesternMetadata(westernScrapeVideo.id)
+    setWesternScrapeVideo(null)
+    await loadVideos({ force: true })
+    showToast(zh('欧美元数据已删除', 'Western metadata removed'))
+  }, [loadVideos, showToast, westernScrapeVideo])
+
   const handleSaveScrapeSettings = useCallback(
-    async ({ mode, code }) => {
+    async ({ mode, code, category }) => {
       const video = scrapeSettingsVideo
       if (!video?.id) return
       setScrapeSettingsSaving(true)
       try {
-        const updated = await updateVideoJavScrapeSettings(video.id, { mode, code })
+        const updated = await updateVideoJavScrapeSettings(video.id, { mode, code, category })
         let override = ''
         if (typeof updated?.jav_scrape_override === 'string') {
           override = updated.jav_scrape_override
@@ -1056,7 +1107,7 @@ export default function App() {
 
       const { video } = parsed
       useStore.setState({
-        viewMode: 'video',
+        viewMode: parsed.view === 'western' ? 'western' : 'video',
         javTempSort: '',
         idolTempSort: '',
         videoTempSort: video.random ? '' : video.tempSort,
@@ -1163,7 +1214,9 @@ export default function App() {
   )
 
   const handleParsedUrlView = useCallback((parsedView) => {
-    useStore.setState({ viewMode: parsedView === 'jav' ? 'jav' : 'video' })
+    useStore.setState({
+      viewMode: parsedView === 'jav' || parsedView === 'western' ? parsedView : 'video',
+    })
   }, [])
 
   const {
@@ -2420,6 +2473,33 @@ export default function App() {
     }
   }, [loadVideos, selectedList, selectionDeleting, showCenterToast, showToast])
 
+  const handleSetSelectionCategory = useCallback(
+    async (category) => {
+      if (selectionCategorizing) return
+      const videoIDs = selectedList
+        .map((item) => Number(item?.video_id || item?.video?.id))
+        .filter((id, index, ids) => Number.isFinite(id) && id > 0 && ids.indexOf(id) === index)
+      if (videoIDs.length === 0) return
+      setSelectionCategorizing(true)
+      try {
+        await updateVideoMediaCategories(videoIDs, category)
+        await loadVideos({ force: true })
+        setSelectionOpsOpen(false)
+        showToast(
+          zh(
+            `已将 ${videoIDs.length} 个资源设为 ${category === 'western' ? 'Western' : 'JAV'}`,
+            `Set ${videoIDs.length} resources to ${category === 'western' ? 'Western' : 'JAV'}`
+          )
+        )
+      } catch (err) {
+        showCenterToast(getErrorMessage(err))
+      } finally {
+        setSelectionCategorizing(false)
+      }
+    },
+    [loadVideos, selectedList, selectionCategorizing, showCenterToast, showToast]
+  )
+
   const openTagEditor = useCallback(
     (videoId) => {
       setTagPickerFor(videoId)
@@ -2660,8 +2740,39 @@ export default function App() {
   }
 
   const handleSelectSideTab = (tab) => {
+    if (tab === 'jav-root') {
+      if (isJavMode && javTab === 'list') return
+      handleSwitchJavTab('list')
+      return
+    }
+    if (tab === 'western' || tab.startsWith('western-')) {
+      if (isWesternMode && tab === 'western') return
+      saveScrollBeforeUrlStateChange()
+      useStore.setState({
+        viewMode: 'western',
+        page: 1,
+        videoTempSort: '',
+        randomMode: false,
+        randomSeed: null,
+      })
+      setWesternTab(tab === 'western' ? 'list' : tab.replace('western-', ''))
+      if (!isWesternMode) forceReloadVideos()
+      return
+    }
+    if (isWesternMode && ['list', 'idol', 'studio', 'series'].includes(tab)) {
+      setWesternTab(
+        tab === 'idol'
+          ? 'performers'
+          : tab === 'studio'
+            ? 'studios'
+            : tab === 'series'
+              ? 'series'
+              : 'list'
+      )
+      return
+    }
     if (tab === 'video') {
-      if (!isJavMode) return
+      if (!isJavMode && !isWesternMode) return
       saveScrollBeforeUrlStateChange()
       useStore.setState({ viewMode: 'video', javTempSort: '', idolTempSort: '' })
       forceReloadVideos()
@@ -3178,6 +3289,24 @@ export default function App() {
     [applyJavTagFilter]
   )
 
+  const handleWesternTagClick = useCallback(
+    (tag) => {
+      const name = String(typeof tag === 'object' ? tag?.name : tag || '').trim()
+      if (!name) return
+      saveScrollBeforeUrlStateChange()
+      useStore.setState({
+        viewMode: 'western',
+        selectedTags: [],
+        westernTags: [name],
+        videoTempSort: '',
+        randomMode: false,
+        randomSeed: null,
+        page: 1,
+      })
+    },
+    [saveScrollBeforeUrlStateChange]
+  )
+
   const loadJavTagCategories = useCallback(async () => {
     const categories = await fetchJavTagCategories()
     setJavTagCategories(Array.isArray(categories) ? categories : [])
@@ -3391,7 +3520,7 @@ export default function App() {
   return (
     <div className="app-shell min-h-screen">
       <SideTabs
-        activeTab={isJavMode ? javTab : 'video'}
+        activeTab={isWesternMode ? westernTabToSideTab(westernTab) : isJavMode ? javTab : 'video'}
         buildJavPrefixUrl={(item) =>
           buildJavUrl({
             page: 1,
@@ -3416,6 +3545,7 @@ export default function App() {
         enabledDirectoryIds={enabledDirectoryIds}
         hostPathPrefixEnabled={hostPathPrefixEnabled}
         isJavMode={isJavMode}
+        isWesternMode={isWesternMode}
         javPrefix={javPrefix}
         javPrefixDirectoryIds={javQueryDirectoryIds}
         onBrowserBack={handleBrowserBack}
@@ -3424,6 +3554,7 @@ export default function App() {
         onOpenGlobalSettings={() => setGlobalSettingsOpen(true)}
         onOpenJavSettings={openJavSettings}
         onOpenJavTagModal={handleOpenJavTagModal}
+        onOpenWesternTagModal={() => setWesternTagModalOpen(true)}
         onJavPrefixClick={handleSelectJavPrefix}
         onOpenTagModal={handleOpenTagModal}
         onOpenVideoSettings={openVideoSettings}
@@ -3476,6 +3607,7 @@ export default function App() {
         filterItems={activeFilterItems}
         hasActiveControlFilter={isJavMode && javTab === 'list' && javFavoriteRatingEnabled}
         isJavMode={isJavMode}
+        viewMode={viewMode}
         javSearchHref={javSearchHref}
         javSearchInput={javSearchInput}
         javTab={javTab}
@@ -3512,6 +3644,11 @@ export default function App() {
         }
         onSearchInputChange={isJavMode ? setJavSearchInput : setSearchInput}
         onSubmitSearch={isJavMode ? submitJavSearch : submitSearch}
+        onViewModeChange={(mode) => {
+          if (mode === 'western') handleSelectSideTab('western')
+          else if (mode === 'jav') handleSelectSideTab('jav-root')
+          else handleSelectSideTab('video')
+        }}
         searchHref={searchHref}
         searchInput={searchInput}
         selectedCount={selectedCount}
@@ -3665,6 +3802,8 @@ export default function App() {
               hasMore: javWaterfallHasMore,
             }}
           />
+        ) : isWesternMode && westernTab !== 'list' ? (
+          <WesternLibrary kind={westernTab} />
         ) : (
           <VideoRoute
             page={page}
@@ -3691,6 +3830,7 @@ export default function App() {
             setTagPickerFor={openTagEditor}
             onOpenScreenshots={openVideoScreenshots}
             onOpenScrapeSettings={handleOpenScrapeSettings}
+            onOpenWesternScrape={handleOpenWesternScrape}
             onRenameVideo={handleRenameVideo}
             onDeleteVideo={handleDeleteVideo}
             onTagClick={handleVideoTagClick}
@@ -3769,6 +3909,15 @@ export default function App() {
         onFetchPossibleCodes={handleFetchScrapePossibleCodes}
         onLookupMetadata={handleLookupScrapeMetadata}
         onManualScrape={handleManualScrape}
+      />
+
+      <WesternScrapeModal
+        open={Boolean(westernScrapeVideo)}
+        video={westernScrapeVideo}
+        onClose={() => setWesternScrapeVideo(null)}
+        onSearch={handleSearchWesternMetadata}
+        onSave={handleSaveWesternMetadata}
+        onDelete={handleDeleteWesternMetadata}
       />
 
       <JavSettingsModal
@@ -3906,6 +4055,7 @@ export default function App() {
         selectedList={selectedList}
         selectedCount={selectedCount}
         deleting={selectionDeleting}
+        categorizing={selectionCategorizing}
         onRemoveSelected={handleRemoveSelectedVideo}
         onOpenTags={() => {
           loadTags()
@@ -3922,6 +4072,7 @@ export default function App() {
           setSelectionTagsOpen(true)
         }}
         onDeleteSelected={handleDeleteSelection}
+        onSetCategory={handleSetSelectionCategory}
       />
 
       <SelectionTagsModal
@@ -4076,6 +4227,12 @@ export default function App() {
           })
           await loadJavTags()
         }}
+      />
+      <WesternTagModal
+        open={westernTagModalOpen}
+        onClose={() => setWesternTagModalOpen(false)}
+        selectedTags={westernTags}
+        onApplyTagFilter={handleWesternTagClick}
       />
       <GlobalSettingsModal
         open={globalSettingsOpen}

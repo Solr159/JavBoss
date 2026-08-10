@@ -54,9 +54,13 @@ const parseIntSafe = (val, def = 1) => {
 
 export const parseUrlState = (searchString = window.location.search, options = {}) => {
   const sp = new URLSearchParams(searchString)
-  const defaultView = options.defaultView === 'jav' ? 'jav' : 'video'
+  const defaultView =
+    options.defaultView === 'jav' || options.defaultView === 'western'
+      ? options.defaultView
+      : 'video'
   const rawView = sp.get('view')
-  const view = rawView === 'jav' ? 'jav' : rawView === 'video' ? 'video' : defaultView
+  const view =
+    rawView === 'jav' || rawView === 'western' ? rawView : rawView === 'video' ? 'video' : defaultView
   const directoryIds = parseDirectoryIds(sp)
 
   const videoTempSort = normalizeVideoSort((sp.get('temp_sort') || '').trim(), '')
@@ -181,7 +185,7 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     return `${basePath}${query ? `?${query}` : ''}`
   }
 
-  sp.set('view', 'video')
+  sp.set('view', state.view === 'western' ? 'western' : 'video')
   if (state.directoryIds?.length) {
     sp.set('directory_ids', state.directoryIds.join(','))
   } else if (Array.isArray(state.directoryIds) && state.directoryIds.length === 0) {
@@ -234,7 +238,7 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
   }
 
   return {
-    view: store.viewMode === 'jav' ? 'jav' : 'video',
+    view: store.viewMode === 'jav' ? 'jav' : store.viewMode === 'western' ? 'western' : 'video',
     directoryIds,
     video: {
       page: store.randomMode ? 1 : store.page,

@@ -75,21 +75,25 @@ export async function fetchVideos({
   limit = 25,
   offset = 0,
   tags = [],
+  westernTags = [],
   search = '',
   sort = '',
   seed = null,
   directoryIds = [],
   hideJav = false,
+  westernOnly = false,
 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
   params.set('offset', String(offset))
   if (tags.length) params.set('tags', tags.join(','))
+  if (westernTags.length) params.set('western_tags', westernTags.join(','))
   if (search) params.set('search', search)
   if (sort) params.set('sort', sort)
   if (seed != null) params.set('seed', String(seed))
   if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   params.set('hide_jav', hideJav ? '1' : '0')
+  params.set('western_only', westernOnly ? '1' : '0')
   const res = await apiFetch(`/videos?${params.toString()}`)
   if (!res.ok) throw await apiError(res)
   const data = await res.json()
@@ -98,6 +102,14 @@ export async function fetchVideos({
     return { items: data, total: data.length }
   }
   return data
+}
+
+export async function fetchWesternEntities(kind, { limit = 25, offset = 0, search = '' } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (search) params.set('search', search)
+  const res = await apiFetch(`/western/${encodeURIComponent(kind)}?${params.toString()}`)
+  if (!res.ok) throw await apiError(res)
+  return res.json()
 }
 
 export async function fetchTags({ directoryIds = [], hideJav = false } = {}) {
@@ -356,16 +368,28 @@ export async function deleteVideoLocation(videoId, locationId) {
   }
 }
 
-export async function updateVideoJavScrapeSettings(videoId, { mode = 'auto', code = '' } = {}) {
+export async function updateVideoJavScrapeSettings(
+  videoId,
+  { mode = 'auto', code = '', category = 'auto' } = {}
+) {
   const res = await apiFetch(`/videos/${videoId}/jav-scrape`, {
     method: 'PATCH',
     headers: jsonHeaders,
-    body: JSON.stringify({ mode, code }),
+    body: JSON.stringify({ mode, code, category }),
   })
   if (!res.ok) {
     throw await apiError(res)
   }
   return res.json()
+}
+
+export async function updateVideoMediaCategories(videoIds, category) {
+  const res = await apiFetch('/videos/media-category', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ video_ids: videoIds, category }),
+  })
+  if (!res.ok) throw await apiError(res)
 }
 
 export async function lookupVideoJavScrape(videoId, code, provider = 'javdb') {
@@ -397,6 +421,32 @@ export async function manualVideoJavScrape(videoId, locationId, info) {
     throw await apiError(res)
   }
   return res.json()
+}
+
+export async function searchVideoWesternMetadata(videoId, query = '') {
+  const params = new URLSearchParams()
+  if (String(query || '').trim()) params.set('q', String(query).trim())
+  const suffix = params.toString()
+  const res = await apiFetch(
+    `/videos/${videoId}/western-scrape/search${suffix ? `?${suffix}` : ''}`
+  )
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function saveVideoWesternMetadata(videoId, metadata) {
+  const res = await apiFetch(`/videos/${videoId}/western-scrape`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify(metadata || {}),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function deleteVideoWesternMetadata(videoId) {
+  const res = await apiFetch(`/videos/${videoId}/western-scrape`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res)
 }
 
 // Directories

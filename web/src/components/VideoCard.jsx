@@ -6,6 +6,7 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
+import TravelExploreIcon from '@mui/icons-material/TravelExplore'
 import { revealVideoLocation } from '@/api'
 import { formatBytes, getVideoDisplayName, parseVideoFingerprint } from '@/utils/display'
 import { zh } from '@/utils/i18n'
@@ -25,6 +26,7 @@ export default function VideoCard({
   showTagEditor = true,
   onOpenScreenshots,
   onOpenScrapeSettings,
+  onOpenWesternScrape,
   onRenameVideo,
   onDeleteVideo,
   onTagClick,
@@ -48,6 +50,7 @@ export default function VideoCard({
   const inputId = `check-${video?.location_id || video.id}`
   const javCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '').trim()
   const hasScrapeOverride = Boolean(String(video?.jav_scrape_override || '').trim())
+  const western = video?.western_metadata
   const canOpenFile = Boolean(onOpenFile)
   const canRevealFile = Boolean(onRevealFile)
   const thumbnailVersion = encodeURIComponent(
@@ -87,6 +90,11 @@ export default function VideoCard({
   const handleOpenScrapeSettings = (event) => {
     event.stopPropagation()
     onOpenScrapeSettings?.(video)
+  }
+
+  const handleOpenWesternScrape = (event) => {
+    event.stopPropagation()
+    onOpenWesternScrape?.(video)
   }
 
   const openEditMenu = (event) => {
@@ -153,6 +161,16 @@ export default function VideoCard({
             {zh(`已刮削 ${javCode}`, `Scraped ${javCode}`)}
           </div>
         ) : null}
+        {western ? (
+          <div
+            className={`absolute left-10 top-2 z-10 max-w-[calc(100%-3rem)] truncate rounded px-2 py-1 text-xs font-semibold text-white ${
+              western.match_status === 'unmatched' ? 'bg-amber-600/90' : 'bg-emerald-800/90'
+            }`}
+            title={`${western.source} / ${western.content_type}`}
+          >
+            WESTERN · {String(western.content_type || 'scene').toUpperCase()}
+          </div>
+        ) : null}
         <div className="absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
           <button
             type="button"
@@ -193,6 +211,27 @@ export default function VideoCard({
           ) : null}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1">
+          {western?.studio ? (
+            <span className="inline-flex h-4 items-center rounded bg-emerald-100 px-1 text-[10px] font-semibold text-emerald-900">
+              {western.studio}
+            </span>
+          ) : null}
+          {western?.performers?.slice(0, 2).map((performer) => (
+            <span
+              key={performer}
+              className="inline-flex h-4 items-center rounded bg-sky-100 px-1 text-[10px] font-medium text-sky-900"
+            >
+              {performer}
+            </span>
+          ))}
+          {western?.labels?.slice(0, 3).map((label) => (
+            <span
+              key={label}
+              className="inline-flex h-4 items-center rounded bg-amber-100 px-1 text-[10px] font-medium text-amber-900"
+            >
+              {label}
+            </span>
+          ))}
           {video.tags?.length
             ? video.tags.map((t) => (
                 <button
@@ -259,6 +298,18 @@ export default function VideoCard({
               <MovieEdit fontSize="inherit" />
             </IconButton>
           </Tooltip>
+          {onOpenWesternScrape ? (
+            <Tooltip title={zh('欧美元数据', 'Western metadata')}>
+              <IconButton
+                size="small"
+                onClick={handleOpenWesternScrape}
+                aria-label={zh('欧美元数据', 'Western metadata')}
+                className={`h-6 w-6 ${western ? 'text-emerald-700' : ''}`}
+              >
+                <TravelExploreIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
           <Tooltip title={zh('刮削设置', 'Scrape settings')}>
             <IconButton
               size="small"

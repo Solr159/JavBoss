@@ -336,6 +336,13 @@ server_url = "http://192.168.1.100:8655"
 - Q: 换电脑时怎么迁移？
 - A: 在新电脑下载对应系统的 `javboss`，然后将旧电脑的`data/`目录复制到新电脑的 `javboss` 目录下即可。（如果视频目录路径也发生了变化，请在目录管理中点击编辑进行调整）
 
+## 欧美元数据
+
+- 扫描目录时会自动读取视频同名的 Emby/Jellyfin `.nfo`，导入标题、演员、工作室、分类、标签和来源。JavBoss 自己生成的 JAV NFO 不会被重复导入。
+- 视频卡片的地球按钮可以按文件名搜索 ThePornDB Scenes，预览匹配项后手动选择，避免自动误匹配。
+- ThePornDB 搜索需要先设置环境变量 `JAVBOSS_THEPORNDB_TOKEN`，token 可在 ThePornDB 账户的 API Tokens 页面创建。token 不会写入数据库或返回给浏览器。
+- 已选择的 ThePornDB 元数据优先于本地 NFO；删除欧美元数据后，再次扫描即可重新导入 NFO。
+
 ## 开发者文档
 
 开发环境、常用命令及项目结构请参阅 [DEVELOPMENT.md](DEVELOPMENT.md)。

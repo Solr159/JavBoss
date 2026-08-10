@@ -218,7 +218,7 @@ body.has-page-scroll .sticky-pagination {
 
 .filter-topbar__brand {
   display: flex;
-  width: calc(var(--side-tabs-width) + 16px);
+  width: 190px;
   flex-shrink: 0;
   align-items: center;
   justify-content: flex-start;
@@ -232,6 +232,24 @@ body.has-page-scroll .sticky-pagination {
 
 .filter-topbar__brand:hover {
   color: #0f172a;
+}
+
+.filter-topbar__brand-label {
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+}
+
+.filter-topbar__mode-select {
+  max-width: 76px;
+  margin-left: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  padding: 3px 4px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .filter-topbar__controls {

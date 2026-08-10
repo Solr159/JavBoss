@@ -19,6 +19,7 @@ import { zh } from '@/utils/i18n'
 
 const tabs = [
   { id: 'video', label: zh('视频', 'Video'), icon: VideoLibraryOutlinedIcon },
+  
   { id: 'list', label: zh('作品', 'Works'), icon: MovieCreationOutlinedIcon },
   { id: 'idol', label: zh('女优', 'Idols'), icon: PeopleAltOutlinedIcon },
   { id: 'studio', label: zh('片商', 'Studios'), icon: VideocamOutlinedIcon },
@@ -56,6 +57,7 @@ export default function SideTabs({
   enabledDirectoryIds = [],
   hostPathPrefixEnabled = false,
   isJavMode,
+  isWesternMode,
   javPrefix = '',
   javPrefixDirectoryIds = [],
   buildJavPrefixUrl,
@@ -65,6 +67,7 @@ export default function SideTabs({
   onOpenGlobalSettings,
   onOpenJavSettings,
   onOpenJavTagModal,
+  onOpenWesternTagModal,
   onJavPrefixClick,
   onOpenTagModal,
   onOpenVideoSettings,
@@ -188,7 +191,13 @@ export default function SideTabs({
         <RailButton
           icon={LocalOfferOutlinedIcon}
           label={zh('标签', 'Tags')}
-          onClick={isJavMode ? onOpenJavTagModal : onOpenTagModal}
+          onClick={
+            isWesternMode
+              ? onOpenWesternTagModal
+              : isJavMode
+                ? onOpenJavTagModal
+                : onOpenTagModal
+          }
         />
         {isJavMode ? (
           <RailButton

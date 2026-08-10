@@ -26,19 +26,20 @@ const emptyManualInfo = {
 function initialState(video) {
   const override = String(video?.jav_scrape_override || '').trim()
   if (override === SKIP_OVERRIDE) {
-    return { mode: 'skip', code: '', autoSource: AUTO_SOURCE_FILENAME }
+    return { mode: 'skip', code: '', autoSource: AUTO_SOURCE_FILENAME, category: video?.media_category || 'auto' }
   }
   if (override.toLowerCase().startsWith(MANUAL_OVERRIDE_PREFIX)) {
     return {
       mode: 'manual',
       code: override.slice(MANUAL_OVERRIDE_PREFIX.length).trim(),
       autoSource: AUTO_SOURCE_FILENAME,
+      category: video?.media_category || 'auto',
     }
   }
   if (override) {
-    return { mode: 'auto', code: override, autoSource: AUTO_SOURCE_CODE }
+    return { mode: 'auto', code: override, autoSource: AUTO_SOURCE_CODE, category: video?.media_category || 'auto' }
   }
-  return { mode: 'auto', code: '', autoSource: AUTO_SOURCE_FILENAME }
+  return { mode: 'auto', code: '', autoSource: AUTO_SOURCE_FILENAME, category: video?.media_category || 'auto' }
 }
 
 function listToText(values) {
@@ -118,6 +119,7 @@ export default function VideoScrapeSettingsModal({
 }) {
   const [mode, setMode] = useState('auto')
   const [autoSource, setAutoSource] = useState(AUTO_SOURCE_FILENAME)
+  const [category, setCategory] = useState('auto')
   const [code, setCode] = useState('')
   const [manualInfo, setManualInfo] = useState(emptyManualInfo)
   const [lookupLoading, setLookupLoading] = useState(false)
@@ -134,6 +136,7 @@ export default function VideoScrapeSettingsModal({
     setMode(next.mode)
     setAutoSource(next.autoSource)
     setCode(next.code)
+    setCategory(next.category)
     setManualInfo(initialManualInfo(video))
     setLookupLoading(false)
     setLookupProvider('')
@@ -215,6 +218,7 @@ export default function VideoScrapeSettingsModal({
     onSave?.({
       mode: mode === 'auto' && autoSource === AUTO_SOURCE_CODE ? 'code' : mode,
       code: normalizedCode,
+      category,
     })
   }
 
@@ -249,6 +253,24 @@ export default function VideoScrapeSettingsModal({
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3">
         <div className="space-y-2">
+          <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+            <label className="mb-1 block text-xs font-medium text-gray-500">
+              {zh('资源分类', 'Resource category')}
+            </label>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              disabled={saving || lookupLoading}
+              className="w-full rounded border bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+            >
+              <option value="auto">{zh('自动判断', 'Automatic')}</option>
+              <option value="jav">JAV</option>
+              <option value="western">Western</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              {zh('手动分类会覆盖文件名和已有关联的自动判断。', 'Manual classification overrides filename and existing-link detection.')}
+            </p>
+          </div>
           <section
             className={`overflow-hidden rounded-lg border ${
               mode === 'auto' ? 'border-blue-500 bg-blue-50/30' : 'border-gray-200'

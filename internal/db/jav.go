@@ -89,6 +89,7 @@ type JavScanVideo struct {
 	UpdatedAt         time.Time `gorm:"column:updated_at"`
 	DurationSec       int64     `gorm:"column:duration_sec"`
 	JavScrapeOverride string    `gorm:"column:jav_scrape_override"`
+	MediaCategory     string    `gorm:"column:media_category"`
 }
 
 // JavUpdateInput contains user-editable JAV metadata fields.
@@ -2683,7 +2684,7 @@ func videosForJavScanQuery(ctx context.Context) *gorm.DB {
 		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.missing, 0) = 0").
-		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, j.code AS jav_code, vl.updated_at, v.duration_sec, v.jav_scrape_override")
+		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, j.code AS jav_code, vl.updated_at, v.duration_sec, v.jav_scrape_override, v.media_category")
 }
 
 // GetJavByCode fetches a jav record by code.

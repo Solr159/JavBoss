@@ -14,6 +14,7 @@ export default function VideoGrid({
   showTagEditor = true,
   onOpenScreenshots,
   onOpenScrapeSettings,
+  onOpenWesternScrape,
   onRenameVideo,
   onDeleteVideo,
   onTagClick,
@@ -38,6 +39,7 @@ export default function VideoGrid({
           showTagEditor={showTagEditor}
           onOpenScreenshots={onOpenScreenshots}
           onOpenScrapeSettings={onOpenScrapeSettings}
+          onOpenWesternScrape={onOpenWesternScrape}
           onRenameVideo={onRenameVideo}
           onDeleteVideo={onDeleteVideo}
           onTagClick={onTagClick}

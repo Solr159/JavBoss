@@ -298,6 +298,9 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 				} else {
 					state.javLinks.Enqueue(existingLoc.ID)
 				}
+				if err := importWesternNFO(ctx, existingLoc.VideoID, normalizedPath); err != nil {
+					logging.Error("import western NFO failed, skip: path=%s err=%v", normalizedPath, err)
+				}
 				return nil
 			}
 		}
@@ -402,6 +405,9 @@ func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *Fil
 		state.processedLocationIDs[loc.ID] = struct{}{}
 		state.existingLocationByPath[makePathKey(loc.DirectoryID, loc.RelativePath)] = loc
 		state.javLinks.Enqueue(loc.ID)
+	}
+	if err := importWesternNFO(ctx, video.ID, entry.AbsolutePath); err != nil {
+		logging.Error("import western NFO failed, skip: path=%s err=%v", entry.AbsolutePath, err)
 	}
 	state.existingByID[video.ID] = video
 	return nil

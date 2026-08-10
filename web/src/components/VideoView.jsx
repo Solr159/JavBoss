@@ -50,6 +50,7 @@ export default function VideoView({
   setTagPickerFor,
   onOpenScreenshots,
   onOpenScrapeSettings,
+  onOpenWesternScrape,
   onRenameVideo,
   onDeleteVideo,
   onTagClick,
@@ -215,6 +216,7 @@ export default function VideoView({
           onOpenTagPicker={(vid) => setTagPickerFor(vid)}
           onOpenScreenshots={onOpenScreenshots}
           onOpenScrapeSettings={onOpenScrapeSettings}
+          onOpenWesternScrape={onOpenWesternScrape}
           onRenameVideo={onRenameVideo}
           onDeleteVideo={onDeleteVideo}
           onTagClick={onTagClick}

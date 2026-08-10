@@ -30,10 +30,12 @@ func listVideos(c *gin.Context) {
 	limit := queryInt(c, "limit", 100)
 	offset := queryInt(c, "offset", 0)
 	tagFilter := parseTagQuery(c.Query("tags"))
+	westernTagFilter := parseTagQuery(c.Query("western_tags"))
 	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	search := strings.TrimSpace(c.Query("search"))
 	sort := strings.TrimSpace(c.Query("sort"))
 	hideJav := queryBool(c, "hide_jav", false)
+	westernOnly := queryBool(c, "western_only", false)
 	seedParam := strings.TrimSpace(c.Query("seed"))
 	var seed *int64
 	if seedParam != "" {
@@ -45,14 +47,14 @@ func listVideos(c *gin.Context) {
 		seed = &parsed
 	}
 
-	videos, err := dbpkg.ListVideos(c.Request.Context(), limit, offset, tagFilter, search, sort, seed, directoryIDs, hideJav)
+	videos, err := dbpkg.ListVideosWithWesternFilters(c.Request.Context(), limit, offset, tagFilter, westernTagFilter, search, sort, seed, directoryIDs, hideJav, westernOnly)
 	if err != nil {
 		logging.Error("list videos error: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载视频列表失败", "Failed to load videos")
 		return
 	}
 
-	total, err := dbpkg.CountVideos(c.Request.Context(), tagFilter, search, directoryIDs, hideJav)
+	total, err := dbpkg.CountVideosWithWesternFilters(c.Request.Context(), tagFilter, westernTagFilter, search, directoryIDs, hideJav, westernOnly)
 	if err != nil {
 		logging.Error("count videos error: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "统计视频数量失败", "Failed to count videos")
@@ -63,6 +65,28 @@ func listVideos(c *gin.Context) {
 		"items": videos,
 		"total": total,
 	})
+}
+
+func updateVideoMediaCategories(c *gin.Context) {
+	var req struct {
+		VideoIDs []int64 `json:"video_ids"`
+		Category string  `json:"category"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.VideoIDs) == 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "批量资源分类请求无效", "Invalid batch media category request")
+		return
+	}
+	category, ok := normalizeVideoMediaCategory(req.Category)
+	if !ok {
+		respondLocalizedError(c, http.StatusBadRequest, "资源分类无效", "Invalid media category")
+		return
+	}
+	if err := dbpkg.UpdateVideoMediaCategories(c.Request.Context(), req.VideoIDs, category); err != nil {
+		logging.Error("update video media categories error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "批量保存资源分类失败", "Failed to update video categories")
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func getVideo(c *gin.Context) {
@@ -130,8 +154,9 @@ type renameVideoLocationRequest struct {
 }
 
 type videoJavScrapeSettingsRequest struct {
-	Mode string `json:"mode"`
-	Code string `json:"code"`
+	Mode     string `json:"mode"`
+	Code     string `json:"code"`
+	Category string `json:"category"`
 }
 
 type videoJavManualScrapeRequest struct {
@@ -662,6 +687,11 @@ func updateVideoJavScrapeSettings(c *gin.Context) {
 		respondLocalizedError(c, http.StatusBadRequest, "JAV 刮削设置无效", "Invalid JAV scrape settings")
 		return
 	}
+	category, ok := normalizeVideoMediaCategory(req.Category)
+	if !ok {
+		respondLocalizedError(c, http.StatusBadRequest, "资源分类无效", "Invalid media category")
+		return
+	}
 
 	video, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, override)
 	if err != nil {
@@ -671,6 +701,12 @@ func updateVideoJavScrapeSettings(c *gin.Context) {
 	}
 	if video == nil {
 		respondLocalizedError(c, http.StatusNotFound, "视频不存在", "Video does not exist")
+		return
+	}
+	video, err = dbpkg.UpdateVideoMediaCategory(c.Request.Context(), id, category)
+	if err != nil {
+		logging.Error("update video media category error: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "保存资源分类失败", "Failed to save media category")
 		return
 	}
 	c.JSON(http.StatusOK, video)
@@ -962,6 +998,19 @@ func normalizeVideoJavScrapeOverride(req videoJavScrapeSettingsRequest) (string,
 	case "code":
 		code, ok := normalizeForcedJavScrapeCode(req.Code)
 		return code, ok
+	default:
+		return "", false
+	}
+}
+
+func normalizeVideoMediaCategory(raw string) (string, bool) {
+	category := strings.ToLower(strings.TrimSpace(raw))
+	if category == "" {
+		return models.MediaCategoryAuto, true
+	}
+	switch category {
+	case models.MediaCategoryAuto, models.MediaCategoryJAV, models.MediaCategoryWestern:
+		return category, true
 	default:
 		return "", false
 	}

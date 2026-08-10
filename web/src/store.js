@@ -128,8 +128,10 @@ const videoListRequestKey = (state, directoryIds = directoryQueryIds(state)) => 
     effectiveSort,
     state.randomMode ? state.randomSeed || '' : '',
     (state.selectedTags || []).join(','),
+    (state.westernTags || []).join(','),
     directoryIds.join(','),
     state.videoHideJav ? 'hide-jav' : 'show-jav',
+    state.viewMode === 'western' ? 'western' : 'all-video',
   ].join('|')
 }
 
@@ -205,6 +207,7 @@ export const useStore = create((set, get) => ({
     set({ pageSize: next, videoTempSort: '', page: 1, randomMode: false, randomSeed: null })
   },
   selectedTags: [],
+  westernTags: [],
   selectedVideoIds: new Set(),
   selectedVideoMeta: {},
   searchTerm: '',
@@ -217,7 +220,7 @@ export const useStore = create((set, get) => ({
   randomSeed: null,
   javRandomMode: false,
   javRandomSeed: null,
-  viewMode: 'video', // video | jav
+  viewMode: 'video', // video | western | jav
   javTab: 'list', // list | idol | studio | series
   javPage: 1,
   javPageSize: JAV_PAGE_SIZE,
@@ -387,7 +390,20 @@ export const useStore = create((set, get) => ({
     const next = exists ? selectedTags.filter((t) => t !== tagName) : [...selectedTags, tagName]
     set({ selectedTags: next, videoTempSort: '', page: 1 })
   },
-  clearFilters: () => set({ selectedTags: [], videoTempSort: '', page: 1 }),
+  setWesternTags: (names) => {
+    const clean = Array.from(new Set((names || []).map((name) => String(name || '').trim()).filter(Boolean)))
+    set({ westernTags: clean, videoTempSort: '', page: 1 })
+  },
+  toggleWesternTagFilter: (tagName) => {
+    const name = String(tagName || '').trim()
+    if (!name) return
+    const { westernTags } = get()
+    const next = westernTags.includes(name)
+      ? westernTags.filter((tag) => tag !== name)
+      : [...westernTags, name]
+    set({ westernTags: next, videoTempSort: '', page: 1 })
+  },
+  clearFilters: () => set({ selectedTags: [], westernTags: [], videoTempSort: '', page: 1 }),
   toggleSelectVideo: (video) => {
     const key = videoSelectionKey(video)
     if (!video || !video.id || !key) return
@@ -429,7 +445,7 @@ export const useStore = create((set, get) => ({
   clearRandomMode: () => set({ randomMode: false, randomSeed: null }),
   clearJavRandom: () => set({ javTempSort: '', javRandomMode: false, javRandomSeed: null }),
   setViewMode: (mode) => {
-    if (mode !== 'video' && mode !== 'jav') return
+    if (mode !== 'video' && mode !== 'western' && mode !== 'jav') return
     set({
       viewMode: mode,
       ...(mode === 'jav' ? { videoTempSort: '' } : { javTempSort: '', idolTempSort: '' }),
@@ -724,10 +740,12 @@ export const useStore = create((set, get) => ({
       page: p0,
       pageSize,
       selectedTags,
+      westernTags,
       searchTerm,
       sortOrder,
       videoTempSort,
       videoHideJav,
+      viewMode,
       randomMode,
       randomSeed,
     } = get()
@@ -746,11 +764,14 @@ export const useStore = create((set, get) => ({
         limit: pageSize,
         offset: randomMode ? 0 : (p0 - 1) * pageSize,
         tags: selectedTags,
+        westernTags,
+        westernTags,
         search,
         sort: randomMode ? 'random' : effectiveSort,
         seed: randomMode ? randomSeed : null,
         directoryIds,
         hideJav: videoHideJav,
+        westernOnly: viewMode === 'western',
       })
       if (reqId !== videoLoadSeq || key !== videoListRequestKey(get())) return
       const total = resp.total ?? 0
@@ -787,10 +808,12 @@ export const useStore = create((set, get) => ({
         limit: state.pageSize,
         offset: baseOffset + loaded,
         tags: state.selectedTags,
+        westernTags: state.westernTags,
         search,
         sort: effectiveSort,
         directoryIds,
         hideJav: state.videoHideJav,
+        westernOnly: state.viewMode === 'western',
       })
       if (
         loadReqId !== videoLoadSeq ||
@@ -1279,6 +1302,7 @@ export const useStore = create((set, get) => ({
           limit: 1,
           offset: 0,
           tags: selectedTags,
+          westernTags: get().westernTags,
           search,
           sort: randomMode ? 'random' : effectiveSort,
           seed: randomMode ? randomSeed : null,
@@ -1292,6 +1316,7 @@ export const useStore = create((set, get) => ({
         limit: pageSize,
         offset: (lastPage - 1) * pageSize,
         tags: selectedTags,
+        westernTags: get().westernTags,
         search,
         sort: randomMode ? 'random' : effectiveSort,
         seed: randomMode ? randomSeed : null,

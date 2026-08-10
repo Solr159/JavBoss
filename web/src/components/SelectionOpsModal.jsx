@@ -13,6 +13,8 @@ export default function SelectionOpsModal({
   onOpenRemoveTags,
   onRemoveSelected,
   onDeleteSelected,
+  onSetCategory,
+  categorizing = false,
   deleting = false,
 }) {
   if (!open) return null
@@ -69,6 +71,22 @@ export default function SelectionOpsModal({
         )}
       </div>
       <div className="mt-4 flex justify-end gap-2">
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => onSetCategory?.('jav')}
+          disabled={count === 0 || deleting || categorizing}
+        >
+          {categorizing ? zh('保存中…', 'Saving...') : zh('设为 JAV', 'Set JAV')}
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => onSetCategory?.('western')}
+          disabled={count === 0 || deleting || categorizing}
+        >
+          {zh('设为 Western', 'Set Western')}
+        </Button>
         <Button
           variant="outlined"
           size="small"
