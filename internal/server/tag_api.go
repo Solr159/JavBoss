@@ -8,6 +8,7 @@ import (
 
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/models"
 )
 
 type videoTagRequest struct {
@@ -57,6 +58,104 @@ func createTag(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, dbpkg.TagCount{ID: tag.ID, Name: tag.Name, Count: 0})
+}
+
+func listTagCategories(c *gin.Context) {
+	categories, err := dbpkg.ListTagCategories(c.Request.Context())
+	if err != nil {
+		logging.Error("list tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "加载视频标签分类失败", "Failed to load video tag categories")
+		return
+	}
+	if categories == nil {
+		categories = []models.TagCategory{}
+	}
+	c.JSON(http.StatusOK, categories)
+}
+
+func createTagCategory(c *gin.Context) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签分类请求无效", "Invalid tag category creation request")
+		return
+	}
+	category, err := dbpkg.CreateTagCategory(c.Request.Context(), req.Name)
+	if err != nil {
+		logging.Error("create tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "创建标签分类失败，名称可能为空或已存在", "Failed to create tag category; the name may be empty or already exist")
+		return
+	}
+	c.JSON(http.StatusCreated, category)
+}
+
+func reorderTagCategories(c *gin.Context) {
+	var req struct {
+		CategoryIDs []int64 `json:"category_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "调整标签分类顺序请求无效", "Invalid tag category reorder request")
+		return
+	}
+	if err := dbpkg.ReorderTagCategories(c.Request.Context(), req.CategoryIDs); err != nil {
+		logging.Error("reorder tag categories error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "调整标签分类顺序失败", "Failed to reorder tag categories")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func renameTagCategory(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "标签分类 ID 无效", "Invalid tag category ID")
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "修改标签分类请求无效", "Invalid tag category update request")
+		return
+	}
+	if err := dbpkg.RenameTagCategory(c.Request.Context(), id, req.Name); err != nil {
+		logging.Error("rename tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "修改标签分类失败，名称可能为空或已存在", "Failed to rename tag category; the name may be empty or already exist")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func deleteTagCategory(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "标签分类 ID 无效", "Invalid tag category ID")
+		return
+	}
+	if err := dbpkg.DeleteTagCategory(c.Request.Context(), id); err != nil {
+		logging.Error("delete tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "删除标签分类失败", "Failed to delete tag category")
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func assignTagsCategory(c *gin.Context) {
+	var req struct {
+		TagIDs     []int64 `json:"tag_ids"`
+		CategoryID *int64  `json:"category_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "批量调整标签分类请求无效", "Invalid batch tag category request")
+		return
+	}
+	if err := dbpkg.AssignTagsCategory(c.Request.Context(), req.TagIDs, req.CategoryID); err != nil {
+		logging.Error("assign tag category error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "批量调整标签分类失败", "Failed to assign tag categories")
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
 
 func renameTag(c *gin.Context) {

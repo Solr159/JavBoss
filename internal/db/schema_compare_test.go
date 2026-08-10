@@ -40,6 +40,7 @@ func TestMigratedSchemaMatchesGormModels(t *testing.T) {
 		&models.Jav{},
 		&models.Video{},
 		&models.VideoLocation{},
+		&models.TagCategory{},
 		&models.Tag{},
 		&models.VideoTag{},
 		&models.Config{},

@@ -122,6 +122,54 @@ export async function createTag(name) {
   return res.json()
 }
 
+export async function fetchTagCategories() {
+  const res = await apiFetch('/tags/categories')
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function createTagCategory(name) {
+  const res = await apiFetch('/tags/categories', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function reorderTagCategories(categoryIds) {
+  const res = await apiFetch('/tags/categories/order', {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ category_ids: categoryIds }),
+  })
+  if (!res.ok) throw await apiError(res)
+}
+
+export async function renameTagCategory(id, name) {
+  const res = await apiFetch(`/tags/categories/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name }),
+  })
+  if (!res.ok) throw await apiError(res)
+}
+
+export async function deleteTagCategory(id) {
+  const res = await apiFetch(`/tags/categories/${id}`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res)
+}
+
+export async function assignTagsCategory(tagIds, categoryId) {
+  const res = await apiFetch('/tags/category', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ tag_ids: tagIds, category_id: categoryId }),
+  })
+  if (!res.ok) throw await apiError(res)
+}
+
 export async function fetchConfig() {
   const res = await apiFetch('/config')
   if (!res.ok) throw await apiError(res)

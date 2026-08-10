@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -16,9 +17,11 @@ import (
 
 // TagCount represents a tag with associated video count.
 type TagCount struct {
-	ID    int64  `json:"id"`
-	Name  string `json:"name"`
-	Count int64  `json:"count"`
+	ID         int64  `json:"id"`
+	Name       string `json:"name"`
+	CategoryID *int64 `json:"category_id,omitempty"`
+	Category   string `json:"category,omitempty"`
+	Count      int64  `json:"count"`
 }
 
 // CreateTag inserts a new tag with the provided name.
@@ -82,18 +85,231 @@ func ListTags(ctx context.Context, directoryIDs []int64, hideJav ...bool) ([]Tag
 	}
 	query := common.DB.WithContext(ctx).
 		Table("tag t").
-		Select("t.id, t.name, COUNT(DISTINCT CASE WHEN " + countWhere + " THEN vl.id END) AS count").
+		Select("t.id, t.name, t.category_id, tc.name AS category, COUNT(DISTINCT CASE WHEN " + countWhere + " THEN vl.id END) AS count").
 		Joins("LEFT JOIN video_tag vt ON vt.tag_id = t.id").
 		Joins("LEFT JOIN video_location vl ON vl.video_id = vt.video_id").
-		Joins("LEFT JOIN directory d ON d.id = vl.directory_id")
+		Joins("LEFT JOIN directory d ON d.id = vl.directory_id").
+		Joins("LEFT JOIN tag_category tc ON tc.id = t.category_id")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
-		Group("t.id, t.name").
+		Group("t.id, t.name, t.category_id, tc.name").
 		Order("t.name").
 		Scan(&tags).Error; err != nil {
 		return nil, fmt.Errorf("list tags: %w", err)
 	}
 	return tags, nil
+}
+
+// ListTagCategories returns every category in its configured display order.
+func ListTagCategories(ctx context.Context) ([]models.TagCategory, error) {
+	var categories []models.TagCategory
+	if err := common.DB.WithContext(ctx).Order("sort_order, id").Find(&categories).Error; err != nil {
+		return nil, fmt.Errorf("list tag categories: %w", err)
+	}
+	return categories, nil
+}
+
+// CreateTagCategory creates an empty category that tags can be moved into.
+func CreateTagCategory(ctx context.Context, name string) (*models.TagCategory, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, errors.New("category name cannot be empty")
+	}
+	category := models.TagCategory{Name: name}
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var maxSortOrder int
+		if err := tx.Model(&models.TagCategory{}).
+			Select("COALESCE(MAX(sort_order), -1)").
+			Scan(&maxSortOrder).Error; err != nil {
+			return fmt.Errorf("find last tag category position: %w", err)
+		}
+		category.SortOrder = maxSortOrder + 1
+		return tx.Create(&category).Error
+	}); err != nil {
+		return nil, fmt.Errorf("create tag category %q: %w", name, err)
+	}
+	return &category, nil
+}
+
+// ReorderTagCategories saves the complete category order. ID 0 reserves a
+// sortable position for the virtual default category without storing a row.
+func ReorderTagCategories(ctx context.Context, ids []int64) error {
+	if len(ids) == 0 {
+		return errors.New("category ids are required")
+	}
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id < 0 {
+			return errors.New("category ids cannot be negative")
+		}
+		if _, exists := seen[id]; exists {
+			return errors.New("category ids must be unique")
+		}
+		seen[id] = struct{}{}
+	}
+	if _, hasDefaultCategory := seen[0]; !hasDefaultCategory {
+		return errors.New("category order must include the default category")
+	}
+	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var storedIDs []int64
+		if err := tx.Model(&models.TagCategory{}).Pluck("id", &storedIDs).Error; err != nil {
+			return fmt.Errorf("list tag categories for reorder: %w", err)
+		}
+		if len(storedIDs)+1 != len(ids) {
+			return errors.New("category order must include every category")
+		}
+		stored := make(map[int64]struct{}, len(storedIDs))
+		for _, id := range storedIDs {
+			stored[id] = struct{}{}
+		}
+		for sortOrder, id := range ids {
+			if id == 0 {
+				continue
+			}
+			if _, exists := stored[id]; !exists {
+				return fmt.Errorf("tag category %d not found", id)
+			}
+			if err := tx.Model(&models.TagCategory{}).
+				Where("id = ?", id).
+				Update("sort_order", sortOrder).Error; err != nil {
+				return fmt.Errorf("update tag category %d position: %w", id, err)
+			}
+		}
+		return nil
+	})
+}
+
+// RenameTagCategory changes a category name without changing tag membership.
+func RenameTagCategory(ctx context.Context, id int64, name string) error {
+	name = strings.TrimSpace(name)
+	if id <= 0 {
+		return errors.New("category id must be positive")
+	}
+	if name == "" {
+		return errors.New("category name cannot be empty")
+	}
+	result := common.DB.WithContext(ctx).
+		Model(&models.TagCategory{}).
+		Where("id = ?", id).
+		Update("name", name)
+	if result.Error != nil {
+		return fmt.Errorf("rename tag category: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// DeleteTagCategory removes a category and leaves its tags uncategorized.
+func DeleteTagCategory(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return errors.New("category id must be positive")
+	}
+	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var categories []models.TagCategory
+		if err := tx.Order("sort_order, id").Find(&categories).Error; err != nil {
+			return fmt.Errorf("list tag categories for delete: %w", err)
+		}
+		categoryOrder := tagCategoryOrderWithDefault(categories)
+		found := false
+		nextOrder := make([]int64, 0, len(categoryOrder)-1)
+		for _, categoryID := range categoryOrder {
+			if categoryID == id {
+				found = true
+				continue
+			}
+			nextOrder = append(nextOrder, categoryID)
+		}
+		if !found {
+			return gorm.ErrRecordNotFound
+		}
+		if err := tx.Model(&models.Tag{}).Where("category_id = ?", id).Update("category_id", nil).Error; err != nil {
+			return fmt.Errorf("clear tag category: %w", err)
+		}
+		result := tx.Delete(&models.TagCategory{}, id)
+		if result.Error != nil {
+			return fmt.Errorf("delete tag category: %w", result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		for sortOrder, categoryID := range nextOrder {
+			if categoryID == 0 {
+				continue
+			}
+			if err := tx.Model(&models.TagCategory{}).
+				Where("id = ?", categoryID).
+				Update("sort_order", sortOrder).Error; err != nil {
+				return fmt.Errorf("normalize tag category %d position after delete: %w", categoryID, err)
+			}
+		}
+		return nil
+	})
+}
+
+func tagCategoryOrderWithDefault(categories []models.TagCategory) []int64 {
+	occupiedSortOrders := make(map[int]struct{}, len(categories))
+	for _, category := range categories {
+		if category.SortOrder >= 0 {
+			occupiedSortOrders[category.SortOrder] = struct{}{}
+		}
+	}
+	defaultSortOrder := 0
+	for {
+		if _, occupied := occupiedSortOrders[defaultSortOrder]; !occupied {
+			break
+		}
+		defaultSortOrder++
+	}
+	type orderedCategory struct {
+		id        int64
+		sortOrder int
+	}
+	ordered := make([]orderedCategory, 0, len(categories)+1)
+	for _, category := range categories {
+		ordered = append(ordered, orderedCategory{id: category.ID, sortOrder: category.SortOrder})
+	}
+	ordered = append(ordered, orderedCategory{id: 0, sortOrder: defaultSortOrder})
+	sort.SliceStable(ordered, func(i, j int) bool {
+		if ordered[i].sortOrder != ordered[j].sortOrder {
+			return ordered[i].sortOrder < ordered[j].sortOrder
+		}
+		return ordered[i].id < ordered[j].id
+	})
+	ids := make([]int64, 0, len(ordered))
+	for _, category := range ordered {
+		ids = append(ids, category.id)
+	}
+	return ids
+}
+
+// AssignTagsCategory moves multiple tags into one category. A nil category
+// leaves the selected tags uncategorized.
+func AssignTagsCategory(ctx context.Context, tagIDs []int64, categoryID *int64) error {
+	cleanTagIDs := uniqueInt64s(tagIDs)
+	if len(cleanTagIDs) == 0 {
+		return errors.New("tag ids are required")
+	}
+	if categoryID != nil {
+		if *categoryID <= 0 {
+			return errors.New("category id must be positive")
+		}
+		var count int64
+		if err := common.DB.WithContext(ctx).Model(&models.TagCategory{}).Where("id = ?", *categoryID).Count(&count).Error; err != nil {
+			return fmt.Errorf("find tag category: %w", err)
+		}
+		if count == 0 {
+			return gorm.ErrRecordNotFound
+		}
+	}
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Tag{}).
+		Where("id IN ?", cleanTagIDs).
+		Update("category_id", categoryID).Error; err != nil {
+		return fmt.Errorf("assign tag category: %w", err)
+	}
+	return nil
 }
 
 // AddTagToVideos associates a single tag with multiple videos.

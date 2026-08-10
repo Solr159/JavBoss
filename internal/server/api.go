@@ -49,6 +49,12 @@ func RegisterRoutes(router gin.IRoutes) {
 
 	router.GET("/tags", listTags)
 	router.POST("/tags", createTag)
+	router.GET("/tags/categories", listTagCategories)
+	router.POST("/tags/categories", createTagCategory)
+	router.PUT("/tags/categories/order", reorderTagCategories)
+	router.PATCH("/tags/categories/:id", renameTagCategory)
+	router.DELETE("/tags/categories/:id", deleteTagCategory)
+	router.POST("/tags/category", assignTagsCategory)
 	router.PATCH("/tags/:id", renameTag)
 	router.DELETE("/tags/:id", deleteTag)
 	router.POST("/tags/batch_delete", deleteTagsBatch)
