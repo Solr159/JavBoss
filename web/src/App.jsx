@@ -449,16 +449,14 @@ export default function App() {
   }, [])
   const handleOpenTagModal = useCallback(() => {
     loadTags()
-    loadTagCategories().catch(() => setTagCategories([]))
     setTagModalApplyMode('replace')
     setTagModalOpen(true)
-  }, [loadTagCategories, loadTags])
+  }, [loadTags])
   const handleOpenTagFilterEditor = useCallback(() => {
     loadTags()
-    loadTagCategories().catch(() => setTagCategories([]))
     setTagModalApplyMode('append')
     setTagModalOpen(true)
-  }, [loadTagCategories, loadTags])
+  }, [loadTags])
 
   const mapTagIdsToNames = useCallback(
     (ids) => {
@@ -3199,10 +3197,14 @@ export default function App() {
   }, [])
 
   const handleOpenJavTagModal = useCallback(() => {
-    setJavTagModalOpen(true)
     loadJavTags()
+    setJavTagModalOpen(true)
+  }, [loadJavTags])
+
+  useEffect(() => {
+    loadTagCategories().catch(() => setTagCategories([]))
     loadJavTagCategories().catch(() => setJavTagCategories([]))
-  }, [loadJavTagCategories, loadJavTags])
+  }, [loadJavTagCategories, loadTagCategories])
 
   const handleApplyJavQuery = useCallback(
     (query) => {
