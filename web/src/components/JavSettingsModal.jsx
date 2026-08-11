@@ -190,7 +190,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           <button
             type="button"
             aria-label={zh(`查看规则 ${index + 1} 的当前效果`, `View rule ${index + 1} effect`)}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="inline-flex h-7 w-7 items-center justify-center text-amber-500 transition hover:text-amber-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
           >
             <InfoOutlinedIcon sx={{ fontSize: 18 }} />
           </button>
