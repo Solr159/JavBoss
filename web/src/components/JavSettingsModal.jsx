@@ -139,16 +139,17 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
       <div className="flex items-center gap-2">
+        <span className="min-w-0 flex-1 text-sm font-semibold text-slate-700">
+          {zh(`规则 ${index + 1}`, `Rule ${index + 1}`)}
+        </span>
+        <span className="text-xs text-slate-500">{zh('启用', 'Enable')}</span>
         <SettingsSwitch
           label={zh(`启用排序规则 ${index + 1}`, `Enable sort rule ${index + 1}`)}
           checked={rule.enabled}
           onChange={(enabled) => update({ enabled })}
         />
-        <span className="min-w-0 flex-1 text-sm font-semibold text-slate-700">
-          {zh(`规则 ${index + 1}`, `Rule ${index + 1}`)}
-        </span>
         <button
           type="button"
           disabled={index === 0}
@@ -178,18 +179,22 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className="text-xs font-medium text-slate-600">
-          {zh('匹配方式', 'Match mode')}
+          {zh('匹配条件', 'Match condition')}
           <select
             value={rule.mode}
             onChange={(event) => update({ mode: event.target.value })}
             className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
           >
-            <option value="all">{zh('全部包含', 'Includes all')}</option>
-            <option value="any">{zh('包含任意一个', 'Includes any')}</option>
+            <option value="all">
+              {zh('筛选条件包含以下所有选中筛选', 'Filters include all selected filter types')}
+            </option>
+            <option value="any">
+              {zh('筛选条件包含以下任意选中筛选', 'Filters include any selected filter type')}
+            </option>
           </select>
         </label>
         <label className="text-xs font-medium text-slate-600">
-          {zh('排序方式', 'Sort order')}
+          {zh('命中后排序', 'Sort when matched')}
           <select
             value={rule.sort}
             onChange={(event) => update({ sort: event.target.value })}
@@ -206,7 +211,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
 
       <div className="mt-3">
         <div className="mb-1 text-xs font-medium text-slate-600">
-          {zh('生效的筛选类型', 'Active filter types')}
+          {zh('参与判断的筛选', 'Filters to evaluate')}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {JAV_SORT_RULE_FILTERS.map((filter) => {
@@ -232,16 +237,10 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           })}
         </div>
         {(rule.active || []).length === 0 ? (
-          <p className="mt-1.5 text-xs text-slate-500">
+          <p className="mt-1.5 text-xs text-amber-600">
             {rule.mode === 'all'
-              ? zh(
-                  '未选择筛选类型时，“全部包含”会匹配所有情况。',
-                  'Includes all with no selected filter types matches every context.'
-                )
-              : zh(
-                  '未选择筛选类型时，“包含任意一个”不会匹配任何情况。',
-                  'Includes any with no selected filter types never matches.'
-                )}
+              ? zh('未选择时会匹配所有情况', 'Matches everything when empty')
+              : zh('请选择至少一种筛选', 'Select at least one filter')}
           </p>
         ) : null}
       </div>
@@ -525,8 +524,8 @@ export default function JavSettingsModal({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs leading-5 text-slate-500">
                   {zh(
-                    '从上到下匹配，第一条命中的规则生效。目录范围不计入筛选。',
-                    'Rules are matched top to bottom. Directory scope is not a filter.'
+                    '规则从上到下匹配，第一条命中的规则生效。目录范围不参与判断。',
+                    'Rules match top to bottom; the first match wins. Directory scope is ignored.'
                   )}
                 </p>
                 <div className="flex gap-2">
@@ -586,15 +585,20 @@ export default function JavSettingsModal({
                 ) : null}
               </div>
               <div className="mt-4 border-t border-slate-200 pt-4">
-                <label className="block text-sm font-semibold text-slate-700">
-                  {zh('默认排序（兜底）', 'Default sort (fallback)')}
-                  <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
-                    {zh('当所有规则都不满足时使用。', 'Used when none of the rules match.')}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-700">
+                      {zh('默认排序（兜底）', 'Default sort (fallback)')}
+                    </div>
+                    <div className="mt-1 text-xs font-normal leading-5 text-slate-500">
+                      {zh('当所有规则都不满足时使用。', 'Used when none of the rules match.')}
+                    </div>
+                  </div>
                   <select
+                    aria-label={zh('默认排序（兜底）', 'Default sort (fallback)')}
                     value={javSortInput}
                     onChange={(event) => onJavSortChange?.(event.target.value)}
-                    className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-64"
                   >
                     {javSortChoices.map((choice) => (
                       <option key={choice.value} value={choice.value}>
@@ -602,7 +606,7 @@ export default function JavSettingsModal({
                       </option>
                     ))}
                   </select>
-                </label>
+                </div>
               </div>
             </SettingsSection>
           </div>
