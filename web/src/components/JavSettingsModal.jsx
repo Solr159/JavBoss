@@ -145,8 +145,8 @@ function javSortRuleDescription(rule) {
             `With or without filters, items are sorted by “${sortName}”.`
           )
         : zh(
-            '还没选择参与判断的筛选，所以这条规则暂时不会生效。',
-            'No filters have been selected for this rule, so it will not take effect yet.'
+            '还没选择要判断的筛选条件，所以这条规则暂时不会生效。',
+            'No filter conditions have been selected, so this rule will not take effect yet.'
           )
   } else if (rule.mode === 'all' && filterNames.length > 1) {
     effect = zh(
@@ -267,9 +267,6 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
       </div>
 
       <div className="mt-3">
-        <div className="mb-1 text-xs font-medium text-slate-600">
-          {zh('参与判断的筛选', 'Filters to evaluate')}
-        </div>
         <div className="flex flex-wrap gap-1.5">
           {JAV_SORT_RULE_FILTERS.map((filter) => {
             const checked = (rule.active || []).includes(filter.key)
@@ -581,8 +578,8 @@ export default function JavSettingsModal({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="text-xs leading-5 text-slate-500">
                   {zh(
-                    '规则从上到下匹配，第一条命中的规则生效。目录范围不参与判断。',
-                    'Rules match top to bottom; the first match wins. Directory scope is ignored.'
+                    '规则从上到下匹配，第一条命中的规则生效。',
+                    'Rules match top to bottom; the first match wins.'
                   )}
                 </p>
                 <div className="flex gap-2">
