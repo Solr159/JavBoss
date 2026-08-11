@@ -3671,7 +3671,6 @@ export default function App() {
               javRandomMode,
               javResolvedSort: javSortResolution.sort,
               javSortSource: javSortResolution.source,
-              javMatchedSortRule: javSortResolution.rule,
               javPrefix,
               setJavPage,
               setJavTempSort,

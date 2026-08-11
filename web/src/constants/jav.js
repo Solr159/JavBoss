@@ -66,7 +66,7 @@ export const JAV_SORT_RULE_FILTERS = [
   { key: 'tag', label: ['标签', 'Tag'] },
   { key: 'studio', label: ['片商', 'Studio'] },
   { key: 'series', label: ['系列', 'Series'] },
-  { key: 'prefix', label: ['番号前缀', 'Code prefix'] },
+  { key: 'prefix', label: ['番号', 'Code'] },
   { key: 'solo', label: ['单体作品', 'Solo'] },
   { key: 'favorite_rating', label: ['喜爱度', 'Favorite rating'] },
   { key: 'favorite_group', label: ['收藏夹', 'Favorite group'] },

@@ -232,7 +232,6 @@ function JavListRoute({
   alternatePlayerLabel,
   buildJavUrl,
   hasMore,
-  javMatchedSortRule,
   javResolvedSort,
   javSortSource,
   javGridColumns,
@@ -286,7 +285,6 @@ function JavListRoute({
       javHasNext={javHasNext}
       javLoading={activeJavLoading}
       javRandomMode={javRandomMode}
-      javMatchedSortRule={javMatchedSortRule}
       javResolvedSort={javResolvedSort}
       javSortSource={javSortSource}
       buildJavUrl={buildJavUrl}
