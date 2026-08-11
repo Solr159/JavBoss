@@ -138,16 +138,10 @@ function javSortRuleDescription(rule) {
 
   let effect
   if (filterNames.length === 0) {
-    effect =
-      rule.mode === 'all'
-        ? zh(
-            `不管有没有筛选，作品都会按“${sortName}”排列。`,
-            `With or without filters, items are sorted by “${sortName}”.`
-          )
-        : zh(
-            '还没选择要判断的筛选条件，所以这条规则暂时不会生效。',
-            'No filter conditions have been selected, so this rule will not take effect yet.'
-          )
+    effect = zh(
+      '还没选择筛选条件，所以这条规则暂时不会生效。',
+      'No filter conditions have been selected, so this rule will not take effect yet.'
+    )
   } else if (rule.mode === 'all' && filterNames.length > 1) {
     effect = zh(
       `当筛选条件完整包含 ${filterNames.join('、')} 时，作品会按“${sortName}”排列。`,
@@ -243,10 +237,16 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
             className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
           >
             <option value="all">
-              {zh('筛选条件包含以下所有选中筛选', 'Filters include all selected filter types')}
+              {zh(
+                '当筛选条件包含以下所有选中筛选时',
+                'When filters include all selected filter types'
+              )}
             </option>
             <option value="any">
-              {zh('筛选条件包含以下任意选中筛选', 'Filters include any selected filter type')}
+              {zh(
+                '当筛选条件包含以下任意选中筛选时',
+                'When filters include any selected filter type'
+              )}
             </option>
           </select>
         </label>
@@ -292,9 +292,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
         </div>
         {(rule.active || []).length === 0 ? (
           <p className="mt-1.5 text-xs text-amber-600">
-            {rule.mode === 'all'
-              ? zh('未选择时会匹配所有情况', 'Matches everything when empty')
-              : zh('请选择至少一种筛选', 'Select at least one filter')}
+            {zh('请选择至少一种筛选', 'Select at least one filter')}
           </p>
         ) : null}
       </div>

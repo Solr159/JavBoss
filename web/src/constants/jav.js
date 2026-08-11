@@ -267,9 +267,10 @@ export function resolveJavSort(state) {
   for (const rule of rules) {
     if (!rule.enabled) continue
     const matches =
-      rule.mode === 'any'
-        ? rule.active.length > 0 && rule.active.some((key) => activeSet.has(key))
-        : rule.active.every((key) => activeSet.has(key))
+      rule.active.length > 0 &&
+      (rule.mode === 'any'
+        ? rule.active.some((key) => activeSet.has(key))
+        : rule.active.every((key) => activeSet.has(key)))
     if (matches) {
       return { sort: rule.sort, source: 'rule', rule }
     }
