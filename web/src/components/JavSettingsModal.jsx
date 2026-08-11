@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import AppModal from '@/components/AppModal'
 import {
@@ -128,6 +129,47 @@ function nextJavSortRuleID(prefix, rules) {
   return id
 }
 
+function javSortRuleDescription(rule) {
+  const filters = (rule.active || [])
+    .map((key) => JAV_SORT_RULE_FILTERS.find((item) => item.key === key))
+    .filter(Boolean)
+  const filterNames = filters.map((filter) => zh(filter.label[0], filter.label[1]))
+  const sortName = javSortChoices.find((choice) => choice.value === rule.sort)?.label || rule.sort
+
+  let effect
+  if (filterNames.length === 0) {
+    effect =
+      rule.mode === 'all'
+        ? zh(
+            `不管有没有筛选，作品都会按“${sortName}”排列。`,
+            `With or without filters, items are sorted by “${sortName}”.`
+          )
+        : zh(
+            '还没选择参与判断的筛选，所以这条规则暂时不会生效。',
+            'No filters have been selected for this rule, so it will not take effect yet.'
+          )
+  } else if (rule.mode === 'all' && filterNames.length > 1) {
+    effect = zh(
+      `当筛选条件完整包含 ${filterNames.join('、')} 时，作品会按“${sortName}”排列。`,
+      `When the filters fully include ${filterNames.join(', ')}, items are sorted by “${sortName}”.`
+    )
+  } else if (rule.mode === 'any' && filterNames.length > 1) {
+    effect = zh(
+      `当筛选条件包含 ${filterNames.join('、')} 中的任意一个选项时，作品会按“${sortName}”排列。`,
+      `When the filters include any one option from ${filterNames.join(', ')}, items are sorted by “${sortName}”.`
+    )
+  } else {
+    effect = zh(
+      `当筛选条件包含 ${filterNames[0]} 时，作品会按“${sortName}”排列。`,
+      `When the filters include ${filterNames[0]}, items are sorted by “${sortName}”.`
+    )
+  }
+
+  return rule.enabled
+    ? effect
+    : zh(`这条规则现在已停用。启用后，${effect}`, `This rule is disabled. When enabled, ${effect}`)
+}
+
 function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
   const update = (changes) => onChange?.({ ...rule, ...changes })
   const toggleFilter = (key) => {
@@ -141,10 +183,25 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 text-sm font-semibold text-slate-700">
+        <span className="min-w-0 text-sm font-semibold text-slate-700">
           {zh(`规则 ${index + 1}`, `Rule ${index + 1}`)}
         </span>
-        <span className="text-xs text-slate-500">{zh('启用', 'Enable')}</span>
+        <span className="group relative">
+          <button
+            type="button"
+            aria-label={zh(`查看规则 ${index + 1} 的当前效果`, `View rule ${index + 1} effect`)}
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-blue-50 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          >
+            <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+          </button>
+          <span
+            role="tooltip"
+            className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-72 max-w-[calc(100vw-4rem)] rounded-lg bg-slate-800 px-3 py-2 text-xs font-normal leading-5 text-white opacity-0 shadow-lg transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100"
+          >
+            {javSortRuleDescription(rule)}
+          </span>
+        </span>
+        <span className="ml-auto text-xs text-slate-500">{zh('启用', 'Enable')}</span>
         <SettingsSwitch
           label={zh(`启用排序规则 ${index + 1}`, `Enable sort rule ${index + 1}`)}
           checked={rule.enabled}
