@@ -213,22 +213,22 @@ func SearchJavWithPrefixFilters(ctx context.Context, idolIDs []int64, tagIDs []i
 	}
 
 	var items []models.Jav
-	order := "jav.created_at DESC"
+	order := "jav.created_at DESC, jav.id DESC"
 	var orderExpr clause.Expr
 	useExpr := false
 	switch sort {
 	case "code", "code_asc":
-		order = "jav.code"
+		order = "jav.code ASC, jav.id ASC"
 	case "code_desc":
-		order = "jav.code DESC"
+		order = "jav.code DESC, jav.id DESC"
 	case "duration", "duration_desc":
 		order = "jav.duration_min DESC, jav.created_at DESC, jav.id DESC"
 	case "duration_asc":
 		order = "jav.duration_min ASC, jav.created_at ASC, jav.id ASC"
 	case "release", "release_desc":
-		order = "jav.release_unix DESC, jav.code"
+		order = "jav.release_unix IS NULL, jav.release_unix DESC, jav.code ASC, jav.id ASC"
 	case "release_asc":
-		order = "jav.release_unix IS NULL, jav.release_unix ASC, jav.code"
+		order = "jav.release_unix IS NULL, jav.release_unix ASC, jav.code ASC, jav.id ASC"
 	case "play_count", "play_count_desc":
 		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs) + "), 0) DESC, jav.created_at DESC, jav.id DESC"
 	case "play_count_asc":

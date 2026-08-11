@@ -66,6 +66,87 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 	}
 }
 
+func TestUpdateConfigPersistsJavSortRules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("database handle: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() { common.DB = previousDB })
+
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	body := []byte(`{"jav_sort_rules":{"version":1,"rules":[{"id":"idol","enabled":true,"mode":"all","active":["idol"],"sort":"release"},{"id":"search-or-tag","enabled":true,"mode":"any","active":["search","tag"],"sort":"code"}]}}`)
+	req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("update config status = %d, want %d; body=%s", response.Code, http.StatusOK, response.Body.String())
+	}
+
+	got, err := dbpkg.ListConfig(context.Background())
+	if err != nil {
+		t.Fatalf("list config: %v", err)
+	}
+	want := `{"version":1,"rules":[{"id":"idol","enabled":true,"mode":"all","active":["idol"],"sort":"release"},{"id":"search-or-tag","enabled":true,"mode":"any","active":["search","tag"],"sort":"code"}]}`
+	if got["jav_sort_rules"] != want {
+		t.Fatalf("jav_sort_rules = %q, want %q", got["jav_sort_rules"], want)
+	}
+}
+
+func TestUpdateConfigRejectsInvalidJavSortRules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("database handle: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() { common.DB = previousDB })
+
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	body := []byte(`{"jav_sort_rules":{"version":1,"rules":[{"id":"invalid-filter","enabled":true,"mode":"contains","active":["unknown"],"sort":"release"}]}}`)
+	req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, req)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("update config status = %d, want %d; body=%s", response.Code, http.StatusBadRequest, response.Body.String())
+	}
+}
+
+func TestNormalizeJavSortRulesConfigAcceptsLegacyModes(t *testing.T) {
+	got, ok := normalizeJavSortRulesConfig(javSortRulesConfig{
+		Version: 1,
+		Rules: []javSortRule{
+			{ID: "legacy-exact", Enabled: true, Mode: "exact", Active: []string{"idol"}, Sort: "release"},
+			{ID: "legacy-contains", Enabled: true, Mode: "contains", Active: []string{"tag"}, Sort: "recent"},
+		},
+	})
+	if !ok {
+		t.Fatal("legacy sort rule modes should remain loadable")
+	}
+	for _, rule := range got.Rules {
+		if rule.Mode != "all" {
+			t.Fatalf("legacy mode normalized to %q, want all", rule.Mode)
+		}
+	}
+}
+
 func TestUpdateConfigAcceptsBrowserPlayerAndLANAccess(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))

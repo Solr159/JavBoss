@@ -60,6 +60,23 @@ export const JAV_SORT_OPTIONS = [
   },
 ]
 
+export const JAV_SORT_RULE_FILTERS = [
+  { key: 'search', label: ['搜索', 'Search'] },
+  { key: 'idol', label: ['女优', 'Idol'] },
+  { key: 'tag', label: ['标签', 'Tag'] },
+  { key: 'studio', label: ['片商', 'Studio'] },
+  { key: 'series', label: ['系列', 'Series'] },
+  { key: 'prefix', label: ['番号前缀', 'Code prefix'] },
+  { key: 'solo', label: ['单体作品', 'Solo'] },
+  { key: 'favorite_rating', label: ['喜爱度', 'Favorite rating'] },
+  { key: 'favorite_group', label: ['收藏夹', 'Favorite group'] },
+]
+
+export const JAV_SORT_RULE_VERSION = 1
+export const JAV_SORT_RULE_LIMIT = 50
+
+const javSortRuleFilterKeys = new Set(JAV_SORT_RULE_FILTERS.map((item) => item.key))
+
 export const IDOL_SORT_OPTIONS = [
   {
     base: 'work',
@@ -168,6 +185,97 @@ export function normalizeJavSort(sort, fallback = 'recent') {
     play_count_desc: 'play_count',
     favorite_rating_desc: 'favorite_rating',
   })
+}
+
+export function normalizeJavSortRules(value) {
+  let parsed = value
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value)
+    } catch {
+      return []
+    }
+  }
+  const source = Array.isArray(parsed) ? parsed : parsed?.rules
+  if (!Array.isArray(source)) return []
+
+  const seenIds = new Set()
+  const rules = []
+  for (let index = 0; index < source.length && rules.length < JAV_SORT_RULE_LIMIT; index += 1) {
+    const item = source[index]
+    if (!item || typeof item !== 'object') continue
+    const id = String(item.id || `rule-${index + 1}`).trim()
+    const sort = normalizeJavSort(item.sort, '')
+    const active = Array.from(
+      new Set(
+        (Array.isArray(item.active) ? item.active : [])
+          .map((key) =>
+            String(key || '')
+              .trim()
+              .toLowerCase()
+          )
+          .filter((key) => javSortRuleFilterKeys.has(key))
+      )
+    ).sort(
+      (a, b) =>
+        JAV_SORT_RULE_FILTERS.findIndex((item) => item.key === a) -
+        JAV_SORT_RULE_FILTERS.findIndex((item) => item.key === b)
+    )
+    const mode = item.mode === 'any' ? 'any' : 'all'
+    if (!id || seenIds.has(id) || !sort) continue
+    seenIds.add(id)
+    rules.push({ id, enabled: item.enabled !== false, mode, active, sort })
+  }
+  return rules
+}
+
+export function javSortRulesConfig(rules) {
+  return {
+    version: JAV_SORT_RULE_VERSION,
+    rules: normalizeJavSortRules(rules),
+  }
+}
+
+export function activeJavSortFilters(state) {
+  const active = []
+  if (String(state?.javSearchTerm || '').trim()) active.push('search')
+  if ((state?.javIdolIds || []).length > 0) active.push('idol')
+  if ((state?.javTags || []).length > 0) active.push('tag')
+  if (state?.javStudioId !== null && state?.javStudioId !== undefined) active.push('studio')
+  if (state?.javSeriesId !== null && state?.javSeriesId !== undefined && state.javSeriesId !== '') {
+    active.push('series')
+  }
+  if (String(state?.javPrefix || '').trim()) active.push('prefix')
+  if (state?.javSoloOnly) active.push('solo')
+  if (state?.javFavoriteRatingEnabled) active.push('favorite_rating')
+  if (Number(state?.javFavoriteGroupId) > 0) active.push('favorite_group')
+  return active
+}
+
+export function resolveJavSort(state) {
+  if (state?.javRandomMode) {
+    return { sort: 'random', source: 'random', rule: null }
+  }
+  const temporary = normalizeJavSort(state?.javTempSort, '')
+  if (temporary) {
+    return { sort: temporary, source: 'temporary', rule: null }
+  }
+
+  const active = activeJavSortFilters(state)
+  const activeSet = new Set(active)
+  const rules = normalizeJavSortRules(state?.javSortRules)
+  for (const rule of rules) {
+    if (!rule.enabled) continue
+    const matches =
+      rule.mode === 'any'
+        ? rule.active.length > 0 && rule.active.some((key) => activeSet.has(key))
+        : rule.active.every((key) => activeSet.has(key))
+    if (matches) {
+      return { sort: rule.sort, source: 'rule', rule }
+    }
+  }
+
+  return { sort: normalizeJavSort(state?.javSort), source: 'default', rule: null }
 }
 
 export function normalizeIdolSort(sort, fallback = 'work') {

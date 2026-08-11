@@ -62,7 +62,14 @@ import VideoSettingsModal from '@/components/VideoSettingsModal'
 import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
 import VideoTagModal from '@/components/VideoTagModal'
-import { IDOL_FAVORITE_ORDER_SORT, normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
+import {
+  IDOL_FAVORITE_ORDER_SORT,
+  javSortRulesConfig,
+  normalizeIdolSort,
+  normalizeJavSort,
+  normalizeJavSortRules,
+  resolveJavSort,
+} from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 import useScrollRestoration from '@/hooks/useScrollRestoration'
 import useUrlStateSync from '@/hooks/useUrlStateSync'
@@ -182,6 +189,7 @@ export default function App() {
     javFavoriteGroupId,
     setJavFavoriteGroupId,
     javSort,
+    javSortRules,
     javTempSort,
     javRandomMode,
     javRandomSeed,
@@ -360,6 +368,7 @@ export default function App() {
     configFlag(config?.series_waterfall_default)
   )
   const [javSortInput, setJavSortInput] = useState(javSort)
+  const [javSortRulesInput, setJavSortRulesInput] = useState(javSortRules)
   const [idolSortInput, setIdolSortInput] = useState(idolSort)
   const [javIdolPreferChineseNameInput, setJavIdolPreferChineseNameInput] = useState(
     configFlag(config?.jav_idol_prefer_chinese_name)
@@ -370,6 +379,21 @@ export default function App() {
   const [javResolvedIdols, setJavResolvedIdols] = useState({})
   const [toastMessage, setToastMessage] = useState('')
   const [centerToastMessage, setCenterToastMessage] = useState('')
+  const javSortResolution = resolveJavSort({
+    javSearchTerm,
+    javIdolIds,
+    javTags,
+    javStudioId,
+    javSeriesId,
+    javPrefix,
+    javSoloOnly,
+    javFavoriteRatingEnabled,
+    javFavoriteGroupId,
+    javSort,
+    javSortRules,
+    javTempSort,
+    javRandomMode,
+  })
 
   useEffect(() => {
     const updateScrolledState = () => {
@@ -1539,6 +1563,7 @@ export default function App() {
     javFavoriteRatingMax,
     javFavoriteGroupId,
     javSort,
+    javSortRules,
     javTempSort,
     javRandomMode,
     javRandomSeed,
@@ -2084,6 +2109,7 @@ export default function App() {
     setSeriesPageSizeInput(seriesPageSize)
     setSeriesWaterfallDefaultInput(configFlag(config?.series_waterfall_default))
     setJavSortInput(javSort)
+    setJavSortRulesInput(javSortRules)
     setIdolSortInput(idolSort)
     setJavSettingsOpen(true)
   }, [
@@ -2105,6 +2131,7 @@ export default function App() {
     studioPageSize,
     seriesPageSize,
     javSort,
+    javSortRules,
     idolSort,
   ])
 
@@ -2213,6 +2240,7 @@ export default function App() {
         series_page_size: seriesSize,
         series_waterfall_default: waterfallDefaults.series,
         jav_sort: normalizedSort,
+        jav_sort_rules: javSortRulesConfig(javSortRulesInput),
         idol_sort: normalizedIdolSort,
         jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
         jav_tag_show_simplified: Boolean(javTagShowSimplifiedInput),
@@ -2240,6 +2268,7 @@ export default function App() {
         studioPageSize: studioSize,
         seriesPageSize: seriesSize,
         javSort: normalizedSort,
+        javSortRules: normalizeJavSortRules(cfg?.jav_sort_rules),
         javTempSort: '',
         idolSort: normalizedIdolSort,
         idolTempSort: '',
@@ -2285,6 +2314,7 @@ export default function App() {
       setSeriesPageSizeInput(seriesPageSize)
       setSeriesWaterfallDefaultInput(configFlag(config?.series_waterfall_default))
       setJavSortInput(javSort)
+      setJavSortRulesInput(javSortRules)
       setIdolSortInput(idolSort)
       setJavIdolPreferChineseNameInput(configFlag(config?.jav_idol_prefer_chinese_name))
       setJavTagShowSimplifiedInput(configFlag(config?.jav_tag_show_simplified))
@@ -2311,6 +2341,7 @@ export default function App() {
     studioPageSize,
     seriesPageSize,
     javSort,
+    javSortRules,
     idolSort,
   ])
 
@@ -3638,8 +3669,9 @@ export default function App() {
               javHasNext,
               activeJavLoading,
               javRandomMode,
-              javTempSort,
-              javGlobalSort: javSort,
+              javResolvedSort: javSortResolution.sort,
+              javSortSource: javSortResolution.source,
+              javMatchedSortRule: javSortResolution.rule,
               javPrefix,
               setJavPage,
               setJavTempSort,
@@ -3828,6 +3860,8 @@ export default function App() {
         onSeriesWaterfallDefaultChange={setSeriesWaterfallDefaultInput}
         javSortInput={javSortInput}
         onJavSortChange={setJavSortInput}
+        javSortRulesInput={javSortRulesInput}
+        onJavSortRulesChange={setJavSortRulesInput}
         idolSortInput={idolSortInput}
         onIdolSortChange={setIdolSortInput}
         javIdolPreferChineseNameInput={javIdolPreferChineseNameInput}

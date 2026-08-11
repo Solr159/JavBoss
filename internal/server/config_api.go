@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -19,6 +20,31 @@ import (
 
 const maxPageSize = 500
 const maxJavDisplayRows = 12
+const maxJavSortRules = 50
+
+type javSortRule struct {
+	ID      string   `json:"id"`
+	Enabled bool     `json:"enabled"`
+	Mode    string   `json:"mode"`
+	Active  []string `json:"active"`
+	Sort    string   `json:"sort"`
+}
+
+type javSortRulesConfig struct {
+	Version int           `json:"version"`
+	Rules   []javSortRule `json:"rules"`
+}
+
+var javSortRuleFilterOrder = map[string]int{
+	"search": 0, "idol": 1, "tag": 2, "studio": 3, "series": 4,
+	"prefix": 5, "solo": 6, "favorite_rating": 7, "favorite_group": 8,
+}
+
+var validJavSortValues = map[string]struct{}{
+	"recent": {}, "recent_asc": {}, "code": {}, "code_desc": {},
+	"duration": {}, "duration_asc": {}, "release": {}, "release_asc": {},
+	"play_count": {}, "play_count_asc": {}, "favorite_rating": {}, "favorite_rating_asc": {},
+}
 
 func getConfig(c *gin.Context) {
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
@@ -60,6 +86,7 @@ func updateConfig(c *gin.Context) {
 		VideoHideJav           *bool                 `json:"video_hide_jav"`
 		VideoSort              string                `json:"video_sort"`
 		JavSort                string                `json:"jav_sort"`
+		JavSortRules           *javSortRulesConfig   `json:"jav_sort_rules"`
 		IdolSort               string                `json:"idol_sort"`
 		JavIdolPreferChinese   *bool                 `json:"jav_idol_prefer_chinese_name"`
 		JavTagShowSimplified   *bool                 `json:"jav_tag_show_simplified"`
@@ -198,12 +225,24 @@ func updateConfig(c *gin.Context) {
 		}
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.JavSort)); s != "" {
-		switch s {
-		case "recent", "recent_asc", "code", "code_desc", "duration", "duration_asc", "release", "release_asc", "play_count", "play_count_asc", "favorite_rating", "favorite_rating_asc":
+		if _, ok := validJavSortValues[s]; ok {
 			entries["jav_sort"] = s
-		default:
+		} else {
 			// ignore invalid values
 		}
+	}
+	if req.JavSortRules != nil {
+		clean, ok := normalizeJavSortRulesConfig(*req.JavSortRules)
+		if !ok {
+			respondLocalizedError(c, http.StatusBadRequest, "JAV 排序规则无效", "Invalid JAV sort rules")
+			return
+		}
+		raw, err := json.Marshal(clean)
+		if err != nil {
+			respondLocalizedError(c, http.StatusInternalServerError, "保存 JAV 排序规则失败", "Failed to save JAV sort rules")
+			return
+		}
+		entries["jav_sort_rules"] = string(raw)
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.IdolSort)); s != "" {
 		switch s {
@@ -438,4 +477,68 @@ func normalizedPlayerHotkeyAmount(action string, amount float64) float64 {
 		return 0
 	}
 	return amount
+}
+
+func normalizeJavSortRulesConfig(config javSortRulesConfig) (javSortRulesConfig, bool) {
+	if config.Version != 1 || len(config.Rules) > maxJavSortRules {
+		return javSortRulesConfig{}, false
+	}
+	clean := javSortRulesConfig{Version: 1, Rules: make([]javSortRule, 0, len(config.Rules))}
+	seenIDs := make(map[string]struct{}, len(config.Rules))
+	for _, rule := range config.Rules {
+		id := strings.TrimSpace(rule.ID)
+		mode := strings.ToLower(strings.TrimSpace(rule.Mode))
+		sortValue := strings.ToLower(strings.TrimSpace(rule.Sort))
+		if !validJavSortRuleID(id) {
+			return javSortRulesConfig{}, false
+		}
+		switch mode {
+		case "all", "contains", "exact":
+			mode = "all"
+		case "any":
+		default:
+			return javSortRulesConfig{}, false
+		}
+		if _, exists := seenIDs[id]; exists {
+			return javSortRulesConfig{}, false
+		}
+		if _, ok := validJavSortValues[sortValue]; !ok {
+			return javSortRulesConfig{}, false
+		}
+		seenFilters := make(map[string]struct{}, len(rule.Active))
+		active := make([]string, 0, len(rule.Active))
+		for _, rawFilter := range rule.Active {
+			filter := strings.ToLower(strings.TrimSpace(rawFilter))
+			if _, ok := javSortRuleFilterOrder[filter]; !ok {
+				return javSortRulesConfig{}, false
+			}
+			if _, exists := seenFilters[filter]; exists {
+				return javSortRulesConfig{}, false
+			}
+			seenFilters[filter] = struct{}{}
+			active = append(active, filter)
+		}
+		sort.Slice(active, func(i, j int) bool {
+			return javSortRuleFilterOrder[active[i]] < javSortRuleFilterOrder[active[j]]
+		})
+		seenIDs[id] = struct{}{}
+		clean.Rules = append(clean.Rules, javSortRule{
+			ID: id, Enabled: rule.Enabled, Mode: mode, Active: active, Sort: sortValue,
+		})
+	}
+	return clean, true
+}
+
+func validJavSortRuleID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	for _, char := range id {
+		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') || char == '-' || char == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }

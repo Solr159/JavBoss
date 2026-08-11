@@ -19,7 +19,12 @@ import {
   fetchJavTags,
   fetchConfig,
 } from '@/api'
-import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
+import {
+  normalizeIdolSort,
+  normalizeJavSort,
+  normalizeJavSortRules,
+  resolveJavSort,
+} from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -135,7 +140,7 @@ const videoListRequestKey = (state, directoryIds = directoryQueryIds(state)) => 
 
 const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
   const search = state.javSearchTerm || ''
-  const effectiveSort = state.javTempSort || state.javSort
+  const effectiveSort = resolveJavSort(state).sort
   return [
     state.javRandomMode ? 'r' : 'p',
     state.javRandomMode ? 1 : state.javPage,
@@ -212,6 +217,7 @@ export const useStore = create((set, get) => ({
   videoTempSort: '',
   videoHideJav: false,
   javSort: 'recent',
+  javSortRules: [],
   javTempSort: '',
   randomMode: false,
   randomSeed: null,
@@ -424,7 +430,7 @@ export const useStore = create((set, get) => ({
   },
   setJavTempSort: (order) => {
     const normalized = normalizeJavSort(order, '')
-    set({ javTempSort: normalized, javRandomMode: false, javRandomSeed: null })
+    set({ javTempSort: normalized, javRandomMode: false, javRandomSeed: null, javPage: 1 })
   },
   clearRandomMode: () => set({ randomMode: false, randomSeed: null }),
   clearJavRandom: () => set({ javTempSort: '', javRandomMode: false, javRandomSeed: null }),
@@ -648,6 +654,7 @@ export const useStore = create((set, get) => ({
       const studioSize = clamp(cfg?.studio_page_size)
       const seriesSize = clamp(cfg?.series_page_size)
       const javSort = normalizeJavSort((cfg?.jav_sort || '').toLowerCase(), '')
+      const javSortRules = normalizeJavSortRules(cfg?.jav_sort_rules)
       const idolSort = normalizeIdolSort((cfg?.idol_sort || '').toLowerCase(), '')
       if (videoSize && videoSize !== state.pageSize) {
         updates.pageSize = videoSize
@@ -661,6 +668,7 @@ export const useStore = create((set, get) => ({
       if (javSort) {
         updates.javSort = javSort
       }
+      updates.javSortRules = javSortRules
       if (idolSort) {
         updates.idolSort = idolSort
       }
@@ -838,14 +846,12 @@ export const useStore = create((set, get) => ({
       javFavoriteRatingMin,
       javFavoriteRatingMax,
       javFavoriteGroupId,
-      javSort,
-      javTempSort,
       javRandomMode,
       javRandomSeed,
     } = get()
     const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
-    const effectiveSort = javTempSort || javSort
+    const effectiveSort = resolveJavSort(get()).sort
     const key = javListRequestKey(get(), directoryIds)
     if (!options.force && key === lastJavFetchKey) {
       return
@@ -868,7 +874,7 @@ export const useStore = create((set, get) => ({
         favoriteRatingMin: javFavoriteRatingMin,
         favoriteRatingMax: javFavoriteRatingMax,
         favoriteGroupId: javFavoriteGroupId,
-        sort: javRandomMode ? 'random' : effectiveSort,
+        sort: effectiveSort,
         seed: javRandomMode ? javRandomSeed : null,
         directoryIds,
       })
@@ -897,7 +903,7 @@ export const useStore = create((set, get) => ({
 
     const directoryIds = directoryQueryIds(state)
     const search = state.javSearchTerm || ''
-    const effectiveSort = state.javTempSort || state.javSort
+    const effectiveSort = resolveJavSort(state).sort
     const requestKey = javListRequestKey(state, directoryIds)
     const loadReqId = javLoadSeq
     const loadMoreReqId = (javLoadMoreSeq += 1)

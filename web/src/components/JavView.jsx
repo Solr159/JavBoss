@@ -4,7 +4,13 @@ import { useState } from 'react'
 import JavGrid from '@/components/JavGrid'
 import Pagination from '@/components/Pagination'
 import WaterfallLoader from '@/components/WaterfallLoader'
-import { JAV_SORT_OPTIONS, findSortOption, reverseSortValue, sortLabelParts } from '@/constants/jav'
+import {
+  JAV_SORT_OPTIONS,
+  JAV_SORT_RULE_FILTERS,
+  findSortOption,
+  reverseSortValue,
+  sortLabelParts,
+} from '@/constants/jav'
 import { zh } from '@/utils/i18n'
 
 function SortText({ option, value, className = '' }) {
@@ -19,6 +25,19 @@ function SortText({ option, value, className = '' }) {
   )
 }
 
+function matchedRuleLabel(rule) {
+  if (!rule) return ''
+  const labels = (rule.active || []).map((key) => {
+    const filter = JAV_SORT_RULE_FILTERS.find((item) => item.key === key)
+    return filter ? zh(filter.label[0], filter.label[1]) : key
+  })
+  if (labels.length === 0) return zh('匹配全部情况', 'Matches all contexts')
+  if (rule.mode === 'any') {
+    return zh(`包含任意一个：${labels.join('、')}`, `Includes any: ${labels.join(', ')}`)
+  }
+  return zh(`全部包含：${labels.join('、')}`, `Includes all: ${labels.join(', ')}`)
+}
+
 export default function JavView({
   javPage,
   javLastPage,
@@ -27,8 +46,9 @@ export default function JavView({
   javHasNext,
   javLoading,
   javRandomMode,
-  javTempSort,
-  javGlobalSort,
+  javResolvedSort,
+  javSortSource,
+  javMatchedSortRule,
   buildJavUrl,
   setJavPage,
   setJavTempSort,
@@ -70,7 +90,7 @@ export default function JavView({
 }) {
   const contentClass = javRandomMode ? 'mt-4' : ''
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
-  const effectiveSort = javTempSort || javGlobalSort
+  const effectiveSort = javResolvedSort
   const currentOption = findSortOption(JAV_SORT_OPTIONS, effectiveSort) || JAV_SORT_OPTIONS[0]
   const activeWaterfallMode = waterfallMode && !javRandomMode
 
@@ -124,7 +144,18 @@ export default function JavView({
                 aria-label={zh('修改当前 JAV 排序方式', 'Change current JAV sort')}
                 className="pagination-sort-button"
               >
-                <SortText option={currentOption} value={effectiveSort} />
+                <span className="flex min-w-0 flex-col items-start">
+                  <SortText option={currentOption} value={effectiveSort} />
+                  {javSortSource === 'rule' ? (
+                    <span className="max-w-full truncate text-[11px] font-normal text-blue-600">
+                      {zh('排序规则', 'Sort rule')}：{matchedRuleLabel(javMatchedSortRule)}
+                    </span>
+                  ) : javSortSource === 'temporary' ? (
+                    <span className="text-[11px] font-normal text-amber-600">
+                      {zh('临时排序', 'Temporary sort')}
+                    </span>
+                  ) : null}
+                </span>
                 <span aria-hidden="true" className="pagination-sort-caret" />
               </button>
             </div>
@@ -137,6 +168,18 @@ export default function JavView({
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
               <div className="pagination-sort-menu">
+                {javSortSource === 'temporary' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeSortMenu()
+                      setJavTempSort?.('')
+                    }}
+                    className="w-full border-b border-slate-100 px-3 py-2 text-left text-xs font-medium text-blue-700 hover:bg-blue-50"
+                  >
+                    {zh('恢复自动排序', 'Restore automatic sort')}
+                  </button>
+                ) : null}
                 {JAV_SORT_OPTIONS.map((option) => {
                   const active = isOptionActive(option)
                   const displayValue = active ? effectiveSort : option.defaultValue
