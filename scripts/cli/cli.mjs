@@ -582,7 +582,7 @@ async function runRelease(choice, version) {
     process.exitCode = 1;
     return;
   }
-  const ffmpegOk = choice.goos !== "darwin" || (await exists(binFfmpegPath(choice)));
+  const ffmpegOk = choice.goos !== "darwin" || (await isBundledFfmpegReady(choice));
   if (!ffmpegOk) {
     console.error(
       `[release] bin/${choice.label} 缺少 ffmpeg，请先选择 “download dependencies” 下载。`,
