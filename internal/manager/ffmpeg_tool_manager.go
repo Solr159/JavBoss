@@ -51,17 +51,18 @@ var ffmpegDownloads = map[string]ffmpegDownload{
 
 // FFmpegToolStatus describes the project-local FFmpeg installation.
 type FFmpegToolStatus struct {
-	Name            string `json:"name"`
-	Version         string `json:"version"`
-	Supported       bool   `json:"supported"`
-	Installed       bool   `json:"installed"`
-	Source          string `json:"source,omitempty"`
-	Downloading     bool   `json:"downloading"`
-	Progress        int    `json:"progress"`
-	DownloadedBytes int64  `json:"downloaded_bytes"`
-	TotalBytes      int64  `json:"total_bytes"`
-	Path            string `json:"path"`
-	Error           string `json:"error,omitempty"`
+	Name             string `json:"name"`
+	Version          string `json:"version"`
+	Supported        bool   `json:"supported"`
+	Installed        bool   `json:"installed"`
+	UpgradeAvailable bool   `json:"upgrade_available"`
+	Source           string `json:"source,omitempty"`
+	Downloading      bool   `json:"downloading"`
+	Progress         int    `json:"progress"`
+	DownloadedBytes  int64  `json:"downloaded_bytes"`
+	TotalBytes       int64  `json:"total_bytes"`
+	Path             string `json:"path"`
+	Error            string `json:"error,omitempty"`
 }
 
 // FFmpegToolManager downloads FFmpeg into the running project's persistent data/tools directory.
@@ -75,6 +76,7 @@ type FFmpegToolManager struct {
 	tempDir     string
 	downloadURL string
 	downloadSHA string
+	binarySHA   string
 	httpClient  *http.Client
 
 	containerMode bool
@@ -94,7 +96,7 @@ func NewFFmpegToolManager(ctx context.Context, baseDir string) *FFmpegToolManage
 	}
 	relativePath := util.FFmpegToolRelativePath()
 	download := ffmpegDownloads[runtime.GOOS+"/"+runtime.GOARCH]
-	return &FFmpegToolManager{
+	manager := &FFmpegToolManager{
 		context:       ctx,
 		targetPath:    filepath.Join(baseDir, relativePath),
 		displayPath:   filepath.ToSlash(relativePath),
@@ -102,10 +104,15 @@ func NewFFmpegToolManager(ctx context.Context, baseDir string) *FFmpegToolManage
 		tempDir:       os.TempDir(),
 		downloadURL:   download.url,
 		downloadSHA:   download.sha256,
+		binarySHA:     download.sha256,
 		httpClient:    util.NewHTTPClient(0),
 		containerMode: runtimeconfig.ContainerMode(),
 		resolveFFmpeg: util.ResolveFFmpegPath,
 	}
+	if manager.managedFFmpegNeedsUpgrade() {
+		logging.Info("managed FFmpeg at %s does not match release %s and can be upgraded", manager.displayPath, ffmpegRelease)
+	}
+	return manager
 }
 
 // Status returns a snapshot of the current installation and download state.
@@ -113,23 +120,24 @@ func (m *FFmpegToolManager) Status() FFmpegToolStatus {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	installed, source := m.detectInstallation()
+	installed, source, upgradeAvailable := m.detectInstallation()
 	version := ""
 	if source == "downloaded" {
 		version = ffmpegRelease
 	}
 	return FFmpegToolStatus{
-		Name:            "ffmpeg",
-		Version:         version,
-		Supported:       m.downloadURL != "",
-		Installed:       installed,
-		Source:          source,
-		Downloading:     m.downloading,
-		Progress:        m.progress,
-		DownloadedBytes: m.downloadedBytes,
-		TotalBytes:      m.totalBytes,
-		Path:            m.displayPath,
-		Error:           m.downloadError,
+		Name:             "ffmpeg",
+		Version:          version,
+		Supported:        m.downloadURL != "",
+		Installed:        installed,
+		UpgradeAvailable: upgradeAvailable,
+		Source:           source,
+		Downloading:      m.downloading,
+		Progress:         m.progress,
+		DownloadedBytes:  m.downloadedBytes,
+		TotalBytes:       m.totalBytes,
+		Path:             m.displayPath,
+		Error:            m.downloadError,
 	}
 }
 
@@ -139,7 +147,7 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	installed, _ := m.detectInstallation()
+	installed, _, _ := m.detectInstallation()
 	if m.downloading || installed {
 		return false, nil
 	}
@@ -156,25 +164,42 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 	return true, nil
 }
 
-func (m *FFmpegToolManager) detectInstallation() (bool, string) {
+func (m *FFmpegToolManager) detectInstallation() (bool, string, bool) {
 	if m.resolveFFmpeg != nil {
 		if resolvedPath, err := m.resolveFFmpeg(); err == nil && isUsableFFmpegFile(resolvedPath) {
 			switch {
 			case m.containerMode:
-				return true, "builtin"
+				return true, "builtin", false
 			case sameFilePath(resolvedPath, m.targetPath):
-				return true, "downloaded"
+				if m.managedFFmpegIsCurrent() {
+					return true, "downloaded", false
+				}
+				return false, "", true
 			case pathWithinDirectory(resolvedPath, m.bundledDir):
-				return true, "builtin"
+				return true, "builtin", false
 			default:
-				return true, "system"
+				return true, "system", false
 			}
 		}
 	}
-	if isUsableFFmpegFile(m.targetPath) {
-		return true, "downloaded"
+	if m.managedFFmpegIsCurrent() {
+		return true, "downloaded", false
 	}
-	return false, ""
+	return false, "", m.managedFFmpegNeedsUpgrade()
+}
+
+func (m *FFmpegToolManager) managedFFmpegIsCurrent() bool {
+	if !isUsableFFmpegFile(m.targetPath) {
+		return false
+	}
+	if strings.TrimSpace(m.binarySHA) == "" {
+		return true
+	}
+	return fileMatchesSHA256(m.targetPath, m.binarySHA)
+}
+
+func (m *FFmpegToolManager) managedFFmpegNeedsUpgrade() bool {
+	return isUsableFFmpegFile(m.targetPath) && !m.managedFFmpegIsCurrent()
 }
 
 func (m *FFmpegToolManager) download() {
@@ -277,7 +302,7 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	if err := os.MkdirAll(targetDir, 0o755); err != nil {
 		return fmt.Errorf("create FFmpeg directory: %w", err)
 	}
-	if isUsableFFmpegFile(m.targetPath) {
+	if m.managedFFmpegIsCurrent() {
 		return nil
 	}
 	if err := installFFmpegFile(tempPath, m.targetPath); err != nil {
@@ -287,7 +312,7 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 }
 
 func installFFmpegFile(sourcePath string, targetPath string) error {
-	return installFFmpegFileWithRename(sourcePath, targetPath, os.Rename)
+	return installFFmpegFileWithRename(sourcePath, targetPath, replaceFileAtomic)
 }
 
 func installFFmpegFileWithRename(
@@ -295,38 +320,14 @@ func installFFmpegFileWithRename(
 	targetPath string,
 	renameFile func(string, string) error,
 ) error {
-	renameErr := renameFile(sourcePath, targetPath)
-	if renameErr == nil {
-		return nil
-	}
-	if isUsableFFmpegFile(targetPath) {
-		return nil
-	}
-
 	stagedPath, err := copyFFmpegToTargetDirectory(sourcePath, targetPath)
 	if err != nil {
-		return fmt.Errorf("copy FFmpeg to target directory after rename failed (%v): %w", renameErr, err)
+		return fmt.Errorf("stage FFmpeg in target directory: %w", err)
 	}
 	defer os.Remove(stagedPath)
 
-	if err := renameFile(stagedPath, targetPath); err == nil {
-		return nil
-	} else if isUsableFFmpegFile(targetPath) {
-		return nil
-	}
-
-	targetInfo, statErr := os.Stat(targetPath)
-	switch {
-	case statErr == nil && !targetInfo.Mode().IsRegular():
-		return fmt.Errorf("replace existing FFmpeg target: target is not a regular file")
-	case statErr != nil && !os.IsNotExist(statErr):
-		return fmt.Errorf("inspect existing FFmpeg target: %w", statErr)
-	}
-	if removeErr := os.Remove(targetPath); removeErr != nil && !os.IsNotExist(removeErr) {
-		return fmt.Errorf("remove unusable FFmpeg target: %w", removeErr)
-	}
 	if err := renameFile(stagedPath, targetPath); err != nil {
-		return fmt.Errorf("move staged FFmpeg into place: %w", err)
+		return fmt.Errorf("atomically replace FFmpeg: %w", err)
 	}
 	return nil
 }
@@ -404,6 +405,20 @@ func (r *downloadProgressReader) Read(p []byte) (int, error) {
 func isUsableFFmpegFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+}
+
+func fileMatchesSHA256(path string, expectedSHA string) bool {
+	file, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, file); err != nil {
+		return false
+	}
+	return strings.EqualFold(hex.EncodeToString(hasher.Sum(nil)), strings.TrimSpace(expectedSHA))
 }
 
 func sameFilePath(left string, right string) bool {
