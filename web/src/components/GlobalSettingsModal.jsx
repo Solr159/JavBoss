@@ -1052,6 +1052,15 @@ export default function GlobalSettingsModal({
               </button>
             </div>
 
+            {upgradeAvailable && !downloading ? (
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+                {zh(
+                  '检测到 FFmpeg 有新版本，可以立即更新。',
+                  'A new FFmpeg version is available. You can update now.'
+                )}
+              </div>
+            ) : null}
+
             {downloading ? (
               <div>
                 <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
