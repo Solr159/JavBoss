@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import inquirer from "inquirer";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import os from "node:os";
@@ -47,27 +48,37 @@ const FF_BINARY_DOWNLOADS = new Map([
   [
     "windows-x86_64",
     {
-      ffprobe: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-win32-x64.gz",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
+      ffmpegSHA256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
+      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-win-x64.exe",
+      ffprobeSHA256: "fc37ca23d31ee08bb8f7e108edf3822f6ef3efc1a8d306bbe0b779190230710b",
     },
   ],
   [
     "linux-x86_64",
     {
-      ffprobe: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-linux-x64.gz",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
+      ffmpegSHA256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
+      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-linux-x64",
+      ffprobeSHA256: "065d3c56926052a76e884c4e4b51b7d95248da9391ab7effdcca6b94ceab98cf",
     },
   ],
   [
     "macos-x86_64",
     {
-      ffmpeg: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-x64.gz",
-      ffprobe: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-darwin-x64.gz",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-x64",
+      ffmpegSHA256: "62c87854d851f202fc4a29bdda0fe7b6ebcddd37b863482ce1bdc81151b03fe4",
+      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-osx-x64",
+      ffprobeSHA256: "d530823f480a3c7eb6334f18a00197d1e9f1070e86172b9aa89c4bf4022bd879",
     },
   ],
   [
     "macos-arm64",
     {
-      ffmpeg: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-arm64.gz",
-      ffprobe: "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffprobe-darwin-arm64.gz",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-arm64",
+      ffmpegSHA256: "e7b9fcd97f95f333512d6e8b8ac24d9dbc08f189f36047695499bd7b57214b22",
+      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-osx-arm64",
+      ffprobeSHA256: "ded4c698b8ff38d0bc1fd30fcc5e768dc46f58bc15a8dfd61f98615ba49cde5c",
     },
   ],
 ]);
@@ -200,12 +211,44 @@ async function isExecutable(filePath) {
   }
 }
 
+async function sha256File(filePath) {
+  const hash = createHash("sha256");
+  for await (const chunk of fs.createReadStream(filePath)) {
+    hash.update(chunk);
+  }
+  return hash.digest("hex");
+}
+
+async function isFfprobeReady(filePath, choice) {
+  const expected = FF_BINARY_DOWNLOADS.get(choice.label)?.ffprobeSHA256;
+  const binaryReady = choice.goos === "windows" ? await exists(filePath) : await isExecutable(filePath);
+  if (!binaryReady) return false;
+  if (!expected) return true;
+  try {
+    return (await sha256File(filePath)) === expected;
+  } catch {
+    return false;
+  }
+}
+
+async function isFfmpegReady(filePath, choice) {
+  const expected = FF_BINARY_DOWNLOADS.get(choice.label)?.ffmpegSHA256;
+  const binaryReady = choice.goos === "windows" ? await exists(filePath) : await isExecutable(filePath);
+  if (!binaryReady) return false;
+  if (!expected) return true;
+  try {
+    return (await sha256File(filePath)) === expected;
+  } catch {
+    return false;
+  }
+}
+
 async function isBundledFfprobeReady(choice) {
-  return exists(binFfprobePath(choice));
+  return isFfprobeReady(binFfprobePath(choice), choice);
 }
 
 async function isBundledFfmpegReady(choice) {
-  return exists(binFfmpegPath(choice));
+  return isFfmpegReady(binFfmpegPath(choice), choice);
 }
 
 async function isBundledMpvReady(choice) {
@@ -310,7 +353,7 @@ async function startBackendDevChild() {
     return null;
   }
 
-  let ffprobeOk = await isExecutable(ffprobePath(current));
+  let ffprobeOk = await isFfprobeReady(ffprobePath(current), current);
   if (!ffprobeOk) {
     if (await isBundledFfprobeReady(current)) {
       const binFfprobe = binFfprobePath(current);
@@ -324,14 +367,14 @@ async function startBackendDevChild() {
   }
   if (!ffprobeOk) {
     console.error(
-      `[dev] internal/bin 缺少 ${current.label} 的 ffprobe，请先选择 “download dependencies” 下载到 bin/${current.label}。`,
+      `[dev] internal/bin 缺少或版本不匹配 ${current.label} 的 ffprobe，请先选择 “download dependencies” 下载到 bin/${current.label}。`,
     );
     process.exitCode = 1;
     return null;
   }
 
   if (current.goos === "darwin") {
-    let ffmpegOk = await isExecutable(ffmpegPath(current));
+    let ffmpegOk = await isFfmpegReady(ffmpegPath(current), current);
     if (!ffmpegOk) {
       if (await isBundledFfmpegReady(current)) {
         const binFfmpeg = binFfmpegPath(current);
@@ -531,10 +574,10 @@ async function createZip(outDir, zipPath) {
 }
 
 async function runRelease(choice, version) {
-  const ffprobeOk = await exists(binFfprobePath(choice));
+  const ffprobeOk = await isBundledFfprobeReady(choice);
   if (!ffprobeOk) {
     console.error(
-      `[release] bin/${choice.label} 缺少 ffprobe，请先选择 “download dependencies” 下载。`,
+      `[release] bin/${choice.label} 缺少或版本不匹配 ffprobe，请先选择 “download dependencies” 下载。`,
     );
     process.exitCode = 1;
     return;
@@ -594,18 +637,16 @@ async function runRelease(choice, version) {
   console.log(`[release] 完成：${zipPath}`);
 }
 
-function ffprobeUrls(choice) {
+function ffprobeSources(choice) {
   const linked = FF_BINARY_DOWNLOADS.get(choice.label);
-  return {
-    urls: linked?.ffprobe ? [linked.ffprobe] : [],
-  };
+  if (!linked?.ffprobe) return [];
+  return [{ url: linked.ffprobe, sha256: linked.ffprobeSHA256 }];
 }
 
-function ffmpegUrls(choice) {
+function ffmpegSources(choice) {
   const linked = FF_BINARY_DOWNLOADS.get(choice.label);
-  return {
-    urls: linked?.ffmpeg ? [linked.ffmpeg] : [],
-  };
+  if (!linked?.ffmpeg) return [];
+  return [{ url: linked.ffmpeg, sha256: linked.ffmpegSHA256 }];
 }
 
 function mpvUrls(choice) {
@@ -708,6 +749,7 @@ function downloadFilename(url, fallbackName) {
 
 async function installBinaryFromUrl({
   url,
+  expectedSHA256,
   target,
   binaryName,
   logLabel,
@@ -725,9 +767,19 @@ async function installBinaryFromUrl({
     return false;
   }
 
+  if (expectedSHA256) {
+    const actualSHA256 = await sha256File(archive);
+    if (actualSHA256 !== expectedSHA256) {
+      console.warn(`[${logLabel}] SHA-256 校验失败，拒绝安装`);
+      return false;
+    }
+  }
+
   try {
     if (archive.toLowerCase().endsWith(".gz")) {
       await extractGzipFile(archive, target);
+    } else if (!isArchiveName(archive.toLowerCase())) {
+      await fsp.copyFile(archive, target);
     } else {
       await fsp.rm(extractDir, { recursive: true, force: true });
       await fsp.mkdir(extractDir, { recursive: true });
@@ -1048,8 +1100,8 @@ async function downloadFfprobe(choice) {
     return;
   }
 
-  const { urls } = ffprobeUrls(choice);
-  if (!urls.length) {
+  const sources = ffprobeSources(choice);
+  if (!sources.length) {
     throw new Error(`[ffprobe] 未找到下载地址（${choice.label}）`);
   }
 
@@ -1057,10 +1109,12 @@ async function downloadFfprobe(choice) {
   const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-ffprobe-"));
   try {
     let installed = false;
-    for (const url of urls) {
+    for (const source of sources) {
+      const { url, sha256 } = source;
       console.log(`[ffprobe] 下载 ${choice.label}：${url}`);
       installed = await installBinaryFromUrl({
         url,
+        expectedSHA256: sha256,
         target: ffprobeTarget,
         binaryName: ffprobeBinName(choice.goos),
         logLabel: "ffprobe",
@@ -1098,8 +1152,8 @@ async function downloadFfmpeg(choice) {
     return;
   }
 
-  const { urls } = ffmpegUrls(choice);
-  if (!urls.length) {
+  const sources = ffmpegSources(choice);
+  if (!sources.length) {
     throw new Error(`[ffmpeg] 未找到下载地址（${choice.label}）`);
   }
 
@@ -1107,10 +1161,12 @@ async function downloadFfmpeg(choice) {
   const tmpBase = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-ffmpeg-"));
   try {
     let installed = false;
-    for (const url of urls) {
+    for (const source of sources) {
+      const { url, sha256 } = source;
       console.log(`[ffmpeg] 下载 ${choice.label}：${url}`);
       installed = await installBinaryFromUrl({
         url,
+        expectedSHA256: sha256,
         target: ffmpegTarget,
         binaryName: ffmpegBinName(choice.goos),
         logLabel: "ffmpeg",

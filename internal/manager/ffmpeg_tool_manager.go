@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"bufio"
 	"compress/gzip"
 	"context"
 	"crypto/sha256"
@@ -22,7 +23,7 @@ import (
 	"javboss/internal/util"
 )
 
-const ffmpegRelease = "6.1.1"
+const ffmpegRelease = "8.1.2"
 
 type ffmpegDownload struct {
 	url    string
@@ -31,20 +32,20 @@ type ffmpegDownload struct {
 
 var ffmpegDownloads = map[string]ffmpegDownload{
 	"windows/amd64": {
-		url:    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-win32-x64.gz",
-		sha256: "8883a3dffbd0a16cf4ef95206ea05283f78908dbfb118f73c83f4951dcc06d77",
+		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
+		sha256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
 	},
 	"linux/amd64": {
-		url:    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-linux-x64.gz",
-		sha256: "bfe8a8fc511530457b528c48d77b5737527b504a3797a9bc4866aeca69c2dffa",
+		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
+		sha256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
 	},
 	"darwin/amd64": {
-		url:    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-x64.gz",
-		sha256: "929b375c1182d956c51f7ac25e0b2b0411fb01f6f407aa15c9758efeb4242106",
+		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-x64",
+		sha256: "62c87854d851f202fc4a29bdda0fe7b6ebcddd37b863482ce1bdc81151b03fe4",
 	},
 	"darwin/arm64": {
-		url:    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-arm64.gz",
-		sha256: "8923876afa8db5585022d7860ec7e589af192f441c56793971276d450ed3bbfa",
+		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-arm64",
+		sha256: "e7b9fcd97f95f333512d6e8b8ac24d9dbc08f189f36047695499bd7b57214b22",
 	},
 }
 
@@ -229,14 +230,29 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 		update: m.updateProgress,
 		hash:   hasher,
 	}
-	gzipReader, err := gzip.NewReader(countedBody)
+	bufferedBody := bufio.NewReader(countedBody)
+	magic, err := bufferedBody.Peek(2)
 	if err != nil {
 		_ = tempFile.Close()
-		return fmt.Errorf("open FFmpeg archive: %w", err)
+		return fmt.Errorf("read FFmpeg download header: %w", err)
 	}
 
-	_, copyErr := io.Copy(tempFile, gzipReader)
-	gzipErr := gzipReader.Close()
+	downloadReader := io.Reader(bufferedBody)
+	var gzipReader *gzip.Reader
+	if magic[0] == 0x1f && magic[1] == 0x8b {
+		gzipReader, err = gzip.NewReader(bufferedBody)
+		if err != nil {
+			_ = tempFile.Close()
+			return fmt.Errorf("open FFmpeg archive: %w", err)
+		}
+		downloadReader = gzipReader
+	}
+
+	_, copyErr := io.Copy(tempFile, downloadReader)
+	var gzipErr error
+	if gzipReader != nil {
+		gzipErr = gzipReader.Close()
+	}
 	closeErr := tempFile.Close()
 	if copyErr != nil {
 		return fmt.Errorf("extract FFmpeg: %w", copyErr)
@@ -248,7 +264,7 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 		return fmt.Errorf("save FFmpeg: %w", closeErr)
 	}
 	if actualSHA := hex.EncodeToString(hasher.Sum(nil)); !strings.EqualFold(actualSHA, m.downloadSHA) {
-		return fmt.Errorf("verify FFmpeg archive checksum: got %s", actualSHA)
+		return fmt.Errorf("verify FFmpeg download checksum: got %s", actualSHA)
 	}
 	if err := os.Chmod(tempPath, 0o755); err != nil {
 		return fmt.Errorf("make FFmpeg executable: %w", err)

@@ -12,9 +12,27 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestFFmpegDownloadSourcesUseShaka812(t *testing.T) {
+	if len(ffmpegDownloads) != 4 {
+		t.Fatalf("download source count = %d, want 4", len(ffmpegDownloads))
+	}
+	for platform, download := range ffmpegDownloads {
+		if !strings.Contains(download.url, "github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/") {
+			t.Errorf("%s download URL = %q, want Shaka n8.1.2-1", platform, download.url)
+		}
+		if strings.HasSuffix(download.url, ".gz") {
+			t.Errorf("%s download URL unexpectedly points to gzip: %q", platform, download.url)
+		}
+		if len(download.sha256) != sha256.Size*2 {
+			t.Errorf("%s SHA-256 length = %d, want %d", platform, len(download.sha256), sha256.Size*2)
+		}
+	}
+}
 
 func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 	archive := gzipTestPayload(t, []byte("#!/bin/sh\necho 'ffmpeg version test'\n"))
@@ -69,6 +87,40 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 	}
 	if started {
 		t.Fatal("StartDownload() for installed FFmpeg = true, want false")
+	}
+}
+
+func TestFFmpegToolManagerDownloadsRawBinary(t *testing.T) {
+	payload := []byte("#!/bin/sh\necho 'ffmpeg version test'\n")
+	digest := sha256.Sum256(payload)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write(payload)
+	}))
+	defer server.Close()
+
+	targetPath := filepath.Join(t.TempDir(), "internal", "bin", "ffmpeg")
+	manager := &FFmpegToolManager{
+		context:     context.Background(),
+		targetPath:  targetPath,
+		displayPath: "internal/bin/ffmpeg",
+		downloadURL: server.URL,
+		downloadSHA: hex.EncodeToString(digest[:]),
+		httpClient:  server.Client(),
+		resolveFFmpeg: func() (string, error) {
+			return "", errors.New("FFmpeg not found")
+		},
+	}
+
+	if err := manager.downloadToTarget(); err != nil {
+		t.Fatalf("download raw FFmpeg: %v", err)
+	}
+	got, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read installed FFmpeg: %v", err)
+	}
+	if !bytes.Equal(got, payload) {
+		t.Fatalf("installed FFmpeg content = %q, want %q", got, payload)
 	}
 }
 
