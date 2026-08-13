@@ -116,9 +116,17 @@ body.has-page-scroll .sticky-pagination {
 
 .side-tabs__nav {
   display: flex;
+  flex: 1 0 auto;
   flex-direction: column;
   gap: 4px;
   padding: 6px 7px;
+}
+
+.side-tabs__nav-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
 }
 
 .side-tabs__tools {

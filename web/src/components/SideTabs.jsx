@@ -182,26 +182,28 @@ export default function SideTabs({
             onClick={() => onSelectTab?.(tab.id)}
           />
         ))}
+        <div className="side-tabs__nav-tools">
+          <RailButton
+            icon={LocalOfferOutlinedIcon}
+            label={zh('标签', 'Tags')}
+            onClick={isJavMode ? onOpenJavTagModal : onOpenTagModal}
+          />
+          {isJavMode ? (
+            <RailButton
+              icon={NumbersRoundedIcon}
+              label={zh('番号', 'JAV codes')}
+              onClick={() => setPrefixModalOpen(true)}
+            />
+          ) : null}
+          <RailButton
+            icon={DisplaySettingsOutlinedIcon}
+            label={zh('显示', 'Display')}
+            onClick={isJavMode ? onOpenJavSettings : onOpenVideoSettings}
+          />
+        </div>
       </nav>
 
       <div className="side-tabs__tools">
-        <RailButton
-          icon={LocalOfferOutlinedIcon}
-          label={zh('标签', 'Tags')}
-          onClick={isJavMode ? onOpenJavTagModal : onOpenTagModal}
-        />
-        {isJavMode ? (
-          <RailButton
-            icon={NumbersRoundedIcon}
-            label={zh('番号', 'JAV codes')}
-            onClick={() => setPrefixModalOpen(true)}
-          />
-        ) : null}
-        <RailButton
-          icon={DisplaySettingsOutlinedIcon}
-          label={zh('显示', 'Display')}
-          onClick={isJavMode ? onOpenJavSettings : onOpenVideoSettings}
-        />
         <div ref={directoryMenuRef} className="relative">
           <button
             type="button"
