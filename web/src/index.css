@@ -5,7 +5,7 @@
 :root {
   --topbar-height: 72px; /* fallback, real height measured in TopBar */
   --side-tabs-width: 120px;
-  --page-left-padding: clamp(1rem, 1.5vw, 1.75rem);
+  --page-left-padding: clamp(1.5rem, 2.25vw, 2.5rem);
   --page-right-padding: var(--page-left-padding);
 }
 
