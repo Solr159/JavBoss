@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
   go build -trimpath -ldflags="-s -w" -o /out/javboss ./cmd/server
 
-FROM mwader/static-ffmpeg:8.1.1 AS ffmpeg-build
+FROM mwader/static-ffmpeg:8.1.2 AS ffmpeg-build
 
 FROM debian:bookworm-slim
 
