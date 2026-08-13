@@ -5,8 +5,9 @@
 :root {
   --topbar-height: 72px; /* fallback, real height measured in TopBar */
   --side-tabs-width: 112px;
-  --page-left-padding: clamp(1.5rem, 2.25vw, 2.5rem);
-  --page-right-padding: var(--page-left-padding);
+  --page-left-padding: clamp(1rem, 1.5vw, 1.75rem);
+  --page-right-padding: clamp(2rem, 3vw, 3.25rem);
+  --topbar-horizontal-padding: clamp(1.5rem, 2.25vw, 2.5rem);
 }
 
 html {
@@ -277,7 +278,7 @@ body.has-page-scroll .sticky-pagination {
   flex: 1;
   align-items: center;
   gap: 10px;
-  padding: 9px var(--page-right-padding) 9px calc(var(--page-left-padding) - 10px);
+  padding: 9px var(--topbar-horizontal-padding) 9px calc(var(--topbar-horizontal-padding) - 10px);
 }
 
 .filter-action-button {
