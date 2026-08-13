@@ -26,26 +26,39 @@ import (
 const ffmpegRelease = "8.1.2"
 
 type ffmpegDownload struct {
-	url    string
-	sha256 string
+	version      string
+	url          string
+	downloadSHA  string
+	binarySHA256 string
 }
 
 var ffmpegDownloads = map[string]ffmpegDownload{
 	"windows/amd64": {
-		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
-		sha256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
+		version:      ffmpegRelease,
+		url:          "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
+		downloadSHA:  "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
+		binarySHA256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
 	},
 	"linux/amd64": {
-		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
-		sha256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
+		version:      ffmpegRelease,
+		url:          "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
+		downloadSHA:  "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
+		binarySHA256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
 	},
+	// TODO: macOS 暂时保留 FFmpeg 6.1.1。Shaka 8.1.2 构建最低要求 macOS 15，
+	// 无法兼容目前仍需支持的 macOS 12–14；其他兼容构建又会让发布包增大 20 MB
+	// 以上。等 macOS 15 已足够老、可作为项目最低支持版本时再升级。
 	"darwin/amd64": {
-		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-x64",
-		sha256: "62c87854d851f202fc4a29bdda0fe7b6ebcddd37b863482ce1bdc81151b03fe4",
+		version:      "6.1.1",
+		url:          "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-x64.gz",
+		downloadSHA:  "929b375c1182d956c51f7ac25e0b2b0411fb01f6f407aa15c9758efeb4242106",
+		binarySHA256: "ebdddc936f61e14049a2d4b549a412b8a40deeff6540e58a9f2a2da9e6b18894",
 	},
 	"darwin/arm64": {
-		url:    "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-arm64",
-		sha256: "e7b9fcd97f95f333512d6e8b8ac24d9dbc08f189f36047695499bd7b57214b22",
+		version:      "6.1.1",
+		url:          "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-arm64.gz",
+		downloadSHA:  "8923876afa8db5585022d7860ec7e589af192f441c56793971276d450ed3bbfa",
+		binarySHA256: "a90e3db6a3fd35f6074b013f948b1aa45b31c6375489d39e572bea3f18336584",
 	},
 }
 
@@ -74,6 +87,7 @@ type FFmpegToolManager struct {
 	displayPath string
 	bundledDir  string
 	tempDir     string
+	version     string
 	downloadURL string
 	downloadSHA string
 	binarySHA   string
@@ -102,15 +116,16 @@ func NewFFmpegToolManager(ctx context.Context, baseDir string) *FFmpegToolManage
 		displayPath:   filepath.ToSlash(relativePath),
 		bundledDir:    filepath.Join(baseDir, "internal", "bin"),
 		tempDir:       os.TempDir(),
+		version:       download.version,
 		downloadURL:   download.url,
-		downloadSHA:   download.sha256,
-		binarySHA:     download.sha256,
+		downloadSHA:   download.downloadSHA,
+		binarySHA:     download.binarySHA256,
 		httpClient:    util.NewHTTPClient(0),
 		containerMode: runtimeconfig.ContainerMode(),
 		resolveFFmpeg: util.ResolveFFmpegPath,
 	}
 	if manager.managedFFmpegNeedsUpgrade() {
-		logging.Info("managed FFmpeg at %s does not match release %s and can be upgraded", manager.displayPath, ffmpegRelease)
+		logging.Info("managed FFmpeg at %s does not match release %s and can be upgraded", manager.displayPath, manager.version)
 	}
 	return manager
 }
@@ -123,7 +138,7 @@ func (m *FFmpegToolManager) Status() FFmpegToolStatus {
 	installed, source, upgradeAvailable := m.detectInstallation()
 	version := ""
 	if source == "downloaded" {
-		version = ffmpegRelease
+		version = m.version
 	}
 	return FFmpegToolStatus{
 		Name:             "ffmpeg",
@@ -223,7 +238,7 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	if err != nil {
 		return fmt.Errorf("create download request: %w", err)
 	}
-	req.Header.Set("User-Agent", "JavBoss/"+ffmpegRelease)
+	req.Header.Set("User-Agent", "JavBoss/"+m.version)
 
 	resp, err := m.httpClient.Do(req)
 	if err != nil {

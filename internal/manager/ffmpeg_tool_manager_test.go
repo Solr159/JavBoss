@@ -17,19 +17,42 @@ import (
 	"time"
 )
 
-func TestFFmpegDownloadSourcesUseShaka812(t *testing.T) {
+func TestFFmpegDownloadSources(t *testing.T) {
 	if len(ffmpegDownloads) != 4 {
 		t.Fatalf("download source count = %d, want 4", len(ffmpegDownloads))
 	}
-	for platform, download := range ffmpegDownloads {
-		if !strings.Contains(download.url, "github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/") {
-			t.Errorf("%s download URL = %q, want Shaka n8.1.2-1", platform, download.url)
+	tests := map[string]struct {
+		version   string
+		urlMarker string
+		gzip      bool
+	}{
+		"windows/amd64": {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
+		"linux/amd64":   {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
+		"darwin/amd64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
+		"darwin/arm64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
+	}
+	for platform, want := range tests {
+		download, ok := ffmpegDownloads[platform]
+		if !ok {
+			t.Errorf("missing download source for %s", platform)
+			continue
 		}
-		if strings.HasSuffix(download.url, ".gz") {
-			t.Errorf("%s download URL unexpectedly points to gzip: %q", platform, download.url)
+		if download.version != want.version {
+			t.Errorf("%s version = %q, want %q", platform, download.version, want.version)
 		}
-		if len(download.sha256) != sha256.Size*2 {
-			t.Errorf("%s SHA-256 length = %d, want %d", platform, len(download.sha256), sha256.Size*2)
+		if !strings.Contains(download.url, want.urlMarker) {
+			t.Errorf("%s download URL = %q, want marker %q", platform, download.url, want.urlMarker)
+		}
+		if strings.HasSuffix(download.url, ".gz") != want.gzip {
+			t.Errorf("%s gzip URL = %t, want %t", platform, strings.HasSuffix(download.url, ".gz"), want.gzip)
+		}
+		for name, checksum := range map[string]string{
+			"download": download.downloadSHA,
+			"binary":   download.binarySHA256,
+		} {
+			if len(checksum) != sha256.Size*2 {
+				t.Errorf("%s %s SHA-256 length = %d, want %d", platform, name, len(checksum), sha256.Size*2)
+			}
 		}
 	}
 }
@@ -258,6 +281,7 @@ func TestFFmpegToolManagerTreatsManagedChecksumMismatchAsUpgrade(t *testing.T) {
 		context:     context.Background(),
 		targetPath:  targetPath,
 		displayPath: "data/tools/linux-x86_64/ffmpeg",
+		version:     ffmpegRelease,
 		downloadURL: server.URL,
 		downloadSHA: hex.EncodeToString(newDigest[:]),
 		binarySHA:   hex.EncodeToString(newDigest[:]),
