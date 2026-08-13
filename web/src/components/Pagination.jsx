@@ -245,6 +245,7 @@ export default function Pagination({
                           ? 'border-blue-600 bg-blue-600 text-white'
                           : 'bg-white hover:border-blue-300 hover:text-blue-600'
                       }`}
+                      aria-current={optionPage === page ? 'page' : undefined}
                     >
                       {optionPage}
                     </button>

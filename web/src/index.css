@@ -594,13 +594,53 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .pagination-button {
-  border-radius: 4px;
+  border-color: #dbe3ee;
+  border-radius: 7px;
   border-width: 1px;
+  background: #fff;
   padding: 1.8px 7.2px;
-  line-height: 1.25;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16.25px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.pagination-button:not(.pagination-page-button):hover:not([aria-disabled='true']):not(:disabled) {
+  border-color: #bfdbfe;
+  background: #f5f9ff;
+  color: #1e40af;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.07);
+}
+
+.pagination-button:focus-visible {
+  border-color: #60a5fa;
+  outline: none;
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.18),
+    0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.pagination-button[aria-current='page'] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.18);
+}
+
+.pagination-button[aria-disabled='true'],
+.pagination-button:disabled {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+  box-shadow: none;
 }
 
 .pagination-page-button {
+  display: inline-flex;
+  min-width: 29px;
+  align-items: center;
+  justify-content: center;
   padding-left: 9px;
   padding-right: 9px;
 }
@@ -622,11 +662,36 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .pagination-jump-button {
-  border-radius: 4px;
+  border-color: #dbe3ee;
+  border-radius: 7px;
   border-width: 1px;
+  background: #fff;
   padding: 3.6px 7.2px;
-  font-size: 11px;
-  line-height: 1.25;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 13.75px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.035);
+}
+
+.pagination-jump-button:hover:not([aria-current='page']) {
+  border-color: #bfdbfe;
+  background: #f5f9ff;
+  color: #1e40af;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.06);
+}
+
+.pagination-jump-button[aria-current='page'] {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.16);
+}
+
+.pagination-jump-button:focus-visible {
+  border-color: #60a5fa;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 }
 
 .pagination-sort-group {
