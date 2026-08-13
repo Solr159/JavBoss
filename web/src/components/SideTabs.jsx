@@ -19,7 +19,7 @@ import { zh } from '@/utils/i18n'
 
 const tabs = [
   { id: 'video', label: zh('视频', 'Video'), icon: VideoLibraryOutlinedIcon },
-  { id: 'list', label: zh('作品', 'Works'), icon: MovieCreationOutlinedIcon },
+  { id: 'list', label: 'JAV', icon: MovieCreationOutlinedIcon },
   { id: 'idol', label: zh('女优', 'Idols'), icon: PeopleAltOutlinedIcon },
   { id: 'studio', label: zh('片商', 'Studios'), icon: VideocamOutlinedIcon },
   { id: 'series', label: zh('系列', 'Series'), icon: CollectionsBookmarkOutlinedIcon },
@@ -27,6 +27,8 @@ const tabs = [
 
 function RailButton({
   active = false,
+  badge = '',
+  badgeTone = '',
   className = '',
   disabled = false,
   icon: Icon,
@@ -38,12 +40,15 @@ function RailButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      aria-label={label}
+      aria-label={badge ? `${label} (${badge})` : label}
       aria-current={active ? 'page' : undefined}
       className={`side-tabs__button ${active ? 'side-tabs__button--active' : ''} ${className}`}
     >
       <Icon className="side-tabs__icon" fontSize="small" />
       <span className="side-tabs__label">{label}</span>
+      {badge ? (
+        <span className={`side-tabs__badge side-tabs__badge--${badgeTone}`}>{badge}</span>
+      ) : null}
     </button>
   )
 }
@@ -184,17 +189,17 @@ export default function SideTabs({
         ))}
         <div className="side-tabs__nav-tools">
           <RailButton
+            badge={isJavMode ? 'JAV' : zh('视频', 'Video')}
+            badgeTone={isJavMode ? 'jav' : 'video'}
             icon={LocalOfferOutlinedIcon}
             label={zh('标签', 'Tags')}
             onClick={isJavMode ? onOpenJavTagModal : onOpenTagModal}
           />
-          {isJavMode ? (
-            <RailButton
-              icon={NumbersRoundedIcon}
-              label={zh('番号', 'JAV codes')}
-              onClick={() => setPrefixModalOpen(true)}
-            />
-          ) : null}
+          <RailButton
+            icon={NumbersRoundedIcon}
+            label={zh('番号', 'JAV codes')}
+            onClick={() => setPrefixModalOpen(true)}
+          />
           <RailButton
             icon={DisplaySettingsOutlinedIcon}
             label={zh('显示', 'Display')}

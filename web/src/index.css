@@ -191,6 +191,29 @@ body.has-page-scroll .sticky-pagination {
   white-space: nowrap;
 }
 
+.side-tabs__badge {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 1px 3px;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.side-tabs__badge--video {
+  border-color: #bae6fd;
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.side-tabs__badge--jav {
+  border-color: #e9d5ff;
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
 .side-tabs__directory-count {
   position: absolute;
   top: 4px;
