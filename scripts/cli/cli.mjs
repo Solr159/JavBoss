@@ -63,6 +63,9 @@ const FF_BINARY_DOWNLOADS = new Map([
       ffprobeSHA256: "065d3c56926052a76e884c4e4b51b7d95248da9391ab7effdcca6b94ceab98cf",
     },
   ],
+  // TODO: macOS 暂时保留 FFmpeg/FFprobe 6.1.1。Shaka 8.1.2 构建最低要求
+  // macOS 15，无法兼容目前仍需支持的 macOS 12–14；其他兼容构建又会让发布包
+  // 增大 20 MB 以上。等 macOS 15 已足够老、可作为项目最低支持版本时再升级。
   [
     "macos-x86_64",
     {
