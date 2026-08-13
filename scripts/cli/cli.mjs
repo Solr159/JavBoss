@@ -66,19 +66,23 @@ const FF_BINARY_DOWNLOADS = new Map([
   [
     "macos-x86_64",
     {
-      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-x64",
-      ffmpegSHA256: "62c87854d851f202fc4a29bdda0fe7b6ebcddd37b863482ce1bdc81151b03fe4",
-      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-osx-x64",
-      ffprobeSHA256: "d530823f480a3c7eb6334f18a00197d1e9f1070e86172b9aa89c4bf4022bd879",
+      ffmpeg: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffmpeg.zip",
+      ffmpegDownloadSHA256: "a52ef43883f44c219766d4b3bdde4e635b35465d0b704c01c3a0566b59775df9",
+      ffmpegSHA256: "1ca59dda73668c59898a0b305afd8a88817a989187f222ec62d64e775d614d23",
+      ffprobe: "https://ffmpeg.martin-riedl.de/download/macos/amd64/1783018342_8.1.2/ffprobe.zip",
+      ffprobeDownloadSHA256: "5408ca588c8c72b0dde3afe676d0a7acf25ef97e55ae6eba5c7bede1cda42695",
+      ffprobeSHA256: "bdb6aff0f1f414382effd97040f7862dc85e67996ac296cb4288beed0e06498f",
     },
   ],
   [
     "macos-arm64",
     {
-      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-osx-arm64",
-      ffmpegSHA256: "e7b9fcd97f95f333512d6e8b8ac24d9dbc08f189f36047695499bd7b57214b22",
-      ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-osx-arm64",
-      ffprobeSHA256: "ded4c698b8ff38d0bc1fd30fcc5e768dc46f58bc15a8dfd61f98615ba49cde5c",
+      ffmpeg: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffmpeg.zip",
+      ffmpegDownloadSHA256: "ef1aa60006c7b77ce170c1608c08d8e4ba1c30c5746f2ac986ded932d0ac2c3c",
+      ffmpegSHA256: "eaf91238e104dd0e262bc6510e25061855cc99a6955a721b0ac99660d58c473d",
+      ffprobe: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1783011502_8.1.2/ffprobe.zip",
+      ffprobeDownloadSHA256: "c39787f4af7a3932502d2d48db6f6feaaa836b48a73ef78c32cc3285df61dfaf",
+      ffprobeSHA256: "ed9dc5871914b466b96b402c9ec0ba68ce4f836e72faa464b1b4e279835bd4a6",
     },
   ],
 ]);
@@ -640,13 +644,23 @@ async function runRelease(choice, version) {
 function ffprobeSources(choice) {
   const linked = FF_BINARY_DOWNLOADS.get(choice.label);
   if (!linked?.ffprobe) return [];
-  return [{ url: linked.ffprobe, sha256: linked.ffprobeSHA256 }];
+  return [
+    {
+      url: linked.ffprobe,
+      sha256: linked.ffprobeDownloadSHA256 || linked.ffprobeSHA256,
+    },
+  ];
 }
 
 function ffmpegSources(choice) {
   const linked = FF_BINARY_DOWNLOADS.get(choice.label);
   if (!linked?.ffmpeg) return [];
-  return [{ url: linked.ffmpeg, sha256: linked.ffmpegSHA256 }];
+  return [
+    {
+      url: linked.ffmpeg,
+      sha256: linked.ffmpegDownloadSHA256 || linked.ffmpegSHA256,
+    },
+  ];
 }
 
 function mpvUrls(choice) {
