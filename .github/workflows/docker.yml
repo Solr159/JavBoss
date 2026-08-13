@@ -11,6 +11,11 @@ on:
         required: false
         type: boolean
         default: false
+      publish_test:
+        description: "Publish to the private javboss-test package"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -36,7 +41,11 @@ jobs:
           fi
 
           owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          image="ghcr.io/${owner}/javboss"
+          image_name="javboss"
+          if [[ "${{ inputs.publish_test }}" == "true" ]]; then
+            image_name="javboss-test"
+          fi
+          image="ghcr.io/${owner}/${image_name}"
           {
             echo "tags<<EOF"
             echo "${image}:${version}"
