@@ -4,9 +4,9 @@
 
 :root {
   --topbar-height: 72px; /* fallback, real height measured in TopBar */
-  --side-tabs-width: 76px;
+  --side-tabs-width: 120px;
   --page-left-padding: clamp(1rem, 1.5vw, 1.75rem);
-  --page-right-padding: clamp(2.5rem, 4vw, 7rem);
+  --page-right-padding: var(--page-left-padding);
 }
 
 html {
@@ -133,13 +133,14 @@ body.has-page-scroll .sticky-pagination {
 .side-tabs__button {
   position: relative;
   display: flex;
-  min-height: 54px;
-  flex-direction: column;
+  min-height: 40px;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  justify-content: flex-start;
+  gap: 8px;
   border-radius: 10px;
-  color: #64748b;
+  padding: 0 10px;
+  color: #475569;
   transition:
     background-color 150ms ease,
     color 150ms ease,
@@ -148,12 +149,12 @@ body.has-page-scroll .sticky-pagination {
 
 .side-tabs__button:hover {
   background: #f1f5f9;
-  color: #1e40af;
+  color: #1e3a8a;
 }
 
 .side-tabs__button--active {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: #1e40af;
   box-shadow: inset 0 0 0 1px #bfdbfe;
 }
 
@@ -169,13 +170,17 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .side-tabs__icon {
+  flex-shrink: 0;
   font-size: 20px !important;
 }
 
 .side-tabs__label {
-  font-size: 11px;
+  overflow: hidden;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .side-tabs__directory-count {
@@ -218,7 +223,7 @@ body.has-page-scroll .sticky-pagination {
 
 .filter-topbar__brand {
   display: flex;
-  width: calc(var(--side-tabs-width) + 16px);
+  width: 92px;
   flex-shrink: 0;
   align-items: center;
   justify-content: flex-start;
