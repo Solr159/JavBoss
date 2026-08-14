@@ -43,6 +43,10 @@ export default function JavTagModal(props) {
         '从 JavBus 读取标签分类进行整理',
         'Read tag categories from JavBus and organize them'
       )}
+      organizeConfirmMessage={zh(
+        '自动整理将从 JavBus 读取标签分类，并更新所有匹配标签的现有分类。未匹配的标签不受影响。确认继续吗？',
+        'Auto organize will read tag categories from JavBus and update the existing category of every matched tag. Unmatched tags will not be changed. Continue?'
+      )}
     />
   )
 }

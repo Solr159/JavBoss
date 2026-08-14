@@ -63,6 +63,7 @@ export default function TagManagementModal({
   categoryEnglishLabels = {},
   formatOrganizeResult = () => '',
   organizeButtonTitle = '',
+  organizeConfirmMessage = '',
   organizeButtonLabel = zh('自动整理分类', 'Auto organize categories'),
   organizingButtonLabel = zh('整理分类中…', 'Organizing categories...'),
 }) {
@@ -256,6 +257,7 @@ export default function TagManagementModal({
 
   const handleOrganizeTags = async () => {
     if (organizing) return
+    if (organizeConfirmMessage && !window.confirm(organizeConfirmMessage)) return
     setOrganizing(true)
     setBatchError('')
     setActionMessage('')
