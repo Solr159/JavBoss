@@ -24,8 +24,8 @@ const ACTION_LABELS = {
     en: 'Show/hide JAV query editor dialog',
   },
   open_page_jump: { zh: '显示/隐藏 跳转页面下拉框', en: 'Show/hide page jump dropdown' },
-  previous_page: { zh: '上一页', en: 'Previous page' },
-  next_page: { zh: '下一页', en: 'Next page' },
+  previous_page: { zh: '上一页/上一张图片', en: 'Previous page/image' },
+  next_page: { zh: '下一页/下一张图片', en: 'Next page/image' },
   browser_back: { zh: '浏览器后退', en: 'Browser back' },
   browser_forward: { zh: '浏览器前进', en: 'Browser forward' },
 }

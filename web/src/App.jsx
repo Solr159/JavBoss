@@ -1824,11 +1824,15 @@ export default function App() {
     const hasShortcutBlockingOverlay = (action = '') => {
       if (document.documentElement.classList.contains('app-modal-open')) {
         const dialogs = Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]'))
+        const topDialog = dialogs[dialogs.length - 1]
+        const imageNavigationAllowed =
+          (action === 'previous_page' || action === 'next_page') &&
+          topDialog?.classList.contains('image-preview-modal')
         const onlyJavQueryEditorOpen =
           action === 'edit_jav_query' &&
           dialogs.length === 1 &&
           dialogs[0].classList.contains('jav-query-editor-modal')
-        if (!onlyJavQueryEditorOpen) return true
+        if (!onlyJavQueryEditorOpen && !imageNavigationAllowed) return true
       }
       return Array.from(document.querySelectorAll('.MuiPopover-root, .MuiMenu-root')).some(
         (overlay) =>
@@ -1895,10 +1899,19 @@ export default function App() {
           ? document.querySelector('[data-page-jump-trigger="true"]:not(:disabled)')
           : null
       if (action === 'open_page_jump' && !pageJumpTrigger) return
+      const imagePreviewOpen = Boolean(document.querySelector('.image-preview-modal'))
+      const imageNavigationTrigger =
+        imagePreviewOpen && (action === 'previous_page' || action === 'next_page')
+          ? document.querySelector(
+              `[data-image-navigation="${action === 'previous_page' ? 'previous' : 'next'}"]`
+            )
+          : null
       event.preventDefault()
       blurActiveControl()
 
-      if (action === 'edit_jav_query') {
+      if (imagePreviewOpen && (action === 'previous_page' || action === 'next_page')) {
+        imageNavigationTrigger?.click()
+      } else if (action === 'edit_jav_query') {
         stopContinuousScroll()
         if (!event.repeat) {
           setJavQueryEditorOpen((current) => {

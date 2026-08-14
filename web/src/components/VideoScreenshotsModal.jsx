@@ -447,7 +447,7 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
     <AppModal
       ariaLabel={zh('截图预览', 'Screenshot preview')}
       className="p-4"
-      contentClassName="relative flex flex-col items-center justify-center"
+      contentClassName="image-preview-modal relative flex flex-col items-center justify-center"
       onClose={onClose}
       zIndex={1900}
     >
@@ -467,11 +467,12 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
       <div className="fixed bottom-10 left-1/2 z-20 flex -translate-x-1/2 items-center justify-center gap-2.5">
         {canNavigate ? (
           <IconButton
+            data-image-navigation="previous"
             onClick={(event) => {
               event.stopPropagation()
               goBy(-1)
             }}
-            aria-label={zh('上一张截图', 'Previous screenshot')}
+            aria-label={zh('上一张图片', 'Previous image')}
             className="!h-11 !w-11 !bg-black/55 !text-white !shadow-lg hover:!bg-black/75"
           >
             <ChevronLeftIcon className="!text-[36px]" />
@@ -482,11 +483,12 @@ export function ScreenshotPreviewModal({ item, items, onClose, onSelect }) {
         </div>
         {canNavigate ? (
           <IconButton
+            data-image-navigation="next"
             onClick={(event) => {
               event.stopPropagation()
               goBy(1)
             }}
-            aria-label={zh('下一张截图', 'Next screenshot')}
+            aria-label={zh('下一张图片', 'Next image')}
             className="!h-11 !w-11 !bg-black/55 !text-white !shadow-lg hover:!bg-black/75"
           >
             <ChevronRightIcon className="!text-[36px]" />
