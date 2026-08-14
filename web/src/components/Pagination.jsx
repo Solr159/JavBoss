@@ -6,7 +6,7 @@ import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoub
 import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded'
 import LastPageRoundedIcon from '@mui/icons-material/LastPageRounded'
 import ShortcutRoundedIcon from '@mui/icons-material/ShortcutRounded'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zh } from '@/utils/i18n'
 
 export default function Pagination({
@@ -39,6 +39,8 @@ export default function Pagination({
   const hasNextTen = page < totalPages
   const paginationDisabled = Boolean(waterfallMode)
   const [jumpAnchorEl, setJumpAnchorEl] = useState(null)
+  const jumpGridRef = useRef(null)
+  const currentJumpPageRef = useRef(null)
   const jumpColumnCount = Math.min(8, totalPages)
   const jumpPanelWidth = Math.min(672, Math.max(162, jumpColumnCount * 50.4 + 21.6))
   const normalizedTotalItems = Number(totalItems)
@@ -59,6 +61,22 @@ export default function Pagination({
   const closeJumpPicker = () => {
     setJumpAnchorEl(null)
   }
+
+  useEffect(() => {
+    if (!jumpAnchorEl) return undefined
+    const frame = window.requestAnimationFrame(() => {
+      const grid = jumpGridRef.current
+      const currentButton = currentJumpPageRef.current
+      if (!grid || !currentButton) return
+      grid.scrollTop = Math.max(
+        0,
+        currentButton.offsetTop -
+          grid.offsetTop -
+          (grid.clientHeight - currentButton.offsetHeight) / 2
+      )
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [jumpAnchorEl, page])
 
   const ignoreClick = (e, enabled = true) => {
     if (paginationDisabled || !enabled) {
@@ -256,12 +274,14 @@ export default function Pagination({
                   {zh('选择页码', 'Select page')}
                 </div>
                 <div
+                  ref={jumpGridRef}
                   className="pagination-jump-grid grid overflow-y-auto"
                   style={{ gridTemplateColumns: `repeat(${jumpColumnCount}, minmax(0, 1fr))` }}
                 >
                   {jumpOptions.map((optionPage) => (
                     <button
                       key={optionPage}
+                      ref={optionPage === page ? currentJumpPageRef : null}
                       type="button"
                       onClick={() => {
                         closeJumpPicker()
