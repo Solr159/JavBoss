@@ -621,6 +621,14 @@ body.has-page-scroll .sticky-pagination {
   padding-left: 5px;
 }
 
+.pagination-step-button--back .pagination-button__icon {
+  margin-left: -2px;
+}
+
+.pagination-step-button--forward .pagination-button__icon {
+  margin-right: -2px;
+}
+
 .pagination-button:not(.pagination-page-button):hover:not([aria-disabled='true']):not(:disabled) {
   border-color: #bfdbfe;
   background: #f5f9ff;

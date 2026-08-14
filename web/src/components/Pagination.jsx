@@ -116,7 +116,7 @@ export default function Pagination({
                 e.preventDefault()
                 onGoToPage(prevTenPage)
               }}
-              className={`pagination-button pagination-step-button border ${
+              className={`pagination-button pagination-step-button pagination-step-button--back border ${
                 paginationDisabled || !hasPrevTen ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasPrevTen}
@@ -135,7 +135,7 @@ export default function Pagination({
                 e.preventDefault()
                 onPrev()
               }}
-              className={`pagination-button pagination-step-button border ${
+              className={`pagination-button pagination-step-button pagination-step-button--back border ${
                 paginationDisabled || !hasPrev ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasPrev}
@@ -178,7 +178,7 @@ export default function Pagination({
                 e.preventDefault()
                 onNext()
               }}
-              className={`pagination-button pagination-step-button border ${
+              className={`pagination-button pagination-step-button pagination-step-button--forward border ${
                 paginationDisabled || !hasNext ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasNext}
@@ -197,7 +197,7 @@ export default function Pagination({
                 e.preventDefault()
                 onGoToPage(nextTenPage)
               }}
-              className={`pagination-button pagination-step-button border ${
+              className={`pagination-button pagination-step-button pagination-step-button--forward border ${
                 paginationDisabled || !hasNextTen ? 'pointer-events-none opacity-50' : ''
               }`}
               aria-disabled={paginationDisabled || !hasNextTen}
