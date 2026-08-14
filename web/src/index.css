@@ -998,22 +998,22 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .skeuo-tag--user {
-  background: #ecfdf5;
+  background: #d1fae5;
   border-color: #a7f3d0;
 }
 
 .skeuo-tag--scraped {
-  background: #fff7ed;
+  background: #ffedd5;
   border-color: #fed7aa;
 }
 
 .skeuo-tag--user:hover {
-  background: #d1fae5;
+  background: #a7f3d0;
   border-color: #6ee7b7;
 }
 
 .skeuo-tag--scraped:hover {
-  background: #ffedd5;
+  background: #fed7aa;
   border-color: #fdba74;
 }
 
