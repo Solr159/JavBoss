@@ -101,6 +101,12 @@ export default function JavQueryEditorModal({
   const tagInputRef = useRef(null)
   const studioInputRef = useRef(null)
   const seriesInputRef = useRef(null)
+  const prefixPickerRef = useRef(null)
+  const idolPickerRef = useRef(null)
+  const tagPickerRef = useRef(null)
+  const studioPickerRef = useRef(null)
+  const seriesPickerRef = useRef(null)
+  const mouseDownTargetRef = useRef(null)
   const [keyword, setKeyword] = useState('')
   const [selectedPrefix, setSelectedPrefix] = useState(null)
   const [prefixSearch, setPrefixSearch] = useState('')
@@ -270,6 +276,37 @@ export default function JavQueryEditorModal({
     studioSearch,
     tagSearch,
   ])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const pickers = [
+      [prefixPickerRef, setPrefixPickerOpen],
+      [idolPickerRef, setIdolPickerOpen],
+      [tagPickerRef, setTagPickerOpen],
+      [studioPickerRef, setStudioPickerOpen],
+      [seriesPickerRef, setSeriesPickerOpen],
+    ]
+    const handleMouseDown = (event) => {
+      mouseDownTargetRef.current = event.target
+      pickers.forEach(([pickerRef, setPickerOpen]) => {
+        if (pickerRef.current && !pickerRef.current.contains(event.target)) {
+          setPickerOpen(false)
+        }
+      })
+    }
+    const handleMouseUp = () => {
+      mouseDownTargetRef.current = null
+    }
+
+    document.addEventListener('mousedown', handleMouseDown, true)
+    document.addEventListener('mouseup', handleMouseUp, true)
+    return () => {
+      document.removeEventListener('mousedown', handleMouseDown, true)
+      document.removeEventListener('mouseup', handleMouseUp, true)
+      mouseDownTargetRef.current = null
+    }
+  }, [open])
 
   const tagMap = useMemo(
     () =>
@@ -478,11 +515,8 @@ export default function JavQueryEditorModal({
 
   const closePickerOnBlur = (setPickerOpen) => (event) => {
     const currentTarget = event.currentTarget
-    window.setTimeout(() => {
-      if (!currentTarget.contains(document.activeElement)) {
-        setPickerOpen(false)
-      }
-    }, 0)
+    if (currentTarget.contains(mouseDownTargetRef.current)) return
+    if (!currentTarget.contains(event.relatedTarget)) setPickerOpen(false)
   }
 
   if (!open) return null
@@ -656,6 +690,7 @@ export default function JavQueryEditorModal({
               </div>
             ) : null}
             <div
+              ref={prefixPickerRef}
               className={selectedPrefixDisplay ? 'hidden' : ''}
               onBlur={closePickerOnBlur(setPrefixPickerOpen)}
             >
@@ -742,7 +777,7 @@ export default function JavQueryEditorModal({
                 ))}
               </div>
             ) : null}
-            <div onBlur={closePickerOnBlur(setIdolPickerOpen)}>
+            <div ref={idolPickerRef} onBlur={closePickerOnBlur(setIdolPickerOpen)}>
               <input
                 ref={idolInputRef}
                 value={idolSearch}
@@ -829,7 +864,7 @@ export default function JavQueryEditorModal({
                 ))}
               </div>
             ) : null}
-            <div onBlur={closePickerOnBlur(setTagPickerOpen)}>
+            <div ref={tagPickerRef} onBlur={closePickerOnBlur(setTagPickerOpen)}>
               <input
                 ref={tagInputRef}
                 value={tagSearch}
@@ -911,6 +946,7 @@ export default function JavQueryEditorModal({
               </div>
             ) : null}
             <div
+              ref={studioPickerRef}
               className={selectedStudio ? 'hidden' : ''}
               onBlur={closePickerOnBlur(setStudioPickerOpen)}
             >
@@ -996,6 +1032,7 @@ export default function JavQueryEditorModal({
               </div>
             ) : null}
             <div
+              ref={seriesPickerRef}
               className={selectedSeries ? 'hidden' : ''}
               onBlur={closePickerOnBlur(setSeriesPickerOpen)}
             >
