@@ -24,11 +24,11 @@ export default function JavTagModal(props) {
       tagLegend={[
         {
           label: zh('我创建的标签', 'My tags'),
-          className: 'border-orange-300 bg-orange-50',
+          className: 'border-emerald-200 bg-emerald-50',
         },
         {
           label: zh('抓取标签', 'Scraped tags'),
-          className: 'border-blue-300 bg-blue-50',
+          className: 'border-orange-200 bg-orange-50',
         },
       ]}
       editModeMessage={zh('只可编辑我创建的标签', 'Only my tags can be edited')}

@@ -998,13 +998,23 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .skeuo-tag--user {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.skeuo-tag--scraped {
   background: #fff7ed;
   border-color: #fed7aa;
 }
 
-.skeuo-tag--scraped {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+.skeuo-tag--user:hover {
+  background: #d1fae5;
+  border-color: #6ee7b7;
+}
+
+.skeuo-tag--scraped:hover {
+  background: #ffedd5;
+  border-color: #fdba74;
 }
 
 .skeuo-tag--editing {
