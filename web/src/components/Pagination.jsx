@@ -1,4 +1,11 @@
 import { Popover, Switch } from '@mui/material'
+import FirstPageRoundedIcon from '@mui/icons-material/FirstPageRounded'
+import KeyboardArrowLeftRoundedIcon from '@mui/icons-material/KeyboardArrowLeftRounded'
+import KeyboardArrowRightRoundedIcon from '@mui/icons-material/KeyboardArrowRightRounded'
+import KeyboardDoubleArrowLeftRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowLeftRounded'
+import KeyboardDoubleArrowRightRoundedIcon from '@mui/icons-material/KeyboardDoubleArrowRightRounded'
+import LastPageRoundedIcon from '@mui/icons-material/LastPageRounded'
+import ShortcutRoundedIcon from '@mui/icons-material/ShortcutRounded'
 import { useState } from 'react'
 import { zh } from '@/utils/i18n'
 
@@ -99,7 +106,8 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasPrev}
               aria-label={zh('首页', 'First page')}
             >
-              {zh('« 首页', '« First')}
+              <FirstPageRoundedIcon className="pagination-button__icon" aria-hidden="true" />
+              <span>{zh('首页', 'First')}</span>
             </a>
             <a
               href={buildPageUrl ? buildPageUrl({ page: prevTenPage }) : '#'}
@@ -114,7 +122,11 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasPrevTen}
               aria-label={zh('上十页', 'Previous 10 pages')}
             >
-              {zh('‹ 上十页', '‹ -10')}
+              <KeyboardDoubleArrowLeftRoundedIcon
+                className="pagination-button__icon"
+                aria-hidden="true"
+              />
+              <span>{zh('上十页', '-10')}</span>
             </a>
             <a
               href={buildPageUrl ? buildPageUrl({ page: page - 1 }) : '#'}
@@ -129,7 +141,11 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasPrev}
               aria-label={zh('上一页', 'Previous page')}
             >
-              {zh('‹ 上一页', '‹ Prev')}
+              <KeyboardArrowLeftRoundedIcon
+                className="pagination-button__icon"
+                aria-hidden="true"
+              />
+              <span>{zh('上一页', 'Prev')}</span>
             </a>
 
             {pages.map((p) => (
@@ -168,7 +184,11 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasNext}
               aria-label={zh('下一页', 'Next page')}
             >
-              {zh('下一页 ›', 'Next ›')}
+              <span>{zh('下一页', 'Next')}</span>
+              <KeyboardArrowRightRoundedIcon
+                className="pagination-button__icon"
+                aria-hidden="true"
+              />
             </a>
             <a
               href={buildPageUrl ? buildPageUrl({ page: nextTenPage }) : '#'}
@@ -183,7 +203,11 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasNextTen}
               aria-label={zh('下十页', 'Next 10 pages')}
             >
-              {zh('下十页 ›', '+10 ›')}
+              <span>{zh('下十页', '+10')}</span>
+              <KeyboardDoubleArrowRightRoundedIcon
+                className="pagination-button__icon"
+                aria-hidden="true"
+              />
             </a>
             <a
               href={buildPageUrl ? buildPageUrl({ page: lastPage }) : '#'}
@@ -198,7 +222,8 @@ export default function Pagination({
               aria-disabled={paginationDisabled || !hasNext}
               aria-label={zh('末页', 'Last page')}
             >
-              {zh('末页 »', 'Last »')}
+              <span>{zh('末页', 'Last')}</span>
+              <LastPageRoundedIcon className="pagination-button__icon" aria-hidden="true" />
             </a>
             <button
               type="button"
@@ -211,7 +236,8 @@ export default function Pagination({
               aria-expanded={Boolean(jumpAnchorEl)}
               aria-label={zh('跳转到指定页码', 'Jump to page')}
             >
-              {zh('跳转', 'Jump')}
+              <ShortcutRoundedIcon className="pagination-button__icon" aria-hidden="true" />
+              <span>{zh('跳转', 'Jump')}</span>
             </button>
             <Popover
               open={Boolean(jumpAnchorEl)}

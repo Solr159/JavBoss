@@ -594,6 +594,10 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .pagination-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   border-color: #dbe3ee;
   border-radius: 7px;
   border-width: 1px;
@@ -604,6 +608,11 @@ body.has-page-scroll .sticky-pagination {
   font-weight: 500;
   line-height: 16.25px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.pagination-button__icon {
+  flex-shrink: 0;
+  font-size: 14px !important;
 }
 
 .pagination-button:not(.pagination-page-button):hover:not([aria-disabled='true']):not(:disabled) {
@@ -637,10 +646,7 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .pagination-page-button {
-  display: inline-flex;
   min-width: 29px;
-  align-items: center;
-  justify-content: center;
   padding-left: 9px;
   padding-right: 9px;
 }
