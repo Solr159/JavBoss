@@ -244,6 +244,7 @@ export default function Pagination({
               anchorEl={jumpAnchorEl}
               onClose={closeJumpPicker}
               disableScrollLock
+              slotProps={{ paper: { className: 'pagination-jump-popover' } }}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
               transformOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
