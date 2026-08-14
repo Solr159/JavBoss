@@ -590,7 +590,7 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .pagination-controls {
-  gap: 5.4px;
+  gap: 4.2px;
 }
 
 .pagination-button {
@@ -613,6 +613,12 @@ body.has-page-scroll .sticky-pagination {
 .pagination-button__icon {
   flex-shrink: 0;
   font-size: 14px !important;
+}
+
+.pagination-step-button {
+  gap: 0;
+  padding-right: 5px;
+  padding-left: 5px;
 }
 
 .pagination-button:not(.pagination-page-button):hover:not([aria-disabled='true']):not(:disabled) {
