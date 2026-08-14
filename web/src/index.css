@@ -1075,6 +1075,16 @@ body.has-page-scroll .sticky-pagination {
   color: #64748b;
 }
 
+.skeuo-tag--user .skeuo-tag-count {
+  background: rgba(16, 185, 129, 0.12);
+  color: #047857;
+}
+
+.skeuo-tag--scraped .skeuo-tag-count {
+  background: rgba(249, 115, 22, 0.12);
+  color: #c2410c;
+}
+
 .skeuo-tag--active .skeuo-tag-count {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
