@@ -39,8 +39,8 @@ export default function Pagination({
   const hasNextTen = page < totalPages
   const paginationDisabled = Boolean(waterfallMode)
   const [jumpAnchorEl, setJumpAnchorEl] = useState(null)
-  const jumpColumnCount = Math.min(6, totalPages)
-  const jumpPanelWidth = Math.min(504, Math.max(162, jumpColumnCount * 50.4 + 21.6))
+  const jumpColumnCount = Math.min(8, totalPages)
+  const jumpPanelWidth = Math.min(672, Math.max(162, jumpColumnCount * 50.4 + 21.6))
   const normalizedTotalItems = Number(totalItems)
   const totalItemsLabel =
     Number.isFinite(normalizedTotalItems) && normalizedTotalItems >= 0
@@ -244,8 +244,8 @@ export default function Pagination({
               anchorEl={jumpAnchorEl}
               onClose={closeJumpPicker}
               disableScrollLock
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'center' }}
             >
               <div
                 className="pagination-jump-panel flex flex-col"
