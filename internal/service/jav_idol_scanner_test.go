@@ -46,3 +46,37 @@ func TestLookupActressProfilesConcurrently(t *testing.T) {
 		}
 	}
 }
+
+func TestMergeActressInfosUsesProviderPriority(t *testing.T) {
+	minnanoAVInfo := &jav.ActressInfo{
+		RomanName:    "Minnano Roman",
+		JapaneseName: "みんなの名前",
+		HeightCM:     160,
+	}
+	javDatabaseInfo := &jav.ActressInfo{
+		RomanName:   "JavDatabase Roman",
+		ChineseName: "数据库中文名",
+		HeightCM:    170,
+		Bust:        88,
+	}
+	javModelInfo := &jav.ActressInfo{
+		RomanName:   "JavModel Roman",
+		ChineseName: "模型中文名",
+		Bust:        90,
+		Cup:         5,
+	}
+
+	info := mergeActressInfosByPriority(minnanoAVInfo, javDatabaseInfo, javModelInfo)
+	if info == nil {
+		t.Fatal("mergeActressInfosByPriority returned nil")
+	}
+	if info.RomanName != "Minnano Roman" || info.JapaneseName != "みんなの名前" || info.HeightCM != 160 {
+		t.Fatalf("minnanoav priority fields were replaced: %#v", info)
+	}
+	if info.ChineseName != "数据库中文名" || info.Bust != 88 {
+		t.Fatalf("javdatabase fallback fields were not used: %#v", info)
+	}
+	if info.Cup != 5 {
+		t.Fatalf("javmodel fallback field was not used: %#v", info)
+	}
+}

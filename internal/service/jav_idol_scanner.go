@@ -36,8 +36,8 @@ func StartIdolProfileScanner(ctx context.Context, interval time.Duration) {
 }
 
 // ScanIdolProfiles scans jav_idol rows that are missing profile fields.
-// For each idol, it tries to find a solo work code, queries JavDatabase, MinnanoAV, and JavModel
-// concurrently, merges the returned actress details, normalizes Chinese names, and writes the
+// For each idol, it tries to find a solo work code, queries MinnanoAV, JavDatabase, and JavModel
+// concurrently, merges details in that priority order, normalizes Chinese names, and writes the
 // completed profile fields back to the database.
 func ScanIdolProfiles(ctx context.Context) error {
 	idols, err := db.ListIdolsMissingProfile(ctx)
@@ -84,22 +84,21 @@ func ScanIdolProfiles(ctx context.Context) error {
 			}
 		}
 
-		lookupResults := lookupActressProfilesConcurrently(javDatabaseLookup, minnanoAVLookup, javModelLookup)
-		javDatabaseInfo = lookupResults[0].info
-		minnanoAVInfo = lookupResults[1].info
+		lookupResults := lookupActressProfilesConcurrently(minnanoAVLookup, javDatabaseLookup, javModelLookup)
+		minnanoAVInfo = lookupResults[0].info
+		javDatabaseInfo = lookupResults[1].info
 		javModelInfo = lookupResults[2].info
 		if lookupErr := lookupResults[0].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
-			logging.Error("lookup actress failed idol=%s code=%s err=%v", idol.Name, code, lookupErr)
+			logging.Error("lookup actress (minnanoav) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
 		if lookupErr := lookupResults[1].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
-			logging.Error("lookup actress (minnanoav) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
+			logging.Error("lookup actress failed idol=%s code=%s err=%v", idol.Name, code, lookupErr)
 		}
 		if lookupErr := lookupResults[2].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
 			logging.Error("lookup actress (javmodel) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
 
-		info := mergeActressInfo(javDatabaseInfo, minnanoAVInfo)
-		info = mergeActressInfo(info, javModelInfo)
+		info := mergeActressInfosByPriority(minnanoAVInfo, javDatabaseInfo, javModelInfo)
 		if info == nil {
 			continue
 		}
@@ -140,6 +139,14 @@ func lookupActressProfilesConcurrently(lookups ...idolActressLookup) []idolActre
 	}
 	workers.Wait()
 	return results
+}
+
+func mergeActressInfosByPriority(infos ...*jav.ActressInfo) *jav.ActressInfo {
+	var merged *jav.ActressInfo
+	for _, info := range infos {
+		merged = mergeActressInfo(merged, info)
+	}
+	return merged
 }
 
 func mergeActressInfo(primary, secondary *jav.ActressInfo) *jav.ActressInfo {
