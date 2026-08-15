@@ -2495,7 +2495,7 @@ function JavCard({
                 </div>
               </Popper>
               <JavIdolCoverModal
-                key={idolCoverEditorItem?.id || 'closed'}
+                key={`idol-cover-${idolCoverEditorItem?.id || 'closed'}`}
                 open={Boolean(idolCoverEditorItem)}
                 item={idolCoverEditorItem}
                 directoryIds={directoryIds}
@@ -2504,7 +2504,7 @@ function JavCard({
                 onSaved={handleIdolCoverSaved}
               />
               <JavIdolEditModal
-                key={idolEditorItem?.id || 'closed'}
+                key={`idol-editor-${idolEditorItem?.id || 'closed'}`}
                 open={Boolean(idolEditorItem)}
                 item={idolEditorItem}
                 directoryIds={directoryIds}
