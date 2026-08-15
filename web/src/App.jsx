@@ -3158,6 +3158,7 @@ export default function App() {
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
+        idolProfileFilters: createDefaultIdolProfileFilters(),
         javRandomMode: false,
         javRandomSeed: null,
       })

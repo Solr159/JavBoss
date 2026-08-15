@@ -106,9 +106,16 @@ function FavoriteRatingFilter({ enabled, min, max, onEnabledChange, onRangeChang
 function IdolProfileFilter({ definition, value, onChange }) {
   const anchorRef = useRef(null)
   const closeTimerRef = useRef(null)
+  const draggingRef = useRef(false)
   const [open, setOpen] = useState(false)
+  const [draftEnabled, setDraftEnabled] = useState(value.enabled)
+  const [draftRange, setDraftRange] = useState([value.min, value.max])
   const label = zh(definition.label[0], definition.label[1])
-  const rangeLabel = formatIdolProfileFilterRange(definition, value, zh)
+  const rangeLabel = formatIdolProfileFilterRange(
+    definition,
+    { enabled: draftEnabled, min: draftRange[0], max: draftRange[1] },
+    zh
+  )
 
   const cancelClose = () => {
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
@@ -131,6 +138,12 @@ function IdolProfileFilter({ definition, value, onChange }) {
   )
 
   useEffect(() => {
+    if (draggingRef.current) return
+    setDraftEnabled(value.enabled)
+    setDraftRange([value.min, value.max])
+  }, [value.enabled, value.max, value.min])
+
+  useEffect(() => {
     if (!open) return undefined
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') setOpen(false)
@@ -150,13 +163,13 @@ function IdolProfileFilter({ definition, value, onChange }) {
       <button
         ref={anchorRef}
         type="button"
-        className={`filter-action-button ${value.enabled ? 'filter-action-button--active' : ''}`}
+        className={`filter-action-button ${draftEnabled ? 'filter-action-button--active' : ''}`}
         onClick={cancelClose}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
         <span className="idol-profile-filter__label">{label}</span>
-        {value.enabled ? <span className="idol-profile-filter__range">{rangeLabel}</span> : null}
+        {draftEnabled ? <span className="idol-profile-filter__range">{rangeLabel}</span> : null}
       </button>
       <Popper
         open={open}
@@ -176,30 +189,47 @@ function IdolProfileFilter({ definition, value, onChange }) {
         >
           <div className="idol-profile-filter__popover-header">
             <span>{rangeLabel}</span>
-            {value.enabled ? (
+            {draftEnabled ? (
               <button
                 type="button"
                 className="idol-profile-filter__clear"
-                onClick={() =>
+                onClick={() => {
+                  draggingRef.current = false
+                  setDraftEnabled(false)
+                  setDraftRange([definition.min, definition.max])
                   onChange?.(definition.key, {
                     enabled: false,
                     min: definition.min,
                     max: definition.max,
                   })
-                }
+                }}
               >
                 {zh('清除', 'Clear')}
               </button>
             ) : null}
           </div>
           <Slider
-            value={[value.min, value.max]}
+            value={draftRange}
             onPointerDown={() => {
-              if (!value.enabled) onChange?.(definition.key, { enabled: true })
+              draggingRef.current = true
+              setDraftEnabled(true)
             }}
             onChange={(_, range) => {
               if (Array.isArray(range)) {
-                onChange?.(definition.key, { enabled: true, min: range[0], max: range[1] })
+                setDraftEnabled(true)
+                setDraftRange(range)
+              }
+            }}
+            onChangeCommitted={(_, range) => {
+              draggingRef.current = false
+              if (Array.isArray(range)) {
+                setDraftEnabled(true)
+                setDraftRange(range)
+                onChange?.(definition.key, {
+                  enabled: true,
+                  min: range[0],
+                  max: range[1],
+                })
               }
             }}
             min={definition.min}
@@ -213,7 +243,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
             }
             sx={{
               width: '100%',
-              color: value.enabled ? 'primary.main' : '#94a3b8',
+              color: draftEnabled ? 'primary.main' : '#94a3b8',
               p: 0,
               height: 4,
               '& .MuiSlider-rail, & .MuiSlider-track': { height: 4 },
