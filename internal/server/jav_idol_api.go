@@ -34,8 +34,12 @@ func listJavIdols(c *gin.Context) {
 		}
 		favoriteGroupID = parsed
 	}
+	filters, ok := parseJavIdolFilters(c)
+	if !ok {
+		return
+	}
 
-	items, total, err := dbpkg.ListJavIdols(c.Request.Context(), search, sort, limit, offset, directoryIDs, favoriteGroupID)
+	items, total, err := dbpkg.ListJavIdols(c.Request.Context(), search, sort, limit, offset, directoryIDs, favoriteGroupID, filters)
 	if err != nil {
 		logging.Error("list jav idols: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载女优列表失败", "Failed to load idols")
@@ -48,6 +52,55 @@ func listJavIdols(c *gin.Context) {
 		"items": items,
 		"total": total,
 	})
+}
+
+func parseJavIdolFilters(c *gin.Context) (dbpkg.JavIdolFilters, bool) {
+	filters := dbpkg.JavIdolFilters{}
+	ranges := []struct {
+		key     string
+		labelCN string
+		labelEN string
+		minimum int
+		maximum int
+		target  *dbpkg.JavIdolIntRange
+	}{
+		{key: "height", labelCN: "身高", labelEN: "height", minimum: 130, maximum: 190, target: &filters.Height},
+		{key: "age", labelCN: "年龄", labelEN: "age", minimum: 18, maximum: 60, target: &filters.Age},
+		{key: "cup", labelCN: "罩杯", labelEN: "cup", minimum: 1, maximum: 11, target: &filters.Cup},
+		{key: "bust", labelCN: "胸围", labelEN: "bust", minimum: 60, maximum: 130, target: &filters.Bust},
+		{key: "waist", labelCN: "腰围", labelEN: "waist", minimum: 45, maximum: 100, target: &filters.Waist},
+		{key: "hips", labelCN: "臀围", labelEN: "hips", minimum: 65, maximum: 130, target: &filters.Hips},
+	}
+	for _, item := range ranges {
+		parsed, ok := parseJavIdolIntRange(c, item.key, item.labelCN, item.labelEN, item.minimum, item.maximum)
+		if !ok {
+			return filters, false
+		}
+		*item.target = parsed
+	}
+	return filters, true
+}
+
+func parseJavIdolIntRange(c *gin.Context, key, labelCN, labelEN string, minimum, maximum int) (dbpkg.JavIdolIntRange, bool) {
+	result := dbpkg.JavIdolIntRange{}
+	minParam := strings.TrimSpace(c.Query("idol_" + key + "_min"))
+	maxParam := strings.TrimSpace(c.Query("idol_" + key + "_max"))
+	if minParam == "" && maxParam == "" {
+		return result, true
+	}
+	if minParam == "" || maxParam == "" {
+		respondLocalizedError(c, http.StatusBadRequest, labelCN+"范围无效", "Invalid idol "+labelEN+" range")
+		return result, false
+	}
+	parsedMin, minErr := strconv.Atoi(minParam)
+	parsedMax, maxErr := strconv.Atoi(maxParam)
+	if minErr != nil || maxErr != nil || parsedMin < minimum || parsedMax > maximum || parsedMin > parsedMax {
+		respondLocalizedError(c, http.StatusBadRequest, labelCN+"范围无效", "Invalid idol "+labelEN+" range")
+		return result, false
+	}
+	result.Min = &parsedMin
+	result.Max = &parsedMax
+	return result, true
 }
 
 func listJavIdolOptions(c *gin.Context) {

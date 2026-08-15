@@ -63,8 +63,12 @@ import VideoScrapeSettingsModal from '@/components/VideoScrapeSettingsModal'
 import VideoScreenshotsModal from '@/components/VideoScreenshotsModal'
 import VideoTagModal from '@/components/VideoTagModal'
 import {
+  createDefaultIdolProfileFilters,
   IDOL_FAVORITE_ORDER_SORT,
+  IDOL_PROFILE_FILTER_DEFINITIONS,
+  formatIdolProfileFilterRange,
   javSortRulesConfig,
+  normalizeIdolProfileFilters,
   normalizeIdolSort,
   normalizeJavSort,
   normalizeJavSortRules,
@@ -217,6 +221,7 @@ export default function App() {
     setIdolPage,
     idolPageSize,
     idolFavoriteGroupId,
+    idolProfileFilters,
     setIdolFavoriteGroupId,
     idolItems,
     idolTotal,
@@ -1078,6 +1083,10 @@ export default function App() {
           javPage: jav.random ? 1 : jav.page,
           idolPage: jav.tab === 'idol' ? jav.page : 1,
           idolFavoriteGroupId: jav.tab === 'idol' ? jav.favoriteGroupId : null,
+          idolProfileFilters:
+            jav.tab === 'idol'
+              ? normalizeIdolProfileFilters(jav.idolProfileFilters)
+              : createDefaultIdolProfileFilters(),
           studioPage: jav.tab === 'studio' ? jav.page : 1,
           studioFavoriteGroupId: jav.tab === 'studio' ? jav.favoriteGroupId : null,
           seriesPage: jav.tab === 'series' ? jav.page : 1,
@@ -1154,6 +1163,7 @@ export default function App() {
           javRandomSeed,
           idolPage,
           idolFavoriteGroupId,
+          idolProfileFilters,
           studioFavoriteGroupId,
           seriesFavoriteGroupId,
           studioPage,
@@ -1169,6 +1179,7 @@ export default function App() {
       directoryFilterMode,
       enabledDirectoryIds,
       idolFavoriteGroupId,
+      idolProfileFilters,
       idolTempSort,
       javFavoriteGroupId,
       idolPage,
@@ -1298,6 +1309,7 @@ export default function App() {
         favoriteRatingMin: favoriteRatingMinOverride,
         favoriteRatingMax: favoriteRatingMaxOverride,
         favoriteGroupId: favoriteGroupIdOverride,
+        idolProfileFilters: idolProfileFiltersOverride,
         tagIds: tagIdsOverride,
         random: randomOverride,
         seed: seedOverride,
@@ -1385,6 +1397,17 @@ export default function App() {
       ) {
         sp.set('favorite_group_id', String(favoriteGroupId))
       }
+      if (tab === 'idol') {
+        const profileFilters = normalizeIdolProfileFilters(
+          idolProfileFiltersOverride ?? idolProfileFilters
+        )
+        for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
+          const value = profileFilters[definition.key]
+          if (!value.enabled) continue
+          sp.set(`idol_${definition.key}_min`, String(value.min))
+          sp.set(`idol_${definition.key}_max`, String(value.max))
+        }
+      }
       const hasTempSortOverride = Object.prototype.hasOwnProperty.call(options, 'tempSort')
       const tempSortVal = hasTempSortOverride
         ? tab === 'idol'
@@ -1423,6 +1446,7 @@ export default function App() {
     [
       idolPage,
       idolFavoriteGroupId,
+      idolProfileFilters,
       idolTempSort,
       javFavoriteGroupId,
       pathname,
@@ -1578,6 +1602,7 @@ export default function App() {
     idolPage,
     idolPageSize,
     idolFavoriteGroupId,
+    idolProfileFilters,
     studioFavoriteGroupId,
     seriesFavoriteGroupId,
     studioPage,
@@ -2115,6 +2140,19 @@ export default function App() {
     [updateJavFilters]
   )
 
+  const handleIdolProfileFilterChange = useCallback(
+    (key, updates) => {
+      if (!IDOL_PROFILE_FILTER_DEFINITIONS.some((definition) => definition.key === key)) return
+      const current = normalizeIdolProfileFilters(useStore.getState().idolProfileFilters)
+      const next = normalizeIdolProfileFilters({
+        ...current,
+        [key]: { ...current[key], ...(updates || {}) },
+      })
+      updateJavFilters({ idolProfileFilters: next, idolPage: 1 })
+    },
+    [updateJavFilters]
+  )
+
   const activeFilterItems = useMemo(() => {
     if (!isJavMode) {
       const items = []
@@ -2167,6 +2205,21 @@ export default function App() {
           })
         },
       })
+    }
+    if (javTab === 'idol') {
+      const profileFilters = normalizeIdolProfileFilters(idolProfileFilters)
+      for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
+        const value = profileFilters[definition.key]
+        if (!value.enabled) continue
+        const label = zh(definition.label[0], definition.label[1])
+        const range = formatIdolProfileFilterRange(definition, value, zh)
+        items.push({
+          key: `idol-profile-${definition.key}`,
+          label: `${label}: ${range}`,
+          onRemove: () => handleIdolProfileFilterChange(definition.key, { enabled: false }),
+        })
+      }
+      return items
     }
     if (javTab !== 'list') return items
 
@@ -2246,6 +2299,8 @@ export default function App() {
     return items
   }, [
     config?.jav_idol_prefer_chinese_name,
+    handleIdolProfileFilterChange,
+    idolProfileFilters,
     isJavMode,
     javFavoriteRatingEnabled,
     javFavoriteRatingMax,
@@ -2300,7 +2355,10 @@ export default function App() {
         javRandomSeed: null,
       })
     } else if (javTab === 'idol') {
-      Object.assign(updates, { idolPage: 1 })
+      Object.assign(updates, {
+        idolPage: 1,
+        idolProfileFilters: createDefaultIdolProfileFilters(),
+      })
     } else if (javTab === 'studio') {
       Object.assign(updates, { studioPage: 1 })
     } else {
@@ -2858,6 +2916,7 @@ export default function App() {
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
+        idolProfileFilters: createDefaultIdolProfileFilters(),
         javSearchTerm: '',
         javPage: 1,
         idolPage: 1,
@@ -2912,6 +2971,7 @@ export default function App() {
       javFavoriteRatingMin: 0.5,
       javFavoriteRatingMax: 5,
       idolFavoriteGroupId: null,
+      idolProfileFilters: createDefaultIdolProfileFilters(),
       javRandomMode: nextRandomMode,
       javRandomSeed: nextRandomSeed,
       javPage: 1,
@@ -2965,6 +3025,7 @@ export default function App() {
       javFavoriteRatingMin: 0.5,
       javFavoriteRatingMax: 5,
       idolFavoriteGroupId: null,
+      idolProfileFilters: createDefaultIdolProfileFilters(),
       javSearchTerm: '',
       javPage: 1,
       idolPage: 1,
@@ -3733,6 +3794,7 @@ export default function App() {
             prefix: '',
             soloOnly: false,
             favoriteRatingEnabled: false,
+            idolProfileFilters: createDefaultIdolProfileFilters(),
             favoriteGroupId: targetGroupId,
             random: false,
             tempSort: '',
@@ -3746,8 +3808,16 @@ export default function App() {
         favoriteRatingEnabled={javFavoriteRatingEnabled}
         favoriteRatingMin={javFavoriteRatingMin}
         favoriteRatingMax={javFavoriteRatingMax}
+        idolProfileFilters={idolProfileFilters}
         filterItems={activeFilterItems}
-        hasActiveControlFilter={isJavMode && javTab === 'list' && javFavoriteRatingEnabled}
+        hasActiveControlFilter={
+          isJavMode &&
+          ((javTab === 'list' && javFavoriteRatingEnabled) ||
+            (javTab === 'idol' &&
+              Object.values(normalizeIdolProfileFilters(idolProfileFilters)).some(
+                (value) => value.enabled
+              )))
+        }
         isJavMode={isJavMode}
         javSearchHref={javSearchHref}
         javSearchInput={javSearchInput}
@@ -3758,6 +3828,7 @@ export default function App() {
         }
         onFavoriteRatingEnabledChange={handleFavoriteRatingEnabledChange}
         onFavoriteRatingRangeChange={handleFavoriteRatingRangeChange}
+        onIdolProfileFilterChange={handleIdolProfileFilterChange}
         onHome={handleHomeClick}
         onOpenFavoriteGroups={() =>
           loadJavFavoriteGroups(activeFavoriteEntityType, { force: true })

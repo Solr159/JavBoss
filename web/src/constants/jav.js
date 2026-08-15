@@ -154,6 +154,58 @@ export const IDOL_SORT_OPTIONS = [
 
 export const IDOL_FAVORITE_ORDER_SORT = 'favorite_order'
 
+export const IDOL_PROFILE_FILTER_DEFINITIONS = [
+  { key: 'height', label: ['身高', 'Height'], min: 130, max: 190, step: 1, unit: 'cm' },
+  { key: 'age', label: ['年龄', 'Age'], min: 18, max: 60, step: 1, unit: ['岁', 'y'] },
+  { key: 'cup', label: ['罩杯', 'Cup'], min: 1, max: 11, step: 1, format: 'cup' },
+  { key: 'bust', label: ['胸围', 'Bust'], min: 60, max: 130, step: 1, unit: 'cm' },
+  { key: 'waist', label: ['腰围', 'Waist'], min: 45, max: 100, step: 1, unit: 'cm' },
+  { key: 'hips', label: ['臀围', 'Hips'], min: 65, max: 130, step: 1, unit: 'cm' },
+]
+
+export function createDefaultIdolProfileFilters() {
+  return Object.fromEntries(
+    IDOL_PROFILE_FILTER_DEFINITIONS.map((definition) => [
+      definition.key,
+      { enabled: false, min: definition.min, max: definition.max },
+    ])
+  )
+}
+
+export function normalizeIdolProfileFilters(value) {
+  const source = value && typeof value === 'object' ? value : {}
+  return Object.fromEntries(
+    IDOL_PROFILE_FILTER_DEFINITIONS.map((definition) => {
+      const candidate = source[definition.key] || {}
+      const rawMin = Number(candidate.min)
+      const rawMax = Number(candidate.max)
+      const min = Math.max(
+        definition.min,
+        Math.min(definition.max, Number.isFinite(rawMin) ? Math.round(rawMin) : definition.min)
+      )
+      const max = Math.max(
+        min,
+        Math.min(definition.max, Number.isFinite(rawMax) ? Math.round(rawMax) : definition.max)
+      )
+      return [definition.key, { enabled: Boolean(candidate.enabled), min, max }]
+    })
+  )
+}
+
+export function formatIdolProfileFilterRange(definition, value, translate = (cn) => cn) {
+  const normalized = normalizeIdolProfileFilters({ [definition.key]: value })[definition.key]
+  const formatValue = (number) => {
+    if (definition.format === 'cup') {
+      return String.fromCharCode(64 + number)
+    }
+    const unit = Array.isArray(definition.unit)
+      ? translate(definition.unit[0], definition.unit[1])
+      : definition.unit || ''
+    return `${number}${unit}`
+  }
+  return `${formatValue(normalized.min)}–${formatValue(normalized.max)}`
+}
+
 const buildSortMap = (options) => {
   const entries = new Map()
   for (const option of options) {

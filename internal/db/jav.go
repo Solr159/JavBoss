@@ -1959,6 +1959,22 @@ type JavIdolSummary struct {
 	FavoriteCount int64      `json:"favorite_count"`
 }
 
+// JavIdolIntRange is an inclusive numeric range used by idol profile filters.
+type JavIdolIntRange struct {
+	Min *int
+	Max *int
+}
+
+// JavIdolFilters contains optional profile ranges for the idol list.
+type JavIdolFilters struct {
+	Height JavIdolIntRange
+	Age    JavIdolIntRange
+	Cup    JavIdolIntRange
+	Bust   JavIdolIntRange
+	Waist  JavIdolIntRange
+	Hips   JavIdolIntRange
+}
+
 // JavIdolCoverOption represents one visible JAV work that can be used as an idol card cover.
 type JavIdolCoverOption struct {
 	ID    int64  `json:"id"`
@@ -2102,7 +2118,7 @@ func ListJavIdolOptions(ctx context.Context, search string, limit, offset int) (
 }
 
 // ListJavIdols returns idols ordered by selected sort with pagination.
-func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, directoryIDs []int64, favoriteGroupID int64) ([]JavIdolSummary, int64, error) {
+func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, directoryIDs []int64, favoriteGroupID int64, filterOptions ...JavIdolFilters) ([]JavIdolSummary, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -2110,6 +2126,11 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		offset = 0
 	}
 	sort = strings.ToLower(strings.TrimSpace(sort))
+	filters := JavIdolFilters{}
+	if len(filterOptions) > 0 {
+		filters = filterOptions[0]
+	}
+	filterDate := time.Now().UTC()
 	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)
 
 	countBase := common.DB.WithContext(ctx).
@@ -2119,6 +2140,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		countBase = countBase.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
 	countBase = applyJavIdolSearch(countBase, search)
+	countBase = applyJavIdolFilters(countBase, filters, filterDate)
 
 	var total int64
 	if err := countBase.Count(&total).Error; err != nil {
@@ -2183,6 +2205,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	}
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavIdolSearch(base, search)
+	base = applyJavIdolFilters(base, filters, filterDate)
 	if err := base.
 		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COUNT(DISTINCT j.id) AS work_count, ji.cover_jav_id, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS cover_code, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
@@ -2198,6 +2221,33 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	}
 
 	return items, total, nil
+}
+
+func applyJavIdolFilters(q *gorm.DB, filters JavIdolFilters, now time.Time) *gorm.DB {
+	q = applyJavIdolIntRange(q, "ji.height_cm", filters.Height)
+	q = applyJavIdolIntRange(q, "ji.cup", filters.Cup)
+	q = applyJavIdolIntRange(q, "ji.bust", filters.Bust)
+	q = applyJavIdolIntRange(q, "ji.waist", filters.Waist)
+	q = applyJavIdolIntRange(q, "ji.hips", filters.Hips)
+	if filters.Age.Min != nil {
+		latestBirthDate := now.AddDate(-*filters.Age.Min, 0, 0).Format("2006-01-02")
+		q = q.Where("date(ji.birth_date) <= ?", latestBirthDate)
+	}
+	if filters.Age.Max != nil {
+		earliestBirthDate := now.AddDate(-(*filters.Age.Max + 1), 0, 0).Format("2006-01-02")
+		q = q.Where("date(ji.birth_date) > ?", earliestBirthDate)
+	}
+	return q
+}
+
+func applyJavIdolIntRange(q *gorm.DB, column string, value JavIdolIntRange) *gorm.DB {
+	if value.Min != nil {
+		q = q.Where(column+" >= ?", *value.Min)
+	}
+	if value.Max != nil {
+		q = q.Where(column+" <= ?", *value.Max)
+	}
+	return q
 }
 
 func attachJavIdolAliases(ctx context.Context, items []JavIdolSummary) error {

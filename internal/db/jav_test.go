@@ -2907,6 +2907,84 @@ func TestListJavIdolsSortByAgeDirections(t *testing.T) {
 	}
 }
 
+func TestListJavIdolsFiltersProfileRanges(t *testing.T) {
+	database := openTestDB(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	targetBirth := now.AddDate(-30, -1, 0)
+	outsideBirth := now.AddDate(-22, 0, 0)
+
+	directory := models.Directory{Path: "/tmp/idol-profile-filters"}
+	if err := database.Create(&directory).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	idols := []models.JavIdol{
+		{
+			Name:      "Matching Idol",
+			HeightCM:  intPtr(165),
+			BirthDate: &targetBirth,
+			Bust:      intPtr(88),
+			Waist:     intPtr(58),
+			Hips:      intPtr(90),
+			Cup:       intPtr(5),
+		},
+		{
+			Name:      "Outside Idol",
+			HeightCM:  intPtr(150),
+			BirthDate: &outsideBirth,
+			Bust:      intPtr(78),
+			Waist:     intPtr(68),
+			Hips:      intPtr(80),
+			Cup:       intPtr(2),
+		},
+		{Name: "Missing Profile Idol"},
+	}
+	if err := database.Create(&idols).Error; err != nil {
+		t.Fatalf("create idols: %v", err)
+	}
+
+	for index := range idols {
+		javItem := models.Jav{
+			Code:      fmt.Sprintf("FLT-%03d", index+1),
+			Title:     idols[index].Name,
+			FetchedAt: now,
+		}
+		if err := database.Create(&javItem).Error; err != nil {
+			t.Fatalf("create jav %d: %v", index, err)
+		}
+		if err := database.Create(&models.JavIdolMap{JavID: javItem.ID, JavIdolID: idols[index].ID}).Error; err != nil {
+			t.Fatalf("create idol map %d: %v", index, err)
+		}
+		video := models.Video{
+			DirectoryID: directory.ID,
+			Path:        fmt.Sprintf("idol-filter-%d.mp4", index),
+			Filename:    fmt.Sprintf("idol-filter-%d.mp4", index),
+			Fingerprint: fmt.Sprintf("idol-filter-fp-%d", index),
+			JavID:       int64Ptr(javItem.ID),
+			ModifiedAt:  now,
+		}
+		if err := database.Create(&video).Error; err != nil {
+			t.Fatalf("create video %d: %v", index, err)
+		}
+		createVideoLocationsForVideos(t, database, video)
+	}
+
+	items, total, err := ListJavIdols(ctx, "", "", 20, 0, nil, 0, JavIdolFilters{
+		Height: JavIdolIntRange{Min: intPtr(160), Max: intPtr(170)},
+		Age:    JavIdolIntRange{Min: intPtr(29), Max: intPtr(31)},
+		Cup:    JavIdolIntRange{Min: intPtr(4), Max: intPtr(6)},
+		Bust:   JavIdolIntRange{Min: intPtr(85), Max: intPtr(90)},
+		Waist:  JavIdolIntRange{Min: intPtr(55), Max: intPtr(60)},
+		Hips:   JavIdolIntRange{Min: intPtr(88), Max: intPtr(92)},
+	})
+	if err != nil {
+		t.Fatalf("ListJavIdols filters: %v", err)
+	}
+	if total != 1 || len(items) != 1 || items[0].ID != idols[0].ID {
+		t.Fatalf("filtered idols = %#v total=%d, want only %d", items, total, idols[0].ID)
+	}
+}
+
 func TestListJavIdolsSortByRecentDirections(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

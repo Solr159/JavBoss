@@ -1,4 +1,10 @@
-import { normalizeIdolSort, normalizeJavSort } from '@/constants/jav'
+import {
+  createDefaultIdolProfileFilters,
+  IDOL_PROFILE_FILTER_DEFINITIONS,
+  normalizeIdolProfileFilters,
+  normalizeIdolSort,
+  normalizeJavSort,
+} from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 
 const RANDOM_SEED_MAX = 2147483646
@@ -45,6 +51,28 @@ const parseDirectoryIds = (sp) => {
   const raw = (sp.get('directory_ids') || '').trim()
   if (raw === '0') return []
   return parseIds(raw)
+}
+
+const parseIdolProfileFilters = (sp) => {
+  const filters = createDefaultIdolProfileFilters()
+  for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
+    const rawMin = sp.get(`idol_${definition.key}_min`)
+    const rawMax = sp.get(`idol_${definition.key}_max`)
+    if (rawMin == null && rawMax == null) continue
+    const min = Number(rawMin)
+    const max = Number(rawMax)
+    if (
+      !Number.isInteger(min) ||
+      !Number.isInteger(max) ||
+      min < definition.min ||
+      max > definition.max ||
+      min > max
+    ) {
+      continue
+    }
+    filters[definition.key] = { enabled: true, min, max }
+  }
+  return filters
 }
 
 const parseIntSafe = (val, def = 1) => {
@@ -106,6 +134,8 @@ export const parseUrlState = (searchString = window.location.search, options = {
     favoriteRatingMax: favoriteRatingEnabled ? favoriteRatingMax : 5,
     favoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
     idolFavoriteGroupId: parsePositiveInt(sp.get('favorite_group_id')),
+    idolProfileFilters:
+      javTab === 'idol' ? parseIdolProfileFilters(sp) : createDefaultIdolProfileFilters(),
     tempSort: javTempSort,
     random: sp.get('random') === '1',
     seed: clampSeed(sp.get('seed')),
@@ -163,6 +193,15 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
       state.jav.favoriteGroupId
     ) {
       sp.set('favorite_group_id', String(state.jav.favoriteGroupId))
+    }
+    if (state.jav.tab === 'idol') {
+      const profileFilters = normalizeIdolProfileFilters(state.jav.idolProfileFilters)
+      for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
+        const value = profileFilters[definition.key]
+        if (!value.enabled) continue
+        sp.set(`idol_${definition.key}_min`, String(value.min))
+        sp.set(`idol_${definition.key}_max`, String(value.max))
+      }
     }
     if (
       (state.jav.tab === 'list' || state.jav.tab === 'idol') &&
@@ -284,6 +323,10 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
               ? store.seriesFavoriteGroupId || null
               : store.javFavoriteGroupId || null,
       idolFavoriteGroupId: store.javTab === 'idol' ? store.idolFavoriteGroupId || null : null,
+      idolProfileFilters:
+        store.javTab === 'idol'
+          ? normalizeIdolProfileFilters(store.idolProfileFilters)
+          : createDefaultIdolProfileFilters(),
       tempSort:
         store.javTab === 'list' && !store.javRandomMode
           ? store.javTempSort || ''
