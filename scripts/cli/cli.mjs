@@ -443,11 +443,36 @@ async function copyDir(src, dest) {
   await fsp.cp(src, dest, { recursive: true });
 }
 
+function linuxMpvWrapperContent() {
+  return [
+    "#!/bin/sh",
+    'HERE=$(CDPATH= cd "$(dirname "$0")" && pwd -P)',
+    'LIB="$HERE/lib"',
+    'MPV_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"',
+    'exec "$LIB/ld-linux-x86-64.so.2" --library-path "$MPV_LIBRARY_PATH" "$HERE/bin/mpv-bin" "$@"',
+    "",
+  ].join("\n");
+}
+
+async function writeLinuxMpvWrapper(baseDir) {
+  const bundledMpv = path.join(baseDir, "bin", "mpv-bin");
+  const bundledLoader = path.join(baseDir, "lib", "ld-linux-x86-64.so.2");
+  if (!(await exists(bundledMpv)) || !(await exists(bundledLoader))) return false;
+
+  const wrapperPath = path.join(baseDir, "mpv");
+  await fsp.writeFile(wrapperPath, linuxMpvWrapperContent());
+  await fsp.chmod(wrapperPath, 0o755);
+  return true;
+}
+
 async function syncBundledMpvToInternal(choice) {
   if (!(await isBundledMpvReady(choice))) return false;
   await fsp.mkdir(INTERNAL_BIN_DIR, { recursive: true });
   await fsp.rm(internalMpvDir(), { recursive: true, force: true });
   await copyDir(binMpvDir(choice), internalMpvDir());
+  if (choice.goos === "linux") {
+    await writeLinuxMpvWrapper(internalMpvDir());
+  }
   if (choice.goos !== "windows") {
     await fsp.chmod(internalMpvPath(choice), 0o755).catch(() => {});
   }
@@ -516,6 +541,9 @@ async function copyBundledFfmpeg(choice, outDir) {
 async function copyBundledMpv(choice, outDir) {
   const destDir = path.join(outDir, "internal", "bin", "mpv");
   await copyDir(binMpvDir(choice), destDir);
+  if (choice.goos === "linux") {
+    await writeLinuxMpvWrapper(destDir);
+  }
   if (choice.goos !== "windows") {
     await fsp.chmod(mpvExecutablePath(destDir, choice), 0o755).catch(() => {});
   }
@@ -1047,16 +1075,7 @@ async function installLinuxMpvFromAppImage(archive, choice, tmpBase) {
     });
   }
 
-  const wrapper = [
-    "#!/bin/sh",
-    'HERE=$(CDPATH= cd "$(dirname "$0")" && pwd -P)',
-    'LIB="$HERE/lib"',
-    'export LD_LIBRARY_PATH="$LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"',
-    'exec "$LIB/ld-linux-x86-64.so.2" --library-path "$LD_LIBRARY_PATH" "$HERE/bin/mpv-bin" "$@"',
-    "",
-  ].join("\n");
-  await fsp.writeFile(path.join(installDir, "mpv"), wrapper);
-  await fsp.chmod(path.join(installDir, "mpv"), 0o755);
+  await writeLinuxMpvWrapper(installDir);
 
   await fsp.rm(binMpvDir(choice), { recursive: true, force: true });
   await copyDir(installDir, binMpvDir(choice));
@@ -1215,6 +1234,13 @@ async function downloadFfmpeg(choice) {
 
 async function downloadMpv(choice) {
   if (await isBundledMpvReady(choice)) {
+    if (choice.goos === "linux") {
+      await writeLinuxMpvWrapper(binMpvDir(choice));
+      const current = currentPlatformChoice();
+      if (current?.label === choice.label) {
+        await writeLinuxMpvWrapper(internalMpvDir());
+      }
+    }
     console.log(`[mpv] 已存在：${binMpvDir(choice)}`);
     return;
   }
