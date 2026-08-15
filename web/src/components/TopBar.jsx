@@ -194,6 +194,9 @@ function IdolProfileFilter({ definition, value, onChange }) {
           </div>
           <Slider
             value={[value.min, value.max]}
+            onPointerDown={() => {
+              if (!value.enabled) onChange?.(definition.key, { enabled: true })
+            }}
             onChange={(_, range) => {
               if (Array.isArray(range)) {
                 onChange?.(definition.key, { enabled: true, min: range[0], max: range[1] })
@@ -210,6 +213,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
             }
             sx={{
               width: '100%',
+              color: value.enabled ? 'primary.main' : '#94a3b8',
               p: 0,
               height: 4,
               '& .MuiSlider-rail, & .MuiSlider-track': { height: 4 },
