@@ -151,12 +151,13 @@ export function IdolCard({
   const birthDate = formatBirthDateWithAge(item?.birth_date)
   const height = typeof item?.height_cm === 'number' ? `${item.height_cm}cm` : ''
   const bwh = formatBwh(item)
+  const bwhDisplay = formatBwhDisplay(bwh)
   const cup = formatCup(item?.cup)
   const lookupCode = coverCode
   const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
   const [javdbOpening, setJavdbOpening] = useState(false)
   const { primaryName, secondaryName } = getIdolDisplayNames(item, preferChineseName)
-  const metaRows = buildMetaRows({ birthDate, height, bwh, cup, aliases })
+  const metaRows = buildMetaRows({ birthDate, height, bwh, bwhDisplay, cup, aliases })
   const canOpenJavDB = Boolean(javdbURL || (lookupCode && name))
   const hasCoverImageSize =
     coverImageSize?.src === cover &&
@@ -403,7 +404,7 @@ export function IdolCard({
                     key={meta.key}
                     className={`inline-flex items-center ${meta.wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap'}`}
                   >
-                    {meta.label}
+                    {meta.content ?? meta.label}
                   </span>
                 ))}
               </div>
@@ -1054,9 +1055,23 @@ function formatBwh(item) {
   const waist = item?.waist
   const hips = item?.hips
   if (typeof bust === 'number' && typeof waist === 'number' && typeof hips === 'number') {
-    return `B${bust}-W${waist}-H${hips}`
+    return zh(`胸${bust}-腰${waist}-臀${hips}`, `B${bust}-W${waist}-H${hips}`)
   }
   return ''
+}
+
+function formatBwhDisplay(value) {
+  if (!value) return ''
+
+  return value.split(/(\d+)/).map((part, index) =>
+    /^\d+$/.test(part) ? (
+      <span key={`${part}-${index}`} className="relative top-[0.5px] inline-block tabular-nums">
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  )
 }
 
 function formatCup(value) {
@@ -1065,7 +1080,7 @@ function formatCup(value) {
   return zh(`${letter}罩杯`, `${letter} cup`)
 }
 
-function buildMetaRows({ birthDate, height, bwh, cup, aliases = [] }) {
+function buildMetaRows({ birthDate, height, bwh, bwhDisplay, cup, aliases = [] }) {
   const rows = []
   const aliasText = joinUniqueDisplayParts(aliases, [], ', ')
   if (aliasText) {
@@ -1090,7 +1105,7 @@ function buildMetaRows({ birthDate, height, bwh, cup, aliases = [] }) {
     rowTwo.push({ key: `height-${height}`, label: height })
   }
   if (bwh) {
-    rowTwo.push({ key: `bwh-${bwh}`, label: bwh })
+    rowTwo.push({ key: `bwh-${bwh}`, label: bwh, content: bwhDisplay })
   }
   if (cup) {
     rowTwo.push({ key: `cup-${cup}`, label: cup })
