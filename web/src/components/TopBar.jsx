@@ -227,7 +227,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
   )
 }
 
-function IdolProfileFilters({ filters, onChange }) {
+function IdolProfileFilters({ filters, onChange, showClear, onClear }) {
   const normalized = useMemo(() => normalizeIdolProfileFilters(filters), [filters])
 
   return (
@@ -240,6 +240,15 @@ function IdolProfileFilters({ filters, onChange }) {
           onChange={onChange}
         />
       ))}
+      {showClear ? (
+        <button
+          type="button"
+          className="filter-clear-button idol-profile-filters__clear"
+          onClick={onClear}
+        >
+          {zh('清空', 'Clear')}
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -363,6 +372,10 @@ export default function TopBar({
           ? zh('搜索系列名称', 'Search series name')
           : zh('搜索番号或标题', 'Search code or title')
     : zh('搜索文件名', 'Search filename')
+  const showFilterCluster =
+    filterItems.length > 0 ||
+    Boolean(onOpenFilterEditor) ||
+    ((!isJavMode || javTab !== 'idol') && hasActiveControlFilter)
 
   return (
     <header ref={headerRef} className="filter-topbar">
@@ -412,7 +425,12 @@ export default function TopBar({
           ) : null}
 
           {isJavMode && javTab === 'idol' ? (
-            <IdolProfileFilters filters={idolProfileFilters} onChange={onIdolProfileFilterChange} />
+            <IdolProfileFilters
+              filters={idolProfileFilters}
+              onChange={onIdolProfileFilterChange}
+              showClear={hasActiveControlFilter}
+              onClear={onClearFilters}
+            />
           ) : null}
 
           {onRandomClick ? (
@@ -422,36 +440,38 @@ export default function TopBar({
             </button>
           ) : null}
 
-          <div className="filter-topbar__filter-cluster">
-            {filterItems.length > 0 ? (
-              <div
-                className="filter-topbar__conditions"
-                aria-label={zh('当前筛选条件', 'Active filters')}
-              >
-                {filterItems.map((item) => (
-                  <FilterChip key={item.key} label={item.label} onRemove={item.onRemove} />
-                ))}
-              </div>
-            ) : null}
+          {showFilterCluster ? (
+            <div className="filter-topbar__filter-cluster">
+              {filterItems.length > 0 ? (
+                <div
+                  className="filter-topbar__conditions"
+                  aria-label={zh('当前筛选条件', 'Active filters')}
+                >
+                  {filterItems.map((item) => (
+                    <FilterChip key={item.key} label={item.label} onRemove={item.onRemove} />
+                  ))}
+                </div>
+              ) : null}
 
-            {onOpenFilterEditor ? (
-              <button
-                type="button"
-                className="filter-clear-button"
-                onClick={onOpenFilterEditor}
-                title={zh('编辑筛选条件', 'Edit filters')}
-                aria-label={zh('编辑筛选条件', 'Edit filters')}
-              >
-                {zh('编辑', 'Edit')}
-              </button>
-            ) : null}
+              {onOpenFilterEditor ? (
+                <button
+                  type="button"
+                  className="filter-clear-button"
+                  onClick={onOpenFilterEditor}
+                  title={zh('编辑筛选条件', 'Edit filters')}
+                  aria-label={zh('编辑筛选条件', 'Edit filters')}
+                >
+                  {zh('编辑', 'Edit')}
+                </button>
+              ) : null}
 
-            {hasActiveControlFilter || filterItems.length > 0 ? (
-              <button type="button" className="filter-clear-button" onClick={onClearFilters}>
-                {zh('清空', 'Clear')}
-              </button>
-            ) : null}
-          </div>
+              {hasActiveControlFilter || filterItems.length > 0 ? (
+                <button type="button" className="filter-clear-button" onClick={onClearFilters}>
+                  {zh('清空', 'Clear')}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="filter-topbar__actions">
             {hasVideoSelection ? (

@@ -407,7 +407,7 @@ body.has-page-scroll .sticky-pagination {
 .idol-profile-filters {
   display: flex;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   align-items: center;
   gap: 6px;
   overflow-x: auto;
@@ -416,6 +416,10 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .idol-profile-filter {
+  flex-shrink: 0;
+}
+
+.idol-profile-filters__clear {
   flex-shrink: 0;
 }
 
