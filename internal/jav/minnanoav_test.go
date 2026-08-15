@@ -30,6 +30,12 @@ func TestBuildMinnanoAVActressSearchURL(t *testing.T) {
 	}
 }
 
+func TestMinnanoAVRateLimiterInterval(t *testing.T) {
+	if minnanoAVRequestInterval != 500*time.Millisecond {
+		t.Fatalf("minnanoav interval = %s, want 500ms", minnanoAVRequestInterval)
+	}
+}
+
 func TestParseMinnanoAVActressInfo(t *testing.T) {
 	doc, err := parseHTMLDocument([]byte(`<!doctype html>
 <html><body>
