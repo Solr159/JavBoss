@@ -423,6 +423,14 @@ body.has-page-scroll .sticky-pagination {
   flex-shrink: 0;
 }
 
+.idol-profile-filter__label {
+  color: #1e293b;
+}
+
+.filter-action-button--active .idol-profile-filter__label {
+  color: #1d4ed8;
+}
+
 .idol-profile-filter__range {
   color: #2563eb;
   font-size: 10.5px;

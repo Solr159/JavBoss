@@ -155,7 +155,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <span>{label}</span>
+        <span className="idol-profile-filter__label">{label}</span>
         {value.enabled ? <span className="idol-profile-filter__range">{rangeLabel}</span> : null}
       </button>
       <Popper
