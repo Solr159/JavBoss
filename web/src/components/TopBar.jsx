@@ -207,6 +207,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
                   draggingRef.current = false
                   setDraftEnabled(false)
                   setDraftRange([definition.min, definition.max])
+                  setOpen(false)
                   onChange?.(definition.key, {
                     enabled: false,
                     min: definition.min,
