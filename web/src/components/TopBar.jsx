@@ -173,6 +173,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
       </button>
       <Popper
         open={open}
+        keepMounted
         anchorEl={anchorRef.current}
         placement="bottom-start"
         modifiers={[{ name: 'offset', options: { offset: [0, 6] } }]}
