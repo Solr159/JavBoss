@@ -105,6 +105,20 @@ func TestFindMinnanoAVActressSearchResultURL(t *testing.T) {
 		}
 	})
 
+	t.Run("deduplicates qualified names pointing to the same profile", func(t *testing.T) {
+		doc, err := parseHTMLDocument([]byte(`<html><body>
+<h2 class="ttl"><a href="actress552222.html?今田美玲(KANBi)">今田美玲(KANBi)</a></h2>
+<h2 class="ttl"><a href="actress552222.html?今田美玲(カリビアンコム・HEYZO)">今田美玲(カリビアンコム・HEYZO)</a></h2>
+</body></html>`))
+		if err != nil {
+			t.Fatalf("parse fixture: %v", err)
+		}
+		got := findMinnanoAVActressSearchResultURL(doc, "今田美玲", pageURL, baseURL)
+		if got != "https://www.minnano-av.com/actress552222.html" {
+			t.Fatalf("result URL = %q", got)
+		}
+	})
+
 	t.Run("rejects ambiguous exact matches", func(t *testing.T) {
 		doc, err := parseHTMLDocument([]byte(`<html><body>
 <h2 class="ttl"><a href="actress111.html">安堂なな</a></h2>

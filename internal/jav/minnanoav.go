@@ -238,7 +238,7 @@ func findMinnanoAVActressSearchResultURL(root *html.Node, name, pageURL, baseURL
 
 	matches := make(map[string]struct{})
 	documentSelection(root).Find("h2.ttl a[href]").Each(func(_ int, link *goquery.Selection) {
-		if normalizeMinnanoAVName(cleanSelectionText(link)) != name {
+		if minnanoAVNameWithoutQualifier(cleanSelectionText(link)) != name {
 			return
 		}
 		resolved := resolveURL(pageURL, selectionAttr(link, "href"))
@@ -338,11 +338,7 @@ func parseMinnanoAVActressAliases(root *html.Node) []string {
 		if cleanSelectionText(cell.ChildrenFiltered("span").First()) != "別名" {
 			return
 		}
-		alias := cleanSelectionText(cell.ChildrenFiltered("p").First())
-		if index := strings.IndexAny(alias, "(（"); index >= 0 {
-			alias = alias[:index]
-		}
-		alias = normalizeMinnanoAVName(alias)
+		alias := minnanoAVNameWithoutQualifier(cleanSelectionText(cell.ChildrenFiltered("p").First()))
 		if alias != "" {
 			aliases[alias] = struct{}{}
 		}
@@ -421,4 +417,11 @@ func finalizeMinnanoAVActressInfo(name, profileURL string, info *ActressInfo, al
 
 func normalizeMinnanoAVName(value string) string {
 	return strings.Join(strings.Fields(value), " ")
+}
+
+func minnanoAVNameWithoutQualifier(value string) string {
+	if index := strings.IndexAny(value, "(（"); index >= 0 {
+		value = value[:index]
+	}
+	return normalizeMinnanoAVName(value)
 }

@@ -162,11 +162,11 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			want:     "v2:jav:javdatabase:lookup_actress_code:IPX-228",
 		},
 		{
-			name:     "minnanoav actress name lookup uses alias parser version",
+			name:     "minnanoav actress name lookup uses qualified result parser version",
 			provider: ProviderMinnanoAV,
 			method:   "lookup_actress_name",
 			input:    "倉沢裕美",
-			want:     "v2:jav:minnanoav:lookup_actress_name:倉沢裕美",
+			want:     "v3:jav:minnanoav:lookup_actress_name:倉沢裕美",
 		},
 	}
 

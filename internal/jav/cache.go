@@ -32,7 +32,7 @@ var lookupCoverCacheKeyVersionByProvider = map[Provider]string{
 }
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
-	ProviderMinnanoAV: "v2",
+	ProviderMinnanoAV: "v3",
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.
