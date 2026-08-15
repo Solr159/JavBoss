@@ -8,8 +8,7 @@ import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
-import TuneRoundedIcon from '@mui/icons-material/TuneRounded'
-import { Button, IconButton, Slider } from '@mui/material'
+import { Button, IconButton, Popper, Slider } from '@mui/material'
 import {
   formatIdolProfileFilterRange,
   IDOL_PROFILE_FILTER_DEFINITIONS,
@@ -104,13 +103,32 @@ function FavoriteRatingFilter({ enabled, min, max, onEnabledChange, onRangeChang
   )
 }
 
-function IdolProfileFilters({ filters, onChange }) {
-  const rootRef = useRef(null)
+function IdolProfileFilter({ definition, value, onChange }) {
+  const anchorRef = useRef(null)
+  const closeTimerRef = useRef(null)
   const [open, setOpen] = useState(false)
-  const normalized = useMemo(() => normalizeIdolProfileFilters(filters), [filters])
-  const activeCount = IDOL_PROFILE_FILTER_DEFINITIONS.filter(
-    (definition) => normalized[definition.key].enabled
-  ).length
+  const label = zh(definition.label[0], definition.label[1])
+  const rangeLabel = formatIdolProfileFilterRange(definition, value, zh)
+
+  const cancelClose = () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+    setOpen(true)
+  }
+  const scheduleClose = () => {
+    if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = window.setTimeout(() => {
+      closeTimerRef.current = null
+      setOpen(false)
+    }, 120)
+  }
+
+  useEffect(
+    () => () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+    },
+    []
+  )
 
   useEffect(() => {
     if (!open) return undefined
@@ -118,101 +136,106 @@ function IdolProfileFilters({ filters, onChange }) {
       if (event.key === 'Escape') setOpen(false)
     }
     document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [open])
 
   return (
     <div
-      ref={rootRef}
-      className="relative shrink-0"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocusCapture={() => setOpen(true)}
-      onBlurCapture={(event) => {
-        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false)
-      }}
+      className="idol-profile-filter"
+      onMouseEnter={cancelClose}
+      onMouseLeave={scheduleClose}
+      onFocusCapture={cancelClose}
+      onBlurCapture={scheduleClose}
     >
       <button
+        ref={anchorRef}
         type="button"
-        className={`filter-action-button ${activeCount > 0 ? 'filter-action-button--active' : ''}`}
+        className={`filter-action-button ${value.enabled ? 'filter-action-button--active' : ''}`}
+        onClick={cancelClose}
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        <TuneRoundedIcon sx={{ fontSize: 17 }} />
-        <span>{zh('资料筛选', 'Profile filters')}</span>
-        {activeCount > 0 ? (
-          <span className="rounded-full bg-blue-600 px-1.5 text-[10px] leading-4 text-white">
-            {activeCount}
-          </span>
-        ) : null}
+        <span>{label}</span>
+        {value.enabled ? <span className="idol-profile-filter__range">{rangeLabel}</span> : null}
       </button>
-      {open ? (
+      <Popper
+        open={open}
+        anchorEl={anchorRef.current}
+        placement="bottom-start"
+        modifiers={[{ name: 'offset', options: { offset: [0, 6] } }]}
+        sx={{ zIndex: 60 }}
+      >
         <div
-          className="absolute left-0 top-full z-50 w-[24rem] pt-2"
+          className="idol-profile-filter__popover"
           role="dialog"
-          aria-label={zh('女优资料筛选', 'Idol profile filters')}
+          aria-label={zh(`${label}筛选`, `${label} filter`)}
+          onMouseEnter={cancelClose}
+          onMouseLeave={scheduleClose}
+          onFocusCapture={cancelClose}
+          onBlurCapture={scheduleClose}
         >
-          <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-xl">
-            <div className="flex flex-col gap-2.5">
-              {IDOL_PROFILE_FILTER_DEFINITIONS.map((definition) => {
-                const value = normalized[definition.key]
-                const label = zh(definition.label[0], definition.label[1])
-                return (
-                  <div
-                    key={definition.key}
-                    className={`grid grid-cols-[4.25rem_minmax(0,1fr)_5.75rem] items-center gap-3 rounded-lg px-2 py-1.5 ${value.enabled ? 'bg-blue-50/70' : 'bg-slate-50'}`}
-                  >
-                    <button
-                      type="button"
-                      className={`inline-flex items-center gap-1.5 text-left text-xs font-semibold ${value.enabled ? 'text-blue-700' : 'text-slate-500'}`}
-                      onClick={() => onChange?.(definition.key, { enabled: !value.enabled })}
-                      aria-pressed={value.enabled}
-                    >
-                      <span
-                        className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded border ${value.enabled ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white'}`}
-                        aria-hidden="true"
-                      >
-                        {value.enabled ? '✓' : ''}
-                      </span>
-                      {label}
-                    </button>
-                    <Slider
-                      value={[value.min, value.max]}
-                      onChange={(_, range) => {
-                        if (Array.isArray(range)) {
-                          onChange?.(definition.key, { min: range[0], max: range[1] })
-                        }
-                      }}
-                      min={definition.min}
-                      max={definition.max}
-                      step={definition.step}
-                      disableSwap
-                      disabled={!value.enabled}
-                      getAriaLabel={(index) =>
-                        index === 0
-                          ? zh(`最低${label}`, `Minimum ${label}`)
-                          : zh(`最高${label}`, `Maximum ${label}`)
-                      }
-                      sx={{
-                        p: 0,
-                        height: 3,
-                        '& .MuiSlider-rail, & .MuiSlider-track': { height: 3 },
-                        '& .MuiSlider-thumb': { width: 11, height: 11 },
-                        '& .MuiSlider-thumb::after': { width: 18, height: 18 },
-                      }}
-                    />
-                    <span className="whitespace-nowrap text-right text-[10px] tabular-nums text-slate-600">
-                      {formatIdolProfileFilterRange(definition, value, zh)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+          <div className="idol-profile-filter__popover-header">
+            <span>{rangeLabel}</span>
+            {value.enabled ? (
+              <button
+                type="button"
+                className="idol-profile-filter__clear"
+                onClick={() =>
+                  onChange?.(definition.key, {
+                    enabled: false,
+                    min: definition.min,
+                    max: definition.max,
+                  })
+                }
+              >
+                {zh('清除', 'Clear')}
+              </button>
+            ) : null}
           </div>
+          <Slider
+            value={[value.min, value.max]}
+            onChange={(_, range) => {
+              if (Array.isArray(range)) {
+                onChange?.(definition.key, { enabled: true, min: range[0], max: range[1] })
+              }
+            }}
+            min={definition.min}
+            max={definition.max}
+            step={definition.step}
+            disableSwap
+            getAriaLabel={(index) =>
+              index === 0
+                ? zh(`最低${label}`, `Minimum ${label}`)
+                : zh(`最高${label}`, `Maximum ${label}`)
+            }
+            sx={{
+              width: '100%',
+              p: 0,
+              height: 4,
+              '& .MuiSlider-rail, & .MuiSlider-track': { height: 4 },
+              '& .MuiSlider-thumb': { width: 12, height: 12 },
+              '& .MuiSlider-thumb::after': { width: 20, height: 20 },
+            }}
+          />
         </div>
-      ) : null}
+      </Popper>
+    </div>
+  )
+}
+
+function IdolProfileFilters({ filters, onChange }) {
+  const normalized = useMemo(() => normalizeIdolProfileFilters(filters), [filters])
+
+  return (
+    <div className="idol-profile-filters" aria-label={zh('女优资料筛选', 'Idol profile filters')}>
+      {IDOL_PROFILE_FILTER_DEFINITIONS.map((definition) => (
+        <IdolProfileFilter
+          key={definition.key}
+          definition={definition}
+          value={normalized[definition.key]}
+          onChange={onChange}
+        />
+      ))}
     </div>
   )
 }

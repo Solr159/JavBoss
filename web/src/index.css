@@ -404,6 +404,63 @@ body.has-page-scroll .sticky-pagination {
   line-height: 1;
 }
 
+.idol-profile-filters {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+
+.idol-profile-filter {
+  flex-shrink: 0;
+}
+
+.idol-profile-filter__range {
+  color: #2563eb;
+  font-size: 10.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.idol-profile-filter__popover {
+  width: 15rem;
+  border: 1px solid #dbe3ec;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px 12px 12px;
+  color: #64748b;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.3);
+}
+
+.idol-profile-filter__popover-header {
+  display: flex;
+  min-height: 22px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 1px 5px;
+}
+
+.idol-profile-filter__clear {
+  flex-shrink: 0;
+  border-radius: 5px;
+  padding: 1px 5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.idol-profile-filter__clear:hover {
+  background: #f1f5f9;
+  color: #dc2626;
+}
+
 .filter-topbar__filter-cluster {
   display: flex;
   min-width: 0;

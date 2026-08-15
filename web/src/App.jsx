@@ -66,7 +66,6 @@ import {
   createDefaultIdolProfileFilters,
   IDOL_FAVORITE_ORDER_SORT,
   IDOL_PROFILE_FILTER_DEFINITIONS,
-  formatIdolProfileFilterRange,
   javSortRulesConfig,
   normalizeIdolProfileFilters,
   normalizeIdolSort,
@@ -2186,6 +2185,7 @@ export default function App() {
     }
 
     const items = []
+    if (javTab === 'idol') return items
     const activeSearch = String(javSearchTerm || '').trim()
     if (activeSearch) {
       items.push({
@@ -2205,21 +2205,6 @@ export default function App() {
           })
         },
       })
-    }
-    if (javTab === 'idol') {
-      const profileFilters = normalizeIdolProfileFilters(idolProfileFilters)
-      for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
-        const value = profileFilters[definition.key]
-        if (!value.enabled) continue
-        const label = zh(definition.label[0], definition.label[1])
-        const range = formatIdolProfileFilterRange(definition, value, zh)
-        items.push({
-          key: `idol-profile-${definition.key}`,
-          label: `${label}: ${range}`,
-          onRemove: () => handleIdolProfileFilterChange(definition.key, { enabled: false }),
-        })
-      }
-      return items
     }
     if (javTab !== 'list') return items
 
@@ -2299,8 +2284,6 @@ export default function App() {
     return items
   }, [
     config?.jav_idol_prefer_chinese_name,
-    handleIdolProfileFilterChange,
-    idolProfileFilters,
     isJavMode,
     javFavoriteRatingEnabled,
     javFavoriteRatingMax,
@@ -3814,9 +3797,10 @@ export default function App() {
           isJavMode &&
           ((javTab === 'list' && javFavoriteRatingEnabled) ||
             (javTab === 'idol' &&
-              Object.values(normalizeIdolProfileFilters(idolProfileFilters)).some(
-                (value) => value.enabled
-              )))
+              (Boolean(String(javSearchTerm || '').trim()) ||
+                Object.values(normalizeIdolProfileFilters(idolProfileFilters)).some(
+                  (value) => value.enabled
+                ))))
         }
         isJavMode={isJavMode}
         javSearchHref={javSearchHref}
