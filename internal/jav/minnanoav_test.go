@@ -37,6 +37,7 @@ func TestParseMinnanoAVActressInfo(t *testing.T) {
 <div class="act-profile"><table>
 <tr><td><span>生年月日</span><p>1995年06月18日 （現在 31歳）ふたご座</p></td></tr>
 <tr><td><span>サイズ</span><p>T145 / B81(<a>Dカップ</a>) / W61 / H83 / S</p></td></tr>
+<tr><td><span>別名</span><p>旧名なな(着エロ) （きゅうめいなな / Kyuumei Nana）</p></td></tr>
 </table></div>
 </body></html>`))
 	if err != nil {
@@ -62,6 +63,10 @@ func TestParseMinnanoAVActressInfo(t *testing.T) {
 	wantBirthDate := int(time.Date(1995, time.June, 18, 0, 0, 0, 0, time.UTC).Unix())
 	if info.BirthDate != wantBirthDate {
 		t.Fatalf("BirthDate = %d, want %d", info.BirthDate, wantBirthDate)
+	}
+	aliases := parseMinnanoAVActressAliases(doc)
+	if len(aliases) != 1 || aliases[0] != "旧名なな" {
+		t.Fatalf("aliases = %#v, want [旧名なな]", aliases)
 	}
 }
 
@@ -126,6 +131,17 @@ func TestFinalizeMinnanoAVActressInfoRequiresExactName(t *testing.T) {
 	}
 	if info.JapaneseName != "安堂なな" || info.RomanName != "Ando Nana" || info.ProfileURL != profileURL {
 		t.Fatalf("unexpected finalized info: %#v", info)
+	}
+
+	info, err = finalizeMinnanoAVActressInfo("倉沢裕美", profileURL, &ActressInfo{
+		JapaneseName: "姫野かんな",
+		RomanName:    "Kanna Himeno",
+	}, "倉沢裕美", "若月はるな")
+	if err != nil {
+		t.Fatalf("finalize alias: %v", err)
+	}
+	if info.JapaneseName != "姫野かんな" || info.RomanName != "Kanna Himeno" {
+		t.Fatalf("unexpected alias info: %#v", info)
 	}
 
 	info, err = finalizeMinnanoAVActressInfo("安堂なな", profileURL, &ActressInfo{JapaneseName: "別の女優"})

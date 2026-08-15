@@ -31,6 +31,10 @@ var lookupCoverCacheKeyVersionByProvider = map[Provider]string{
 	ProviderAvsox: "v2",
 }
 
+var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
+	ProviderMinnanoAV: "v2",
+}
+
 // LookupCache is a persistent key-value store for provider lookup results.
 type LookupCache interface {
 	Get(key string, now time.Time) ([]byte, bool, error)
@@ -161,6 +165,11 @@ func lookupCacheKeyVersion(provider Provider, method string) string {
 	}
 	if method == "lookup_cover" {
 		if version, ok := lookupCoverCacheKeyVersionByProvider[provider]; ok {
+			return version
+		}
+	}
+	if method == "lookup_actress_name" {
+		if version, ok := lookupActressNameCacheKeyVersionByProvider[provider]; ok {
 			return version
 		}
 	}

@@ -103,7 +103,7 @@ func lookupMinnanoAVActressByName(ctx context.Context, baseURL, name string) (*A
 
 	if profileURL := canonicalMinnanoAVActressURL(finalURL, baseURL); profileURL != "" {
 		if info := parseMinnanoAVActressInfo(doc); info != nil {
-			return finalizeMinnanoAVActressInfo(name, profileURL, info)
+			return finalizeMinnanoAVActressInfo(name, profileURL, info, parseMinnanoAVActressAliases(doc)...)
 		}
 	}
 
@@ -122,7 +122,12 @@ func lookupMinnanoAVActressByName(ctx context.Context, baseURL, name string) (*A
 	if canonical := canonicalMinnanoAVActressURL(finalURL, baseURL); canonical != "" {
 		profileURL = canonical
 	}
-	return finalizeMinnanoAVActressInfo(name, profileURL, parseMinnanoAVActressInfo(doc))
+	return finalizeMinnanoAVActressInfo(
+		name,
+		profileURL,
+		parseMinnanoAVActressInfo(doc),
+		parseMinnanoAVActressAliases(doc)...,
+	)
 }
 
 func buildMinnanoAVActressSearchURL(baseURL, name string) (string, error) {
@@ -322,6 +327,34 @@ func parseMinnanoAVRomanName(value string) string {
 	return strings.Join(append(nameParts[1:], nameParts[0]), " ")
 }
 
+func parseMinnanoAVActressAliases(root *html.Node) []string {
+	if root == nil {
+		return nil
+	}
+
+	aliases := make(map[string]struct{})
+	documentSelection(root).Find("div.act-profile tr").Each(func(_ int, row *goquery.Selection) {
+		cell := row.ChildrenFiltered("td").First()
+		if cleanSelectionText(cell.ChildrenFiltered("span").First()) != "別名" {
+			return
+		}
+		alias := cleanSelectionText(cell.ChildrenFiltered("p").First())
+		if index := strings.IndexAny(alias, "(（"); index >= 0 {
+			alias = alias[:index]
+		}
+		alias = normalizeMinnanoAVName(alias)
+		if alias != "" {
+			aliases[alias] = struct{}{}
+		}
+	})
+
+	result := make([]string, 0, len(aliases))
+	for alias := range aliases {
+		result = append(result, alias)
+	}
+	return result
+}
+
 func parseMinnanoAVMeasurements(value string) (height, bust, waist, hips, cup int) {
 	height = firstMinnanoAVNumber(minnanoAVHeightPattern, value)
 	bust = firstMinnanoAVNumber(minnanoAVBustPattern, value)
@@ -360,15 +393,25 @@ func parseMinnanoAVBirthDate(value string) int {
 	return int(parsed.Unix())
 }
 
-func finalizeMinnanoAVActressInfo(name, profileURL string, info *ActressInfo) (*ActressInfo, error) {
+func finalizeMinnanoAVActressInfo(name, profileURL string, info *ActressInfo, aliases ...string) (*ActressInfo, error) {
 	if info == nil {
 		return nil, ResourceNotFonud
 	}
 	wantName := normalizeMinnanoAVName(name)
 	parsedName := normalizeMinnanoAVName(info.JapaneseName)
-	if wantName == "" || parsedName == "" || parsedName != wantName {
+	matched := wantName != "" && parsedName != "" && parsedName == wantName
+	for _, alias := range aliases {
+		if normalizeMinnanoAVName(alias) == wantName {
+			matched = true
+			break
+		}
+	}
+	if !matched {
 		logging.Info("minnanoav: japanese name mismatch input=%s parsed=%s", wantName, parsedName)
 		return nil, ResourceNotFonud
+	}
+	if parsedName != wantName {
+		logging.Info("minnanoav: resolved actress alias input=%s parsed=%s", wantName, parsedName)
 	}
 	info.JapaneseName = parsedName
 	info.RomanName = strings.Join(strings.Fields(info.RomanName), " ")
