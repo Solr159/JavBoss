@@ -36,8 +36,8 @@ func StartIdolProfileScanner(ctx context.Context, interval time.Duration) {
 
 // ScanIdolProfiles scans jav_idol rows that are missing profile fields.
 // For each idol, it tries to find a solo work code to query JavDatabase, also looks up the idol by
-// Japanese/name data in JavModel, merges the returned actress details, normalizes Chinese names,
-// and writes the completed profile fields back to the database.
+// Japanese/name data in MinnanoAV and JavModel, merges the returned actress details, normalizes
+// Chinese names, and writes the completed profile fields back to the database.
 func ScanIdolProfiles(ctx context.Context) error {
 	idols, err := db.ListIdolsMissingProfile(ctx)
 	if err != nil {
@@ -57,6 +57,7 @@ func ScanIdolProfiles(ctx context.Context) error {
 		}
 		var (
 			javDatabaseInfo *jav.ActressInfo
+			minnanoAVInfo   *jav.ActressInfo
 			javModelInfo    *jav.ActressInfo
 			code            string
 		)
@@ -71,12 +72,18 @@ func ScanIdolProfiles(ctx context.Context) error {
 			}
 		}
 
+		minnanoAVInfo, err = jav.LookupActressByJapaneseName(lookupName, jav.ProviderMinnanoAV)
+		if err != nil && !errors.Is(err, jav.ResourceNotFonud) {
+			logging.Error("lookup actress (minnanoav) failed idol=%d name=%s err=%v", idol.ID, lookupName, err)
+		}
+
 		javModelInfo, err = jav.LookupActressByJapaneseName(lookupName, jav.ProviderJavModel)
 		if err != nil && !errors.Is(err, jav.ResourceNotFonud) {
 			logging.Error("lookup actress (javmodel) failed idol=%d name=%s err=%v", idol.ID, lookupName, err)
 		}
 
-		info := mergeActressInfo(javDatabaseInfo, javModelInfo)
+		info := mergeActressInfo(javDatabaseInfo, minnanoAVInfo)
+		info = mergeActressInfo(info, javModelInfo)
 		if info == nil {
 			continue
 		}

@@ -60,6 +60,10 @@ func main() {
 			name:     "theporndb",
 			provider: jav.ProviderThePornDB,
 		},
+		{
+			name:     "minnanoav",
+			provider: jav.ProviderMinnanoAV,
+		},
 	}
 	methods := []methodOption{
 		{
