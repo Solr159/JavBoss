@@ -439,6 +439,10 @@ body.has-page-scroll .sticky-pagination {
   white-space: nowrap;
 }
 
+.idol-profile-filter__popover-hitbox {
+  padding-top: 6px;
+}
+
 .idol-profile-filter__popover {
   width: 15rem;
   border: 1px solid #dbe3ec;

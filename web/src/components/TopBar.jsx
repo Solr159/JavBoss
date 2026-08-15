@@ -129,7 +129,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
       closeTimerRef.current = null
       if (draggingRef.current || pointerInsideRef.current) return
       setOpen(false)
-    }, 120)
+    }, 0)
   }
   const handleMouseEnter = () => {
     pointerInsideRef.current = true
@@ -185,85 +185,89 @@ function IdolProfileFilter({ definition, value, onChange }) {
         open={open}
         anchorEl={anchorRef.current}
         placement="bottom-start"
-        modifiers={[{ name: 'offset', options: { offset: [0, 6] } }]}
+        modifiers={[{ name: 'offset', options: { offset: [0, 0] } }]}
         sx={{ zIndex: 60 }}
       >
         <div
-          className="idol-profile-filter__popover"
-          role="dialog"
-          aria-label={zh(`${label}筛选`, `${label} filter`)}
+          className="idol-profile-filter__popover-hitbox"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
           onFocusCapture={cancelClose}
           onBlurCapture={scheduleClose}
         >
-          <div className="idol-profile-filter__popover-header">
-            <span>{rangeLabel}</span>
-            {draftEnabled ? (
-              <button
-                type="button"
-                className="idol-profile-filter__clear"
-                onClick={() => {
-                  draggingRef.current = false
-                  setDraftEnabled(false)
-                  setDraftRange([definition.min, definition.max])
-                  setOpen(false)
+          <div
+            className="idol-profile-filter__popover"
+            role="dialog"
+            aria-label={zh(`${label}筛选`, `${label} filter`)}
+          >
+            <div className="idol-profile-filter__popover-header">
+              <span>{rangeLabel}</span>
+              {draftEnabled ? (
+                <button
+                  type="button"
+                  className="idol-profile-filter__clear"
+                  onClick={() => {
+                    draggingRef.current = false
+                    setDraftEnabled(false)
+                    setDraftRange([definition.min, definition.max])
+                    setOpen(false)
+                    onChange?.(definition.key, {
+                      enabled: false,
+                      min: definition.min,
+                      max: definition.max,
+                    })
+                  }}
+                >
+                  {zh('清除', 'Clear')}
+                </button>
+              ) : null}
+            </div>
+            <Slider
+              value={draftRange}
+              onPointerDown={() => {
+                draggingRef.current = true
+                setDraftEnabled(true)
+              }}
+              onChange={(_, range) => {
+                if (Array.isArray(range)) {
+                  setDraftEnabled(true)
+                  setDraftRange(range)
+                }
+              }}
+              onChangeCommitted={(_, range) => {
+                const wasDragging = draggingRef.current
+                draggingRef.current = false
+                if (Array.isArray(range)) {
+                  setDraftEnabled(true)
+                  setDraftRange(range)
                   onChange?.(definition.key, {
-                    enabled: false,
-                    min: definition.min,
-                    max: definition.max,
+                    enabled: true,
+                    min: range[0],
+                    max: range[1],
                   })
-                }}
-              >
-                {zh('清除', 'Clear')}
-              </button>
-            ) : null}
+                }
+                if (wasDragging && !pointerInsideRef.current) scheduleClose()
+              }}
+              min={definition.min}
+              max={definition.max}
+              step={definition.step}
+              disableSwap
+              getAriaLabel={(index) =>
+                index === 0
+                  ? zh(`最低${label}`, `Minimum ${label}`)
+                  : zh(`最高${label}`, `Maximum ${label}`)
+              }
+              sx={{
+                width: '100%',
+                color: draftEnabled ? 'primary.main' : '#94a3b8',
+                p: 0,
+                height: 4,
+                '& .MuiSlider-rail, & .MuiSlider-track': { height: 4 },
+                '& .MuiSlider-thumb': { width: 12, height: 12 },
+                '& .MuiSlider-thumb::after': { width: 20, height: 20 },
+              }}
+            />
           </div>
-          <Slider
-            value={draftRange}
-            onPointerDown={() => {
-              draggingRef.current = true
-              setDraftEnabled(true)
-            }}
-            onChange={(_, range) => {
-              if (Array.isArray(range)) {
-                setDraftEnabled(true)
-                setDraftRange(range)
-              }
-            }}
-            onChangeCommitted={(_, range) => {
-              const wasDragging = draggingRef.current
-              draggingRef.current = false
-              if (Array.isArray(range)) {
-                setDraftEnabled(true)
-                setDraftRange(range)
-                onChange?.(definition.key, {
-                  enabled: true,
-                  min: range[0],
-                  max: range[1],
-                })
-              }
-              if (wasDragging && !pointerInsideRef.current) scheduleClose()
-            }}
-            min={definition.min}
-            max={definition.max}
-            step={definition.step}
-            disableSwap
-            getAriaLabel={(index) =>
-              index === 0
-                ? zh(`最低${label}`, `Minimum ${label}`)
-                : zh(`最高${label}`, `Maximum ${label}`)
-            }
-            sx={{
-              width: '100%',
-              color: draftEnabled ? 'primary.main' : '#94a3b8',
-              p: 0,
-              height: 4,
-              '& .MuiSlider-rail, & .MuiSlider-track': { height: 4 },
-              '& .MuiSlider-thumb': { width: 12, height: 12 },
-              '& .MuiSlider-thumb::after': { width: 20, height: 20 },
-            }}
-          />
         </div>
       </Popper>
     </div>
