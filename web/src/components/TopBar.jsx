@@ -107,6 +107,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
   const anchorRef = useRef(null)
   const closeTimerRef = useRef(null)
   const draggingRef = useRef(false)
+  const pointerInsideRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [draftEnabled, setDraftEnabled] = useState(value.enabled)
   const [draftRange, setDraftRange] = useState([value.min, value.max])
@@ -126,8 +127,17 @@ function IdolProfileFilter({ definition, value, onChange }) {
     if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
     closeTimerRef.current = window.setTimeout(() => {
       closeTimerRef.current = null
+      if (draggingRef.current || pointerInsideRef.current) return
       setOpen(false)
     }, 120)
+  }
+  const handleMouseEnter = () => {
+    pointerInsideRef.current = true
+    cancelClose()
+  }
+  const handleMouseLeave = () => {
+    pointerInsideRef.current = false
+    scheduleClose()
   }
 
   useEffect(
@@ -146,7 +156,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
   useEffect(() => {
     if (!open) return undefined
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape') setOpen(false)
+      if (event.key === 'Escape' && !draggingRef.current) setOpen(false)
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
@@ -155,8 +165,8 @@ function IdolProfileFilter({ definition, value, onChange }) {
   return (
     <div
       className="idol-profile-filter"
-      onMouseEnter={cancelClose}
-      onMouseLeave={scheduleClose}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       onFocusCapture={cancelClose}
       onBlurCapture={scheduleClose}
     >
@@ -173,7 +183,6 @@ function IdolProfileFilter({ definition, value, onChange }) {
       </button>
       <Popper
         open={open}
-        keepMounted
         anchorEl={anchorRef.current}
         placement="bottom-start"
         modifiers={[{ name: 'offset', options: { offset: [0, 6] } }]}
@@ -183,8 +192,8 @@ function IdolProfileFilter({ definition, value, onChange }) {
           className="idol-profile-filter__popover"
           role="dialog"
           aria-label={zh(`${label}筛选`, `${label} filter`)}
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
           onFocusCapture={cancelClose}
           onBlurCapture={scheduleClose}
         >
@@ -222,6 +231,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
               }
             }}
             onChangeCommitted={(_, range) => {
+              const wasDragging = draggingRef.current
               draggingRef.current = false
               if (Array.isArray(range)) {
                 setDraftEnabled(true)
@@ -232,6 +242,7 @@ function IdolProfileFilter({ definition, value, onChange }) {
                   max: range[1],
                 })
               }
+              if (wasDragging && !pointerInsideRef.current) scheduleClose()
             }}
             min={definition.min}
             max={definition.max}
