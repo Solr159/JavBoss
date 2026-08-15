@@ -175,7 +175,7 @@ func TestBuildStartupHotkeyHintIncludesDefaultHotkeys(t *testing.T) {
 		"e：截图",
 		"空格：暂停/继续",
 		"ESC：停止播放并最小化",
-		"你可在「全局设置 → MPV播放器 → 基础设置」里关闭此信息显示",
+		"你可在「设置 → 播放器 → MPV播放器」里关闭此信息显示",
 	}
 	for _, line := range expected {
 		if !strings.Contains(content, line) {

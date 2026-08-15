@@ -224,7 +224,7 @@ func buildStartupHotkeyHint() (string, error) {
 	}
 	parts = append(parts, "空格：暂停/继续")
 	parts = append(parts, buildEscapeHotkeyHint())
-	parts = append(parts, "你可在「全局设置 → MPV播放器 → 基础设置」里关闭此信息显示")
+	parts = append(parts, "你可在「设置 → 播放器 → MPV播放器」里关闭此信息显示")
 	return strings.Join(parts, "\n"), nil
 }
 
