@@ -2233,7 +2233,7 @@ function JavCard({
                     <img
                       src={site.icon}
                       alt={site.name}
-                      className={`h-4 w-4 ${site.loading ? 'animate-pulse' : ''}`}
+                      className={`${site.key === 'javmenu' ? 'h-5 w-5' : 'h-4 w-4'} ${site.loading ? 'animate-pulse' : ''}`}
                       loading="lazy"
                     />
                   </a>
