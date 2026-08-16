@@ -37,6 +37,7 @@ local user_opts = {
 
     -- OSC behaviour and scaling
     hidetimeout = 1500,                    -- time (in ms) before OSC hides if no mouse movement
+    fullscreen_autohide = false,           -- use auto visibility and no reserved video margin in fullscreen
     keep_with_cursor = true,               -- keep OSC visible while cursor hovers over bottom or top bar
     fadeduration = 200,                    -- fade-out duration (in ms), set to 0 for no fade
     fadein = true,                         -- whether to enable fade-in effect
@@ -3852,10 +3853,6 @@ mp.observe_property("seeking", "native", function(_, seeking)
         reset_timeout()
     end
 end)
-observe_cached("fullscreen", function ()
-    state.marginsREQ = true
-    request_init_resize()
-end)
 observe_cached("border", request_init_resize)
 observe_cached("title-bar", request_init_resize)
 observe_cached("window-maximized", request_init_resize)
@@ -4004,6 +4001,49 @@ local function visibility_mode(mode, no_osd)
     update_margins()
     request_tick()
 end
+
+local fullscreen_restore_visibility = nil
+local fullscreen_restore_video_margin = nil
+local fullscreen_restore_deadzone_size = nil
+local fullscreen_restore_keep_with_cursor = nil
+
+local function update_fullscreen_behavior()
+    if user_opts.fullscreen_autohide then
+        if state.fullscreen then
+            if fullscreen_restore_visibility == nil then
+                fullscreen_restore_visibility = user_opts.visibility
+                fullscreen_restore_video_margin = mp.get_property_number("video-margin-ratio-bottom", 0)
+                fullscreen_restore_deadzone_size = user_opts.deadzonesize
+                fullscreen_restore_keep_with_cursor = user_opts.keep_with_cursor
+            end
+            mp.set_property_number("video-margin-ratio-bottom", 0)
+            user_opts.deadzonesize = 0
+            user_opts.keep_with_cursor = false
+            if fullscreen_restore_visibility ~= "never" then
+                visibility_mode("auto", true)
+                reset_timeout()
+                show_osc()
+            end
+        elseif fullscreen_restore_visibility ~= nil then
+            local restore_visibility = fullscreen_restore_visibility
+            local restore_video_margin = fullscreen_restore_video_margin or 0
+            local restore_deadzone_size = fullscreen_restore_deadzone_size
+            local restore_keep_with_cursor = fullscreen_restore_keep_with_cursor
+            fullscreen_restore_visibility = nil
+            fullscreen_restore_video_margin = nil
+            fullscreen_restore_deadzone_size = nil
+            fullscreen_restore_keep_with_cursor = nil
+            mp.set_property_number("video-margin-ratio-bottom", restore_video_margin)
+            user_opts.deadzonesize = restore_deadzone_size
+            user_opts.keep_with_cursor = restore_keep_with_cursor
+            visibility_mode(restore_visibility, true)
+        end
+    end
+    state.marginsREQ = true
+    request_init_resize()
+end
+
+observe_cached("fullscreen", update_fullscreen_behavior)
 
 local function idlescreen_visibility(mode, no_osd)
     if mode == "cycle" then

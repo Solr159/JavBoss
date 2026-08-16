@@ -44,6 +44,37 @@ func TestEnsureModernZAssetsCopiesScriptOptionsAndFont(t *testing.T) {
 	}
 }
 
+func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
+	sourceDir, err := findModernZSourceDir()
+	if err != nil {
+		t.Fatalf("find ModernZ source dir: %v", err)
+	}
+
+	config, err := os.ReadFile(filepath.Join(sourceDir, "modernz.conf"))
+	if err != nil {
+		t.Fatalf("read ModernZ config: %v", err)
+	}
+	if !strings.Contains(string(config), "fullscreen_autohide=yes\n") {
+		t.Fatalf("expected bundled ModernZ config to enable fullscreen autohide")
+	}
+
+	script, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))
+	if err != nil {
+		t.Fatalf("read ModernZ script: %v", err)
+	}
+	for _, expected := range []string{
+		`visibility_mode("auto", true)`,
+		`mp.set_property_number("video-margin-ratio-bottom", 0)`,
+		`user_opts.deadzonesize = 0`,
+		`user_opts.keep_with_cursor = false`,
+		`visibility_mode(restore_visibility, true)`,
+	} {
+		if !strings.Contains(string(script), expected) {
+			t.Fatalf("expected bundled ModernZ script to contain %q", expected)
+		}
+	}
+}
+
 func TestSessionPathsSharePerProcessRoot(t *testing.T) {
 	sourceDir := writeModernZTestAssets(t)
 	t.Setenv(modernZEnvDir, sourceDir)
