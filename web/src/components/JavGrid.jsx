@@ -2321,7 +2321,7 @@ function JavCard({
                 </Tooltip>
                 <a
                   href={buildStudioFilterHref(item.studio)}
-                  className={`block min-w-0 flex-1 truncate text-left ${
+                  className={`block min-w-0 truncate text-left ${
                     canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                   }`}
                   onClick={(event) =>
