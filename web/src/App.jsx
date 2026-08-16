@@ -80,6 +80,7 @@ import JavRoute from '@/routes/JavRoute'
 import VideoRoute from '@/routes/VideoRoute'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
+import { buildVideoFullPath } from '@/utils/display'
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { withJavTagDisplayName } from '@/utils/javTag'
 import {
@@ -429,6 +430,7 @@ export default function App() {
       }
     : null
   const browserPlaybackOnly = configFlag(config?.browser_playback_only)
+  const remoteAccess = configFlag(config?.runtime_remote_request)
   const clientMode = configFlag(config?.runtime_client)
   const containerMode = configFlag(config?.runtime_container)
   const hostPathPrefixEnabled = configFlag(config?.host_path_prefix_enabled, containerMode)
@@ -476,6 +478,16 @@ export default function App() {
   const closeCenterToast = useCallback(() => {
     setCenterToastMessage('')
   }, [])
+  const ensureRevealAvailable = useCallback(() => {
+    if (!remoteAccess) return true
+    showCenterToast(
+      zh(
+        '通过局域网访问时无法打开文件所在位置',
+        'Cannot reveal file locations when accessing over the local network'
+      )
+    )
+    return false
+  }, [remoteAccess, showCenterToast])
   const loadTagCategories = useCallback(async () => {
     const categories = await fetchTagCategories()
     setTagCategories(Array.isArray(categories) ? categories : [])
@@ -500,20 +512,6 @@ export default function App() {
     },
     [tags]
   )
-
-  const buildVideoFullPath = useCallback((video) => {
-    if (!video) return ''
-    const rawPath = String(video.path || '').trim()
-    const dirPath = String(video.directory?.path || video.directory_path || '').trim()
-    if (!dirPath) return rawPath
-    if (!rawPath) return dirPath
-    const isAbs = rawPath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(rawPath)
-    if (isAbs) return rawPath
-    const separator = dirPath.includes('\\') ? '\\' : '/'
-    const cleanedDir = dirPath.replace(/[\\/]+$/, '')
-    const cleanedRel = rawPath.replace(/^[\\/]+/, '')
-    return `${cleanedDir}${separator}${cleanedRel}`
-  }, [])
 
   const getVideoDirPath = useCallback(
     (video) => String(video?.directory?.path || video?.directory_path || '').trim(),
@@ -599,13 +597,14 @@ export default function App() {
 
   const revealVideoFile = useCallback(
     (video) => {
+      if (!ensureRevealAvailable()) return Promise.resolve()
       if (!video || !isVideoOpenable(video)) return Promise.resolve()
       return revealVideoLocation({
         path: getVideoRelPath(video),
         dirPath: getVideoDirPath(video),
       })
     },
-    [getVideoDirPath, getVideoRelPath, isVideoOpenable]
+    [ensureRevealAvailable, getVideoDirPath, getVideoRelPath, isVideoOpenable]
   )
 
   const playVideoFromTime = useCallback(
@@ -657,6 +656,7 @@ export default function App() {
 
   const handleRevealVideoFile = useCallback(
     (video) => {
+      if (!ensureRevealAvailable()) return
       const choices = getVideoLocationChoices(video)
       if (choices.length > 1) {
         openLocationPicker(video, 'reveal', choices)
@@ -667,7 +667,13 @@ export default function App() {
         showCenterToast(getErrorMessage(err))
       })
     },
-    [getVideoLocationChoices, openLocationPicker, revealVideoFile, showCenterToast]
+    [
+      ensureRevealAvailable,
+      getVideoLocationChoices,
+      openLocationPicker,
+      revealVideoFile,
+      showCenterToast,
+    ]
   )
 
   const handleRenameVideo = useCallback(
@@ -891,6 +897,7 @@ export default function App() {
 
   const handleJavRevealFile = useCallback(
     (video, item) => {
+      if (!ensureRevealAvailable()) return
       const videos = item?.videos || (video ? [video] : [])
       if (videos.length > 1) {
         setJavVideoPickerAction('reveal')
@@ -902,7 +909,7 @@ export default function App() {
       if (!target) return
       handleRevealVideoFile(target)
     },
-    [handleRevealVideoFile, isVideoOpenable]
+    [ensureRevealAvailable, handleRevealVideoFile, isVideoOpenable]
   )
 
   const openVideoScreenshots = useCallback((video) => {

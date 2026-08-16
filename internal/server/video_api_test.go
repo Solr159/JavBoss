@@ -20,6 +20,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func TestRevealVideoLocationRejectsRemoteRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/videos/reveal", revealVideoLocation)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/videos/reveal", strings.NewReader(`{}`))
+	request.RemoteAddr = "192.168.1.25:54321"
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("unexpected status: got %d want %d body=%s", recorder.Code, http.StatusForbidden, recorder.Body.String())
+	}
+	var payload struct {
+		ErrorZH string `json:"error_zh"`
+		ErrorEN string `json:"error_en"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode response body: %v body=%s", err, recorder.Body.String())
+	}
+	if payload.ErrorZH != "通过局域网访问时无法打开文件所在位置" {
+		t.Fatalf("unexpected Chinese error: %q", payload.ErrorZH)
+	}
+	if payload.ErrorEN != "Cannot reveal file locations when accessing over the local network" {
+		t.Fatalf("unexpected English error: %q", payload.ErrorEN)
+	}
+}
+
 func TestDeleteVideoLocationRejectsMissingDirectory(t *testing.T) {
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

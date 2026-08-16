@@ -490,6 +490,10 @@ func playVideoFile(c *gin.Context) {
 }
 
 func revealVideoLocation(c *gin.Context) {
+	if isRemoteRequest(c.Request.RemoteAddr) {
+		respondLocalizedError(c, http.StatusForbidden, "通过局域网访问时无法打开文件所在位置", "Cannot reveal file locations when accessing over the local network")
+		return
+	}
 	if runtimeconfig.DisableDesktopIntegration() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用打开文件位置", "Desktop file revealing is disabled")
 		return

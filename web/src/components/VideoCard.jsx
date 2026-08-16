@@ -7,7 +7,12 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
 import { revealVideoLocation } from '@/api'
-import { formatBytes, getVideoDisplayName, parseVideoFingerprint } from '@/utils/display'
+import {
+  buildVideoFullPath,
+  formatBytes,
+  getVideoDisplayName,
+  parseVideoFingerprint,
+} from '@/utils/display'
 import { zh } from '@/utils/i18n'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { MovieEdit } from '@mui/icons-material'
@@ -44,6 +49,7 @@ export default function VideoCard({
   const sizeText = formatBytes(meta.size || video?.size)
   const directoryPath = video?.directory?.path || video?.directory_path || ''
   const videoPath = video?.path || ''
+  const fullPath = buildVideoFullPath(video)
   const canOpen = Boolean(directoryPath && videoPath)
   const inputId = `check-${video?.location_id || video.id}`
   const javCode = String(video?.jav?.code || video?.locations?.[0]?.jav?.code || '').trim()
@@ -237,7 +243,7 @@ export default function VideoCard({
             </Tooltip>
           ) : null}
           {canRevealFile ? (
-            <Tooltip title={zh('打开所在位置', 'Reveal in folder')}>
+            <Tooltip title={zh(`打开所在位置：${fullPath}`, `Reveal in folder: ${fullPath}`)}>
               <IconButton
                 size="small"
                 onClick={handleRevealFile}

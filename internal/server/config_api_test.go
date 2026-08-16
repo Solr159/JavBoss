@@ -213,6 +213,15 @@ func TestIsRemoteRequest(t *testing.T) {
 			if got := isRemoteRequest(test.remoteAddr); got != test.want {
 				t.Fatalf("isRemoteRequest(%q) = %t, want %t", test.remoteAddr, got, test.want)
 			}
+			cfg := map[string]string{}
+			applyRuntimeConfigFields(cfg, test.remoteAddr)
+			wantRuntimeValue := "false"
+			if test.want {
+				wantRuntimeValue = "true"
+			}
+			if got := cfg["runtime_remote_request"]; got != wantRuntimeValue {
+				t.Fatalf("runtime_remote_request = %q, want %q", got, wantRuntimeValue)
+			}
 		})
 	}
 }

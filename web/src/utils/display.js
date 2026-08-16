@@ -15,6 +15,20 @@ export const getVideoDisplayName = (video) => {
   return video.id != null ? zh(`视频 #${video.id}`, `Video #${video.id}`) : ''
 }
 
+export const buildVideoFullPath = (video) => {
+  if (!video) return ''
+  const rawPath = String(video.path || '').trim()
+  const dirPath = String(video.directory?.path || video.directory_path || '').trim()
+  if (!dirPath) return rawPath
+  if (!rawPath) return dirPath
+  const isAbs = rawPath.startsWith('/') || /^[A-Za-z]:[\\/]/.test(rawPath)
+  if (isAbs) return rawPath
+  const separator = dirPath.includes('\\') ? '\\' : '/'
+  const cleanedDir = dirPath.replace(/[\\/]+$/, '')
+  const cleanedRel = rawPath.replace(/^[\\/]+/, '')
+  return `${cleanedDir}${separator}${cleanedRel}`
+}
+
 export const parseVideoFingerprint = (fp) => {
   if (!fp || typeof fp !== 'string') return {}
   const parts = fp.split('|')

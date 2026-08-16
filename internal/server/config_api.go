@@ -527,12 +527,14 @@ func updateConfig(c *gin.Context) {
 }
 
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
+	remoteRequest := isRemoteRequest(remoteAddr)
 	cfg["runtime_container"] = strconv.FormatBool(runtimeconfig.ContainerMode())
+	cfg["runtime_remote_request"] = strconv.FormatBool(remoteRequest)
 	cfg["directory_picker_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDirectoryPicker())
 	cfg["desktop_integration_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDesktopIntegration())
 	cfg["mpv_enabled"] = strconv.FormatBool(!runtimeconfig.DisableMPVPlayback())
 	browserPlaybackOnly := runtimeconfig.DisableMPVPlayback() && runtimeconfig.DisableDesktopIntegration()
-	cfg["browser_playback_only"] = strconv.FormatBool(browserPlaybackOnly || isRemoteRequest(remoteAddr))
+	cfg["browser_playback_only"] = strconv.FormatBool(browserPlaybackOnly || remoteRequest)
 	cfg["host_path_prefix_enabled"] = strconv.FormatBool(runtimeconfig.HostPathPrefixEnabled())
 }
 
