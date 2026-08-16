@@ -60,6 +60,15 @@ func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
 	if !strings.Contains(string(config), "osc_height=47\n") {
 		t.Fatalf("expected bundled ModernZ config to use compact OSC height")
 	}
+	for _, expected := range []string{
+		"playpause_size=22\n",
+		"midbuttons_size=19\n",
+		"sidebuttons_size=19\n",
+	} {
+		if !strings.Contains(string(config), expected) {
+			t.Fatalf("expected bundled ModernZ config to contain %q", expected)
+		}
+	}
 
 	script, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))
 	if err != nil {

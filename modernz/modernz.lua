@@ -122,9 +122,9 @@ local user_opts = {
 
     buttons_always_active = "none",        -- force buttons to always be active. can add: playlist_prev, playlist_next
 
-    playpause_size = 28,                   -- icon size for the play/pause button
-    midbuttons_size = 24,                  -- icon size for the middle buttons
-    sidebuttons_size = 24,                 -- icon size for the side buttons
+    playpause_size = 22,                   -- icon size for the play/pause button
+    midbuttons_size = 19,                  -- icon size for the middle buttons
+    sidebuttons_size = 19,                 -- icon size for the side buttons
 
     zoom_control = true,                   -- show zoom controls in image viewer mode
     zoom_in_max = 4,                       -- maximum zoom in value
