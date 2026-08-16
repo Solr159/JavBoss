@@ -2890,14 +2890,15 @@ func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string,
 	return codes, nil
 }
 
-// ListJavsMissingStudioOrEnglishSeries returns JAV rows whose studio or
-// internal English-series relation is empty.
+// ListJavsMissingStudioOrEnglishSeries returns non-uncensored JAV rows whose
+// studio or internal English-series relation is empty.
 func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Select("id, code, studio_id, series_en_id").
 		Where("COALESCE(code, '') <> ''").
+		Where("COALESCE(is_uncensored, 0) = 0").
 		Where("studio_id IS NULL OR series_en_id IS NULL").
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
@@ -2906,14 +2907,32 @@ func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataSca
 	return items, nil
 }
 
-// ListJavsMissingLocalSeriesWithEnglishSeries returns JAV rows that have the
-// internal English-series hint but are still missing the frontend-visible series.
+// ListJavsMissingLocalSeries returns every non-uncensored JAV row whose
+// frontend-visible series relation is empty, regardless of English-series hints.
+func ListJavsMissingLocalSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+	var items []JavMetadataScanItem
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Select("id, code, series_id, series_en_id").
+		Where("COALESCE(code, '') <> ''").
+		Where("COALESCE(is_uncensored, 0) = 0").
+		Where("series_id IS NULL").
+		Order("created_at ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("list javs missing local series: %w", err)
+	}
+	return items, nil
+}
+
+// ListJavsMissingLocalSeriesWithEnglishSeries returns non-uncensored JAV rows
+// that have an English hint but are still missing the frontend-visible series.
 func ListJavsMissingLocalSeriesWithEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Select("id, code, series_id, series_en_id").
 		Where("COALESCE(code, '') <> ''").
+		Where("COALESCE(is_uncensored, 0) = 0").
 		Where("series_id IS NULL").
 		Where("series_en_id IS NOT NULL").
 		Order("created_at ASC, id ASC").

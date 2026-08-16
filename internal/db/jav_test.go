@@ -2135,6 +2135,7 @@ func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
 	studio := models.JavStudio{Name: "Studio"}
 	localSeries := models.JavSeries{Name: "中文系列"}
 	englishSeries := models.JavSeries{Name: "English Series", IsEnglish: true}
+	uncensored := true
 	if err := gdb.Create(&studio).Error; err != nil {
 		t.Fatalf("create studio: %v", err)
 	}
@@ -2149,6 +2150,7 @@ func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
 		{Code: "MISS-ENGLISH", StudioID: &studio.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
 		{Code: "MISS-LOCAL", StudioID: &studio.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
 		{Code: "HAVE-BOTH", StudioID: &studio.ID, SeriesID: &localSeries.ID, SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+		{Code: "UNCENSORED", IsUncensored: &uncensored, FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
 	}
 	if err := gdb.Create(&rows).Error; err != nil {
 		t.Fatalf("create jav rows: %v", err)
@@ -2162,6 +2164,17 @@ func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
 		fastCandidates[0].Code != "MISS-STUDIO" ||
 		fastCandidates[1].Code != "MISS-ENGLISH" {
 		t.Fatalf("unexpected JavDatabase candidates: %#v", fastCandidates)
+	}
+
+	allMissingLocal, err := ListJavsMissingLocalSeries(ctx)
+	if err != nil {
+		t.Fatalf("ListJavsMissingLocalSeries: %v", err)
+	}
+	if len(allMissingLocal) != 3 ||
+		allMissingLocal[0].Code != "MISS-STUDIO" ||
+		allMissingLocal[1].Code != "MISS-ENGLISH" ||
+		allMissingLocal[2].Code != "MISS-LOCAL" {
+		t.Fatalf("unexpected JavMenu candidates: %#v", allMissingLocal)
 	}
 
 	slowCandidates, err := ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
