@@ -122,9 +122,9 @@ local user_opts = {
 
     buttons_always_active = "none",        -- force buttons to always be active. can add: playlist_prev, playlist_next
 
-    playpause_size = 22,                   -- icon size for the play/pause button
-    midbuttons_size = 19,                  -- icon size for the middle buttons
-    sidebuttons_size = 19,                 -- icon size for the side buttons
+    playpause_size = 28,                   -- icon size for the play/pause button
+    midbuttons_size = 24,                  -- icon size for the middle buttons
+    sidebuttons_size = 24,                 -- icon size for the side buttons
 
     zoom_control = true,                   -- show zoom controls in image viewer mode
     zoom_in_max = 4,                       -- maximum zoom in value
@@ -213,7 +213,7 @@ local user_opts = {
     tooltip_height_offset = 5,             -- tooltip height position offset
     portrait_window_trigger = 950,         -- portrait window width trigger to move some elements
     hide_volume_bar_trigger = 1150,        -- hide volume bar trigger window width
-    osc_height = 47,                       -- osc height
+    osc_height = 60,                       -- osc height
 
     -- Mouse commands
     -- customize the button function based on mouse action
