@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -219,7 +221,12 @@ func resolveJavSampleImages(c *gin.Context) {
 		return
 	}
 
-	images, lookupErr := lookupJavSampleImagesByProvider(item.Code, jav.LookupJavByCode)
+	images, lookupErr := lookupJavSampleImagesByProvider(
+		c.Request.Context(),
+		item.Code,
+		jav.LookupJavByCode,
+		validateJavSampleImageDetailURL,
+	)
 	if len(images) == 0 {
 		if lookupErr != nil {
 			logging.Error("lookup JAV sample images code=%s: %v", item.Code, lookupErr)
@@ -245,14 +252,20 @@ func resolveJavSampleImages(c *gin.Context) {
 }
 
 type javSampleImageLookupFunc func(string, jav.Provider) (*jav.JavInfo, error)
+type javSampleImageURLValidator func(context.Context, string) (bool, error)
 
-func lookupJavSampleImagesByProvider(code string, lookup javSampleImageLookupFunc) (models.JavSampleImages, error) {
+func lookupJavSampleImagesByProvider(
+	ctx context.Context,
+	code string,
+	lookup javSampleImageLookupFunc,
+	validateURL javSampleImageURLValidator,
+) (models.JavSampleImages, error) {
 	if strings.TrimSpace(code) == "" || lookup == nil {
 		return models.JavSampleImages{}, nil
 	}
 
 	var lookupErrors []error
-	for _, provider := range []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavDB} {
+	for _, provider := range []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus} {
 		info, err := lookup(code, provider)
 		if err != nil {
 			if !errors.Is(err, jav.ResourceNotFonud) {
@@ -261,11 +274,84 @@ func lookupJavSampleImagesByProvider(code string, lookup javSampleImageLookupFun
 			continue
 		}
 		images := javSampleImagesToModel(info)
-		if len(images) > 0 {
-			return images, nil
+		if len(images) == 0 {
+			continue
 		}
+
+		detailURL := lastJavSampleImageDetailURL(images)
+		if detailURL == "" || validateURL == nil {
+			continue
+		}
+		valid, err := validateURL(ctx, detailURL)
+		if err != nil {
+			lookupErrors = append(lookupErrors, fmt.Errorf("%s sample image validation: %w", provider.String(), err))
+			continue
+		}
+		if !valid {
+			logging.Info("skip invalid JAV sample images provider=%s detail_url=%s", provider.String(), detailURL)
+			continue
+		}
+		return images, nil
 	}
 	return models.JavSampleImages{}, errors.Join(lookupErrors...)
+}
+
+func lastJavSampleImageDetailURL(images models.JavSampleImages) string {
+	for index := len(images) - 1; index >= 0; index-- {
+		if detailURL := strings.TrimSpace(images[index].DetailURL); detailURL != "" {
+			return detailURL
+		}
+	}
+	return ""
+}
+
+func validateJavSampleImageDetailURL(ctx context.Context, detailURL string) (bool, error) {
+	detailURL = strings.TrimSpace(detailURL)
+	parsed, err := url.Parse(detailURL)
+	if err != nil || parsed == nil || parsed.Hostname() == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") {
+		return false, nil
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, detailURL, nil)
+	if err != nil {
+		return false, fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+	if host := strings.ToLower(parsed.Hostname()); host == "pics.dmm.co.jp" || strings.HasSuffix(host, ".dmm.co.jp") {
+		req.Header.Set("Referer", "https://www.dmm.co.jp/")
+	}
+
+	resp, err := util.DoRequest(req)
+	if err != nil {
+		if errors.Is(err, util.ErrCachedNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("request image: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusPartialContent:
+	case http.StatusNotFound, http.StatusGone:
+		return false, nil
+	default:
+		return false, fmt.Errorf("image returned %s", resp.Status)
+	}
+
+	header, err := io.ReadAll(io.LimitReader(resp.Body, 512))
+	if err != nil {
+		return false, fmt.Errorf("read image header: %w", err)
+	}
+	if len(header) == 0 {
+		return false, nil
+	}
+	detectedType := strings.ToLower(http.DetectContentType(header))
+	if strings.HasPrefix(detectedType, "image/") {
+		return true, nil
+	}
+	declaredType := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0]))
+	return strings.HasPrefix(declaredType, "image/") && detectedType == "application/octet-stream", nil
 }
 
 func javSampleImagesToModel(info *jav.JavInfo) models.JavSampleImages {
