@@ -160,8 +160,8 @@ func main() {
 	streamManager := manager.NewStreamManager(filepath.Join(dataDir, "cache", "streams"))
 	ffmpegToolManager := manager.NewFFmpegToolManager(ctx, baseDir)
 	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
-		jav.ProviderJavDatabase,
 		jav.ProviderJavBus,
+		jav.ProviderJavDatabase,
 		jav.ProviderThePornDB,
 		jav.ProviderAvsox,
 	})
