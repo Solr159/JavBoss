@@ -144,9 +144,6 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
     event.preventDefault()
     event.stopPropagation()
     if (!javDBSearchURL) return
-    if (event.detail > 0) {
-      event.currentTarget.blur()
-    }
     window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 
@@ -159,7 +156,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
   return (
     <a
       href={href || '#'}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
+      className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === ' ') {
@@ -188,10 +185,10 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
         ) : null}
         <button
           type="button"
-          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+          className={`card-hover-focus-visible absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
             favoriteCount > 0
               ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
-              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
           }`}
           title={zh('加入系列收藏夹', 'Add to series favorite groups')}
           aria-label={zh('加入系列收藏夹', 'Add to series favorite groups')}
@@ -205,7 +202,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
         </button>
         <button
           type="button"
-          className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
+          className={`card-hover-focus-visible absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-hover:opacity-100 ${
             javDBSearchURL ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
           }`}
           title={zh('在 JavDB 中搜索系列', 'Search for series in JavDB')}

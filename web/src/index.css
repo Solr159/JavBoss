@@ -972,8 +972,12 @@ body.has-page-scroll .sticky-pagination {
     transform 160ms ease;
 }
 
+.card-hover-scope:has(:focus-visible) .card-hover-focus-visible {
+  opacity: 1;
+}
+
 .video-card:hover .video-card-select,
-.video-card:focus-within .video-card-select,
+.video-card:has(:focus-visible) .video-card-select,
 .video-card-select.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);

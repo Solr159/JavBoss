@@ -1620,9 +1620,6 @@ function JavCard({
   }, [item?.id, itemFavoriteRating])
 
   const handleExternalLinkClick = (event, site) => {
-    if (event.detail > 0) {
-      event.currentTarget.blur()
-    }
     if (site.onClick) {
       site.onClick(event)
       return
@@ -1703,10 +1700,7 @@ function JavCard({
     onOpenCoverPreview?.({ src: cover, alt: titleText })
   }
 
-  const handleOpenDetail = (event) => {
-    if (event?.detail > 0) {
-      event.currentTarget.blur()
-    }
+  const handleOpenDetail = () => {
     clearHoverPreview()
     setDetailOpen(true)
   }
@@ -2099,7 +2093,7 @@ function JavCard({
   return (
     <>
       <div className="flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg">
-        <div className="group relative aspect-[800/538] overflow-hidden bg-white">
+        <div className="card-hover-scope group relative aspect-[800/538] overflow-hidden bg-white">
           {cover ? (
             <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
           ) : (
@@ -2113,7 +2107,7 @@ function JavCard({
             onClick={handleOpenDetail}
             aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
           />
-          <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="card-hover-focus-visible pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
             <button
               onClick={handlePlay}
               disabled={!canPlay}
@@ -2165,7 +2159,7 @@ function JavCard({
                   ? 'opacity-60'
                   : favoriteRating > 0
                     ? 'opacity-100'
-                    : 'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100'
+                    : 'card-hover-focus-visible opacity-0 group-hover:opacity-100'
               }`}
             >
               <span
@@ -2220,7 +2214,7 @@ function JavCard({
             </span>
           </Tooltip>
           {externalLinks.length > 0 ? (
-            <div className="absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               {externalLinks.map((site) => (
                 <Tooltip
                   key={site.key}
@@ -2249,10 +2243,10 @@ function JavCard({
           ) : null}
           <button
             type="button"
-            className={`absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+            className={`card-hover-focus-visible absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
-                : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+                : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
             }`}
             title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
             aria-label={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
@@ -2265,7 +2259,7 @@ function JavCard({
             )}
           </button>
           {cover || canOpen ? (
-            <div className="absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
               {cover ? (
                 <button
                   type="button"

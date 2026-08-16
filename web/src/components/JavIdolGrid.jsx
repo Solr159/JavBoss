@@ -235,9 +235,6 @@ export function IdolCard({
     event.preventDefault()
     event.stopPropagation()
     if (!canOpenJavDB) return
-    if (event.detail > 0) {
-      event.currentTarget.blur()
-    }
     window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 
@@ -262,7 +259,7 @@ export function IdolCard({
   return (
     <a
       href={href || '#'}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
+      className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
       draggable={false}
       onClick={handleClick}
       onKeyDown={(e) => {
@@ -300,10 +297,10 @@ export function IdolCard({
         )}
         <button
           type="button"
-          className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+          className={`card-hover-focus-visible absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
             favoriteCount > 0
               ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
-              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-focus-within:opacity-100 group-hover:opacity-100'
+              : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
           }`}
           title={zh('加入女优收藏夹', 'Add to idol favorite groups')}
           aria-label={zh('加入女优收藏夹', 'Add to idol favorite groups')}
@@ -317,7 +314,7 @@ export function IdolCard({
         </button>
         <button
           type="button"
-          className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
+          className={`card-hover-focus-visible absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-hover:opacity-100 ${
             canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
           }`}
           title={zh('在 JavDB 中搜索女优', 'Search for idol in JavDB')}
@@ -329,7 +326,7 @@ export function IdolCard({
         </button>
         <button
           type="button"
-          className="absolute bottom-2 right-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-focus-within:opacity-100 group-hover:opacity-100"
+          className="card-hover-focus-visible absolute bottom-2 right-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-hover:opacity-100"
           title={zh('编辑女优封面', 'Edit idol cover')}
           aria-label={zh('编辑女优封面', 'Edit idol cover')}
           onClick={handleOpenCoverEditor}
@@ -338,7 +335,7 @@ export function IdolCard({
         </button>
         <button
           type="button"
-          className="absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-focus-within:opacity-100 group-hover:opacity-100"
+          className="card-hover-focus-visible absolute bottom-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 shadow-lg shadow-black/60 transition-opacity hover:bg-black/85 group-hover:opacity-100"
           title={zh('编辑女优信息', 'Edit idol info')}
           aria-label={zh('编辑女优信息', 'Edit idol info')}
           onClick={handleOpenEditor}
