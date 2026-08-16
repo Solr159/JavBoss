@@ -64,6 +64,9 @@ export default function VideoCard({
   const handleOpenFile = async (event) => {
     event.stopPropagation()
     if (!canOpen) return
+    if (event.detail > 0) {
+      event.currentTarget.blur()
+    }
     try {
       await onOpenFile?.(video)
     } catch (err) {
@@ -74,6 +77,9 @@ export default function VideoCard({
   const handleRevealFile = async (event) => {
     event.stopPropagation()
     if (!canOpen) return
+    if (event.detail > 0) {
+      event.currentTarget.blur()
+    }
     try {
       if (onRevealFile) {
         await onRevealFile(video)

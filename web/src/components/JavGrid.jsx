@@ -1703,7 +1703,10 @@ function JavCard({
     onOpenCoverPreview?.({ src: cover, alt: titleText })
   }
 
-  const handleOpenDetail = () => {
+  const handleOpenDetail = (event) => {
+    if (event?.detail > 0) {
+      event.currentTarget.blur()
+    }
     clearHoverPreview()
     setDetailOpen(true)
   }
