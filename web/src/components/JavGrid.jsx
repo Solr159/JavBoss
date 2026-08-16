@@ -1619,6 +1619,17 @@ function JavCard({
     setFavoriteRating(itemFavoriteRating)
   }, [item?.id, itemFavoriteRating])
 
+  const handleExternalLinkClick = (event, site) => {
+    if (event.detail > 0) {
+      event.currentTarget.blur()
+    }
+    if (site.onClick) {
+      site.onClick(event)
+      return
+    }
+    event.stopPropagation()
+  }
+
   const externalLinks = encodedCode
     ? item?.is_uncensored === true
       ? [
@@ -2220,7 +2231,7 @@ function JavCard({
                     rel="noopener noreferrer"
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/70 shadow-lg shadow-black/60 transition hover:bg-black/85"
                     aria-label={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
-                    onClick={site.onClick || ((event) => event.stopPropagation())}
+                    onClick={(event) => handleExternalLinkClick(event, site)}
                   >
                     <img
                       src={site.icon}

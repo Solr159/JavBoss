@@ -260,6 +260,9 @@ export function StudioCard({
     event.preventDefault()
     event.stopPropagation()
     if (!canOpenJavDB) return
+    if (event.detail > 0) {
+      event.currentTarget.blur()
+    }
     window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 

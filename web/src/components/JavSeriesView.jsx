@@ -144,6 +144,9 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
     event.preventDefault()
     event.stopPropagation()
     if (!javDBSearchURL) return
+    if (event.detail > 0) {
+      event.currentTarget.blur()
+    }
     window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 
