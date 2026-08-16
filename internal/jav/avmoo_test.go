@@ -64,6 +64,9 @@ func TestParseAvmooMovieInfoFromFixture(t *testing.T) {
 	if info.Provider != ProviderAvmoo {
 		t.Fatalf("unexpected provider: %s", info.Provider.String())
 	}
+	if info.IsUncensored == nil || *info.IsUncensored {
+		t.Fatalf("expected avmoo HTML result to be censored: %#v", info.IsUncensored)
+	}
 	if info.Code != "IPX-228" {
 		t.Fatalf("unexpected code: %q", info.Code)
 	}
@@ -130,6 +133,9 @@ func TestAvmooMovieInfoFromAPI(t *testing.T) {
 	}
 	if info.Provider != ProviderAvmoo {
 		t.Fatalf("unexpected provider: %s", info.Provider.String())
+	}
+	if info.IsUncensored == nil || *info.IsUncensored {
+		t.Fatalf("expected avmoo API result to be censored: %#v", info.IsUncensored)
 	}
 	if info.Code != "IPX-228" {
 		t.Fatalf("unexpected code: %q", info.Code)
