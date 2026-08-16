@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,22 +22,39 @@ func TestJavMetadataFastZhProvidersExcludeSlowProviders(t *testing.T) {
 	}
 }
 
-func TestShouldScanMissingJavLocalSeriesWithJavMenu(t *testing.T) {
-	tests := []struct {
-		round uint64
-		want  bool
-	}{
-		{round: 0, want: false},
-		{round: 1, want: false},
-		{round: 4, want: false},
-		{round: 5, want: true},
-		{round: 6, want: false},
-		{round: 10, want: true},
+func TestScanJavSeriesMetadataProviderRoundFallsBackToJavMenu(t *testing.T) {
+	var avmooNoUpdateRounds atomic.Uint32
+	avmooUpdates := []int64{0, 0, 3, 0, 0}
+	avmooIndex := 0
+	var calls []string
+	avmooScan := func(context.Context) (int64, error) {
+		calls = append(calls, "avmoo")
+		updated := avmooUpdates[avmooIndex]
+		avmooIndex++
+		return updated, nil
 	}
-	for _, test := range tests {
-		if got := shouldScanMissingJavLocalSeriesWithJavMenu(test.round); got != test.want {
-			t.Errorf("round %d: got %t, want %t", test.round, got, test.want)
+	javMenuScan := func(context.Context) (int64, error) {
+		calls = append(calls, "javmenu")
+		return 1, nil
+	}
+
+	for range 7 {
+		if err := scanJavSeriesMetadataProviderRound(
+			context.Background(),
+			&avmooNoUpdateRounds,
+			avmooScan,
+			javMenuScan,
+		); err != nil {
+			t.Fatalf("scan provider round: %v", err)
 		}
+	}
+
+	want := []string{"avmoo", "avmoo", "javmenu", "avmoo", "avmoo", "avmoo", "javmenu"}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("provider calls = %#v, want %#v", calls, want)
+	}
+	if got := avmooNoUpdateRounds.Load(); got != 0 {
+		t.Fatalf("avmoo no-update rounds = %d, want 0 after JavMenu fallback", got)
 	}
 }
 
@@ -88,8 +106,12 @@ func TestScanMissingJavLocalSeriesUsesOnlyJavMenu(t *testing.T) {
 			return nil, nil
 		}
 	}
-	if err := scanMissingJavLocalSeriesWithLookup(context.Background(), lookup); err != nil {
+	updated, err := scanMissingJavLocalSeriesWithLookup(context.Background(), lookup)
+	if err != nil {
 		t.Fatalf("scan missing local series: %v", err)
+	}
+	if updated != 1 {
+		t.Fatalf("updated series = %d, want 1", updated)
 	}
 
 	if len(calls) != 2 {
