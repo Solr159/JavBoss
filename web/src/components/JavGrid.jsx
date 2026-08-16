@@ -1666,40 +1666,55 @@ function JavCard({
   }
 
   const externalLinks = encodedCode
-    ? [
-        {
-          key: 'javlibrary',
-          name: 'JavLibrary',
-          href: `https://www.javlibrary.com/cn/vl_searchbyid.php?keyword=${encodedCode}`,
-          icon: '/ico/javlibrary.ico',
-        },
-        {
-          key: 'javbus',
-          name: 'JavBus',
-          href: `https://www.javbus.com/${encodedCode}`,
-          icon: '/ico/javbus.ico',
-        },
-        {
-          key: 'javdb',
-          name: 'JavDB',
-          href: javdbURL || javdbSearchURL,
-          icon: '/ico/javdb.png',
-          onClick: handleOpenJavDB,
-          loading: javdbOpening,
-        },
-        {
-          key: 'missav',
-          name: 'MissAV',
-          href: `https://missav.ws/cn/${encodedCode}`,
-          icon: '/ico/missav.ico',
-        },
-        {
-          key: 'jabel',
-          name: 'Jabel',
-          href: `https://jable.tv/videos/${encodedCode}/`,
-          icon: '/ico/jabel.ico',
-        },
-      ]
+    ? item?.is_uncensored === true
+      ? [
+          {
+            key: 'javbus',
+            name: 'JavBus',
+            href: `https://www.javbus.com/${encodedCode}`,
+            icon: '/ico/javbus.ico',
+          },
+          {
+            key: 'avsox',
+            name: 'AVSOX',
+            href: `https://avsox.click/cn/search/${encodedCode}`,
+            icon: '/ico/avsox.ico',
+          },
+        ]
+      : [
+          {
+            key: 'javlibrary',
+            name: 'JavLibrary',
+            href: `https://www.javlibrary.com/cn/vl_searchbyid.php?keyword=${encodedCode}`,
+            icon: '/ico/javlibrary.ico',
+          },
+          {
+            key: 'javbus',
+            name: 'JavBus',
+            href: `https://www.javbus.com/${encodedCode}`,
+            icon: '/ico/javbus.ico',
+          },
+          {
+            key: 'javdb',
+            name: 'JavDB',
+            href: javdbURL || javdbSearchURL,
+            icon: '/ico/javdb.png',
+            onClick: handleOpenJavDB,
+            loading: javdbOpening,
+          },
+          {
+            key: 'missav',
+            name: 'MissAV',
+            href: `https://missav.ws/cn/${encodedCode}`,
+            icon: '/ico/missav.ico',
+          },
+          {
+            key: 'jabel',
+            name: 'Jabel',
+            href: `https://jable.tv/videos/${encodedCode}/`,
+            icon: '/ico/jabel.ico',
+          },
+        ]
     : []
 
   const handleOpenFile = (event) => {
