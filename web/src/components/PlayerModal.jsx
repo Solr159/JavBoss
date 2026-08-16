@@ -5,6 +5,7 @@ import { createVideoScreenshot, fetchPlaybackInfo } from '@/api'
 import { getVideoDisplayName } from '@/utils/display'
 import {
   PLAYER_HOTKEY_ACTIONS,
+  formatPlayerHotkeyKey,
   normalizePlayerHotkeyKey,
   parsePlayerHotkeys,
 } from '@/utils/playerHotkeys'
@@ -13,12 +14,18 @@ import AppModal from '@/components/AppModal'
 import { getErrorMessage } from '@/utils/errors'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
+const HOTKEY_HINT_DURATION_MS = 5000
+
+function formatSignedAmount(amount) {
+  return amount > 0 ? `+${amount}` : String(amount)
+}
 
 export default function PlayerModal({
   video,
   startTime = 0,
   onClose,
   hotkeys = null,
+  showHotkeyHint = true,
   onPlaybackError,
 }) {
   const videoRef = useRef(null)
@@ -30,7 +37,30 @@ export default function PlayerModal({
   const [playbackError, setPlaybackError] = useState('')
   const [loadingPlayback, setLoadingPlayback] = useState(false)
   const [screenshotNotice, setScreenshotNotice] = useState(false)
+  const [hotkeyHintVisible, setHotkeyHintVisible] = useState(false)
   const normalizedHotkeys = useMemo(() => parsePlayerHotkeys(hotkeys), [hotkeys])
+  const hotkeyHintLines = useMemo(() => {
+    const lines = normalizedHotkeys.map((item) => {
+      const key = formatPlayerHotkeyKey(item.key)
+      const amount = formatSignedAmount(item.amount)
+      if (item.action === PLAYER_HOTKEY_ACTIONS.SEEK) {
+        return zh(`${key}：进度 ${amount} 秒`, `${key}: Seek ${amount} seconds`)
+      }
+      if (item.action === PLAYER_HOTKEY_ACTIONS.VOLUME) {
+        return zh(`${key}：音量 ${amount}%`, `${key}: Volume ${amount}%`)
+      }
+      return zh(`${key}：截图`, `${key}: Screenshot`)
+    })
+    lines.push(zh('空格：暂停/继续', 'Space: Pause/Resume'))
+    lines.push(zh('ESC：退出播放器', 'ESC: Close player'))
+    lines.push(
+      zh(
+        '你可在「设置 → 播放器 → 浏览器播放器」里关闭此信息显示',
+        'You can hide this message under Settings → Player → Browser Player.'
+      )
+    )
+    return lines
+  }, [normalizedHotkeys])
   const selectedSource = useMemo(() => {
     if (!playbackInfo?.sources?.length) return null
     return (
@@ -38,6 +68,15 @@ export default function PlayerModal({
       playbackInfo.sources[0]
     )
   }, [playbackInfo])
+
+  useEffect(() => {
+    setHotkeyHintVisible(false)
+    if (!showHotkeyHint || !video?.id || !selectedSource?.src) return undefined
+
+    setHotkeyHintVisible(true)
+    const timer = window.setTimeout(() => setHotkeyHintVisible(false), HOTKEY_HINT_DURATION_MS)
+    return () => window.clearTimeout(timer)
+  }, [selectedSource?.src, showHotkeyHint, video?.id])
 
   useEffect(() => {
     hotkeyMapRef.current = new Map(normalizedHotkeys.map((item) => [item.key, item]))
@@ -276,9 +315,20 @@ export default function PlayerModal({
           {displayName}
         </h2>
         <div className="player-shell relative w-full bg-black">
-          {screenshotNotice ? (
-            <div className="pointer-events-none absolute left-3 top-3 z-10 rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
-              {zh('截图成功', 'Screenshot saved')}
+          {screenshotNotice || hotkeyHintVisible ? (
+            <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
+              {screenshotNotice ? (
+                <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
+                  {zh('截图成功', 'Screenshot saved')}
+                </div>
+              ) : null}
+              {hotkeyHintVisible ? (
+                <div className="max-h-[calc(100vh-12rem)] overflow-hidden rounded bg-black/75 px-3 py-2 text-xs leading-5 text-white shadow">
+                  {hotkeyHintLines.map((line, index) => (
+                    <div key={`${index}-${line}`}>{line}</div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
           {loadingPlayback ? (

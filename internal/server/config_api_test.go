@@ -167,7 +167,7 @@ func TestUpdateConfigAcceptsBrowserPlayerAndLANAccess(t *testing.T) {
 	req := httptest.NewRequest(
 		http.MethodPatch,
 		"/config",
-		bytes.NewReader([]byte(`{"default_player":"browser","allow_lan_access":true}`)),
+		bytes.NewReader([]byte(`{"default_player":"browser","allow_lan_access":true,"browser_player_show_hotkey_hint":false}`)),
 	)
 	req.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
@@ -185,6 +185,12 @@ func TestUpdateConfigAcceptsBrowserPlayerAndLANAccess(t *testing.T) {
 	}
 	if got["allow_lan_access"] != "true" {
 		t.Fatalf("allow_lan_access = %q, want true", got["allow_lan_access"])
+	}
+	if got["browser_player_show_hotkey_hint"] != "false" {
+		t.Fatalf(
+			"browser_player_show_hotkey_hint = %q, want false",
+			got["browser_player_show_hotkey_hint"],
+		)
 	}
 }
 

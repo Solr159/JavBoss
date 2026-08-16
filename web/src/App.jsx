@@ -4080,6 +4080,7 @@ export default function App() {
         video={playerVideo}
         startTime={playerStartTime}
         hotkeys={config?.player_hotkeys}
+        showHotkeyHint={configFlag(config?.browser_player_show_hotkey_hint, true)}
         onPlaybackError={showCenterToast}
         onClose={() => {
           setPlayerVideo(null)
@@ -4539,6 +4540,11 @@ export default function App() {
               )
         }
         onSavePlayerBasicSettings={async (payload) => {
+          const cfg = await updateConfig(payload)
+          useStore.setState({ config: cfg })
+        }}
+        browserPlayerShowHotkeyHint={configFlag(config?.browser_player_show_hotkey_hint, true)}
+        onSaveBrowserPlayerSettings={async (payload) => {
           const cfg = await updateConfig(payload)
           useStore.setState({ config: cfg })
         }}

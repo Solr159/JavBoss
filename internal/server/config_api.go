@@ -121,6 +121,7 @@ func updateConfig(c *gin.Context) {
 		PlayerReuseWindow      *bool                 `json:"player_reuse_window"`
 		PlayerResumePlayback   *bool                 `json:"player_resume_playback"`
 		PlayerShowHotkeyHint   *bool                 `json:"player_show_hotkey_hint"`
+		BrowserShowHotkeyHint  *bool                 `json:"browser_player_show_hotkey_hint"`
 		PlayerHotkeys          []playerHotkeyPayload `json:"player_hotkeys"`
 		WebHotkeys             []webHotkeyPayload    `json:"web_hotkeys"`
 	}
@@ -363,6 +364,9 @@ func updateConfig(c *gin.Context) {
 	}
 	if req.PlayerShowHotkeyHint != nil {
 		entries["player_show_hotkey_hint"] = strconv.FormatBool(*req.PlayerShowHotkeyHint)
+	}
+	if req.BrowserShowHotkeyHint != nil {
+		entries["browser_player_show_hotkey_hint"] = strconv.FormatBool(*req.BrowserShowHotkeyHint)
 	}
 	if req.PlayerHotkeys != nil {
 		clean := make([]playerHotkeyPayload, 0, len(req.PlayerHotkeys))
