@@ -199,7 +199,7 @@ func getJavJavDBURL(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": javdbURL})
 }
 
-func getJavAvsoxURL(c *gin.Context) {
+func redirectJavAvsox(c *gin.Context) {
 	code := strings.TrimSpace(c.Query("code"))
 	if code == "" {
 		respondLocalizedError(c, http.StatusBadRequest, "番号不能为空", "JAV code is required")
@@ -212,11 +212,11 @@ func getJavAvsoxURL(c *gin.Context) {
 			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 Avsox 详情页", "Avsox detail page was not found")
 			return
 		}
-		logging.Error("lookup avsox url code=%s: %v", code, err)
-		respondLocalizedError(c, http.StatusInternalServerError, "查询 Avsox 详情页失败", "Failed to look up the Avsox detail page")
+		logging.Error("lookup avsox redirect code=%s: %v", code, err)
+		respondLocalizedError(c, http.StatusBadGateway, "查询 Avsox 详情页失败", "Failed to look up the Avsox detail page")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"url": detailURL})
+	c.Redirect(http.StatusFound, detailURL)
 }
 
 func resolveJavSampleImages(c *gin.Context) {

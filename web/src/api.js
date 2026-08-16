@@ -1267,17 +1267,6 @@ export async function fetchJavJavDBURL({ code = '' } = {}) {
   return data?.url || ''
 }
 
-export async function fetchJavAvsoxURL({ code = '' } = {}) {
-  const params = new URLSearchParams()
-  params.set('code', code)
-  const res = await apiFetch(`/jav/avsox-url?${params.toString()}`)
-  if (!res.ok) {
-    throw await apiError(res)
-  }
-  const data = await res.json()
-  return data?.url || ''
-}
-
 export async function resolveJavIdols(ids = []) {
   const clean = Array.from(
     new Set(
