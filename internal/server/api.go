@@ -65,6 +65,7 @@ func RegisterRoutes(router gin.IRoutes) {
 
 	router.GET("/jav", searchJav)
 	router.GET("/jav/filter-options", listJavFilterOptions)
+	router.GET("/jav/avsox-url", getJavAvsoxURL)
 	router.GET("/jav/javdb-url", getJavJavDBURL)
 	router.GET("/jav/prefixes", listJavPrefixes)
 	router.GET("/jav/tags", listJavTags)

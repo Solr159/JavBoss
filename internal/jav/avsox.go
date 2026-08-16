@@ -181,6 +181,38 @@ func (avsox) LookupJavByCode(code string) (*JavInfo, error) {
 	return info, nil
 }
 
+// LookupAvsoxURLByCode resolves a movie code to its Avsox detail page.
+func LookupAvsoxURLByCode(code string) (string, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return "", ResourceNotFonud
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), avsoxLookupTimeout)
+	defer cancel()
+
+	movie, err := fetchAvsoxMovieByCode(ctx, code)
+	if err != nil {
+		return "", err
+	}
+	detailURL := avsoxMovieDetailURL(movie)
+	if detailURL == "" {
+		return "", ResourceNotFonud
+	}
+	return detailURL, nil
+}
+
+func avsoxMovieDetailURL(movie *avsoxAPIMovie) string {
+	if movie == nil {
+		return ""
+	}
+	movieID := strings.TrimSpace(movie.MovieID)
+	if movieID == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/movie/%s", avsoxBaseURL, avsoxAPILanguage, url.PathEscape(movieID))
+}
+
 func fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
 	session, err := cachedAvsoxSession(ctx, code)
 	if err != nil {

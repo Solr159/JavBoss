@@ -199,6 +199,26 @@ func getJavJavDBURL(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": javdbURL})
 }
 
+func getJavAvsoxURL(c *gin.Context) {
+	code := strings.TrimSpace(c.Query("code"))
+	if code == "" {
+		respondLocalizedError(c, http.StatusBadRequest, "番号不能为空", "JAV code is required")
+		return
+	}
+
+	detailURL, err := jav.LookupAvsoxURLByCode(code)
+	if err != nil {
+		if errors.Is(err, jav.ResourceNotFonud) {
+			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 Avsox 详情页", "Avsox detail page was not found")
+			return
+		}
+		logging.Error("lookup avsox url code=%s: %v", code, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "查询 Avsox 详情页失败", "Failed to look up the Avsox detail page")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"url": detailURL})
+}
+
 func resolveJavSampleImages(c *gin.Context) {
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {

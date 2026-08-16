@@ -193,6 +193,29 @@ func TestAvsoxMovieInfoFromAPI(t *testing.T) {
 	}
 }
 
+func TestAvsoxMovieDetailURL(t *testing.T) {
+	tests := []struct {
+		name  string
+		movie *avsoxAPIMovie
+		want  string
+	}{
+		{
+			name:  "movie ID",
+			movie: &avsoxAPIMovie{MovieID: " 23cf2dcfe67622ce "},
+			want:  "https://avsox.click/cn/movie/23cf2dcfe67622ce",
+		},
+		{name: "missing movie ID", movie: &avsoxAPIMovie{}},
+		{name: "nil movie"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := avsoxMovieDetailURL(test.movie); got != test.want {
+				t.Fatalf("detail URL = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
 func TestAvsoxSessionAuthErrorDetection(t *testing.T) {
 	authErrors := []error{
 		avsoxStatusError{source: "http", status: http.StatusBadRequest},
