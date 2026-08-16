@@ -155,10 +155,10 @@ func TestParseVideoJavScrapeLookupProvider(t *testing.T) {
 		want  jav.Provider
 		ok    bool
 	}{
-		{value: "javdb", want: jav.ProviderJavDB, ok: true},
+		{value: "avmoo", want: jav.ProviderAvmoo, ok: true},
 		{value: " JavBus ", want: jav.ProviderJavBus, ok: true},
 		{value: "AVSOX", want: jav.ProviderAvsox, ok: true},
-		{value: "avmoo", want: jav.ProviderUnknown, ok: false},
+		{value: "javdb", want: jav.ProviderUnknown, ok: false},
 		{value: "", want: jav.ProviderUnknown, ok: false},
 	}
 

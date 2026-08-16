@@ -758,8 +758,8 @@ func lookupVideoJavScrapeByProvider(c *gin.Context, provider jav.Provider) {
 
 func parseVideoJavScrapeLookupProvider(value string) (jav.Provider, bool) {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "javdb":
-		return jav.ProviderJavDB, true
+	case "avmoo":
+		return jav.ProviderAvmoo, true
 	case "javbus":
 		return jav.ProviderJavBus, true
 	case "avsox":
@@ -771,12 +771,14 @@ func parseVideoJavScrapeLookupProvider(value string) (jav.Provider, bool) {
 
 func videoJavScrapeLookupProviderLabel(provider jav.Provider) string {
 	switch provider {
+	case jav.ProviderAvmoo:
+		return "AvMoo"
 	case jav.ProviderJavBus:
 		return "JavBus"
 	case jav.ProviderAvsox:
 		return "AVSOX"
 	default:
-		return "JavDB"
+		return provider.String()
 	}
 }
 

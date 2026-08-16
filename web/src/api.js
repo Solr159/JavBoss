@@ -416,7 +416,7 @@ export async function updateVideoJavScrapeSettings(videoId, { mode = 'auto', cod
   return res.json()
 }
 
-export async function lookupVideoJavScrape(videoId, code, provider = 'javdb') {
+export async function lookupVideoJavScrape(videoId, code, provider = 'avmoo') {
   const params = new URLSearchParams()
   params.set('code', String(code || '').trim())
   params.set('provider', String(provider || '').trim())
