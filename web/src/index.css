@@ -87,20 +87,26 @@ body.has-page-scroll .sticky-pagination {
 
 .side-tabs__history {
   display: grid;
+  width: 76px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  margin: 8px 8px 4px;
+  align-self: center;
+  margin: 7px auto 3px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: #fff;
 }
 
 .side-tabs__history button {
   display: flex;
-  height: 28px;
+  height: 24px;
   align-items: center;
   justify-content: center;
   color: #64748b;
+}
+
+.side-tabs__history svg {
+  font-size: 18px;
 }
 
 .side-tabs__history button + button {
