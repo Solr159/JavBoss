@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $Repo = "Solr159/JavBoss"
-$Version = "v2.0.0"
+$Version = "v2.0.1"
 
 function Test-PrefersChinese {
   if ($env:JAVBOSS_LANG -like "zh*") {
