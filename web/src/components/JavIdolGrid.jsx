@@ -5,7 +5,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
-import { fetchJavIdolJavDBURL, fetchJavIdolOptions, mergeJavIdols, updateJavIdol } from '@/api'
+import { fetchJavIdolOptions, mergeJavIdols, updateJavIdol } from '@/api'
 import AppModal from '@/components/AppModal'
 import JavIdolCoverModal, {
   IDOL_COVER_DEFAULT_CROP_LEFT,
@@ -146,19 +146,19 @@ export function IdolCard({
   const [coverImageSize, setCoverImageSize] = useState(null)
   const workCount = item?.work_count || 0
   const favoriteCount = Number(item?.favorite_count) || 0
-  const name = item?.name || zh('未知女优', 'Unknown idol')
   const aliases = Array.isArray(item?.aliases) ? item.aliases : []
   const birthDate = formatBirthDateWithAge(item?.birth_date)
   const height = typeof item?.height_cm === 'number' ? `${item.height_cm}cm` : ''
   const bwh = formatBwh(item)
   const bwhDisplay = formatBwhDisplay(bwh)
   const cup = formatCup(item?.cup)
-  const lookupCode = coverCode
-  const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
-  const [javdbOpening, setJavdbOpening] = useState(false)
+  const javDBSearchName = String(item?.japanese_name || item?.name || '').trim()
+  const javDBSearchURL = javDBSearchName
+    ? `https://javdb.com/search?q=${encodeURIComponent(javDBSearchName)}&f=all`
+    : ''
   const { primaryName, secondaryName } = getIdolDisplayNames(item, preferChineseName)
   const metaRows = buildMetaRows({ birthDate, height, bwh, bwhDisplay, cup, aliases })
-  const canOpenJavDB = Boolean(javdbURL || (lookupCode && name))
+  const canOpenJavDB = Boolean(javDBSearchURL)
   const hasCoverImageSize =
     coverImageSize?.src === cover &&
     Number.isFinite(coverImageSize.width) &&
@@ -231,38 +231,11 @@ export function IdolCard({
     onSelectIdol?.(item)
   }
 
-  const handleOpenJavDB = async (event) => {
+  const handleOpenJavDB = (event) => {
     event.preventDefault()
     event.stopPropagation()
-    if (!canOpenJavDB || javdbOpening) return
-
-    const popup = window.open('about:blank', '_blank')
-    if (popup) {
-      popup.opener = null
-    }
-
-    try {
-      setJavdbOpening(true)
-      let targetURL = javdbURL
-      if (!targetURL) {
-        targetURL = await fetchJavIdolJavDBURL({ code: lookupCode, name })
-        setJavdbURL(targetURL)
-      }
-      if (!targetURL) {
-        popup?.close()
-        return
-      }
-      if (popup) {
-        popup.location.replace(targetURL)
-      } else {
-        window.open(targetURL, '_blank', 'noopener,noreferrer')
-      }
-    } catch (error) {
-      popup?.close()
-      console.warn('open javdb idol failed', error)
-    } finally {
-      setJavdbOpening(false)
-    }
+    if (!canOpenJavDB) return
+    window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 
   const handleOpenFavorites = (event) => {
@@ -344,17 +317,12 @@ export function IdolCard({
           className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
             canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
           }`}
-          title={zh('在 JavDB 中打开女优详情', 'Open idol profile in JavDB')}
-          aria-label={zh('在 JavDB 中打开女优详情', 'Open idol profile in JavDB')}
-          disabled={!canOpenJavDB || javdbOpening}
+          title={zh('在 JavDB 中搜索女优', 'Search for idol in JavDB')}
+          aria-label={zh('在 JavDB 中搜索女优', 'Search for idol in JavDB')}
+          disabled={!canOpenJavDB}
           onClick={handleOpenJavDB}
         >
-          <img
-            src="/ico/javdb.png"
-            alt="JavDB"
-            className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
-            loading="lazy"
-          />
+          <img src="/ico/javdb.png" alt="JavDB" className="h-4 w-4" loading="lazy" />
         </button>
         <button
           type="button"

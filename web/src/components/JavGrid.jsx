@@ -20,7 +20,6 @@ import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import {
   fetchJavIdolPreview,
   fetchJavIdolOptions,
-  fetchJavJavDBURL,
   fetchJavSeriesPreview,
   fetchJavSeries,
   fetchJavStudioPreview,
@@ -1562,8 +1561,6 @@ function JavCard({
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
-  const [javdbURL, setJavdbURL] = useState('')
-  const [javdbOpening, setJavdbOpening] = useState(false)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
   const cover = coverBase ? `${coverBase}${coverVersion ? `?v=${coverVersion}` : ''}` : null
 
@@ -1619,51 +1616,8 @@ function JavCard({
     : 5 * 21
 
   useEffect(() => {
-    setJavdbURL('')
-    setJavdbOpening(false)
-  }, [code])
-
-  useEffect(() => {
     setFavoriteRating(itemFavoriteRating)
   }, [item?.id, itemFavoriteRating])
-
-  const openExternalURL = (popup, targetURL) => {
-    if (!targetURL) {
-      popup?.close()
-      return
-    }
-    if (popup) {
-      popup.location.replace(targetURL)
-    } else {
-      window.open(targetURL, '_blank', 'noopener,noreferrer')
-    }
-  }
-
-  const handleOpenJavDB = async (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    if (!code || !javdbSearchURL || javdbOpening) return
-
-    const popup = window.open('about:blank', '_blank')
-    if (popup) {
-      popup.opener = null
-    }
-
-    try {
-      setJavdbOpening(true)
-      let targetURL = javdbURL
-      if (!targetURL) {
-        targetURL = await fetchJavJavDBURL({ code })
-        setJavdbURL(targetURL)
-      }
-      openExternalURL(popup, targetURL || javdbSearchURL)
-    } catch (error) {
-      console.warn('open javdb movie failed', error)
-      openExternalURL(popup, javdbSearchURL)
-    } finally {
-      setJavdbOpening(false)
-    }
-  }
 
   const externalLinks = encodedCode
     ? item?.is_uncensored === true
@@ -1697,22 +1651,20 @@ function JavCard({
           {
             key: 'javdb',
             name: 'JavDB',
-            href: javdbURL || javdbSearchURL,
+            href: javdbSearchURL,
             icon: '/ico/javdb.png',
-            onClick: handleOpenJavDB,
-            loading: javdbOpening,
+          },
+          {
+            key: 'javmenu',
+            name: 'JavMenu',
+            href: `https://javmenu.com/${encodedCode}`,
+            icon: '/ico/javmenu.png',
           },
           {
             key: 'missav',
             name: 'MissAV',
             href: `https://missav.ws/cn/${encodedCode}`,
             icon: '/ico/missav.ico',
-          },
-          {
-            key: 'jabel',
-            name: 'Jabel',
-            href: `https://jable.tv/videos/${encodedCode}/`,
-            icon: '/ico/jabel.ico',
           },
         ]
     : []

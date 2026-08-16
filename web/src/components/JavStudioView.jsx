@@ -8,7 +8,6 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded'
 
 import {
   fetchJavSeriesPreview,
-  fetchJavStudioJavDBURL,
   fetchJavStudioOptions,
   mergeJavStudios,
   updateJavStudio,
@@ -224,8 +223,10 @@ export function StudioCard({
   const aliases = Array.isArray(item?.aliases)
     ? item.aliases.map((alias) => String(alias || '').trim()).filter(Boolean)
     : []
-  const [javdbURL, setJavdbURL] = useState(String(item?.javdb_url || '').trim())
-  const [javdbOpening, setJavdbOpening] = useState(false)
+  const searchName = String(item?.name || '').trim()
+  const javDBSearchURL = searchName
+    ? `https://javdb.com/search?q=${encodeURIComponent(searchName)}&f=all`
+    : ''
   const [previewSeries, setPreviewSeries] = useState(null)
   const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)
   const [seriesListOpen, setSeriesListOpen] = useState(false)
@@ -236,7 +237,7 @@ export function StudioCard({
   const closeTimerRef = useRef(null)
   const activeSeriesHoverIdRef = useRef(null)
   const hasReportedSeriesListOpenRef = useRef(false)
-  const canOpenJavDB = Boolean(javdbURL || (Number.isFinite(studioId) && studioId > 0))
+  const canOpenJavDB = Boolean(javDBSearchURL)
   const displayedSeriesItems =
     visibleSeriesCount == null ? seriesItems : seriesItems.slice(0, visibleSeriesCount)
   const hasHiddenSeries = displayedSeriesItems.length < seriesItems.length
@@ -255,38 +256,11 @@ export function StudioCard({
     onSelectStudio?.(item)
   }
 
-  const handleOpenJavDB = async (event) => {
+  const handleOpenJavDB = (event) => {
     event.preventDefault()
     event.stopPropagation()
-    if (!canOpenJavDB || javdbOpening) return
-
-    const popup = window.open('about:blank', '_blank')
-    if (popup) {
-      popup.opener = null
-    }
-
-    try {
-      setJavdbOpening(true)
-      let targetURL = javdbURL
-      if (!targetURL) {
-        targetURL = await fetchJavStudioJavDBURL({ studioId })
-        setJavdbURL(targetURL)
-      }
-      if (!targetURL) {
-        popup?.close()
-        return
-      }
-      if (popup) {
-        popup.location.replace(targetURL)
-      } else {
-        window.open(targetURL, '_blank', 'noopener,noreferrer')
-      }
-    } catch (error) {
-      popup?.close()
-      console.warn('open javdb studio failed', error)
-    } finally {
-      setJavdbOpening(false)
-    }
+    if (!canOpenJavDB) return
+    window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
   }
 
   const handleOpenFavorites = (event) => {
@@ -551,17 +525,12 @@ export function StudioCard({
           className={`absolute bottom-2 left-2 flex h-7 w-7 items-center justify-center rounded-full text-white opacity-0 shadow-lg shadow-black/60 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 ${
             canOpenJavDB ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
           }`}
-          title={zh('在 JavDB 中打开片商详情', 'Open studio profile in JavDB')}
-          aria-label={zh('在 JavDB 中打开片商详情', 'Open studio profile in JavDB')}
-          disabled={!canOpenJavDB || javdbOpening}
+          title={zh('在 JavDB 中搜索片商', 'Search for studio in JavDB')}
+          aria-label={zh('在 JavDB 中搜索片商', 'Search for studio in JavDB')}
+          disabled={!canOpenJavDB}
           onClick={handleOpenJavDB}
         >
-          <img
-            src="/ico/javdb.png"
-            alt="JavDB"
-            className={`h-4 w-4 ${javdbOpening ? 'animate-pulse' : ''}`}
-            loading="lazy"
-          />
+          <img src="/ico/javdb.png" alt="JavDB" className="h-4 w-4" loading="lazy" />
         </button>
         {onOpenEditor ? (
           <button
