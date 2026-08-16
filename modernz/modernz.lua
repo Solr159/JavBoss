@@ -213,7 +213,7 @@ local user_opts = {
     tooltip_height_offset = 5,             -- tooltip height position offset
     portrait_window_trigger = 950,         -- portrait window width trigger to move some elements
     hide_volume_bar_trigger = 1150,        -- hide volume bar trigger window width
-    osc_height = 60,                       -- osc height
+    osc_height = 47,                       -- osc height
 
     -- Mouse commands
     -- customize the button function based on mouse action

@@ -57,6 +57,9 @@ func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
 	if !strings.Contains(string(config), "fullscreen_autohide=yes\n") {
 		t.Fatalf("expected bundled ModernZ config to enable fullscreen autohide")
 	}
+	if !strings.Contains(string(config), "osc_height=47\n") {
+		t.Fatalf("expected bundled ModernZ config to use compact OSC height")
+	}
 
 	script, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))
 	if err != nil {
