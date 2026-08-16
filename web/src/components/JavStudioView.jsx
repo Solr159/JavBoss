@@ -186,6 +186,7 @@ export function StudioCard({
   onOpenEditor,
   buildSeriesUrl,
   directoryIds = [],
+  seriesListModalZIndex = 1500,
 }) {
   const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
@@ -713,7 +714,7 @@ export function StudioCard({
                   event?.stopPropagation()
                   closeSeriesList()
                 }}
-                zIndex={1500}
+                zIndex={seriesListModalZIndex}
               >
                 <div className="sticky top-0 z-10 mb-2 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-3 py-2">
                   <div className="text-xs font-semibold text-gray-700">

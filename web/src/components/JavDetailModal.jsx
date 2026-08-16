@@ -955,6 +955,7 @@ export default function JavDetailModal({
               onOpenSeriesFavorites={onOpenSeriesFavorites}
               onSeriesListOpenChange={handleStudioSeriesListOpenChange}
               directoryIds={directoryIds}
+              seriesListModalZIndex={1600}
             />
           ) : null}
           {hoverPreview?.type === 'series' ? (
