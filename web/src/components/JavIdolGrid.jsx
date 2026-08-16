@@ -154,7 +154,7 @@ export function IdolCard({
   const cup = formatCup(item?.cup)
   const javDBSearchName = String(item?.japanese_name || item?.name || '').trim()
   const javDBSearchURL = javDBSearchName
-    ? `https://javdb.com/search?q=${encodeURIComponent(javDBSearchName)}&f=all`
+    ? `https://javdb.com/search?f=actor&q=${encodeURIComponent(javDBSearchName)}`
     : ''
   const { primaryName, secondaryName } = getIdolDisplayNames(item, preferChineseName)
   const metaRows = buildMetaRows({ birthDate, height, bwh, bwhDisplay, cup, aliases })

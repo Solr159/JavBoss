@@ -225,7 +225,7 @@ export function StudioCard({
     : []
   const searchName = String(item?.name || '').trim()
   const javDBSearchURL = searchName
-    ? `https://javdb.com/search?q=${encodeURIComponent(searchName)}&f=all`
+    ? `https://javdb.com/search?f=maker&q=${encodeURIComponent(searchName)}`
     : ''
   const [previewSeries, setPreviewSeries] = useState(null)
   const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)

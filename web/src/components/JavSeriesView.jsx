@@ -116,7 +116,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
   const favoriteCount = Number(item?.favorite_count) || 0
   const searchName = String(item?.name || '').trim()
   const javDBSearchURL = searchName
-    ? `https://javdb.com/search?q=${encodeURIComponent(searchName)}&f=all`
+    ? `https://javdb.com/search?f=series&q=${encodeURIComponent(searchName)}`
     : ''
 
   const handleClick = (e) => {
