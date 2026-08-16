@@ -33,7 +33,7 @@ const minValidCoverSizeBytes int64 = 30 * 1024
 
 var errInvalidCover = errors.New("invalid cover")
 
-var lookupCoverURLByCode = jav.LookupCoverURLByCode
+var lookupJavByCode = jav.LookupJavByCode
 
 // NewCoverManager creates a manager when coverDir and providers are provided.
 func NewCoverManager(coverDir string, providers []jav.Provider) *CoverManager {
@@ -167,17 +167,20 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	}
 	var lastErr error
 	for _, provider := range m.providers {
-		coverURL, err := lookupCoverURLByCode(code, provider)
+		info, err := lookupJavByCode(code, provider)
 		if err != nil {
 			if errors.Is(err, jav.ResourceNotFonud) {
 				continue
 			}
 			lastErr = err
-			logging.Error("fetch cover url failed: provider=%s code=%s err=%v", provider.String(), code, err)
+			logging.Error("fetch cover metadata failed: provider=%s code=%s err=%v", provider.String(), code, err)
 			continue
 		}
 
-		coverURL = strings.TrimSpace(coverURL)
+		coverURL := ""
+		if info != nil {
+			coverURL = strings.TrimSpace(info.CoverURL)
+		}
 		if coverURL == "" {
 			continue
 		}

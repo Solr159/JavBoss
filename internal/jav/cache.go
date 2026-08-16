@@ -24,11 +24,7 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 	ProviderAvmoo:       "v5",
 	ProviderAvsox:       "v3",
 	ProviderJavMenu:     "v2",
-}
-
-var lookupCoverCacheKeyVersionByProvider = map[Provider]string{
-	ProviderAvmoo: "v2",
-	ProviderAvsox: "v2",
+	ProviderThePornDB:   "v2",
 }
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
@@ -163,11 +159,6 @@ func lookupCacheKeyVersion(provider Provider, method string) string {
 			return version
 		}
 	}
-	if method == "lookup_cover" {
-		if version, ok := lookupCoverCacheKeyVersionByProvider[provider]; ok {
-			return version
-		}
-	}
 	if method == "lookup_actress_name" {
 		if version, ok := lookupActressNameCacheKeyVersionByProvider[provider]; ok {
 			return version
@@ -179,7 +170,7 @@ func lookupCacheKeyVersion(provider Provider, method string) string {
 func normalizeLookupCacheInput(method, input string) string {
 	input = strings.TrimSpace(input)
 	switch method {
-	case "lookup_jav", "lookup_cover", "lookup_actress_code":
+	case "lookup_jav", "lookup_actress_code":
 		return strings.ToUpper(input)
 	default:
 		return strings.Join(strings.Fields(input), " ")

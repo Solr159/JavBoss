@@ -29,6 +29,9 @@ func TestParseThePornDBJavInfo(t *testing.T) {
 	if info.Title != "a Female Teacher Sex Toys Conversion Project Tsumugi Akari" {
 		t.Fatalf("unexpected title: %q", info.Title)
 	}
+	if info.CoverURL != "https://cdn.theporndb.net/background.webp" {
+		t.Fatalf("unexpected cover URL: %q", info.CoverURL)
+	}
 
 	wantRelease := time.Date(2018, 10, 7, 0, 0, 0, 0, time.UTC).Unix()
 	if info.ReleaseUnix != wantRelease {

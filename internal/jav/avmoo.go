@@ -149,27 +149,6 @@ func (avmoo) LookupActressURLByCodeAndName(code, name string) (string, error) {
 	return "", errors.New("avmoo: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (avmoo) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), avmooLookupTimeout)
-	defer cancel()
-
-	movie, err := fetchAvmooMovieByCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	coverURL := firstNonEmpty(movie.PosterLarge, movie.PosterSmall)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (avmoo) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("avmoo: lookup series url not supported")

@@ -50,11 +50,6 @@ func (javMenu) LookupActressURLByCodeAndName(code, name string) (string, error) 
 	return "", errors.New("javmenu: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode implements lookupProvider.
-func (javMenu) LookupCoverURLByCode(code string) (string, error) {
-	return "", errors.New("javmenu: lookup cover not supported")
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (javMenu) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("javmenu: lookup series url not supported")

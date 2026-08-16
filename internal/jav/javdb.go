@@ -114,27 +114,6 @@ func (javDB) LookupStudioURLByCode(code string) (string, error) {
 	return studioURL, nil
 }
 
-// LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (javDB) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	doc, detailURL, err := fetchJavDBDetailByCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	coverURL := parseJavDBCoverURL(doc, detailURL)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupJavByCode fetches metadata for a given code.
 func (javDB) LookupJavByCode(code string) (*JavInfo, error) {
 	code = strings.TrimSpace(code)

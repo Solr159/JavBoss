@@ -81,28 +81,6 @@ func (javBus) LookupActressURLByCodeAndName(code, name string) (string, error) {
 	return "", errors.New("javbus: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (javBus) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-	lookupCode, _ := javBusLookupCode(code)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	doc, pageURL, err := fetchJavBusDocument(ctx, lookupCode)
-	if err != nil {
-		return "", err
-	}
-	coverURL := parseJavBusCoverURL(doc, pageURL)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (javBus) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("javbus: lookup series url not supported")

@@ -81,13 +81,6 @@ func main() {
 			},
 		},
 		{
-			name:   "LookupCoverURLByCode",
-			prompt: "请输入番号",
-			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupCoverURLByCode(input, provider)
-			},
-		},
-		{
 			name:   "LookupJavByCode",
 			prompt: "请输入番号",
 			call: func(provider jav.Provider, input string) (any, error) {

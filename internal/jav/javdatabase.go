@@ -51,34 +51,6 @@ func (javDatabase) LookupActressURLByCodeAndName(code, name string) (string, err
 	return "", errors.New("javdatabase: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode resolves the cover image URL for a given movie code.
-func (javDatabase) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	base := "https://www.javdatabase.com"
-	movieURL := fmt.Sprintf("%s/movies/%s", base, code)
-
-	doc, status, err := fetchJavDatabaseHTML(ctx, movieURL, base)
-	if err != nil {
-		return "", err
-	}
-	if status == http.StatusNotFound || doc == nil {
-		return "", ResourceNotFonud
-	}
-
-	coverURL := parseJavDatabaseCoverURL(doc, movieURL)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (javDatabase) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("javdatabase: lookup series url not supported")

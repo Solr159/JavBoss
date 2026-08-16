@@ -67,11 +67,6 @@ func (minnanoAV) LookupActressURLByCodeAndName(code, name string) (string, error
 	return "", errors.New("minnanoav: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode implements lookupProvider.
-func (minnanoAV) LookupCoverURLByCode(code string) (string, error) {
-	return "", errors.New("minnanoav: lookup cover not supported")
-}
-
 // LookupJavByCode implements lookupProvider.
 func (minnanoAV) LookupJavByCode(code string) (*JavInfo, error) {
 	return nil, errors.New("minnanoav: lookup jav not supported")

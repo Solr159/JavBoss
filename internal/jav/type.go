@@ -114,7 +114,6 @@ type lookupProvider interface {
 	LookupActressByCode(code string) (*ActressInfo, error)
 	LookupActressByName(name string) (*ActressInfo, error)
 	LookupActressURLByCodeAndName(code, name string) (string, error)
-	LookupCoverURLByCode(code string) (string, error)
 	LookupJavByCode(code string) (*JavInfo, error)
 	LookupSeriesURLByCode(code string) (string, error)
 	LookupStudioURLByCode(code string) (string, error)
@@ -198,25 +197,6 @@ func LookupActressURLByCodeAndName(code, name string, provider Provider) (actres
 	actressURL, err = lookup.LookupActressURLByCodeAndName(code, name)
 	cacheableLookupResult(cacheKey, actressURL, err)
 	return actressURL, err
-}
-
-// LookupCoverURLByCode fetches a cover image URL from the selected provider.
-func LookupCoverURLByCode(code string, provider Provider) (coverURL string, err error) {
-	lookup, err := lookupProviderFor(provider)
-	if err != nil {
-		return "", err
-	}
-	cacheKey := lookupCacheKey(provider, "lookup_cover", code)
-	if cached, ok, err := lookupCacheGet[string](cacheKey); ok {
-		if cached == nil {
-			return "", err
-		}
-		return *cached, err
-	}
-	defer recoverUnsupportedProvider(&err)
-	coverURL, err = lookup.LookupCoverURLByCode(code)
-	cacheableLookupResult(cacheKey, coverURL, err)
-	return coverURL, err
 }
 
 // LookupSeriesURLByCode fetches a series detail URL using a movie code.

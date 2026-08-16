@@ -120,20 +120,20 @@ func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
 	}))
 	defer server.Close()
 
-	originalLookup := lookupCoverURLByCode
+	originalLookup := lookupJavByCode
 	calls := map[jav.Provider]int{}
-	lookupCoverURLByCode = func(code string, provider jav.Provider) (string, error) {
+	lookupJavByCode = func(code string, provider jav.Provider) (*jav.JavInfo, error) {
 		calls[provider]++
 		switch provider {
 		case jav.ProviderJavDatabase:
-			return server.URL + "/small.jpg", nil
+			return &jav.JavInfo{CoverURL: server.URL + "/small.jpg"}, nil
 		case jav.ProviderJavBus:
-			return server.URL + "/valid.jpg", nil
+			return &jav.JavInfo{CoverURL: server.URL + "/valid.jpg"}, nil
 		default:
-			return "", jav.ResourceNotFonud
+			return nil, jav.ResourceNotFonud
 		}
 	}
-	t.Cleanup(func() { lookupCoverURLByCode = originalLookup })
+	t.Cleanup(func() { lookupJavByCode = originalLookup })
 
 	manager := &CoverManager{
 		coverDir:  t.TempDir(),

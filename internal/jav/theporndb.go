@@ -66,31 +66,6 @@ func (thePornDB) LookupJavByCode(code string) (*JavInfo, error) {
 	return info, nil
 }
 
-// LookupCoverURLByCode implements lookupProvider.
-func (thePornDB) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.ToLower(strings.TrimSpace(code))
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	payload, err := fetchThePornDBJavByCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	record := findThePornDBRecordByCode(payload, code)
-	if record == nil {
-		return "", ResourceNotFonud
-	}
-	coverURL := strings.TrimSpace(record.Background.Full)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (thePornDB) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("theporndb: lookup series url not supported")
@@ -165,6 +140,7 @@ func parseThePornDBJavInfo(item thePornDBRecord) *JavInfo {
 		DurationMin: parseThePornDBDurationMinutes(item.Duration),
 		Tags:        dedupeNonEmpty(collectThePornDBTagNames(item.Tags)),
 		Actors:      dedupeNonEmpty(collectThePornDBPerformerNames(item.Performers)),
+		CoverURL:    strings.TrimSpace(item.Background.Full),
 		Provider:    ProviderThePornDB,
 	}
 	if info.Title == "" && info.Code == "" && info.ReleaseUnix == 0 && info.DurationMin == 0 && len(info.Tags) == 0 && len(info.Actors) == 0 {

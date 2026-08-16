@@ -146,27 +146,6 @@ func (avsox) LookupActressURLByCodeAndName(code, name string) (string, error) {
 	return "", errors.New("avsox: lookup actress url not supported")
 }
 
-// LookupCoverURLByCode resolves a cover image URL for a movie code.
-func (avsox) LookupCoverURLByCode(code string) (string, error) {
-	code = strings.TrimSpace(code)
-	if code == "" {
-		return "", ResourceNotFonud
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), avsoxLookupTimeout)
-	defer cancel()
-
-	movie, err := fetchAvsoxMovieByCode(ctx, code)
-	if err != nil {
-		return "", err
-	}
-	coverURL := firstNonEmpty(movie.PosterLarge, movie.PosterSmall)
-	if coverURL == "" {
-		return "", ResourceNotFonud
-	}
-	return coverURL, nil
-}
-
 // LookupSeriesURLByCode implements lookupProvider.
 func (avsox) LookupSeriesURLByCode(code string) (string, error) {
 	return "", errors.New("avsox: lookup series url not supported")

@@ -211,7 +211,7 @@ func TestJavBusLookupCodeRewritesSpecialPrefixes(t *testing.T) {
 	}
 }
 
-func TestJavBusLookupCoverURLByCodeRewritesSpecialPrefixes(t *testing.T) {
+func TestJavBusLookupJavByCodeRewritesSpecialPrefixes(t *testing.T) {
 	client := util.DefaultHTTPClient()
 	originalTransport := client.Transport
 	t.Cleanup(func() {
@@ -222,6 +222,7 @@ func TestJavBusLookupCoverURLByCodeRewritesSpecialPrefixes(t *testing.T) {
 	var requestedPaths []string
 	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		requestedPaths = append(requestedPaths, req.URL.Path)
+		code := strings.TrimPrefix(req.URL.Path, "/")
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Status:     "200 OK",
@@ -231,6 +232,10 @@ func TestJavBusLookupCoverURLByCodeRewritesSpecialPrefixes(t *testing.T) {
 					<head>
 						<meta property="og:image" content="/pics/cover/test_b.jpg">
 					</head>
+					<body>
+						<h3>` + code + ` Test Title</h3>
+						<p><span>識別碼:</span><span>` + code + `</span></p>
+					</body>
 				</html>`)),
 			Request: req,
 		}, nil
@@ -246,12 +251,12 @@ func TestJavBusLookupCoverURLByCodeRewritesSpecialPrefixes(t *testing.T) {
 	}
 	for _, tc := range cases {
 		resetJavBusRateLimiterForTest()
-		coverURL, err := (javBus{}).LookupCoverURLByCode(tc.code)
+		info, err := (javBus{}).LookupJavByCode(tc.code)
 		if err != nil {
-			t.Fatalf("LookupCoverURLByCode(%q) error: %v", tc.code, err)
+			t.Fatalf("LookupJavByCode(%q) error: %v", tc.code, err)
 		}
-		if coverURL != "https://www.javbus.com/pics/cover/test_b.jpg" {
-			t.Fatalf("LookupCoverURLByCode(%q) = %q, want cover URL", tc.code, coverURL)
+		if info == nil || info.CoverURL != "https://www.javbus.com/pics/cover/test_b.jpg" {
+			t.Fatalf("LookupJavByCode(%q) info = %#v, want cover URL", tc.code, info)
 		}
 	}
 
