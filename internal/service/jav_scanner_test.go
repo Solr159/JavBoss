@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -93,20 +95,16 @@ func TestScanMissingJavLocalSeriesUsesOnlyJavMenu(t *testing.T) {
 		t.Fatalf("create jav rows: %v", err)
 	}
 
-	calls := map[string]jav.Provider{}
-	lookup := func(code string, provider jav.Provider) (*jav.JavInfo, error) {
-		calls[code] = provider
-		switch code {
-		case "NO-HINT-001":
-			return &jav.JavInfo{Series: "JavMenu Local Series"}, nil
-		case "EN-HINT-001":
-			return &jav.JavInfo{}, nil
-		default:
-			t.Fatalf("unexpected lookup for code %q", code)
-			return nil, nil
-		}
-	}
-	updated, err := scanMissingJavLocalSeriesWithLookup(context.Background(), lookup)
+	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{
+		"v2:jav:javmenu:lookup_jav:NO-HINT-001": {Series: "JavMenu Local Series"},
+		"v2:jav:javmenu:lookup_jav:EN-HINT-001": {},
+	}}
+	jav.SetCache(cache)
+	t.Cleanup(func() {
+		jav.SetCache(nil)
+	})
+
+	updated, err := scanMissingJavLocalSeriesWithJavMenu(context.Background())
 	if err != nil {
 		t.Fatalf("scan missing local series: %v", err)
 	}
@@ -114,13 +112,14 @@ func TestScanMissingJavLocalSeriesUsesOnlyJavMenu(t *testing.T) {
 		t.Fatalf("updated series = %d, want 1", updated)
 	}
 
-	if len(calls) != 2 {
-		t.Fatalf("lookup calls = %#v, want two missing-series candidates", calls)
+	wantKeys := []string{
+		"v2:jav:javmenu:lookup_jav:NO-HINT-001",
+		"v2:jav:javmenu:lookup_jav:EN-HINT-001",
 	}
-	for code, provider := range calls {
-		if provider != jav.ProviderJavMenu {
-			t.Fatalf("lookup provider for %s = %s, want javmenu", code, provider.String())
-		}
+	sort.Strings(cache.keys)
+	sort.Strings(wantKeys)
+	if !reflect.DeepEqual(cache.keys, wantKeys) {
+		t.Fatalf("lookup cache keys = %#v, want %#v", cache.keys, wantKeys)
 	}
 
 	var filled models.Jav
@@ -138,4 +137,29 @@ func TestScanMissingJavLocalSeriesUsesOnlyJavMenu(t *testing.T) {
 	if empty.SeriesID != nil {
 		t.Fatalf("empty JavMenu series should not be persisted: %#v", empty.SeriesID)
 	}
+}
+
+type javScannerLookupCache struct {
+	values map[string]jav.JavInfo
+	keys   []string
+}
+
+func (c *javScannerLookupCache) Get(key string, _ time.Time) ([]byte, bool, error) {
+	c.keys = append(c.keys, key)
+	info, ok := c.values[key]
+	if !ok {
+		return nil, false, nil
+	}
+	raw, err := json.Marshal(struct {
+		Status string      `json:"status"`
+		Data   jav.JavInfo `json:"data"`
+	}{
+		Status: "hit",
+		Data:   info,
+	})
+	return raw, true, err
+}
+
+func (c *javScannerLookupCache) Set(string, []byte, time.Time) error {
+	return nil
 }

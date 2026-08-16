@@ -20,7 +20,6 @@ const javUncensoredBackfillDoneConfigKey = "jav_uncensored_backfill_done"
 var javSeriesAvmooNoUpdateRounds atomic.Uint32
 
 type periodicScanFunc func(context.Context) error
-type javMetadataLookupFunc func(string, jav.Provider) (*jav.JavInfo, error)
 type localSeriesScanFunc func(context.Context) (int64, error)
 
 // StartJavMetadataScanner periodically fills missing JAV metadata using the fast providers.
@@ -190,13 +189,6 @@ func scanJavSeriesMetadataProviderRound(
 }
 
 func scanMissingJavLocalSeriesWithJavMenu(ctx context.Context) (int64, error) {
-	return scanMissingJavLocalSeriesWithLookup(ctx, jav.LookupJavByCode)
-}
-
-func scanMissingJavLocalSeriesWithLookup(ctx context.Context, lookup javMetadataLookupFunc) (int64, error) {
-	if lookup == nil {
-		return 0, errors.New("nil jav metadata lookup")
-	}
 	items, err := db.ListJavsMissingLocalSeries(ctx)
 	if err != nil {
 		return 0, err
@@ -213,7 +205,7 @@ func scanMissingJavLocalSeriesWithLookup(ctx context.Context, lookup javMetadata
 		if code == "" {
 			continue
 		}
-		info, err := lookup(code, jav.ProviderJavMenu)
+		info, err := jav.LookupJavByCode(code, jav.ProviderJavMenu)
 		if err != nil {
 			if !errors.Is(err, jav.ResourceNotFonud) {
 				logging.Error("lookup javmenu series failed id=%d code=%s err=%v", item.ID, code, err)
