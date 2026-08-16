@@ -18,6 +18,7 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 
 import {
+  fetchJavAvsoxURL,
   fetchJavIdolPreview,
   fetchJavIdolOptions,
   fetchJavSeriesPreview,
@@ -1561,6 +1562,8 @@ function JavCard({
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
+  const [avsoxDetailURL, setAvsoxDetailURL] = useState('')
+  const [avsoxURLLoading, setAvsoxURLLoading] = useState(false)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
   const cover = coverBase ? `${coverBase}${coverVersion ? `?v=${coverVersion}` : ''}` : null
 
@@ -1597,6 +1600,7 @@ function JavCard({
   const canOpen = openableVideos.length > 0
   const encodedCode = code ? encodeURIComponent(code) : ''
   const javdbSearchURL = encodedCode ? `https://javdb.com/search?q=${encodedCode}&f=all` : ''
+  const avsoxSearchURL = encodedCode ? `https://avsox.click/cn/search/${encodedCode}` : ''
   const favoriteCount = Number(item?.favorite_count) || 0
   const itemFavoriteRating = Number(item?.favorite_rating) || 0
   const [favoriteRating, setFavoriteRating] = useState(itemFavoriteRating)
@@ -1627,6 +1631,28 @@ function JavCard({
     event.stopPropagation()
   }
 
+  const handleOpenAvsox = async (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (!code || avsoxURLLoading) return
+
+    const targetWindow = window.open('about:blank', '_blank')
+    if (targetWindow) targetWindow.opener = null
+    setAvsoxURLLoading(true)
+    try {
+      const detailURL = await fetchJavAvsoxURL({ code })
+      const targetURL = detailURL || avsoxSearchURL
+      if (detailURL) setAvsoxDetailURL(detailURL)
+      if (targetWindow && !targetWindow.closed) targetWindow.location.replace(targetURL)
+      else window.open(targetURL, '_blank', 'noopener,noreferrer')
+    } catch {
+      if (targetWindow && !targetWindow.closed) targetWindow.location.replace(avsoxSearchURL)
+      else window.open(avsoxSearchURL, '_blank', 'noopener,noreferrer')
+    } finally {
+      setAvsoxURLLoading(false)
+    }
+  }
+
   const externalLinks = encodedCode
     ? item?.is_uncensored === true
       ? [
@@ -1639,8 +1665,10 @@ function JavCard({
           {
             key: 'avsox',
             name: 'AVSOX',
-            href: `https://avsox.click/cn/search/${encodedCode}`,
+            href: avsoxDetailURL || avsoxSearchURL,
             icon: '/ico/avsox.ico',
+            loading: avsoxURLLoading,
+            onClick: avsoxDetailURL ? undefined : handleOpenAvsox,
           },
         ]
       : [
