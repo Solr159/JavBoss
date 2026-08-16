@@ -243,7 +243,13 @@ export default function VideoCard({
             </Tooltip>
           ) : null}
           {canRevealFile ? (
-            <Tooltip title={zh(`打开所在位置：${fullPath}`, `Reveal in folder: ${fullPath}`)}>
+            <Tooltip
+              title={
+                <span className="whitespace-normal break-all">
+                  {zh(`打开所在位置：${fullPath}`, `Reveal in folder: ${fullPath}`)}
+                </span>
+              }
+            >
               <IconButton
                 size="small"
                 onClick={handleRevealFile}
