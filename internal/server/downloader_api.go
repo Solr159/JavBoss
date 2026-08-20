@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"javboss/internal/db"
+	downloaderopenlist "javboss/internal/downloader/openlist"
 	"javboss/internal/jav"
 	"javboss/internal/models"
 	"javboss/internal/service"
@@ -82,9 +83,18 @@ func updateDownloaderSettings(c *gin.Context) {
 		}
 		if request.ActiveProvider == models.DownloaderProviderOpenList {
 			ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
-			_, testErr := service.TestDiscoveryDownloader(ctx, request.ActiveProvider)
+			_, testErr := service.TestDownloader(ctx, request.ActiveProvider)
 			cancel()
 			if testErr != nil {
+				if errors.Is(testErr, downloaderopenlist.ErrTemporaryDirectoryNotConfigured) {
+					respondLocalizedError(
+						c,
+						http.StatusBadGateway,
+						"尚未配置 115 Open 临时目录，请先前往 OpenList 管理后台完成配置后再试",
+						"The 115 Open temporary directory is not configured. Configure it in the OpenList admin panel, then try again.",
+					)
+					return
+				}
 				respondLocalizedError(c, http.StatusBadGateway, "OpenList 115 Open 配置校验失败："+testErr.Error(), "OpenList 115 Open validation failed: "+testErr.Error())
 				return
 			}
@@ -102,7 +112,7 @@ func updateDownloaderSettings(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "保存下载器配置失败", "Failed to save downloader settings")
 		return
 	}
-	service.WakeDiscoveryDownloadManager()
+	service.WakeDownloadManager()
 	payload, err := loadDownloaderSettingsPayload(c.Request.Context())
 	if err != nil {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取下载器配置失败", "Failed to load downloader settings")
@@ -157,6 +167,20 @@ func updateDownloaderProviderSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, payload.Providers[provider])
 }
 
+func getDownloaderProviderToken(c *gin.Context) {
+	provider := strings.TrimSpace(c.Param("provider"))
+	if !validDownloaderProvider(provider) {
+		respondLocalizedError(c, http.StatusNotFound, "下载器不存在", "Downloader provider not found")
+		return
+	}
+	settings, err := db.GetDownloaderProviderSettings(c.Request.Context(), provider)
+	if err != nil {
+		respondLocalizedError(c, http.StatusInternalServerError, "读取 API Token 失败", "Failed to load the API token")
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"api_token": settings.APIToken})
+}
+
 func testDownloaderProvider(c *gin.Context) {
 	provider := strings.TrimSpace(c.Param("provider"))
 	if !validDownloaderProvider(provider) {
@@ -165,8 +189,17 @@ func testDownloaderProvider(c *gin.Context) {
 	}
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
-	result, err := service.TestDiscoveryDownloader(ctx, provider)
+	result, err := service.TestDownloader(ctx, provider)
 	if err != nil {
+		if errors.Is(err, downloaderopenlist.ErrTemporaryDirectoryNotConfigured) {
+			respondLocalizedError(
+				c,
+				http.StatusBadGateway,
+				"尚未配置 115 Open 临时目录，请先前往 OpenList 管理后台完成配置后再试",
+				"The 115 Open temporary directory is not configured. Configure it in the OpenList admin panel, then try again.",
+			)
+			return
+		}
 		respondLocalizedError(c, http.StatusBadGateway, "下载器连接测试失败："+err.Error(), "Downloader connection test failed: "+err.Error())
 		return
 	}
@@ -223,8 +256,8 @@ func downloaderProviderConfigured(ctx context.Context, provider string) (bool, e
 	return err == nil && strings.TrimSpace(settings.Address) != "" && strings.TrimSpace(settings.APIToken) != "" && strings.TrimSpace(settings.RemoteFolder) != "", err
 }
 
-func listDiscoveryDownloads(c *gin.Context) {
-	jobs, err := db.ListDiscoveryDownloads(c.Request.Context(), queryInt(c, "limit", 100))
+func listDownloadJobs(c *gin.Context) {
+	jobs, err := db.ListDownloadJobs(c.Request.Context(), queryInt(c, "limit", 100))
 	if err != nil {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取下载队列失败", "Failed to load the download queue")
 		return
@@ -244,24 +277,6 @@ func createDiscoveryDownload(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&request); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "下载请求格式不正确", "Invalid download request")
-		return
-	}
-	settings, err := db.GetDownloaderSettings(c.Request.Context())
-	if err != nil || !validDownloaderProvider(settings.ActiveProvider) {
-		respondLocalizedError(c, http.StatusConflict, "尚未激活下载器", "No downloader is active")
-		return
-	}
-	directoryID := settings.DirectoryID
-	if request.DirectoryID != nil {
-		directoryID = request.DirectoryID
-	}
-	if directoryID == nil || *directoryID <= 0 {
-		respondLocalizedError(c, http.StatusBadRequest, "请选择本地下载目录", "Select a local download directory")
-		return
-	}
-	directory, err := db.GetDirectory(c.Request.Context(), *directoryID)
-	if err != nil || directory == nil || directory.IsDelete {
-		respondLocalizedError(c, http.StatusBadRequest, "本地下载目录不存在", "The local download directory does not exist")
 		return
 	}
 	item, err := db.GetJavDiscoveryItem(c.Request.Context(), itemID)
@@ -292,18 +307,66 @@ func createDiscoveryDownload(c *gin.Context) {
 		respondLocalizedError(c, http.StatusBadRequest, "磁力链接不属于该发现作品", "The magnet link does not belong to this discovery item")
 		return
 	}
+	sourceID := itemID
+	enqueueDownloadJob(c, item.Code, models.DownloadSourceDiscovery, &sourceID, magnetURL, magnetName, request.DirectoryID)
+}
+
+func createSourceFreeDownload(c *gin.Context) {
+	var request struct {
+		Code        string `json:"code"`
+		MagnetURL   string `json:"magnet_url"`
+		MagnetName  string `json:"magnet_name"`
+		DirectoryID *int64 `json:"directory_id"`
+	}
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "下载请求格式不正确", "Invalid download request")
+		return
+	}
+	enqueueDownloadJob(c, request.Code, "", nil, request.MagnetURL, request.MagnetName, request.DirectoryID)
+}
+
+func enqueueDownloadJob(c *gin.Context, code, sourceType string, sourceID *int64, magnetURL, magnetName string, requestedDirectoryID *int64) {
+	code = strings.TrimSpace(code)
+	if code == "" || len(code) > 200 {
+		respondLocalizedError(c, http.StatusBadRequest, "作品番号不能为空且不能超过 200 个字符", "The work code is required and must not exceed 200 characters")
+		return
+	}
+	magnetURL = strings.TrimSpace(magnetURL)
 	infoHash, err := service.ParseMagnetInfoHash(magnetURL)
 	if err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "磁力链接格式不正确", "Invalid magnet link")
 		return
 	}
-	job := models.JavDiscoveryDownload{
-		JavDiscoveryItemID: itemID, DirectoryID: *directoryID, InfoHash: infoHash,
-		MagnetURL: magnetURL, MagnetName: magnetName, Provider: settings.ActiveProvider,
+	settings, err := db.GetDownloaderSettings(c.Request.Context())
+	if err != nil || !validDownloaderProvider(settings.ActiveProvider) {
+		respondLocalizedError(c, http.StatusConflict, "尚未激活下载器", "No downloader is active")
+		return
 	}
-	if err := db.CreateDiscoveryDownload(c.Request.Context(), &job); err != nil {
+	directoryID := settings.DirectoryID
+	if requestedDirectoryID != nil {
+		directoryID = requestedDirectoryID
+	}
+	if directoryID == nil || *directoryID <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "请选择本地下载目录", "Select a local download directory")
+		return
+	}
+	directory, err := db.GetDirectory(c.Request.Context(), *directoryID)
+	if err != nil || directory == nil || directory.IsDelete {
+		respondLocalizedError(c, http.StatusBadRequest, "本地下载目录不存在", "The local download directory does not exist")
+		return
+	}
+	var sourceTypeValue *string
+	if sourceType = strings.TrimSpace(sourceType); sourceType != "" {
+		sourceTypeValue = &sourceType
+	}
+	job := models.DownloadJob{
+		SourceType: sourceTypeValue, SourceID: sourceID, Code: code,
+		DirectoryID: *directoryID, InfoHash: infoHash, MagnetURL: magnetURL,
+		MagnetName: strings.TrimSpace(magnetName), Provider: settings.ActiveProvider,
+	}
+	if err := db.CreateDownloadJob(c.Request.Context(), &job); err != nil {
 		switch {
-		case errors.Is(err, db.ErrDiscoveryDownloadExists):
+		case errors.Is(err, db.ErrDownloadJobExists):
 			respondLocalizedError(c, http.StatusConflict, "该磁力已经在此目录的下载队列中", "This magnet is already queued for the selected directory")
 		case errors.Is(err, db.ErrDownloaderProviderChanged):
 			respondLocalizedError(c, http.StatusConflict, "下载器配置已经变化，请重试", "The active downloader changed; try again")
@@ -312,16 +375,16 @@ func createDiscoveryDownload(c *gin.Context) {
 		}
 		return
 	}
-	service.WakeDiscoveryDownloadManager()
+	service.WakeDownloadManager()
 	c.JSON(http.StatusCreated, job)
 }
 
-func retryDiscoveryDownload(c *gin.Context) {
-	id, ok := discoveryDownloadID(c)
+func retryDownloadJob(c *gin.Context) {
+	id, ok := downloadJobID(c)
 	if !ok {
 		return
 	}
-	job, err := db.GetDiscoveryDownload(c.Request.Context(), id)
+	job, err := db.GetDownloadJob(c.Request.Context(), id)
 	if err != nil {
 		respondLocalizedError(c, http.StatusNotFound, "下载任务不存在", "Download job not found")
 		return
@@ -331,40 +394,40 @@ func retryDiscoveryDownload(c *gin.Context) {
 		respondLocalizedError(c, http.StatusConflict, "请先激活该任务使用的下载器", "Activate the downloader used by this job first")
 		return
 	}
-	if err := db.RetryDiscoveryDownload(c.Request.Context(), id); err != nil {
+	if err := db.RetryDownloadJob(c.Request.Context(), id); err != nil {
 		respondLocalizedError(c, http.StatusConflict, "该任务当前不能重试", "The job cannot be retried in its current state")
 		return
 	}
-	service.WakeDiscoveryDownloadManager()
+	service.WakeDownloadManager()
 	c.Status(http.StatusNoContent)
 }
 
-func cancelDiscoveryDownload(c *gin.Context) {
-	id, ok := discoveryDownloadID(c)
+func cancelDownloadJob(c *gin.Context) {
+	id, ok := downloadJobID(c)
 	if !ok {
 		return
 	}
-	if err := db.CancelDiscoveryDownload(c.Request.Context(), id); err != nil {
+	if err := db.CancelDownloadJob(c.Request.Context(), id); err != nil {
 		respondLocalizedError(c, http.StatusConflict, "该任务当前不能取消", "The job cannot be canceled in its current state")
 		return
 	}
-	service.CancelDiscoveryDownload(id)
+	service.CancelDownloadJob(id)
 	c.Status(http.StatusNoContent)
 }
 
-func deleteDiscoveryDownload(c *gin.Context) {
-	id, ok := discoveryDownloadID(c)
+func deleteDownloadJob(c *gin.Context) {
+	id, ok := downloadJobID(c)
 	if !ok {
 		return
 	}
-	if err := db.DeleteDiscoveryDownload(c.Request.Context(), id); err != nil {
+	if err := db.DeleteDownloadJob(c.Request.Context(), id); err != nil {
 		respondLocalizedError(c, http.StatusConflict, "只能删除已结束的下载任务", "Only finished download jobs can be deleted")
 		return
 	}
 	c.Status(http.StatusNoContent)
 }
 
-func discoveryDownloadID(c *gin.Context) (int64, bool) {
+func downloadJobID(c *gin.Context) (int64, bool) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
 		respondLocalizedError(c, http.StatusBadRequest, "下载任务 ID 不正确", "Invalid download job ID")

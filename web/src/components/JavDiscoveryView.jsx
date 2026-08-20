@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import {
   createJavDiscoverySubscription,
   createDiscoveryDownload,
@@ -10,22 +12,27 @@ import {
   updateJavDiscoveryWanted,
 } from '@/api'
 import JavDiscoveryDetailModal from '@/components/JavDiscoveryDetailModal'
+import JavDiscoveryDownloaderSettingsView from '@/components/JavDiscoveryDownloaderSettingsView'
 import JavDiscoveryDownloadsView from '@/components/JavDiscoveryDownloadsView'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
 const PAGE_SIZE = 49
 
-function ShowOwnedOption({ checked, onChange }) {
+function ShowOwnedOption({ checked, compact = false, onChange }) {
   return (
-    <label className="flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-600">
+    <label
+      className={`flex cursor-pointer items-center rounded-lg border border-gray-200 bg-white text-gray-600 ${
+        compact ? 'h-8 gap-1.5 px-2.5 text-xs' : 'h-10 gap-2 px-3 text-sm'
+      }`}
+    >
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 accent-blue-600"
+        className={`${compact ? 'h-3.5 w-3.5' : 'h-4 w-4'} accent-blue-600`}
       />
-      <span>{zh('显示已拥有', 'Show owned')}</span>
+      <span>{zh('显示已拥有的作品', 'Show owned works')}</span>
     </label>
   )
 }
@@ -90,7 +97,7 @@ export default function JavDiscoveryView() {
     const result = await fetchJavDiscoveryItems({
       wanted: wantedOnly,
       includeOwned: showOwned,
-      subscriptionId: wantedOnly ? null : selectedSubscriptionId,
+      subscriptionId: selectedSubscriptionId,
       limit: PAGE_SIZE,
       offset: (page - 1) * PAGE_SIZE,
     })
@@ -309,6 +316,10 @@ export default function JavDiscoveryView() {
       id: 'downloads',
       label: zh('下载队列', 'Downloads'),
     },
+    {
+      id: 'downloader_settings',
+      label: zh('下载器设置', 'Downloader settings'),
+    },
   ]
 
   return (
@@ -459,37 +470,19 @@ export default function JavDiscoveryView() {
             </section>
           ) : activeTab === 'downloads' ? (
             <JavDiscoveryDownloadsView />
+          ) : activeTab === 'downloader_settings' ? (
+            <JavDiscoveryDownloaderSettingsView />
           ) : (
             <section>
-              {wantedOnly ? (
-                <div className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900">{zh('我想要', 'Wanted')}</h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {zh(
-                        '“我想要”是已发现作品的子集。',
-                        'Wanted works are a subset of discovered works.'
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <ShowOwnedOption checked={showOwned} onChange={handleShowOwnedChange} />
-                    <span className="text-sm text-gray-500">
-                      {zh(`共 ${total} 部`, `${total} items`)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-end justify-between gap-3">
-                  <div className="flex flex-wrap items-end gap-3">
-                    <label className="block min-w-52">
-                      <span className="mb-1 block text-xs font-medium text-gray-600">
-                        {zh('按订阅筛选', 'Filter by subscription')}
-                      </span>
+              <div className="sticky top-[var(--topbar-height)] z-30 ml-[calc(-1rem-var(--page-left-padding))] mr-[calc(-1rem-var(--page-right-padding))] bg-white px-4 py-2 sm:ml-[calc(-1.5rem-var(--page-left-padding))] sm:mr-[calc(-1.5rem-var(--page-right-padding))] sm:px-6 lg:-ml-6 lg:-mt-4 lg:pl-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="block min-w-44">
                       <select
+                        aria-label={zh('按订阅筛选', 'Filter by subscription')}
                         value={selectedSubscriptionId}
                         onChange={handleSubscriptionFilterChange}
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        className="h-8 w-full rounded-lg border border-gray-300 bg-white px-2.5 text-xs text-gray-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                       >
                         <option value="">{zh('全部订阅', 'All subscriptions')}</option>
                         {subscriptions.map((subscription) => (
@@ -499,28 +492,30 @@ export default function JavDiscoveryView() {
                         ))}
                       </select>
                     </label>
-                    <ShowOwnedOption checked={showOwned} onChange={handleShowOwnedChange} />
-                    <button
-                      type="button"
-                      onClick={handleLoadMoreHistory}
-                      disabled={!selectedSubscriptionId || loadingHistory}
-                      className="h-10 rounded-lg border border-blue-200 bg-blue-50 px-4 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      title={
-                        selectedSubscriptionId
-                          ? undefined
-                          : zh('请先选择一个订阅', 'Select a subscription first')
-                      }
-                    >
-                      {loadingHistory
-                        ? zh('加载中…', 'Loading...')
-                        : zh('再加载 10 部历史作品', 'Load 10 more historical works')}
-                    </button>
+                    <ShowOwnedOption checked={showOwned} compact onChange={handleShowOwnedChange} />
+                    {!wantedOnly ? (
+                      <button
+                        type="button"
+                        onClick={handleLoadMoreHistory}
+                        disabled={!selectedSubscriptionId || loadingHistory}
+                        className="h-8 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-medium text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        title={
+                          selectedSubscriptionId
+                            ? undefined
+                            : zh('请先选择一个订阅', 'Select a subscription first')
+                        }
+                      >
+                        {loadingHistory
+                          ? zh('加载中…', 'Loading...')
+                          : zh('再加载 10 部历史作品', 'Load 10 more historical works')}
+                      </button>
+                    ) : null}
                   </div>
-                  <span className="pb-2 text-sm text-gray-500">
+                  <span className="text-xs text-gray-500">
                     {zh(`共 ${total} 部`, `${total} items`)}
                   </span>
                 </div>
-              )}
+              </div>
 
               {loading ? (
                 <div className="mt-4 flex min-h-48 items-center justify-center rounded-xl border border-dashed border-gray-200 text-sm text-gray-400">
@@ -567,32 +562,43 @@ export default function JavDiscoveryView() {
                               {zh('已拥有', 'Owned')}
                             </span>
                           ) : null}
+                          <button
+                            type="button"
+                            disabled={busyItemIds.has(item.id)}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleWanted(item)
+                            }}
+                            aria-label={
+                              item.wanted
+                                ? zh(
+                                    `将 ${item.code} 移出我想要的`,
+                                    `Remove ${item.code} from wanted`
+                                  )
+                                : zh(`将 ${item.code} 加入我想要的`, `Add ${item.code} to wanted`)
+                            }
+                            title={
+                              item.wanted
+                                ? zh('移出我想要的', 'Remove from wanted')
+                                : zh('加入我想要的', 'Add to wanted')
+                            }
+                            className="absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-lg text-rose-600 shadow-md backdrop-blur transition hover:scale-105 hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {item.wanted ? (
+                              <FavoriteRoundedIcon fontSize="inherit" aria-hidden="true" />
+                            ) : (
+                              <FavoriteBorderRoundedIcon fontSize="inherit" aria-hidden="true" />
+                            )}
+                          </button>
                         </div>
                         <div className="p-3">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="font-mono text-sm font-bold text-gray-900">
-                              {item.code}
-                            </div>
-                            <button
-                              type="button"
-                              disabled={busyItemIds.has(item.id)}
-                              onClick={(event) => {
-                                event.stopPropagation()
-                                handleWanted(item)
-                              }}
-                              className={`relative z-20 shrink-0 rounded-full px-2 py-1 text-xs font-medium ${
-                                item.wanted
-                                  ? 'bg-rose-100 text-rose-700 hover:bg-rose-200'
-                                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                              } disabled:opacity-50`}
-                            >
-                              {item.wanted ? zh('已想要', 'Wanted') : zh('想要', 'Want')}
-                            </button>
+                          <div className="font-mono text-sm font-bold text-gray-900">
+                            {item.code}
                           </div>
                           <div className="mt-1 line-clamp-2 min-h-10 text-xs leading-5 text-gray-600">
                             {metadata.title || zh('暂无标题', 'No title')}
                           </div>
-                          <div className="mt-2 text-xs text-gray-400">
+                          <div className="mt-2 text-xs font-semibold text-gray-600">
                             {formatReleaseDate(item.release_unix)}
                           </div>
                           {Array.isArray(item.subscriptions) && item.subscriptions.length > 0 ? (

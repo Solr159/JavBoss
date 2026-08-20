@@ -3,6 +3,7 @@ package openlist
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,6 +11,29 @@ import (
 
 	"javboss/internal/downloader"
 )
+
+func TestClientReportsMissingTemporaryDirectory(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/api/me":
+			writeOpenListTestResponse(response, http.StatusOK, map[string]any{"username": "admin", "role": 2})
+		case "/api/admin/setting/get":
+			writeOpenListTestResponse(response, http.StatusOK, map[string]any{"value": ""})
+		default:
+			writeOpenListTestResponse(response, http.StatusNotFound, nil)
+		}
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL, "admin-token")
+	if err != nil {
+		t.Fatalf("new client: %v", err)
+	}
+	defer client.Close()
+	if _, err := client.Test(context.Background(), "/115/JavBoss"); !errors.Is(err, ErrTemporaryDirectoryNotConfigured) {
+		t.Fatalf("test error = %v, want ErrTemporaryDirectoryNotConfigured", err)
+	}
+}
 
 func TestClientUses115OpenAndResolvesDownload(t *testing.T) {
 	t.Helper()

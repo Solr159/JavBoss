@@ -16,14 +16,13 @@ import (
 )
 
 var (
-	ErrDiscoveryDownloadExists         = errors.New("discovery download already exists")
+	ErrDownloadJobExists               = errors.New("download job already exists")
 	ErrDownloaderProviderChanged       = errors.New("active downloader provider changed")
 	ErrDownloaderProviderHasActiveJobs = errors.New("downloader provider has active jobs")
 )
 
-type DiscoveryDownloadResult struct {
-	models.JavDiscoveryDownload
-	Code          string   `json:"code"`
+type DownloadJobResult struct {
+	models.DownloadJob
 	DirectoryPath string   `json:"directory_path"`
 	LocalFiles    []string `json:"local_files"`
 }
@@ -63,12 +62,12 @@ func SaveDownloaderSettings(ctx context.Context, settings *models.DownloaderSett
 		}
 		if current.ActiveProvider != settings.ActiveProvider {
 			terminal := []string{
-				models.DiscoveryDownloadCompleted,
-				models.DiscoveryDownloadFailed,
-				models.DiscoveryDownloadCanceled,
+				models.DownloadCompleted,
+				models.DownloadFailed,
+				models.DownloadCanceled,
 			}
 			var count int64
-			if err := tx.Model(&models.JavDiscoveryDownload{}).Where("status NOT IN ?", terminal).Count(&count).Error; err != nil {
+			if err := tx.Model(&models.DownloadJob{}).Where("status NOT IN ?", terminal).Count(&count).Error; err != nil {
 				return err
 			}
 			if count > 0 {
@@ -131,17 +130,32 @@ func SaveDownloaderProviderSettings(ctx context.Context, settings *models.Downlo
 	return nil
 }
 
-func CreateDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownload) error {
+func CreateDownloadJob(ctx context.Context, job *models.DownloadJob) error {
 	if common.DB == nil {
-		return errors.New("create discovery download: nil db")
+		return errors.New("create download job: nil db")
 	}
-	if job == nil || job.JavDiscoveryItemID <= 0 || job.DirectoryID <= 0 || strings.TrimSpace(job.InfoHash) == "" {
-		return errors.New("create discovery download: invalid job")
+	if job == nil {
+		return errors.New("create download job: missing job")
+	}
+	job.Code = strings.TrimSpace(job.Code)
+	job.InfoHash = strings.TrimSpace(job.InfoHash)
+	job.MagnetURL = strings.TrimSpace(job.MagnetURL)
+	job.MagnetName = strings.TrimSpace(job.MagnetName)
+	hasSource := job.SourceType != nil || job.SourceID != nil
+	if hasSource && (job.SourceType == nil || job.SourceID == nil || strings.TrimSpace(*job.SourceType) == "" || *job.SourceID <= 0) {
+		return errors.New("create download job: incomplete source")
+	}
+	if job.SourceType != nil {
+		normalizedSourceType := strings.TrimSpace(*job.SourceType)
+		job.SourceType = &normalizedSourceType
+	}
+	if job.DirectoryID <= 0 || job.Code == "" || job.InfoHash == "" || job.MagnetURL == "" {
+		return errors.New("create download job: invalid job")
 	}
 	if job.Provider != models.DownloaderProviderCloudDrive2 && job.Provider != models.DownloaderProviderOpenList {
-		return errors.New("create discovery download: invalid provider")
+		return errors.New("create download job: invalid provider")
 	}
-	job.Status = models.DiscoveryDownloadQueued
+	job.Status = models.DownloadQueued
 	job.LocalFilesJSON = "[]"
 	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var settings models.DownloaderSettings
@@ -155,140 +169,137 @@ func CreateDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownlo
 	})
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "unique") {
-			return ErrDiscoveryDownloadExists
+			return ErrDownloadJobExists
 		}
 		if errors.Is(err, ErrDownloaderProviderChanged) {
 			return err
 		}
-		return fmt.Errorf("create discovery download: %w", err)
+		return fmt.Errorf("create download job: %w", err)
 	}
 	return nil
 }
 
-func GetDiscoveryDownload(ctx context.Context, id int64) (*models.JavDiscoveryDownload, error) {
+func GetDownloadJob(ctx context.Context, id int64) (*models.DownloadJob, error) {
 	if common.DB == nil {
-		return nil, errors.New("get discovery download: nil db")
+		return nil, errors.New("get download job: nil db")
 	}
-	var job models.JavDiscoveryDownload
+	var job models.DownloadJob
 	if err := common.DB.WithContext(ctx).First(&job, id).Error; err != nil {
-		return nil, fmt.Errorf("get discovery download: %w", err)
+		return nil, fmt.Errorf("get download job: %w", err)
 	}
 	return &job, nil
 }
 
-func ListDiscoveryDownloads(ctx context.Context, limit int) ([]DiscoveryDownloadResult, error) {
+func ListDownloadJobs(ctx context.Context, limit int) ([]DownloadJobResult, error) {
 	if common.DB == nil {
-		return nil, errors.New("list discovery downloads: nil db")
+		return nil, errors.New("list download jobs: nil db")
 	}
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	var rows []struct {
-		models.JavDiscoveryDownload
-		Code          string `gorm:"column:code"`
+		models.DownloadJob
 		DirectoryPath string `gorm:"column:directory_path"`
 	}
 	if err := common.DB.WithContext(ctx).
-		Table("jav_discovery_download AS download").
-		Select("download.*, item.code AS code, directory.path AS directory_path").
-		Joins("JOIN jav_discovery_item AS item ON item.id = download.jav_discovery_item_id").
+		Table("download_job AS download").
+		Select("download.*, directory.path AS directory_path").
 		Joins("JOIN directory ON directory.id = download.directory_id").
 		Order("download.created_at DESC, download.id DESC").
 		Limit(limit).
 		Scan(&rows).Error; err != nil {
-		return nil, fmt.Errorf("list discovery downloads: %w", err)
+		return nil, fmt.Errorf("list download jobs: %w", err)
 	}
-	result := make([]DiscoveryDownloadResult, 0, len(rows))
+	result := make([]DownloadJobResult, 0, len(rows))
 	for _, row := range rows {
 		files := []string{}
 		_ = json.Unmarshal([]byte(row.LocalFilesJSON), &files)
-		result = append(result, DiscoveryDownloadResult{
-			JavDiscoveryDownload: row.JavDiscoveryDownload,
-			Code:                 row.Code,
-			DirectoryPath:        row.DirectoryPath,
-			LocalFiles:           files,
+		result = append(result, DownloadJobResult{
+			DownloadJob:   row.DownloadJob,
+			DirectoryPath: row.DirectoryPath,
+			LocalFiles:    files,
 		})
 	}
 	return result, nil
 }
 
-func ResetInterruptedDiscoveryDownloads(ctx context.Context) error {
+func ResetInterruptedDownloadJobs(ctx context.Context) error {
 	if common.DB == nil {
-		return errors.New("reset discovery downloads: nil db")
+		return errors.New("reset download jobs: nil db")
 	}
 	active := []string{
-		models.DiscoveryDownloadOfflineDownloading,
-		models.DiscoveryDownloadResolvingFiles,
-		models.DiscoveryDownloadWaitingLocal,
-		models.DiscoveryDownloadLocalDownloading,
+		models.DownloadOfflineDownloading,
+		models.DownloadResolvingFiles,
+		models.DownloadWaitingLocal,
+		models.DownloadLocalDownloading,
 	}
-	if err := common.DB.WithContext(ctx).Model(&models.JavDiscoveryDownload{}).
+	if err := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("status IN ?", active).
-		Updates(map[string]any{"status": models.DiscoveryDownloadQueued, "error_message": ""}).Error; err != nil {
-		return fmt.Errorf("reset discovery downloads: %w", err)
+		Updates(map[string]any{"status": models.DownloadQueued, "error_message": ""}).Error; err != nil {
+		return fmt.Errorf("reset download jobs: %w", err)
 	}
 	return nil
 }
 
-func ClaimNextQueuedDiscoveryDownload(ctx context.Context, provider string) (*models.JavDiscoveryDownload, error) {
+func ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.DownloadJob, error) {
 	if common.DB == nil {
-		return nil, errors.New("claim discovery download: nil db")
+		return nil, errors.New("claim download job: nil db")
 	}
 	if provider != models.DownloaderProviderCloudDrive2 && provider != models.DownloaderProviderOpenList {
-		return nil, errors.New("claim discovery download: invalid provider")
+		return nil, errors.New("claim download job: invalid provider")
 	}
 	for attempts := 0; attempts < 10; attempts++ {
-		var job models.JavDiscoveryDownload
+		var job models.DownloadJob
 		err := common.DB.WithContext(ctx).
-			Where("status = ? AND provider = ?", models.DiscoveryDownloadQueued, provider).
+			Where("status = ? AND provider = ?", models.DownloadQueued, provider).
 			Order("created_at, id").
 			First(&job).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("claim discovery download: %w", err)
+			return nil, fmt.Errorf("claim download job: %w", err)
 		}
-		result := common.DB.WithContext(ctx).Model(&models.JavDiscoveryDownload{}).
-			Where("id = ? AND status = ? AND provider = ?", job.ID, models.DiscoveryDownloadQueued, provider).
+		result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+			Where("id = ? AND status = ? AND provider = ?", job.ID, models.DownloadQueued, provider).
 			Updates(map[string]any{
-				"status": models.DiscoveryDownloadOfflineDownloading, "error_message": "",
+				"status": models.DownloadOfflineDownloading, "error_message": "",
 			})
 		if result.Error != nil {
-			return nil, fmt.Errorf("claim discovery download: %w", result.Error)
+			return nil, fmt.Errorf("claim download job: %w", result.Error)
 		}
 		if result.RowsAffected == 1 {
-			job.Status = models.DiscoveryDownloadOfflineDownloading
+			job.Status = models.DownloadOfflineDownloading
 			job.ErrorMessage = ""
 			return &job, nil
 		}
 	}
-	return nil, errors.New("claim discovery download: too much contention")
+	return nil, errors.New("claim download job: too much contention")
 }
 
-func UpdateDiscoveryDownload(ctx context.Context, id int64, updates map[string]any) error {
+func UpdateDownloadJob(ctx context.Context, id int64, updates map[string]any) error {
 	if common.DB == nil {
-		return errors.New("update discovery download: nil db")
+		return errors.New("update download job: nil db")
 	}
 	if id <= 0 || len(updates) == 0 {
 		return nil
 	}
-	if err := common.DB.WithContext(ctx).Model(&models.JavDiscoveryDownload{}).
+	if err := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("id = ?", id).Updates(updates).Error; err != nil {
-		return fmt.Errorf("update discovery download: %w", err)
+		return fmt.Errorf("update download job: %w", err)
 	}
 	return nil
 }
 
-func RetryDiscoveryDownload(ctx context.Context, id int64) error {
-	result := common.DB.WithContext(ctx).Model(&models.JavDiscoveryDownload{}).
-		Where("id = ? AND status IN ?", id, []string{models.DiscoveryDownloadFailed, models.DiscoveryDownloadCanceled}).
+func RetryDownloadJob(ctx context.Context, id int64) error {
+	result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+		Where("id = ? AND status IN ?", id, []string{models.DownloadFailed, models.DownloadCanceled}).
 		Updates(map[string]any{
-			"status": models.DiscoveryDownloadQueued, "error_message": "", "completed_at": nil,
+			"status": models.DownloadQueued, "error_message": "", "completed_at": nil,
 			"remote_task_id": "", "bytes_total": 0, "bytes_downloaded": 0,
 		})
 	if result.Error != nil {
-		return fmt.Errorf("retry discovery download: %w", result.Error)
+		return fmt.Errorf("retry download job: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -296,12 +307,12 @@ func RetryDiscoveryDownload(ctx context.Context, id int64) error {
 	return nil
 }
 
-func CancelDiscoveryDownload(ctx context.Context, id int64) error {
-	result := common.DB.WithContext(ctx).Model(&models.JavDiscoveryDownload{}).
-		Where("id = ? AND status NOT IN ?", id, []string{models.DiscoveryDownloadCompleted, models.DiscoveryDownloadCanceled}).
-		Updates(map[string]any{"status": models.DiscoveryDownloadCanceled, "error_message": ""})
+func CancelDownloadJob(ctx context.Context, id int64) error {
+	result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+		Where("id = ? AND status NOT IN ?", id, []string{models.DownloadCompleted, models.DownloadCanceled}).
+		Updates(map[string]any{"status": models.DownloadCanceled, "error_message": ""})
 	if result.Error != nil {
-		return fmt.Errorf("cancel discovery download: %w", result.Error)
+		return fmt.Errorf("cancel download job: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -309,13 +320,13 @@ func CancelDiscoveryDownload(ctx context.Context, id int64) error {
 	return nil
 }
 
-func DeleteDiscoveryDownload(ctx context.Context, id int64) error {
+func DeleteDownloadJob(ctx context.Context, id int64) error {
 	result := common.DB.WithContext(ctx).
 		Where("id = ? AND status IN ?", id, []string{
-			models.DiscoveryDownloadCompleted, models.DiscoveryDownloadFailed, models.DiscoveryDownloadCanceled,
-		}).Delete(&models.JavDiscoveryDownload{})
+			models.DownloadCompleted, models.DownloadFailed, models.DownloadCanceled,
+		}).Delete(&models.DownloadJob{})
 	if result.Error != nil {
-		return fmt.Errorf("delete discovery download: %w", result.Error)
+		return fmt.Errorf("delete download job: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
@@ -323,14 +334,14 @@ func DeleteDiscoveryDownload(ctx context.Context, id int64) error {
 	return nil
 }
 
-func CompleteDiscoveryDownload(ctx context.Context, id int64, files []string, total int64) error {
+func CompleteDownloadJob(ctx context.Context, id int64, files []string, total int64) error {
 	raw, err := json.Marshal(files)
 	if err != nil {
-		return fmt.Errorf("encode discovery download local files: %w", err)
+		return fmt.Errorf("encode download job local files: %w", err)
 	}
 	now := time.Now().UTC()
-	return UpdateDiscoveryDownload(ctx, id, map[string]any{
-		"status":           models.DiscoveryDownloadCompleted,
+	return UpdateDownloadJob(ctx, id, map[string]any{
+		"status":           models.DownloadCompleted,
 		"bytes_total":      total,
 		"bytes_downloaded": total,
 		"local_files_json": string(raw),

@@ -10,7 +10,7 @@ import (
 	"javboss/internal/models"
 )
 
-func TestClaimNextQueuedDiscoveryDownloadClaimsEachJobOnce(t *testing.T) {
+func TestClaimNextQueuedDownloadJobClaimsEachJobOnce(t *testing.T) {
 	database, err := Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
@@ -37,24 +37,52 @@ func TestClaimNextQueuedDiscoveryDownloadClaimsEachJobOnce(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("save downloader settings: %v", err)
 	}
+	var sourcedJobID int64
 	for _, hash := range []string{"hash-one", "hash-two"} {
-		job := models.JavDiscoveryDownload{
-			JavDiscoveryItemID: item.ID, DirectoryID: directory.ID,
-			InfoHash: hash, MagnetURL: "magnet:?xt=urn:btih:" + hash,
-			Provider: models.DownloaderProviderOpenList,
+		var sourceID *int64
+		var sourceType *string
+		if hash == "hash-one" {
+			typeValue := models.DownloadSourceDiscovery
+			sourceType = &typeValue
+			sourceID = &item.ID
 		}
-		if err := CreateDiscoveryDownload(context.Background(), &job); err != nil {
+		job := models.DownloadJob{
+			SourceType: sourceType, SourceID: sourceID, Code: "ABC-001",
+			DirectoryID: directory.ID, InfoHash: hash,
+			MagnetURL: "magnet:?xt=urn:btih:" + hash,
+			Provider:  models.DownloaderProviderOpenList,
+		}
+		if err := CreateDownloadJob(context.Background(), &job); err != nil {
 			t.Fatalf("create download %s: %v", hash, err)
 		}
+		if sourceType != nil {
+			sourcedJobID = job.ID
+		}
+	}
+	duplicate := models.DownloadJob{
+		Code: "OTHER-001", DirectoryID: directory.ID, InfoHash: "hash-one",
+		MagnetURL: "magnet:?xt=urn:btih:hash-one", Provider: models.DownloaderProviderOpenList,
+	}
+	if err := CreateDownloadJob(context.Background(), &duplicate); !errors.Is(err, ErrDownloadJobExists) {
+		t.Fatalf("duplicate target hash error = %v", err)
+	}
+	partialSourceID := item.ID
+	partialSource := models.DownloadJob{
+		SourceID: &partialSourceID, Code: "OTHER-002", DirectoryID: directory.ID,
+		InfoHash: "hash-three", MagnetURL: "magnet:?xt=urn:btih:hash-three",
+		Provider: models.DownloaderProviderOpenList,
+	}
+	if err := CreateDownloadJob(context.Background(), &partialSource); err == nil {
+		t.Fatal("create download with source id but no source type succeeded")
 	}
 
 	start := make(chan struct{})
-	results := make(chan *models.JavDiscoveryDownload, 2)
+	results := make(chan *models.DownloadJob, 2)
 	claimErrors := make(chan error, 2)
 	for range 2 {
 		go func() {
 			<-start
-			job, claimErr := ClaimNextQueuedDiscoveryDownload(context.Background(), models.DownloaderProviderOpenList)
+			job, claimErr := ClaimNextQueuedDownloadJob(context.Background(), models.DownloaderProviderOpenList)
 			results <- job
 			claimErrors <- claimErr
 		}()
@@ -73,10 +101,32 @@ func TestClaimNextQueuedDiscoveryDownloadClaimsEachJobOnce(t *testing.T) {
 		if claimed[job.ID] {
 			t.Fatalf("job %d was claimed twice", job.ID)
 		}
-		if job.Status != models.DiscoveryDownloadOfflineDownloading {
+		if job.Status != models.DownloadOfflineDownloading {
 			t.Fatalf("claimed status = %q", job.Status)
 		}
 		claimed[job.ID] = true
+	}
+	if err := database.Delete(&item).Error; err != nil {
+		t.Fatalf("delete download source: %v", err)
+	}
+	if _, err := GetDownloadJob(context.Background(), sourcedJobID); err != nil {
+		t.Fatalf("load download after deleting source: %v", err)
+	}
+	jobs, err := ListDownloadJobs(context.Background(), 10)
+	if err != nil {
+		t.Fatalf("list downloads: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("download count = %d, want 2", len(jobs))
+	}
+	foundSourceFree := false
+	for _, job := range jobs {
+		if job.SourceType == nil && job.SourceID == nil {
+			foundSourceFree = true
+		}
+	}
+	if !foundSourceFree {
+		t.Fatal("source-free download job was not preserved")
 	}
 	if err := SaveDownloaderSettings(context.Background(), &models.DownloaderSettings{
 		ActiveProvider: models.DownloaderProviderCloudDrive2, LocalConcurrency: 2,

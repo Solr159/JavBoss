@@ -33,11 +33,11 @@ const (
 )
 
 var (
-	downloadNameUnsafe  = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]+`)
-	downloadSampleName  = regexp.MustCompile(`(?i)(^|[._ -])(sample|trailer|preview|予告|样片)([._ -]|$)`)
-	downloadManagerMu   sync.RWMutex
-	discoveryDownloader *downloadManager
-	downloadHTTPClient  = newDownloadHTTPClient()
+	downloadNameUnsafe    = regexp.MustCompile(`[<>:"/\\|?*\x00-\x1f]+`)
+	downloadSampleName    = regexp.MustCompile(`(?i)(^|[._ -])(sample|trailer|preview|予告|样片)([._ -]|$)`)
+	downloadManagerMu     sync.RWMutex
+	activeDownloadManager *downloadManager
+	downloadHTTPClient    = newDownloadHTTPClient()
 )
 
 type downloadManager struct {
@@ -48,33 +48,33 @@ type downloadManager struct {
 	localLimiter *localDownloadLimiter
 }
 
-func StartDiscoveryDownloadManager(ctx context.Context) {
+func StartDownloadManager(ctx context.Context) {
 	manager := &downloadManager{
 		ctx: ctx, wake: make(chan struct{}, 1), cancels: make(map[int64]context.CancelFunc),
 		localLimiter: newLocalDownloadLimiter(2),
 	}
 	downloadManagerMu.Lock()
-	discoveryDownloader = manager
+	activeDownloadManager = manager
 	downloadManagerMu.Unlock()
-	if err := db.ResetInterruptedDiscoveryDownloads(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		logging.Error("reset interrupted discovery downloads failed: %v", err)
+	if err := db.ResetInterruptedDownloadJobs(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		logging.Error("reset interrupted downloads failed: %v", err)
 	}
 	go manager.run()
 	manager.signal()
 }
 
-func WakeDiscoveryDownloadManager() {
+func WakeDownloadManager() {
 	downloadManagerMu.RLock()
-	manager := discoveryDownloader
+	manager := activeDownloadManager
 	downloadManagerMu.RUnlock()
 	if manager != nil {
 		manager.signal()
 	}
 }
 
-func CancelDiscoveryDownload(id int64) {
+func CancelDownloadJob(id int64) {
 	downloadManagerMu.RLock()
-	manager := discoveryDownloader
+	manager := activeDownloadManager
 	downloadManagerMu.RUnlock()
 	if manager == nil {
 		return
@@ -112,7 +112,7 @@ func (m *downloadManager) dispatch() {
 	settings, err := db.GetDownloaderSettings(m.ctx)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) {
-			logging.Error("load discovery download settings failed: %v", err)
+			logging.Error("load download settings failed: %v", err)
 		}
 		return
 	}
@@ -127,10 +127,10 @@ func (m *downloadManager) dispatch() {
 		if active >= downloadMaxActiveJobs {
 			return
 		}
-		job, err := db.ClaimNextQueuedDiscoveryDownload(m.ctx, settings.ActiveProvider)
+		job, err := db.ClaimNextQueuedDownloadJob(m.ctx, settings.ActiveProvider)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
-				logging.Error("claim discovery download queue job failed: %v", err)
+				logging.Error("claim download queue job failed: %v", err)
 			}
 			return
 		}
@@ -141,14 +141,14 @@ func (m *downloadManager) dispatch() {
 		m.mu.Lock()
 		m.cancels[job.ID] = cancel
 		m.mu.Unlock()
-		current, loadErr := db.GetDiscoveryDownload(m.ctx, job.ID)
-		if loadErr != nil || current.Status != models.DiscoveryDownloadOfflineDownloading {
+		current, loadErr := db.GetDownloadJob(m.ctx, job.ID)
+		if loadErr != nil || current.Status != models.DownloadOfflineDownloading {
 			cancel()
 			m.mu.Lock()
 			delete(m.cancels, job.ID)
 			m.mu.Unlock()
 			if loadErr != nil && !errors.Is(loadErr, context.Canceled) {
-				logging.Error("verify claimed discovery download job failed id=%d: %v", job.ID, loadErr)
+				logging.Error("verify claimed download job failed id=%d: %v", job.ID, loadErr)
 			}
 			continue
 		}
@@ -156,25 +156,25 @@ func (m *downloadManager) dispatch() {
 	}
 }
 
-func (m *downloadManager) process(ctx context.Context, cancel context.CancelFunc, job *models.JavDiscoveryDownload) {
-	err := processDiscoveryDownload(ctx, job, m.localLimiter)
+func (m *downloadManager) process(ctx context.Context, cancel context.CancelFunc, job *models.DownloadJob) {
+	err := processDownloadJob(ctx, job, m.localLimiter)
 	cancel()
 	m.mu.Lock()
 	delete(m.cancels, job.ID)
 	m.mu.Unlock()
 	if err != nil && m.ctx.Err() == nil {
-		current, loadErr := db.GetDiscoveryDownload(context.Background(), job.ID)
-		if loadErr == nil && current.Status != models.DiscoveryDownloadCanceled {
+		current, loadErr := db.GetDownloadJob(context.Background(), job.ID)
+		if loadErr == nil && current.Status != models.DownloadCanceled {
 			message := strings.TrimSpace(err.Error())
 			if len(message) > 1000 {
 				message = message[:1000]
 			}
-			_ = db.UpdateDiscoveryDownload(context.Background(), job.ID, map[string]any{
-				"status": models.DiscoveryDownloadFailed, "error_message": message,
+			_ = db.UpdateDownloadJob(context.Background(), job.ID, map[string]any{
+				"status": models.DownloadFailed, "error_message": message,
 			})
 		}
 		if !errors.Is(err, context.Canceled) {
-			logging.Error("discovery download job failed id=%d: %v", job.ID, err)
+			logging.Error("download job failed id=%d: %v", job.ID, err)
 		}
 	}
 	m.signal()
@@ -241,17 +241,13 @@ func (l *localDownloadLimiter) notifyLocked() {
 	l.changed = make(chan struct{})
 }
 
-func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownload, localLimiter *localDownloadLimiter) error {
+func processDownloadJob(ctx context.Context, job *models.DownloadJob, localLimiter *localDownloadLimiter) error {
 	directory, err := db.GetDirectory(ctx, job.DirectoryID)
 	if err != nil {
 		return err
 	}
 	if directory == nil || directory.IsDelete {
 		return errors.New("local download directory is unavailable")
-	}
-	item, err := db.GetJavDiscoveryItem(ctx, job.JavDiscoveryItemID)
-	if err != nil {
-		return err
 	}
 	client, baseFolder, err := openDownloaderClient(ctx, job.Provider)
 	if err != nil {
@@ -272,33 +268,33 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 		if remoteTaskID == "" || remoteFinished {
 			return
 		}
-		current, loadErr := db.GetDiscoveryDownload(context.Background(), job.ID)
-		if loadErr != nil || current.Status != models.DiscoveryDownloadCanceled {
+		current, loadErr := db.GetDownloadJob(context.Background(), job.ID)
+		if loadErr != nil || current.Status != models.DownloadCanceled {
 			return
 		}
 		cancelCtx, cancelRemote := context.WithTimeout(context.Background(), downloaderAPITimeout)
 		defer cancelRemote()
 		if cancelErr := client.CancelOffline(cancelCtx, remoteTaskID); cancelErr != nil {
-			logging.Error("cancel remote discovery download failed id=%d: %v", job.ID, cancelErr)
+			logging.Error("cancel remote download failed id=%d: %v", job.ID, cancelErr)
 		}
 	}()
 
 	remoteFolder := strings.TrimSpace(job.RemoteFolder)
 	if remoteFolder == "" {
-		name := downloadJobFolderName(item.Code, job.InfoHash)
+		name := downloadJobFolderName(job.Code, job.InfoHash)
 		rpcCtx, cancel := context.WithTimeout(ctx, downloaderAPITimeout)
 		remoteFolder, err = client.EnsureFolder(rpcCtx, baseFolder, name)
 		cancel()
 		if err != nil {
 			return fmt.Errorf("create remote download job folder: %w", err)
 		}
-		if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{"remote_folder": remoteFolder}); err != nil {
+		if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{"remote_folder": remoteFolder}); err != nil {
 			return err
 		}
 	}
 
-	if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{
-		"status": models.DiscoveryDownloadOfflineDownloading, "error_message": "",
+	if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{
+		"status": models.DownloadOfflineDownloading, "error_message": "",
 	}); err != nil {
 		return err
 	}
@@ -329,7 +325,7 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 		if err != nil {
 			return fmt.Errorf("submit remote offline download: %w", err)
 		}
-		if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{"remote_task_id": remoteTaskID}); err != nil {
+		if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{"remote_task_id": remoteTaskID}); err != nil {
 			return err
 		}
 	}
@@ -340,8 +336,8 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 	}
 	remoteFinished = true
 
-	if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{
-		"status": models.DiscoveryDownloadResolvingFiles,
+	if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{
+		"status": models.DownloadResolvingFiles,
 	}); err != nil {
 		return err
 	}
@@ -359,8 +355,8 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 			total += file.Size
 		}
 	}
-	if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{
-		"status": models.DiscoveryDownloadWaitingLocal, "bytes_total": total,
+	if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{
+		"status": models.DownloadWaitingLocal, "bytes_total": total,
 		"bytes_downloaded": 0,
 	}); err != nil {
 		return err
@@ -369,14 +365,14 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 		return err
 	}
 	defer localLimiter.release()
-	if err := db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{
-		"status": models.DiscoveryDownloadLocalDownloading, "bytes_total": total,
+	if err := db.UpdateDownloadJob(ctx, job.ID, map[string]any{
+		"status": models.DownloadLocalDownloading, "bytes_total": total,
 		"bytes_downloaded": 0,
 	}); err != nil {
 		return err
 	}
 
-	localRoot := filepath.Join(directory.Path, safeLocalName(item.Code))
+	localRoot := filepath.Join(directory.Path, safeLocalName(job.Code))
 	if err := os.MkdirAll(localRoot, 0o755); err != nil {
 		return fmt.Errorf("create local download directory: %w", err)
 	}
@@ -398,7 +394,7 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 		fileBase := completedBytes
 		err = downloadRemoteFile(ctx, client, remoteFile, remotePath, target, func(fileDownloaded int64) error {
 			downloaded := fileBase + fileDownloaded
-			return db.UpdateDiscoveryDownload(ctx, job.ID, map[string]any{
+			return db.UpdateDownloadJob(ctx, job.ID, map[string]any{
 				"bytes_downloaded": downloaded,
 			})
 		})
@@ -408,12 +404,12 @@ func processDiscoveryDownload(ctx context.Context, job *models.JavDiscoveryDownl
 		completedBytes += max64(remoteFile.Size, 0)
 		localFiles = append(localFiles, target)
 	}
-	if err := db.CompleteDiscoveryDownload(ctx, job.ID, localFiles, total); err != nil {
+	if err := db.CompleteDownloadJob(ctx, job.ID, localFiles, total); err != nil {
 		return err
 	}
 	if DirectoryWorkStatus(directory.ID) == DirectoryWorkIdle {
 		if err := StartManualDirectoryScan(*directory); err != nil && !errors.Is(err, ErrDirectoryScanInProgress) {
-			logging.Error("start scan after discovery download failed directory=%d: %v", directory.ID, err)
+			logging.Error("start scan after download failed directory=%d: %v", directory.ID, err)
 		}
 	}
 	return nil
@@ -439,7 +435,7 @@ func openDownloaderClient(ctx context.Context, provider string) (downloader.Clie
 	}
 }
 
-func TestDiscoveryDownloader(ctx context.Context, provider string) (*downloader.TestResult, error) {
+func TestDownloader(ctx context.Context, provider string) (*downloader.TestResult, error) {
 	client, folder, err := openDownloaderClient(ctx, provider)
 	if err != nil {
 		return nil, err

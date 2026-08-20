@@ -24,6 +24,8 @@ const (
 	maxDirectoryItems = 10000
 )
 
+var ErrTemporaryDirectoryNotConfigured = errors.New("OpenList 115 Open temporary directory is not configured")
+
 type Client struct {
 	baseURL *url.URL
 	token   string
@@ -130,7 +132,7 @@ func (c *Client) Test(ctx context.Context, folder string) (*downloader.TestResul
 	}
 	tempFolder := cleanPath(setting.Value)
 	if strings.TrimSpace(setting.Value) == "" {
-		return nil, errors.New("OpenList 115 Open temporary directory is not configured")
+		return nil, ErrTemporaryDirectoryNotConfigured
 	}
 	storages, err := c.listStorages(ctx)
 	if err != nil {

@@ -687,13 +687,13 @@ export async function triggerJavDiscoverySync() {
 }
 
 export async function fetchDownloaderSettings() {
-  const res = await apiFetch('/jav/discovery/downloader/settings', { cache: 'no-store' })
+  const res = await apiFetch('/jav/downloader/settings', { cache: 'no-store' })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
 export async function updateDownloaderSettings(payload) {
-  const res = await apiFetch('/jav/discovery/downloader/settings', {
+  const res = await apiFetch('/jav/downloader/settings', {
     method: 'PUT',
     headers: jsonHeaders,
     body: JSON.stringify(payload),
@@ -703,29 +703,33 @@ export async function updateDownloaderSettings(payload) {
 }
 
 export async function updateDownloaderProvider(provider, payload) {
-  const res = await apiFetch(
-    `/jav/discovery/downloader/providers/${encodeURIComponent(provider)}`,
-    {
-      method: 'PUT',
-      headers: jsonHeaders,
-      body: JSON.stringify(payload),
-    }
-  )
+  const res = await apiFetch(`/jav/downloader/providers/${encodeURIComponent(provider)}`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function fetchDownloaderProviderToken(provider) {
+  const res = await apiFetch(`/jav/downloader/providers/${encodeURIComponent(provider)}/token`, {
+    cache: 'no-store',
+  })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
 export async function testDownloaderProvider(provider) {
-  const res = await apiFetch(
-    `/jav/discovery/downloader/providers/${encodeURIComponent(provider)}/test`,
-    { method: 'POST' }
-  )
+  const res = await apiFetch(`/jav/downloader/providers/${encodeURIComponent(provider)}/test`, {
+    method: 'POST',
+  })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
-export async function fetchDiscoveryDownloads({ limit = 100 } = {}) {
-  const res = await apiFetch(`/jav/discovery/downloads?limit=${encodeURIComponent(limit)}`, {
+export async function fetchDownloadJobs({ limit = 100 } = {}) {
+  const res = await apiFetch(`/jav/downloads?limit=${encodeURIComponent(limit)}`, {
     cache: 'no-store',
   })
   if (!res.ok) throw await apiError(res)
@@ -742,22 +746,37 @@ export async function createDiscoveryDownload(itemId, magnetUrl, directoryId = n
   return res.json()
 }
 
-export async function retryDiscoveryDownload(id) {
-  const res = await apiFetch(`/jav/discovery/downloads/${encodeURIComponent(id)}/retry`, {
+export async function createDownloadJob({ code, magnetUrl, magnetName = '', directoryId = null }) {
+  const res = await apiFetch('/jav/downloads', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({
+      code,
+      magnet_url: magnetUrl,
+      magnet_name: magnetName,
+      directory_id: directoryId,
+    }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function retryDownloadJob(id) {
+  const res = await apiFetch(`/jav/downloads/${encodeURIComponent(id)}/retry`, {
     method: 'POST',
   })
   if (!res.ok) throw await apiError(res)
 }
 
-export async function cancelDiscoveryDownload(id) {
-  const res = await apiFetch(`/jav/discovery/downloads/${encodeURIComponent(id)}/cancel`, {
+export async function cancelDownloadJob(id) {
+  const res = await apiFetch(`/jav/downloads/${encodeURIComponent(id)}/cancel`, {
     method: 'POST',
   })
   if (!res.ok) throw await apiError(res)
 }
 
-export async function deleteDiscoveryDownload(id) {
-  const res = await apiFetch(`/jav/discovery/downloads/${encodeURIComponent(id)}`, {
+export async function deleteDownloadJob(id) {
+  const res = await apiFetch(`/jav/downloads/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
   if (!res.ok) throw await apiError(res)
