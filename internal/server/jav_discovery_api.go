@@ -78,10 +78,10 @@ func createJavDiscoverySubscription(c *gin.Context) {
 	}
 
 	subscription := models.JavDiscoverySubscription{
-		Kind:          "idol",
-		Name:          validated.Name,
-		ReferenceCode: request.ReferenceCode,
-		ProviderKey:   validated.ProviderKey,
+		Kind:            "idol",
+		Name:            validated.Name,
+		ReferenceCode:   request.ReferenceCode,
+		ProviderLocator: validated.ProviderLocator,
 	}
 	if err := db.CreateJavDiscoverySubscription(c.Request.Context(), &subscription); err != nil {
 		if errors.Is(err, db.ErrJavDiscoverySubscriptionExists) {

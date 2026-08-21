@@ -31,6 +31,9 @@ func TestFetchJavBusActressWorksReturnsBoundedWindow(t *testing.T) {
 	}
 	fixture.WriteString(`</body></html>`)
 	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/uncensored/star/abc123" {
+			t.Errorf("actress listing path = %q", req.URL.Path)
+		}
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Status:     "200 OK",
@@ -43,7 +46,7 @@ func TestFetchJavBusActressWorksReturnsBoundedWindow(t *testing.T) {
 	resetJavBusRateLimiterForTest()
 	items, err := FetchJavBusActressWorks(
 		context.Background(),
-		"abc123",
+		"/uncensored/star/abc123",
 		"葵つかさ",
 		JavBusActressWorksOptions{Offset: 2, Limit: 10},
 	)
@@ -61,7 +64,7 @@ func TestFetchJavBusActressWorksReturnsBoundedWindow(t *testing.T) {
 	resetJavBusRateLimiterForTest()
 	newItems, err := FetchJavBusActressWorks(
 		context.Background(),
-		"abc123",
+		"/uncensored/star/abc123",
 		"葵つかさ",
 		JavBusActressWorksOptions{Limit: 100, ReleasedNotBefore: releaseBoundary.Unix()},
 	)
@@ -75,7 +78,7 @@ func TestFetchJavBusActressWorksReturnsBoundedWindow(t *testing.T) {
 	resetJavBusRateLimiterForTest()
 	historyItems, err := FetchJavBusActressWorks(
 		context.Background(),
-		"abc123",
+		"/uncensored/star/abc123",
 		"葵つかさ",
 		JavBusActressWorksOptions{Limit: 10, ReleasedBefore: releaseBoundary.Unix()},
 	)
@@ -167,7 +170,7 @@ func TestResolveJavBusActressSubscriptionUsesExactCodeOnly(t *testing.T) {
 				<html><body>
 					<h3>` + returnedCode + ` Test Title</h3>
 					<p><span>識別碼:</span><span>` + returnedCode + `</span></p>
-					<div class="movie row"><a href="/star/abc123">葵つかさ</a></div>
+					<div class="movie row"><a href="/uncensored/star/abc123">葵つかさ</a></div>
 				</body></html>`)),
 			Request: req,
 		}, nil
@@ -178,7 +181,7 @@ func TestResolveJavBusActressSubscriptionUsesExactCodeOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve subscription: %v", err)
 	}
-	if resolved.Name != "葵つかさ" || resolved.ProviderKey != "abc123" {
+	if resolved.Name != "葵つかさ" || resolved.ProviderLocator != "/uncensored/star/abc123" {
 		t.Fatalf("resolved subscription = %#v", resolved)
 	}
 
@@ -200,7 +203,7 @@ func TestParseJavBusActressLinks(t *testing.T) {
 	if len(got) != 1 {
 		t.Fatalf("links len = %d, want 1", len(got))
 	}
-	if got[0].Name != "葵つかさ" || javBusStarKey(got[0].URL) != "abc123" {
+	if got[0].Name != "葵つかさ" || javBusActressLocator(got[0].URL) != "/star/abc123" {
 		t.Fatalf("unexpected link: %#v", got[0])
 	}
 }
@@ -231,8 +234,30 @@ func TestParseJavBusDiscoveryItems(t *testing.T) {
 
 func TestParseJavBusNextActressPageURLRejectsOtherStar(t *testing.T) {
 	doc := mustParseJavBusDiscoveryHTML(t, `<html><body><ul><li class="next"><a href="/star/other/2">Next</a></li></ul></body></html>`)
-	if got := parseJavBusNextActressPageURL(doc, "https://www.javbus.com/star/abc", "abc"); got != "" {
+	if got := parseJavBusNextActressPageURL(doc, "https://www.javbus.com/star/abc", "/star/abc"); got != "" {
 		t.Fatalf("next url = %q, want empty", got)
+	}
+}
+
+func TestParseJavBusNextActressPageURLRejectsOtherNamespaceWithSameKey(t *testing.T) {
+	doc := mustParseJavBusDiscoveryHTML(t, `<html><body><ul><li class="next"><a href="/star/abc/2">Next</a></li></ul></body></html>`)
+	if got := parseJavBusNextActressPageURL(doc, "https://www.javbus.com/uncensored/star/abc", "/uncensored/star/abc"); got != "" {
+		t.Fatalf("next url = %q, want empty", got)
+	}
+}
+
+func TestJavBusActressLocatorPreservesNamespace(t *testing.T) {
+	tests := map[string]string{
+		"https://www.javbus.com/star/abc123":             "/star/abc123",
+		"https://www.javbus.com/uncensored/star/abc123/": "/uncensored/star/abc123",
+		"/uncensored/star/abc123":                        "/uncensored/star/abc123",
+		"https://example.com/uncensored/star/abc123":     "",
+		"/uncensored/star/abc123/2":                      "",
+	}
+	for input, want := range tests {
+		if got := javBusActressLocator(input); got != want {
+			t.Errorf("javBusActressLocator(%q) = %q, want %q", input, got, want)
+		}
 	}
 }
 

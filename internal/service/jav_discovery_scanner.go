@@ -92,7 +92,7 @@ func syncJavDiscoverySubscription(ctx context.Context, subscription models.JavDi
 		}
 		items, err := fetchJavBusActressWorks(
 			ctx,
-			subscription.ProviderKey,
+			subscription.ProviderLocator,
 			subscription.Name,
 			jav.JavBusActressWorksOptions{
 				Limit:             javDiscoveryLatestScanLimit,
@@ -156,7 +156,7 @@ func LoadMoreJavDiscoveryHistory(ctx context.Context, subscriptionID int64) (int
 	}
 	items, err := fetchJavBusActressWorks(
 		ctx,
-		subscription.ProviderKey,
+		subscription.ProviderLocator,
 		subscription.Name,
 		jav.JavBusActressWorksOptions{
 			Offset:         int(before),

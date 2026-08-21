@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ const (
 	javBusMagnetResponseMaxBytes = 4 * 1024 * 1024
 )
 
-var javBusProviderKeyPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+var javBusStarIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 
 var (
 	javBusMagnetGIDPattern = regexp.MustCompile(`(?m)\bvar\s+gid\s*=\s*(\d+)\s*;`)
@@ -38,8 +39,8 @@ var errJavBusVerificationRequired = errors.New("javbus: age verification require
 // JavBusActressSubscription is the validated identity used to refresh an idol
 // subscription without relying on a possibly ambiguous display name search.
 type JavBusActressSubscription struct {
-	Name        string
-	ProviderKey string
+	Name            string
+	ProviderLocator string
 }
 
 type JavBusActressWorksOptions struct {
@@ -272,19 +273,19 @@ func ResolveJavBusActressSubscription(ctx context.Context, referenceCode string)
 	if len(actors) != 1 {
 		return nil, ResourceNotFonud
 	}
-	key := javBusStarKey(actors[0].URL)
-	if !javBusProviderKeyPattern.MatchString(key) {
+	locator := javBusActressLocator(actors[0].URL)
+	if locator == "" {
 		return nil, ResourceNotFonud
 	}
-	return &JavBusActressSubscription{Name: actors[0].Name, ProviderKey: key}, nil
+	return &JavBusActressSubscription{Name: actors[0].Name, ProviderLocator: locator}, nil
 }
 
 // FetchJavBusActressWorks fetches a bounded window from a validated JavBus star
 // listing. It uses only listing metadata and does not add anything to the
 // application's main JAV catalog.
-func FetchJavBusActressWorks(ctx context.Context, providerKey, actressName string, options JavBusActressWorksOptions) ([]JavBusDiscoveryItem, error) {
-	providerKey = strings.TrimSpace(providerKey)
-	if !javBusProviderKeyPattern.MatchString(providerKey) {
+func FetchJavBusActressWorks(ctx context.Context, providerLocator, actressName string, options JavBusActressWorksOptions) ([]JavBusDiscoveryItem, error) {
+	providerLocator = javBusActressLocator(providerLocator)
+	if providerLocator == "" {
 		return nil, ResourceNotFonud
 	}
 	actressName = normalizeJavBusActressName(actressName)
@@ -295,7 +296,7 @@ func FetchJavBusActressWorks(ctx context.Context, providerKey, actressName strin
 		options.Limit = 10
 	}
 
-	nextURL := fmt.Sprintf("%s/star/%s", javBusBaseURL, providerKey)
+	nextURL := resolveURL(javBusBaseURL, providerLocator)
 	visited := make(map[string]struct{})
 	seenCodes := make(map[string]struct{})
 	items := make([]JavBusDiscoveryItem, 0, options.Limit)
@@ -310,11 +311,11 @@ func FetchJavBusActressWorks(ctx context.Context, providerKey, actressName strin
 		}
 		visited[nextURL] = struct{}{}
 
-		doc, err := fetchJavBusPage(ctx, nextURL)
+		doc, effectiveURL, err := fetchJavBusPage(ctx, nextURL, providerLocator)
 		if err != nil {
 			return nil, err
 		}
-		pageItems := parseJavBusDiscoveryItems(doc, nextURL, actressName)
+		pageItems := parseJavBusDiscoveryItems(doc, effectiveURL, actressName)
 		foundItemBeforeLowerBound := false
 		for _, item := range pageItems {
 			key := normalizeDiscoveryCode(item.Code)
@@ -351,7 +352,7 @@ func FetchJavBusActressWorks(ctx context.Context, providerKey, actressName strin
 		if foundItemBeforeLowerBound {
 			return items, nil
 		}
-		nextURL = parseJavBusNextActressPageURL(doc, nextURL, providerKey)
+		nextURL = parseJavBusNextActressPageURL(doc, effectiveURL, providerLocator)
 	}
 	return items, nil
 }
@@ -371,31 +372,78 @@ func parseJavBusActressLinks(root *html.Node) []javBusActressLink {
 	documentSelection(section).Find(`a[href*="/star/"]`).Each(func(_ int, link *goquery.Selection) {
 		name := normalizeJavBusActressName(cleanSelectionText(link))
 		href := resolveURL(javBusBaseURL, selectionAttr(link, "href"))
-		key := javBusStarKey(href)
-		if name == "" || !javBusProviderKeyPattern.MatchString(key) {
+		locator := javBusActressLocator(href)
+		if name == "" || locator == "" {
 			return
 		}
-		if _, ok := seen[key]; ok {
+		if _, ok := seen[locator]; ok {
 			return
 		}
-		seen[key] = struct{}{}
+		seen[locator] = struct{}{}
 		result = append(result, javBusActressLink{Name: name, URL: href})
 	})
 	return result
 }
 
-func javBusStarKey(rawURL string) string {
-	parsed, err := url.Parse(strings.TrimSpace(rawURL))
-	if err != nil {
+// javBusActressLocator returns the canonical, host-independent path for an
+// actress listing root. Keeping the complete path preserves JavBus namespaces
+// such as /uncensored, where the same star key may identify a different page.
+func javBusActressLocator(rawURL string) string {
+	locator, isRoot := parseJavBusActressPageLocator(rawURL)
+	if !isRoot {
 		return ""
 	}
-	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
-	for index := 0; index+1 < len(parts); index++ {
-		if strings.EqualFold(parts[index], "star") {
-			return strings.TrimSpace(parts[index+1])
+	return locator
+}
+
+func javBusActressPageLocator(rawURL string) string {
+	locator, _ := parseJavBusActressPageLocator(rawURL)
+	return locator
+}
+
+func parseJavBusActressPageLocator(rawURL string) (string, bool) {
+	parsed, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil || parsed.User != nil || parsed.Fragment != "" {
+		return "", false
+	}
+	if parsed.IsAbs() {
+		if !strings.EqualFold(parsed.Scheme, "https") ||
+			!strings.EqualFold(parsed.Hostname(), "www.javbus.com") {
+			return "", false
+		}
+	} else if parsed.Host != "" {
+		return "", false
+	}
+
+	trimmedPath := strings.TrimSuffix(parsed.Path, "/")
+	if trimmedPath == "" || !strings.HasPrefix(trimmedPath, "/") {
+		return "", false
+	}
+	parts := strings.Split(strings.TrimPrefix(trimmedPath, "/"), "/")
+	rootLength := 0
+	switch {
+	case len(parts) >= 2 && parts[0] == "star":
+		rootLength = 2
+	case len(parts) >= 3 && parts[0] == "uncensored" && parts[1] == "star":
+		rootLength = 3
+	default:
+		return "", false
+	}
+	key := parts[rootLength-1]
+	if !javBusStarIDPattern.MatchString(key) {
+		return "", false
+	}
+	if len(parts) > rootLength+1 {
+		return "", false
+	}
+	isRoot := len(parts) == rootLength && parsed.RawQuery == ""
+	if len(parts) == rootLength+1 {
+		page, err := strconv.Atoi(parts[rootLength])
+		if err != nil || page <= 0 {
+			return "", false
 		}
 	}
-	return ""
+	return "/" + strings.Join(parts[:rootLength], "/"), isRoot
 }
 
 func parseJavBusDiscoveryItems(root *html.Node, pageURL, actressName string) []JavBusDiscoveryItem {
@@ -446,7 +494,7 @@ func parseJavBusDiscoveryItems(root *html.Node, pageURL, actressName string) []J
 	return result
 }
 
-func parseJavBusNextActressPageURL(root *html.Node, pageURL, providerKey string) string {
+func parseJavBusNextActressPageURL(root *html.Node, pageURL, providerLocator string) string {
 	var href string
 	for _, selector := range []string{`a[rel="next"]`, "li.next a", "a#next"} {
 		href = selectionAttr(documentSelection(root).Find(selector).First(), "href")
@@ -464,47 +512,54 @@ func parseJavBusNextActressPageURL(root *html.Node, pageURL, providerKey string)
 		!strings.EqualFold(parsed.Hostname(), "www.javbus.com") {
 		return ""
 	}
-	if javBusStarKey(next) != providerKey {
+	if javBusActressPageLocator(next) != providerLocator {
 		return ""
 	}
 	return parsed.String()
 }
 
-func fetchJavBusPage(ctx context.Context, targetURL string) (*html.Node, error) {
+func fetchJavBusPage(ctx context.Context, targetURL, providerLocator string) (*html.Node, string, error) {
 	requestCtx, cancel := context.WithTimeout(ctx, javBusDiscoveryRequestTimout)
 	defer cancel()
 
 	req, err := buildRequest(requestCtx, targetURL)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	logging.Info("javbus discovery request: %s", targetURL)
 	resp, err := doJavBusRequest(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, ResourceNotFonud
+			return nil, "", ResourceNotFonud
 		}
-		return nil, err
+		return nil, "", err
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, ResourceNotFonud
+		return nil, "", ResourceNotFonud
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("javbus discovery: http %d", resp.StatusCode)
+		return nil, "", fmt.Errorf("javbus discovery: http %d", resp.StatusCode)
 	}
 	doc, err := parseHTMLDocument(body)
 	if err != nil {
-		return nil, fmt.Errorf("javbus discovery: parse html: %w", err)
+		return nil, "", fmt.Errorf("javbus discovery: parse html: %w", err)
 	}
 	if isJavBusVerificationPage(doc) {
-		return nil, errJavBusVerificationRequired
+		return nil, "", errJavBusVerificationRequired
 	}
-	return doc, nil
+	effectiveURL := targetURL
+	if resp.Request != nil && resp.Request.URL != nil {
+		effectiveURL = resp.Request.URL.String()
+	}
+	if javBusActressPageLocator(effectiveURL) != providerLocator {
+		return nil, "", fmt.Errorf("javbus discovery: actress page redirected outside locator %q", providerLocator)
+	}
+	return doc, effectiveURL, nil
 }
 
 func isJavBusVerificationPage(root *html.Node) bool {

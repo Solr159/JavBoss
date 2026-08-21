@@ -10,8 +10,10 @@ import (
 )
 
 const (
-	currentSchemaMigrationVersion = int64(202608100001)
-	javDiscoveryMigrationVersion  = int64(202608170001)
+	currentSchemaMigrationVersion   = int64(202608100001)
+	javDiscoveryMigrationVersion    = int64(202608170001)
+	discoveryLocatorPreviousVersion = int64(202608210001)
+	providerLocatorMigrationVersion = int64(202608210002)
 )
 
 func TestJavDiscoveryMigrationAppliesAfterCurrentSchema(t *testing.T) {
@@ -65,6 +67,57 @@ func TestJavDiscoveryMigrationAppliesAfterCurrentSchema(t *testing.T) {
 	}
 	if magnetLinksJSON != "null" {
 		t.Fatalf("magnet links default = %q, want JSON null", magnetLinksJSON)
+	}
+}
+
+func TestProviderLocatorMigrationDiscardsUntrustedDiscoveryData(t *testing.T) {
+	driverName := registerSQLiteFunctions()
+	sqlDB, err := sql.Open(driverName, filepath.Join(t.TempDir(), "provider-locator-upgrade.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := sqlDB.Close(); err != nil {
+			t.Errorf("close database: %v", err)
+		}
+	})
+	sqlDB.SetMaxOpenConns(1)
+
+	ctx := context.Background()
+	if err := execDB(ctx, sqlDB, "PRAGMA foreign_keys=ON;"); err != nil {
+		t.Fatalf("enable foreign keys: %v", err)
+	}
+	if err := goose.UpToContext(ctx, sqlDB, migrationDir, discoveryLocatorPreviousVersion); err != nil {
+		t.Fatalf("migrate to download job schema: %v", err)
+	}
+	if _, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO jav_discovery_subscription (kind, name, reference_code, provider_key)
+		VALUES ("idol", "wrong actress", "ABC-001", "abc");
+		INSERT INTO jav_discovery_item (code) VALUES ("WRONG-001");
+		INSERT INTO jav_discovery_subscription_item (jav_discovery_subscription_id, jav_discovery_item_id)
+		VALUES (1, 1);
+	`); err != nil {
+		t.Fatalf("seed old discovery data: %v", err)
+	}
+
+	if err := goose.UpToContext(ctx, sqlDB, migrationDir, providerLocatorMigrationVersion); err != nil {
+		t.Fatalf("apply provider locator migration: %v", err)
+	}
+	assertMigrationVersion(t, sqlDB, providerLocatorMigrationVersion)
+	for _, table := range []string{"jav_discovery_subscription", "jav_discovery_item", "jav_discovery_subscription_item"} {
+		var count int
+		if err := sqlDB.QueryRowContext(ctx, `SELECT COUNT(*) FROM `+table).Scan(&count); err != nil {
+			t.Fatalf("count %s: %v", table, err)
+		}
+		if count != 0 {
+			t.Fatalf("%s count = %d, want 0", table, count)
+		}
+	}
+	if _, err := sqlDB.ExecContext(ctx, `
+		INSERT INTO jav_discovery_subscription (kind, name, reference_code, provider_locator)
+		VALUES ("idol", "actress", "ABC-002", "/uncensored/star/abc")
+	`); err != nil {
+		t.Fatalf("insert subscription with provider locator: %v", err)
 	}
 }
 

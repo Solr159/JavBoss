@@ -35,10 +35,10 @@ func TestJavDiscoveryItemsAPIKeepsWantedInsideDiscoveredSet(t *testing.T) {
 	})
 
 	subscription := models.JavDiscoverySubscription{
-		Kind:          "idol",
-		Name:          "Test Idol",
-		ReferenceCode: "ABC-001",
-		ProviderKey:   "test-idol",
+		Kind:            "idol",
+		Name:            "Test Idol",
+		ReferenceCode:   "ABC-001",
+		ProviderLocator: "/star/test-idol",
 	}
 	if err := dbpkg.CreateJavDiscoverySubscription(context.Background(), &subscription); err != nil {
 		t.Fatalf("create subscription: %v", err)
@@ -282,7 +282,7 @@ func TestCreateJavDiscoverySubscriptionRequiresOnlyReferenceCode(t *testing.T) {
 		if code != "ABC-001" {
 			t.Errorf("reference code = %q", code)
 		}
-		return &jav.JavBusActressSubscription{Name: "葵つかさ", ProviderKey: "abc123"}, nil
+		return &jav.JavBusActressSubscription{Name: "葵つかさ", ProviderLocator: "/uncensored/star/abc123"}, nil
 	}
 	t.Cleanup(func() {
 		resolveJavBusActressSubscription = previousResolver
@@ -307,14 +307,14 @@ func TestCreateJavDiscoverySubscriptionRequiresOnlyReferenceCode(t *testing.T) {
 	}
 	if subscription.Name != "葵つかさ" ||
 		subscription.ReferenceCode != "ABC-001" ||
-		subscription.ProviderKey != "" {
+		subscription.ProviderLocator != "" {
 		t.Fatalf("created subscription = %#v", subscription)
 	}
 	stored, err := dbpkg.ListJavDiscoverySubscriptions(context.Background())
 	if err != nil {
 		t.Fatalf("list subscriptions: %v", err)
 	}
-	if len(stored) != 1 || stored[0].Name != "葵つかさ" || stored[0].ProviderKey != "abc123" {
+	if len(stored) != 1 || stored[0].Name != "葵つかさ" || stored[0].ProviderLocator != "/uncensored/star/abc123" {
 		t.Fatalf("stored subscriptions = %#v", stored)
 	}
 }
@@ -368,10 +368,10 @@ func TestJavDiscoveryItemsAPIFiltersBySubscription(t *testing.T) {
 	})
 
 	first := models.JavDiscoverySubscription{
-		Kind: "idol", Name: "葵つかさ", ReferenceCode: "ABP-001", ProviderKey: "star-a",
+		Kind: "idol", Name: "葵つかさ", ReferenceCode: "ABP-001", ProviderLocator: "/star/star-a",
 	}
 	second := models.JavDiscoverySubscription{
-		Kind: "idol", Name: "相沢みなみ", ReferenceCode: "IPX-001", ProviderKey: "star-b",
+		Kind: "idol", Name: "相沢みなみ", ReferenceCode: "IPX-001", ProviderLocator: "/star/star-b",
 	}
 	for name, subscription := range map[string]*models.JavDiscoverySubscription{
 		"first": &first, "second": &second,

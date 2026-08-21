@@ -222,15 +222,15 @@ type JavIdolMap struct {
 // explicit so series subscriptions can be added later without changing the
 // storage model.
 type JavDiscoverySubscription struct {
-	ID            int64      `json:"id" gorm:"primaryKey"`
-	Kind          string     `json:"kind" gorm:"not null;default:idol;uniqueIndex:idx_jav_discovery_subscription_kind_provider_key,priority:1"`
-	Name          string     `json:"name" gorm:"not null"`
-	ReferenceCode string     `json:"reference_code" gorm:"not null"`
-	ProviderKey   string     `json:"-" gorm:"not null;uniqueIndex:idx_jav_discovery_subscription_kind_provider_key,priority:2"`
-	LastSyncedAt  *time.Time `json:"last_synced_at"`
-	LastError     string     `json:"last_error" gorm:"not null;default:''"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	ID              int64      `json:"id" gorm:"primaryKey"`
+	Kind            string     `json:"kind" gorm:"not null;default:idol;uniqueIndex:idx_jav_discovery_subscription_kind_provider_locator,priority:1"`
+	Name            string     `json:"name" gorm:"not null"`
+	ReferenceCode   string     `json:"reference_code" gorm:"not null"`
+	ProviderLocator string     `json:"-" gorm:"not null;uniqueIndex:idx_jav_discovery_subscription_kind_provider_locator,priority:2"`
+	LastSyncedAt    *time.Time `json:"last_synced_at"`
+	LastError       string     `json:"last_error" gorm:"not null;default:''"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 // JavDiscoveryItem stores discovered JAV independently from the main jav

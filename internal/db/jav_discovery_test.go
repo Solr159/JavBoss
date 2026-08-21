@@ -14,10 +14,10 @@ func TestJavDiscoveryWantedIsSubsetAndSurvivesRefresh(t *testing.T) {
 	openTestDB(t)
 	ctx := context.Background()
 	subscription := models.JavDiscoverySubscription{
-		Kind:          "idol",
-		Name:          "葵つかさ",
-		ReferenceCode: "ABP-001",
-		ProviderKey:   "star-key",
+		Kind:            "idol",
+		Name:            "葵つかさ",
+		ReferenceCode:   "ABP-001",
+		ProviderLocator: "/star/star-key",
 	}
 	if err := CreateJavDiscoverySubscription(ctx, &subscription); err != nil {
 		t.Fatalf("create subscription: %v", err)
@@ -70,8 +70,8 @@ func TestListJavDiscoveryItemsFiltersBySubscription(t *testing.T) {
 	openTestDB(t)
 	ctx := context.Background()
 	subscriptions := []models.JavDiscoverySubscription{
-		{Kind: "idol", Name: "葵つかさ", ReferenceCode: "ABP-001", ProviderKey: "star-a"},
-		{Kind: "idol", Name: "相沢みなみ", ReferenceCode: "IPX-001", ProviderKey: "star-b"},
+		{Kind: "idol", Name: "葵つかさ", ReferenceCode: "ABP-001", ProviderLocator: "/star/star-a"},
+		{Kind: "idol", Name: "相沢みなみ", ReferenceCode: "IPX-001", ProviderLocator: "/star/star-b"},
 	}
 	for index := range subscriptions {
 		if err := CreateJavDiscoverySubscription(ctx, &subscriptions[index]); err != nil {
@@ -138,10 +138,10 @@ func TestJavDiscoveryDetailsSurviveListingRefresh(t *testing.T) {
 	openTestDB(t)
 	ctx := context.Background()
 	subscription := models.JavDiscoverySubscription{
-		Kind:          "idol",
-		Name:          "葵つかさ",
-		ReferenceCode: "ABP-001",
-		ProviderKey:   "star-key",
+		Kind:            "idol",
+		Name:            "葵つかさ",
+		ReferenceCode:   "ABP-001",
+		ProviderLocator: "/star/star-key",
 	}
 	if err := CreateJavDiscoverySubscription(ctx, &subscription); err != nil {
 		t.Fatalf("create subscription: %v", err)

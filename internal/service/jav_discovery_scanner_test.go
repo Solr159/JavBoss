@@ -110,10 +110,10 @@ func openJavDiscoveryServiceTestDB(t *testing.T) models.JavDiscoverySubscription
 		}
 	})
 	subscription := models.JavDiscoverySubscription{
-		Kind:          "idol",
-		Name:          "葵つかさ",
-		ReferenceCode: "ABP-001",
-		ProviderKey:   "star-key",
+		Kind:            "idol",
+		Name:            "葵つかさ",
+		ReferenceCode:   "ABP-001",
+		ProviderLocator: "/star/star-key",
 	}
 	if err := db.CreateJavDiscoverySubscription(context.Background(), &subscription); err != nil {
 		t.Fatalf("create subscription: %v", err)

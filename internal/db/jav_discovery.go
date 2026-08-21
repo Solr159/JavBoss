@@ -99,15 +99,15 @@ func CreateJavDiscoverySubscription(ctx context.Context, subscription *models.Ja
 	subscription.Kind = strings.TrimSpace(subscription.Kind)
 	subscription.Name = strings.TrimSpace(subscription.Name)
 	subscription.ReferenceCode = strings.ToUpper(strings.TrimSpace(subscription.ReferenceCode))
-	subscription.ProviderKey = strings.TrimSpace(subscription.ProviderKey)
-	if subscription.Kind == "" || subscription.Name == "" || subscription.ReferenceCode == "" || subscription.ProviderKey == "" {
+	subscription.ProviderLocator = strings.TrimSpace(subscription.ProviderLocator)
+	if subscription.Kind == "" || subscription.Name == "" || subscription.ReferenceCode == "" || subscription.ProviderLocator == "" {
 		return errors.New("create jav discovery subscription: missing required field")
 	}
 
 	var count int64
 	if err := common.DB.WithContext(ctx).
 		Model(&models.JavDiscoverySubscription{}).
-		Where("kind = ? AND provider_key = ?", subscription.Kind, subscription.ProviderKey).
+		Where("kind = ? AND provider_locator = ?", subscription.Kind, subscription.ProviderLocator).
 		Count(&count).Error; err != nil {
 		return fmt.Errorf("check jav discovery subscription: %w", err)
 	}
