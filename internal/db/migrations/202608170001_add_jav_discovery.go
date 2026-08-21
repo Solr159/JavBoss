@@ -18,13 +18,13 @@ func addJavDiscovery(ctx context.Context, tx *sql.Tx) error {
 			kind text NOT NULL DEFAULT "idol",
 			name text NOT NULL,
 			reference_code text NOT NULL,
-			provider_key text NOT NULL,
+			provider_locator text NOT NULL,
 			last_synced_at datetime,
 			last_error text NOT NULL DEFAULT "",
 			created_at datetime,
 			updated_at datetime
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_jav_discovery_subscription_kind_provider_key ON jav_discovery_subscription(kind, provider_key)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_jav_discovery_subscription_kind_provider_locator ON jav_discovery_subscription(kind, provider_locator)`,
 		`CREATE TABLE IF NOT EXISTS "jav_discovery_item" (
 			id integer PRIMARY KEY AUTOINCREMENT,
 			code text NOT NULL,
@@ -64,9 +64,11 @@ func addJavDiscovery(ctx context.Context, tx *sql.Tx) error {
 			created_at datetime,
 			updated_at datetime
 		)`,
-		`CREATE TABLE IF NOT EXISTS "jav_discovery_download" (
+		`CREATE TABLE IF NOT EXISTS "download_job" (
 			id integer PRIMARY KEY AUTOINCREMENT,
-			jav_discovery_item_id integer NOT NULL,
+			source_type text,
+			source_id integer,
+			code text NOT NULL,
 			directory_id integer NOT NULL,
 			provider text NOT NULL,
 			info_hash text NOT NULL,
@@ -82,12 +84,11 @@ func addJavDiscovery(ctx context.Context, tx *sql.Tx) error {
 			created_at datetime,
 			updated_at datetime,
 			completed_at datetime,
-			CONSTRAINT fk_jav_discovery_download_jav_discovery_item FOREIGN KEY (jav_discovery_item_id) REFERENCES jav_discovery_item(id) ON UPDATE CASCADE ON DELETE CASCADE,
-			CONSTRAINT fk_jav_discovery_download_directory FOREIGN KEY (directory_id) REFERENCES directory(id) ON UPDATE CASCADE ON DELETE RESTRICT
+			CONSTRAINT fk_download_job_directory FOREIGN KEY (directory_id) REFERENCES directory(id) ON UPDATE CASCADE ON DELETE RESTRICT
 		)`,
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_jav_discovery_download_target_hash ON jav_discovery_download(jav_discovery_item_id, directory_id, info_hash)`,
-		`CREATE INDEX IF NOT EXISTS idx_jav_discovery_download_jav_discovery_item_id ON jav_discovery_download(jav_discovery_item_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_jav_discovery_download_directory_id ON jav_discovery_download(directory_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_jav_discovery_download_status ON jav_discovery_download(status)`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_download_job_target_hash ON download_job(directory_id, info_hash)`,
+		`CREATE INDEX IF NOT EXISTS idx_download_job_directory_id ON download_job(directory_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_download_job_source ON download_job(source_type, source_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_download_job_status ON download_job(status)`,
 	)
 }
