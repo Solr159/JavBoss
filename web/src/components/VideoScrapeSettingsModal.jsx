@@ -11,6 +11,7 @@ const MANUAL_OVERRIDE_PREFIX = ':manual:'
 const AUTO_SOURCE_FILENAME = 'filename'
 const AUTO_SOURCE_CODE = 'code'
 const CODE_PATTERN = /^[A-Z0-9_-]+$/
+const CODE_INPUT_PATTERN = '[A-Z0-9_\\-]+'
 
 const emptyManualInfo = {
   code: '',
@@ -430,7 +431,7 @@ export default function VideoScrapeSettingsModal({
                       onChange={(event) => updateCode(event.target.value)}
                       disabled={saving || lookupLoading || autoSource !== AUTO_SOURCE_CODE}
                       placeholder="IPX-001"
-                      pattern="[A-Z0-9_-]+"
+                      pattern={CODE_INPUT_PATTERN}
                       aria-label={zh('指定番号', 'Specified code')}
                       aria-invalid={autoSource === AUTO_SOURCE_CODE && codeInvalid}
                       className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 sm:w-44 ${
@@ -487,7 +488,7 @@ export default function VideoScrapeSettingsModal({
                     onChange={(event) => updateCode(event.target.value)}
                     disabled={saving || lookupLoading}
                     placeholder="IPX-001"
-                    pattern="[A-Z0-9_-]+"
+                    pattern={CODE_INPUT_PATTERN}
                     aria-invalid={codeInvalid}
                     className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
                       codeInvalid

@@ -884,9 +884,6 @@ export default function App() {
         setScrapeSettingsVideo(null)
         await loadVideos({ force: true })
         showToast(zh('已关联已有番号', 'Linked to existing JAV'))
-      } catch (err) {
-        console.error(zh('关联已有番号失败', 'Failed to link existing JAV'), err)
-        throw err
       } finally {
         setScrapeSettingsSaving(false)
       }
