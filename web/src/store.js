@@ -604,7 +604,16 @@ export const useStore = create((set, get) => ({
     const directoryIds = directoryQueryIds(get())
     const key = `jav-tags|${directoryIds.join(',')}`
     if (javTagFetchInFlight && javTagFetchInFlightKey === key) {
-      return javTagFetchInFlight
+      const pending = javTagFetchInFlight
+      if (!options.force) return pending
+
+      // A forced refresh must observe mutations completed before this call. The
+      // existing request may already contain a pre-mutation snapshot, so wait
+      // for it and then ensure a newer request is used.
+      await pending
+      if (javTagFetchInFlight && javTagFetchInFlightKey === key) {
+        return javTagFetchInFlight
+      }
     }
     if (!options.force && options.skipUnchanged && key === lastJavTagFetchKey) {
       return null

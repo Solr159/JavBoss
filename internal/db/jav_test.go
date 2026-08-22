@@ -1435,7 +1435,7 @@ func TestAppendJavIdolsIfMissingForProvider(t *testing.T) {
 	})
 }
 
-func TestSaveJavInfoAndLinkVideoLocationsLinksAllLocations(t *testing.T) {
+func TestSaveManualJavInfoAndLinkVideoLocationsLinksAllLocations(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -1462,14 +1462,14 @@ func TestSaveJavInfoAndLinkVideoLocationsLinksAllLocations(t *testing.T) {
 		t.Fatalf("upsert loc b: %v", err)
 	}
 
-	rec, err := SaveJavInfoAndLinkVideoLocations(ctx, &jav.JavInfo{
+	rec, err := SaveManualJavInfoAndLinkVideoLocations(ctx, &jav.JavInfo{
 		Code:     "MAN-001",
 		Title:    "Manual Title",
 		Tags:     []string{"Manual Tag"},
 		Provider: jav.ProviderManualScrape,
 	}, video.ID)
 	if err != nil {
-		t.Fatalf("SaveJavInfoAndLinkVideoLocations: %v", err)
+		t.Fatalf("SaveManualJavInfoAndLinkVideoLocations: %v", err)
 	}
 	if rec == nil || rec.ID == 0 {
 		t.Fatalf("missing jav record: %#v", rec)
@@ -1504,6 +1504,67 @@ func TestSaveJavInfoAndLinkVideoLocationsLinksAllLocations(t *testing.T) {
 	}
 	if videoForLocation == nil || videoForLocation.Jav == nil || videoForLocation.Jav.Code != "MAN-001" {
 		t.Fatalf("expected hydrated jav on video location, got %#v", videoForLocation)
+	}
+	if videoForLocation.JavScrapeOverride != models.JavScrapeOverrideManualPrefix+"MAN-001" {
+		t.Fatalf("jav scrape override = %q", videoForLocation.JavScrapeOverride)
+	}
+}
+
+func TestLinkVideoLocationsToExistingJavRollsBackWhenOverrideUpdateFails(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+	now := time.Unix(1710000000, 0).UTC()
+
+	dir := models.Directory{Path: "/tmp/atomic-existing-link"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	javRecords := []models.Jav{{Code: "OLD-001", Title: "Old"}, {Code: "NEW-001", Title: "New"}}
+	if err := gdb.Create(&javRecords).Error; err != nil {
+		t.Fatalf("create JAV records: %v", err)
+	}
+	oldJav, newJav := javRecords[0], javRecords[1]
+	video := models.Video{
+		Fingerprint:       "atomic-existing-link",
+		JavScrapeOverride: models.JavScrapeOverrideManualPrefix + oldJav.Code,
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "movie.mp4", now)
+	if err != nil {
+		t.Fatalf("create video location: %v", err)
+	}
+	if err := gdb.Model(&models.VideoLocation{}).Where("id = ?", loc.ID).Update("jav_id", oldJav.ID).Error; err != nil {
+		t.Fatalf("link old JAV: %v", err)
+	}
+	if err := gdb.Exec(`
+		CREATE TRIGGER fail_existing_link_override
+		BEFORE UPDATE OF jav_scrape_override ON video
+		BEGIN
+			SELECT RAISE(ABORT, 'forced override failure');
+		END
+	`).Error; err != nil {
+		t.Fatalf("create failure trigger: %v", err)
+	}
+
+	if _, err := LinkVideoLocationsToExistingJav(ctx, newJav.Code, video.ID); err == nil {
+		t.Fatal("expected override update failure")
+	}
+
+	var storedVideo models.Video
+	if err := gdb.First(&storedVideo, video.ID).Error; err != nil {
+		t.Fatalf("reload video: %v", err)
+	}
+	if storedVideo.JavScrapeOverride != video.JavScrapeOverride {
+		t.Fatalf("override changed after rollback: got %q want %q", storedVideo.JavScrapeOverride, video.JavScrapeOverride)
+	}
+	var storedLocation models.VideoLocation
+	if err := gdb.First(&storedLocation, loc.ID).Error; err != nil {
+		t.Fatalf("reload video location: %v", err)
+	}
+	if storedLocation.JavID == nil || *storedLocation.JavID != oldJav.ID {
+		t.Fatalf("JAV link changed after rollback: got %#v want %d", storedLocation.JavID, oldJav.ID)
 	}
 }
 

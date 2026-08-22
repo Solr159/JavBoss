@@ -2838,8 +2838,51 @@ func SaveJavInfoAndLinkVideoLocations(ctx context.Context, info *jav.JavInfo, vi
 	return javRec, nil
 }
 
-// LinkVideoLocationsToExistingJav associates every location for a video with an
-// existing JAV record without changing that record's metadata.
+// SaveManualJavInfoAndLinkVideoLocations atomically upserts manually entered JAV
+// metadata, records the manual scrape override, and associates every location
+// for the video with the resulting JAV record.
+func SaveManualJavInfoAndLinkVideoLocations(ctx context.Context, info *jav.JavInfo, videoID int64) (*models.Jav, error) {
+	if info == nil {
+		return nil, errors.New("jav info is nil")
+	}
+	if videoID <= 0 {
+		return nil, errors.New("video id cannot be zero")
+	}
+
+	var javRec *models.Jav
+	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		rec, err := saveJavInfoTx(tx, info)
+		if err != nil {
+			return err
+		}
+		res := tx.Model(&models.VideoLocation{}).
+			Where("video_id = ?", videoID).
+			UpdateColumn("jav_id", rec.ID)
+		if res.Error != nil {
+			return fmt.Errorf("link video locations to jav: %w", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		override := models.JavScrapeOverrideManualPrefix + strings.ToUpper(strings.TrimSpace(info.Code))
+		if err := updateVideoJavScrapeOverrideTx(tx, videoID, override); err != nil {
+			return err
+		}
+		javRec = rec
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return javRec, nil
+}
+
+// LinkVideoLocationsToExistingJav atomically records a manual scrape override
+// and associates every location for a video with an existing JAV record without
+// changing that record's metadata.
 func LinkVideoLocationsToExistingJav(ctx context.Context, code string, videoID int64) (*models.Jav, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	if code == "" {
@@ -2862,6 +2905,10 @@ func LinkVideoLocationsToExistingJav(ctx context.Context, code string, videoID i
 			Where("video_id = ?", videoID).
 			UpdateColumn("jav_id", rec.ID).Error; err != nil {
 			return fmt.Errorf("link video locations to existing jav: %w", err)
+		}
+		override := models.JavScrapeOverrideManualPrefix + code
+		if err := updateVideoJavScrapeOverrideTx(tx, videoID, override); err != nil {
+			return err
 		}
 		javRec = rec
 		return nil

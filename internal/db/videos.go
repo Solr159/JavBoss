@@ -209,36 +209,9 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 		return nil, errors.New("video id cannot be zero")
 	}
 	override = strings.TrimSpace(override)
-	overrideCode := javScrapeOverrideCode(override)
 
 	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		res := tx.Model(&models.Video{}).
-			Where("id = ?", videoID).
-			Update("jav_scrape_override", override)
-		if res.Error != nil {
-			return fmt.Errorf("update video jav scrape override: %w", res.Error)
-		}
-		if res.RowsAffected == 0 {
-			return gorm.ErrRecordNotFound
-		}
-		if override == "" {
-			return nil
-		}
-		clearLinks := tx.Model(&models.VideoLocation{}).
-			Where("video_id = ?", videoID)
-		if override != models.JavScrapeOverrideSkip {
-			clearLinks = clearLinks.
-				Where("jav_id IS NOT NULL").
-				Where(`NOT EXISTS (
-					SELECT 1 FROM jav
-					WHERE jav.id = video_location.jav_id
-						AND UPPER(jav.code) = ?
-				)`, strings.ToUpper(overrideCode))
-		}
-		if err := clearLinks.UpdateColumn("jav_id", nil).Error; err != nil {
-			return fmt.Errorf("clear video location jav links: %w", err)
-		}
-		return nil
+		return updateVideoJavScrapeOverrideTx(tx, videoID, override)
 	}); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -247,6 +220,45 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 	}
 
 	return GetVideo(ctx, videoID)
+}
+
+func updateVideoJavScrapeOverrideTx(tx *gorm.DB, videoID int64, override string) error {
+	if tx == nil {
+		return errors.New("tx is nil")
+	}
+	if videoID <= 0 {
+		return errors.New("video id cannot be zero")
+	}
+	override = strings.TrimSpace(override)
+	overrideCode := javScrapeOverrideCode(override)
+
+	res := tx.Model(&models.Video{}).
+		Where("id = ?", videoID).
+		Update("jav_scrape_override", override)
+	if res.Error != nil {
+		return fmt.Errorf("update video jav scrape override: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	if override == "" {
+		return nil
+	}
+	clearLinks := tx.Model(&models.VideoLocation{}).
+		Where("video_id = ?", videoID)
+	if override != models.JavScrapeOverrideSkip {
+		clearLinks = clearLinks.
+			Where("jav_id IS NOT NULL").
+			Where(`NOT EXISTS (
+				SELECT 1 FROM jav
+				WHERE jav.id = video_location.jav_id
+					AND UPPER(jav.code) = ?
+			)`, strings.ToUpper(overrideCode))
+	}
+	if err := clearLinks.UpdateColumn("jav_id", nil).Error; err != nil {
+		return fmt.Errorf("clear video location jav links: %w", err)
+	}
+	return nil
 }
 
 // UpdateVideoCoverScreenshotName stores the screenshot filename used as a video's custom cover.

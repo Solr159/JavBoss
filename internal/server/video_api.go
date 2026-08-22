@@ -835,12 +835,6 @@ func linkVideoExistingJav(c *gin.Context) {
 		return
 	}
 
-	manualOverride := models.JavScrapeOverrideManualPrefix + code
-	if _, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, manualOverride); err != nil {
-		logging.Error("existing jav link update override failed video=%d code=%s: %v", id, code, err)
-		respondLocalizedError(c, http.StatusInternalServerError, "保存刮削设置失败", "Failed to save scrape settings")
-		return
-	}
 	video, err := dbpkg.GetVideoForLocation(c.Request.Context(), id, loc.ID)
 	if err != nil {
 		logging.Error("existing jav link reload failed video=%d location=%d code=%s: %v", id, loc.ID, code, err)
@@ -900,7 +894,7 @@ func manualVideoJavScrape(c *gin.Context) {
 		return
 	}
 
-	javRec, err := dbpkg.SaveJavInfoAndLinkVideoLocations(c.Request.Context(), info, id)
+	javRec, err := dbpkg.SaveManualJavInfoAndLinkVideoLocations(c.Request.Context(), info, id)
 	if err != nil {
 		logging.Error("manual jav scrape save failed video=%d code=%s: %v", id, info.Code, err)
 		respondLocalizedError(c, http.StatusBadRequest, "保存手动刮削信息失败", "Failed to save manual scrape metadata")
@@ -911,12 +905,6 @@ func manualVideoJavScrape(c *gin.Context) {
 		return
 	}
 
-	manualOverride := models.JavScrapeOverrideManualPrefix + info.Code
-	if _, err := dbpkg.UpdateVideoJavScrapeOverride(c.Request.Context(), id, manualOverride); err != nil {
-		logging.Error("manual jav scrape update override failed video=%d code=%s: %v", id, info.Code, err)
-		respondLocalizedError(c, http.StatusInternalServerError, "保存刮削设置失败", "Failed to save scrape settings")
-		return
-	}
 	video, err := dbpkg.GetVideoForLocation(c.Request.Context(), id, loc.ID)
 	if err != nil {
 		logging.Error("manual jav scrape reload failed video=%d location=%d code=%s: %v", id, loc.ID, info.Code, err)
