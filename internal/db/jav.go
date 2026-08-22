@@ -93,14 +93,16 @@ type JavScanVideo struct {
 
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
-	Title          *string
-	StudioID       *int64
-	SeriesID       *int64
-	IdolIDs        *[]int64
-	UserTagIDs     *[]int64
-	ReleaseUnix    *int64
-	DurationMin    *int
-	FavoriteRating *float64
+	Title           *string
+	StudioID        *int64
+	SeriesID        *int64
+	IdolIDs         *[]int64
+	IdolNames       *[]string
+	UserTagIDs      *[]int64
+	ScrapedTagNames *[]string
+	ReleaseUnix     *int64
+	DurationMin     *int
+	FavoriteRating  *float64
 }
 
 // JavIdolUpdateInput contains user-editable JAV idol profile fields.
@@ -501,13 +503,26 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 				return fmt.Errorf("update jav metadata: %w", err)
 			}
 		}
-		if input.IdolIDs != nil {
-			if err := replaceJavIdolsTx(tx, javID, *input.IdolIDs); err != nil {
+		if input.IdolIDs != nil || input.IdolNames != nil {
+			var idolIDs []int64
+			if input.IdolIDs != nil {
+				idolIDs = *input.IdolIDs
+			}
+			var idolNames []string
+			if input.IdolNames != nil {
+				idolNames = *input.IdolNames
+			}
+			if err := replaceJavIdolsWithNamesTx(tx, javID, idolIDs, idolNames); err != nil {
 				return err
 			}
 		}
 		if input.UserTagIDs != nil {
 			if err := replaceJavUserTagsTx(tx, []int64{javID}, *input.UserTagIDs); err != nil {
+				return err
+			}
+		}
+		if input.ScrapedTagNames != nil {
+			if err := replaceJavScrapedTagsTx(tx, javID, *input.ScrapedTagNames); err != nil {
 				return err
 			}
 		}
@@ -3957,6 +3972,51 @@ func replaceJavIdolsTx(tx *gorm.DB, javID int64, idolIDs []int64) error {
 	}
 	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&rows).Error; err != nil {
 		return fmt.Errorf("insert jav idol maps: %w", err)
+	}
+	return nil
+}
+
+func replaceJavIdolsWithNamesTx(tx *gorm.DB, javID int64, idolIDs []int64, idolNames []string) error {
+	idols, err := ensureJavIdolsTx(tx, idolNames)
+	if err != nil {
+		return err
+	}
+	resolvedIDs := append([]int64(nil), idolIDs...)
+	for _, idol := range idols {
+		resolvedIDs = append(resolvedIDs, idol.ID)
+	}
+	return replaceJavIdolsTx(tx, javID, resolvedIDs)
+}
+
+func replaceJavScrapedTagsTx(tx *gorm.DB, javID int64, names []string) error {
+	if javID <= 0 {
+		return errors.New("jav id cannot be zero")
+	}
+	providers := visibleScrapedJavTagProviders()
+	var oldTagIDs []int64
+	if err := tx.Model(&models.JavTagMap{}).
+		Where("jav_id = ? AND provider IN ?", javID, providers).
+		Distinct().
+		Pluck("jav_tag_id", &oldTagIDs).Error; err != nil {
+		return fmt.Errorf("find scraped jav tag maps: %w", err)
+	}
+	if err := tx.
+		Where("jav_id = ? AND provider IN ?", javID, providers).
+		Delete(&models.JavTagMap{}).Error; err != nil {
+		return fmt.Errorf("delete scraped jav tag maps: %w", err)
+	}
+
+	tags, err := ensureJavTagsTx(tx, names, jav.ProviderManualScrape)
+	if err != nil {
+		return err
+	}
+	if err := replaceJavTagsForProviderTx(tx, javID, tags, jav.ProviderManualScrape); err != nil {
+		return err
+	}
+	for _, tagID := range uniqueInt64s(oldTagIDs) {
+		if err := deleteJavTagIfUnusedTx(tx, tagID); err != nil {
+			return err
+		}
 	}
 	return nil
 }

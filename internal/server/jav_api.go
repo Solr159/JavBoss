@@ -536,15 +536,17 @@ func assignJavTagsCategory(c *gin.Context) {
 }
 
 type javItemUpdateRequest struct {
-	Title          *string  `json:"title"`
-	CoverURL       *string  `json:"cover_url"`
-	TagIDs         *[]int64 `json:"tag_ids"`
-	IdolIDs        *[]int64 `json:"idol_ids"`
-	StudioID       *int64   `json:"studio_id"`
-	SeriesID       *int64   `json:"series_id"`
-	ReleaseDate    *string  `json:"release_date"`
-	DurationMin    *int     `json:"duration_min"`
-	FavoriteRating *float64 `json:"favorite_rating"`
+	Title          *string   `json:"title"`
+	CoverURL       *string   `json:"cover_url"`
+	TagIDs         *[]int64  `json:"tag_ids"`
+	IdolIDs        *[]int64  `json:"idol_ids"`
+	IdolNames      *[]string `json:"idol_names"`
+	ScrapedTags    *[]string `json:"scraped_tags"`
+	StudioID       *int64    `json:"studio_id"`
+	SeriesID       *int64    `json:"series_id"`
+	ReleaseDate    *string   `json:"release_date"`
+	DurationMin    *int      `json:"duration_min"`
+	FavoriteRating *float64  `json:"favorite_rating"`
 }
 
 func updateJavItem(c *gin.Context) {
@@ -594,14 +596,16 @@ func updateJavItem(c *gin.Context) {
 	}
 
 	updated, err := dbpkg.UpdateJav(c.Request.Context(), id, dbpkg.JavUpdateInput{
-		Title:          req.Title,
-		StudioID:       req.StudioID,
-		SeriesID:       req.SeriesID,
-		IdolIDs:        req.IdolIDs,
-		UserTagIDs:     req.TagIDs,
-		ReleaseUnix:    releaseUnix,
-		DurationMin:    req.DurationMin,
-		FavoriteRating: req.FavoriteRating,
+		Title:           req.Title,
+		StudioID:        req.StudioID,
+		SeriesID:        req.SeriesID,
+		IdolIDs:         req.IdolIDs,
+		IdolNames:       req.IdolNames,
+		UserTagIDs:      req.TagIDs,
+		ScrapedTagNames: req.ScrapedTags,
+		ReleaseUnix:     releaseUnix,
+		DurationMin:     req.DurationMin,
+		FavoriteRating:  req.FavoriteRating,
 	}, parseDirectoryIDs(c.Query("directory_ids")))
 	if err != nil {
 		logging.Error("update jav item error: %v", err)

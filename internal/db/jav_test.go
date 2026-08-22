@@ -825,7 +825,6 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	for _, idol := range idols {
 		idolByName[idol.Name] = idol
 	}
-
 	javs := []models.Jav{
 		{Code: "SOLO-001", Title: "One idol", FetchedAt: now},
 		{Code: "GROUP-001", Title: "Two idols", FetchedAt: now},
@@ -919,6 +918,12 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 	for _, idol := range idols {
 		idolByName[idol.Name] = idol
 	}
+	if err := db.Create(&models.JavIdolAlias{
+		JavIdolID: idolByName["New Idol B"].ID,
+		Alias:     "New Idol B Alias",
+	}).Error; err != nil {
+		t.Fatalf("create idol alias: %v", err)
+	}
 	if err := db.Create(&[]models.JavTag{userTagA, userTagB, scrapedTag}).Error; err != nil {
 		t.Fatalf("create tags: %v", err)
 	}
@@ -969,17 +974,21 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 
 	studioID := studioByName["New Studio"].ID
 	seriesID := seriesByName["New Series"].ID
-	idolIDs := []int64{idolByName["New Idol A"].ID, idolByName["New Idol B"].ID}
+	idolIDs := []int64{idolByName["New Idol A"].ID}
+	idolNames := []string{"New Idol B Alias", "Typed Idol", "Typed Idol"}
 	tagIDs := []int64{tagByName["User B"].ID}
+	scrapedTagNames := []string{"Scraped Replacement", "Scraped Replacement"}
 	releaseUnix := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC).Unix()
 	durationMin := 123
 	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{
-		StudioID:    &studioID,
-		SeriesID:    &seriesID,
-		IdolIDs:     &idolIDs,
-		UserTagIDs:  &tagIDs,
-		ReleaseUnix: &releaseUnix,
-		DurationMin: &durationMin,
+		StudioID:        &studioID,
+		SeriesID:        &seriesID,
+		IdolIDs:         &idolIDs,
+		IdolNames:       &idolNames,
+		UserTagIDs:      &tagIDs,
+		ScrapedTagNames: &scrapedTagNames,
+		ReleaseUnix:     &releaseUnix,
+		DurationMin:     &durationMin,
 	}, nil)
 	if err != nil {
 		t.Fatalf("UpdateJav: %v", err)
@@ -1001,8 +1010,15 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 	for _, idol := range updated.Idols {
 		updatedIdolNames[idol.Name] = true
 	}
-	if len(updatedIdolNames) != 2 || !updatedIdolNames["New Idol A"] || !updatedIdolNames["New Idol B"] {
+	if len(updatedIdolNames) != 3 || !updatedIdolNames["New Idol A"] || !updatedIdolNames["New Idol B"] || !updatedIdolNames["Typed Idol"] {
 		t.Fatalf("updated idols = %#v", updated.Idols)
+	}
+	var aliasNamedIdolCount int64
+	if err := db.Model(&models.JavIdol{}).Where("name = ?", "New Idol B Alias").Count(&aliasNamedIdolCount).Error; err != nil {
+		t.Fatalf("count alias-named idol: %v", err)
+	}
+	if aliasNamedIdolCount != 0 {
+		t.Fatalf("manual alias input created %d duplicate idol rows", aliasNamedIdolCount)
 	}
 
 	var oldIdolMapCount int64
@@ -1030,8 +1046,26 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 		Count(&scrapedMapCount).Error; err != nil {
 		t.Fatalf("count scraped tag map: %v", err)
 	}
-	if scrapedMapCount != 1 {
-		t.Fatalf("scraped tag map count = %d, want 1", scrapedMapCount)
+	if scrapedMapCount != 0 {
+		t.Fatalf("old scraped tag map count = %d, want 0", scrapedMapCount)
+	}
+	var replacementMap models.JavTagMap
+	if err := db.
+		Table("jav_tag_map jtm").
+		Select("jtm.*").
+		Joins("JOIN jav_tag jt ON jt.id = jtm.jav_tag_id").
+		Where("jtm.jav_id = ? AND jt.name = ? AND jtm.provider = ?", javRec.ID, "Scraped Replacement", int(jav.ProviderManualScrape)).
+		First(&replacementMap).Error; err != nil {
+		t.Fatalf("load replacement scraped tag map: %v", err)
+	}
+	updatedTagProviders := map[string]int{}
+	for _, tag := range updated.Tags {
+		updatedTagProviders[tag.Name] = tag.Provider
+	}
+	if len(updatedTagProviders) != 2 ||
+		updatedTagProviders["User B"] != int(jav.ProviderUser) ||
+		updatedTagProviders["Scraped Replacement"] != int(jav.ProviderManualScrape) {
+		t.Fatalf("updated tags = %#v", updated.Tags)
 	}
 }
 
