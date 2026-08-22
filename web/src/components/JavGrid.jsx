@@ -1071,11 +1071,29 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           />
         </div>
         <div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-gray-700">{zh('女优', 'Idols')}</div>
+          <div className="text-sm font-medium text-gray-700">{zh('女优', 'Idols')}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {selectedIdolOptions.map((idol) => (
+              <SelectedChip
+                key={idol.id}
+                label={getIdolDisplayName(idol, preferChineseName)}
+                disabled={saving}
+                onRemove={() => toggleIdol(idol.id, false)}
+              />
+            ))}
+            {manualIdolNames.map((name) => (
+              <SelectedChip
+                key={`manual-${name}`}
+                label={name}
+                disabled={saving}
+                onRemove={() =>
+                  setManualIdolNames((current) => current.filter((item) => item !== name))
+                }
+              />
+            ))}
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setIdolPickerOpen((current) => !current)
                 setScrapedTagPickerOpen(false)
@@ -1084,33 +1102,12 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                 setTagSearch('')
               }}
               disabled={saving}
+              title={zh('新增女优', 'Add idol')}
+              aria-label={zh('新增女优', 'Add idol')}
             >
               <AddIcon sx={{ fontSize: 15 }} />
-              {zh('新增', 'Add')}
             </button>
           </div>
-          {selectedIdolOptions.length > 0 || manualIdolNames.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {selectedIdolOptions.map((idol) => (
-                <SelectedChip
-                  key={idol.id}
-                  label={getIdolDisplayName(idol, preferChineseName)}
-                  disabled={saving}
-                  onRemove={() => toggleIdol(idol.id, false)}
-                />
-              ))}
-              {manualIdolNames.map((name) => (
-                <SelectedChip
-                  key={`manual-${name}`}
-                  label={name}
-                  disabled={saving}
-                  onRemove={() =>
-                    setManualIdolNames((current) => current.filter((item) => item !== name))
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
           {idolPickerOpen ? (
             <div className="mt-2 rounded-md border border-gray-200 p-2">
               <div className="mb-2 flex items-center gap-2">
@@ -1178,13 +1175,21 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         </div>
         {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
         <div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-gray-700">
-              {zh('刮削标签', 'Scraped tags')}
-            </div>
+          <div className="text-sm font-medium text-gray-700">{zh('刮削标签', 'Scraped tags')}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {selectedScrapedTagNames.map((name) => (
+              <SelectedChip
+                key={name}
+                label={name}
+                disabled={saving}
+                onRemove={() =>
+                  setSelectedScrapedTagNames((current) => current.filter((item) => item !== name))
+                }
+              />
+            ))}
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setScrapedTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -1193,25 +1198,12 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                 setTagSearch('')
               }}
               disabled={saving}
+              title={zh('新增刮削标签', 'Add scraped tag')}
+              aria-label={zh('新增刮削标签', 'Add scraped tag')}
             >
               <AddIcon sx={{ fontSize: 15 }} />
-              {zh('新增', 'Add')}
             </button>
           </div>
-          {selectedScrapedTagNames.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {selectedScrapedTagNames.map((name) => (
-                <SelectedChip
-                  key={name}
-                  label={name}
-                  disabled={saving}
-                  onRemove={() =>
-                    setSelectedScrapedTagNames((current) => current.filter((item) => item !== name))
-                  }
-                />
-              ))}
-            </div>
-          ) : null}
           {scrapedTagPickerOpen ? (
             <div className="mt-2 rounded-md border border-gray-200 p-2">
               <div className="mb-2 flex items-center gap-2">
@@ -1272,21 +1264,21 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               </div>
             </div>
           ) : null}
-          <div className="mt-1 text-xs text-gray-500">
-            {zh(
-              '保存后将替换当前作品的刮削标签；用户自定义标签不会受影响。',
-              'Saving replaces scraped tags for this item; user-defined tags are preserved.'
-            )}
-          </div>
         </div>
         <div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-gray-700">
-              {zh('自定义标签', 'Custom tags')}
-            </div>
+          <div className="text-sm font-medium text-gray-700">{zh('自定义标签', 'Custom tags')}</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {selectedTagOptions.map((tag) => (
+              <SelectedChip
+                key={`${tag.id}-${tag.provider || 0}`}
+                label={tag.name}
+                disabled={saving}
+                onRemove={() => toggleTag(tag.id, false)}
+              />
+            ))}
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -1295,23 +1287,12 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                 setScrapedTagSearch('')
               }}
               disabled={saving || creatingUserTag}
+              title={zh('新增自定义标签', 'Add custom tag')}
+              aria-label={zh('新增自定义标签', 'Add custom tag')}
             >
               <AddIcon sx={{ fontSize: 15 }} />
-              {zh('新增', 'Add')}
             </button>
           </div>
-          {selectedTagOptions.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {selectedTagOptions.map((tag) => (
-                <SelectedChip
-                  key={`${tag.id}-${tag.provider || 0}`}
-                  label={tag.name}
-                  disabled={saving}
-                  onRemove={() => toggleTag(tag.id, false)}
-                />
-              ))}
-            </div>
-          ) : null}
           {tagPickerOpen ? (
             <div className="mt-2 rounded-md border border-gray-200 p-2">
               <div className="mb-2 flex items-center gap-2">
