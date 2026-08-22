@@ -63,7 +63,7 @@ jobs:
           npm run build
 
       - name: Download ffmpeg/ffprobe
-        run: bash scripts/cli.sh download "${{ inputs.platform }}"
+        run: bash scripts/cli.sh download-dependencies "${{ inputs.platform }}"
 
       - name: Build release
         run: bash scripts/cli.sh release "${{ inputs.platform }}" "${{ inputs.version }}"

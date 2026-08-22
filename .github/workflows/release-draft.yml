@@ -63,7 +63,7 @@ jobs:
           npm run build
 
       - name: Download ffmpeg/ffprobe
-        run: bash scripts/cli.sh download "${{ matrix.platform }}"
+        run: bash scripts/cli.sh download-dependencies "${{ matrix.platform }}"
 
       - name: Build release
         run: bash scripts/cli.sh release "${{ matrix.platform }}" "${{ inputs.version }}"

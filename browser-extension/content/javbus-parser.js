@@ -5,7 +5,6 @@
 })(
   typeof globalThis !== "undefined" ? globalThis : this,
   function createJavBusParser() {
-    const CODE_PREFIX_PATTERN = /^[a-z]{2,10}[-_ ]?\d{2,6}\s*/i;
     const DATE_PATTERN = /\d{4}-\d{2}-\d{2}/;
     const DURATION_PATTERN = /(\d{1,4})\s*(?:分鐘|分钟|分|分間|min)?/i;
 
@@ -22,11 +21,16 @@
         .trim();
     }
 
-    function cleanTitle(value) {
-      return cleanText(value)
-        .replace(/\s*-\s*javbus\s*$/i, "")
-        .replace(CODE_PREFIX_PATTERN, "")
-        .trim();
+    function cleanTitle(value, code) {
+      let title = cleanText(value).replace(/\s*-\s*javbus\s*$/i, "");
+      const normalizedCode = cleanText(code);
+      if (
+        normalizedCode &&
+        title.toUpperCase().startsWith(normalizedCode.toUpperCase())
+      ) {
+        title = title.slice(normalizedCode.length).trim();
+      }
+      return title;
     }
 
     function fieldValue(document, labels) {
@@ -121,7 +125,7 @@
       const rawTitle = cleanText(
         document.querySelector("h3")?.textContent || document.title,
       );
-      const title = cleanTitle(rawTitle);
+      const title = cleanTitle(rawTitle, code);
       const tags = uniqueTexts(
         [...movieSection.querySelectorAll("span.genre a")].filter(
           (link) => !String(link.getAttribute("href") || "").includes("/star/"),
