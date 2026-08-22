@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import SearchIcon from '@mui/icons-material/Search'
+import { Tooltip } from '@mui/material'
 import AppModal from '@/components/AppModal'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -115,6 +116,7 @@ export default function VideoScrapeSettingsModal({
   onFetchPossibleCodes,
   onLookupMetadata,
   onManualScrape,
+  onLinkExistingJav,
 }) {
   const [mode, setMode] = useState('auto')
   const [autoSource, setAutoSource] = useState(AUTO_SOURCE_FILENAME)
@@ -123,6 +125,8 @@ export default function VideoScrapeSettingsModal({
   const [lookupLoading, setLookupLoading] = useState(false)
   const [lookupProvider, setLookupProvider] = useState('')
   const [lookupError, setLookupError] = useState('')
+  const [linkLoading, setLinkLoading] = useState(false)
+  const [linkError, setLinkError] = useState('')
   const [possibleCodesOpen, setPossibleCodesOpen] = useState(false)
   const [possibleCodesLoading, setPossibleCodesLoading] = useState(false)
   const [possibleCodesError, setPossibleCodesError] = useState('')
@@ -138,6 +142,8 @@ export default function VideoScrapeSettingsModal({
     setLookupLoading(false)
     setLookupProvider('')
     setLookupError('')
+    setLinkLoading(false)
+    setLinkError('')
     setPossibleCodesOpen(false)
     setPossibleCodesLoading(false)
     setPossibleCodesError('')
@@ -160,6 +166,7 @@ export default function VideoScrapeSettingsModal({
   const canSave =
     !saving &&
     !lookupLoading &&
+    !linkLoading &&
     (mode === 'skip' ||
       (mode === 'auto' && autoSource === AUTO_SOURCE_FILENAME) ||
       (codeValid && (mode !== 'manual' || manualDurationValid)))
@@ -170,6 +177,7 @@ export default function VideoScrapeSettingsModal({
     const nextCode = value.toUpperCase()
     setCode(nextCode)
     setManualInfo((current) => ({ ...current, code: nextCode }))
+    if (linkError) setLinkError('')
   }
 
   const testPossibleCodes = async () => {
@@ -203,6 +211,19 @@ export default function VideoScrapeSettingsModal({
     } finally {
       setLookupLoading(false)
       setLookupProvider('')
+    }
+  }
+
+  const linkExistingJav = async () => {
+    if (!codeValid || saving || lookupLoading || linkLoading || !onLinkExistingJav) return
+    setLinkLoading(true)
+    setLinkError('')
+    try {
+      await onLinkExistingJav(normalizedCode)
+    } catch (err) {
+      setLinkError(getErrorMessage(err))
+    } finally {
+      setLinkLoading(false)
     }
   }
 
@@ -385,6 +406,39 @@ export default function VideoScrapeSettingsModal({
                         : 'focus:border-blue-500 focus:ring-blue-500'
                     }`}
                   />
+                  <div className="mt-2">
+                    <Tooltip
+                      arrow
+                      title={zh(
+                        '如果该番号在 JAV 库中已存在，可直接关联，无需手动填入信息。',
+                        'If this code already exists in the JAV library, link it directly without entering metadata manually.'
+                      )}
+                    >
+                      <span className="inline-flex">
+                        <button
+                          type="button"
+                          onClick={() => void linkExistingJav()}
+                          disabled={
+                            !codeValid ||
+                            saving ||
+                            lookupLoading ||
+                            linkLoading ||
+                            !onLinkExistingJav
+                          }
+                          className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
+                        >
+                          {linkLoading
+                            ? zh('关联中…', 'Linking...')
+                            : zh('直接关联已有番号', 'Link existing JAV directly')}
+                        </button>
+                      </span>
+                    </Tooltip>
+                  </div>
+                  {linkError ? (
+                    <div role="alert" className="mt-1 text-xs text-red-600">
+                      {linkError}
+                    </div>
+                  ) : null}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="mr-1 text-xs font-medium text-gray-500">
                       {zh('自动填充', 'Autofill')}

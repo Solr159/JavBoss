@@ -447,6 +447,18 @@ export async function manualVideoJavScrape(videoId, locationId, info) {
   return res.json()
 }
 
+export async function linkVideoToExistingJav(videoId, locationId, code) {
+  const res = await apiFetch(`/videos/${videoId}/jav-scrape/link`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ location_id: locationId, code }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 // Directories
 export async function fetchDirectories() {
   const res = await apiFetch('/directories', { cache: 'no-store' })

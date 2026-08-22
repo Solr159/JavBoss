@@ -128,11 +128,13 @@ func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
 	foundList := false
 	foundUpload := false
 	foundScrapeLookup := false
+	foundExistingJavLink := false
 	foundLegacyJavDBLookup := false
 	for _, route := range router.Routes() {
 		foundList = foundList || route.Method == "GET" && route.Path == "/videos/screenshots"
 		foundUpload = foundUpload || route.Method == "PUT" && route.Path == "/videos/:id/screenshots/:name"
 		foundScrapeLookup = foundScrapeLookup || route.Method == "GET" && route.Path == "/videos/:id/jav-scrape/lookup"
+		foundExistingJavLink = foundExistingJavLink || route.Method == "POST" && route.Path == "/videos/:id/jav-scrape/link"
 		foundLegacyJavDBLookup = foundLegacyJavDBLookup || route.Method == "GET" && route.Path == "/videos/:id/jav-scrape/javdb"
 	}
 	if !foundList {
@@ -144,8 +146,109 @@ func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {
 	if !foundScrapeLookup {
 		t.Fatal("GET /videos/:id/jav-scrape/lookup route is not registered")
 	}
+	if !foundExistingJavLink {
+		t.Fatal("POST /videos/:id/jav-scrape/link route is not registered")
+	}
 	if foundLegacyJavDBLookup {
 		t.Fatal("legacy GET /videos/:id/jav-scrape/javdb route must not be registered")
+	}
+}
+
+func TestLinkVideoExistingJavPreservesMetadataAndLinksAllLocations(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dirs := []models.Directory{{Path: filepath.Join(t.TempDir(), "a")}, {Path: filepath.Join(t.TempDir(), "b")}}
+	if err := database.Create(&dirs).Error; err != nil {
+		t.Fatalf("create directories: %v", err)
+	}
+	video := models.Video{Fingerprint: "link-existing-jav"}
+	if err := database.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	now := time.Unix(1710000000, 0).UTC()
+	locA, err := dbpkg.UpsertVideoLocation(context.Background(), video.ID, dirs[0].ID, "a.mp4", now)
+	if err != nil {
+		t.Fatalf("create first video location: %v", err)
+	}
+	locB, err := dbpkg.UpsertVideoLocation(context.Background(), video.ID, dirs[1].ID, "b.mp4", now)
+	if err != nil {
+		t.Fatalf("create second video location: %v", err)
+	}
+	existing := models.Jav{Code: "IPX-228", Title: "Existing title", DurationMin: 123, FetchedAt: now}
+	if err := database.Create(&existing).Error; err != nil {
+		t.Fatalf("create existing JAV: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/videos/:id/jav-scrape/link", linkVideoExistingJav)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(
+		http.MethodPost,
+		"/videos/"+strconv.FormatInt(video.ID, 10)+"/jav-scrape/link",
+		strings.NewReader(`{"location_id":`+strconv.FormatInt(locA.ID, 10)+`,"code":"ipx-228"}`),
+	)
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("unexpected status: got %d want %d body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	var locations []models.VideoLocation
+	if err := database.Where("id IN ?", []int64{locA.ID, locB.ID}).Find(&locations).Error; err != nil {
+		t.Fatalf("reload video locations: %v", err)
+	}
+	for _, loc := range locations {
+		if loc.JavID == nil || *loc.JavID != existing.ID {
+			t.Fatalf("location %d jav_id = %#v, want %d", loc.ID, loc.JavID, existing.ID)
+		}
+	}
+	var storedJav models.Jav
+	if err := database.First(&storedJav, existing.ID).Error; err != nil {
+		t.Fatalf("reload existing JAV: %v", err)
+	}
+	if storedJav.Title != existing.Title || storedJav.DurationMin != existing.DurationMin || !storedJav.FetchedAt.Equal(existing.FetchedAt) {
+		t.Fatalf("existing JAV metadata changed: %#v", storedJav)
+	}
+	var storedVideo models.Video
+	if err := database.First(&storedVideo, video.ID).Error; err != nil {
+		t.Fatalf("reload video: %v", err)
+	}
+	if storedVideo.JavScrapeOverride != models.JavScrapeOverrideManualPrefix+existing.Code {
+		t.Fatalf("jav scrape override = %q, want %q", storedVideo.JavScrapeOverride, models.JavScrapeOverrideManualPrefix+existing.Code)
+	}
+
+	missingRecorder := httptest.NewRecorder()
+	missingRequest := httptest.NewRequest(
+		http.MethodPost,
+		"/videos/"+strconv.FormatInt(video.ID, 10)+"/jav-scrape/link",
+		strings.NewReader(`{"location_id":`+strconv.FormatInt(locA.ID, 10)+`,"code":"MISSING-001"}`),
+	)
+	missingRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(missingRecorder, missingRequest)
+	if missingRecorder.Code != http.StatusNotFound {
+		t.Fatalf("missing code status: got %d want %d body=%s", missingRecorder.Code, http.StatusNotFound, missingRecorder.Body.String())
+	}
+	var errorPayload struct {
+		ErrorZH string `json:"error_zh"`
+		ErrorEN string `json:"error_en"`
+	}
+	if err := json.Unmarshal(missingRecorder.Body.Bytes(), &errorPayload); err != nil {
+		t.Fatalf("decode missing code response: %v", err)
+	}
+	if errorPayload.ErrorZH != "番号 MISSING-001 在 JAV 库中不存在" {
+		t.Fatalf("unexpected missing code error: %q", errorPayload.ErrorZH)
 	}
 }
 

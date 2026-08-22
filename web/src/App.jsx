@@ -14,6 +14,7 @@ import {
   fetchVideoJavScrapePossibleCodes,
   lookupVideoJavScrape,
   manualVideoJavScrape,
+  linkVideoToExistingJav,
   fetchTagCategories,
   createTagCategory,
   reorderTagCategories,
@@ -854,6 +855,43 @@ export default function App() {
       }
     },
     [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
+  )
+
+  const handleLinkExistingJav = useCallback(
+    async (code) => {
+      const video = scrapeSettingsVideo
+      if (!video?.id) return
+      const locationId = Number(video?.location_id || video?.locations?.[0]?.id || 0)
+      if (!Number.isFinite(locationId) || locationId <= 0) {
+        throw new Error(zh('缺少视频位置 ID', 'Missing video location ID'))
+      }
+      setScrapeSettingsSaving(true)
+      try {
+        const updated = await linkVideoToExistingJav(video.id, locationId, code)
+        const override = String(updated?.jav_scrape_override || `:manual:${code}`)
+          .trim()
+          .toUpperCase()
+        const targetKey = videoSelectionKey(video)
+        useStore.setState((state) => ({
+          videos: Array.isArray(state.videos)
+            ? state.videos.map((item) =>
+                videoSelectionKey(item) === targetKey && updated
+                  ? { ...updated, jav_scrape_override: override }
+                  : item
+              )
+            : state.videos,
+        }))
+        setScrapeSettingsVideo(null)
+        await loadVideos({ force: true })
+        showToast(zh('已关联已有番号', 'Linked to existing JAV'))
+      } catch (err) {
+        console.error(zh('关联已有番号失败', 'Failed to link existing JAV'), err)
+        throw err
+      } finally {
+        setScrapeSettingsSaving(false)
+      }
+    },
+    [loadVideos, scrapeSettingsVideo, showToast]
   )
 
   const closeJavVideoPicker = useCallback(() => {
@@ -4106,6 +4144,7 @@ export default function App() {
         onFetchPossibleCodes={handleFetchScrapePossibleCodes}
         onLookupMetadata={handleLookupScrapeMetadata}
         onManualScrape={handleManualScrape}
+        onLinkExistingJav={handleLinkExistingJav}
       />
 
       <JavSettingsModal
