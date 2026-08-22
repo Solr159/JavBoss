@@ -18,6 +18,7 @@ import { SeriesCard } from '@/components/JavSeriesView'
 import WaterfallLoader from '@/components/WaterfallLoader'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
+import { openJavDBWithAssist } from '@/utils/javdb'
 
 export default function JavStudioView({
   page,
@@ -188,7 +189,8 @@ export function StudioCard({
   directoryIds = [],
   seriesListModalZIndex = 1500,
 }) {
-  const cover = item?.sample_code ? `/jav/${encodeURIComponent(item.sample_code)}/cover` : null
+  const sampleCode = String(item?.sample_code || '').trim()
+  const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
   const studioId = Number(item?.id)
   const workCount = Number(item?.work_count)
@@ -262,7 +264,11 @@ export function StudioCard({
     event.preventDefault()
     event.stopPropagation()
     if (!canOpenJavDB) return
-    window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
+    openJavDBWithAssist(javDBSearchURL, {
+      target: 'studio',
+      code: sampleCode,
+      name: searchName,
+    })
   }
 
   const handleOpenFavorites = (event) => {

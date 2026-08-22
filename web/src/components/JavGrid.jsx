@@ -33,6 +33,7 @@ import JavIdolCoverModal from '@/components/JavIdolCoverModal'
 import { IdolCard, JavIdolEditModal, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { StudioCard } from '@/components/JavStudioView'
+import { openJavDBWithAssist } from '@/utils/javdb'
 import VideoGrid from '@/components/VideoGrid'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
@@ -1872,6 +1873,12 @@ function JavCard({
     event.stopPropagation()
   }
 
+  const handleOpenJavDB = (event) => {
+    event.preventDefault()
+    event.stopPropagation()
+    openJavDBWithAssist(javdbSearchURL, { target: 'movie', code })
+  }
+
   const externalLinks = encodedCode
     ? item?.is_uncensored === true
       ? [
@@ -1906,6 +1913,7 @@ function JavCard({
             name: 'JavDB',
             href: javdbSearchURL,
             icon: '/ico/javdb.png',
+            onClick: handleOpenJavDB,
           },
           {
             key: 'javmenu',

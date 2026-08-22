@@ -6,6 +6,7 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import Pagination from '@/components/Pagination'
 import WaterfallLoader from '@/components/WaterfallLoader'
 import { zh } from '@/utils/i18n'
+import { openJavDBWithAssist } from '@/utils/javdb'
 
 export default function JavSeriesView({
   page,
@@ -144,7 +145,11 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
     event.preventDefault()
     event.stopPropagation()
     if (!javDBSearchURL) return
-    window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
+    openJavDBWithAssist(javDBSearchURL, {
+      target: 'series',
+      code: sampleCode,
+      name: searchName,
+    })
   }
 
   const handleOpenFavorites = (event) => {

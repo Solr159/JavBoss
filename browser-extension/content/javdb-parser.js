@@ -66,6 +66,156 @@
       }
     }
 
+    function normalizeCode(value) {
+      return cleanText(value).replace(/[^a-z0-9]/gi, "").toUpperCase();
+    }
+
+    function assistRequest(pageURL) {
+      let url;
+      try {
+        url = new URL(String(pageURL || ""));
+      } catch {
+        return null;
+      }
+
+      const params = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const target = cleanText(params.get("target"));
+      const code = cleanText(params.get("code"));
+      if (
+        params.get("javboss") !== "direct" ||
+        !["movie", "idol", "series", "studio"].includes(target) ||
+        !code
+      ) {
+        return null;
+      }
+      return { code, name: cleanText(params.get("name")), target, url };
+    }
+
+    function assistHash(request) {
+      const params = new URLSearchParams();
+      params.set("javboss", "direct");
+      params.set("target", request.target);
+      params.set("code", request.code);
+      if (request.name) params.set("name", request.name);
+      return params.toString();
+    }
+
+    function assistedCodeSearchURL(request) {
+      const searchURL = new URL("/search", request.url.origin);
+      searchURL.searchParams.set("q", request.code);
+      searchURL.searchParams.set("f", "all");
+      searchURL.hash = assistHash(request);
+      return searchURL.href;
+    }
+
+    function exactMovieResultURL(document, request) {
+      const wantCode = normalizeCode(request.code);
+      if (!wantCode) return "";
+
+      const matches = new Set();
+      for (const item of document.querySelectorAll(".movie-list .item")) {
+        const code = normalizeCode(
+          item.querySelector(".video-title strong")?.textContent,
+        );
+        if (code !== wantCode) continue;
+
+        const href = item.querySelector("a[href]")?.getAttribute("href");
+        if (!href) continue;
+        try {
+          const resolved = new URL(href, request.url);
+          if (
+            resolved.origin === request.url.origin &&
+            /^\/v\/[^/]+\/?$/.test(resolved.pathname)
+          ) {
+            resolved.hash = assistHash(request);
+            matches.add(resolved.href);
+          }
+        } catch {
+          // Ignore malformed result links and leave the search page visible.
+        }
+      }
+      return matches.size === 1 ? [...matches][0] : "";
+    }
+
+    function detailTargetConfig(target) {
+      switch (target) {
+        case "idol":
+          return {
+            labels: ["演員", "演员", "出演者"],
+            path: /^\/actors\/[^/]+\/?$/,
+          };
+        case "series":
+          return {
+            labels: ["系列", "シリーズ", "Series"],
+            path: /^\/series\/[^/]+\/?$/,
+          };
+        case "studio":
+          return {
+            labels: ["片商", "メーカー", "Maker"],
+            path: /^\/makers\/[^/]+\/?$/,
+          };
+        default:
+          return null;
+      }
+    }
+
+    function detailTargetURL(document, request) {
+      const config = detailTargetConfig(request.target);
+      const block = config ? fieldBlock(document, config.labels) : null;
+      if (!block) return "";
+
+      const candidates = [];
+      const exact = [];
+      const seen = new Set();
+      for (const link of block.querySelectorAll(".value a[href]")) {
+        const name = cleanText(link.textContent);
+        const href = link.getAttribute("href");
+        if (!href) continue;
+        try {
+          const resolved = new URL(href, request.url);
+          if (
+            resolved.origin !== request.url.origin ||
+            !config.path.test(resolved.pathname) ||
+            seen.has(resolved.href)
+          ) {
+            continue;
+          }
+          seen.add(resolved.href);
+          candidates.push(resolved.href);
+          if (request.name && name === request.name) exact.push(resolved.href);
+        } catch {
+          // Ignore malformed detail links and keep the movie page visible.
+        }
+      }
+
+      if (exact.length === 1) return exact[0];
+      return candidates.length === 1 ? candidates[0] : "";
+    }
+
+    function findAssistedNavigationURL(document, pageURL) {
+      const request = assistRequest(pageURL);
+      if (!request) return "";
+
+      if (request.url.pathname === "/search") {
+        const currentCode = normalizeCode(request.url.searchParams.get("q"));
+        const currentType = request.url.searchParams.get("f") || "all";
+        if (
+          currentType !== "all" ||
+          currentCode !== normalizeCode(request.code)
+        ) {
+          return assistedCodeSearchURL(request);
+        }
+        return exactMovieResultURL(document, request);
+      }
+
+      if (/^\/v\/[^/]+\/?$/.test(request.url.pathname)) {
+        return request.target === "movie"
+          ? ""
+          : detailTargetURL(document, request);
+      }
+      return "";
+    }
+
     function parse(document, pageURL) {
       const code = fieldText(document, ["番號", "番号"]).toUpperCase();
       const title = cleanText(
@@ -111,6 +261,12 @@
       };
     }
 
-    return { cleanText, normalizeLabel, parse };
+    return {
+      cleanText,
+      findAssistedNavigationURL,
+      normalizeCode,
+      normalizeLabel,
+      parse,
+    };
   },
 );

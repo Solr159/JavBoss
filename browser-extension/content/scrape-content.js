@@ -9,6 +9,17 @@
   if (!provider.parser) return;
   const parser = provider.parser;
 
+  if (provider.name === "JavDB" && window.top === window) {
+    const directURL = parser.findAssistedNavigationURL?.(
+      document,
+      location.href,
+    );
+    if (directURL && directURL !== location.href) {
+      location.replace(directURL);
+      return;
+    }
+  }
+
   const BUTTON_ID = "javboss-browser-scrape-fill-button";
   const CONTROLS_ID = "javboss-browser-scrape-controls";
   const SESSION_STORAGE_KEY = "javboss:browser-scrape-session";

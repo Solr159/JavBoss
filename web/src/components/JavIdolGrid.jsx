@@ -13,6 +13,7 @@ import JavIdolCoverModal, {
   normalizeIdolCoverCropLeft,
 } from '@/components/JavIdolCoverModal'
 import { getIdolDisplayNames } from '@/utils/javIdol'
+import { openJavDBWithAssist } from '@/utils/javdb'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
@@ -235,7 +236,11 @@ export function IdolCard({
     event.preventDefault()
     event.stopPropagation()
     if (!canOpenJavDB) return
-    window.open(javDBSearchURL, '_blank', 'noopener,noreferrer')
+    openJavDBWithAssist(javDBSearchURL, {
+      target: 'idol',
+      code: coverCode,
+      name: javDBSearchName,
+    })
   }
 
   const handleOpenFavorites = (event) => {
