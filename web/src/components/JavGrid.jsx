@@ -852,11 +852,24 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     })
   }
 
+  const selectIdol = (idolId) => {
+    toggleIdol(idolId, true)
+    setIdolSearch('')
+    setIdolPickerOpen(false)
+  }
+
+  const selectTag = (tagId) => {
+    toggleTag(tagId, true)
+    setTagSearch('')
+    setTagPickerOpen(false)
+  }
+
   const addManualIdolName = (value = idolSearch) => {
     const names = parseJavEditNameList(value)
     if (names.length === 0) return
     setManualIdolNames((current) => parseJavEditNameList([...current, ...names].join('\n')))
     setIdolSearch('')
+    setIdolPickerOpen(false)
     if (error) setError('')
   }
 
@@ -865,6 +878,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     if (names.length === 0) return
     setSelectedScrapedTagNames((current) => parseJavEditNameList([...current, ...names].join('\n')))
     setScrapedTagSearch('')
+    setScrapedTagPickerOpen(false)
     if (error) setError('')
   }
 
@@ -873,8 +887,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     if (!name || creatingUserTag) return
     const existing = mergedUserTagOptions.find((tag) => String(tag?.name || '').trim() === name)
     if (existing?.id) {
-      toggleTag(existing.id, true)
-      setTagSearch('')
+      selectTag(existing.id)
       return
     }
     setCreatingUserTag(true)
@@ -883,8 +896,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
       const created = await createJavTag(name)
       if (!created?.id) throw new Error(zh('创建自定义标签失败', 'Failed to create custom tag'))
       setCreatedUserTags((current) => mergeOptionsById(current, [created]))
-      toggleTag(created.id, true)
-      setTagSearch('')
+      selectTag(created.id)
       void loadJavTags?.({ force: true })
     } catch (err) {
       setError(getErrorMessage(err))
@@ -1162,7 +1174,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                       key={idol.id}
                       type="button"
                       className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => toggleIdol(idol.id, true)}
+                      onClick={() => selectIdol(idol.id)}
                       disabled={saving}
                     >
                       {getIdolDisplayName(idol, preferChineseName)}
@@ -1345,7 +1357,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                       key={`${tag.id}-${tag.provider || 0}`}
                       type="button"
                       className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => toggleTag(tag.id, true)}
+                      onClick={() => selectTag(tag.id)}
                       disabled={saving}
                     >
                       {tag.name}
