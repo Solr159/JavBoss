@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JavBoss extension bridge fixture</title>
+  </head>
+  <body>
+    <div id="status">waiting</div>
+    <iframe
+      id="bridge"
+      src="chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html"
+      hidden
+    ></iframe>
+    <script>
+      const extensionOrigin =
+        "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn";
+      const sessionId = "bridge-fixture-session";
+      const bridge = document.getElementById("bridge");
+      let opened = false;
+      const connect = () => {
+        bridge.contentWindow?.postMessage(
+          { type: "JAVBOSS_EXTENSION_CONNECT", sessionId },
+          extensionOrigin,
+        );
+      };
+      bridge.addEventListener("load", connect);
+      window.setInterval(connect, 200);
+      window.addEventListener("message", (event) => {
+        if (
+          event.origin !== extensionOrigin ||
+          event.source !== bridge.contentWindow
+        )
+          return;
+        if (event.data?.sessionId !== sessionId) return;
+        if (event.data?.type === "JAVBOSS_EXTENSION_READY" && !opened) {
+          opened = true;
+          document.getElementById("status").textContent = "bridge-ready";
+          bridge.contentWindow.postMessage(
+            {
+              type: "JAVBOSS_JAVBUS_OPEN",
+              sessionId,
+              url: "https://www.javbus.com/",
+            },
+            extensionOrigin,
+          );
+          return;
+        }
+        if (event.data?.type === "JAVBOSS_JAVBUS_OPEN_STATUS") {
+          document.getElementById("status").textContent = event.data.ok
+            ? "bridge-tab-open"
+            : `bridge-tab-error:${event.data.error}`;
+        }
+      });
+    </script>
+  </body>
+</html>

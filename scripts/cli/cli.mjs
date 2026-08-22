@@ -374,7 +374,7 @@ async function startBackendDevChild() {
   }
   if (!ffprobeOk) {
     console.error(
-      `[dev] internal/bin 缺少或版本不匹配 ${current.label} 的 ffprobe，请先选择 “download dependencies” 下载到 bin/${current.label}。`,
+      `[dev] internal/bin 缺少或版本不匹配 ${current.label} 的 ffprobe，请先选择 “download-dependencies” 下载到 bin/${current.label}。`,
     );
     process.exitCode = 1;
     return null;
@@ -393,7 +393,7 @@ async function startBackendDevChild() {
     }
     if (!ffmpegOk) {
       console.error(
-        `[dev] internal/bin 缺少 ${current.label} 的 ffmpeg，请先选择 “download dependencies” 下载到 bin/${current.label}。`,
+        `[dev] internal/bin 缺少 ${current.label} 的 ffmpeg，请先选择 “download-dependencies” 下载到 bin/${current.label}。`,
       );
       process.exitCode = 1;
       return null;
@@ -612,7 +612,7 @@ async function runRelease(choice, version) {
   const ffprobeOk = await isBundledFfprobeReady(choice);
   if (!ffprobeOk) {
     console.error(
-      `[release] bin/${choice.label} 缺少或版本不匹配 ffprobe，请先选择 “download dependencies” 下载。`,
+      `[release] bin/${choice.label} 缺少或版本不匹配 ffprobe，请先选择 “download-dependencies” 下载。`,
     );
     process.exitCode = 1;
     return;
@@ -620,7 +620,7 @@ async function runRelease(choice, version) {
   const ffmpegOk = choice.goos !== "darwin" || (await isBundledFfmpegReady(choice));
   if (!ffmpegOk) {
     console.error(
-      `[release] bin/${choice.label} 缺少 ffmpeg，请先选择 “download dependencies” 下载。`,
+      `[release] bin/${choice.label} 缺少 ffmpeg，请先选择 “download-dependencies” 下载。`,
     );
     process.exitCode = 1;
     return;
@@ -629,7 +629,7 @@ async function runRelease(choice, version) {
   const requireBundledMpv = true;
   if (requireBundledMpv && !bundledMpvOk) {
     console.error(
-      `[release] bin/${choice.label} 缺少 mpv，请先选择 “download dependencies” 下载。`,
+      `[release] bin/${choice.label} 缺少 mpv，请先选择 “download-dependencies” 下载。`,
     );
     process.exitCode = 1;
     return;
@@ -670,6 +670,42 @@ async function runRelease(choice, version) {
   console.log("[release] 打包 zip");
   await createZip(outDir, zipPath);
   console.log(`[release] 完成：${zipPath}`);
+}
+
+async function runBrowserExtensionRelease() {
+  const sourceDir = path.join(ROOT_DIR, "browser-extension");
+  const manifestPath = path.join(sourceDir, "manifest.json");
+
+  if (!(await exists(manifestPath))) {
+    throw new Error("[extension release] browser-extension/manifest.json 不存在");
+  }
+  const manifest = JSON.parse(await fsp.readFile(manifestPath, "utf8"));
+  const version = String(manifest.version || "").trim();
+  if (!/^\d+(?:\.\d+){0,3}$/.test(version)) {
+    throw new Error("[extension release] manifest.json 中的版本号无效");
+  }
+
+  const releaseName = `javboss-browser-extension-v${version}`;
+  const outDir = path.join(ROOT_DIR, "release", releaseName);
+  const zipPath = path.join(ROOT_DIR, "release", `${releaseName}.zip`);
+
+  await fsp.rm(outDir, { recursive: true, force: true });
+  await fsp.rm(zipPath, { force: true });
+  await fsp.mkdir(outDir, { recursive: true });
+  console.log(`[extension release] 打包 Chrome 扩展 v${version}`);
+  for (const name of [
+    "manifest.json",
+    "bridge.html",
+    "bridge.js",
+    "service-worker.js",
+    "README.md",
+  ]) {
+    await fsp.copyFile(path.join(sourceDir, name), path.join(outDir, name));
+  }
+  await copyDir(path.join(sourceDir, "content"), path.join(outDir, "content"));
+  console.log("[extension release] 生成 zip");
+  await createZip(outDir, zipPath);
+  console.log(`[extension release] 完成：${zipPath}`);
 }
 
 function ffprobeSources(choice) {
@@ -1464,7 +1500,11 @@ async function main() {
     await handleRelease(arg1, arg2);
     return;
   }
-  if (action === "download") {
+  if (action === "release-browser-extension") {
+    await runBrowserExtensionRelease();
+    return;
+  }
+  if (action === "download-dependencies") {
     await handleDownload(arg1);
     return;
   }
@@ -1477,7 +1517,8 @@ async function main() {
       choices: [
         { name: "dev", value: "dev" },
         { name: "release", value: "release" },
-        { name: "download dependencies", value: "download" },
+        { name: "release-browser-extension", value: "release-browser-extension" },
+        { name: "download-dependencies", value: "download-dependencies" },
       ],
     },
   ]);
@@ -1490,7 +1531,11 @@ async function main() {
     await handleRelease();
     return;
   }
-  if (mainAction === "download") {
+  if (mainAction === "release-browser-extension") {
+    await runBrowserExtensionRelease();
+    return;
+  }
+  if (mainAction === "download-dependencies") {
     await handleDownload();
   }
 }

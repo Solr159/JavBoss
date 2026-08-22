@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>JavLibrary parser fixture</title>
+  </head>
+  <body>
+    <div id="video_title">
+      <h3><a>OFJE-282 Fixture JavLibrary title</a></h3>
+    </div>
+    <div id="video_jacket">
+      <img
+        id="video_jacket_img"
+        src="https://pics.dmm.co.jp/mono/movie/adult/ofje282/ofje282pl.jpg"
+      />
+    </div>
+    <div id="video_id"><span class="text">OFJE-282</span></div>
+    <div id="video_date"><span class="text">2020-10-07</span></div>
+    <div id="video_length"><span class="text">480</span> 分鐘</div>
+    <div id="video_maker">
+      <span class="text"><a>S1 NO.1 STYLE</a></span>
+    </div>
+    <div id="video_genres">
+      <span class="genre"><a>單體作品</a></span>
+      <span class="genre"><a>制服</a></span>
+    </div>
+    <div id="video_cast">
+      <span class="cast"
+        ><span class="star"><a>架乃ゆら</a></span></span
+      >
+    </div>
+    <script src="../content/javlibrary-parser.js"></script>
+    <script>
+      const result = window.JavBossJavLibraryParser.parse(
+        document,
+        "https://www.javlibrary.com/tw/javmezbb74.html",
+      );
+      const output = document.createElement("pre");
+      output.id = "parser-result";
+      output.textContent = JSON.stringify(result);
+      document.body.appendChild(output);
+    </script>
+  </body>
+</html>

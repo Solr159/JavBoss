@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import SearchIcon from '@mui/icons-material/Search'
 import { Tooltip } from '@mui/material'
@@ -12,6 +12,24 @@ const AUTO_SOURCE_FILENAME = 'filename'
 const AUTO_SOURCE_CODE = 'code'
 const CODE_PATTERN = /^[A-Z0-9_-]+$/
 const CODE_INPUT_PATTERN = '[A-Z0-9_\\-]+'
+const JAVBUS_ORIGIN = 'https://www.javbus.com'
+const JAVLIBRARY_ORIGIN = 'https://www.javlibrary.com'
+const JAVDB_ORIGIN = 'https://javdb.com'
+const AVSOX_ORIGIN = 'https://avsox.click'
+const BROWSER_SCRAPE_PROVIDERS = {
+  javbus: { name: 'JavBus', requiresCode: false },
+  javlibrary: { name: 'JavLibrary', requiresCode: false },
+  javdb: { name: 'JavDB', requiresCode: false },
+  avsox: { name: 'AVSOX', requiresCode: false },
+}
+const JAVBOSS_EXTENSION_ID = 'iikdjhkpjihfkehccfmkpkdmenmbaacn'
+const JAVBOSS_EXTENSION_ORIGIN = `chrome-extension://${JAVBOSS_EXTENSION_ID}`
+const JAVBOSS_EXTENSION_BRIDGE_URL = `${JAVBOSS_EXTENSION_ORIGIN}/bridge.html`
+const JAVBUS_MESSAGE_CONNECT = 'JAVBOSS_EXTENSION_CONNECT'
+const JAVBUS_MESSAGE_READY = 'JAVBOSS_EXTENSION_READY'
+const JAVBUS_MESSAGE_METADATA = 'JAVBOSS_JAVBUS_METADATA'
+const JAVBUS_MESSAGE_OPEN = 'JAVBOSS_JAVBUS_OPEN'
+const JAVBUS_MESSAGE_OPEN_STATUS = 'JAVBOSS_JAVBUS_OPEN_STATUS'
 
 const emptyManualInfo = {
   code: '',
@@ -165,6 +183,86 @@ function infoFromProvider(data, fallbackCode = '') {
   }
 }
 
+function browserScrapeURL(provider, code) {
+  const normalizedCode = String(code || '')
+    .trim()
+    .toUpperCase()
+  const validCode = normalizedCode && CODE_PATTERN.test(normalizedCode)
+  if (provider === 'javlibrary') {
+    if (!validCode) return `${JAVLIBRARY_ORIGIN}/tw/`
+    const url = new URL('/tw/vl_searchbyid.php', JAVLIBRARY_ORIGIN)
+    url.searchParams.set('keyword', normalizedCode)
+    return url.href
+  }
+  if (provider === 'javdb') {
+    if (!validCode) return `${JAVDB_ORIGIN}/`
+    const url = new URL('/search', JAVDB_ORIGIN)
+    url.searchParams.set('q', normalizedCode)
+    url.searchParams.set('f', 'all')
+    return url.href
+  }
+  if (provider === 'avsox') {
+    return validCode
+      ? `${AVSOX_ORIGIN}/tw/search/${encodeURIComponent(normalizedCode)}`
+      : `${AVSOX_ORIGIN}/tw`
+  }
+  return validCode ? `${JAVBUS_ORIGIN}/${encodeURIComponent(normalizedCode)}` : JAVBUS_ORIGIN
+}
+
+function newBrowserScrapeSessionId() {
+  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID()
+  return `javboss-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+function limitedText(value, maxLength) {
+  return String(value || '')
+    .trim()
+    .slice(0, maxLength)
+}
+
+function limitedTextList(value, maxItems = 200) {
+  if (!Array.isArray(value)) return []
+  return value.slice(0, maxItems).map((item) => limitedText(item?.name || item, 200))
+}
+
+function safeExternalURL(value) {
+  const candidate = limitedText(value, 2048)
+  if (!candidate) return ''
+  try {
+    const parsed = new URL(candidate)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : ''
+  } catch {
+    return ''
+  }
+}
+
+function infoFromBrowserExtension(data, fallbackCode = '') {
+  if (!data || typeof data !== 'object') return null
+  const code = limitedText(data.code || fallbackCode, 64).toUpperCase()
+  if (!code || !CODE_PATTERN.test(code)) return null
+
+  const rawDuration = Number.parseInt(data.duration_min, 10)
+  const releaseDate = limitedText(data.release_date, 10)
+  return infoFromProvider(
+    {
+      code,
+      title: limitedText(data.title, 5000),
+      studio: limitedText(data.studio, 500),
+      series: limitedText(data.series, 500),
+      release_date: /^\d{4}-\d{2}-\d{2}$/.test(releaseDate) ? releaseDate : '',
+      duration_min:
+        Number.isFinite(rawDuration) && rawDuration >= 0 && rawDuration <= 10000
+          ? rawDuration
+          : null,
+      tags: limitedTextList(data.tags),
+      actors: limitedTextList(data.actors, 100),
+      cover_url: safeExternalURL(data.cover_url),
+      is_uncensored: typeof data.is_uncensored === 'boolean' ? data.is_uncensored : undefined,
+    },
+    fallbackCode
+  )
+}
+
 export default function VideoScrapeSettingsModal({
   open,
   video,
@@ -172,7 +270,6 @@ export default function VideoScrapeSettingsModal({
   onClose,
   onSave,
   onFetchPossibleCodes,
-  onLookupMetadata,
   onManualScrape,
   onLinkExistingJav,
 }) {
@@ -180,17 +277,22 @@ export default function VideoScrapeSettingsModal({
   const [autoSource, setAutoSource] = useState(AUTO_SOURCE_FILENAME)
   const [code, setCode] = useState('')
   const [manualInfo, setManualInfo] = useState(emptyManualInfo)
+  const [manualCensorError, setManualCensorError] = useState(false)
   const [tagInput, setTagInput] = useState('')
   const [actorInput, setActorInput] = useState('')
-  const [lookupLoading, setLookupLoading] = useState(false)
-  const [lookupProvider, setLookupProvider] = useState('')
-  const [lookupError, setLookupError] = useState('')
   const [linkLoading, setLinkLoading] = useState(false)
   const [linkError, setLinkError] = useState('')
   const [possibleCodesOpen, setPossibleCodesOpen] = useState(false)
   const [possibleCodesLoading, setPossibleCodesLoading] = useState(false)
   const [possibleCodesError, setPossibleCodesError] = useState('')
   const [possibleCodesResult, setPossibleCodesResult] = useState(null)
+  const javBusBridgeRef = useRef(null)
+  const browserScrapeProviderRef = useRef('')
+  const [javBusSessionId, setJavBusSessionId] = useState('')
+  const [javBusExtensionReady, setJavBusExtensionReady] = useState(false)
+  const [javBusOpening, setJavBusOpening] = useState(false)
+  const [javBusStatus, setJavBusStatus] = useState('')
+  const [javBusSourceURL, setJavBusSourceURL] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -199,18 +301,122 @@ export default function VideoScrapeSettingsModal({
     setAutoSource(next.autoSource)
     setCode(next.code)
     setManualInfo(initialManualInfo(video))
+    setManualCensorError(false)
     setTagInput('')
     setActorInput('')
-    setLookupLoading(false)
-    setLookupProvider('')
-    setLookupError('')
     setLinkLoading(false)
     setLinkError('')
     setPossibleCodesOpen(false)
     setPossibleCodesLoading(false)
     setPossibleCodesError('')
     setPossibleCodesResult(null)
+    setJavBusSessionId(newBrowserScrapeSessionId())
+    setJavBusExtensionReady(false)
+    setJavBusOpening(false)
+    setJavBusStatus('')
+    setJavBusSourceURL('')
+    browserScrapeProviderRef.current = ''
   }, [open, video])
+
+  useEffect(() => {
+    if (!open) return undefined
+
+    const receiveJavBusMessage = (event) => {
+      if (
+        event.origin !== JAVBOSS_EXTENSION_ORIGIN ||
+        event.source !== javBusBridgeRef.current?.contentWindow
+      ) {
+        return
+      }
+      const message = event.data
+      if (!message || message.version !== 1 || message.sessionId !== javBusSessionId) return
+
+      if (message.type === JAVBUS_MESSAGE_READY) {
+        setJavBusExtensionReady(true)
+        setJavBusStatus(zh('JavBoss 助手已连接', 'JavBoss Assistant connected'))
+        return
+      }
+      if (message.type === JAVBUS_MESSAGE_OPEN_STATUS) {
+        setJavBusOpening(false)
+        setJavBusStatus(
+          message.ok
+            ? zh(
+                `已打开 ${browserScrapeProviderRef.current || '元数据网站'} 新标签页。`,
+                `Opened a new ${browserScrapeProviderRef.current || 'metadata site'} tab.`
+              )
+            : zh(
+                `打开新标签页失败：${limitedText(message.error, 300)}`,
+                `Failed to open a new tab: ${limitedText(message.error, 300)}`
+              )
+        )
+        return
+      }
+      if (message.type !== JAVBUS_MESSAGE_METADATA) return
+
+      const nextInfo = infoFromBrowserExtension(message.payload, code)
+      if (!nextInfo) {
+        setJavBusStatus(
+          zh('扩展返回的数据无效，请确认当前是作品详情页。', 'The extension returned invalid data.')
+        )
+        return
+      }
+      setCode(nextInfo.code)
+      setManualInfo((current) => ({ ...current, ...nextInfo }))
+      setManualCensorError(false)
+      setTagInput('')
+      setActorInput('')
+      setJavBusSourceURL(safeExternalURL(message.payload?.source_url))
+      const sourceName = limitedText(message.payload?.source_name, 50) || '元数据网站'
+      setJavBusStatus(
+        zh(
+          `已从 ${sourceName} 回填 ${nextInfo.code}，请检查后保存。`,
+          `Filled ${nextInfo.code} from ${sourceName}. Review it before saving.`
+        )
+      )
+    }
+
+    window.addEventListener('message', receiveJavBusMessage)
+    return () => window.removeEventListener('message', receiveJavBusMessage)
+  }, [code, javBusSessionId, open])
+
+  useEffect(() => {
+    if (!open || !javBusSessionId) return undefined
+    const connect = () => {
+      javBusBridgeRef.current?.contentWindow?.postMessage(
+        { type: JAVBUS_MESSAGE_CONNECT, sessionId: javBusSessionId },
+        JAVBOSS_EXTENSION_ORIGIN
+      )
+    }
+    const timers = [0, 300, 1000].map((delay) => window.setTimeout(connect, delay))
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [javBusSessionId, open])
+
+  useEffect(() => {
+    if (!open || !javBusSessionId || javBusExtensionReady) return undefined
+    const timer = window.setTimeout(() => {
+      setJavBusStatus(
+        zh(
+          '尚未检测到扩展。请重新加载 browser-extension 目录并刷新 JavBoss。',
+          'Extension not detected. Reload the browser-extension directory, then reload JavBoss.'
+        )
+      )
+    }, 5000)
+    return () => window.clearTimeout(timer)
+  }, [javBusExtensionReady, javBusSessionId, open])
+
+  useEffect(() => {
+    if (!javBusOpening) return undefined
+    const timer = window.setTimeout(() => {
+      setJavBusOpening(false)
+      setJavBusStatus(
+        zh(
+          '打开元数据网站超时，请重新加载扩展后重试。',
+          'Opening the metadata site timed out. Reload the extension and try again.'
+        )
+      )
+    }, 10000)
+    return () => window.clearTimeout(timer)
+  }, [javBusOpening])
 
   if (!open) return null
 
@@ -225,11 +431,11 @@ export default function VideoScrapeSettingsModal({
     manualDuration === '' ||
     (Number.isFinite(Number.parseInt(manualDuration, 10)) &&
       Number.parseInt(manualDuration, 10) >= 0)
+  const manualCensorStateValid = ['true', 'false'].includes(manualInfo.is_uncensored)
   const manualTags = textToList(manualInfo.tags_text)
   const manualActors = textToList(manualInfo.actors_text)
   const canSave =
     !saving &&
-    !lookupLoading &&
     !linkLoading &&
     (mode === 'skip' ||
       (mode === 'auto' && autoSource === AUTO_SOURCE_FILENAME) ||
@@ -242,6 +448,35 @@ export default function VideoScrapeSettingsModal({
     setCode(nextCode)
     setManualInfo((current) => ({ ...current, code: nextCode }))
     if (linkError) setLinkError('')
+  }
+
+  const openBrowserScrapeProvider = (provider) => {
+    if (javBusOpening) return
+    const providerConfig = BROWSER_SCRAPE_PROVIDERS[provider]
+    if (!providerConfig) return
+    if (!javBusSessionId || !javBusExtensionReady) {
+      setJavBusStatus(
+        zh(
+          '未连接到扩展，请确认已重新加载扩展并刷新 JavBoss。',
+          'Extension is not connected. Reload the extension and the JavBoss page.'
+        )
+      )
+      return
+    }
+    setJavBusSourceURL('')
+    setJavBusOpening(true)
+    browserScrapeProviderRef.current = providerConfig.name
+    setJavBusStatus(
+      zh(`正在打开 ${providerConfig.name} 新标签页…`, `Opening a new ${providerConfig.name} tab...`)
+    )
+    javBusBridgeRef.current?.contentWindow?.postMessage(
+      {
+        type: JAVBUS_MESSAGE_OPEN,
+        sessionId: javBusSessionId,
+        url: browserScrapeURL(provider, normalizedCode),
+      },
+      JAVBOSS_EXTENSION_ORIGIN
+    )
   }
 
   const testPossibleCodes = async () => {
@@ -260,28 +495,8 @@ export default function VideoScrapeSettingsModal({
     }
   }
 
-  const lookupMetadata = async (provider) => {
-    if (!codeValid || lookupLoading || saving) return
-    setLookupLoading(true)
-    setLookupProvider(provider)
-    setLookupError('')
-    try {
-      const data = await onLookupMetadata?.(normalizedCode, provider)
-      const nextInfo = infoFromProvider(data, normalizedCode)
-      setCode(nextInfo.code)
-      setManualInfo((current) => ({ ...current, ...nextInfo }))
-      setTagInput('')
-      setActorInput('')
-    } catch (err) {
-      setLookupError(getErrorMessage(err))
-    } finally {
-      setLookupLoading(false)
-      setLookupProvider('')
-    }
-  }
-
   const linkExistingJav = async () => {
-    if (!codeValid || saving || lookupLoading || linkLoading || !onLinkExistingJav) return
+    if (!codeValid || saving || linkLoading || !onLinkExistingJav) return
     setLinkLoading(true)
     setLinkError('')
     try {
@@ -311,7 +526,12 @@ export default function VideoScrapeSettingsModal({
   }
 
   const submit = () => {
+    if (mode === 'manual' && !manualCensorStateValid) {
+      setManualCensorError(true)
+      return
+    }
     if (!canSave) return
+    setManualCensorError(false)
     if (mode === 'manual') {
       onManualScrape?.(
         manualPayload({
@@ -372,7 +592,7 @@ export default function VideoScrapeSettingsModal({
                 value="auto"
                 checked={mode === 'auto'}
                 onChange={() => setMode('auto')}
-                disabled={saving || lookupLoading}
+                disabled={saving}
               />
               <span className="shrink-0">{zh('自动刮削', 'Automatic Scrape')}</span>
               <span className="min-w-0 text-xs font-normal text-gray-500">
@@ -392,14 +612,14 @@ export default function VideoScrapeSettingsModal({
                       value={AUTO_SOURCE_FILENAME}
                       checked={autoSource === AUTO_SOURCE_FILENAME}
                       onChange={() => setAutoSource(AUTO_SOURCE_FILENAME)}
-                      disabled={saving || lookupLoading}
+                      disabled={saving}
                     />
                     <span>{zh('根据文件名', 'By filename')}</span>
                   </label>
                   <button
                     type="button"
                     onClick={testPossibleCodes}
-                    disabled={saving || lookupLoading || possibleCodesLoading}
+                    disabled={saving || possibleCodesLoading}
                     className="inline-flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                     title={zh('提取番号测试', 'Test code extraction')}
                   >
@@ -420,7 +640,7 @@ export default function VideoScrapeSettingsModal({
                         value={AUTO_SOURCE_CODE}
                         checked={autoSource === AUTO_SOURCE_CODE}
                         onChange={() => setAutoSource(AUTO_SOURCE_CODE)}
-                        disabled={saving || lookupLoading}
+                        disabled={saving}
                       />
                       <span>{zh('指定番号', 'Specified code')}</span>
                     </label>
@@ -429,7 +649,7 @@ export default function VideoScrapeSettingsModal({
                       value={code}
                       onFocus={() => setAutoSource(AUTO_SOURCE_CODE)}
                       onChange={(event) => updateCode(event.target.value)}
-                      disabled={saving || lookupLoading || autoSource !== AUTO_SOURCE_CODE}
+                      disabled={saving || autoSource !== AUTO_SOURCE_CODE}
                       placeholder="IPX-001"
                       pattern={CODE_INPUT_PATTERN}
                       aria-label={zh('指定番号', 'Specified code')}
@@ -466,13 +686,13 @@ export default function VideoScrapeSettingsModal({
                 value="manual"
                 checked={mode === 'manual'}
                 onChange={() => setMode('manual')}
-                disabled={saving || lookupLoading}
+                disabled={saving}
               />
               <span className="shrink-0">{zh('手动刮削', 'Manual Scrape')}</span>
               <span className="min-w-0 text-xs font-normal text-gray-500">
                 {zh(
-                  '自行编辑影片信息，也可输入番号后选择数据源自动填充',
-                  'Edit metadata manually, or enter a code and select a provider to autofill it'
+                  '自行编辑影片信息，可使用浏览器扩展辅助回填。',
+                  'Edit metadata manually; you can use the browser extension to fill it.'
                 )}
               </span>
             </label>
@@ -486,7 +706,7 @@ export default function VideoScrapeSettingsModal({
                     type="text"
                     value={code}
                     onChange={(event) => updateCode(event.target.value)}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     placeholder="IPX-001"
                     pattern={CODE_INPUT_PATTERN}
                     aria-invalid={codeInvalid}
@@ -508,13 +728,7 @@ export default function VideoScrapeSettingsModal({
                         <button
                           type="button"
                           onClick={() => void linkExistingJav()}
-                          disabled={
-                            !codeValid ||
-                            saving ||
-                            lookupLoading ||
-                            linkLoading ||
-                            !onLinkExistingJav
-                          }
+                          disabled={!codeValid || saving || linkLoading || !onLinkExistingJav}
                           className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
                         >
                           {linkLoading
@@ -529,28 +743,6 @@ export default function VideoScrapeSettingsModal({
                       {linkError}
                     </div>
                   ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <span className="mr-1 text-xs font-medium text-gray-500">
-                      {zh('自动填充', 'Autofill')}
-                    </span>
-                    {[
-                      ['avmoo', 'AvMoo'],
-                      ['javbus', 'JavBus'],
-                      ['avsox', 'AVSOX'],
-                    ].map(([provider, label]) => (
-                      <button
-                        key={provider}
-                        type="button"
-                        onClick={() => lookupMetadata(provider)}
-                        disabled={!codeValid || saving || lookupLoading}
-                        className="rounded border bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50"
-                      >
-                        {lookupLoading && lookupProvider === provider
-                          ? zh('填充中…', 'Filling...')
-                          : label}
-                      </button>
-                    ))}
-                  </div>
                   {codeInvalid ? (
                     <div className="mt-1 text-xs text-red-600">
                       {zh(
@@ -559,9 +751,51 @@ export default function VideoScrapeSettingsModal({
                       )}
                     </div>
                   ) : null}
-                  {lookupError ? (
-                    <div className="mt-1 text-xs text-red-600">{lookupError}</div>
-                  ) : null}
+                  <div className="mt-3 rounded border border-dashed border-blue-200 bg-blue-50/60 p-3">
+                    <div className="text-xs font-medium text-gray-700">
+                      {zh('浏览器扩展辅助刮削', 'Browser extension-assisted scrape')}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-4 text-gray-500">
+                      {zh(
+                        '安装并启用“JavBoss 助手”扩展后，点击下方按钮打开对应网站，在影片详情页右下角点击“回填到 JavBoss”即可自动填充影片信息',
+                        'Install and enable the “JavBoss 助手” extension, click a button below to open the corresponding site, then click “Fill JavBoss” in the lower-right corner of a movie detail page to fill its metadata automatically.'
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {Object.entries(BROWSER_SCRAPE_PROVIDERS).map(
+                        ([provider, providerConfig]) => (
+                          <button
+                            key={provider}
+                            type="button"
+                            onClick={() => openBrowserScrapeProvider(provider)}
+                            disabled={
+                              saving || javBusOpening || (providerConfig.requiresCode && !codeValid)
+                            }
+                            className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
+                          >
+                            {javBusOpening &&
+                            browserScrapeProviderRef.current === providerConfig.name
+                              ? zh('正在打开…', 'Opening...')
+                              : zh(`打开 ${providerConfig.name}`, `Open ${providerConfig.name}`)}
+                          </button>
+                        )
+                      )}
+                    </div>
+                    {javBusStatus ? (
+                      <div
+                        className={`mt-2 text-xs leading-5 ${
+                          javBusExtensionReady ? 'text-blue-700' : 'text-amber-700'
+                        }`}
+                      >
+                        {javBusStatus}
+                      </div>
+                    ) : null}
+                    {javBusSourceURL ? (
+                      <div className="mt-1 truncate text-xs text-gray-400" title={javBusSourceURL}>
+                        {javBusSourceURL}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="md:col-span-2">
                   <label className="mb-1 block text-xs font-medium text-gray-500">
@@ -571,7 +805,7 @@ export default function VideoScrapeSettingsModal({
                     type="text"
                     value={manualInfo.title}
                     onChange={(event) => updateManual({ title: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -583,7 +817,7 @@ export default function VideoScrapeSettingsModal({
                     type="text"
                     value={manualInfo.studio}
                     onChange={(event) => updateManual({ studio: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     placeholder={zh('优先填写英文名称', 'English name preferred')}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
@@ -596,7 +830,7 @@ export default function VideoScrapeSettingsModal({
                     type="text"
                     value={manualInfo.series}
                     onChange={(event) => updateManual({ series: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -608,7 +842,7 @@ export default function VideoScrapeSettingsModal({
                     type="date"
                     value={manualInfo.release_date}
                     onChange={(event) => updateManual({ release_date: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -621,7 +855,7 @@ export default function VideoScrapeSettingsModal({
                     min="0"
                     value={manualInfo.duration_min}
                     onChange={(event) => updateManual({ duration_min: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -635,7 +869,7 @@ export default function VideoScrapeSettingsModal({
                     onInputChange={setTagInput}
                     onAdd={() => addManualListValues('tags_text', tagInput, setTagInput)}
                     onRemove={(value) => removeManualListValue('tags_text', value)}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     placeholder={zh('输入标签后按回车添加', 'Type a tag and press Enter')}
                   />
                 </div>
@@ -649,7 +883,7 @@ export default function VideoScrapeSettingsModal({
                     onInputChange={setActorInput}
                     onAdd={() => addManualListValues('actors_text', actorInput, setActorInput)}
                     onRemove={(value) => removeManualListValue('actors_text', value)}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     placeholder={zh(
                       '输入女优名称后按回车添加',
                       'Type an actor name and press Enter'
@@ -664,7 +898,7 @@ export default function VideoScrapeSettingsModal({
                     type="url"
                     value={manualInfo.cover_url}
                     onChange={(event) => updateManual({ cover_url: event.target.value })}
-                    disabled={saving || lookupLoading}
+                    disabled={saving}
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -674,14 +908,30 @@ export default function VideoScrapeSettingsModal({
                   </label>
                   <select
                     value={manualInfo.is_uncensored}
-                    onChange={(event) => updateManual({ is_uncensored: event.target.value })}
-                    disabled={saving || lookupLoading}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
+                    onChange={(event) => {
+                      updateManual({ is_uncensored: event.target.value })
+                      setManualCensorError(false)
+                    }}
+                    disabled={saving}
+                    required
+                    aria-invalid={manualCensorError}
+                    className={`w-full rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
+                      manualCensorError
+                        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
+                        : 'focus:border-blue-500 focus:ring-blue-500'
+                    }`}
                   >
-                    <option value="">{zh('未知', 'Unknown')}</option>
+                    <option value="" disabled>
+                      {zh('请选择', 'Select')}
+                    </option>
                     <option value="false">{zh('有码', 'Censored')}</option>
                     <option value="true">{zh('无码', 'Uncensored')}</option>
                   </select>
+                  {manualCensorError ? (
+                    <div role="alert" className="mt-1 text-xs text-red-600">
+                      {zh('请选择有码状态', 'Select a censor state')}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -698,7 +948,7 @@ export default function VideoScrapeSettingsModal({
               value="skip"
               checked={mode === 'skip'}
               onChange={() => setMode('skip')}
-              disabled={saving || lookupLoading}
+              disabled={saving}
             />
             <span className="shrink-0">{zh('不刮削', 'Do Not Scrape')}</span>
             <span className="min-w-0 text-xs font-normal text-gray-500">
@@ -802,6 +1052,21 @@ export default function VideoScrapeSettingsModal({
           </div>
         </AppModal>
       ) : null}
+      <iframe
+        ref={javBusBridgeRef}
+        src={JAVBOSS_EXTENSION_BRIDGE_URL}
+        title={zh('JavBoss 扩展通信桥', 'JavBoss extension bridge')}
+        className="hidden"
+        tabIndex={-1}
+        aria-hidden="true"
+        onLoad={() => {
+          if (!javBusSessionId) return
+          javBusBridgeRef.current?.contentWindow?.postMessage(
+            { type: JAVBUS_MESSAGE_CONNECT, sessionId: javBusSessionId },
+            JAVBOSS_EXTENSION_ORIGIN
+          )
+        }}
+      />
     </AppModal>
   )
 }

@@ -12,7 +12,6 @@ import {
   revealVideoLocation,
   updateVideoJavScrapeSettings,
   fetchVideoJavScrapePossibleCodes,
-  lookupVideoJavScrape,
   manualVideoJavScrape,
   linkVideoToExistingJav,
   fetchTagCategories,
@@ -802,15 +801,6 @@ export default function App() {
       }
     },
     [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
-  )
-
-  const handleLookupScrapeMetadata = useCallback(
-    async (code, provider) => {
-      const video = scrapeSettingsVideo
-      if (!video?.id) throw new Error(zh('缺少视频 ID', 'Missing video ID'))
-      return lookupVideoJavScrape(video.id, code, provider)
-    },
-    [scrapeSettingsVideo]
   )
 
   const handleFetchScrapePossibleCodes = useCallback(async () => {
@@ -4139,7 +4129,6 @@ export default function App() {
         }}
         onSave={handleSaveScrapeSettings}
         onFetchPossibleCodes={handleFetchScrapePossibleCodes}
-        onLookupMetadata={handleLookupScrapeMetadata}
         onManualScrape={handleManualScrape}
         onLinkExistingJav={handleLinkExistingJav}
       />

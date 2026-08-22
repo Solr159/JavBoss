@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      property="og:image"
+      content="https://www.javbus.com/pics/cover/abc_b.jpg"
+    />
+    <title>ABC-001 Fixture title - JavBus</title>
+  </head>
+  <body>
+    <ul>
+      <li class="active"><a href="/uncensored">无码</a></li>
+    </ul>
+    <div class="movie row">
+      <h3>ABC-001 Fixture title</h3>
+      <p><span>識別碼:</span><span>ABC-001</span></p>
+      <p><span>發行日期:</span><span>2026-08-22</span></p>
+      <p><span>長度:</span><span>123 分鐘</span></p>
+      <p><span>製作商:</span><span>Fixture Studio</span></p>
+      <p><span>系列:</span><span>Fixture Series</span></p>
+      <span class="genre"><a href="/genre/one">Fixture Tag</a></span>
+      <span class="genre"><a href="/star/one">Fixture Actor</a></span>
+    </div>
+    <script src="../content/javbus-parser.js"></script>
+    <script>
+      const result = window.JavBossJavBusParser.parse(
+        document,
+        "https://www.javbus.com/ABC-001",
+      );
+      const output = document.createElement("pre");
+      output.id = "parser-result";
+      output.textContent = JSON.stringify(result);
+      document.body.appendChild(output);
+    </script>
+  </body>
+</html>
