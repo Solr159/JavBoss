@@ -361,7 +361,7 @@ func compactCoverProviders(providers []jav.Provider) []jav.Provider {
 	compact := make([]jav.Provider, 0, len(providers))
 	for _, provider := range providers {
 		provider = jav.ParseProvider(int(provider))
-		if provider != jav.ProviderUnknown && provider != jav.ProviderUser {
+		if provider != jav.ProviderUnknown && provider != jav.ProviderUser && provider != jav.ProviderManualScrape {
 			compact = append(compact, provider)
 		}
 	}

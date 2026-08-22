@@ -13,6 +13,18 @@ import (
 	"javboss/internal/jav"
 )
 
+func TestCompactCoverProvidersExcludesNonLookupProviders(t *testing.T) {
+	got := compactCoverProviders([]jav.Provider{
+		jav.ProviderUnknown,
+		jav.ProviderUser,
+		jav.ProviderManualScrape,
+		jav.ProviderJavBus,
+	})
+	if len(got) != 1 || got[0] != jav.ProviderJavBus {
+		t.Fatalf("compact cover providers = %#v, want only JavBus", got)
+	}
+}
+
 func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "https://www.javbus.com/pics/cover/c85j_b.jpg", nil)
 	if err != nil {

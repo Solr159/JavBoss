@@ -227,6 +227,9 @@ func TestManualScrapeRequestToJavInfo(t *testing.T) {
 	if len(info.Tags) != 2 || info.Tags[0] != "美少女" || info.Tags[1] != "接吻" {
 		t.Fatalf("unexpected tags: %#v", info.Tags)
 	}
+	if info.Provider != jav.ProviderManualScrape {
+		t.Fatalf("unexpected provider: %s", info.Provider.String())
+	}
 	if len(info.Actors) != 1 || info.Actors[0] != "岬ななみ" {
 		t.Fatalf("unexpected actors: %#v", info.Actors)
 	}

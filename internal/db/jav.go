@@ -886,6 +886,7 @@ func visibleScrapedJavTagProviders() []int {
 		int(jav.ProviderAvmoo),
 		int(jav.ProviderAvsox),
 		int(jav.ProviderJavMenu),
+		int(jav.ProviderManualScrape),
 	}
 }
 

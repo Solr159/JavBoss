@@ -896,7 +896,7 @@ func manualScrapeRequestToJavInfo(req videoJavManualScrapeRequest) (*jav.JavInfo
 		Actors:       normalizeTextList(req.Actors),
 		CoverURL:     strings.TrimSpace(req.CoverURL),
 		IsUncensored: req.IsUncensored,
-		Provider:     jav.ProviderJavDB,
+		Provider:     jav.ProviderManualScrape,
 	}
 	return info, nil
 }

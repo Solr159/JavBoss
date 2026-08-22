@@ -23,6 +23,7 @@ const (
 	ProviderAvsox
 	ProviderJavMenu
 	ProviderMinnanoAV
+	ProviderManualScrape
 )
 
 func (p Provider) String() string {
@@ -47,6 +48,8 @@ func (p Provider) String() string {
 		return "javmenu"
 	case ProviderMinnanoAV:
 		return "minnanoav"
+	case ProviderManualScrape:
+		return "manual_scrape"
 	default:
 		return "unknown"
 	}
@@ -56,7 +59,7 @@ func (p Provider) String() string {
 func ParseProvider(value int) Provider {
 	p := Provider(value)
 	switch p {
-	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB, ProviderJavModel, ProviderAvsox, ProviderJavMenu, ProviderMinnanoAV:
+	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB, ProviderJavModel, ProviderAvsox, ProviderJavMenu, ProviderMinnanoAV, ProviderManualScrape:
 		return p
 	default:
 		return ProviderUnknown
@@ -121,7 +124,7 @@ type lookupProvider interface {
 
 func lookupProviderFor(provider Provider) (lookupProvider, error) {
 	provider = ParseProvider(int(provider))
-	if provider == ProviderUnknown || provider == ProviderUser {
+	if provider == ProviderUnknown || provider == ProviderUser || provider == ProviderManualScrape {
 		return nil, errUnsupportedProvider
 	}
 	lookup, ok := lookupProvidersByProvider[provider]

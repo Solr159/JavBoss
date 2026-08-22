@@ -2,6 +2,7 @@ package jav
 
 import (
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,21 @@ func TestLookupProvidersByProviderIncludesMetadataProviders(t *testing.T) {
 		if got == nil {
 			t.Fatalf("lookup provider for %s is nil", provider.String())
 		}
+	}
+}
+
+func TestManualScrapeProviderIsStableAndNotLookupCapable(t *testing.T) {
+	if ProviderManualScrape != Provider(11) {
+		t.Fatalf("ProviderManualScrape = %d, want 11", ProviderManualScrape)
+	}
+	if got := ProviderManualScrape.String(); got != "manual_scrape" {
+		t.Fatalf("ProviderManualScrape.String() = %q, want manual_scrape", got)
+	}
+	if got := ParseProvider(11); got != ProviderManualScrape {
+		t.Fatalf("ParseProvider(11) = %s, want manual_scrape", got.String())
+	}
+	if _, err := lookupProviderFor(ProviderManualScrape); !errors.Is(err, errUnsupportedProvider) {
+		t.Fatalf("lookupProviderFor(ProviderManualScrape) error = %v, want unsupported provider", err)
 	}
 }
 

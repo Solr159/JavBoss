@@ -2,6 +2,7 @@ export const JAV_PROVIDER_UNKNOWN = 0
 export const JAV_PROVIDER_JAVBUS = 1
 export const JAV_PROVIDER_JAVDATABASE = 2
 export const JAV_PROVIDER_USER = 3
+export const JAV_PROVIDER_MANUAL_SCRAPE = 11
 
 export const JAV_SORT_OPTIONS = [
   {

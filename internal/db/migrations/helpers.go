@@ -9,9 +9,11 @@ import (
 )
 
 const (
-	providerJavBus      = 1
-	providerJavDatabase = 2
-	providerUser        = 3
+	providerJavBus       = 1
+	providerJavDatabase  = 2
+	providerUser         = 3
+	providerJavDB        = 4
+	providerManualScrape = 11
 )
 
 type sqlExecer interface {
