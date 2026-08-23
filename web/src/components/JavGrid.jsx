@@ -39,7 +39,7 @@ import VideoGrid from '@/components/VideoGrid'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { getIdolDisplayName } from '@/utils/javIdol'
-import { withJavTagDisplayName } from '@/utils/javTag'
+import { getJavTagDisplayName, withJavTagDisplayName } from '@/utils/javTag'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
@@ -623,7 +623,9 @@ function parseJavEditNameList(value) {
 
 function scrapedJavTagNames(item) {
   const names = Array.isArray(item?.tags)
-    ? item.tags.filter((tag) => !isUserJavTag(tag)).map((tag) => tag?.name)
+    ? item.tags
+        .filter((tag) => !isUserJavTag(tag))
+        .map((tag) => String(tag?.original_name || tag?.name || '').trim())
     : []
   return parseJavEditNameList(names.join('\n'))
 }
@@ -874,6 +876,7 @@ function JavCustomTagModal({ open, item, directoryIds, onClose, onSaved }) {
 function JavEditModal({ open, item, directoryIds, preferChineseName = false, onClose, onSaved }) {
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
+  const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
   const [title, setTitle] = useState('')
   const [coverUrl, setCoverUrl] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -910,6 +913,10 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     () => tagOptions.filter((tag) => !isUserJavTag(tag)),
     [tagOptions]
   )
+  const currentScrapedTags = useMemo(
+    () => (Array.isArray(item?.tags) ? item.tags.filter((tag) => !isUserJavTag(tag)) : []),
+    [item?.tags]
+  )
   const currentUserTags = useMemo(
     () => (Array.isArray(item?.tags) ? item.tags.filter((tag) => isUserJavTag(tag)) : []),
     [item?.tags]
@@ -918,6 +925,20 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   const mergedUserTagOptions = useMemo(
     () => mergeOptionsById(userTagOptions, [...currentUserTags, ...createdUserTags]),
     [createdUserTags, currentUserTags, userTagOptions]
+  )
+  const mergedScrapedTagOptions = useMemo(
+    () => mergeOptionsById(scrapedTagOptions, currentScrapedTags),
+    [currentScrapedTags, scrapedTagOptions]
+  )
+  const scrapedTagDisplayNames = useMemo(
+    () =>
+      new Map(
+        mergedScrapedTagOptions.map((tag) => [
+          String(tag?.original_name || tag?.name || '').trim(),
+          getJavTagDisplayName(tag, showSimplifiedTags),
+        ])
+      ),
+    [mergedScrapedTagOptions, showSimplifiedTags]
   )
   const mergedStudioOptions = useMemo(
     () => mergeOptionsById(studioOptions, item?.studio ? [item.studio] : []),
@@ -970,8 +991,13 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     [mergedUserTagOptions, selectedTagIds, tagSearch]
   )
   const visibleScrapedTagOptions = useMemo(
-    () => filterOptionsByName(scrapedTagOptions, scrapedTagSearch),
-    [scrapedTagOptions, scrapedTagSearch]
+    () =>
+      filterOptionsByName(mergedScrapedTagOptions, scrapedTagSearch, (tag) =>
+        [tag?.original_name, tag?.name, tag?.simplified_name, getJavTagDisplayName(tag, true)]
+          .filter(Boolean)
+          .join(' ')
+      ),
+    [mergedScrapedTagOptions, scrapedTagSearch]
   )
   const selectedIdolOptions = useMemo(
     () => optionsByIds(mergedIdolOptions, selectedIdolIds),
@@ -992,7 +1018,8 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   const availableScrapedTagOptions = useMemo(
     () =>
       visibleScrapedTagOptions.filter(
-        (tag) => !selectedScrapedTagNames.includes(String(tag?.name || '').trim())
+        (tag) =>
+          !selectedScrapedTagNames.includes(String(tag?.original_name || tag?.name || '').trim())
       ),
     [selectedScrapedTagNames, visibleScrapedTagOptions]
   )
@@ -1106,7 +1133,19 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   }
 
   const addScrapedTagNames = (value = scrapedTagSearch) => {
-    const names = parseJavEditNameList(value)
+    const names = parseJavEditNameList(value).map((name) => {
+      const matchingTag = mergedScrapedTagOptions.find((tag) => {
+        const canonicalName = String(tag?.original_name || tag?.name || '').trim()
+        return (
+          canonicalName === name ||
+          getJavTagDisplayName(tag, showSimplifiedTags) === name ||
+          String(tag?.simplified_name || '').trim() === name
+        )
+      })
+      return matchingTag
+        ? String(matchingTag?.original_name || matchingTag?.name || '').trim()
+        : name
+    })
     if (names.length === 0) return
     setSelectedScrapedTagNames((current) => parseJavEditNameList([...current, ...names].join('\n')))
     setScrapedTagSearch('')
@@ -1425,7 +1464,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
             {selectedScrapedTagNames.map((name) => (
               <SelectedChip
                 key={name}
-                label={name}
+                label={scrapedTagDisplayNames.get(name) || name}
                 disabled={saving}
                 onRemove={() =>
                   setSelectedScrapedTagNames((current) => current.filter((item) => item !== name))
@@ -1499,10 +1538,12 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                       key={`${tag.id}-${tag.name}`}
                       type="button"
                       className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => addScrapedTagNames(tag.name)}
+                      onClick={() =>
+                        addScrapedTagNames(String(tag?.original_name || tag?.name || '').trim())
+                      }
                       disabled={saving}
                     >
-                      {tag.name}
+                      {getJavTagDisplayName(tag, showSimplifiedTags)}
                     </button>
                   ))
                 )}
