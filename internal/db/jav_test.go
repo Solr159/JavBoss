@@ -422,13 +422,37 @@ func TestListJavIdolOptionsIncludesIdolsWithoutWorks(t *testing.T) {
 	if err := db.Create(&idols).Error; err != nil {
 		t.Fatalf("create idols: %v", err)
 	}
+	directory := models.Directory{Path: "/media/idol-options"}
+	if err := db.Create(&directory).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	javRec := models.Jav{Code: "IDOL-OPTION-001"}
+	if err := db.Create(&javRec).Error; err != nil {
+		t.Fatalf("create JAV: %v", err)
+	}
+	if err := db.Create(&models.JavIdolMap{JavID: javRec.ID, JavIdolID: idols[0].ID}).Error; err != nil {
+		t.Fatalf("create idol map: %v", err)
+	}
+	video := models.Video{
+		Fingerprint: "idol-option-work",
+		DirectoryID: directory.ID,
+		Path:        "idol-option-work.mp4",
+		JavID:       &javRec.ID,
+	}
+	if err := db.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	createVideoLocationsForVideos(t, db, video)
 
-	items, total, err := ListJavIdolOptions(ctx, "", 20, 0)
+	items, total, err := ListJavIdolOptions(ctx, "", 20, 0, []int64{directory.ID})
 	if err != nil {
 		t.Fatalf("ListJavIdolOptions: %v", err)
 	}
 
 	assertJavIdolSummaries(t, items, total, []string{"Has Work Idol", "No Work Idol"})
+	if items[0].WorkCount != 1 || items[1].WorkCount != 0 {
+		t.Fatalf("work counts = %d, %d, want 1, 0", items[0].WorkCount, items[1].WorkCount)
+	}
 }
 
 func TestListJavPrefixesAndSearchByPrefix(t *testing.T) {

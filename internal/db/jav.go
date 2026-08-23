@@ -2101,7 +2101,7 @@ func ResolveJavIdols(ctx context.Context, ids []int64) ([]JavIdolSummary, error)
 }
 
 // ListJavIdolOptions returns all idols for edit selectors.
-func ListJavIdolOptions(ctx context.Context, search string, limit, offset int) ([]JavIdolSummary, int64, error) {
+func ListJavIdolOptions(ctx context.Context, search string, limit, offset int, directoryIDs []int64) ([]JavIdolSummary, int64, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -2119,7 +2119,8 @@ func ListJavIdolOptions(ctx context.Context, search string, limit, offset int) (
 
 	var items []JavIdolSummary
 	if err := base.
-		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left").
+		Select("ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, ji.height_cm, ji.birth_date, ji.bust, ji.waist, ji.hips, ji.cup, COALESCE(idol_work_counts.work_count, 0) AS work_count, COALESCE(ji.cover_crop_left, 0.53) AS cover_crop_left").
+		Joins("LEFT JOIN (?) idol_work_counts ON idol_work_counts.jav_idol_id = ji.id", buildVisibleIdolWorkCountQuery(ctx, directoryIDs)).
 		Order("ji.name ASC, ji.id ASC").
 		Limit(limit).
 		Offset(offset).

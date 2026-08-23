@@ -833,9 +833,9 @@ function JavCustomTagModal({ open, item, directoryIds, onClose, onSaved }) {
                     ✓
                   </span>
                   <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                  {Number(tag?.count) > 0 ? (
-                    <span className="shrink-0 text-xs text-gray-400">{tag.count}</span>
-                  ) : null}
+                  <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                    {Math.max(0, Number(tag?.count) || 0)}
+                  </span>
                 </button>
               )
             })
@@ -1445,11 +1445,16 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                     <button
                       key={idol.id}
                       type="button"
-                      className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() => toggleIdol(idol.id, true)}
                       disabled={saving}
                     >
-                      {getIdolDisplayName(idol, preferChineseName)}
+                      <span className="min-w-0 flex-1 truncate">
+                        {getIdolDisplayName(idol, preferChineseName)}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                        {Math.max(0, Number(idol?.work_count) || 0)}
+                      </span>
                     </button>
                   ))
                 )}
@@ -1537,13 +1542,18 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                     <button
                       key={`${tag.id}-${tag.name}`}
                       type="button"
-                      className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() =>
                         addScrapedTagNames(String(tag?.original_name || tag?.name || '').trim())
                       }
                       disabled={saving}
                     >
-                      {getJavTagDisplayName(tag, showSimplifiedTags)}
+                      <span className="min-w-0 flex-1 truncate">
+                        {getJavTagDisplayName(tag, showSimplifiedTags)}
+                      </span>
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                        {Math.max(0, Number(tag?.count) || 0)}
+                      </span>
                     </button>
                   ))
                 )}
@@ -1630,11 +1640,14 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                     <button
                       key={`${tag.id}-${tag.provider || 0}`}
                       type="button"
-                      className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
                       onClick={() => toggleTag(tag.id, true)}
                       disabled={saving}
                     >
-                      {tag.name}
+                      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                        {Math.max(0, Number(tag?.count) || 0)}
+                      </span>
                     </button>
                   ))
                 )}

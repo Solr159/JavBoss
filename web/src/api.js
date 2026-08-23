@@ -884,11 +884,17 @@ export async function fetchJavIdols({
   return res.json()
 }
 
-export async function fetchJavIdolOptions({ limit = 25, offset = 0, search = '' } = {}) {
+export async function fetchJavIdolOptions({
+  limit = 25,
+  offset = 0,
+  search = '',
+  directoryIds = [],
+} = {}) {
   const params = new URLSearchParams()
   params.set('limit', String(limit))
   params.set('offset', String(offset))
   if (search) params.set('search', search)
+  if (directoryIds.length) params.set('directory_ids', directoryIds.join(','))
   const res = await apiFetch(`/jav/idols/options?${params.toString()}`)
   if (!res.ok) {
     throw await apiError(res)

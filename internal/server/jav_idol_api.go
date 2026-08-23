@@ -108,7 +108,13 @@ func listJavIdolOptions(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
 
-	items, total, err := dbpkg.ListJavIdolOptions(c.Request.Context(), search, limit, offset)
+	items, total, err := dbpkg.ListJavIdolOptions(
+		c.Request.Context(),
+		search,
+		limit,
+		offset,
+		parseDirectoryIDs(c.Query("directory_ids")),
+	)
 	if err != nil {
 		logging.Error("list jav idol options: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载女优选项失败", "Failed to load idol options")
