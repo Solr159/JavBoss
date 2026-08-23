@@ -68,7 +68,7 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
 
   assert.equal(replacedURL, "");
   assert.equal(
-    timers.some((timer) => timer.delay >= 500 && timer.delay <= 1000),
+    timers.some((timer) => timer.delay >= 300 && timer.delay <= 600),
     false,
   );
   assert.equal(typeof windowListeners.get("load"), "function");
@@ -76,10 +76,10 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
   windowListeners.get("load")();
   assert.equal(replacedURL, "");
   const navigationTimer = timers.find(
-    (timer) => timer.delay >= 500 && timer.delay <= 1000,
+    (timer) => timer.delay >= 300 && timer.delay <= 600,
   );
   assert.ok(navigationTimer);
-  assert.equal(navigationTimer.delay, 750);
+  assert.equal(navigationTimer.delay, 450);
   navigationTimer.callback();
 
   assert.equal(replacedURL, "https://javdb.com/series/p32E");

@@ -14,8 +14,8 @@
     window.top === window &&
     parser.isAssistedNavigationURL?.(location.href)
   ) {
-    const NAVIGATION_DELAY_MIN_MS = 500;
-    const NAVIGATION_DELAY_MAX_MS = 1000;
+    const NAVIGATION_DELAY_MIN_MS = 300;
+    const NAVIGATION_DELAY_MAX_MS = 600;
     const blankStyle = document.createElement("style");
     blankStyle.textContent =
       "html { visibility: hidden !important; background: #fff !important; }";
