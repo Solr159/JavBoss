@@ -3530,7 +3530,10 @@ func ensureSeriesWithStudioTx(tx *gorm.DB, name string, isEnglish bool, studioID
 }
 
 func ensureJavTagsTx(tx *gorm.DB, names []string, provider jav.Provider) ([]models.JavTag, error) {
-	unique := normalizeNames(names)
+	unique, err := normalizeScrapedJavTagNames(names)
+	if err != nil {
+		return nil, err
+	}
 	if len(unique) == 0 {
 		return nil, nil
 	}
@@ -3543,6 +3546,27 @@ func ensureJavTagsTx(tx *gorm.DB, names []string, provider jav.Provider) ([]mode
 		tags = append(tags, tag)
 	}
 	return tags, nil
+}
+
+func normalizeScrapedJavTagNames(names []string) ([]string, error) {
+	unique := make([]string, 0, len(names))
+	seen := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		traditional, err := util.TraditionalizeChineseName(name)
+		if err != nil {
+			return nil, fmt.Errorf("normalize scraped JAV tag %q: %w", name, err)
+		}
+		if _, ok := seen[traditional]; ok {
+			continue
+		}
+		seen[traditional] = struct{}{}
+		unique = append(unique, traditional)
+	}
+	return unique, nil
 }
 
 func replaceJavTagsForProviderTx(tx *gorm.DB, javID int64, tags []models.JavTag, provider jav.Provider) error {

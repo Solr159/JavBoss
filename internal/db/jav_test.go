@@ -1755,6 +1755,47 @@ func TestUserJavTagNameDoesNotModifyScrapedTag(t *testing.T) {
 	}
 }
 
+func TestEnsureJavTagsTraditionalizesAndDeduplicatesScrapedNames(t *testing.T) {
+	gdb := openTestDB(t)
+	ctx := context.Background()
+
+	tags, err := ensureJavTagsTx(
+		gdb,
+		[]string{" 无码 ", "無碼", "女优", "女優"},
+		jav.ProviderJavBus,
+	)
+	if err != nil {
+		t.Fatalf("ensure scraped JAV tags: %v", err)
+	}
+	if len(tags) != 2 || tags[0].Name != "無碼" || tags[1].Name != "女優" {
+		t.Fatalf("canonical scraped tags = %#v, want 無碼 and 女優", tags)
+	}
+
+	repeated, err := ensureJavTagsTx(gdb, []string{"无码", "女优"}, jav.ProviderManualScrape)
+	if err != nil {
+		t.Fatalf("ensure repeated scraped JAV tags: %v", err)
+	}
+	if len(repeated) != 2 || repeated[0].ID != tags[0].ID || repeated[1].ID != tags[1].ID {
+		t.Fatalf("repeated scraped tags = %#v, want existing IDs %#v", repeated, tags)
+	}
+
+	userTag, err := CreateJavTag(ctx, "女优")
+	if err != nil {
+		t.Fatalf("create simplified user JAV tag: %v", err)
+	}
+	if userTag.Name != "女优" || !userTag.IsUser {
+		t.Fatalf("user JAV tag was canonicalized: %#v", userTag)
+	}
+
+	var scrapedCount int64
+	if err := gdb.Model(&models.JavTag{}).Where("is_user = ?", false).Count(&scrapedCount).Error; err != nil {
+		t.Fatalf("count scraped JAV tags: %v", err)
+	}
+	if scrapedCount != 2 {
+		t.Fatalf("scraped JAV tag count = %d, want 2", scrapedCount)
+	}
+}
+
 func TestCreatedUserJavTagAppearsWithZeroCount(t *testing.T) {
 	openTestDB(t)
 	ctx := context.Background()
