@@ -64,6 +64,7 @@ test("bridge resources are web accessible without broad host permissions", () =>
     "content/javdb-parser.js",
     "content/scrape-content.js",
   ]);
+  assert.equal(javDBScript.run_at, "document_start");
   const avsoxScript = manifest.content_scripts.find((entry) =>
     entry.matches.includes("https://avsox.click/*"),
   );

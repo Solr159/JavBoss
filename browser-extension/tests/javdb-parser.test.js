@@ -117,7 +117,9 @@ test("movie detail resolves idol, series, and studio links", () => {
       detailLink("岬ななみ", "/actors/QNen"),
     ]),
     detailBlock("系列:", [detailLink("中年オヤジ", "/series/w54b")]),
-    detailBlock("片商:", [detailLink("アイデアポケット", "/makers/ZXX")]),
+    detailBlock("片商:", [
+      detailLink("アイデアポケット", "/makers/ZXX?f=download#results"),
+    ]),
   ]);
 
   const cases = [

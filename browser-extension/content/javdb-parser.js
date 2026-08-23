@@ -91,6 +91,10 @@
       return { code, name: cleanText(params.get("name")), target, url };
     }
 
+    function isAssistedNavigationURL(pageURL) {
+      return Boolean(assistRequest(pageURL));
+    }
+
     function assistHash(request) {
       const params = new URLSearchParams();
       params.set("javboss", "direct");
@@ -175,11 +179,13 @@
           const resolved = new URL(href, request.url);
           if (
             resolved.origin !== request.url.origin ||
-            !config.path.test(resolved.pathname) ||
-            seen.has(resolved.href)
+            !config.path.test(resolved.pathname)
           ) {
             continue;
           }
+          resolved.search = "";
+          resolved.hash = "";
+          if (seen.has(resolved.href)) continue;
           seen.add(resolved.href);
           candidates.push(resolved.href);
           if (request.name && name === request.name) exact.push(resolved.href);
@@ -264,6 +270,7 @@
     return {
       cleanText,
       findAssistedNavigationURL,
+      isAssistedNavigationURL,
       normalizeCode,
       normalizeLabel,
       parse,

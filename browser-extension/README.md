@@ -40,9 +40,10 @@ all-category search results page. JavBoss checks the extension bridge before a
 movie, idol, series, or studio card opens JavDB. When connected, JavBoss opens a
 marked code search directly; the extension finds one exact movie result, opens
 its detail page, and then follows the matching idol, series, or studio link when
-requested. The movie link stays on the resolved movie detail page. Without the
-extension, JavBoss opens the same search URL as before. Ordinary JavDB searches
-and ambiguous movie results are never redirected.
+requested. Assisted intermediate pages are hidden behind a plain white screen so
+only the final destination becomes visible. The movie link stays on the resolved
+movie detail page. Without the extension, JavBoss opens the same search URL as
+before. Ordinary JavDB searches and ambiguous movie results are never redirected.
 
 AVSOX opens its Traditional Chinese home page when the code field is empty. With
 a code it opens the corresponding search page, and metadata is always filled as
