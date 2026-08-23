@@ -1,59 +1,34 @@
 # JavBoss 助手
 
-This unpacked Manifest V3 extension lets the JavBoss manual scrape dialog open
-JavBus, JavLibrary, JavDB, or AVSOX in a new Chrome tab, extract the selected movie
-page, and fill the existing manual metadata form. Metadata is never saved automatically;
-review it in JavBoss and click the manual scrape button to persist it.
+这是一个采用 Manifest V3 的 Chrome 扩展。它可以从 JavBoss 的手动刮削窗口在新标签页中打开 JavBus、JavLibrary、JavDB 或 AVSOX，提取所选作品页面的信息，并回填到现有的手动元数据表单中。扩展不会自动保存元数据；请先在 JavBoss 中检查回填内容，再点击手动刮削按钮保存。
 
-## Install
+## 安装
 
-1. Open `chrome://extensions` in Chrome.
-2. Enable **Developer mode**.
-3. Click **Load unpacked**.
-4. Select this `browser-extension` directory.
-5. Reload the JavBoss page after installing or updating the extension.
+1. 在 Chrome 中打开 `chrome://extensions`。
+2. 开启**开发者模式**。
+3. 点击**加载已解压的扩展程序**。
+4. 选择本项目的 `browser-extension` 目录。
+5. 安装或更新扩展后，重新加载 JavBoss 页面。
 
-If upgrading from the earlier iframe-based prototype, remove the old unpacked
-extension first and load this directory again. Version 0.2 and later use a fixed
-extension ID required by the hidden bridge.
+如果从早期基于 iframe 的原型版本升级，请先移除旧的已解压扩展，再重新加载此目录。0.2 及后续版本使用固定的扩展 ID，隐藏通信桥依赖该 ID 工作。
 
-## Use
+## 使用
 
-1. Open a video's scrape settings and select **Manual Scrape**.
-2. Click **Open JavBus**, **Open JavLibrary**, **Open JavDB**, or **Open AVSOX** under **Browser extension-assisted scrape**.
-3. Complete any site verification and navigate to a movie detail page.
-4. Click the injected **Fill JavBoss** button in the lower-right corner.
-5. Continue browsing and fill other detail pages as needed.
-6. Review the latest filled fields in JavBoss and save them.
+1. 打开某个视频的刮削设置，选择**手动刮削**。
+2. 在**浏览器扩展辅助刮削**区域点击**打开 JavBus**、**打开 JavLibrary**、**打开 JavDB**或**打开 AVSOX**。
+3. 完成目标网站要求的验证，并进入作品详情页。
+4. 点击页面右下角由扩展注入的**回填到 JavBoss**按钮。
+5. 可以继续浏览其他详情页，并按需回填其他作品。
+6. 返回 JavBoss 检查最新回填的字段并保存。
 
-The extension-created tab receives a temporary scrape marker in its
-`sessionStorage`. A metadata site may open a same-origin child tab, which receives
-a copy of the temporary marker. Tabs created manually do not receive it. Filling
-metadata keeps the tab and marker active so another detail page can be filled.
+由扩展创建的标签页会在 `sessionStorage` 中获得一个临时刮削标记。元数据网站可能打开同源子标签页，该子标签页会继承临时标记；手动创建的标签页不会获得标记。回填元数据后，标签页和标记会继续保留，因此可以接着回填其他详情页。
 
-JavLibrary opens its Traditional Chinese home page when the code field is empty,
-and its parsed metadata defaults to censored unless the page explicitly marks the
-movie as uncensored.
+当番号为空时，JavLibrary 会打开正体中文首页。除非页面明确标记作品为无码，否则解析得到的元数据默认按有码作品处理。
 
-JavDB opens its home page when the code field is empty. With a code it opens the
-all-category search results page. JavBoss checks the extension bridge before a
-movie, idol, series, or studio card opens JavDB. When connected, JavBoss opens a
-marked code search directly; the extension finds one exact movie result, opens
-its detail page, and then follows the matching idol, series, or studio link when
-requested. Assisted intermediate pages are hidden behind a plain white screen so
-only the final destination becomes visible. The movie link stays on the resolved
-movie detail page. Without the extension, JavBoss opens the same search URL as
-before. Ordinary JavDB searches and ambiguous movie results are never redirected.
+当番号为空时，JavDB 会打开首页；存在番号时，则打开全类别搜索结果页。在作品、女优、系列或片商卡片打开 JavDB 前，JavBoss 会先检查扩展通信桥。连接成功时，JavBoss 会直接打开带助手标记的番号搜索页；扩展会查找唯一且番号精确匹配的作品，进入作品详情页，并根据需要继续跳转到对应的女优、系列或片商详情页。作品入口会停留在解析出的作品详情页。辅助跳转过程中的中间页面会以纯白屏幕遮挡，只显示最终目标页面。未启用扩展时，JavBoss 会继续打开原有的搜索地址。普通 JavDB 搜索和存在多个精确番号结果的搜索不会被自动跳转。
 
-AVSOX opens its Traditional Chinese home page when the code field is empty. With
-a code it opens the corresponding search page, and metadata is always filled as
-uncensored.
+当番号为空时，AVSOX 会打开正体中文首页；存在番号时，则打开对应的搜索页。通过 AVSOX 回填的元数据始终按无码作品处理。
 
-JavBoss embeds only the extension's invisible `bridge.html` resource. The metadata
-sites are never embedded in JavBoss and cannot access the JavBoss window or login
-cookie. The bridge accepts connections only from localhost,
-private-network, `.local`, or single-label intranet origins.
+JavBoss 只会嵌入扩展中不可见的 `bridge.html` 通信资源。元数据网站不会被嵌入 JavBoss，也无法访问 JavBoss 窗口或其登录 Cookie。通信桥只接受来自本机、私有网络、`.local` 域名或单标签内网域名的连接。
 
-The public key in `manifest.json` gives unpacked installations a stable extension
-ID. If it is changed, update the matching ID in
-`VideoScrapeSettingsModal.jsx`.
+`manifest.json` 中的公钥会为以解压方式安装的扩展提供稳定的扩展 ID。如果修改该公钥，还必须同步更新 `VideoScrapeSettingsModal.jsx` 中对应的 ID。
