@@ -1328,7 +1328,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <JavEditDropdown
-            label={zh('厂商', 'Studio')}
+            label={zh('片商', 'Studio')}
             selectedId={selectedStudioId}
             options={visibleStudioOptions}
             search={studioSearch}
@@ -1336,8 +1336,8 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
             onSelect={setSelectedStudioId}
             open={studioDropdownOpen}
             onOpenChange={setStudioDropdownOpen}
-            emptyLabel={zh('无厂商', 'No studio')}
-            searchPlaceholder={zh('搜索已有厂商', 'Search existing studios')}
+            emptyLabel={zh('无片商', 'No studio')}
+            searchPlaceholder={zh('搜索已有片商', 'Search existing studios')}
             disabled={saving || optionsLoading}
           />
           <JavEditDropdown
