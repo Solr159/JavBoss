@@ -28,7 +28,10 @@ function movieSearchDocument(items) {
   };
 }
 
-function assistURL(path, { target = "series", code = "IPX-228", name = "" } = {}) {
+function assistURL(
+  path,
+  { target = "series", code = "IPX-228", name = "" } = {},
+) {
   const url = new URL(path, "https://javdb.com");
   const marker = new URLSearchParams({ javboss: "direct", target, code });
   if (name) marker.set("name", name);
@@ -36,10 +39,16 @@ function assistURL(path, { target = "series", code = "IPX-228", name = "" } = {}
   return url.href;
 }
 
-function detailLink(name, href) {
+function detailLink(name, href, gender = "") {
   return {
     textContent: name,
     getAttribute: (attribute) => (attribute === "href" ? href : null),
+    nextElementSibling: gender
+      ? {
+          getAttribute: (attribute) =>
+            attribute === "class" ? `symbol ${gender}` : null,
+        }
+      : null,
   };
 }
 
@@ -115,6 +124,7 @@ test("movie detail resolves idol, series, and studio links", () => {
     detailBlock("演員:", [
       detailLink("別の女優", "/actors/first"),
       detailLink("岬ななみ", "/actors/QNen"),
+      detailLink("男優", "/actors/male", "male"),
     ]),
     detailBlock("系列:", [detailLink("中年オヤジ", "/series/w54b")]),
     detailBlock("片商:", [
@@ -165,23 +175,33 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
     querySelector: (selector) => children.get(selector)?.[0] || null,
     querySelectorAll: (selector) => children.get(selector) || [],
   });
-  const block = (label, value, links = [], selectors = new Map()) =>
-    node(
+  const block = (label, value, links = [], selectors = new Map()) => {
+    const linkNodes = links.map((link) => {
+      const linkNode = node(link.text, { href: link.href });
+      if (link.gender) {
+        linkNode.nextElementSibling = node("", {
+          class: `symbol ${link.gender}`,
+        });
+      }
+      return linkNode;
+    });
+    return node(
       "",
       {},
       new Map([
         ["strong", [node(label)]],
         [".value", [node(value)]],
-        [".value a", links.map((link) => node(link.text, { href: link.href }))],
+        [".value a", linkNodes],
         [
           '.value a[href*="/tags/uncensored"]',
-          links
-            .filter((link) => link.href.includes("/tags/uncensored"))
-            .map((link) => node(link.text, { href: link.href })),
+          linkNodes.filter((_, index) =>
+            links[index].href.includes("/tags/uncensored"),
+          ),
         ],
         ...selectors,
       ]),
     );
+  };
   const blocks = [
     block("番號:", "082226_01"),
     block("日期:", "2026-08-22"),
@@ -192,13 +212,19 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
       { text: "白虎", href: "/tags?c3=74" },
     ]),
     block("演員:", "白花まなみ", [
-      { text: "白花まなみ", href: "/actors/76Wdb" },
+      { text: "白花まなみ", href: "/actors/76Wdb", gender: "female" },
+      { text: "藍井優太", href: "/actors/Ddd8", gender: "male" },
+      { text: "松山伸也", href: "/actors/YnEYz", gender: "male" },
     ]),
   ];
   const singles = new Map([
     [
       ".video-detail .current-title",
       node("リフレの面接に来た娘に手とり足とり実践指導"),
+    ],
+    [
+      ".video-detail .origin-title",
+      node("リフレの面接に来た娘に手取り足取り実践指導"),
     ],
     [".video-detail > h2 strong:not(.current-title)", node("082226_01 無碼")],
     [
@@ -227,7 +253,7 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
 
   assert.deepEqual(parser.parse(document, "https://javdb.com/v/r37E2D"), {
     code: "082226_01",
-    title: "リフレの面接に来た娘に手とり足とり実践指導",
+    title: "リフレの面接に来た娘に手取り足取り実践指導",
     studio: "10musume",
     series: "",
     release_date: "2026-08-22",

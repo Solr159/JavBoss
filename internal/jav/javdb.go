@@ -416,7 +416,7 @@ func extractJavDBMovieFields(root *html.Node) javDBMovieFields {
 		return out
 	}
 
-	if title := findJavDBCurrentTitle(root); title != "" {
+	if title := findJavDBMovieTitle(root); title != "" {
 		out.Title = title
 	}
 
@@ -439,7 +439,10 @@ func findJavDBMovieInfoPanel(root *html.Node) *html.Node {
 	return firstSelectionNode(documentSelection(root).Find("nav.panel.movie-panel-info").First())
 }
 
-func findJavDBCurrentTitle(root *html.Node) string {
+func findJavDBMovieTitle(root *html.Node) string {
+	if title := cleanSelectionText(documentSelection(root).Find("span.origin-title").First()); title != "" {
+		return title
+	}
 	return cleanSelectionText(documentSelection(root).Find("strong.current-title").First())
 }
 

@@ -53,6 +53,30 @@
       return uniqueTexts(block.querySelectorAll(selector));
     }
 
+    function elementHasClass(element, className) {
+      if (element?.classList?.contains?.(className)) return true;
+      return cleanText(element?.getAttribute?.("class"))
+        .split(" ")
+        .includes(className);
+    }
+
+    function isMaleActorLink(link) {
+      const symbol = link?.nextElementSibling;
+      return (
+        elementHasClass(symbol, "symbol") && elementHasClass(symbol, "male")
+      );
+    }
+
+    function fieldActressLinks(document) {
+      const block = fieldBlock(document, ["演員", "演员", "出演者"]);
+      if (!block) return [];
+      return uniqueTexts(
+        [...block.querySelectorAll('.value a[href^="/actors/"]')].filter(
+          (link) => !isMaleActorLink(link),
+        ),
+      );
+    }
+
     function resolvedURL(document, pageURL, selector, attribute) {
       const value = document.querySelector(selector)?.getAttribute(attribute);
       if (!value) return "";
@@ -67,7 +91,9 @@
     }
 
     function normalizeCode(value) {
-      return cleanText(value).replace(/[^a-z0-9]/gi, "").toUpperCase();
+      return cleanText(value)
+        .replace(/[^a-z0-9]/gi, "")
+        .toUpperCase();
     }
 
     function assistRequest(pageURL) {
@@ -172,6 +198,7 @@
       const exact = [];
       const seen = new Set();
       for (const link of block.querySelectorAll(".value a[href]")) {
+        if (request.target === "idol" && isMaleActorLink(link)) continue;
         const name = cleanText(link.textContent);
         const href = link.getAttribute("href");
         if (!href) continue;
@@ -224,9 +251,13 @@
 
     function parse(document, pageURL) {
       const code = fieldText(document, ["番號", "番号"]).toUpperCase();
-      const title = cleanText(
-        document.querySelector(".video-detail .current-title")?.textContent,
-      );
+      const title =
+        cleanText(
+          document.querySelector(".video-detail .origin-title")?.textContent,
+        ) ||
+        cleanText(
+          document.querySelector(".video-detail .current-title")?.textContent,
+        );
       if (!code || !title) return null;
 
       const dateText = fieldText(document, ["日期", "発売日"]);
@@ -253,7 +284,7 @@
         duration_min:
           Number.isFinite(duration) && duration >= 0 ? duration : null,
         tags,
-        actors: fieldLinks(document, ["演員", "演员", "出演者"], "/actors/"),
+        actors: fieldActressLinks(document),
         cover_url:
           resolvedURL(document, pageURL, ".video-cover", "src") ||
           resolvedURL(document, pageURL, ".column-video-cover a", "href"),

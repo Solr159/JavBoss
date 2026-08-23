@@ -122,6 +122,7 @@ func TestParseJavDBMovieInfo(t *testing.T) {
     <h2 class="title is-4">
       <strong>IPX-228 </strong>
       <strong class="current-title">中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ </strong>
+      <span style="display: none" class="origin-title">中年オヤジと制服美少女の汗だく唾液まみれ濃厚ベロキス性交 岬ななみ</span>
     </h2>
     <nav class="panel movie-panel-info">
       <div class="panel-block first-block">
@@ -185,7 +186,7 @@ func TestParseJavDBMovieInfo(t *testing.T) {
 	if info.Code != "IPX-228" {
 		t.Fatalf("unexpected code: %q", info.Code)
 	}
-	if info.Title != "中年オヤジと制服美少女の汗だく唾液みどろ特濃ベロキス性交 岬ななみ" {
+	if info.Title != "中年オヤジと制服美少女の汗だく唾液まみれ濃厚ベロキス性交 岬ななみ" {
 		t.Fatalf("unexpected title: %q", info.Title)
 	}
 	if info.CoverURL != "https://c0.jdbstatic.com/covers/kk/kKdRm.jpg" {
