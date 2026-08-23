@@ -14,6 +14,8 @@
     window.top === window &&
     parser.isAssistedNavigationURL?.(location.href)
   ) {
+    const NAVIGATION_DELAY_MIN_MS = 500;
+    const NAVIGATION_DELAY_MAX_MS = 1000;
     const blankStyle = document.createElement("style");
     blankStyle.textContent =
       "html { visibility: hidden !important; background: #fff !important; }";
@@ -40,13 +42,18 @@
       return false;
     };
 
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", navigateOrReveal, {
-        once: true,
-      });
-    } else if (navigateOrReveal()) {
-      return;
-    }
+    const scheduleNavigation = () => {
+      const delay =
+        NAVIGATION_DELAY_MIN_MS +
+        Math.floor(
+          Math.random() *
+            (NAVIGATION_DELAY_MAX_MS - NAVIGATION_DELAY_MIN_MS + 1),
+        );
+      window.setTimeout(navigateOrReveal, delay);
+    };
+
+    if (document.readyState === "complete") scheduleNavigation();
+    else window.addEventListener("load", scheduleNavigation, { once: true });
   }
 
   const BUTTON_ID = "javboss-browser-scrape-fill-button";
