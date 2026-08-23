@@ -344,6 +344,56 @@ func TestManualScrapeRequestToJavInfo(t *testing.T) {
 	}
 }
 
+func TestManualScrapeRequestToJavInfoRequiresCoreMetadata(t *testing.T) {
+	duration := 120
+	validRequest := func() videoJavManualScrapeRequest {
+		return videoJavManualScrapeRequest{
+			Code:        "IPX-228",
+			Title:       "Title",
+			ReleaseDate: "2018-11-13",
+			DurationMin: &duration,
+		}
+	}
+	tests := []struct {
+		name    string
+		mutate  func(*videoJavManualScrapeRequest)
+		wantErr string
+	}{
+		{
+			name: "missing title",
+			mutate: func(req *videoJavManualScrapeRequest) {
+				req.Title = "  "
+			},
+			wantErr: "title is required",
+		},
+		{
+			name: "missing release date",
+			mutate: func(req *videoJavManualScrapeRequest) {
+				req.ReleaseDate = ""
+			},
+			wantErr: "release_date is required",
+		},
+		{
+			name: "missing duration",
+			mutate: func(req *videoJavManualScrapeRequest) {
+				req.DurationMin = nil
+			},
+			wantErr: "duration_min is required",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := validRequest()
+			test.mutate(&req)
+			_, err := manualScrapeRequestToJavInfo(req)
+			if err == nil || err.Error() != test.wantErr {
+				t.Fatalf("error = %v, want %q", err, test.wantErr)
+			}
+		})
+	}
+}
+
 func TestHLSStreamHelpersPreserveLocationID(t *testing.T) {
 	video := &models.Video{ID: 42}
 

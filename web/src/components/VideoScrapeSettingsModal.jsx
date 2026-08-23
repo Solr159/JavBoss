@@ -426,11 +426,16 @@ export default function VideoScrapeSettingsModal({
   const codeInvalid =
     rawCode.length > 0 && (rawCode !== normalizedCode || !CODE_PATTERN.test(rawCode))
   const codeValid = normalizedCode.length > 0 && !codeInvalid
+  const manualTitleValid = String(manualInfo.title || '').trim().length > 0
+  const manualReleaseDate = String(manualInfo.release_date || '').trim()
+  const manualReleaseDateValid = /^\d{4}-\d{2}-\d{2}$/.test(manualReleaseDate)
   const manualDuration = String(manualInfo.duration_min || '').trim()
   const manualDurationValid =
-    manualDuration === '' ||
-    (Number.isFinite(Number.parseInt(manualDuration, 10)) &&
-      Number.parseInt(manualDuration, 10) >= 0)
+    /^\d+$/.test(manualDuration) &&
+    Number.isFinite(Number.parseInt(manualDuration, 10)) &&
+    Number.parseInt(manualDuration, 10) >= 0
+  const manualRequiredFieldsValid =
+    manualTitleValid && manualReleaseDateValid && manualDurationValid
   const manualCensorStateValid = ['true', 'false'].includes(manualInfo.is_uncensored)
   const manualTags = textToList(manualInfo.tags_text)
   const manualActors = textToList(manualInfo.actors_text)
@@ -439,7 +444,7 @@ export default function VideoScrapeSettingsModal({
     !linkLoading &&
     (mode === 'skip' ||
       (mode === 'auto' && autoSource === AUTO_SOURCE_FILENAME) ||
-      (codeValid && (mode !== 'manual' || manualDurationValid)))
+      (codeValid && (mode !== 'manual' || manualRequiredFieldsValid)))
 
   const updateManual = (patch) => setManualInfo((current) => ({ ...current, ...patch }))
 
@@ -799,13 +804,14 @@ export default function VideoScrapeSettingsModal({
                 </div>
                 <div className="md:col-span-2">
                   <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('标题', 'Title')}
+                    {zh('标题 *', 'Title *')}
                   </label>
                   <input
                     type="text"
                     value={manualInfo.title}
                     onChange={(event) => updateManual({ title: event.target.value })}
                     disabled={saving}
+                    required
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
@@ -836,26 +842,29 @@ export default function VideoScrapeSettingsModal({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('发行日期', 'Release Date')}
+                    {zh('发行日期 *', 'Release Date *')}
                   </label>
                   <input
                     type="date"
                     value={manualInfo.release_date}
                     onChange={(event) => updateManual({ release_date: event.target.value })}
                     disabled={saving}
+                    required
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('时长（分钟）', 'Duration (min)')}
+                    {zh('时长（分钟）*', 'Duration (min) *')}
                   </label>
                   <input
                     type="number"
                     min="0"
+                    step="1"
                     value={manualInfo.duration_min}
                     onChange={(event) => updateManual({ duration_min: event.target.value })}
                     disabled={saving}
+                    required
                     className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
