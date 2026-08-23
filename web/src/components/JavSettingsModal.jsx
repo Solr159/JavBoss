@@ -759,12 +759,18 @@ export default function JavSettingsModal({
 
         {activeTab === 'tag' ? (
           <SettingsSection title={zh('标签设置', 'Tag settings')}>
-            <SettingsRow label={zh('显示简体标签', 'Show simplified Chinese tags')}>
-              <SettingsSwitch
-                label={zh('显示简体标签', 'Show simplified Chinese tags')}
-                checked={javTagShowSimplifiedInput}
-                onChange={onJavTagShowSimplifiedChange}
-              />
+            <SettingsRow label={zh('刮削标签显示语言', 'Scraped tag display language')}>
+              <select
+                aria-label={zh('刮削标签显示语言', 'Scraped tag display language')}
+                value={javTagShowSimplifiedInput ? 'simplified' : 'traditional'}
+                onChange={(event) =>
+                  onJavTagShowSimplifiedChange?.(event.target.value === 'simplified')
+                }
+                className={controlClassName}
+              >
+                <option value="traditional">{zh('繁体中文', 'Traditional Chinese')}</option>
+                <option value="simplified">{zh('简体中文', 'Simplified Chinese')}</option>
+              </select>
             </SettingsRow>
           </SettingsSection>
         ) : null}
