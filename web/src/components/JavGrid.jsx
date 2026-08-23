@@ -2227,7 +2227,7 @@ function JavCard({
           {
             key: 'missav',
             name: 'MissAV',
-            href: `https://missav.ws/cn/${encodedCode}`,
+            href: `https://missav.ws/${encodedCode}`,
             icon: '/ico/missav.ico',
           },
         ]
