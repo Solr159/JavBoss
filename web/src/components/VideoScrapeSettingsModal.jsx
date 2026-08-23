@@ -434,9 +434,9 @@ export default function VideoScrapeSettingsModal({
     /^\d+$/.test(manualDuration) &&
     Number.isFinite(Number.parseInt(manualDuration, 10)) &&
     Number.parseInt(manualDuration, 10) >= 0
-  const manualRequiredFieldsValid =
-    manualTitleValid && manualReleaseDateValid && manualDurationValid
   const manualCensorStateValid = ['true', 'false'].includes(manualInfo.is_uncensored)
+  const manualRequiredFieldsValid =
+    manualTitleValid && manualReleaseDateValid && manualDurationValid && manualCensorStateValid
   const manualTags = textToList(manualInfo.tags_text)
   const manualActors = textToList(manualInfo.actors_text)
   const canSave =
@@ -913,7 +913,7 @@ export default function VideoScrapeSettingsModal({
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">
-                    {zh('有码状态', 'Censor State')}
+                    {zh('有码状态 *', 'Censor State *')}
                   </label>
                   <select
                     value={manualInfo.is_uncensored}

@@ -882,6 +882,9 @@ func manualVideoJavScrape(c *gin.Context) {
 		case "duration_min must be non-negative":
 			messageZH = "时长不能为负数"
 			messageEN = "Duration cannot be negative"
+		case "is_uncensored is required":
+			messageZH = "请选择有码状态"
+			messageEN = "Censor state is required"
 		}
 		respondLocalizedError(c, http.StatusBadRequest, messageZH, messageEN)
 		return
@@ -960,6 +963,9 @@ func manualScrapeRequestToJavInfo(req videoJavManualScrapeRequest) (*jav.JavInfo
 	durationMin := *req.DurationMin
 	if durationMin < 0 {
 		return nil, errors.New("duration_min must be non-negative")
+	}
+	if req.IsUncensored == nil {
+		return nil, errors.New("is_uncensored is required")
 	}
 	info := &jav.JavInfo{
 		Code:         code,

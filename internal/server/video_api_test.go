@@ -346,12 +346,14 @@ func TestManualScrapeRequestToJavInfo(t *testing.T) {
 
 func TestManualScrapeRequestToJavInfoRequiresCoreMetadata(t *testing.T) {
 	duration := 120
+	uncensored := false
 	validRequest := func() videoJavManualScrapeRequest {
 		return videoJavManualScrapeRequest{
-			Code:        "IPX-228",
-			Title:       "Title",
-			ReleaseDate: "2018-11-13",
-			DurationMin: &duration,
+			Code:         "IPX-228",
+			Title:        "Title",
+			ReleaseDate:  "2018-11-13",
+			DurationMin:  &duration,
+			IsUncensored: &uncensored,
 		}
 	}
 	tests := []struct {
@@ -379,6 +381,13 @@ func TestManualScrapeRequestToJavInfoRequiresCoreMetadata(t *testing.T) {
 				req.DurationMin = nil
 			},
 			wantErr: "duration_min is required",
+		},
+		{
+			name: "missing censor state",
+			mutate: func(req *videoJavManualScrapeRequest) {
+				req.IsUncensored = nil
+			},
+			wantErr: "is_uncensored is required",
 		},
 	}
 
