@@ -41,6 +41,8 @@ const DEFAULT_CATEGORY_VALUE = '__default'
 const categoryDisplayName = (category) =>
   category?.is_default ? zh('默认分类', 'Default') : String(category?.name || '')
 
+const allTagsEditable = () => true
+
 export default function TagManagementModal({
   open,
   onClose,
@@ -56,7 +58,7 @@ export default function TagManagementModal({
   onAssignCategory,
   onRenameTag,
   onDeleteTag,
-  isTagEditable = () => true,
+  isTagEditable = allTagsEditable,
   tagClassName = () => '',
   tagLegend = [],
   editModeMessage = '',
@@ -207,12 +209,21 @@ export default function TagManagementModal({
 
   const displayTags = useMemo(() => {
     return [...tags].sort((a, b) => {
-      const countA = Number.isFinite(a?.count) ? a.count : 0
-      const countB = Number.isFinite(b?.count) ? b.count : 0
+      const editableA = Boolean(isTagEditable(a))
+      const editableB = Boolean(isTagEditable(b))
+      if (editableA !== editableB) return editableA ? -1 : 1
+
+      const rawCountA = Number(a?.count)
+      const rawCountB = Number(b?.count)
+      const countA = Number.isFinite(rawCountA) ? rawCountA : 0
+      const countB = Number.isFinite(rawCountB) ? rawCountB : 0
       if (countB !== countA) return countB - countA
-      return String(a?.name || '').localeCompare(String(b?.name || ''))
+
+      const nameOrder = String(a?.name || '').localeCompare(String(b?.name || ''))
+      if (nameOrder !== 0) return nameOrder
+      return Number(a?.id || 0) - Number(b?.id || 0)
     })
-  }, [tags])
+  }, [isTagEditable, tags])
 
   const categoryGroups = useMemo(() => {
     const groups = new Map()
