@@ -908,6 +908,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   const [error, setError] = useState('')
   const code = String(item?.code || '').trim()
   const itemTitle = item ? getJavDisplayTitle(item) : ''
+  const directoryIdsKey = (directoryIds || []).join(',')
   const userTagOptions = useMemo(() => tagOptions.filter((tag) => isUserJavTag(tag)), [tagOptions])
   const scrapedTagOptions = useMemo(
     () => tagOptions.filter((tag) => !isUserJavTag(tag)),
@@ -1067,13 +1068,16 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
 
   useEffect(() => {
     if (!open) return undefined
+    const activeDirectoryIds = directoryIdsKey
+      ? directoryIdsKey.split(',').map((id) => Number(id))
+      : []
     let cancelled = false
     setOptionsLoading(true)
     setOptionsError('')
     Promise.all([
       fetchAllJavEditOptions(fetchJavStudios),
       fetchAllJavEditOptions(fetchJavSeries),
-      fetchAllJavEditOptions(fetchJavIdolOptions),
+      fetchAllJavEditOptions(fetchJavIdolOptions, { directoryIds: activeDirectoryIds }),
     ])
       .then(([studios, series, idols]) => {
         if (cancelled) return
@@ -1094,7 +1098,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [directoryIdsKey, open])
 
   if (!open) return null
 

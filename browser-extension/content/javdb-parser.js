@@ -63,7 +63,9 @@
     function isMaleActorLink(link) {
       const symbol = link?.nextElementSibling;
       return (
-        elementHasClass(symbol, "symbol") && elementHasClass(symbol, "male")
+        (elementHasClass(symbol, "symbol") &&
+          elementHasClass(symbol, "male")) ||
+        cleanText(symbol?.textContent) === "♂"
       );
     }
 

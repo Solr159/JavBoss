@@ -39,16 +39,18 @@ function assistURL(
   return url.href;
 }
 
-function detailLink(name, href, gender = "") {
+function detailLink(name, href, gender = "", symbolText = "") {
   return {
     textContent: name,
     getAttribute: (attribute) => (attribute === "href" ? href : null),
-    nextElementSibling: gender
-      ? {
-          getAttribute: (attribute) =>
-            attribute === "class" ? `symbol ${gender}` : null,
-        }
-      : null,
+    nextElementSibling:
+      gender || symbolText
+        ? {
+            textContent: symbolText,
+            getAttribute: (attribute) =>
+              attribute === "class" ? `symbol ${gender}`.trim() : null,
+          }
+        : null,
   };
 }
 
@@ -148,6 +150,23 @@ test("movie detail resolves idol, series, and studio links", () => {
   }
 });
 
+test("movie detail excludes male actors marked only by symbol text", () => {
+  const document = detailDocument([
+    detailBlock("演員:", [
+      detailLink("岬ななみ", "/actors/QNen", "female"),
+      detailLink("男優", "/actors/male", "", "♂"),
+    ]),
+  ]);
+
+  assert.equal(
+    parser.findAssistedNavigationURL(
+      document,
+      assistURL("/v/kKdRm", { target: "idol" }),
+    ),
+    "https://javdb.com/actors/QNen",
+  );
+});
+
 test("movie target stays on the resolved movie detail page", () => {
   assert.equal(
     parser.findAssistedNavigationURL(
@@ -178,9 +197,9 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
   const block = (label, value, links = [], selectors = new Map()) => {
     const linkNodes = links.map((link) => {
       const linkNode = node(link.text, { href: link.href });
-      if (link.gender) {
-        linkNode.nextElementSibling = node("", {
-          class: `symbol ${link.gender}`,
+      if (link.gender || link.symbolText) {
+        linkNode.nextElementSibling = node(link.symbolText || "", {
+          class: `symbol ${link.gender || ""}`.trim(),
         });
       }
       return linkNode;
@@ -215,6 +234,7 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
       { text: "白花まなみ", href: "/actors/76Wdb", gender: "female" },
       { text: "藍井優太", href: "/actors/Ddd8", gender: "male" },
       { text: "松山伸也", href: "/actors/YnEYz", gender: "male" },
+      { text: "純文字男優", href: "/actors/text-male", symbolText: "♂" },
     ]),
   ];
   const singles = new Map([
