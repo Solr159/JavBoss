@@ -26,6 +26,7 @@ export default function SelectionTagsModal({
       className="px-4"
       contentClassName="w-full max-w-xs rounded-lg bg-white p-4 shadow-xl"
       onClose={onClose}
+      zIndex={1600}
     >
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-base font-semibold">{title}</h2>

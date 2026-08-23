@@ -417,7 +417,13 @@ export const useStore = create((set, get) => ({
       delete meta[key]
     } else {
       setIds.add(key)
-      meta[key] = { label, video_id: video.id, location_id: video.location_id || null }
+      meta[key] = {
+        label,
+        video_id: video.id,
+        location_id: video.location_id || null,
+        jav_id: video.jav_id || null,
+        jav_code: video.jav?.code || video.locations?.[0]?.jav?.code || '',
+      }
     }
     set({ selectedVideoIds: setIds, selectedVideoMeta: meta })
   },

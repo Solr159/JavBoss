@@ -28,6 +28,7 @@ import {
   renameJavTagCategory,
   deleteJavTagCategory,
   assignJavTagsCategory,
+  addJavTagToJavs,
   renameJavTag,
   deleteJavTag,
   resolveJavIdols,
@@ -51,6 +52,7 @@ import JavSettingsModal from '@/components/JavSettingsModal'
 import JavTagModal from '@/components/JavTagModal'
 import JavVideoPickerModal from '@/components/JavVideoPickerModal'
 import SelectionOpsModal from '@/components/SelectionOpsModal'
+import SelectionJavTagsModal from '@/components/SelectionJavTagsModal'
 import SelectionTagsModal from '@/components/SelectionTagsModal'
 import TagPickerModal from '@/components/TagPickerModal'
 import Toast from '@/components/Toast'
@@ -72,6 +74,7 @@ import {
   normalizeJavSort,
   normalizeJavSortRules,
   resolveJavSort,
+  isUserJavTag,
 } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 import useScrollRestoration from '@/hooks/useScrollRestoration'
@@ -345,6 +348,9 @@ export default function App() {
   const [selectionTagsOpen, setSelectionTagsOpen] = useState(false)
   const [selectionTagAction, setSelectionTagAction] = useState('add')
   const [selectionTagChoices, setSelectionTagChoices] = useState([])
+  const [selectionJavTagsOpen, setSelectionJavTagsOpen] = useState(false)
+  const [selectionJavTagChoices, setSelectionJavTagChoices] = useState([])
+  const [selectionJavTagSaving, setSelectionJavTagSaving] = useState(false)
   const [selectionDeleting, setSelectionDeleting] = useState(false)
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
@@ -1780,15 +1786,41 @@ export default function App() {
       const locationId = Number(
         meta && typeof meta === 'object' ? meta.location_id : v?.location_id
       )
+      const javId = Number(
+        meta && typeof meta === 'object' ? (meta.jav_id ?? v?.jav_id) : v?.jav_id
+      )
+      const javCode = String(
+        (meta && typeof meta === 'object' ? meta.jav_code : '') ||
+          v?.jav?.code ||
+          v?.locations?.[0]?.jav?.code ||
+          ''
+      ).trim()
       return {
         id: key,
         label: labelFromMeta || v?.filename || v?.path || `#${key}`,
         video: v,
         video_id: Number.isFinite(videoId) && videoId > 0 ? videoId : null,
         location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : null,
+        jav_id: Number.isFinite(javId) && javId > 0 ? javId : null,
+        jav_code: javCode,
       }
     })
   }, [selectedVideoIds, videos, selectedVideoMeta])
+  const selectedJavIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          selectedList
+            .map((item) => Number(item?.jav_id || item?.video?.jav_id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        )
+      ),
+    [selectedList]
+  )
+  const selectedJavVideoCount = useMemo(
+    () => selectedList.filter((item) => Number(item?.jav_id) > 0).length,
+    [selectedList]
+  )
   const javLastPage = Math.max(1, Math.ceil((javTotal || 0) / javPageSize))
   const javHasPrev = javPage > 1
   const javHasNext = javPage < javLastPage
@@ -2648,8 +2680,11 @@ export default function App() {
     if (selectedCount !== 0) return
     setSelectionOpsOpen(false)
     setSelectionTagsOpen(false)
+    setSelectionJavTagsOpen(false)
     setSelectionTagAction('add')
     setSelectionTagChoices([])
+    setSelectionJavTagChoices([])
+    setSelectionJavTagSaving(false)
   }, [selectedCount])
 
   const handleRemoveSelectedVideo = useCallback((key) => {
@@ -2903,6 +2938,55 @@ export default function App() {
       setSelectionTagChoices([])
       setSelectionOpsOpen(false)
       clearSelection()
+    }
+  }
+
+  const handleSelectionJavTagsClose = () => {
+    if (selectionJavTagSaving) return
+    setSelectionJavTagsOpen(false)
+    setSelectionJavTagChoices([])
+  }
+
+  const handleSelectionJavTagChoiceToggle = (tagId, checked) => {
+    setSelectionJavTagChoices((current) => {
+      const next = new Set(current)
+      if (checked) next.add(String(tagId))
+      else next.delete(String(tagId))
+      return Array.from(next)
+    })
+  }
+
+  const handleApplySelectionJavTags = async () => {
+    const tagIds = selectionJavTagChoices
+      .map((tagId) => Number(tagId))
+      .filter((tagId) => Number.isFinite(tagId) && tagId > 0)
+    if (tagIds.length === 0 || selectedJavIds.length === 0) return
+
+    setSelectionJavTagSaving(true)
+    try {
+      await Promise.all(tagIds.map((tagId) => addJavTagToJavs(tagId, selectedJavIds)))
+      await loadJavTags({ force: true })
+      const skipped = Math.max(0, selectedCount - selectedJavVideoCount)
+      showToast(
+        skipped > 0
+          ? zh(
+              `已给 ${selectedJavIds.length} 个 JAV 添加标签，跳过 ${skipped} 个未关联 JAV 的视频`,
+              `Added tags to ${selectedJavIds.length} JAV items; skipped ${skipped} videos without JAV links`
+            )
+          : zh(
+              `已给 ${selectedJavIds.length} 个 JAV 添加标签`,
+              `Added tags to ${selectedJavIds.length} JAV items`
+            )
+      )
+      setSelectionJavTagsOpen(false)
+      setSelectionJavTagChoices([])
+      setSelectionOpsOpen(false)
+      clearSelection()
+    } catch (err) {
+      console.error('add JAV tags for selection failed', err)
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setSelectionJavTagSaving(false)
     }
   }
 
@@ -3631,6 +3715,8 @@ export default function App() {
             label: video.filename || video.path || `#${video.id}`,
             video_id: video.id,
             location_id: video.location_id || null,
+            jav_id: video.jav_id || null,
+            jav_code: video.jav?.code || video.locations?.[0]?.jav?.code || '',
           }
         })
       }
@@ -4269,20 +4355,24 @@ export default function App() {
         onClose={() => setSelectionOpsOpen(false)}
         selectedList={selectedList}
         selectedCount={selectedCount}
+        selectedJavCount={selectedJavIds.length}
         deleting={selectionDeleting}
         onRemoveSelected={handleRemoveSelectedVideo}
         onOpenTags={() => {
           loadTags()
           setSelectionTagAction('add')
           setSelectionTagChoices([])
-          setSelectionOpsOpen(false)
           setSelectionTagsOpen(true)
+        }}
+        onOpenJavTags={() => {
+          loadJavTags()
+          setSelectionJavTagChoices([])
+          setSelectionJavTagsOpen(true)
         }}
         onOpenRemoveTags={() => {
           loadTags()
           setSelectionTagAction('remove')
           setSelectionTagChoices([])
-          setSelectionOpsOpen(false)
           setSelectionTagsOpen(true)
         }}
         onDeleteSelected={handleDeleteSelection}
@@ -4297,6 +4387,22 @@ export default function App() {
         onToggleChoice={handleSelectionTagChoiceToggle}
         onConfirm={handleApplySelectionTags}
         confirmDisabled={!selectionTagChoices.length || selectedVideoIds.size === 0}
+      />
+
+      <SelectionJavTagsModal
+        open={selectionJavTagsOpen}
+        items={selectedList}
+        tags={displayJavTagOptions.filter((tag) => isUserJavTag(tag))}
+        selectedIds={selectionJavTagChoices}
+        onToggleChoice={handleSelectionJavTagChoiceToggle}
+        onCreateTag={async (name) => {
+          const tag = await createJavTag(name)
+          await loadJavTags({ force: true })
+          return tag
+        }}
+        onClose={handleSelectionJavTagsClose}
+        onConfirm={handleApplySelectionJavTags}
+        saving={selectionJavTagSaving}
       />
 
       <TagPickerModal

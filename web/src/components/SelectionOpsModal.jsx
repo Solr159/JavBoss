@@ -9,7 +9,9 @@ export default function SelectionOpsModal({
   onClose,
   selectedList,
   selectedCount,
+  selectedJavCount = 0,
   onOpenTags,
+  onOpenJavTags,
   onOpenRemoveTags,
   onRemoveSelected,
   onDeleteSelected,
@@ -68,7 +70,7 @@ export default function SelectionOpsModal({
           </ul>
         )}
       </div>
-      <div className="mt-4 flex justify-end gap-2">
+      <div className="mt-4 flex flex-wrap justify-end gap-2">
         <Button
           variant="outlined"
           size="small"
@@ -76,6 +78,14 @@ export default function SelectionOpsModal({
           disabled={count === 0 || deleting}
         >
           {zh('添加标签', 'Add Tags')}
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={onOpenJavTags}
+          disabled={selectedJavCount === 0 || deleting}
+        >
+          {zh('添加 JAV 标签', 'Add JAV Tags')}
         </Button>
         <Button
           variant="outlined"
@@ -95,15 +105,6 @@ export default function SelectionOpsModal({
           startIcon={<DeleteOutlineIcon fontSize="inherit" />}
         >
           {deleting ? zh('删除中…', 'Deleting...') : zh('删除所选视频', 'Delete Selected Videos')}
-        </Button>
-        <Button
-          variant="contained"
-          size="small"
-          onClick={onClose}
-          color="primary"
-          disabled={deleting}
-        >
-          {zh('关闭', 'Close')}
         </Button>
       </div>
     </AppModal>
