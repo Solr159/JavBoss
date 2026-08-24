@@ -54,6 +54,30 @@ func listJavIdols(c *gin.Context) {
 	})
 }
 
+func createJavIdol(c *gin.Context) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "创建女优请求无效", "Invalid idol creation request")
+		return
+	}
+
+	idol, err := dbpkg.CreateJavIdol(c.Request.Context(), req.Name)
+	if err != nil {
+		logging.Error("create jav idol error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "创建女优失败，名称可能为空", "Failed to create idol; the name may be empty")
+		return
+	}
+	c.JSON(http.StatusCreated, dbpkg.JavIdolSummary{
+		ID:           idol.ID,
+		Name:         idol.Name,
+		RomanName:    idol.RomanName,
+		JapaneseName: idol.JapaneseName,
+		ChineseName:  idol.ChineseName,
+	})
+}
+
 func parseJavIdolFilters(c *gin.Context) (dbpkg.JavIdolFilters, bool) {
 	filters := dbpkg.JavIdolFilters{}
 	ranges := []struct {

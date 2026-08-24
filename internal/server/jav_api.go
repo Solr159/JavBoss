@@ -536,17 +536,16 @@ func assignJavTagsCategory(c *gin.Context) {
 }
 
 type javItemUpdateRequest struct {
-	Title          *string   `json:"title"`
-	CoverURL       *string   `json:"cover_url"`
-	TagIDs         *[]int64  `json:"tag_ids"`
-	IdolIDs        *[]int64  `json:"idol_ids"`
-	IdolNames      *[]string `json:"idol_names"`
-	ScrapedTags    *[]string `json:"scraped_tags"`
-	StudioID       *int64    `json:"studio_id"`
-	SeriesID       *int64    `json:"series_id"`
-	ReleaseDate    *string   `json:"release_date"`
-	DurationMin    *int      `json:"duration_min"`
-	FavoriteRating *float64  `json:"favorite_rating"`
+	Title          *string  `json:"title"`
+	CoverURL       *string  `json:"cover_url"`
+	TagIDs         *[]int64 `json:"tag_ids"`
+	IdolIDs        *[]int64 `json:"idol_ids"`
+	ScrapedTagIDs  *[]int64 `json:"scraped_tag_ids"`
+	StudioID       *int64   `json:"studio_id"`
+	SeriesID       *int64   `json:"series_id"`
+	ReleaseDate    *string  `json:"release_date"`
+	DurationMin    *int     `json:"duration_min"`
+	FavoriteRating *float64 `json:"favorite_rating"`
 }
 
 func updateJavItem(c *gin.Context) {
@@ -596,16 +595,15 @@ func updateJavItem(c *gin.Context) {
 	}
 
 	updated, err := dbpkg.UpdateJav(c.Request.Context(), id, dbpkg.JavUpdateInput{
-		Title:           req.Title,
-		StudioID:        req.StudioID,
-		SeriesID:        req.SeriesID,
-		IdolIDs:         req.IdolIDs,
-		IdolNames:       req.IdolNames,
-		UserTagIDs:      req.TagIDs,
-		ScrapedTagNames: req.ScrapedTags,
-		ReleaseUnix:     releaseUnix,
-		DurationMin:     req.DurationMin,
-		FavoriteRating:  req.FavoriteRating,
+		Title:          req.Title,
+		StudioID:       req.StudioID,
+		SeriesID:       req.SeriesID,
+		IdolIDs:        req.IdolIDs,
+		UserTagIDs:     req.TagIDs,
+		ScrapedTagIDs:  req.ScrapedTagIDs,
+		ReleaseUnix:    releaseUnix,
+		DurationMin:    req.DurationMin,
+		FavoriteRating: req.FavoriteRating,
 	}, parseDirectoryIDs(c.Query("directory_ids")))
 	if err != nil {
 		logging.Error("update jav item error: %v", err)
@@ -647,6 +645,30 @@ func createJavTag(c *gin.Context) {
 		Name:           tag.Name,
 		SimplifiedName: util.SimplifyChineseName(tag.Name),
 		Provider:       tag.Provider,
+		Count:          0,
+	})
+}
+
+func createJavScrapedTag(c *gin.Context) {
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondLocalizedError(c, http.StatusBadRequest, "创建刮削标签请求无效", "Invalid scraped tag creation request")
+		return
+	}
+
+	tag, err := dbpkg.CreateJavScrapedTag(c.Request.Context(), req.Name)
+	if err != nil {
+		logging.Error("create scraped jav tag error: %v", err)
+		respondLocalizedError(c, http.StatusBadRequest, "创建刮削标签失败，标签名称可能为空", "Failed to create scraped tag; the name may be empty")
+		return
+	}
+	c.JSON(http.StatusCreated, dbpkg.JavTagCount{
+		ID:             tag.ID,
+		Name:           tag.Name,
+		SimplifiedName: util.SimplifyChineseName(tag.Name),
+		Provider:       int(jav.ProviderManualScrape),
 		Count:          0,
 	})
 }

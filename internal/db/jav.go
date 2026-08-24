@@ -93,16 +93,15 @@ type JavScanVideo struct {
 
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
-	Title           *string
-	StudioID        *int64
-	SeriesID        *int64
-	IdolIDs         *[]int64
-	IdolNames       *[]string
-	UserTagIDs      *[]int64
-	ScrapedTagNames *[]string
-	ReleaseUnix     *int64
-	DurationMin     *int
-	FavoriteRating  *float64
+	Title          *string
+	StudioID       *int64
+	SeriesID       *int64
+	IdolIDs        *[]int64
+	UserTagIDs     *[]int64
+	ScrapedTagIDs  *[]int64
+	ReleaseUnix    *int64
+	DurationMin    *int
+	FavoriteRating *float64
 }
 
 // JavIdolUpdateInput contains user-editable JAV idol profile fields.
@@ -503,16 +502,8 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 				return fmt.Errorf("update jav metadata: %w", err)
 			}
 		}
-		if input.IdolIDs != nil || input.IdolNames != nil {
-			var idolIDs []int64
-			if input.IdolIDs != nil {
-				idolIDs = *input.IdolIDs
-			}
-			var idolNames []string
-			if input.IdolNames != nil {
-				idolNames = *input.IdolNames
-			}
-			if err := replaceJavIdolsWithNamesTx(tx, javID, idolIDs, idolNames); err != nil {
+		if input.IdolIDs != nil {
+			if err := replaceJavIdolsTx(tx, javID, *input.IdolIDs); err != nil {
 				return err
 			}
 		}
@@ -521,8 +512,8 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 				return err
 			}
 		}
-		if input.ScrapedTagNames != nil {
-			if err := replaceJavScrapedTagsTx(tx, javID, *input.ScrapedTagNames); err != nil {
+		if input.ScrapedTagIDs != nil {
+			if err := replaceJavScrapedTagsTx(tx, javID, *input.ScrapedTagIDs); err != nil {
 				return err
 			}
 		}
@@ -558,18 +549,19 @@ func listJavTagsForProviders(ctx context.Context, directoryIDs []int64, provider
 	var tags []JavTagCount
 	activeLocationSQL := activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs)
 	isUser := outputProvider == int(jav.ProviderUser)
-	tagMapJoin := "JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
-	if isUser {
-		tagMapJoin = "LEFT JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
-	}
-	if err := common.DB.WithContext(ctx).
+	tagMapJoin := "LEFT JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
+	query := common.DB.WithContext(ctx).
 		Table("jav_tag jt").
 		Select("jt.id, jt.name, jt.category_id, jtc.name AS category, ? AS provider, COUNT(DISTINCT CASE WHEN "+activeLocationSQL+" THEN jtm.jav_id END) AS count", outputProvider).
 		Joins(tagMapJoin, providers).
 		Joins("LEFT JOIN jav_tag_category jtc ON jtc.id = jt.category_id").
 		Joins("LEFT JOIN video_location vl ON vl.jav_id = jtm.jav_id").
 		Joins("LEFT JOIN directory d ON d.id = vl.directory_id").
-		Where("COALESCE(jt.is_user, 0) = ?", isUser).
+		Where("COALESCE(jt.is_user, 0) = ?", isUser)
+	if !isUser {
+		query = query.Where("jtm.jav_tag_id IS NOT NULL OR NOT EXISTS (SELECT 1 FROM jav_tag_map jtm_any WHERE jtm_any.jav_tag_id = jt.id)")
+	}
+	if err := query.
 		Group("jt.id, jt.name, jt.category_id, jtc.name").
 		Order("jt.name").
 		Scan(&tags).Error; err != nil {
@@ -933,6 +925,42 @@ func CreateJavTag(ctx context.Context, name string) (*models.JavTag, error) {
 	}
 	tag.Provider = int(jav.ProviderUser)
 	return &tag, nil
+}
+
+// CreateJavScrapedTag creates or returns a manually entered scraped JAV tag.
+func CreateJavScrapedTag(ctx context.Context, name string) (*models.JavTag, error) {
+	names, err := normalizeScrapedJavTagNames([]string{name})
+	if err != nil {
+		return nil, err
+	}
+	if len(names) == 0 {
+		return nil, errors.New("tag name cannot be empty")
+	}
+
+	tag := models.JavTag{Name: names[0], IsUser: false}
+	if err := common.DB.WithContext(ctx).
+		Where("name = ? AND is_user = ?", tag.Name, false).
+		FirstOrCreate(&tag).Error; err != nil {
+		return nil, fmt.Errorf("create scraped jav tag %q: %w", tag.Name, err)
+	}
+	tag.Provider = int(jav.ProviderManualScrape)
+	return &tag, nil
+}
+
+// CreateJavIdol creates an idol or returns the existing idol matching the name or an alias.
+func CreateJavIdol(ctx context.Context, name string) (*models.JavIdol, error) {
+	var idol models.JavIdol
+	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		resolved, err := findOrCreateJavIdolByNameOrAliasTx(tx, name)
+		if err != nil {
+			return err
+		}
+		idol = resolved
+		return nil
+	}); err != nil {
+		return nil, fmt.Errorf("create jav idol %q: %w", strings.TrimSpace(name), err)
+	}
+	return &idol, nil
 }
 
 // RenameJavTag renames a user-created JAV tag.
@@ -4082,21 +4110,21 @@ func replaceJavIdolsTx(tx *gorm.DB, javID int64, idolIDs []int64) error {
 	return nil
 }
 
-func replaceJavIdolsWithNamesTx(tx *gorm.DB, javID int64, idolIDs []int64, idolNames []string) error {
-	idols, err := ensureJavIdolsTx(tx, idolNames)
-	if err != nil {
-		return err
-	}
-	resolvedIDs := append([]int64(nil), idolIDs...)
-	for _, idol := range idols {
-		resolvedIDs = append(resolvedIDs, idol.ID)
-	}
-	return replaceJavIdolsTx(tx, javID, resolvedIDs)
-}
-
-func replaceJavScrapedTagsTx(tx *gorm.DB, javID int64, names []string) error {
+func replaceJavScrapedTagsTx(tx *gorm.DB, javID int64, tagIDs []int64) error {
 	if javID <= 0 {
 		return errors.New("jav id cannot be zero")
+	}
+	cleanTagIDs := uniqueInt64s(tagIDs)
+	if len(cleanTagIDs) > 0 {
+		var count int64
+		if err := tx.Model(&models.JavTag{}).
+			Where("id IN ? AND is_user = ?", cleanTagIDs, false).
+			Count(&count).Error; err != nil {
+			return fmt.Errorf("find scraped jav tags: %w", err)
+		}
+		if count != int64(len(cleanTagIDs)) {
+			return errors.New("invalid scraped_tag_id")
+		}
 	}
 	providers := visibleScrapedJavTagProviders()
 	var oldTagIDs []int64
@@ -4112,9 +4140,9 @@ func replaceJavScrapedTagsTx(tx *gorm.DB, javID int64, names []string) error {
 		return fmt.Errorf("delete scraped jav tag maps: %w", err)
 	}
 
-	tags, err := ensureJavTagsTx(tx, names, jav.ProviderManualScrape)
-	if err != nil {
-		return err
+	tags := make([]models.JavTag, 0, len(cleanTagIDs))
+	for _, tagID := range cleanTagIDs {
+		tags = append(tags, models.JavTag{ID: tagID})
 	}
 	if err := replaceJavTagsForProviderTx(tx, javID, tags, jav.ProviderManualScrape); err != nil {
 		return err

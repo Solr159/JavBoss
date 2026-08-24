@@ -2,16 +2,96 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/models"
+
+	"github.com/gin-gonic/gin"
 )
+
+func TestCreateJavEditOptionsReturnsPersistentIDs(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/jav/idols", createJavIdol)
+	router.POST("/jav/tags/scraped", createJavScrapedTag)
+	router.GET("/jav/tags", listJavTags)
+
+	requestJSON := func(method, path, body string) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(method, path, strings.NewReader(body))
+		request.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(recorder, request)
+		return recorder
+	}
+
+	idolResponse := requestJSON(http.MethodPost, "/jav/idols", `{"name":"即時建立女优"}`)
+	if idolResponse.Code != http.StatusCreated {
+		t.Fatalf("create idol status = %d body=%s", idolResponse.Code, idolResponse.Body.String())
+	}
+	var idol dbpkg.JavIdolSummary
+	if err := json.Unmarshal(idolResponse.Body.Bytes(), &idol); err != nil {
+		t.Fatalf("decode idol response: %v", err)
+	}
+	if idol.ID <= 0 || idol.Name != "即時建立女优" {
+		t.Fatalf("created idol = %#v", idol)
+	}
+
+	duplicateResponse := requestJSON(http.MethodPost, "/jav/idols", `{"name":"即時建立女优"}`)
+	var duplicate dbpkg.JavIdolSummary
+	if err := json.Unmarshal(duplicateResponse.Body.Bytes(), &duplicate); err != nil {
+		t.Fatalf("decode duplicate idol response: %v", err)
+	}
+	if duplicateResponse.Code != http.StatusCreated || duplicate.ID != idol.ID {
+		t.Fatalf("duplicate idol = %#v status=%d, want id %d", duplicate, duplicateResponse.Code, idol.ID)
+	}
+
+	tagResponse := requestJSON(http.MethodPost, "/jav/tags/scraped", `{"name":"无码"}`)
+	if tagResponse.Code != http.StatusCreated {
+		t.Fatalf("create scraped tag status = %d body=%s", tagResponse.Code, tagResponse.Body.String())
+	}
+	var tag dbpkg.JavTagCount
+	if err := json.Unmarshal(tagResponse.Body.Bytes(), &tag); err != nil {
+		t.Fatalf("decode scraped tag response: %v", err)
+	}
+	if tag.ID <= 0 || tag.Name != "無碼" || tag.Provider != int(jav.ProviderManualScrape) {
+		t.Fatalf("created scraped tag = %#v", tag)
+	}
+
+	listResponse := requestJSON(http.MethodGet, "/jav/tags", "")
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("list tags status = %d body=%s", listResponse.Code, listResponse.Body.String())
+	}
+	var tags []dbpkg.JavTagCount
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &tags); err != nil {
+		t.Fatalf("decode tags response: %v", err)
+	}
+	if len(tags) != 1 || tags[0].ID != tag.ID || tags[0].Count != 0 {
+		t.Fatalf("listed tags = %#v, want zero-count created tag %#v", tags, tag)
+	}
+}
 
 func acceptJavSampleImageURL(_ context.Context, _ string) (bool, error) {
 	return true, nil

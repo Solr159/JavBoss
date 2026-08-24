@@ -998,21 +998,31 @@ func TestUpdateJavReplacesEditableMetadata(t *testing.T) {
 
 	studioID := studioByName["New Studio"].ID
 	seriesID := seriesByName["New Series"].ID
-	idolIDs := []int64{idolByName["New Idol A"].ID}
-	idolNames := []string{"New Idol B Alias", "Typed Idol", "Typed Idol"}
+	aliasIdol, err := CreateJavIdol(ctx, "New Idol B Alias")
+	if err != nil {
+		t.Fatalf("CreateJavIdol alias: %v", err)
+	}
+	typedIdol, err := CreateJavIdol(ctx, "Typed Idol")
+	if err != nil {
+		t.Fatalf("CreateJavIdol typed: %v", err)
+	}
+	replacementTag, err := CreateJavScrapedTag(ctx, "Scraped Replacement")
+	if err != nil {
+		t.Fatalf("CreateJavScrapedTag: %v", err)
+	}
+	idolIDs := []int64{idolByName["New Idol A"].ID, aliasIdol.ID, typedIdol.ID}
 	tagIDs := []int64{tagByName["User B"].ID}
-	scrapedTagNames := []string{"Scraped Replacement", "Scraped Replacement"}
+	scrapedTagIDs := []int64{replacementTag.ID, replacementTag.ID}
 	releaseUnix := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC).Unix()
 	durationMin := 123
 	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{
-		StudioID:        &studioID,
-		SeriesID:        &seriesID,
-		IdolIDs:         &idolIDs,
-		IdolNames:       &idolNames,
-		UserTagIDs:      &tagIDs,
-		ScrapedTagNames: &scrapedTagNames,
-		ReleaseUnix:     &releaseUnix,
-		DurationMin:     &durationMin,
+		StudioID:      &studioID,
+		SeriesID:      &seriesID,
+		IdolIDs:       &idolIDs,
+		UserTagIDs:    &tagIDs,
+		ScrapedTagIDs: &scrapedTagIDs,
+		ReleaseUnix:   &releaseUnix,
+		DurationMin:   &durationMin,
 	}, nil)
 	if err != nil {
 		t.Fatalf("UpdateJav: %v", err)
