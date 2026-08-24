@@ -7,7 +7,6 @@
   <a href="https://github.com/Solr159/JavBoss/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/Solr159/JavBoss?style=social"></a>
   <a href="https://github.com/Solr159/JavBoss/releases"><img alt="Platform" src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-1E88E5"></a>
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
-  <a href="https://t.me/+4dje8gAi2dI2ZTE1"><img alt="Telegram Group" src="https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white"></a>
 </p>
 
 **此项目仍处于快速迭代中，点个 Star ⭐支持一下，不错过任何新版本功能更新，你的支持是作者积极更新的动力😊。**
