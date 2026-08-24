@@ -29,4 +29,4 @@
 
 ## Testing Guidelines
 - Go: add table-driven `_test.go` files near the code under test; prefer integration tests around `internal/db` and handler tests via `httptest`. Use the repo-local `GOCACHE` path.
-- Frontend: no unit tests today; at minimum run `npm run lint` and `npm run build` before PRs. When adding tests, colocate under `web/src` using Jest/Vitest conventions and match component names.
+- Frontend: keep all frontend tests under `web/tests/`; Mirror the source organization and names under `web/tests/` when practical (for example, `web/src/utils/javEdit.js` should be tested by `web/tests/utils/javEdit.test.js`). Run `npm test`, `npm run lint`, `npm run format:check`, and `npm run build` before PRs.

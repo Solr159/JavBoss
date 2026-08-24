@@ -25,5 +25,13 @@ module.exports = {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
   },
+  overrides: [
+    {
+      files: ['tests/**/*.js'],
+      rules: {
+        'no-restricted-imports': 'off',
+      },
+    },
+  ],
   ignorePatterns: ['dist/'],
 }

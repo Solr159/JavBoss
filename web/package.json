@@ -7,10 +7,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "node --test tests/*.test.js",
     "preview": "vite preview --port 5173",
-    "lint": "eslint --max-warnings=0 --ext .js,.jsx src",
-    "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx,css,scss}\"",
-    "format:check": "prettier --check \"src/**/*.{js,jsx,ts,tsx,css,scss}\""
+    "lint": "eslint --max-warnings=0 --ext .js,.jsx src tests",
+    "format": "prettier --write \"{src,tests}/**/*.{js,jsx,ts,tsx,css,scss}\"",
+    "format:check": "prettier --check \"{src,tests}/**/*.{js,jsx,ts,tsx,css,scss}\""
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
