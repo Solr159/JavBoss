@@ -175,7 +175,7 @@ export default function JavPrefixModal({
             aria-label={zh('搜索番号', 'Search JAV codes')}
           />
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="text-xs font-medium text-gray-700">{zh('类型', 'Type')}</span>
+            <span className="text-xs font-semibold text-gray-900">{zh('类型', 'Type')}</span>
             <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
               <button
                 type="button"
@@ -213,7 +213,7 @@ export default function JavPrefixModal({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="text-xs font-medium text-gray-700">{zh('排序', 'Sort')}</span>
+            <span className="text-xs font-semibold text-gray-900">{zh('排序', 'Sort')}</span>
             <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
               <button
                 type="button"
