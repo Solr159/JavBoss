@@ -174,64 +174,70 @@ export default function JavPrefixModal({
             placeholder={zh('搜索番号或片商', 'Search code or studio')}
             aria-label={zh('搜索番号', 'Search JAV codes')}
           />
-          <div className="inline-flex shrink-0 overflow-hidden rounded border border-gray-200 bg-white text-xs">
-            <button
-              type="button"
-              className={`px-3 py-2 font-medium ${
-                censorMode === 'all'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              onClick={() => setCensorMode('all')}
-            >
-              {zh('全部', 'All')}
-            </button>
-            <button
-              type="button"
-              className={`border-l border-gray-200 px-3 py-2 font-medium ${
-                censorMode === 'censored'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              onClick={() => setCensorMode('censored')}
-            >
-              {zh('有码', 'Censored')}
-            </button>
-            <button
-              type="button"
-              className={`border-l border-gray-200 px-3 py-2 font-medium ${
-                censorMode === 'uncensored'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              onClick={() => setCensorMode('uncensored')}
-            >
-              {zh('无码', 'Uncensored')}
-            </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="text-xs text-gray-500">{zh('类型', 'Type')}</span>
+            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
+              <button
+                type="button"
+                className={`px-3 py-2 font-medium ${
+                  censorMode === 'all'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                onClick={() => setCensorMode('all')}
+              >
+                {zh('全部', 'All')}
+              </button>
+              <button
+                type="button"
+                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                  censorMode === 'censored'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                onClick={() => setCensorMode('censored')}
+              >
+                {zh('有码', 'Censored')}
+              </button>
+              <button
+                type="button"
+                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                  censorMode === 'uncensored'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                onClick={() => setCensorMode('uncensored')}
+              >
+                {zh('无码', 'Uncensored')}
+              </button>
+            </div>
           </div>
-          <div className="inline-flex shrink-0 overflow-hidden rounded border border-gray-200 bg-white text-xs">
-            <button
-              type="button"
-              className={`px-3 py-2 font-medium ${
-                sortMode === 'count'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              onClick={() => setSortMode('count')}
-            >
-              {zh('作品数', 'Works')}
-            </button>
-            <button
-              type="button"
-              className={`border-l border-gray-200 px-3 py-2 font-medium ${
-                sortMode === 'az'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-              }`}
-              onClick={() => setSortMode('az')}
-            >
-              A-Z
-            </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="text-xs text-gray-500">{zh('排序', 'Sort')}</span>
+            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
+              <button
+                type="button"
+                className={`px-3 py-2 font-medium ${
+                  sortMode === 'count'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                onClick={() => setSortMode('count')}
+              >
+                {zh('作品数', 'Works')}
+              </button>
+              <button
+                type="button"
+                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                  sortMode === 'az'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+                onClick={() => setSortMode('az')}
+              >
+                A-Z
+              </button>
+            </div>
           </div>
         </div>
         <div className="px-5 pb-3">
