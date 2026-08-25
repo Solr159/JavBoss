@@ -235,7 +235,7 @@ export default function JavPrefixModal({
                     active
                       ? 'border-blue-600 bg-blue-600 text-white'
                       : !available
-                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
+                        ? 'border-gray-100 bg-gray-50 text-gray-300'
                         : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
                   }`}
                   disabled={!available}
