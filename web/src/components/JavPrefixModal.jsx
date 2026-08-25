@@ -3,7 +3,11 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { Button } from '@mui/material'
 import AppModal from '@/components/AppModal'
 import { isChineseLocale, zh } from '@/utils/i18n'
-import { JAV_PREFIX_INITIAL_OPTIONS, matchesJavPrefixInitial } from '@/utils/javPrefix'
+import {
+  getAvailableJavPrefixInitials,
+  JAV_PREFIX_INITIAL_OPTIONS,
+  matchesJavPrefixInitial,
+} from '@/utils/javPrefix'
 
 const isModifiedClick = (event) =>
   event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0
@@ -33,6 +37,7 @@ export default function JavPrefixModal({
   const [censorMode, setCensorMode] = useState('all')
   const [selectedInitial, setSelectedInitial] = useState('')
   const normalizedSearch = search.trim().toLowerCase()
+  const availableInitials = useMemo(() => new Set(getAvailableJavPrefixInitials(items)), [items])
   const filteredItems = useMemo(() => {
     const merged = new Map()
     ;(items || []).forEach((item) => {
@@ -221,6 +226,7 @@ export default function JavPrefixModal({
           >
             {JAV_PREFIX_INITIAL_OPTIONS.map((initial) => {
               const active = selectedInitial === initial
+              const available = availableInitials.has(initial)
               return (
                 <button
                   key={initial}
@@ -228,8 +234,11 @@ export default function JavPrefixModal({
                   className={`inline-flex h-6 min-w-0 flex-1 items-center justify-center rounded border text-[10px] font-semibold transition-colors ${
                     active
                       ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
+                      : !available
+                        ? 'cursor-not-allowed border-gray-100 bg-gray-50 text-gray-300'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
                   }`}
+                  disabled={!available}
                   aria-pressed={active}
                   aria-label={zh(
                     `显示以 ${initial} 开头的番号`,
