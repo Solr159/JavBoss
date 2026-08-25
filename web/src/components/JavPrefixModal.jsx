@@ -127,7 +127,7 @@ export default function JavPrefixModal({
     <AppModal
       ariaLabelledby="jav-prefix-modal-title"
       className="p-4"
-      contentClassName="flex max-h-[86vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl"
+      contentClassName="flex h-[86vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl"
       onClose={onClose}
     >
       <div className="flex items-center justify-between border-b px-5 py-4">
