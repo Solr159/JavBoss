@@ -7,6 +7,8 @@ import {
   getAvailableJavPrefixInitials,
   JAV_PREFIX_INITIAL_OPTIONS,
   matchesJavPrefixInitial,
+  readJavPrefixPreferences,
+  writeJavPrefixPreferences,
 } from '@/utils/javPrefix'
 
 const isModifiedClick = (event) =>
@@ -21,6 +23,14 @@ function censorLabel(value) {
 
 const unknownStudioLabel = () => zh('未知片商', 'Unknown studio')
 const studioListSeparator = () => (isChineseLocale() ? '、' : ', ')
+const getBrowserStorage = () => {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
 
 export default function JavPrefixModal({
   open,
@@ -33,9 +43,13 @@ export default function JavPrefixModal({
   onSelectPrefix,
 }) {
   const [search, setSearch] = useState('')
-  const [sortMode, setSortMode] = useState('count')
-  const [censorMode, setCensorMode] = useState('all')
+  const [preferences, setPreferences] = useState(() =>
+    readJavPrefixPreferences(getBrowserStorage())
+  )
   const [selectedInitial, setSelectedInitial] = useState('')
+  const { censorMode, sortMode } = preferences
+  const setCensorMode = (censorMode) => setPreferences((current) => ({ ...current, censorMode }))
+  const setSortMode = (sortMode) => setPreferences((current) => ({ ...current, sortMode }))
   const normalizedSearch = search.trim().toLowerCase()
   const availableInitials = useMemo(() => new Set(getAvailableJavPrefixInitials(items)), [items])
   const filteredItems = useMemo(() => {
@@ -116,10 +130,12 @@ export default function JavPrefixModal({
   useEffect(() => {
     if (!open) return
     setSearch('')
-    setSortMode('count')
-    setCensorMode('all')
     setSelectedInitial('')
   }, [open])
+
+  useEffect(() => {
+    writeJavPrefixPreferences(getBrowserStorage(), preferences)
+  }, [preferences])
 
   if (!open) return null
 
