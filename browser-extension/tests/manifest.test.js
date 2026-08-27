@@ -37,6 +37,23 @@ test("manifest public key produces the extension ID used by JavBoss", () => {
   );
 });
 
+test("manifest uses the JavBoss icon at the Chrome extension sizes", () => {
+  const expectedIcons = {
+    16: "icons/icon-16.png",
+    32: "icons/icon-32.png",
+    48: "icons/icon-48.png",
+    128: "icons/icon-128.png",
+  };
+
+  assert.deepEqual(manifest.icons, expectedIcons);
+  for (const [size, iconPath] of Object.entries(expectedIcons)) {
+    const icon = fs.readFileSync(path.join(__dirname, "..", iconPath));
+    assert.equal(icon.toString("ascii", 1, 4), "PNG");
+    assert.equal(icon.readUInt32BE(16), Number(size));
+    assert.equal(icon.readUInt32BE(20), Number(size));
+  }
+});
+
 test("bridge resources are web accessible without broad host permissions", () => {
   assert.deepEqual(manifest.host_permissions, [
     "https://www.javbus.com/*",

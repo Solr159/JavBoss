@@ -703,6 +703,7 @@ async function runBrowserExtensionRelease() {
     await fsp.copyFile(path.join(sourceDir, name), path.join(outDir, name));
   }
   await copyDir(path.join(sourceDir, "content"), path.join(outDir, "content"));
+  await copyDir(path.join(sourceDir, "icons"), path.join(outDir, "icons"));
   console.log("[extension release] 生成 zip");
   await createZip(outDir, zipPath);
   console.log(`[extension release] 完成：${zipPath}`);
