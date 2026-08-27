@@ -15,6 +15,14 @@ const contentScript = fs.readFileSync(
   path.join(__dirname, "..", "content", "scrape-content.js"),
   "utf8",
 );
+const assistLoadingHTML = fs.readFileSync(
+  path.join(__dirname, "..", "assist-loading.html"),
+  "utf8",
+);
+const assistLoadingCSS = fs.readFileSync(
+  path.join(__dirname, "..", "assist-loading.css"),
+  "utf8",
+);
 
 function extensionIdFromKey(key) {
   const digest = crypto
@@ -98,6 +106,16 @@ test("bridge resources are web accessible without broad host permissions", () =>
 test("JavBus opens in a new tab instead of a popup window", () => {
   assert.match(serviceWorker, /chrome\.tabs\.create\(/);
   assert.doesNotMatch(serviceWorker, /chrome\.windows\.create\(/);
+});
+
+test("assisted JavDB navigation starts on a forced-light loading page", () => {
+  assert.match(serviceWorker, /getURL\("assist-loading\.html"\)/);
+  assert.match(assistLoadingHTML, /name="color-scheme" content="only light"/);
+  assert.match(assistLoadingHTML, /bgcolor="#ffffff"/);
+  assert.match(assistLoadingCSS, /background: #fff/);
+  assert.match(contentScript, /position: fixed !important/);
+  assert.match(contentScript, /z-index: 2147483647 !important/);
+  assert.match(contentScript, /color-scheme: only light !important/);
 });
 
 test("relay propagation uses a temporary marker instead of tab opener inheritance", () => {

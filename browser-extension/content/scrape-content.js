@@ -8,6 +8,65 @@
         : { name: "JavBus", parser: globalThis.JavBossJavBusParser };
   if (!provider.parser) return;
   const parser = provider.parser;
+  const JAVDB_ASSIST_SESSION_STORAGE_KEY = "javboss:javdb-assist-request";
+  let javDBAssistMask = null;
+
+  function storedJavDBAssistRequest() {
+    try {
+      return parser.assistedNavigationRequest?.(
+        JSON.parse(
+          window.sessionStorage.getItem(JAVDB_ASSIST_SESSION_STORAGE_KEY) ||
+            "null",
+        ),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  function storeJavDBAssistRequest(request) {
+    try {
+      if (request) {
+        window.sessionStorage.setItem(
+          JAVDB_ASSIST_SESSION_STORAGE_KEY,
+          JSON.stringify(request),
+        );
+      } else {
+        window.sessionStorage.removeItem(JAVDB_ASSIST_SESSION_STORAGE_KEY);
+      }
+    } catch {
+      // The extension session state remains the source of truth.
+    }
+  }
+
+  function maskJavDBNavigation() {
+    const root = document.documentElement;
+    const style = document.createElement("style");
+    root.setAttribute("data-javboss-assisted-navigation", "");
+    style.textContent = `
+      html[data-javboss-assisted-navigation] {
+        background: #fff !important;
+        color-scheme: only light !important;
+      }
+      html[data-javboss-assisted-navigation]::before {
+        content: "" !important;
+        position: fixed !important;
+        inset: 0 !important;
+        z-index: 2147483647 !important;
+        background: #fff !important;
+      }
+    `;
+    root.appendChild(style);
+    return style;
+  }
+
+  function revealJavDBPage() {
+    javDBAssistMask?.remove();
+    javDBAssistMask = null;
+    document.documentElement.removeAttribute(
+      "data-javboss-assisted-navigation",
+    );
+  }
 
   async function javDBAssistRequest() {
     const response = await chrome.runtime
@@ -16,60 +75,69 @@
     return parser.assistedNavigationRequest?.(response?.request);
   }
 
-  function clearJavDBAssist() {
-    chrome.runtime
-      .sendMessage({ type: "JAVBOSS_JAVDB_CLEAR_ASSIST" })
-      .catch(() => {});
-  }
-
   function startJavDBAssist(request) {
-    if (!request) return;
-    const NAVIGATION_DELAY_MIN_MS = 300;
-    const NAVIGATION_DELAY_MAX_MS = 600;
-    const blankStyle = document.createElement("style");
-    blankStyle.textContent =
-      "html { visibility: hidden !important; background: #fff !important; }";
-    blankStyle.setAttribute("data-javboss-assisted-navigation", "");
-    document.documentElement.appendChild(blankStyle);
+    if (!request) {
+      storeJavDBAssistRequest(null);
+      revealJavDBPage();
+      return;
+    }
+    storeJavDBAssistRequest(request);
+    if (
+      parser.isAssistedNavigationTargetURL?.(location.href, request) === true
+    ) {
+      storeJavDBAssistRequest(null);
+      revealJavDBPage();
+      chrome.runtime
+        .sendMessage({ type: "JAVBOSS_JAVDB_COMPLETE_ASSIST" })
+        .catch(() => {});
+      return;
+    }
+    let completionStarted = false;
+    let completionTimer = 0;
 
-    let revealTimer = window.setTimeout(() => blankStyle.remove(), 15000);
-    const revealPage = () => {
-      window.clearTimeout(revealTimer);
-      revealTimer = 0;
-      blankStyle.remove();
+    const completeNavigation = () => {
+      if (completionStarted) return;
+      completionStarted = true;
+      window.clearTimeout(completionTimer);
+      storeJavDBAssistRequest(null);
+      chrome.runtime
+        .sendMessage({ type: "JAVBOSS_JAVDB_COMPLETE_ASSIST" })
+        .catch(() => {})
+        .finally(revealJavDBPage);
     };
-    const navigateOrReveal = () => {
+    completionTimer = window.setTimeout(completeNavigation, 15000);
+
+    const navigateOrComplete = () => {
+      if (completionStarted) return false;
       const directURL = parser.findAssistedNavigationURL?.(
         document,
         location.href,
         request,
       );
       if (directURL && directURL !== location.href) {
+        window.clearTimeout(completionTimer);
         location.replace(directURL);
         return true;
       }
-      clearJavDBAssist();
-      if (document.readyState === "complete") revealPage();
-      else window.addEventListener("load", revealPage, { once: true });
+      completeNavigation();
       return false;
     };
 
-    const scheduleNavigation = () => {
-      const delay =
-        NAVIGATION_DELAY_MIN_MS +
-        Math.floor(
-          Math.random() *
-            (NAVIGATION_DELAY_MAX_MS - NAVIGATION_DELAY_MIN_MS + 1),
-        );
-      window.setTimeout(navigateOrReveal, delay);
-    };
-
-    if (document.readyState === "complete") scheduleNavigation();
-    else window.addEventListener("load", scheduleNavigation, { once: true });
+    if (document.readyState === "complete") navigateOrComplete();
+    else window.addEventListener("load", navigateOrComplete, { once: true });
   }
 
   if (provider.name === "JavDB" && window.top === window) {
-    void javDBAssistRequest().then(startJavDBAssist);
+    const synchronousRequest = storedJavDBAssistRequest();
+    if (
+      parser.isAssistedNavigationTargetURL?.(
+        location.href,
+        synchronousRequest,
+      ) !== true
+    ) {
+      javDBAssistMask = maskJavDBNavigation();
+    }
+    void javDBAssistRequest().then(startJavDBAssist, revealJavDBPage);
   }
 
   const BUTTON_ID = "javboss-browser-scrape-fill-button";

@@ -25,6 +25,7 @@ function createHarness() {
   ]);
   const listeners = {};
   const sentMessages = [];
+  const createdTabs = [];
   const updatedTabs = [];
 
   const sessionStorage = {
@@ -51,11 +52,16 @@ function createHarness() {
       onInstalled: {
         addListener: (listener) => (listeners.installed = listener),
       },
+      getURL: (resourcePath) =>
+        `chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/${resourcePath}`,
       sendMessage: async () => ({ ok: true }),
     },
     storage: { session: sessionStorage },
     tabs: {
-      create: async () => ({ id: 10 }),
+      create: async (properties) => {
+        createdTabs.push(properties);
+        return { id: 10 };
+      },
       update: async (tabId, properties) => {
         updatedTabs.push({ tabId, properties });
       },
@@ -81,7 +87,14 @@ function createHarness() {
     });
   }
 
-  return { data, listeners, send, sentMessages, updatedTabs };
+  return {
+    createdTabs,
+    data,
+    listeners,
+    send,
+    sentMessages,
+    updatedTabs,
+  };
 }
 
 test("a manually created tab cannot inherit from its opener", async () => {
@@ -163,6 +176,13 @@ test("the bridge opens JavDB assistance with clean URLs and temporary state", as
     plain(harness.data.get(`${JAVDB_ASSIST_PREFIX}10`)),
     request,
   );
+  assert.deepEqual(plain(harness.createdTabs), [
+    {
+      url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/assist-loading.html",
+      active: true,
+      windowId: 5,
+    },
+  ]);
   assert.deepEqual(plain(harness.updatedTabs), [
     {
       tabId: 10,
@@ -179,13 +199,31 @@ test("the bridge opens JavDB assistance with clean URLs and temporary state", as
   assert.deepEqual(
     plain(
       await harness.send(
-        { type: "JAVBOSS_JAVDB_CLEAR_ASSIST" },
+        { type: "JAVBOSS_JAVDB_COMPLETE_ASSIST" },
         { id: 10, url: "https://javdb.com/actors/QNen" },
       ),
     ),
     { ok: true },
   );
   assert.equal(harness.data.has(`${JAVDB_ASSIST_PREFIX}10`), false);
+  assert.deepEqual(plain(harness.updatedTabs.at(-1)), {
+    tabId: 10,
+    properties: { active: true },
+  });
+});
+
+test("an ordinary JavDB tab cannot activate itself through assistance", async () => {
+  const harness = createHarness();
+  const response = await harness.send(
+    { type: "JAVBOSS_JAVDB_COMPLETE_ASSIST" },
+    { id: 25, url: "https://javdb.com/v/kKdRm" },
+  );
+
+  assert.deepEqual(plain(response), {
+    ok: false,
+    error: "JavDB assistance has expired",
+  });
+  assert.deepEqual(plain(harness.updatedTabs), []);
 });
 
 test("the bridge can open an allowed AVSOX search URL", async () => {

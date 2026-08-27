@@ -177,6 +177,36 @@ test("movie target stays on the resolved movie detail page", () => {
   );
 });
 
+test("final assisted targets are recognized before the page finishes loading", () => {
+  const cases = [
+    ["movie", "https://javdb.com/v/kKdRm"],
+    ["idol", "https://javdb.com/actors/QNen"],
+    ["series", "https://javdb.com/series/w54b/"],
+    ["studio", "https://javdb.com/makers/ZXX"],
+  ];
+  for (const [target, pageURL] of cases) {
+    assert.equal(
+      parser.isAssistedNavigationTargetURL(pageURL, assistRequest({ target })),
+      true,
+    );
+  }
+
+  assert.equal(
+    parser.isAssistedNavigationTargetURL(
+      "https://javdb.com/search?q=IPX-228&f=all",
+      assistRequest({ target: "movie" }),
+    ),
+    false,
+  );
+  assert.equal(
+    parser.isAssistedNavigationTargetURL(
+      "https://javdb.com/v/kKdRm",
+      assistRequest({ target: "series" }),
+    ),
+    false,
+  );
+});
+
 test("JavDB pages without temporary assist state do not navigate", () => {
   assert.equal(
     parser.findAssistedNavigationURL(

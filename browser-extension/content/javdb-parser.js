@@ -180,6 +180,17 @@
       }
     }
 
+    function isAssistedNavigationTargetURL(pageURL, storedRequest) {
+      const request = assistRequest(pageURL, storedRequest);
+      if (!request) return false;
+      if (request.target === "movie") {
+        return /^\/v\/[^/]+\/?$/.test(request.url.pathname);
+      }
+      return Boolean(
+        detailTargetConfig(request.target)?.path.test(request.url.pathname),
+      );
+    }
+
     function detailTargetURL(document, request) {
       const config = detailTargetConfig(request.target);
       const block = config ? fieldBlock(document, config.labels) : null;
@@ -293,6 +304,7 @@
       assistedNavigationRequest,
       cleanText,
       findAssistedNavigationURL,
+      isAssistedNavigationTargetURL,
       normalizeCode,
       normalizeLabel,
       parse,

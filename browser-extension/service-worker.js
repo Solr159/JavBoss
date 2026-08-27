@@ -122,7 +122,13 @@ async function openJavDBAssistTab(message, sender) {
     return { ok: false, error: "invalid JavDB assist request" };
   }
 
-  const createProperties = { url: "about:blank", active: true };
+  // Activate a controlled white page immediately. The assist state is stored
+  // before this tab is sent to JavDB, avoiding both a state race and the
+  // browser-dependent color of about:blank.
+  const createProperties = {
+    url: chrome.runtime.getURL("assist-loading.html"),
+    active: true,
+  };
   if (Number.isInteger(sender.tab?.windowId)) {
     createProperties.windowId = sender.tab.windowId;
   }
@@ -155,6 +161,23 @@ async function clearJavDBAssist(_message, sender) {
   if (Number.isInteger(tabId)) {
     await chrome.storage.session.remove(javDBAssistKey(tabId));
   }
+  return { ok: true };
+}
+
+async function completeJavDBAssist(_message, sender) {
+  const tabId = sender.tab?.id;
+  if (!Number.isInteger(tabId)) {
+    return { ok: false, error: "missing JavDB tab" };
+  }
+
+  const key = javDBAssistKey(tabId);
+  const stored = await chrome.storage.session.get(key);
+  if (!validJavDBAssistRequest(stored[key])) {
+    return { ok: false, error: "JavDB assistance has expired" };
+  }
+
+  await chrome.storage.session.remove(key);
+  await chrome.tabs.update(tabId, { active: true });
   return { ok: true };
 }
 
@@ -266,6 +289,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     operation = getJavDBAssist(message, sender);
   } else if (message?.type === "JAVBOSS_JAVDB_CLEAR_ASSIST") {
     operation = clearJavDBAssist(message, sender);
+  } else if (message?.type === "JAVBOSS_JAVDB_COMPLETE_ASSIST") {
+    operation = completeJavDBAssist(message, sender);
   } else {
     return false;
   }

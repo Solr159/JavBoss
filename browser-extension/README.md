@@ -12,4 +12,4 @@ JavBoss 助手是一个 Chrome 扩展，支持从 JavBus、JavLibrary、JavDB �
 4. 点击页面右下角由扩展注入的**回填到 JavBoss**按钮。
 5. 返回 JavBoss 检查回填内容并保存。
 
-在 JavBoss 的作品、女优、系列或片商页面点击 JavDB 链接时，扩展会辅助跳转到对应的 JavDB 详情页。
+在 JavBoss 的作品、女优、系列或片商页面点击 JavDB 链接时，扩展会立即切换到新标签页。解析 JavDB 中间页面期间标签页保持纯白，并在最终目标页开始加载时显示页面内容。
