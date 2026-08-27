@@ -1,0 +1,94 @@
+name: release-draft-browser-extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag for the draft release (for example, browser-extension-v0.10.2)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_VERSION: "23.11.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extension.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Read extension version
+        id: extension
+        run: |
+          version="$(node -p "require('./browser-extension/manifest.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "invalid extension version: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build CLI bundle
+        run: |
+          cd scripts/cli
+          npm install
+          npm run build
+
+      - name: Build browser extension release
+        run: bash scripts/cli.sh release-browser-extension
+
+      - name: Upload release asset
+        uses: actions/upload-artifact@v6
+        with:
+          name: javboss-browser-extension-v${{ steps.extension.outputs.version }}-zip
+          path: release/javboss-browser-extension-v${{ steps.extension.outputs.version }}.zip
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release asset
+        uses: actions/download-artifact@v5
+        with:
+          path: release-artifacts
+
+      - name: Publish draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+            echo "release for tag '$RELEASE_TAG' already exists" >&2
+            exit 1
+          fi
+
+          mapfile -t assets < <(find release-artifacts -type f -name "javboss-browser-extension-v*.zip" | sort)
+          if [[ "${#assets[@]}" -ne 1 ]]; then
+            echo "expected exactly one browser extension release asset, found ${#assets[@]}" >&2
+            exit 1
+          fi
+
+          gh release create "$RELEASE_TAG" "${assets[@]}" \
+            --repo "$GH_REPO" \
+            --target "${{ github.sha }}" \
+            --draft \
+            --title "JavBoss Browser Extension v${{ needs.build.outputs.version }}" \
+            --generate-notes
