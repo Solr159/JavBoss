@@ -9,7 +9,8 @@ const moduleURL = pathToFileURL(
 
 test("disabled assistant preserves the original JavDB URL", async () => {
   const { resolveJavDBOpenURL } = await import(moduleURL);
-  const fallback = "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF";
+  const fallback =
+    "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF";
 
   assert.equal(
     resolveJavDBOpenURL(
@@ -21,9 +22,10 @@ test("disabled assistant preserves the original JavDB URL", async () => {
   );
 });
 
-test("connected assistant opens the marked code search directly", async () => {
+test("connected assistant opens a clean code search URL", async () => {
   const { resolveJavDBOpenURL } = await import(moduleURL);
-  const fallback = "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF";
+  const fallback =
+    "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF";
   const result = new URL(
     resolveJavDBOpenURL(
       fallback,
@@ -35,8 +37,5 @@ test("connected assistant opens the marked code search directly", async () => {
   assert.equal(result.pathname, "/search");
   assert.equal(result.searchParams.get("q"), "IPX-228");
   assert.equal(result.searchParams.get("f"), "all");
-  const marker = new URLSearchParams(result.hash.slice(1));
-  assert.equal(marker.get("javboss"), "direct");
-  assert.equal(marker.get("target"), "idol");
-  assert.equal(marker.get("name"), "岬ななみ");
+  assert.equal(result.hash, "");
 });

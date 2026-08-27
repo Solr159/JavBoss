@@ -25,11 +25,11 @@ const BROWSER_SCRAPE_PROVIDERS = {
 const JAVBOSS_EXTENSION_ID = 'iikdjhkpjihfkehccfmkpkdmenmbaacn'
 const JAVBOSS_EXTENSION_ORIGIN = `chrome-extension://${JAVBOSS_EXTENSION_ID}`
 const JAVBOSS_EXTENSION_BRIDGE_URL = `${JAVBOSS_EXTENSION_ORIGIN}/bridge.html`
-const JAVBUS_MESSAGE_CONNECT = 'JAVBOSS_EXTENSION_CONNECT'
-const JAVBUS_MESSAGE_READY = 'JAVBOSS_EXTENSION_READY'
-const JAVBUS_MESSAGE_METADATA = 'JAVBOSS_JAVBUS_METADATA'
-const JAVBUS_MESSAGE_OPEN = 'JAVBOSS_JAVBUS_OPEN'
-const JAVBUS_MESSAGE_OPEN_STATUS = 'JAVBOSS_JAVBUS_OPEN_STATUS'
+const SCRAPE_MESSAGE_CONNECT = 'JAVBOSS_EXTENSION_CONNECT'
+const SCRAPE_MESSAGE_READY = 'JAVBOSS_EXTENSION_READY'
+const SCRAPE_MESSAGE_METADATA = 'JAVBOSS_SCRAPE_METADATA'
+const SCRAPE_MESSAGE_OPEN = 'JAVBOSS_SCRAPE_OPEN'
+const SCRAPE_MESSAGE_OPEN_STATUS = 'JAVBOSS_SCRAPE_OPEN_STATUS'
 
 const emptyManualInfo = {
   code: '',
@@ -286,13 +286,13 @@ export default function VideoScrapeSettingsModal({
   const [possibleCodesLoading, setPossibleCodesLoading] = useState(false)
   const [possibleCodesError, setPossibleCodesError] = useState('')
   const [possibleCodesResult, setPossibleCodesResult] = useState(null)
-  const javBusBridgeRef = useRef(null)
+  const browserScrapeBridgeRef = useRef(null)
   const browserScrapeProviderRef = useRef('')
-  const [javBusSessionId, setJavBusSessionId] = useState('')
-  const [javBusExtensionReady, setJavBusExtensionReady] = useState(false)
-  const [javBusOpening, setJavBusOpening] = useState(false)
-  const [javBusStatus, setJavBusStatus] = useState('')
-  const [javBusSourceURL, setJavBusSourceURL] = useState('')
+  const [browserScrapeSessionId, setBrowserScrapeSessionId] = useState('')
+  const [browserScrapeExtensionReady, setBrowserScrapeExtensionReady] = useState(false)
+  const [browserScrapeOpening, setBrowserScrapeOpening] = useState(false)
+  const [browserScrapeStatus, setBrowserScrapeStatus] = useState('')
+  const [browserScrapeSourceURL, setBrowserScrapeSourceURL] = useState('')
 
   useEffect(() => {
     if (!open) return
@@ -310,35 +310,35 @@ export default function VideoScrapeSettingsModal({
     setPossibleCodesLoading(false)
     setPossibleCodesError('')
     setPossibleCodesResult(null)
-    setJavBusSessionId(newBrowserScrapeSessionId())
-    setJavBusExtensionReady(false)
-    setJavBusOpening(false)
-    setJavBusStatus('')
-    setJavBusSourceURL('')
+    setBrowserScrapeSessionId(newBrowserScrapeSessionId())
+    setBrowserScrapeExtensionReady(false)
+    setBrowserScrapeOpening(false)
+    setBrowserScrapeStatus('')
+    setBrowserScrapeSourceURL('')
     browserScrapeProviderRef.current = ''
   }, [open, video])
 
   useEffect(() => {
     if (!open) return undefined
 
-    const receiveJavBusMessage = (event) => {
+    const receiveBrowserScrapeMessage = (event) => {
       if (
         event.origin !== JAVBOSS_EXTENSION_ORIGIN ||
-        event.source !== javBusBridgeRef.current?.contentWindow
+        event.source !== browserScrapeBridgeRef.current?.contentWindow
       ) {
         return
       }
       const message = event.data
-      if (!message || message.version !== 1 || message.sessionId !== javBusSessionId) return
+      if (!message || message.version !== 1 || message.sessionId !== browserScrapeSessionId) return
 
-      if (message.type === JAVBUS_MESSAGE_READY) {
-        setJavBusExtensionReady(true)
-        setJavBusStatus(zh('JavBoss 助手已连接', 'JavBoss Assistant connected'))
+      if (message.type === SCRAPE_MESSAGE_READY) {
+        setBrowserScrapeExtensionReady(true)
+        setBrowserScrapeStatus(zh('JavBoss 助手已连接', 'JavBoss Assistant connected'))
         return
       }
-      if (message.type === JAVBUS_MESSAGE_OPEN_STATUS) {
-        setJavBusOpening(false)
-        setJavBusStatus(
+      if (message.type === SCRAPE_MESSAGE_OPEN_STATUS) {
+        setBrowserScrapeOpening(false)
+        setBrowserScrapeStatus(
           message.ok
             ? zh(
                 `已打开 ${browserScrapeProviderRef.current || '元数据网站'} 新标签页。`,
@@ -351,11 +351,11 @@ export default function VideoScrapeSettingsModal({
         )
         return
       }
-      if (message.type !== JAVBUS_MESSAGE_METADATA) return
+      if (message.type !== SCRAPE_MESSAGE_METADATA) return
 
       const nextInfo = infoFromBrowserExtension(message.payload, code)
       if (!nextInfo) {
-        setJavBusStatus(
+        setBrowserScrapeStatus(
           zh('扩展返回的数据无效，请确认当前是作品详情页。', 'The extension returned invalid data.')
         )
         return
@@ -365,9 +365,9 @@ export default function VideoScrapeSettingsModal({
       setManualCensorError(false)
       setTagInput('')
       setActorInput('')
-      setJavBusSourceURL(safeExternalURL(message.payload?.source_url))
+      setBrowserScrapeSourceURL(safeExternalURL(message.payload?.source_url))
       const sourceName = limitedText(message.payload?.source_name, 50) || '元数据网站'
-      setJavBusStatus(
+      setBrowserScrapeStatus(
         zh(
           `已从 ${sourceName} 回填 ${nextInfo.code}，请检查后保存。`,
           `Filled ${nextInfo.code} from ${sourceName}. Review it before saving.`
@@ -375,26 +375,26 @@ export default function VideoScrapeSettingsModal({
       )
     }
 
-    window.addEventListener('message', receiveJavBusMessage)
-    return () => window.removeEventListener('message', receiveJavBusMessage)
-  }, [code, javBusSessionId, open])
+    window.addEventListener('message', receiveBrowserScrapeMessage)
+    return () => window.removeEventListener('message', receiveBrowserScrapeMessage)
+  }, [browserScrapeSessionId, code, open])
 
   useEffect(() => {
-    if (!open || !javBusSessionId) return undefined
+    if (!open || !browserScrapeSessionId) return undefined
     const connect = () => {
-      javBusBridgeRef.current?.contentWindow?.postMessage(
-        { type: JAVBUS_MESSAGE_CONNECT, sessionId: javBusSessionId },
+      browserScrapeBridgeRef.current?.contentWindow?.postMessage(
+        { type: SCRAPE_MESSAGE_CONNECT, sessionId: browserScrapeSessionId },
         JAVBOSS_EXTENSION_ORIGIN
       )
     }
     const timers = [0, 300, 1000].map((delay) => window.setTimeout(connect, delay))
     return () => timers.forEach((timer) => window.clearTimeout(timer))
-  }, [javBusSessionId, open])
+  }, [browserScrapeSessionId, open])
 
   useEffect(() => {
-    if (!open || !javBusSessionId || javBusExtensionReady) return undefined
+    if (!open || !browserScrapeSessionId || browserScrapeExtensionReady) return undefined
     const timer = window.setTimeout(() => {
-      setJavBusStatus(
+      setBrowserScrapeStatus(
         zh(
           '尚未检测到扩展。请重新加载 browser-extension 目录并刷新 JavBoss。',
           'Extension not detected. Reload the browser-extension directory, then reload JavBoss.'
@@ -402,13 +402,13 @@ export default function VideoScrapeSettingsModal({
       )
     }, 5000)
     return () => window.clearTimeout(timer)
-  }, [javBusExtensionReady, javBusSessionId, open])
+  }, [browserScrapeExtensionReady, browserScrapeSessionId, open])
 
   useEffect(() => {
-    if (!javBusOpening) return undefined
+    if (!browserScrapeOpening) return undefined
     const timer = window.setTimeout(() => {
-      setJavBusOpening(false)
-      setJavBusStatus(
+      setBrowserScrapeOpening(false)
+      setBrowserScrapeStatus(
         zh(
           '打开元数据网站超时，请重新加载扩展后重试。',
           'Opening the metadata site timed out. Reload the extension and try again.'
@@ -416,7 +416,7 @@ export default function VideoScrapeSettingsModal({
       )
     }, 10000)
     return () => window.clearTimeout(timer)
-  }, [javBusOpening])
+  }, [browserScrapeOpening])
 
   if (!open) return null
 
@@ -456,11 +456,11 @@ export default function VideoScrapeSettingsModal({
   }
 
   const openBrowserScrapeProvider = (provider) => {
-    if (javBusOpening) return
+    if (browserScrapeOpening) return
     const providerConfig = BROWSER_SCRAPE_PROVIDERS[provider]
     if (!providerConfig) return
-    if (!javBusSessionId || !javBusExtensionReady) {
-      setJavBusStatus(
+    if (!browserScrapeSessionId || !browserScrapeExtensionReady) {
+      setBrowserScrapeStatus(
         zh(
           '未连接到扩展，请确认已重新加载扩展并刷新 JavBoss。',
           'Extension is not connected. Reload the extension and the JavBoss page.'
@@ -468,16 +468,16 @@ export default function VideoScrapeSettingsModal({
       )
       return
     }
-    setJavBusSourceURL('')
-    setJavBusOpening(true)
+    setBrowserScrapeSourceURL('')
+    setBrowserScrapeOpening(true)
     browserScrapeProviderRef.current = providerConfig.name
-    setJavBusStatus(
+    setBrowserScrapeStatus(
       zh(`正在打开 ${providerConfig.name} 新标签页…`, `Opening a new ${providerConfig.name} tab...`)
     )
-    javBusBridgeRef.current?.contentWindow?.postMessage(
+    browserScrapeBridgeRef.current?.contentWindow?.postMessage(
       {
-        type: JAVBUS_MESSAGE_OPEN,
-        sessionId: javBusSessionId,
+        type: SCRAPE_MESSAGE_OPEN,
+        sessionId: browserScrapeSessionId,
         url: browserScrapeURL(provider, normalizedCode),
       },
       JAVBOSS_EXTENSION_ORIGIN
@@ -774,11 +774,13 @@ export default function VideoScrapeSettingsModal({
                             type="button"
                             onClick={() => openBrowserScrapeProvider(provider)}
                             disabled={
-                              saving || javBusOpening || (providerConfig.requiresCode && !codeValid)
+                              saving ||
+                              browserScrapeOpening ||
+                              (providerConfig.requiresCode && !codeValid)
                             }
                             className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50"
                           >
-                            {javBusOpening &&
+                            {browserScrapeOpening &&
                             browserScrapeProviderRef.current === providerConfig.name
                               ? zh('正在打开…', 'Opening...')
                               : zh(`打开 ${providerConfig.name}`, `Open ${providerConfig.name}`)}
@@ -786,18 +788,21 @@ export default function VideoScrapeSettingsModal({
                         )
                       )}
                     </div>
-                    {javBusStatus ? (
+                    {browserScrapeStatus ? (
                       <div
                         className={`mt-2 text-xs leading-5 ${
-                          javBusExtensionReady ? 'text-blue-700' : 'text-amber-700'
+                          browserScrapeExtensionReady ? 'text-blue-700' : 'text-amber-700'
                         }`}
                       >
-                        {javBusStatus}
+                        {browserScrapeStatus}
                       </div>
                     ) : null}
-                    {javBusSourceURL ? (
-                      <div className="mt-1 truncate text-xs text-gray-400" title={javBusSourceURL}>
-                        {javBusSourceURL}
+                    {browserScrapeSourceURL ? (
+                      <div
+                        className="mt-1 truncate text-xs text-gray-400"
+                        title={browserScrapeSourceURL}
+                      >
+                        {browserScrapeSourceURL}
                       </div>
                     ) : null}
                   </div>
@@ -1062,16 +1067,16 @@ export default function VideoScrapeSettingsModal({
         </AppModal>
       ) : null}
       <iframe
-        ref={javBusBridgeRef}
+        ref={browserScrapeBridgeRef}
         src={JAVBOSS_EXTENSION_BRIDGE_URL}
         title={zh('JavBoss 扩展通信桥', 'JavBoss extension bridge')}
         className="hidden"
         tabIndex={-1}
         aria-hidden="true"
         onLoad={() => {
-          if (!javBusSessionId) return
-          javBusBridgeRef.current?.contentWindow?.postMessage(
-            { type: JAVBUS_MESSAGE_CONNECT, sessionId: javBusSessionId },
+          if (!browserScrapeSessionId) return
+          browserScrapeBridgeRef.current?.contentWindow?.postMessage(
+            { type: SCRAPE_MESSAGE_CONNECT, sessionId: browserScrapeSessionId },
             JAVBOSS_EXTENSION_ORIGIN
           )
         }}

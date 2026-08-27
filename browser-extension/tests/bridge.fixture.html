@@ -37,7 +37,7 @@
           document.getElementById("status").textContent = "bridge-ready";
           bridge.contentWindow.postMessage(
             {
-              type: "JAVBOSS_JAVBUS_OPEN",
+              type: "JAVBOSS_SCRAPE_OPEN",
               sessionId,
               url: "https://www.javbus.com/",
             },
@@ -45,7 +45,7 @@
           );
           return;
         }
-        if (event.data?.type === "JAVBOSS_JAVBUS_OPEN_STATUS") {
+        if (event.data?.type === "JAVBOSS_SCRAPE_OPEN_STATUS") {
           document.getElementById("status").textContent = event.data.ok
             ? "bridge-tab-open"
             : `bridge-tab-error:${event.data.error}`;

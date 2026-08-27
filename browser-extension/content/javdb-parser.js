@@ -98,45 +98,34 @@
         .toUpperCase();
     }
 
-    function assistRequest(pageURL) {
-      let url;
+    function assistedNavigationRequest(storedRequest) {
+      if (!storedRequest || typeof storedRequest !== "object") return null;
+      const target = cleanText(storedRequest.target);
+      const code = cleanText(storedRequest.code);
+      if (!["movie", "idol", "series", "studio"].includes(target) || !code) {
+        return null;
+      }
+      return {
+        code,
+        name: cleanText(storedRequest.name),
+        target,
+      };
+    }
+
+    function assistRequest(pageURL, storedRequest) {
+      const request = assistedNavigationRequest(storedRequest);
+      if (!request) return null;
       try {
-        url = new URL(String(pageURL || ""));
+        return { ...request, url: new URL(String(pageURL || "")) };
       } catch {
         return null;
       }
-
-      const params = new URLSearchParams(url.hash.replace(/^#/, ""));
-      const target = cleanText(params.get("target"));
-      const code = cleanText(params.get("code"));
-      if (
-        params.get("javboss") !== "direct" ||
-        !["movie", "idol", "series", "studio"].includes(target) ||
-        !code
-      ) {
-        return null;
-      }
-      return { code, name: cleanText(params.get("name")), target, url };
-    }
-
-    function isAssistedNavigationURL(pageURL) {
-      return Boolean(assistRequest(pageURL));
-    }
-
-    function assistHash(request) {
-      const params = new URLSearchParams();
-      params.set("javboss", "direct");
-      params.set("target", request.target);
-      params.set("code", request.code);
-      if (request.name) params.set("name", request.name);
-      return params.toString();
     }
 
     function assistedCodeSearchURL(request) {
       const searchURL = new URL("/search", request.url.origin);
       searchURL.searchParams.set("q", request.code);
       searchURL.searchParams.set("f", "all");
-      searchURL.hash = assistHash(request);
       return searchURL.href;
     }
 
@@ -159,7 +148,7 @@
             resolved.origin === request.url.origin &&
             /^\/v\/[^/]+\/?$/.test(resolved.pathname)
           ) {
-            resolved.hash = assistHash(request);
+            resolved.hash = "";
             matches.add(resolved.href);
           }
         } catch {
@@ -227,8 +216,8 @@
       return candidates.length === 1 ? candidates[0] : "";
     }
 
-    function findAssistedNavigationURL(document, pageURL) {
-      const request = assistRequest(pageURL);
+    function findAssistedNavigationURL(document, pageURL, storedRequest) {
+      const request = assistRequest(pageURL, storedRequest);
       if (!request) return "";
 
       if (request.url.pathname === "/search") {
@@ -301,9 +290,9 @@
     }
 
     return {
+      assistedNavigationRequest,
       cleanText,
       findAssistedNavigationURL,
-      isAssistedNavigationURL,
       normalizeCode,
       normalizeLabel,
       parse,

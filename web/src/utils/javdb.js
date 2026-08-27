@@ -4,6 +4,7 @@ const EXTENSION_ORIGIN = `chrome-extension://${EXTENSION_ID}`
 const EXTENSION_BRIDGE_URL = `${EXTENSION_ORIGIN}/bridge.html`
 const MESSAGE_CONNECT = 'JAVBOSS_EXTENSION_CONNECT'
 const MESSAGE_READY = 'JAVBOSS_EXTENSION_READY'
+const MESSAGE_JAVDB_OPEN = 'JAVBOSS_JAVDB_OPEN'
 const BRIDGE_VERSION = 1
 
 let bridgeElement = null
@@ -65,22 +66,15 @@ export function isJavBossExtensionReady() {
   return bridgeReady
 }
 
-export function buildAssistedJavDBURL({ target, code, name = '' } = {}) {
+export function buildAssistedJavDBURL({ target, code } = {}) {
   const cleanTarget = String(target || '').trim()
   const cleanCode = String(code || '').trim()
-  const cleanName = String(name || '').trim()
   if (!ASSIST_TARGETS.has(cleanTarget) || !cleanCode) return ''
 
   const url = new URL('/search', 'https://javdb.com')
   url.searchParams.set('q', cleanCode)
   url.searchParams.set('f', 'all')
 
-  const marker = new URLSearchParams()
-  marker.set('javboss', 'direct')
-  marker.set('target', cleanTarget)
-  marker.set('code', cleanCode)
-  if (cleanName) marker.set('name', cleanName)
-  url.hash = marker.toString()
   return url.href
 }
 
@@ -91,8 +85,23 @@ export function resolveJavDBOpenURL(fallbackURL, options, extensionReady) {
 }
 
 export function openJavDBWithAssist(fallbackURL, options) {
-  const url = resolveJavDBOpenURL(fallbackURL, options, isJavBossExtensionReady())
-  if (!url) return false
-  window.open(url, '_blank', 'noopener,noreferrer')
+  const fallback = String(fallbackURL || '').trim()
+  if (!fallback) return false
+
+  const assistedURL = buildAssistedJavDBURL(options)
+  if (assistedURL && isJavBossExtensionReady() && bridgeElement?.contentWindow) {
+    bridgeElement.contentWindow.postMessage(
+      {
+        type: MESSAGE_JAVDB_OPEN,
+        sessionId: bridgeSessionId,
+        url: assistedURL,
+        request: options,
+      },
+      EXTENSION_ORIGIN
+    )
+    return true
+  }
+
+  window.open(fallback, '_blank', 'noopener,noreferrer')
   return true
 }

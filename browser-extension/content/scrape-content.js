@@ -9,11 +9,21 @@
   if (!provider.parser) return;
   const parser = provider.parser;
 
-  if (
-    provider.name === "JavDB" &&
-    window.top === window &&
-    parser.isAssistedNavigationURL?.(location.href)
-  ) {
+  async function javDBAssistRequest() {
+    const response = await chrome.runtime
+      .sendMessage({ type: "JAVBOSS_JAVDB_GET_ASSIST" })
+      .catch(() => null);
+    return parser.assistedNavigationRequest?.(response?.request);
+  }
+
+  function clearJavDBAssist() {
+    chrome.runtime
+      .sendMessage({ type: "JAVBOSS_JAVDB_CLEAR_ASSIST" })
+      .catch(() => {});
+  }
+
+  function startJavDBAssist(request) {
+    if (!request) return;
     const NAVIGATION_DELAY_MIN_MS = 300;
     const NAVIGATION_DELAY_MAX_MS = 600;
     const blankStyle = document.createElement("style");
@@ -32,11 +42,13 @@
       const directURL = parser.findAssistedNavigationURL?.(
         document,
         location.href,
+        request,
       );
       if (directURL && directURL !== location.href) {
         location.replace(directURL);
         return true;
       }
+      clearJavDBAssist();
       if (document.readyState === "complete") revealPage();
       else window.addEventListener("load", revealPage, { once: true });
       return false;
@@ -54,6 +66,10 @@
 
     if (document.readyState === "complete") scheduleNavigation();
     else window.addEventListener("load", scheduleNavigation, { once: true });
+  }
+
+  if (provider.name === "JavDB" && window.top === window) {
+    void javDBAssistRequest().then(startJavDBAssist);
   }
 
   const BUTTON_ID = "javboss-browser-scrape-fill-button";
@@ -98,7 +114,7 @@
     }
 
     const response = await chrome.runtime.sendMessage({
-      type: "JAVBOSS_JAVBUS_SUBMIT_RELAY",
+      type: "JAVBOSS_SCRAPE_SUBMIT_RELAY",
       payload,
     });
     if (!response?.ok) {
@@ -164,7 +180,7 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message?.type !== "JAVBOSS_JAVBUS_DISABLE_RELAY") return false;
+    if (message?.type !== "JAVBOSS_SCRAPE_DISABLE_RELAY") return false;
     disableRelayUI();
     sendResponse({ ok: true });
     return false;
@@ -172,7 +188,7 @@
 
   chrome.runtime
     .sendMessage({
-      type: "JAVBOSS_JAVBUS_IS_RELAY",
+      type: "JAVBOSS_SCRAPE_IS_RELAY",
       sessionId: storedRelaySessionID(),
     })
     .then((response) => {

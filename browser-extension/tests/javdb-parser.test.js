@@ -28,15 +28,12 @@ function movieSearchDocument(items) {
   };
 }
 
-function assistURL(
-  path,
-  { target = "series", code = "IPX-228", name = "" } = {},
-) {
-  const url = new URL(path, "https://javdb.com");
-  const marker = new URLSearchParams({ javboss: "direct", target, code });
-  if (name) marker.set("name", name);
-  url.hash = marker.toString();
-  return url.href;
+function assistRequest({
+  target = "series",
+  code = "IPX-228",
+  name = "",
+} = {}) {
+  return { target, code, name };
 }
 
 function detailLink(name, href, gender = "", symbolText = "") {
@@ -70,39 +67,38 @@ function detailDocument(blocks) {
   };
 }
 
-test("marked entity search starts with a code search", () => {
-  const sourceURL = assistURL(
-    "/search?f=series&q=%E6%8B%85%E4%BB%BB%E3%81%8B%E3%82%89%E3%81%93%E3%81%93%E3%81%B8%E6%9D%A5%E3%82%8B%E3%82%88%E3%81%86%E3%81%AB%E8%A8%80%E3%82%8F%E3%82%8C%E3%81%BE%E3%81%97%E3%81%9F%E3%80%82",
-    { target: "series", code: "IPX-228", name: "中年オヤジ" },
-  );
+test("stored entity assistance starts with a clean code search URL", () => {
+  const sourceURL =
+    "https://javdb.com/search?f=series&q=%E4%B8%AD%E5%B9%B4%E3%82%AA%E3%83%A4%E3%82%B8";
 
   const result = new URL(
-    parser.findAssistedNavigationURL(movieSearchDocument([]), sourceURL),
+    parser.findAssistedNavigationURL(
+      movieSearchDocument([]),
+      sourceURL,
+      assistRequest({ name: "中年オヤジ" }),
+    ),
   );
   assert.equal(result.pathname, "/search");
   assert.equal(result.searchParams.get("q"), "IPX-228");
   assert.equal(result.searchParams.get("f"), "all");
-  assert.equal(result.hash, new URL(sourceURL).hash);
+  assert.equal(result.hash, "");
 });
 
-test("code search resolves the unique exact movie and carries the marker", () => {
+test("stored assist state resolves the unique exact movie without a marker", () => {
   const document = movieSearchDocument([
     movieResult("IPX-228", "/v/kKdRm"),
     movieResult("IPX-128", "/v/zKmWJ"),
   ]);
-  const sourceURL = assistURL("/search?q=ipx-228&f=all", {
+  const sourceURL = "https://javdb.com/search?q=ipx-228&f=all";
+  const request = {
     target: "series",
     code: "IPX-228",
     name: "中年オヤジ",
-  });
+  };
 
   assert.equal(
-    parser.findAssistedNavigationURL(document, sourceURL),
-    assistURL("/v/kKdRm", {
-      target: "series",
-      code: "IPX-228",
-      name: "中年オヤジ",
-    }),
+    parser.findAssistedNavigationURL(document, sourceURL, request),
+    "https://javdb.com/v/kKdRm",
   );
 });
 
@@ -115,7 +111,8 @@ test("code search leaves ambiguous exact movie results visible", () => {
   assert.equal(
     parser.findAssistedNavigationURL(
       document,
-      assistURL("/search?q=IPX-228&f=all"),
+      "https://javdb.com/search?q=IPX-228&f=all",
+      assistRequest(),
     ),
     "",
   );
@@ -143,7 +140,8 @@ test("movie detail resolves idol, series, and studio links", () => {
     assert.equal(
       parser.findAssistedNavigationURL(
         document,
-        assistURL("/v/kKdRm", { target, name }),
+        "https://javdb.com/v/kKdRm",
+        assistRequest({ target, name }),
       ),
       expected,
     );
@@ -161,7 +159,8 @@ test("movie detail excludes male actors marked only by symbol text", () => {
   assert.equal(
     parser.findAssistedNavigationURL(
       document,
-      assistURL("/v/kKdRm", { target: "idol" }),
+      "https://javdb.com/v/kKdRm",
+      assistRequest({ target: "idol" }),
     ),
     "https://javdb.com/actors/QNen",
   );
@@ -171,17 +170,28 @@ test("movie target stays on the resolved movie detail page", () => {
   assert.equal(
     parser.findAssistedNavigationURL(
       detailDocument([]),
-      assistURL("/v/kKdRm", { target: "movie" }),
+      "https://javdb.com/v/kKdRm",
+      assistRequest({ target: "movie" }),
     ),
     "",
   );
 });
 
-test("ordinary unmarked JavDB pages do not use assisted navigation", () => {
+test("JavDB pages without temporary assist state do not navigate", () => {
   assert.equal(
     parser.findAssistedNavigationURL(
       movieSearchDocument([movieResult("IPX-228", "/v/kKdRm")]),
       "https://javdb.com/search?q=IPX-228&f=all",
+    ),
+    "",
+  );
+});
+
+test("legacy JavBoss URL fragments are ignored", () => {
+  assert.equal(
+    parser.findAssistedNavigationURL(
+      movieSearchDocument([movieResult("IPX-228", "/v/kKdRm")]),
+      "https://javdb.com/search?q=IPX-228&f=all#javboss=direct&target=movie&code=IPX-228",
     ),
     "",
   );

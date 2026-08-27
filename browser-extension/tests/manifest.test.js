@@ -104,8 +104,8 @@ test("relay propagation uses a temporary marker instead of tab opener inheritanc
   assert.doesNotMatch(serviceWorker, /chrome\.tabs\.onCreated/);
   assert.match(serviceWorker, /RELAY_SESSION_KEY_PREFIX/);
   assert.match(contentScript, /window\.sessionStorage/);
-  assert.match(contentScript, /JAVBOSS_JAVBUS_DISABLE_RELAY/);
+  assert.match(contentScript, /JAVBOSS_SCRAPE_DISABLE_RELAY/);
   assert.doesNotMatch(contentScript, /移除/);
-  assert.doesNotMatch(contentScript, /JAVBOSS_JAVBUS_FINISH_RELAY/);
+  assert.doesNotMatch(contentScript, /JAVBOSS_SCRAPE_FINISH_RELAY/);
   assert.doesNotMatch(serviceWorker, /chrome\.tabs\.remove\(/);
 });

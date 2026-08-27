@@ -63,31 +63,48 @@
       postToParent({ type: "JAVBOSS_EXTENSION_READY" });
       return;
     }
+    const openMessageTypes = new Set([
+      "JAVBOSS_SCRAPE_OPEN",
+      "JAVBOSS_JAVDB_OPEN",
+    ]);
     if (
       !parentOrigin ||
       event.origin !== parentOrigin ||
-      message?.type !== "JAVBOSS_JAVBUS_OPEN" ||
+      !openMessageTypes.has(message?.type) ||
       validSessionID(message.sessionId) !== sessionId
     ) {
       return;
     }
 
+    const runtimeMessage =
+      message.type === "JAVBOSS_JAVDB_OPEN"
+        ? {
+            type: "JAVBOSS_JAVDB_OPEN_ASSIST",
+            sessionId,
+            url: String(message.url || ""),
+            request: message.request,
+          }
+        : {
+            type: "JAVBOSS_SCRAPE_OPEN_RELAY",
+            sessionId,
+            url: String(message.url || ""),
+          };
+    const statusType =
+      message.type === "JAVBOSS_JAVDB_OPEN"
+        ? "JAVBOSS_JAVDB_OPEN_STATUS"
+        : "JAVBOSS_SCRAPE_OPEN_STATUS";
     chrome.runtime
-      .sendMessage({
-        type: "JAVBOSS_JAVBUS_OPEN_RELAY",
-        sessionId,
-        url: String(message.url || ""),
-      })
+      .sendMessage(runtimeMessage)
       .then((response) => {
         postToParent({
-          type: "JAVBOSS_JAVBUS_OPEN_STATUS",
+          type: statusType,
           ok: Boolean(response?.ok),
           error: String(response?.error || ""),
         });
       })
       .catch((error) => {
         postToParent({
-          type: "JAVBOSS_JAVBUS_OPEN_STATUS",
+          type: statusType,
           ok: false,
           error: String(error?.message || error || "extension error"),
         });
@@ -96,13 +113,13 @@
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (
-      message?.type !== "JAVBOSS_JAVBUS_BRIDGE_METADATA" ||
+      message?.type !== "JAVBOSS_SCRAPE_BRIDGE_METADATA" ||
       validSessionID(message.sessionId) !== sessionId
     ) {
       return;
     }
     postToParent({
-      type: "JAVBOSS_JAVBUS_METADATA",
+      type: "JAVBOSS_SCRAPE_METADATA",
       payload: message.payload,
     });
     sendResponse({ ok: true });

@@ -9,13 +9,19 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-test("an assisted JavDB navigation waits for load and a random delay", () => {
+test("stored JavDB assistance navigates without changing the URL hash", async () => {
   let replacedURL = "";
   let blankStyle = null;
   const windowListeners = new Map();
   const timers = [];
+  const assistRequest = {
+    target: "series",
+    code: "IPX-228",
+    name: "中年オヤジ",
+  };
+  let receivedRequest = null;
   const location = {
-    href: "https://javdb.com/search?f=series&q=exact#javboss=direct&target=series&code=IPX-228",
+    href: "https://javdb.com/search?q=IPX-228&f=all",
     replace(url) {
       replacedURL = url;
     },
@@ -24,8 +30,11 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
   deterministicMath.random = () => 0.5;
   const context = {
     JavBossJavDBParser: {
-      findAssistedNavigationURL: () => "https://javdb.com/series/p32E",
-      isAssistedNavigationURL: () => true,
+      assistedNavigationRequest: (request) => request || null,
+      findAssistedNavigationURL: (_document, _url, request) => {
+        receivedRequest = request;
+        return "https://javdb.com/series/p32E";
+      },
     },
     document: {
       readyState: "loading",
@@ -45,7 +54,10 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
     chrome: {
       runtime: {
         onMessage: { addListener() {} },
-        sendMessage: async () => ({ relay: false }),
+        sendMessage: async (message) =>
+          message.type === "JAVBOSS_JAVDB_GET_ASSIST"
+            ? { ok: true, request: assistRequest }
+            : { relay: false },
       },
     },
     sessionStorage: {
@@ -65,6 +77,7 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
   context.top = context;
 
   vm.runInNewContext(source, context);
+  await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(replacedURL, "");
   assert.equal(
@@ -83,5 +96,6 @@ test("an assisted JavDB navigation waits for load and a random delay", () => {
   navigationTimer.callback();
 
   assert.equal(replacedURL, "https://javdb.com/series/p32E");
+  assert.deepEqual(JSON.parse(JSON.stringify(receivedRequest)), assistRequest);
   assert.match(blankStyle.textContent, /visibility: hidden/);
 });

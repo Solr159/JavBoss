@@ -11,6 +11,7 @@ const source = fs.readFileSync(
 
 const RELAY_PREFIX = "javboss:browser-relay:";
 const SESSION_PREFIX = "javboss:browser-session:";
+const JAVDB_ASSIST_PREFIX = "javboss:javdb-assist:";
 const SESSION_ID = "test-session-1234";
 
 function plain(value) {
@@ -24,6 +25,7 @@ function createHarness() {
   ]);
   const listeners = {};
   const sentMessages = [];
+  const updatedTabs = [];
 
   const sessionStorage = {
     async get(keys) {
@@ -54,7 +56,9 @@ function createHarness() {
     storage: { session: sessionStorage },
     tabs: {
       create: async () => ({ id: 10 }),
-      update: async () => {},
+      update: async (tabId, properties) => {
+        updatedTabs.push({ tabId, properties });
+      },
       remove: async () => {},
       sendMessage: async (tabId, message) => {
         sentMessages.push({ tabId, message });
@@ -77,13 +81,13 @@ function createHarness() {
     });
   }
 
-  return { data, listeners, send, sentMessages };
+  return { data, listeners, send, sentMessages, updatedTabs };
 }
 
 test("a manually created tab cannot inherit from its opener", async () => {
   const harness = createHarness();
   const response = await harness.send(
-    { type: "JAVBOSS_JAVBUS_IS_RELAY", sessionId: "" },
+    { type: "JAVBOSS_SCRAPE_IS_RELAY", sessionId: "" },
     { id: 2, openerTabId: 1, url: "https://www.javbus.com/ABC-123" },
   );
 
@@ -95,7 +99,7 @@ test("the bridge can open an allowed JavLibrary URL", async () => {
   const harness = createHarness();
   const response = await harness.send(
     {
-      type: "JAVBOSS_JAVBUS_OPEN_RELAY",
+      type: "JAVBOSS_SCRAPE_OPEN_RELAY",
       sessionId: SESSION_ID,
       url: "https://www.javlibrary.com/tw/vl_searchbyid.php?keyword=OFJE-282",
     },
@@ -116,7 +120,7 @@ test("the bridge can open an allowed JavDB search URL", async () => {
   const harness = createHarness();
   const response = await harness.send(
     {
-      type: "JAVBOSS_JAVBUS_OPEN_RELAY",
+      type: "JAVBOSS_SCRAPE_OPEN_RELAY",
       sessionId: SESSION_ID,
       url: "https://javdb.com/search?q=OFJE-282&f=all",
     },
@@ -133,11 +137,62 @@ test("the bridge can open an allowed JavDB search URL", async () => {
   });
 });
 
+test("the bridge opens JavDB assistance with clean URLs and temporary state", async () => {
+  const harness = createHarness();
+  const request = {
+    target: "idol",
+    code: "ADN-429",
+    name: "岬ななみ",
+  };
+  const response = await harness.send(
+    {
+      type: "JAVBOSS_JAVDB_OPEN_ASSIST",
+      sessionId: SESSION_ID,
+      url: "https://javdb.com/search?q=ADN-429&f=all#legacy-marker",
+      request,
+    },
+    {
+      id: 1,
+      windowId: 5,
+      url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html",
+    },
+  );
+
+  assert.deepEqual(plain(response), { ok: true });
+  assert.deepEqual(
+    plain(harness.data.get(`${JAVDB_ASSIST_PREFIX}10`)),
+    request,
+  );
+  assert.deepEqual(plain(harness.updatedTabs), [
+    {
+      tabId: 10,
+      properties: { url: "https://javdb.com/search?q=ADN-429&f=all" },
+    },
+  ]);
+
+  const stored = await harness.send(
+    { type: "JAVBOSS_JAVDB_GET_ASSIST" },
+    { id: 10, url: "https://javdb.com/search?q=ADN-429&f=all" },
+  );
+  assert.deepEqual(plain(stored), { ok: true, request });
+
+  assert.deepEqual(
+    plain(
+      await harness.send(
+        { type: "JAVBOSS_JAVDB_CLEAR_ASSIST" },
+        { id: 10, url: "https://javdb.com/actors/QNen" },
+      ),
+    ),
+    { ok: true },
+  );
+  assert.equal(harness.data.has(`${JAVDB_ASSIST_PREFIX}10`), false);
+});
+
 test("the bridge can open an allowed AVSOX search URL", async () => {
   const harness = createHarness();
   const response = await harness.send(
     {
-      type: "JAVBOSS_JAVBUS_OPEN_RELAY",
+      type: "JAVBOSS_SCRAPE_OPEN_RELAY",
       sessionId: SESSION_ID,
       url: "https://avsox.click/tw/search/030919_047",
     },
@@ -157,7 +212,7 @@ test("the bridge can open an allowed AVSOX search URL", async () => {
 test("a tab with the temporary marker can claim the scrape session", async () => {
   const harness = createHarness();
   const response = await harness.send(
-    { type: "JAVBOSS_JAVBUS_IS_RELAY", sessionId: SESSION_ID },
+    { type: "JAVBOSS_SCRAPE_IS_RELAY", sessionId: SESSION_ID },
     { id: 2, url: "https://www.javbus.com/search/ABC-123" },
   );
 
