@@ -51,6 +51,27 @@ function SortOptionRow({ option, inputValue, onChange }) {
   )
 }
 
+function SettingsSwitch({ label, checked, onChange }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-label={label}
+      aria-checked={Boolean(checked)}
+      onClick={() => onChange?.(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+        checked ? 'bg-blue-600' : 'bg-slate-200'
+      }`}
+    >
+      <span
+        className={`mt-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+          checked ? 'translate-x-6' : 'translate-x-1'
+        }`}
+      />
+    </button>
+  )
+}
+
 export default function VideoSettingsModal({
   open,
   onClose,
@@ -60,6 +81,8 @@ export default function VideoSettingsModal({
   onSortChange,
   hideJavInput = false,
   onHideJavChange,
+  waterfallDefaultInput = false,
+  onWaterfallDefaultChange,
   onSave,
 }) {
   if (!open) return null
@@ -101,6 +124,14 @@ export default function VideoSettingsModal({
             className="w-24 rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </label>
+        <div className="flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm text-slate-700">
+          <span className="font-medium">{zh('默认开启瀑布流', 'Enable waterfall by default')}</span>
+          <SettingsSwitch
+            label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+            checked={waterfallDefaultInput}
+            onChange={onWaterfallDefaultChange}
+          />
+        </div>
         <div className="text-sm font-medium text-gray-700">{zh('分页排序', 'Sort order')}</div>
         {VIDEO_SORT_OPTIONS.map((option) => (
           <SortOptionRow

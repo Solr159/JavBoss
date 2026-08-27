@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
+func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
 	if err != nil {
@@ -32,6 +32,7 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 	router := gin.New()
 	router.PATCH("/config", updateConfig)
 	body := []byte(`{
+		"video_waterfall_default": true,
 		"jav_waterfall_default": true,
 		"idol_waterfall_default": false,
 		"studio_waterfall_default": true,
@@ -52,6 +53,7 @@ func TestUpdateConfigPersistsJavWaterfallDefaults(t *testing.T) {
 		t.Fatalf("list config: %v", err)
 	}
 	want := map[string]string{
+		"video_waterfall_default":       "true",
 		"jav_waterfall_default":         "true",
 		"idol_waterfall_default":        "false",
 		"studio_waterfall_default":      "true",

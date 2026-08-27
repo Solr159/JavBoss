@@ -355,6 +355,9 @@ export default function App() {
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
   const [videoHideJavInput, setVideoHideJavInput] = useState(videoHideJav)
+  const [videoWaterfallDefaultInput, setVideoWaterfallDefaultInput] = useState(
+    configFlag(config?.video_waterfall_default)
+  )
   const [javPageSizeInput, setJavPageSizeInput] = useState(javPageSize)
   const [javGridColumnsInput, setJavGridColumnsInput] = useState(javGridColumns)
   const [javTitleMaxRowsInput, setJavTitleMaxRowsInput] = useState(javTitleMaxRows)
@@ -1065,6 +1068,7 @@ export default function App() {
     if (!configLoaded) return
     setWaterfallModes((current) => ({
       ...current,
+      video: configFlag(config?.video_waterfall_default),
       jav: configFlag(config?.jav_waterfall_default),
       idol: configFlag(config?.idol_waterfall_default),
       studio: configFlag(config?.studio_waterfall_default),
@@ -1072,6 +1076,7 @@ export default function App() {
     }))
   }, [
     configLoaded,
+    config?.video_waterfall_default,
     config?.jav_waterfall_default,
     config?.idol_waterfall_default,
     config?.studio_waterfall_default,
@@ -2418,8 +2423,9 @@ export default function App() {
     setVideoPageSizeInput(pageSize)
     setVideoSortInput(sortOrder)
     setVideoHideJavInput(videoHideJav)
+    setVideoWaterfallDefaultInput(configFlag(config?.video_waterfall_default))
     setVideoSettingsOpen(true)
-  }, [pageSize, sortOrder, videoHideJav])
+  }, [config?.video_waterfall_default, pageSize, sortOrder, videoHideJav])
 
   const openJavSettings = useCallback(() => {
     setJavPageSizeInput(javPageSize)
@@ -2495,17 +2501,23 @@ export default function App() {
   const handleSaveVideoSettings = async () => {
     const size = Math.max(1, parseInt(videoPageSizeInput, 10) || pageSize)
     const normalizedSort = normalizeVideoSort(videoSortInput)
+    const waterfallDefault = Boolean(videoWaterfallDefaultInput)
     try {
-      await updateConfig({
+      const cfg = await updateConfig({
         video_page_size: size,
         video_sort: normalizedSort,
         video_hide_jav: videoHideJavInput,
+        video_waterfall_default: waterfallDefault,
       })
       const prevPage = page
       // ensure current page does not exceed last page after page size change
       const lastPage = Math.max(1, Math.ceil((total || 0) / size))
       const filterChanged = videoHideJavInput !== videoHideJav
       const nextPage = filterChanged ? 1 : prevPage > lastPage ? lastPage : prevPage
+
+      if (waterfallModes.video !== waterfallDefault) {
+        setWaterfallMode('video', waterfallDefault)
+      }
 
       useStore.setState({
         pageSize: size,
@@ -2515,6 +2527,7 @@ export default function App() {
         page: nextPage,
         randomMode: false,
         randomSeed: null,
+        config: cfg,
       })
       setVideoSettingsOpen(false)
     } catch (err) {
@@ -2622,8 +2635,9 @@ export default function App() {
       setVideoPageSizeInput(pageSize)
       setVideoSortInput(sortOrder)
       setVideoHideJavInput(videoHideJav)
+      setVideoWaterfallDefaultInput(configFlag(config?.video_waterfall_default))
     }
-  }, [videoSettingsOpen, pageSize, sortOrder, videoHideJav])
+  }, [videoSettingsOpen, config?.video_waterfall_default, pageSize, sortOrder, videoHideJav])
 
   useEffect(() => {
     if (javSettingsOpen) {
@@ -4182,6 +4196,8 @@ export default function App() {
         onSortChange={setVideoSortInput}
         hideJavInput={videoHideJavInput}
         onHideJavChange={setVideoHideJavInput}
+        waterfallDefaultInput={videoWaterfallDefaultInput}
+        onWaterfallDefaultChange={setVideoWaterfallDefaultInput}
         onSave={handleSaveVideoSettings}
       />
 
