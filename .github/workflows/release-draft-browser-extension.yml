@@ -2,10 +2,6 @@ name: release-draft-browser-extension
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: "Git tag for the draft release (for example, browser-extension-v0.10.2)"
-        required: true
 
 permissions:
   contents: write
@@ -73,7 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: browser-extension-v${{ needs.build.outputs.version }}
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "release for tag '$RELEASE_TAG' already exists" >&2
