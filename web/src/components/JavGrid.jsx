@@ -540,7 +540,7 @@ function JavEditDropdown({
 
   return (
     <div className="relative">
-      <div className="block text-sm font-medium text-gray-700">{label}</div>
+      <div className="block text-sm font-medium text-black">{label}</div>
       <button
         type="button"
         className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
@@ -611,18 +611,24 @@ function JavEditDropdown({
   )
 }
 
-function SelectedChip({ label, onRemove, disabled }) {
+function SelectedChip({ label, onRemove, disabled, compact = false }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-1 rounded-full bg-gray-100 px-2 py-1 text-sm text-gray-800">
+    <span
+      className={`inline-flex min-w-0 items-center rounded-full bg-gray-100 text-gray-800 ${
+        compact ? 'gap-0.5 px-1.5 py-0.5 text-xs' : 'gap-1 px-2 py-1 text-sm'
+      }`}
+    >
       <span className="truncate">{label}</span>
       <button
         type="button"
-        className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50"
+        className={`inline-flex shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 ${
+          compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
+        }`}
         onClick={onRemove}
         disabled={disabled}
         aria-label={zh(`移除 ${label}`, `Remove ${label}`)}
       >
-        <CloseOutlinedIcon sx={{ fontSize: 13 }} />
+        <CloseOutlinedIcon sx={{ fontSize: compact ? 11 : 13 }} />
       </button>
     </span>
   )
@@ -1312,7 +1318,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
         <div>
           <label
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-black"
             htmlFor={`jav-title-${item?.id || 'new'}`}
           >
             {zh('标题', 'Title')}
@@ -1331,7 +1337,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         </div>
         <div>
           <label
-            className="block text-sm font-medium text-gray-700"
+            className="block text-sm font-medium text-black"
             htmlFor={`jav-cover-url-${item?.id || 'new'}`}
           >
             {zh('封面链接', 'Cover URL')}
@@ -1356,7 +1362,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-black">
             {zh('发行日期', 'Release date')}
             <input
               type="date"
@@ -1366,7 +1372,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               disabled={saving}
             />
           </label>
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-black">
             {zh('时长（分钟）', 'Duration (min)')}
             <input
               type="number"
@@ -1408,19 +1414,20 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           />
         </div>
         <div>
-          <div className="text-sm font-medium text-gray-700">{zh('女优', 'Idols')}</div>
+          <div className="text-sm font-medium text-black">{zh('女优', 'Idols')}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedIdolOptions.map((idol) => (
               <SelectedChip
                 key={idol.id}
                 label={getIdolDisplayName(idol, preferChineseName)}
                 disabled={saving}
+                compact
                 onRemove={() => toggleIdol(idol.id, false)}
               />
             ))}
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setIdolPickerOpen((current) => !current)
                 setScrapedTagPickerOpen(false)
@@ -1432,7 +1439,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               title={zh('新增女优', 'Add idol')}
               aria-label={zh('新增女优', 'Add idol')}
             >
-              <AddIcon sx={{ fontSize: 15 }} />
+              <AddIcon sx={{ fontSize: 13 }} />
             </button>
           </div>
           {idolPickerOpen ? (
@@ -1515,13 +1522,14 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         </div>
         {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
         <div>
-          <div className="text-sm font-medium text-gray-700">{zh('刮削标签', 'Scraped tags')}</div>
+          <div className="text-sm font-medium text-black">{zh('刮削标签', 'Scraped tags')}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedScrapedTagOptions.map((tag) => (
               <SelectedChip
                 key={tag.id}
                 label={getJavTagDisplayName(tag, showSimplifiedTags)}
                 disabled={saving}
+                compact
                 onRemove={() =>
                   setSelectedScrapedTagIds((current) =>
                     current.filter((id) => id !== String(tag.id))
@@ -1531,7 +1539,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
             ))}
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setScrapedTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -1543,7 +1551,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               title={zh('新增刮削标签', 'Add scraped tag')}
               aria-label={zh('新增刮削标签', 'Add scraped tag')}
             >
-              <AddIcon sx={{ fontSize: 15 }} />
+              <AddIcon sx={{ fontSize: 13 }} />
             </button>
           </div>
           {scrapedTagPickerOpen ? (
@@ -1626,19 +1634,20 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           ) : null}
         </div>
         <div>
-          <div className="text-sm font-medium text-gray-700">{zh('自定义标签', 'Custom tags')}</div>
+          <div className="text-sm font-medium text-black">{zh('自定义标签', 'Custom tags')}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedTagOptions.map((tag) => (
               <SelectedChip
                 key={`${tag.id}-${tag.provider || 0}`}
                 label={tag.name}
                 disabled={saving}
+                compact
                 onRemove={() => toggleTag(tag.id, false)}
               />
             ))}
             <button
               type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               onClick={() => {
                 setTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -1650,7 +1659,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               title={zh('新增自定义标签', 'Add custom tag')}
               aria-label={zh('新增自定义标签', 'Add custom tag')}
             >
-              <AddIcon sx={{ fontSize: 15 }} />
+              <AddIcon sx={{ fontSize: 13 }} />
             </button>
           </div>
           {tagPickerOpen ? (
