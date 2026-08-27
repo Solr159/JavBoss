@@ -32,6 +32,10 @@ function extensionIdFromKey(key) {
 test("manifest public key produces the extension ID used by JavBoss", () => {
   assert.equal(manifest.name, "JavBoss 助手");
   assert.equal(
+    manifest.description,
+    "JavBoss 浏览器助手，增强 JavBoss 和其他网站的联动。",
+  );
+  assert.equal(
     extensionIdFromKey(manifest.key),
     "iikdjhkpjihfkehccfmkpkdmenmbaacn",
   );
