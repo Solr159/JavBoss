@@ -523,6 +523,20 @@ function optionsByIds(options, ids) {
   return (ids || []).map((id) => lookup.get(String(id))).filter(Boolean)
 }
 
+function useCloseOnOutsidePointer(open, rootRef, onOpenChange) {
+  useEffect(() => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        onOpenChange?.(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true)
+  }, [onOpenChange, open, rootRef])
+}
+
 function JavEditDropdown({
   label,
   selectedId,
@@ -536,11 +550,13 @@ function JavEditDropdown({
   searchPlaceholder,
   disabled,
 }) {
+  const rootRef = useRef(null)
   const selected = optionById(options, selectedId)
+  useCloseOnOutsidePointer(open, rootRef, onOpenChange)
 
   return (
-    <div className="relative">
-      <div className="block text-sm font-medium text-black">{label}</div>
+    <div ref={rootRef} className="relative">
+      <div className="block text-[13px] font-semibold text-black">{label}</div>
       <button
         type="button"
         className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
@@ -918,6 +934,12 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   const [creatingScrapedTag, setCreatingScrapedTag] = useState(false)
   const [creatingIdol, setCreatingIdol] = useState(false)
   const [error, setError] = useState('')
+  const idolPickerRef = useRef(null)
+  const scrapedTagPickerRef = useRef(null)
+  const tagPickerRef = useRef(null)
+  useCloseOnOutsidePointer(idolPickerOpen, idolPickerRef, setIdolPickerOpen)
+  useCloseOnOutsidePointer(scrapedTagPickerOpen, scrapedTagPickerRef, setScrapedTagPickerOpen)
+  useCloseOnOutsidePointer(tagPickerOpen, tagPickerRef, setTagPickerOpen)
   const code = String(item?.code || '').trim()
   const itemTitle = item ? getJavDisplayTitle(item) : ''
   const directoryIdsKey = (directoryIds || []).join(',')
@@ -1318,14 +1340,14 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
         <div>
           <label
-            className="block text-sm font-medium text-black"
+            className="block text-[13px] font-semibold text-black"
             htmlFor={`jav-title-${item?.id || 'new'}`}
           >
             {zh('标题', 'Title')}
           </label>
           <textarea
             id={`jav-title-${item?.id || 'new'}`}
-            rows={3}
+            rows={2}
             value={title}
             onChange={(event) => {
               setTitle(event.target.value)
@@ -1337,7 +1359,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         </div>
         <div>
           <label
-            className="block text-sm font-medium text-black"
+            className="block text-[13px] font-semibold text-black"
             htmlFor={`jav-cover-url-${item?.id || 'new'}`}
           >
             {zh('封面链接', 'Cover URL')}
@@ -1362,17 +1384,17 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium text-black">
+          <label className="block text-[13px] font-semibold text-black">
             {zh('发行日期', 'Release date')}
             <input
               type="date"
               value={releaseDate}
               onChange={(event) => setReleaseDate(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
           </label>
-          <label className="block text-sm font-medium text-black">
+          <label className="block text-[13px] font-semibold text-black">
             {zh('时长（分钟）', 'Duration (min)')}
             <input
               type="number"
@@ -1380,7 +1402,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
               step="1"
               value={durationMin}
               onChange={(event) => setDurationMin(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
           </label>
@@ -1413,8 +1435,8 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
             disabled={saving || optionsLoading}
           />
         </div>
-        <div>
-          <div className="text-sm font-medium text-black">{zh('女优', 'Idols')}</div>
+        <div ref={idolPickerRef}>
+          <div className="text-[13px] font-semibold text-black">{zh('女优', 'Idols')}</div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedIdolOptions.map((idol) => (
               <SelectedChip
@@ -1521,8 +1543,10 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
           ) : null}
         </div>
         {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
-        <div>
-          <div className="text-sm font-medium text-black">{zh('刮削标签', 'Scraped tags')}</div>
+        <div ref={scrapedTagPickerRef}>
+          <div className="text-[13px] font-semibold text-black">
+            {zh('刮削标签', 'Scraped tags')}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedScrapedTagOptions.map((tag) => (
               <SelectedChip
@@ -1633,8 +1657,10 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
             </div>
           ) : null}
         </div>
-        <div>
-          <div className="text-sm font-medium text-black">{zh('自定义标签', 'Custom tags')}</div>
+        <div ref={tagPickerRef}>
+          <div className="text-[13px] font-semibold text-black">
+            {zh('自定义标签', 'Custom tags')}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedTagOptions.map((tag) => (
               <SelectedChip
