@@ -74,8 +74,51 @@ jobs:
           name: javboss-${{ inputs.version }}-${{ matrix.platform }}-zip
           path: release/javboss-${{ inputs.version }}-${{ matrix.platform }}.zip
 
+  build-browser-extension:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip
+
+      - name: Read extension version
+        id: extension
+        run: |
+          version="$(node -p "require('./browser-extension/manifest.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "invalid extension version: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build CLI bundle
+        run: |
+          cd scripts/cli
+          npm install
+          npm run build
+
+      - name: Build browser extension release
+        run: bash scripts/cli.sh release-browser-extension
+
+      - name: Upload browser extension release asset
+        uses: actions/upload-artifact@v6
+        with:
+          name: javboss-browser-extension-v${{ steps.extension.outputs.version }}-zip
+          path: release/javboss-browser-extension-v${{ steps.extension.outputs.version }}.zip
+
   publish:
-    needs: build
+    needs: [build, build-browser-extension]
     runs-on: ubuntu-latest
     steps:
       - name: Download release assets
@@ -94,8 +137,8 @@ jobs:
           fi
 
           mapfile -t assets < <(find release-artifacts -type f -name "*.zip" | sort)
-          if [[ "${#assets[@]}" -eq 0 ]]; then
-            echo "no release assets found" >&2
+          if [[ "${#assets[@]}" -ne 5 ]]; then
+            echo "expected five release assets, found ${#assets[@]}" >&2
             exit 1
           fi
 
