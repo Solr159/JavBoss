@@ -941,7 +941,6 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   useCloseOnOutsidePointer(scrapedTagPickerOpen, scrapedTagPickerRef, setScrapedTagPickerOpen)
   useCloseOnOutsidePointer(tagPickerOpen, tagPickerRef, setTagPickerOpen)
   const code = String(item?.code || '').trim()
-  const itemTitle = item ? getJavDisplayTitle(item) : ''
   const directoryIdsKey = (directoryIds || []).join(',')
   const userTagOptions = useMemo(() => tagOptions.filter((tag) => isUserJavTag(tag)), [tagOptions])
   const scrapedTagOptions = useMemo(
@@ -1319,17 +1318,16 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
       onClose={onClose}
       zIndex={1600}
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="min-w-0 p-5 pb-0">
+      <div className="mb-4 flex items-center gap-2 px-5 pt-5">
+        <div className="shrink-0">
           <div className="text-base font-semibold text-gray-900">{zh('编辑 JAV', 'Edit JAV')}</div>
-          <div className="mt-1 truncate text-xs text-gray-500">
-            {code}
-            {itemTitle ? ` · ${itemTitle}` : ''}
-          </div>
         </div>
+        {code ? (
+          <div className="max-w-[50%] truncate text-xs font-medium text-gray-700">{code}</div>
+        ) : null}
         <button
           type="button"
-          className="mr-5 mt-5 rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="ml-auto rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
           onClick={onClose}
           disabled={saving || creatingOption}
           aria-label={zh('关闭', 'Close')}
