@@ -132,7 +132,7 @@ export default function VideoSettingsModal({
             onChange={onWaterfallDefaultChange}
           />
         </div>
-        <div className="text-sm font-medium text-gray-700">{zh('分页排序', 'Sort order')}</div>
+        <div className="text-sm font-medium text-gray-700">{zh('默认排序', 'Default sort')}</div>
         {VIDEO_SORT_OPTIONS.map((option) => (
           <SortOptionRow
             key={option.base}
