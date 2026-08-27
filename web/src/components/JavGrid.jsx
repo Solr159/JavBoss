@@ -494,6 +494,11 @@ function javEditScrapedTagNames(tag, showSimplifiedTags) {
   ]
 }
 
+function javEditWorkCountLabel(value) {
+  const count = Math.max(0, Number(value) || 0)
+  return zh(`${count} 部作品`, `${count} works`)
+}
+
 function buildStudioSearchText(studio) {
   const aliases = Array.isArray(studio?.aliases) ? studio.aliases : []
   return [studio?.name, ...aliases].filter(Boolean).join(' ')
@@ -1530,7 +1535,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                           ) : null}
                         </span>
                         <span className="shrink-0 text-xs tabular-nums text-gray-400">
-                          {Math.max(0, Number(idol?.work_count) || 0)}
+                          {javEditWorkCountLabel(idol?.work_count)}
                         </span>
                       </button>
                     )
@@ -1646,7 +1651,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                         {getJavTagDisplayName(tag, showSimplifiedTags)}
                       </span>
                       <span className="shrink-0 text-xs tabular-nums text-gray-400">
-                        {Math.max(0, Number(tag?.count) || 0)}
+                        {javEditWorkCountLabel(tag?.count)}
                       </span>
                     </button>
                   ))
@@ -1743,7 +1748,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                     >
                       <span className="min-w-0 flex-1 truncate">{tag.name}</span>
                       <span className="shrink-0 text-xs tabular-nums text-gray-400">
-                        {Math.max(0, Number(tag?.count) || 0)}
+                        {javEditWorkCountLabel(tag?.count)}
                       </span>
                     </button>
                   ))
