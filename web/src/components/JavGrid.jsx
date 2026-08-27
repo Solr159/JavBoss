@@ -41,7 +41,7 @@ import VideoGrid from '@/components/VideoGrid'
 import { isUserJavTag } from '@/constants/jav'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { findJavEditOptionByName } from '@/utils/javEdit'
-import { getIdolDisplayName } from '@/utils/javIdol'
+import { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 import { getJavTagDisplayName, withJavTagDisplayName } from '@/utils/javTag'
 import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
@@ -1486,22 +1486,28 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
                     {zh('暂无可添加女优', 'No idols to add')}
                   </div>
                 ) : (
-                  availableIdolOptions.map((idol) => (
-                    <button
-                      key={idol.id}
-                      type="button"
-                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
-                      onClick={() => toggleIdol(idol.id, true)}
-                      disabled={saving}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        {getIdolDisplayName(idol, preferChineseName)}
-                      </span>
-                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
-                        {Math.max(0, Number(idol?.work_count) || 0)}
-                      </span>
-                    </button>
-                  ))
+                  availableIdolOptions.map((idol) => {
+                    const { primaryName, secondaryName } = getIdolDisplayNames(idol, false)
+                    return (
+                      <button
+                        key={idol.id}
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                        onClick={() => toggleIdol(idol.id, true)}
+                        disabled={saving}
+                      >
+                        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+                          <span className="truncate">{primaryName}</span>
+                          {secondaryName ? (
+                            <span className="truncate text-xs text-gray-500">{secondaryName}</span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                          {Math.max(0, Number(idol?.work_count) || 0)}
+                        </span>
+                      </button>
+                    )
+                  })
                 )}
               </div>
             </div>
