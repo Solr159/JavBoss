@@ -722,13 +722,12 @@ export default function App() {
           }
           return { videos: nextVideos, selectedVideoMeta: nextMeta }
         })
-        await loadVideos({ force: true })
       } catch (err) {
         console.error(zh('重命名视频失败', 'Failed to rename video'), err)
         showCenterToast(getErrorMessage(err))
       }
     },
-    [loadVideos, showCenterToast]
+    [showCenterToast]
   )
 
   const handleDeleteVideo = useCallback(
@@ -800,7 +799,6 @@ export default function App() {
             : state.videos,
         }))
         setScrapeSettingsVideo(null)
-        await loadVideos({ force: true })
         showToast(zh('刮削设置已保存', 'Scrape settings saved'))
       } catch (err) {
         console.error(zh('保存刮削设置失败', 'Failed to save scrape settings'), err)
@@ -809,7 +807,7 @@ export default function App() {
         setScrapeSettingsSaving(false)
       }
     },
-    [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
+    [scrapeSettingsVideo, showCenterToast, showToast]
   )
 
   const handleFetchScrapePossibleCodes = useCallback(async () => {
@@ -844,7 +842,6 @@ export default function App() {
             : state.videos,
         }))
         setScrapeSettingsVideo(null)
-        await loadVideos({ force: true })
         showToast(zh('手动刮削已保存', 'Manual scrape saved'))
       } catch (err) {
         console.error(zh('手动刮削失败', 'Manual scrape failed'), err)
@@ -853,7 +850,7 @@ export default function App() {
         setScrapeSettingsSaving(false)
       }
     },
-    [loadVideos, scrapeSettingsVideo, showCenterToast, showToast]
+    [scrapeSettingsVideo, showCenterToast, showToast]
   )
 
   const handleLinkExistingJav = useCallback(
@@ -881,13 +878,12 @@ export default function App() {
             : state.videos,
         }))
         setScrapeSettingsVideo(null)
-        await loadVideos({ force: true })
         showToast(zh('已关联已有番号', 'Linked to existing JAV'))
       } finally {
         setScrapeSettingsSaving(false)
       }
     },
-    [loadVideos, scrapeSettingsVideo, showToast]
+    [scrapeSettingsVideo, showToast]
   )
 
   const closeJavVideoPicker = useCallback(() => {
@@ -1775,10 +1771,9 @@ export default function App() {
   const navigateVideoPage = useCallback(
     (targetPage) => {
       if (!targetPage || targetPage === page) return
-      saveScrollBeforeUrlStateChange()
       setPage(targetPage)
     },
-    [page, saveScrollBeforeUrlStateChange, setPage]
+    [page, setPage]
   )
   const selectedCount = useMemo(() => selectedVideoIds.size, [selectedVideoIds])
   const selectedList = useMemo(() => {
