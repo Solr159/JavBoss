@@ -1,0 +1,53 @@
+name: 问题咨询
+description: 咨询使用方法、配置或其他项目相关问题
+title: "[问题咨询] "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎提问。请尽量提供完整背景，便于其他人理解和回答。
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前检查
+      options:
+        - label: 我已查阅项目文档并搜索现有 Issue，但仍未找到答案。
+          required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题描述
+      description: 请清晰、具体地描述你想咨询的问题。
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 使用场景
+      description: 请说明相关操作、目标及问题出现时的上下文。
+    validations:
+      required: true
+
+  - type: textarea
+    id: attempts
+    attributes:
+      label: 已尝试的方法
+      description: 请说明你已经查阅的资料或尝试过的解决方法，以及对应结果。
+
+  - type: input
+    id: version
+    attributes:
+      label: JavBoss 版本
+      description: 如果与特定版本无关，可填写“不适用”。
+      placeholder: 例如：v0.1.0；不适用
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 补充信息
+      description: 可附上日志、截图、配置或其他相关信息，请注意移除隐私信息。
