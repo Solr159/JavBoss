@@ -18,6 +18,8 @@ body:
           required: true
         - label: 我使用的是 JavBoss 的最新版本，或已确认该问题在最新版本中仍然存在。
           required: true
+        - label: 我确定没有上传含有敏感内容的文字、图片和视频。
+          required: true
 
   - type: input
     id: version
@@ -28,9 +30,9 @@ body:
       required: true
 
   - type: dropdown
-    id: operating-system
+    id: installation-type
     attributes:
-      label: 操作系统
+      label: 安装类型
       options:
         - Windows
         - macOS
