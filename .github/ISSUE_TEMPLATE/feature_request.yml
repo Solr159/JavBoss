@@ -35,12 +35,6 @@ body:
       required: true
 
   - type: textarea
-    id: alternatives
-    attributes:
-      label: 备选方案
-      description: 如果你尝试过其他解决方式，或考虑过替代方案，请在这里说明。
-
-  - type: textarea
     id: additional-context
     attributes:
       label: 补充信息

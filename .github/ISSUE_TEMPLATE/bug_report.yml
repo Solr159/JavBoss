@@ -23,7 +23,6 @@ body:
     id: version
     attributes:
       label: JavBoss 版本
-      description: 请填写版本号或 Git 提交哈希。
       placeholder: 例如：v0.1.0
     validations:
       required: true
@@ -36,7 +35,7 @@ body:
         - Windows
         - macOS
         - Linux
-        - 其他
+        - Docker
     validations:
       required: true
 
