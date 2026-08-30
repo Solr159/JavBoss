@@ -109,8 +109,7 @@ func GetVideoIDByPath(ctx context.Context, dirPath, relPath string) (int64, erro
 		Joins("JOIN video ON video.id = video_location.video_id").
 		Where("directory.path = ?", dirPath).
 		Where("video_location.relative_path = ?", cleanRelativePathForDB(relPath)).
-		Where("COALESCE(video_location.is_delete, 0) = 0").
-		Where("COALESCE(directory.is_delete, 0) = 0").
+		Where(activeLocationWhereSQL("video_location", "directory")).
 		Where("COALESCE(directory.missing, 0) = 0").
 		First(&loc).Error
 	if err != nil {
@@ -133,8 +132,7 @@ func GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoL
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.video_id = ?", videoID).
-		Where("COALESCE(video_location.is_delete, 0) = 0").
-		Where("COALESCE(directory.is_delete, 0) = 0").
+		Where(activeLocationWhereSQL("video_location", "directory")).
 		Order("video_location.id").
 		Preload("DirectoryRef").
 		First(&loc).Error
@@ -158,8 +156,7 @@ func GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*mo
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.id = ?", locationID).
 		Where("video_location.video_id = ?", videoID).
-		Where("COALESCE(video_location.is_delete, 0) = 0").
-		Where("COALESCE(directory.is_delete, 0) = 0").
+		Where(activeLocationWhereSQL("video_location", "directory")).
 		Preload("DirectoryRef").
 		First(&loc).Error
 	if err != nil {
@@ -336,8 +333,7 @@ func preloadActiveLocationsWhere(extraWhere string) func(*gorm.DB) *gorm.DB {
 			Preload("Locations", func(tx *gorm.DB) *gorm.DB {
 				tx = tx.
 					Joins("JOIN directory ON directory.id = video_location.directory_id").
-					Where("COALESCE(video_location.is_delete, 0) = 0").
-					Where("COALESCE(directory.is_delete, 0) = 0")
+					Where(activeLocationWhereSQL("video_location", "directory"))
 				if extraWhere != "" {
 					tx = tx.Where(extraWhere)
 				}
