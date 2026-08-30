@@ -91,7 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 <dl>
 <dd>
 
-docker-compose.yaml（建议放在单独的目录里）：
+docker-compose.yaml（建议放在单独的目录中）：
 
 ```yaml
 services:
