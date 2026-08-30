@@ -33,6 +33,17 @@ function validScrapeURL(value) {
   }
 }
 
+function validJavDBURL(value) {
+  try {
+    const parsed = new URL(String(value || ""));
+    if (parsed.origin !== "https://javdb.com") return "";
+    parsed.hash = "";
+    return parsed.href;
+  } catch {
+    return "";
+  }
+}
+
 function validSessionID(value) {
   const sessionId = String(value || "");
   return /^[a-zA-Z0-9_-]{8,128}$/.test(sessionId) ? sessionId : "";
@@ -201,21 +212,14 @@ async function openRelayTab(message, sender) {
 async function openJavDBAssistTab(message, sender) {
   const request = validJavDBAssistRequest(message?.request);
   const sessionId = validSessionID(message?.sessionId);
-  let url;
-  try {
-    const parsed = new URL(String(message?.url || ""));
-    if (parsed.origin !== "https://javdb.com") throw new Error();
-    parsed.hash = "";
-    url = parsed.href;
-  } catch {
-    url = "";
-  }
+  const url = validJavDBURL(message?.url);
+  const fallbackUrl = validJavDBURL(message?.fallbackUrl) || url;
   if (!url || !request || !sessionId || !isExtensionBridgeSender(sender)) {
     return { ok: false, error: "invalid JavDB assist request" };
   }
 
   if (!(await javDBAutoRedirectEnabled())) {
-    const createProperties = { url, active: true };
+    const createProperties = { url: fallbackUrl, active: true };
     if (Number.isInteger(sender.tab?.windowId)) {
       createProperties.windowId = sender.tab.windowId;
     }

@@ -95,6 +95,7 @@ export function openJavDBWithAssist(fallbackURL, options) {
         type: MESSAGE_JAVDB_OPEN,
         sessionId: bridgeSessionId,
         url: assistedURL,
+        fallbackUrl: fallback,
         request: options,
       },
       EXTENSION_ORIGIN

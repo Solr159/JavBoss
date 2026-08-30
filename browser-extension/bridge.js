@@ -82,6 +82,7 @@
             type: "JAVBOSS_JAVDB_OPEN_ASSIST",
             sessionId,
             url: String(message.url || ""),
+            fallbackUrl: String(message.fallbackUrl || ""),
             request: message.request,
           }
         : {

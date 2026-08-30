@@ -40,6 +40,8 @@ test("the bridge forwards clean JavDB assistance to the service worker", async (
       type: "JAVBOSS_JAVDB_OPEN",
       sessionId,
       url: "https://javdb.com/search?q=ADN-429&f=all",
+      fallbackUrl:
+        "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF",
       request: { target: "idol", code: "ADN-429", name: "岬ななみ" },
     },
   });
@@ -50,6 +52,8 @@ test("the bridge forwards clean JavDB assistance to the service worker", async (
       type: "JAVBOSS_JAVDB_OPEN_ASSIST",
       sessionId,
       url: "https://javdb.com/search?q=ADN-429&f=all",
+      fallbackUrl:
+        "https://javdb.com/search?f=actor&q=%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF",
       request: { target: "idol", code: "ADN-429", name: "岬ななみ" },
     },
   ]);
