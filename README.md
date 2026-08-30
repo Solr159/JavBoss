@@ -60,6 +60,15 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 - Windows：双击桌面的 `JavBoss` 快捷方式，或在开始菜单中搜索 `JavBoss`。
 - Linux / macOS：打开终端运行 `javboss`。
 
+<details>
+<summary>点击查看默认安装位置</summary>
+
+- Windows：`C:\Users\你的用户名\AppData\Local\JavBoss` （右键点击桌面快捷方式 -> 属性 -> 打开文件所在位置 即可快速定位）
+- Linux：`~/.local/share/javboss`
+- macOS：`~/Applications/JavBoss`
+
+</details>
+
 </dd>
 </dl>
 
@@ -177,12 +186,6 @@ JavBoss 现在还有一个随程序包一起发布的 Chrome 扩展：`JavBoss �
 docker compose pull
 docker compose up -d
 ```
-
-## 命令行一键安装默认位置
-
-- Windows：`C:\Users\你的用户名\AppData\Local\JavBoss` （右键点击桌面快捷方式 -> 属性 -> 打开文件所在位置 即可快速定位）
-- Linux：`~/.local/share/javboss`
-- macOS：`~/Applications/JavBoss`
 
 ## 注意事项
 
