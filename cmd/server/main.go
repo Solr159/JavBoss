@@ -193,6 +193,7 @@ func main() {
 			return
 		case <-timer.C:
 			service.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
+			service.StartDownloadManager(ctx)
 			service.StartJavMetadataScanner(ctx, time.Minute)
 			service.StartJavSeriesMetadataScanner(ctx, time.Minute)
 			service.StartUncensoredJavMetadataScanner(ctx, time.Minute)

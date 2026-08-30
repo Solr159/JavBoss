@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JavBoss 助手</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>磁力下载</h1>
+      <label class="field" for="server-url">
+        <span>JavBoss Server 地址</span>
+        <input
+          id="server-url"
+          type="url"
+          inputmode="url"
+          autocomplete="url"
+          placeholder="http://127.0.0.1:17654"
+        />
+      </label>
+      <label class="toggle" for="enabled">
+        <span>
+          <strong>启用磁力下载</strong>
+          <small>点击磁力链接时询问并提交到 JavBoss</small>
+        </span>
+        <input id="enabled" type="checkbox" />
+      </label>
+      <button id="save" type="button">保存设置</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

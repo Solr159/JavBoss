@@ -73,12 +73,17 @@ test("bridge resources are web accessible without broad host permissions", () =>
     "https://javdb.com/*",
     "https://avsox.click/*",
   ]);
+  assert.deepEqual(manifest.optional_host_permissions, [
+    "http://*/*",
+    "https://*/*",
+  ]);
+  assert.equal(manifest.action.default_popup, "popup.html");
   assert.deepEqual(manifest.web_accessible_resources[0].resources, [
     "bridge.html",
     "bridge.js",
   ]);
   assert.deepEqual(
-    manifest.content_scripts.map((entry) => entry.js.at(-1)),
+    manifest.content_scripts.slice(0, 4).map((entry) => entry.js.at(-1)),
     [
       "content/scrape-content.js",
       "content/scrape-content.js",
@@ -101,6 +106,12 @@ test("bridge resources are web accessible without broad host permissions", () =>
     "content/avsox-parser.js",
     "content/scrape-content.js",
   ]);
+  const magnetScript = manifest.content_scripts.find((entry) =>
+    entry.js.includes("content/magnet-download.js"),
+  );
+  assert.deepEqual(magnetScript.matches, ["http://*/*", "https://*/*"]);
+  assert.equal(magnetScript.run_at, "document_start");
+  assert.equal(magnetScript.all_frames, true);
 });
 
 test("JavBus opens in a new tab instead of a popup window", () => {

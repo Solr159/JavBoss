@@ -3,6 +3,7 @@ import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import DisplaySettingsOutlinedIcon from '@mui/icons-material/DisplaySettingsOutlined'
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import MovieCreationOutlinedIcon from '@mui/icons-material/MovieCreationOutlined'
@@ -67,6 +68,7 @@ export default function SideTabs({
   onBrowserBack,
   onBrowserForward,
   onEnabledDirectoryIdsChange,
+  onOpenDownload,
   onOpenGlobalSettings,
   onOpenJavSettings,
   onOpenJavTagModal,
@@ -209,6 +211,12 @@ export default function SideTabs({
       </nav>
 
       <div className="side-tabs__tools">
+        <RailButton
+          className="w-full"
+          icon={DownloadOutlinedIcon}
+          label={zh('下载', 'Downloads')}
+          onClick={onOpenDownload}
+        />
         <div ref={directoryMenuRef} className="relative">
           <button
             type="button"

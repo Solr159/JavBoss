@@ -699,6 +699,9 @@ async function runBrowserExtensionRelease() {
     "bridge.js",
     "assist-loading.html",
     "assist-loading.css",
+    "popup.html",
+    "popup.css",
+    "popup.js",
     "service-worker.js",
     "README.md",
   ]) {

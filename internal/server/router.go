@@ -20,6 +20,7 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 	router.Use(ginLogger(), gin.Recovery())
 	router.GET("/healthz", handleHealth)
 	registerAuthRoutes(router, auth)
+	registerExtensionDownloadRoutes(router)
 	protected := router.Group("/")
 	protected.Use(auth.requireAuth())
 	registerProtectedAuthRoutes(protected, auth)
@@ -76,6 +77,9 @@ func isAPIPath(path string) bool {
 		"/auth",
 		"/config",
 		"/directories",
+		"/downloader",
+		"/downloads",
+		"/extension",
 		"/healthz",
 		"/jav",
 		"/sync",

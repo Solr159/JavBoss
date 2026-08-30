@@ -18,15 +18,20 @@ function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createHarness() {
+function createHarness(options = {}) {
   const data = new Map([
     [`${RELAY_PREFIX}1`, { sessionId: SESSION_ID }],
     [`${SESSION_PREFIX}${SESSION_ID}`, { sessionId: SESSION_ID }],
   ]);
+  const localData = new Map();
+  if (options.magnetSettings) {
+    localData.set("javboss:magnet-download-settings", options.magnetSettings);
+  }
   const listeners = {};
   const sentMessages = [];
   const createdTabs = [];
   const updatedTabs = [];
+  const fetchCalls = [];
 
   const sessionStorage = {
     async get(keys) {
@@ -46,6 +51,17 @@ function createHarness() {
     },
   };
 
+  const localStorage = {
+    async get(keys) {
+      const requested = Array.isArray(keys) ? keys : [keys];
+      return Object.fromEntries(
+        requested
+          .filter((key) => localData.has(key))
+          .map((key) => [key, localData.get(key)]),
+      );
+    },
+  };
+
   const chrome = {
     runtime: {
       onMessage: { addListener: (listener) => (listeners.message = listener) },
@@ -56,7 +72,7 @@ function createHarness() {
         `chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/${resourcePath}`,
       sendMessage: async () => ({ ok: true }),
     },
-    storage: { session: sessionStorage },
+    storage: { local: localStorage, session: sessionStorage },
     tabs: {
       create: async (properties) => {
         createdTabs.push(properties);
@@ -74,7 +90,16 @@ function createHarness() {
     },
   };
 
-  vm.runInNewContext(source, { chrome, URL });
+  const fetch = async (url, options) => {
+    fetchCalls.push({ url, options });
+    return {
+      ok: true,
+      status: 201,
+      json: async () => ({}),
+    };
+  };
+
+  vm.runInNewContext(source, { chrome, fetch, URL });
 
   async function send(message, tab) {
     return new Promise((resolve) => {
@@ -90,12 +115,75 @@ function createHarness() {
   return {
     createdTabs,
     data,
+    fetchCalls,
     listeners,
     send,
     sentMessages,
     updatedTabs,
   };
 }
+
+test("a clicked magnet link is submitted to the configured JavBoss server", async () => {
+  const harness = createHarness({
+    magnetSettings: {
+      enabled: true,
+      serverUrl: "http://192.168.1.20:17654/javboss",
+    },
+  });
+  const magnetUrl =
+    "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=Test";
+  const response = await harness.send(
+    { type: "JAVBOSS_DOWNLOAD_MAGNET", magnetUrl },
+    { id: 2, url: "https://www.javbus.com/ABC-123" },
+  );
+
+  assert.deepEqual(plain(response), { ok: true });
+  assert.equal(harness.fetchCalls.length, 1);
+  assert.equal(
+    harness.fetchCalls[0].url,
+    "http://192.168.1.20:17654/javboss/extension/downloads",
+  );
+  assert.equal(harness.fetchCalls[0].options.method, "POST");
+  assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), {
+    magnet_url: magnetUrl,
+  });
+});
+
+test("magnet submission is rejected until it is manually enabled", async () => {
+  const harness = createHarness({
+    magnetSettings: {
+      enabled: false,
+      serverUrl: "http://127.0.0.1:17654",
+    },
+  });
+  const response = await harness.send(
+    {
+      type: "JAVBOSS_DOWNLOAD_MAGNET",
+      magnetUrl: "magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567",
+    },
+    { id: 2, url: "https://www.javbus.com/ABC-123" },
+  );
+
+  assert.deepEqual(plain(response), {
+    ok: false,
+    error: "请先在扩展中填写 JavBoss Server 地址并启用磁力下载",
+  });
+  assert.equal(harness.fetchCalls.length, 0);
+});
+
+test("a non-magnet URL is rejected without contacting JavBoss", async () => {
+  const harness = createHarness();
+  const response = await harness.send(
+    { type: "JAVBOSS_DOWNLOAD_MAGNET", magnetUrl: "https://example.com/file" },
+    { id: 2, url: "https://www.javbus.com/ABC-123" },
+  );
+
+  assert.deepEqual(plain(response), {
+    ok: false,
+    error: "invalid magnet link",
+  });
+  assert.equal(harness.fetchCalls.length, 0);
+});
 
 test("a manually created tab cannot inherit from its opener", async () => {
   const harness = createHarness();

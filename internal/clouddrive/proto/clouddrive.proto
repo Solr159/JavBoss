@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package clouddrive;
+
+option go_package = "javboss/internal/clouddrive/proto;clouddrivepb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// This intentionally contains only the stable CloudDrive2 RPC surface used by
+// JavBoss. Field numbers match CloudDrive2's official clouddrive.proto v1.0.14.
+service CloudDriveFileSrv {
+  rpc GetSystemInfo(google.protobuf.Empty) returns (CloudDriveSystemInfo);
+  rpc GetApiTokenInfo(StringValue) returns (TokenInfo);
+  rpc GetSubFiles(ListSubFileRequest) returns (stream SubFilesReply);
+  rpc FindFileByPath(FindFileByPathRequest) returns (CloudDriveFile);
+  rpc CreateFolder(CreateFolderRequest) returns (CreateFolderResult);
+  rpc AddOfflineFiles(AddOfflineFileRequest) returns (FileOperationResult);
+  rpc ListOfflineFilesByPath(FileRequest) returns (OfflineFileListResult);
+  rpc GetDownloadUrlPath(GetDownloadUrlPathRequest) returns (DownloadUrlPathInfo);
+}
+
+message StringValue { string value = 1; }
+
+message CloudDriveSystemInfo {
+  bool IsLogin = 1;
+  string UserName = 2;
+  bool SystemReady = 3;
+  optional string SystemMessage = 4;
+  optional bool hasError = 5;
+}
+
+message TokenPermissions {
+  bool allow_list = 1;
+  bool allow_create_folder = 4;
+  bool allow_read = 7;
+  bool allow_add_offline_download = 16;
+  bool allow_list_offline_downloads = 17;
+}
+
+message TokenInfo {
+  string token = 1;
+  string rootDir = 2;
+  TokenPermissions permissions = 3;
+  optional uint64 expires_in = 4;
+  string friendly_name = 5;
+}
+
+message FileRequest {
+  string path = 1;
+  optional bool forceRefresh = 2;
+}
+
+message FileOperationResult {
+  bool success = 1;
+  string errorMessage = 2;
+  repeated string resultFilePaths = 3;
+}
+
+message AddOfflineFileRequest {
+  string urls = 1;
+  string toFolder = 2;
+  optional uint64 checkFolderAfterSecs = 3;
+}
+
+message ListSubFileRequest {
+  string path = 1;
+  bool forceRefresh = 2;
+  optional bool checkExpires = 3;
+}
+
+message SubFilesReply { repeated CloudDriveFile subFiles = 1; }
+
+message FindFileByPathRequest {
+  string parentPath = 1;
+  string path = 2;
+}
+
+message CreateFolderRequest {
+  string parentPath = 1;
+  string folderName = 2;
+}
+
+message CreateFolderResult {
+  CloudDriveFile folderCreated = 1;
+  FileOperationResult result = 2;
+}
+
+message CloudDriveFile {
+  string id = 1;
+  string name = 2;
+  string fullPathName = 3;
+  int64 size = 4;
+  enum FileType {
+    Directory = 0;
+    File = 1;
+    Other = 2;
+  }
+  FileType fileType = 5;
+  google.protobuf.Timestamp createTime = 6;
+  google.protobuf.Timestamp writeTime = 7;
+  bool isDirectory = 30;
+  bool isRoot = 31;
+  bool isCloudRoot = 32;
+  bool isCloudDirectory = 33;
+  bool isCloudFile = 34;
+  bool isLocal = 37;
+  bool canOfflineDownload = 66;
+  bool supportOfflineDownloadManagement = 75;
+  bool readOnly = 80;
+}
+
+enum OfflineFileStatus {
+  OFFLINE_INIT = 0;
+  OFFLINE_DOWNLOADING = 1;
+  OFFLINE_FINISHED = 2;
+  OFFLINE_ERROR = 3;
+  OFFLINE_UNKNOWN = 4;
+}
+
+message OfflineFile {
+  string name = 1;
+  uint64 size = 2;
+  string url = 3;
+  OfflineFileStatus status = 4;
+  string infoHash = 5;
+  string fileId = 6;
+  uint64 add_time = 7;
+  string parentId = 8;
+  double percendDone = 9;
+  uint64 peers = 10;
+}
+
+message OfflineStatus {
+  uint32 quota = 1;
+  uint32 total = 2;
+}
+
+message OfflineFileListResult {
+  repeated OfflineFile offlineFiles = 1;
+  OfflineStatus status = 2;
+}
+
+message GetDownloadUrlPathRequest {
+  string path = 1;
+  bool preview = 2;
+  bool lazy_read = 3;
+  bool get_direct_url = 4;
+}
+
+message DownloadUrlPathInfo {
+  string downloadUrlPath = 1;
+  optional uint64 expiresIn = 2;
+  optional string directUrl = 3;
+  optional string userAgent = 4;
+  map<string, string> additionalHeaders = 5;
+}

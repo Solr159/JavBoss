@@ -1,0 +1,161 @@
+package server
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
+	"javboss/internal/models"
+
+	"github.com/gin-gonic/gin"
+)
+
+func TestCreateDownloadJobAcceptsManualMagnetOnly(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "download-api.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	downloadDirectory := t.TempDir()
+	if err := dbpkg.SaveDownloaderSettings(t.Context(), &models.DownloaderSettings{
+		ActiveProvider:    models.DownloaderProviderCloudDrive2,
+		DownloadDirectory: downloadDirectory, LocalConcurrency: 2,
+	}); err != nil {
+		t.Fatalf("save downloader settings: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/downloads", listDownloadJobs)
+	router.POST("/downloads", createDownloadJob)
+	router.OPTIONS("/extension/downloads", extensionDownloadsPreflight)
+	router.POST("/extension/downloads", createExtensionDownloadJob)
+	body := `{"magnet_url":"magnet:?xt=urn:btih:0123456789ABCDEF0123456789ABCDEF01234567&dn=Manual+Task"}`
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/downloads", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusCreated {
+		t.Fatalf("create status = %d body=%s", response.Code, response.Body.String())
+	}
+	var job models.DownloadJob
+	if err := database.First(&job).Error; err != nil {
+		t.Fatalf("load download job: %v", err)
+	}
+	if job.MagnetName != "Manual Task" || job.DownloadDirectory != downloadDirectory {
+		t.Fatalf("stored download job = %#v", job)
+	}
+	if job.Provider != models.DownloaderProviderCloudDrive2 {
+		t.Fatalf("stored provider = %q", job.Provider)
+	}
+
+	repeatedResponse := httptest.NewRecorder()
+	repeatedRequest := httptest.NewRequest(http.MethodPost, "/downloads", strings.NewReader(body))
+	repeatedRequest.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(repeatedResponse, repeatedRequest)
+	if repeatedResponse.Code != http.StatusCreated {
+		t.Fatalf("repeated create status = %d body=%s", repeatedResponse.Code, repeatedResponse.Body.String())
+	}
+	var count int64
+	if err := database.Model(&models.DownloadJob{}).
+		Where("download_directory = ? AND info_hash = ?", downloadDirectory, job.InfoHash).
+		Count(&count).Error; err != nil {
+		t.Fatalf("count repeated download jobs: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("repeated download job count = %d, want 2", count)
+	}
+
+	listResponse := httptest.NewRecorder()
+	listRequest := httptest.NewRequest(http.MethodGet, "/downloads", nil)
+	router.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("list status = %d body=%s", listResponse.Code, listResponse.Body.String())
+	}
+	var payload struct {
+		Items []struct {
+			MagnetURL string `json:"magnet_url"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(payload.Items) != 2 || payload.Items[0].MagnetURL != job.MagnetURL {
+		t.Fatalf("listed magnet URLs = %#v", payload.Items)
+	}
+
+	preflightResponse := httptest.NewRecorder()
+	preflightRequest := httptest.NewRequest(http.MethodOptions, "/extension/downloads", nil)
+	preflightRequest.Header.Set("Origin", javBossExtensionOrigin)
+	router.ServeHTTP(preflightResponse, preflightRequest)
+	if preflightResponse.Code != http.StatusNoContent ||
+		preflightResponse.Header().Get("Access-Control-Allow-Origin") != javBossExtensionOrigin {
+		t.Fatalf("extension preflight status=%d headers=%v", preflightResponse.Code, preflightResponse.Header())
+	}
+
+	invalidExtensionResponse := httptest.NewRecorder()
+	invalidExtensionRequest := httptest.NewRequest(http.MethodPost, "/extension/downloads", strings.NewReader(body))
+	invalidExtensionRequest.Header.Set("Content-Type", "application/json")
+	invalidExtensionRequest.Header.Set("Origin", "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	router.ServeHTTP(invalidExtensionResponse, invalidExtensionRequest)
+	if invalidExtensionResponse.Code != http.StatusForbidden {
+		t.Fatalf("invalid extension status = %d body=%s", invalidExtensionResponse.Code, invalidExtensionResponse.Body.String())
+	}
+
+	extensionResponse := httptest.NewRecorder()
+	extensionRequest := httptest.NewRequest(http.MethodPost, "/extension/downloads", strings.NewReader(body))
+	extensionRequest.Header.Set("Content-Type", "application/json")
+	extensionRequest.Header.Set("Origin", javBossExtensionOrigin)
+	router.ServeHTTP(extensionResponse, extensionRequest)
+	if extensionResponse.Code != http.StatusCreated ||
+		extensionResponse.Header().Get("Access-Control-Allow-Origin") != javBossExtensionOrigin {
+		t.Fatalf("extension create status=%d headers=%v body=%s", extensionResponse.Code, extensionResponse.Header(), extensionResponse.Body.String())
+	}
+}
+
+func TestDownloadRevealTargetUsesDownloadedFileWithinConfiguredDirectory(t *testing.T) {
+	root := t.TempDir()
+	downloadedDirectory := filepath.Join(root, "Movie Name")
+	if err := os.Mkdir(downloadedDirectory, 0o755); err != nil {
+		t.Fatalf("create downloaded directory: %v", err)
+	}
+	downloadedFile := filepath.Join(downloadedDirectory, "movie.mp4")
+	if err := os.WriteFile(downloadedFile, []byte("video"), 0o644); err != nil {
+		t.Fatalf("create downloaded file: %v", err)
+	}
+	job := &models.DownloadJob{
+		DownloadDirectory: root,
+		LocalFilesJSON:    `["` + filepath.ToSlash(downloadedFile) + `"]`,
+	}
+
+	if target := downloadRevealTarget(job); target != filepath.Clean(downloadedFile) {
+		t.Fatalf("reveal target = %q, want %q", target, downloadedFile)
+	}
+}
+
+func TestDownloadRevealTargetFallsBackToConfiguredDirectory(t *testing.T) {
+	root := t.TempDir()
+	job := &models.DownloadJob{
+		DownloadDirectory: root,
+		LocalFilesJSON:    `["/outside/missing.mp4"]`,
+	}
+
+	if target := downloadRevealTarget(job); target != filepath.Clean(root) {
+		t.Fatalf("reveal target = %q, want %q", target, root)
+	}
+}

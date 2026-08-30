@@ -9,6 +9,7 @@ const RELAY_SESSION_KEY_PREFIX = "javboss:browser-session:";
 const JAVDB_ASSIST_KEY_PREFIX = "javboss:javdb-assist:";
 const LEGACY_RELAY_KEY_PREFIX = "javboss:javbus-relay:";
 const LEGACY_RELAY_SESSION_KEY_PREFIX = "javboss:javbus-session:";
+const MAGNET_DOWNLOAD_SETTINGS_KEY = "javboss:magnet-download-settings";
 
 function relayKey(tabId) {
   return `${RELAY_KEY_PREFIX}${tabId}`;
@@ -34,6 +35,91 @@ function validScrapeURL(value) {
 function validSessionID(value) {
   const sessionId = String(value || "");
   return /^[a-zA-Z0-9_-]{8,128}$/.test(sessionId) ? sessionId : "";
+}
+
+function validMagnetURL(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate || candidate.length > 16384) return "";
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol !== "magnet:") return "";
+    return parsed.searchParams
+      .getAll("xt")
+      .some((value) => value.toLowerCase().startsWith("urn:btih:"))
+      ? candidate
+      : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizedServerURL(value) {
+  const candidate = String(value || "").trim();
+  if (!candidate) return "";
+  try {
+    const parsed = new URL(candidate);
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      !parsed.hostname ||
+      parsed.username ||
+      parsed.password
+    ) {
+      return "";
+    }
+    parsed.search = "";
+    parsed.hash = "";
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    return parsed.href.replace(/\/$/, "");
+  } catch {
+    return "";
+  }
+}
+
+async function magnetDownloadSettings() {
+  const stored = await chrome.storage.local.get(MAGNET_DOWNLOAD_SETTINGS_KEY);
+  const settings = stored[MAGNET_DOWNLOAD_SETTINGS_KEY];
+  const serverUrl = normalizedServerURL(settings?.serverUrl);
+  return {
+    enabled: settings?.enabled === true && Boolean(serverUrl),
+    serverUrl,
+  };
+}
+
+async function submitMagnetDownload(message) {
+  const magnetUrl = validMagnetURL(message?.magnetUrl);
+  if (!magnetUrl) return { ok: false, error: "invalid magnet link" };
+  const settings = await magnetDownloadSettings();
+  if (!settings.enabled) {
+    return {
+      ok: false,
+      error: "请先在扩展中填写 JavBoss Server 地址并启用磁力下载",
+    };
+  }
+  const downloadUrl = new URL("extension/downloads", `${settings.serverUrl}/`)
+    .href;
+
+  const response = await fetch(downloadUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ magnet_url: magnetUrl }),
+  });
+  let payload = {};
+  try {
+    payload = await response.json();
+  } catch {
+    // Error responses from an unavailable or stale server may not be JSON.
+  }
+  if (!response.ok) {
+    return {
+      ok: false,
+      error: String(
+        payload?.error_zh ||
+          payload?.error_en ||
+          `JavBoss returned HTTP ${response.status}`,
+      ),
+    };
+  }
+  return { ok: true };
 }
 
 function validJavDBAssistRequest(value) {
@@ -291,6 +377,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     operation = clearJavDBAssist(message, sender);
   } else if (message?.type === "JAVBOSS_JAVDB_COMPLETE_ASSIST") {
     operation = completeJavDBAssist(message, sender);
+  } else if (message?.type === "JAVBOSS_DOWNLOAD_MAGNET") {
+    operation = submitMagnetDownload(message);
   } else {
     return false;
   }

@@ -407,6 +407,7 @@ export default function TopBar({
 
   const activeSearchInput = isJavMode ? javSearchInput : searchInput
   const activeSearchHref = isJavMode ? javSearchHref : searchHref
+  const isJavDownload = isJavMode && javTab === 'download'
   const selectedVideoCount = Number(selectedCount)
   const hasVideoSelection =
     !isJavMode && Number.isFinite(selectedVideoCount) && selectedVideoCount > 0
@@ -420,9 +421,10 @@ export default function TopBar({
           : zh('搜索番号或标题', 'Search code or title')
     : zh('搜索文件名', 'Search filename')
   const showFilterCluster =
-    filterItems.length > 0 ||
-    Boolean(onOpenFilterEditor) ||
-    ((!isJavMode || javTab !== 'idol') && hasActiveControlFilter)
+    !isJavDownload &&
+    (filterItems.length > 0 ||
+      Boolean(onOpenFilterEditor) ||
+      ((!isJavMode || javTab !== 'idol') && hasActiveControlFilter))
 
   return (
     <header ref={headerRef} className="filter-topbar">
@@ -436,30 +438,32 @@ export default function TopBar({
           JavBoss
         </button>
         <div className="filter-topbar__controls">
-          <form onSubmit={onSubmitSearch} className="filter-search">
-            <input
-              value={activeSearchInput}
-              onChange={(event) => onSearchInputChange?.(event.target.value)}
-              placeholder={placeholder}
-              aria-label={placeholder}
-            />
-            <Button
-              component="a"
-              href={activeSearchHref}
-              type="submit"
-              variant="contained"
-              size="small"
-              onClick={(event) => {
-                if (isModifiedClick(event)) return
-                event.preventDefault()
-                onSubmitSearch?.(event)
-              }}
-              sx={{ minWidth: 34, width: 34, height: 30, p: 0, borderRadius: '8px' }}
-              aria-label={zh('应用搜索', 'Apply search')}
-            >
-              <SearchIcon sx={{ fontSize: 17 }} />
-            </Button>
-          </form>
+          {!isJavDownload ? (
+            <form onSubmit={onSubmitSearch} className="filter-search">
+              <input
+                value={activeSearchInput}
+                onChange={(event) => onSearchInputChange?.(event.target.value)}
+                placeholder={placeholder}
+                aria-label={placeholder}
+              />
+              <Button
+                component="a"
+                href={activeSearchHref}
+                type="submit"
+                variant="contained"
+                size="small"
+                onClick={(event) => {
+                  if (isModifiedClick(event)) return
+                  event.preventDefault()
+                  onSubmitSearch?.(event)
+                }}
+                sx={{ minWidth: 34, width: 34, height: 30, p: 0, borderRadius: '8px' }}
+                aria-label={zh('应用搜索', 'Apply search')}
+              >
+                <SearchIcon sx={{ fontSize: 17 }} />
+              </Button>
+            </form>
+          ) : null}
 
           {isJavMode && javTab === 'list' ? (
             <FavoriteRatingFilter
@@ -545,7 +549,7 @@ export default function TopBar({
               </div>
             ) : null}
 
-            {isJavMode ? (
+            {isJavMode && !isJavDownload ? (
               <div ref={favoriteMenuRef} className="relative">
                 <button
                   type="button"

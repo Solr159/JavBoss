@@ -100,13 +100,15 @@ export const parseUrlState = (searchString = window.location.search, options = {
 
   const rawJavTab = sp.get('tab')
   const javTab =
-    rawJavTab === 'idol'
-      ? 'idol'
-      : rawJavTab === 'studio'
-        ? 'studio'
-        : rawJavTab === 'series'
-          ? 'series'
-          : 'list'
+    rawJavTab === 'download'
+      ? 'download'
+      : rawJavTab === 'idol'
+        ? 'idol'
+        : rawJavTab === 'studio'
+          ? 'studio'
+          : rawJavTab === 'series'
+            ? 'series'
+            : 'list'
   const rawJavTempSort = (sp.get('temp_sort') || '').trim()
   const javTempSort =
     javTab === 'idol' ? normalizeIdolSort(rawJavTempSort, '') : normalizeJavSort(rawJavTempSort, '')
@@ -153,7 +155,12 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     } else if (Array.isArray(state.directoryIds) && state.directoryIds.length === 0) {
       sp.set('directory_ids', '0')
     }
-    if (state.jav.tab === 'idol' || state.jav.tab === 'studio' || state.jav.tab === 'series') {
+    if (
+      state.jav.tab === 'idol' ||
+      state.jav.tab === 'studio' ||
+      state.jav.tab === 'series' ||
+      state.jav.tab === 'download'
+    ) {
       sp.set('tab', state.jav.tab)
     }
     if (state.jav.search) sp.set('search', state.jav.search)
@@ -285,13 +292,15 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
     },
     jav: {
       tab:
-        store.javTab === 'idol'
-          ? 'idol'
-          : store.javTab === 'studio'
-            ? 'studio'
-            : store.javTab === 'series'
-              ? 'series'
-              : 'list',
+        store.javTab === 'download'
+          ? 'download'
+          : store.javTab === 'idol'
+            ? 'idol'
+            : store.javTab === 'studio'
+              ? 'studio'
+              : store.javTab === 'series'
+                ? 'series'
+                : 'list',
       page:
         store.javTab === 'idol'
           ? store.idolPage
