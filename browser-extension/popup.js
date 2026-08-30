@@ -1,7 +1,9 @@
 (() => {
-  const SETTINGS_KEY = "javboss:magnet-download-settings";
+  const MAGNET_DOWNLOAD_SETTINGS_KEY = "javboss:magnet-download-settings";
+  const JAVDB_SETTINGS_KEY = "javboss:javdb-settings";
   const serverInput = document.getElementById("server-url");
   const enabledInput = document.getElementById("enabled");
+  const javDBAutoRedirectInput = document.getElementById("javdb-auto-redirect");
   const saveButton = document.getElementById("save");
   const status = document.getElementById("status");
 
@@ -38,15 +40,20 @@
   }
 
   async function loadSettings() {
-    const stored = await chrome.storage.local.get(SETTINGS_KEY);
-    const settings = stored[SETTINGS_KEY] || {};
-    serverInput.value = String(settings.serverUrl || "");
-    enabledInput.checked = settings.enabled === true;
+    const stored = await chrome.storage.local.get([
+      MAGNET_DOWNLOAD_SETTINGS_KEY,
+      JAVDB_SETTINGS_KEY,
+    ]);
+    const magnetSettings = stored[MAGNET_DOWNLOAD_SETTINGS_KEY] || {};
+    const javDBSettings = stored[JAVDB_SETTINGS_KEY] || {};
+    serverInput.value = String(magnetSettings.serverUrl || "");
+    enabledInput.checked = magnetSettings.enabled === true;
+    javDBAutoRedirectInput.checked = javDBSettings.autoRedirect !== false;
   }
 
   async function saveSettings() {
     const serverUrl = normalizedServerURL(serverInput.value);
-    if (!serverUrl) {
+    if (enabledInput.checked && !serverUrl) {
       showStatus("请输入有效的 HTTP 或 HTTPS Server 地址", true);
       return;
     }
@@ -63,13 +70,16 @@
         }
       }
       await chrome.storage.local.set({
-        [SETTINGS_KEY]: {
+        [MAGNET_DOWNLOAD_SETTINGS_KEY]: {
           enabled: enabledInput.checked,
           serverUrl,
         },
+        [JAVDB_SETTINGS_KEY]: {
+          autoRedirect: javDBAutoRedirectInput.checked,
+        },
       });
       serverInput.value = serverUrl;
-      showStatus(enabledInput.checked ? "已启用并保存" : "已关闭并保存");
+      showStatus("设置已保存");
     } catch (error) {
       showStatus(String(error?.message || error || "保存失败"), true);
     } finally {

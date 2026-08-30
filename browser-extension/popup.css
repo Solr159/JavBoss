@@ -24,6 +24,11 @@ h1 {
   font-size: 18px;
 }
 
+h1:not(:first-child) {
+  padding-top: 18px;
+  border-top: 1px solid #e1e5ec;
+}
+
 .field {
   display: grid;
   gap: 7px;
@@ -55,6 +60,10 @@ h1 {
   justify-content: space-between;
   gap: 16px;
   margin: 18px 0;
+}
+
+.section-toggle {
+  margin-top: 0;
 }
 
 .toggle span {

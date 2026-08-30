@@ -6,9 +6,15 @@ const vm = require("node:vm");
 
 const source = fs.readFileSync(path.join(__dirname, "..", "popup.js"), "utf8");
 
-function createHarness(settings = null) {
+function createHarness({ magnetSettings = null, javDBSettings = null } = {}) {
   const elements = new Map();
-  for (const id of ["server-url", "enabled", "save", "status"]) {
+  for (const id of [
+    "server-url",
+    "enabled",
+    "javdb-auto-redirect",
+    "save",
+    "status",
+  ]) {
     const listeners = {};
     elements.set(id, {
       checked: false,
@@ -33,8 +39,18 @@ function createHarness(settings = null) {
     },
     storage: {
       local: {
-        async get(key) {
-          return settings ? { [key]: settings } : {};
+        async get(keys) {
+          const stored = {};
+          if (magnetSettings) {
+            stored["javboss:magnet-download-settings"] = magnetSettings;
+          }
+          if (javDBSettings) {
+            stored["javboss:javdb-settings"] = javDBSettings;
+          }
+          const requested = new Set(Array.isArray(keys) ? keys : [keys]);
+          return Object.fromEntries(
+            Object.entries(stored).filter(([key]) => requested.has(key)),
+          );
         },
         async set(value) {
           storedValues.push(value);
@@ -51,13 +67,24 @@ function createHarness(settings = null) {
   return { elements, permissionRequests, storedValues };
 }
 
-test("the popup starts with magnet downloads disabled", async () => {
+test("the popup starts with magnet downloads disabled and JavDB redirects enabled", async () => {
   const harness = createHarness();
 
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(harness.elements.get("server-url").value, "");
   assert.equal(harness.elements.get("enabled").checked, false);
+  assert.equal(harness.elements.get("javdb-auto-redirect").checked, true);
+});
+
+test("the popup restores a disabled JavDB auto redirect setting", async () => {
+  const harness = createHarness({
+    javDBSettings: { autoRedirect: false },
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(harness.elements.get("javdb-auto-redirect").checked, false);
 });
 
 test("enabling saves the server URL after requesting host access", async () => {
@@ -78,7 +105,32 @@ test("enabling saves the server URL after requesting host access", async () => {
         enabled: true,
         serverUrl: "http://192.168.1.20:17654/javboss",
       },
+      "javboss:javdb-settings": {
+        autoRedirect: true,
+      },
     },
   ]);
-  assert.equal(harness.elements.get("status").textContent, "已启用并保存");
+  assert.equal(harness.elements.get("status").textContent, "设置已保存");
+});
+
+test("JavDB auto redirect can be disabled without magnet settings", async () => {
+  const harness = createHarness();
+  await new Promise((resolve) => setImmediate(resolve));
+  harness.elements.get("javdb-auto-redirect").checked = false;
+
+  await harness.elements.get("save").listeners.click();
+
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.permissionRequests)), []);
+  assert.deepEqual(JSON.parse(JSON.stringify(harness.storedValues)), [
+    {
+      "javboss:magnet-download-settings": {
+        enabled: false,
+        serverUrl: "",
+      },
+      "javboss:javdb-settings": {
+        autoRedirect: false,
+      },
+    },
+  ]);
+  assert.equal(harness.elements.get("status").textContent, "设置已保存");
 });

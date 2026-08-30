@@ -27,6 +27,9 @@ function createHarness(options = {}) {
   if (options.magnetSettings) {
     localData.set("javboss:magnet-download-settings", options.magnetSettings);
   }
+  if (options.javDBSettings) {
+    localData.set("javboss:javdb-settings", options.javDBSettings);
+  }
   const listeners = {};
   const sentMessages = [];
   const createdTabs = [];
@@ -298,6 +301,40 @@ test("the bridge opens JavDB assistance with clean URLs and temporary state", as
     tabId: 10,
     properties: { active: true },
   });
+});
+
+test("disabled JavDB auto redirect opens the search page without assist state", async () => {
+  const harness = createHarness({
+    javDBSettings: { autoRedirect: false },
+  });
+  const response = await harness.send(
+    {
+      type: "JAVBOSS_JAVDB_OPEN_ASSIST",
+      sessionId: SESSION_ID,
+      url: "https://javdb.com/search?q=ADN-429&f=all#legacy-marker",
+      request: {
+        target: "idol",
+        code: "ADN-429",
+        name: "岬ななみ",
+      },
+    },
+    {
+      id: 1,
+      windowId: 5,
+      url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html",
+    },
+  );
+
+  assert.deepEqual(plain(response), { ok: true });
+  assert.deepEqual(plain(harness.createdTabs), [
+    {
+      url: "https://javdb.com/search?q=ADN-429&f=all",
+      active: true,
+      windowId: 5,
+    },
+  ]);
+  assert.equal(harness.data.has(`${JAVDB_ASSIST_PREFIX}10`), false);
+  assert.deepEqual(plain(harness.updatedTabs), []);
 });
 
 test("an ordinary JavDB tab cannot activate itself through assistance", async () => {

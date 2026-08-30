@@ -10,6 +10,7 @@ const JAVDB_ASSIST_KEY_PREFIX = "javboss:javdb-assist:";
 const LEGACY_RELAY_KEY_PREFIX = "javboss:javbus-relay:";
 const LEGACY_RELAY_SESSION_KEY_PREFIX = "javboss:javbus-session:";
 const MAGNET_DOWNLOAD_SETTINGS_KEY = "javboss:magnet-download-settings";
+const JAVDB_SETTINGS_KEY = "javboss:javdb-settings";
 
 function relayKey(tabId) {
   return `${RELAY_KEY_PREFIX}${tabId}`;
@@ -83,6 +84,11 @@ async function magnetDownloadSettings() {
     enabled: settings?.enabled === true && Boolean(serverUrl),
     serverUrl,
   };
+}
+
+async function javDBAutoRedirectEnabled() {
+  const stored = await chrome.storage.local.get(JAVDB_SETTINGS_KEY);
+  return stored[JAVDB_SETTINGS_KEY]?.autoRedirect !== false;
 }
 
 async function submitMagnetDownload(message) {
@@ -206,6 +212,15 @@ async function openJavDBAssistTab(message, sender) {
   }
   if (!url || !request || !sessionId || !isExtensionBridgeSender(sender)) {
     return { ok: false, error: "invalid JavDB assist request" };
+  }
+
+  if (!(await javDBAutoRedirectEnabled())) {
+    const createProperties = { url, active: true };
+    if (Number.isInteger(sender.tab?.windowId)) {
+      createProperties.windowId = sender.tab.windowId;
+    }
+    await chrome.tabs.create(createProperties);
+    return { ok: true };
   }
 
   // Activate a controlled white page immediately. The assist state is stored
