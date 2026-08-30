@@ -199,6 +199,45 @@ test("a manually created tab cannot inherit from its opener", async () => {
   assert.equal(harness.data.has(`${RELAY_PREFIX}2`), false);
 });
 
+test("all scrape providers open immediately after the sender tab", async () => {
+  const urls = [
+    "https://www.javbus.com/search/OFJE-282",
+    "https://www.javlibrary.com/tw/vl_searchbyid.php?keyword=OFJE-282",
+    "https://javdb.com/search?q=OFJE-282&f=all",
+    "https://avsox.click/tw/search/030919_047",
+  ];
+
+  for (const url of urls) {
+    const harness = createHarness();
+    const response = await harness.send(
+      {
+        type: "JAVBOSS_SCRAPE_OPEN_RELAY",
+        sessionId: SESSION_ID,
+        url,
+      },
+      {
+        id: 1,
+        index: 3,
+        windowId: 5,
+        url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html",
+      },
+    );
+
+    assert.deepEqual(plain(response), { ok: true });
+    assert.deepEqual(plain(harness.createdTabs), [
+      {
+        url: "about:blank",
+        active: true,
+        index: 4,
+        windowId: 5,
+      },
+    ]);
+    assert.deepEqual(plain(harness.updatedTabs), [
+      { tabId: 10, properties: { url } },
+    ]);
+  }
+});
+
 test("the bridge can open an allowed JavLibrary URL", async () => {
   const harness = createHarness();
   const response = await harness.send(
@@ -257,6 +296,7 @@ test("the bridge opens JavDB assistance with clean URLs and temporary state", as
     },
     {
       id: 1,
+      index: 3,
       windowId: 5,
       url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html",
     },
@@ -271,6 +311,7 @@ test("the bridge opens JavDB assistance with clean URLs and temporary state", as
     {
       url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/assist-loading.html",
       active: true,
+      index: 4,
       windowId: 5,
     },
   ]);
@@ -339,6 +380,7 @@ test("disabled JavDB auto redirect uses every original fallback search", async (
       },
       {
         id: 1,
+        index: 3,
         windowId: 5,
         url: "chrome-extension://iikdjhkpjihfkehccfmkpkdmenmbaacn/bridge.html",
       },
@@ -349,6 +391,7 @@ test("disabled JavDB auto redirect uses every original fallback search", async (
       {
         url: current.fallbackUrl,
         active: true,
+        index: 4,
         windowId: 5,
       },
     ]);

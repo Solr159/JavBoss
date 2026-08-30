@@ -166,6 +166,15 @@ function isExtensionBridgeSender(sender) {
   }
 }
 
+function placeTabAfterSender(createProperties, sender) {
+  if (Number.isInteger(sender.tab?.windowId)) {
+    createProperties.windowId = sender.tab.windowId;
+  }
+  if (Number.isInteger(sender.tab?.index) && sender.tab.index >= 0) {
+    createProperties.index = sender.tab.index + 1;
+  }
+}
+
 async function openRelayTab(message, sender) {
   const url = validScrapeURL(message?.url);
   const sessionId = validSessionID(message?.sessionId);
@@ -188,9 +197,7 @@ async function openRelayTab(message, sender) {
     url: "about:blank",
     active: true,
   };
-  if (Number.isInteger(sender.tab?.windowId)) {
-    createProperties.windowId = sender.tab.windowId;
-  }
+  placeTabAfterSender(createProperties, sender);
   const relayTab = await chrome.tabs.create(createProperties);
   const relayTabId = relayTab?.id;
   if (!Number.isInteger(relayTabId)) {
@@ -220,9 +227,7 @@ async function openJavDBAssistTab(message, sender) {
 
   if (!(await javDBAutoRedirectEnabled())) {
     const createProperties = { url: fallbackUrl, active: true };
-    if (Number.isInteger(sender.tab?.windowId)) {
-      createProperties.windowId = sender.tab.windowId;
-    }
+    placeTabAfterSender(createProperties, sender);
     await chrome.tabs.create(createProperties);
     return { ok: true };
   }
@@ -234,9 +239,7 @@ async function openJavDBAssistTab(message, sender) {
     url: chrome.runtime.getURL("assist-loading.html"),
     active: true,
   };
-  if (Number.isInteger(sender.tab?.windowId)) {
-    createProperties.windowId = sender.tab.windowId;
-  }
+  placeTabAfterSender(createProperties, sender);
   const assistTab = await chrome.tabs.create(createProperties);
   const assistTabId = assistTab?.id;
   if (!Number.isInteger(assistTabId)) {
