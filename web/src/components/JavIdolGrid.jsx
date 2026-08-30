@@ -38,7 +38,6 @@ export default function JavIdolGrid({
   onOpenFavorites,
   buildIdolUrl,
   preferChineseName = false,
-  directoryIds = [],
   onMerged,
 }) {
   const { coverAspectPercent } = getIdolCardLayoutProps()
@@ -87,7 +86,6 @@ export default function JavIdolGrid({
         key={`cover-${coverEditorItem?.id || 'closed'}`}
         open={Boolean(coverEditorItem)}
         item={coverEditorItem}
-        directoryIds={directoryIds}
         preferChineseName={preferChineseName}
         onClose={() => setCoverEditorItem(null)}
         onSaved={(updated) => {
@@ -104,7 +102,6 @@ export default function JavIdolGrid({
         key={`edit-${editItem?.id || 'closed'}`}
         open={Boolean(editItem)}
         item={editItem}
-        directoryIds={directoryIds}
         preferChineseName={preferChineseName}
         onClose={() => setEditItem(null)}
         onSaved={(updated) => {
@@ -394,7 +391,6 @@ export function IdolCard({
 export function JavIdolEditModal({
   open,
   item,
-  directoryIds = [],
   preferChineseName = false,
   onClose,
   onSaved,
@@ -445,7 +441,7 @@ export function JavIdolEditModal({
     setError('')
     try {
       const payload = buildIdolEditPayload(form)
-      const updated = await updateJavIdol(idolId, payload, { directoryIds })
+      const updated = await updateJavIdol(idolId, payload)
       const normalizedUpdated = {
         ...updated,
         aliases: Array.isArray(updated?.aliases) ? updated.aliases : [],
@@ -605,7 +601,6 @@ export function JavIdolEditModal({
       <JavIdolMergeModal
         open={mergeOpen}
         item={item}
-        directoryIds={directoryIds}
         preferChineseName={preferChineseName}
         onClose={() => setMergeOpen(false)}
         onMerged={onMerged}
@@ -689,14 +684,7 @@ function AliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd, onRe
   )
 }
 
-function JavIdolMergeModal({
-  open,
-  item,
-  directoryIds = [],
-  preferChineseName = false,
-  onClose,
-  onMerged,
-}) {
+function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onMerged }) {
   const [search, setSearch] = useState('')
   const [options, setOptions] = useState([])
   const [selectedId, setSelectedId] = useState(0)
@@ -757,7 +745,6 @@ function JavIdolMergeModal({
       const updated = await mergeJavIdols({
         canonicalId: selectedId,
         mergeIds: [sourceId],
-        directoryIds,
       })
       onMerged?.(updated)
     } catch (err) {

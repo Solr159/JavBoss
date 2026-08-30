@@ -54,7 +54,6 @@ function getIdolCoverCode(item) {
 export default function JavIdolCoverModal({
   open,
   item,
-  directoryIds = [],
   preferChineseName = false,
   onClose,
   onSaved,
@@ -71,7 +70,6 @@ export default function JavIdolCoverModal({
   const [imageSize, setImageSize] = useState(null)
 
   const idolId = Number(item?.id)
-  const directoryKey = (directoryIds || []).join(',')
   const itemCoverCode = getIdolCoverCode(item)
 
   useEffect(() => {
@@ -82,7 +80,7 @@ export default function JavIdolCoverModal({
     setOptions([])
     setSelectedJavId(Number(item?.cover_jav_id) || 0)
     setCropLeft(normalizeIdolCoverCropLeft(item?.cover_crop_left ?? IDOL_COVER_DEFAULT_CROP_LEFT))
-    fetchJavIdolCoverOptions(idolId, { directoryIds })
+    fetchJavIdolCoverOptions(idolId)
       .then((items) => {
         if (cancelled) return
         setOptions(items)
@@ -103,15 +101,7 @@ export default function JavIdolCoverModal({
     return () => {
       cancelled = true
     }
-  }, [
-    directoryIds,
-    directoryKey,
-    idolId,
-    itemCoverCode,
-    item?.cover_crop_left,
-    item?.cover_jav_id,
-    open,
-  ])
+  }, [idolId, itemCoverCode, item?.cover_crop_left, item?.cover_jav_id, open])
 
   useEffect(() => {
     if (!open) {
@@ -168,7 +158,6 @@ export default function JavIdolCoverModal({
       const updated = await updateJavIdolCover(idolId, {
         javId: Number(selectedJavId) || 0,
         cropLeft: displayCropLeft,
-        directoryIds,
       })
       onSaved?.(updated)
       onClose?.()

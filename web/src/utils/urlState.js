@@ -46,13 +46,6 @@ const parseFavoriteRating = (raw) => {
   return value
 }
 
-const parseDirectoryIds = (sp) => {
-  if (!sp.has('directory_ids')) return null
-  const raw = (sp.get('directory_ids') || '').trim()
-  if (raw === '0') return []
-  return parseIds(raw)
-}
-
 const parseIdolProfileFilters = (sp) => {
   const filters = createDefaultIdolProfileFilters()
   for (const definition of IDOL_PROFILE_FILTER_DEFINITIONS) {
@@ -85,8 +78,6 @@ export const parseUrlState = (searchString = window.location.search, options = {
   const defaultView = options.defaultView === 'jav' ? 'jav' : 'video'
   const rawView = sp.get('view')
   const view = rawView === 'jav' ? 'jav' : rawView === 'video' ? 'video' : defaultView
-  const directoryIds = parseDirectoryIds(sp)
-
   const videoTempSort = normalizeVideoSort((sp.get('temp_sort') || '').trim(), '')
 
   const video = {
@@ -143,18 +134,13 @@ export const parseUrlState = (searchString = window.location.search, options = {
     seed: clampSeed(sp.get('seed')),
   }
 
-  return { view, directoryIds, video, jav }
+  return { view, video, jav }
 }
 
 export const buildUrlFromState = (state, basePath = window.location.pathname) => {
   const sp = new URLSearchParams()
   if (state.view === 'jav') {
     sp.set('view', 'jav')
-    if (state.directoryIds?.length) {
-      sp.set('directory_ids', state.directoryIds.join(','))
-    } else if (Array.isArray(state.directoryIds) && state.directoryIds.length === 0) {
-      sp.set('directory_ids', '0')
-    }
     if (
       state.jav.tab === 'idol' ||
       state.jav.tab === 'studio' ||
@@ -228,11 +214,6 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
   }
 
   sp.set('view', 'video')
-  if (state.directoryIds?.length) {
-    sp.set('directory_ids', state.directoryIds.join(','))
-  } else if (Array.isArray(state.directoryIds) && state.directoryIds.length === 0) {
-    sp.set('directory_ids', '0')
-  }
   if (state.video.search) sp.set('search', state.video.search)
   if (!state.video.random && state.video.tempSort) sp.set('temp_sort', state.video.tempSort)
   if (state.video.tagIds?.length) {
@@ -255,33 +236,8 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
         .map((name) => tagsByName.get(name))
         .filter((id) => Number.isFinite(id) && id > 0)
 
-  const activeDirectoryIds = (store.directories || [])
-    .map((directory) => Number(directory?.id))
-    .filter((id) => Number.isFinite(id) && id > 0)
-    .sort((a, b) => a - b)
-  const activeSet = new Set(activeDirectoryIds)
-  const enabledDirectoryIds = Array.from(
-    new Set(
-      (store.enabledDirectoryIds || [])
-        .map((id) => Number(id))
-        .filter((id) => Number.isFinite(id) && id > 0 && activeSet.has(id))
-    )
-  ).sort((a, b) => a - b)
-  let directoryIds = null
-  if (store.directoryFilterMode === 'custom') {
-    if (enabledDirectoryIds.length === 0) {
-      directoryIds = []
-    } else if (
-      activeDirectoryIds.length === 0 ||
-      enabledDirectoryIds.length < activeDirectoryIds.length
-    ) {
-      directoryIds = enabledDirectoryIds
-    }
-  }
-
   return {
     view: store.viewMode === 'jav' ? 'jav' : 'video',
-    directoryIds,
     video: {
       page: store.randomMode ? 1 : store.page,
       search: (store.searchTerm || '').trim(),

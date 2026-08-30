@@ -65,4 +65,5 @@ type Directory struct {
 	LastScanSummary         DirectoryScanSummary `json:"last_scan_summary" gorm:"type:text;not null;default:'{}'"`
 	AutoScanEnabled         bool                 `json:"auto_scan_enabled" gorm:"not null;default:true"`
 	AutoScanIntervalMinutes int                  `json:"auto_scan_interval_minutes" gorm:"not null;default:1"`
+	Enabled                 bool                 `json:"enabled" gorm:"not null;default:true"`
 }

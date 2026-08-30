@@ -106,6 +106,7 @@ func updateDirectory(c *gin.Context) {
 	var req struct {
 		Path                    *string `json:"path"`
 		IsDelete                *bool   `json:"is_delete"`
+		Enabled                 *bool   `json:"enabled"`
 		AutoScanEnabled         *bool   `json:"auto_scan_enabled"`
 		AutoScanIntervalMinutes *int    `json:"auto_scan_interval_minutes"`
 	}
@@ -142,8 +143,8 @@ func updateDirectory(c *gin.Context) {
 	}
 
 	var dir *models.Directory
-	if req.Path != nil || req.IsDelete != nil {
-		dir, err = dbpkg.UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete)
+	if req.Path != nil || req.IsDelete != nil || req.Enabled != nil {
+		dir, err = dbpkg.UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete, req.Enabled)
 	} else {
 		dir, err = dbpkg.GetDirectory(c.Request.Context(), id)
 	}

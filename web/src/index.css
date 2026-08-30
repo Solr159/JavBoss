@@ -223,28 +223,6 @@ body.has-page-scroll .sticky-pagination {
   color: #7e22ce;
 }
 
-.side-tabs__directory-count {
-  position: absolute;
-  top: 4px;
-  right: 5px;
-  border-radius: 999px;
-  background: #dbeafe;
-  padding: 1px 4px;
-  color: #1d4ed8;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.filter-menu.side-tabs__directory-menu {
-  position: fixed;
-  top: auto;
-  right: auto;
-  bottom: 10px;
-  left: calc(var(--side-tabs-width) + 8px);
-  width: 22rem;
-}
-
 .filter-topbar {
   position: sticky;
   top: 0;
@@ -916,7 +894,7 @@ body.has-page-scroll .sticky-pagination {
 
 .side-tabs__directory-setup-hint {
   position: fixed;
-  bottom: 19px;
+  bottom: 16px;
   left: calc(var(--side-tabs-width) + 8px);
   z-index: 60;
   display: flex;

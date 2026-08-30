@@ -14,7 +14,7 @@ import (
 
 func listJavFavoriteGroupsFor(entityType string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		groups, err := dbpkg.ListJavFavoriteGroups(c.Request.Context(), entityType, parseDirectoryIDs(c.Query("directory_ids")))
+		groups, err := dbpkg.ListJavFavoriteGroups(c.Request.Context(), entityType, nil)
 		if err != nil {
 			logging.Error("list jav favorite groups type=%s: %v", entityType, err)
 			respondLocalizedError(c, http.StatusInternalServerError, "加载收藏夹失败", "Failed to load favorite groups")
@@ -125,7 +125,7 @@ func listJavFavoriteGroupItemsFor(entityType string) gin.HandlerFunc {
 			c.Request.Context(),
 			entityType,
 			id,
-			parseDirectoryIDs(c.Query("directory_ids")),
+			nil,
 		)
 		if err != nil {
 			logging.Error("list jav favorite group items type=%s id=%d: %v", entityType, id, err)

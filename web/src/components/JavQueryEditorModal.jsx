@@ -89,7 +89,6 @@ export default function JavQueryEditorModal({
   seriesName = '',
   prefix = '',
   soloOnly = false,
-  directoryIds = [],
   preferChineseName = false,
   favoriteGroupId = null,
   favoriteRatingEnabled = false,
@@ -216,7 +215,6 @@ export default function JavQueryEditorModal({
         favoriteRatingEnabled: selectedFavoriteRatingEnabled,
         favoriteRatingMin: selectedFavoriteRatingRange[0],
         favoriteRatingMax: selectedFavoriteRatingRange[1],
-        directoryIds,
         prefixSearch,
         idolSearch,
         tagSearch,
@@ -257,7 +255,6 @@ export default function JavQueryEditorModal({
       controller.abort()
     }
   }, [
-    directoryIds,
     favoriteGroupId,
     idolOptions,
     idolSearch,

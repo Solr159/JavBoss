@@ -63,8 +63,34 @@ let tagFetchInFlightKey = null
 let javTagFetchInFlight = null
 let javTagFetchInFlightKey = null
 const RANDOM_SEED_MAX = 2147483646
-const DIRECTORY_FILTER_ALL = 'all'
-const DIRECTORY_FILTER_CUSTOM = 'custom'
+
+const invalidateDirectoryScopedRequests = () => {
+  lastVideoFetchKey = null
+  lastJavFetchKey = null
+  lastIdolFetchKey = null
+  lastStudioFetchKey = null
+  lastSeriesFetchKey = null
+  lastTagFetchKey = null
+  lastJavTagFetchKey = null
+  for (const key of Object.keys(lastFavoriteGroupFetchKeys)) {
+    delete lastFavoriteGroupFetchKeys[key]
+  }
+}
+
+const directoryScopeResetState = () => ({
+  page: 1,
+  javPage: 1,
+  idolPage: 1,
+  studioPage: 1,
+  seriesPage: 1,
+  videoTempSort: '',
+  javTempSort: '',
+  idolTempSort: '',
+  randomMode: false,
+  randomSeed: null,
+  javRandomMode: false,
+  javRandomSeed: null,
+})
 
 const normalizeSeed = (seed) => {
   const num = Math.floor(Number(seed))
@@ -91,41 +117,7 @@ const selectedVideoContentIds = (state) => {
   return Array.from(ids)
 }
 
-const cleanDirectoryIds = (ids) =>
-  Array.from(
-    new Set((ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))
-  ).sort((a, b) => a - b)
-
-const sameIds = (a, b) => {
-  if (a === b) return true
-  if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
-  return a.every((id, index) => id === b[index])
-}
-
-export const directoryQueryIds = (state) => {
-  if (state?.directoryFilterMode !== DIRECTORY_FILTER_CUSTOM) {
-    return []
-  }
-  const enabled = cleanDirectoryIds(state.enabledDirectoryIds)
-  if (enabled.length === 0) {
-    return [0]
-  }
-  const active = cleanDirectoryIds((state.directories || []).map((directory) => directory?.id))
-  if (active.length === 0) {
-    return enabled
-  }
-  const activeSet = new Set(active)
-  const scoped = enabled.filter((id) => activeSet.has(id))
-  if (scoped.length === 0) {
-    return [0]
-  }
-  if (scoped.length === active.length) {
-    return []
-  }
-  return scoped
-}
-
-const videoListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
+const videoListRequestKey = (state) => {
   const search = state.searchTerm ? state.searchTerm : ''
   const effectiveSort = state.videoTempSort || state.sortOrder
   return [
@@ -136,12 +128,11 @@ const videoListRequestKey = (state, directoryIds = directoryQueryIds(state)) => 
     effectiveSort,
     state.randomMode ? state.randomSeed || '' : '',
     (state.selectedTags || []).join(','),
-    directoryIds.join(','),
     state.videoHideJav ? 'hide-jav' : 'show-jav',
   ].join('|')
 }
 
-const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
+const javListRequestKey = (state) => {
   const search = state.javSearchTerm || ''
   const effectiveSort = resolveJavSort(state).sort
   return [
@@ -161,11 +152,10 @@ const javListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
     state.javFavoriteGroupId || '',
     effectiveSort,
     state.javRandomMode ? state.javRandomSeed || '' : '',
-    directoryIds.join(','),
   ].join('|')
 }
 
-const idolListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
+const idolListRequestKey = (state) => {
   const effectiveSort = effectiveIdolSort(state)
   const profileFilters = normalizeIdolProfileFilters(state.idolProfileFilters)
   return [
@@ -179,7 +169,6 @@ const idolListRequestKey = (state, directoryIds = directoryQueryIds(state)) => {
       const value = profileFilters[definition.key]
       return value.enabled ? `${definition.key}:${value.min}-${value.max}` : ''
     }).join(','),
-    directoryIds.join(','),
   ].join('|')
 }
 
@@ -189,24 +178,22 @@ const effectiveIdolSort = (state) => {
   return state.idolSort
 }
 
-const studioListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
+const studioListRequestKey = (state) =>
   [
     'studio',
     state.studioPage,
     state.studioPageSize,
     state.javSearchTerm || '',
     state.studioFavoriteGroupId || '',
-    directoryIds.join(','),
   ].join('|')
 
-const seriesListRequestKey = (state, directoryIds = directoryQueryIds(state)) =>
+const seriesListRequestKey = (state) =>
   [
     'series',
     state.seriesPage,
     state.seriesPageSize,
     state.javSearchTerm || '',
     state.seriesFavoriteGroupId || '',
-    directoryIds.join(','),
   ].join('|')
 
 export const useStore = create((set, get) => ({
@@ -357,8 +344,6 @@ export const useStore = create((set, get) => ({
   tags: [],
   javTagOptions: [],
   directories: [],
-  enabledDirectoryIds: [],
-  directoryFilterMode: DIRECTORY_FILTER_ALL,
   loading: false,
   videoLoadingMore: false,
   error: null,
@@ -586,8 +571,7 @@ export const useStore = create((set, get) => ({
 
   loadTags: async (options = {}) => {
     const { videoHideJav } = get()
-    const directoryIds = directoryQueryIds(get())
-    const key = `tags|${directoryIds.join(',')}|${videoHideJav ? 'hide-jav' : 'show-jav'}`
+    const key = `tags|${videoHideJav ? 'hide-jav' : 'show-jav'}`
     if (tagFetchInFlight && tagFetchInFlightKey === key) {
       return tagFetchInFlight
     }
@@ -597,7 +581,7 @@ export const useStore = create((set, get) => ({
     tagFetchInFlightKey = key
     tagFetchInFlight = (async () => {
       try {
-        const tags = await fetchTags({ directoryIds, hideJav: videoHideJav })
+        const tags = await fetchTags({ hideJav: videoHideJav })
         set({ tags })
         lastTagFetchKey = key
         return tags
@@ -614,8 +598,7 @@ export const useStore = create((set, get) => ({
     return tagFetchInFlight
   },
   loadJavTags: async (options = {}) => {
-    const directoryIds = directoryQueryIds(get())
-    const key = `jav-tags|${directoryIds.join(',')}`
+    const key = 'jav-tags'
     if (javTagFetchInFlight && javTagFetchInFlightKey === key) {
       const pending = javTagFetchInFlight
       if (!options.force) return pending
@@ -634,7 +617,7 @@ export const useStore = create((set, get) => ({
     javTagFetchInFlightKey = key
     javTagFetchInFlight = (async () => {
       try {
-        const tags = await fetchJavTags({ directoryIds })
+        const tags = await fetchJavTags()
         set({ javTagOptions: tags })
         lastJavTagFetchKey = key
         return tags
@@ -741,22 +724,7 @@ export const useStore = create((set, get) => ({
     try {
       const directories = await fetchDirectories()
       const active = directories.filter((d) => !d.is_delete)
-      const activeIDs = cleanDirectoryIds(active.map((d) => d.id))
-      const activeSet = new Set(activeIDs)
-      const state = get()
-      const enabled =
-        state.directoryFilterMode === DIRECTORY_FILTER_ALL
-          ? activeIDs
-          : cleanDirectoryIds(state.enabledDirectoryIds).filter((id) => activeSet.has(id))
-      const nextMode =
-        state.directoryFilterMode === DIRECTORY_FILTER_CUSTOM && enabled.length === activeIDs.length
-          ? DIRECTORY_FILTER_ALL
-          : state.directoryFilterMode
-      set({
-        directories: active,
-        enabledDirectoryIds: nextMode === DIRECTORY_FILTER_ALL ? activeIDs : enabled,
-        directoryFilterMode: nextMode,
-      })
+      set({ directories: active })
     } catch (e) {
       console.error(zh('加载目录失败', 'Failed to load directories'), e)
     }
@@ -773,10 +741,9 @@ export const useStore = create((set, get) => ({
       randomMode,
       randomSeed,
     } = get()
-    const directoryIds = directoryQueryIds(get())
     const search = searchTerm ? searchTerm : ''
     const effectiveSort = videoTempSort || sortOrder
-    const key = videoListRequestKey({ ...get(), page: p0 }, directoryIds)
+    const key = videoListRequestKey({ ...get(), page: p0 })
     if (!options.force && key === lastVideoFetchKey) {
       return
     }
@@ -791,7 +758,6 @@ export const useStore = create((set, get) => ({
         search,
         sort: randomMode ? 'random' : effectiveSort,
         seed: randomMode ? randomSeed : null,
-        directoryIds,
         hideJav: videoHideJav,
       })
       if (reqId !== videoLoadSeq || key !== videoListRequestKey(get())) return
@@ -817,10 +783,9 @@ export const useStore = create((set, get) => ({
     const baseOffset = (state.page - 1) * state.pageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
-    const directoryIds = directoryQueryIds(state)
     const search = state.searchTerm ? state.searchTerm : ''
     const effectiveSort = state.videoTempSort || state.sortOrder
-    const requestKey = videoListRequestKey(state, directoryIds)
+    const requestKey = videoListRequestKey(state)
     const loadReqId = videoLoadSeq
     const loadMoreReqId = (videoLoadMoreSeq += 1)
     set({ videoLoadingMore: true, error: null })
@@ -831,7 +796,6 @@ export const useStore = create((set, get) => ({
         tags: state.selectedTags,
         search,
         sort: effectiveSort,
-        directoryIds,
         hideJav: state.videoHideJav,
       })
       if (
@@ -883,10 +847,9 @@ export const useStore = create((set, get) => ({
       javRandomMode,
       javRandomSeed,
     } = get()
-    const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
     const effectiveSort = resolveJavSort(get()).sort
-    const key = javListRequestKey(get(), directoryIds)
+    const key = javListRequestKey(get())
     if (!options.force && key === lastJavFetchKey) {
       return
     }
@@ -910,7 +873,6 @@ export const useStore = create((set, get) => ({
         favoriteGroupId: javFavoriteGroupId,
         sort: effectiveSort,
         seed: javRandomMode ? javRandomSeed : null,
-        directoryIds,
       })
       if (reqId !== javLoadSeq || key !== javListRequestKey(get())) return
       const items = resp.items || []
@@ -935,10 +897,9 @@ export const useStore = create((set, get) => ({
     const baseOffset = (state.javPage - 1) * state.javPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
-    const directoryIds = directoryQueryIds(state)
     const search = state.javSearchTerm || ''
     const effectiveSort = resolveJavSort(state).sort
-    const requestKey = javListRequestKey(state, directoryIds)
+    const requestKey = javListRequestKey(state)
     const loadReqId = javLoadSeq
     const loadMoreReqId = (javLoadMoreSeq += 1)
     set({ javLoadingMore: true, javError: null })
@@ -958,7 +919,6 @@ export const useStore = create((set, get) => ({
         favoriteRatingMax: state.javFavoriteRatingMax,
         favoriteGroupId: state.javFavoriteGroupId,
         sort: effectiveSort,
-        directoryIds,
       })
       if (
         loadReqId !== javLoadSeq ||
@@ -989,9 +949,8 @@ export const useStore = create((set, get) => ({
   },
   loadJavIdols: async (options = {}) => {
     const { idolPage, idolPageSize, javSearchTerm, idolFavoriteGroupId, idolProfileFilters } = get()
-    const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
-    const key = idolListRequestKey(get(), directoryIds)
+    const key = idolListRequestKey(get())
     if (!options.force && key === lastIdolFetchKey) {
       return
     }
@@ -1004,7 +963,6 @@ export const useStore = create((set, get) => ({
         offset: (idolPage - 1) * idolPageSize,
         search,
         sort: effectiveIdolSort(get()),
-        directoryIds,
         favoriteGroupId: idolFavoriteGroupId,
         profileFilters: idolProfileFilters,
       })
@@ -1030,9 +988,8 @@ export const useStore = create((set, get) => ({
     const baseOffset = (state.idolPage - 1) * state.idolPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
-    const directoryIds = directoryQueryIds(state)
     const search = state.javSearchTerm || ''
-    const requestKey = idolListRequestKey(state, directoryIds)
+    const requestKey = idolListRequestKey(state)
     const loadReqId = idolLoadSeq
     const loadMoreReqId = (idolLoadMoreSeq += 1)
     set({ idolLoadingMore: true, idolError: null })
@@ -1042,7 +999,6 @@ export const useStore = create((set, get) => ({
         offset: baseOffset + loaded,
         search,
         sort: effectiveIdolSort(state),
-        directoryIds,
         favoriteGroupId: state.idolFavoriteGroupId,
         profileFilters: state.idolProfileFilters,
       })
@@ -1075,8 +1031,7 @@ export const useStore = create((set, get) => ({
   },
   loadJavFavoriteGroups: async (entityType = 'idol', options = {}) => {
     const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
-    const directoryIds = directoryQueryIds(get())
-    const key = `${type}-favorite-groups|${directoryIds.join(',')}`
+    const key = `${type}-favorite-groups`
     if (!options.force && key === lastFavoriteGroupFetchKeys[type]) {
       return get().favoriteGroupsByType?.[type] || []
     }
@@ -1086,7 +1041,7 @@ export const useStore = create((set, get) => ({
       favoriteGroupsErrorByType: { ...(state.favoriteGroupsErrorByType || {}), [type]: null },
     }))
     try {
-      const groups = await fetchJavFavoriteGroups(type, { directoryIds })
+      const groups = await fetchJavFavoriteGroups(type)
       set((state) => ({
         favoriteGroupsByType: { ...(state.favoriteGroupsByType || {}), [type]: groups || [] },
       }))
@@ -1111,9 +1066,8 @@ export const useStore = create((set, get) => ({
   },
   loadJavStudios: async (options = {}) => {
     const { studioPage, studioPageSize, javSearchTerm, studioFavoriteGroupId } = get()
-    const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
-    const key = studioListRequestKey(get(), directoryIds)
+    const key = studioListRequestKey(get())
     if (!options.force && key === lastStudioFetchKey) {
       return
     }
@@ -1125,7 +1079,6 @@ export const useStore = create((set, get) => ({
         limit: studioPageSize,
         offset: (studioPage - 1) * studioPageSize,
         search,
-        directoryIds,
         favoriteGroupId: studioFavoriteGroupId,
       })
       if (reqId !== studioLoadSeq || key !== studioListRequestKey(get())) return
@@ -1150,9 +1103,8 @@ export const useStore = create((set, get) => ({
     const baseOffset = (state.studioPage - 1) * state.studioPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
-    const directoryIds = directoryQueryIds(state)
     const search = state.javSearchTerm || ''
-    const requestKey = studioListRequestKey(state, directoryIds)
+    const requestKey = studioListRequestKey(state)
     const loadReqId = studioLoadSeq
     const loadMoreReqId = (studioLoadMoreSeq += 1)
     set({ studioLoadingMore: true, studioError: null })
@@ -1161,7 +1113,6 @@ export const useStore = create((set, get) => ({
         limit: state.studioPageSize,
         offset: baseOffset + loaded,
         search,
-        directoryIds,
         favoriteGroupId: state.studioFavoriteGroupId,
       })
       if (
@@ -1193,9 +1144,8 @@ export const useStore = create((set, get) => ({
   },
   loadJavSeries: async (options = {}) => {
     const { seriesPage, seriesPageSize, javSearchTerm, seriesFavoriteGroupId } = get()
-    const directoryIds = directoryQueryIds(get())
     const search = javSearchTerm || ''
-    const key = seriesListRequestKey(get(), directoryIds)
+    const key = seriesListRequestKey(get())
     if (!options.force && key === lastSeriesFetchKey) {
       return
     }
@@ -1207,7 +1157,6 @@ export const useStore = create((set, get) => ({
         limit: seriesPageSize,
         offset: (seriesPage - 1) * seriesPageSize,
         search,
-        directoryIds,
         favoriteGroupId: seriesFavoriteGroupId,
       })
       if (reqId !== seriesLoadSeq || key !== seriesListRequestKey(get())) return
@@ -1232,9 +1181,8 @@ export const useStore = create((set, get) => ({
     const baseOffset = (state.seriesPage - 1) * state.seriesPageSize
     if (total > 0 && baseOffset + loaded >= total) return
 
-    const directoryIds = directoryQueryIds(state)
     const search = state.javSearchTerm || ''
-    const requestKey = seriesListRequestKey(state, directoryIds)
+    const requestKey = seriesListRequestKey(state)
     const loadReqId = seriesLoadSeq
     const loadMoreReqId = (seriesLoadMoreSeq += 1)
     set({ seriesLoadingMore: true, seriesError: null })
@@ -1243,7 +1191,6 @@ export const useStore = create((set, get) => ({
         limit: state.seriesPageSize,
         offset: baseOffset + loaded,
         search,
-        directoryIds,
         favoriteGroupId: state.seriesFavoriteGroupId,
       })
       if (
@@ -1311,7 +1258,6 @@ export const useStore = create((set, get) => ({
         randomMode,
         randomSeed,
       } = get()
-      const directoryIds = directoryQueryIds(get())
       const effectiveSort = videoTempSort || sortOrder
       // Get total via a cheap fetch (limit=1) or use existing total
       let { total } = get()
@@ -1324,7 +1270,6 @@ export const useStore = create((set, get) => ({
           search,
           sort: randomMode ? 'random' : effectiveSort,
           seed: randomMode ? randomSeed : null,
-          directoryIds,
         })
         total = res.total ?? 0
         set({ total })
@@ -1337,7 +1282,6 @@ export const useStore = create((set, get) => ({
         search,
         sort: randomMode ? 'random' : effectiveSort,
         seed: randomMode ? randomSeed : null,
-        directoryIds,
       })
       const items = res2.items ?? []
       set({ page: lastPage, videos: items, hasNext: false })
@@ -1357,87 +1301,11 @@ export const useStore = create((set, get) => ({
     set({ javTempSort: '', javRandomMode: true, javRandomSeed: nextSeed, javPage: 1 })
   },
 
-  setEnabledDirectoryIds: (ids) => {
-    const clean = cleanDirectoryIds(ids)
-    const active = cleanDirectoryIds(get().directories.map((directory) => directory?.id))
-    const mode =
-      active.length > 0 && clean.length === active.length
-        ? DIRECTORY_FILTER_ALL
-        : DIRECTORY_FILTER_CUSTOM
-    set({
-      enabledDirectoryIds: mode === DIRECTORY_FILTER_ALL ? active : clean,
-      directoryFilterMode: mode,
-      page: 1,
-      javPage: 1,
-      idolPage: 1,
-      studioPage: 1,
-      seriesPage: 1,
-      videoTempSort: '',
-      javTempSort: '',
-      idolTempSort: '',
-      randomMode: false,
-      randomSeed: null,
-      javRandomMode: false,
-      javRandomSeed: null,
-    })
-    lastVideoFetchKey = null
-    lastJavFetchKey = null
-    lastIdolFetchKey = null
-    lastStudioFetchKey = null
-    lastSeriesFetchKey = null
-    lastTagFetchKey = null
-    lastJavTagFetchKey = null
-  },
-  setDirectoryFilterFromUrl: (ids) => {
-    if (ids == null) {
-      const active = cleanDirectoryIds(get().directories.map((directory) => directory?.id))
-      const state = get()
-      if (
-        state.directoryFilterMode === DIRECTORY_FILTER_ALL &&
-        sameIds(state.enabledDirectoryIds, active)
-      ) {
-        return
-      }
-      set({ directoryFilterMode: DIRECTORY_FILTER_ALL, enabledDirectoryIds: active })
-      return
-    }
-    const clean = cleanDirectoryIds(ids)
-    const state = get()
-    if (
-      state.directoryFilterMode === DIRECTORY_FILTER_CUSTOM &&
-      sameIds(state.enabledDirectoryIds, clean)
-    ) {
-      return
-    }
-    set({
-      directoryFilterMode: DIRECTORY_FILTER_CUSTOM,
-      enabledDirectoryIds: clean,
-      page: 1,
-      javPage: 1,
-      idolPage: 1,
-      studioPage: 1,
-      seriesPage: 1,
-    })
-    lastVideoFetchKey = null
-    lastJavFetchKey = null
-    lastIdolFetchKey = null
-    lastStudioFetchKey = null
-    lastSeriesFetchKey = null
-    lastTagFetchKey = null
-    lastJavTagFetchKey = null
-  },
-
   createDirectory: async ({ path }) => {
     const dir = await createDirectory({ path })
     const next = dir && !dir.is_delete ? [...get().directories, dir] : get().directories
-    const state = get()
-    set({
-      directories: next,
-      enabledDirectoryIds:
-        state.directoryFilterMode === DIRECTORY_FILTER_ALL
-          ? cleanDirectoryIds(next.map((directory) => directory?.id))
-          : state.enabledDirectoryIds,
-    })
+    invalidateDirectoryScopedRequests()
+    set({ directories: next, ...directoryScopeResetState() })
     return dir
   },
   updateDirectory: async (id, payload) => {
@@ -1457,17 +1325,10 @@ export const useStore = create((set, get) => ({
           : d
       )
       .filter((d) => d && !d.is_delete)
-    const active = cleanDirectoryIds(next.map((directory) => directory?.id))
-    const activeSet = new Set(active)
-    set({
-      directories: next,
-      enabledDirectoryIds:
-        state.directoryFilterMode === DIRECTORY_FILTER_ALL
-          ? active
-          : cleanDirectoryIds(state.enabledDirectoryIds).filter((enabledID) =>
-              activeSet.has(enabledID)
-            ),
-    })
+    const scopeChanged =
+      Object.prototype.hasOwnProperty.call(payload || {}, 'enabled') || Boolean(dir?.is_delete)
+    if (scopeChanged) invalidateDirectoryScopedRequests()
+    set({ directories: next, ...(scopeChanged ? directoryScopeResetState() : {}) })
     return dir
   },
   deleteDirectory: async (id) => {
@@ -1476,17 +1337,8 @@ export const useStore = create((set, get) => ({
     const next = state.directories
       .map((d) => (d.id === id ? dir : d))
       .filter((d) => d && !d.is_delete)
-    const active = cleanDirectoryIds(next.map((directory) => directory?.id))
-    const activeSet = new Set(active)
-    set({
-      directories: next,
-      enabledDirectoryIds:
-        state.directoryFilterMode === DIRECTORY_FILTER_ALL
-          ? active
-          : cleanDirectoryIds(state.enabledDirectoryIds).filter((enabledID) =>
-              activeSet.has(enabledID)
-            ),
-    })
+    invalidateDirectoryScopedRequests()
+    set({ directories: next, ...directoryScopeResetState() })
     return dir
   },
 }))

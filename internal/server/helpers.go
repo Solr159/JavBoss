@@ -89,28 +89,3 @@ func parseInt64CSV(s string) []int64 {
 	}
 	return out
 }
-
-func parseDirectoryIDs(s string) []int64 {
-	if strings.TrimSpace(s) == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	out := make([]int64, 0, len(parts))
-	seen := make(map[int64]struct{}, len(parts))
-	for _, part := range parts {
-		clean := strings.TrimSpace(part)
-		if clean == "" {
-			continue
-		}
-		value, err := strconv.ParseInt(clean, 10, 64)
-		if err != nil || value < 0 {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
-}

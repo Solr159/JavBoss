@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Switch from '@mui/material/Switch'
 
 import { pickDirectory } from '@/api'
 import AppModal from '@/components/AppModal'
@@ -166,6 +167,7 @@ export default function DirectoryManager({
   const [rowErrorId, setRowErrorId] = useState(null)
   const [rowErrorMsg, setRowErrorMsg] = useState('')
   const [savingId, setSavingId] = useState(null)
+  const [savingEnabledId, setSavingEnabledId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
   const [processingId, setProcessingId] = useState(null)
   const [scanningId, setScanningId] = useState(null)
@@ -373,6 +375,21 @@ export default function DirectoryManager({
     }
   }
 
+  const handleEnabledChange = async (dir, enabled) => {
+    if (!dir?.id || dir.is_delete) return
+    setSavingEnabledId(dir.id)
+    setRowErrorId(null)
+    setRowErrorMsg('')
+    try {
+      await onUpdate?.(dir.id, { enabled })
+    } catch (err) {
+      setRowErrorId(dir.id)
+      setRowErrorMsg(getErrorMessage(err))
+    } finally {
+      setSavingEnabledId(null)
+    }
+  }
+
   const handleProcess = async (dir, mode, layout) => {
     if (!dir?.id || directoryWorkStatus(dir) !== 'idle') return
 
@@ -468,6 +485,7 @@ export default function DirectoryManager({
             const lastScanFinishedAt = formatScanFinishedAt(d.last_scan_summary)
             const working =
               savingId === d.id ||
+              savingEnabledId === d.id ||
               deletingId === d.id ||
               processingId === d.id ||
               scanningId === d.id ||
@@ -475,11 +493,11 @@ export default function DirectoryManager({
             return (
               <div
                 key={d.id}
-                className={`flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between ${
+                className={`relative flex flex-col gap-2 p-3 md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-x-4 ${
                   isEditing ? 'rounded border bg-gray-50' : ''
                 }`}
               >
-                <div className="min-w-0 space-y-1">
+                <div className="min-w-0 space-y-1 pr-12 md:pr-0">
                   {!isEditing ? (
                     <div className="truncate text-sm font-medium">{displayPath(d.path)}</div>
                   ) : (
@@ -554,7 +572,7 @@ export default function DirectoryManager({
                   {!isEditing && (
                     <>
                       {lastScanFinishedAt ? (
-                        <div className="text-xs text-zinc-500">
+                        <div className="overflow-x-auto whitespace-nowrap text-xs text-zinc-500">
                           <span>{zh('上次扫描：结束时间 ', 'Last scan: Finished at ')}</span>
                           <span className="font-semibold tabular-nums text-zinc-900">
                             {lastScanFinishedAt}
@@ -578,84 +596,107 @@ export default function DirectoryManager({
                     <div className="text-xs text-red-600">{rowErrorMsg}</div>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  {!isEditing ? (
-                    <>
-                      {scanningId !== d.id && status !== 'scanning' && status !== 'rescanning' && (
+                <div className="contents md:flex md:flex-col md:items-end md:gap-2">
+                  <label
+                    className="absolute right-2 top-2 flex items-center gap-1 text-xs text-zinc-600 md:static"
+                    title={zh('是否启用此目录', 'Whether this directory is enabled')}
+                  >
+                    <span>{zh('启用', 'Enabled')}</span>
+                    <Switch
+                      size="small"
+                      checked={d.enabled !== false}
+                      onChange={(event) => handleEnabledChange(d, event.target.checked)}
+                      disabled={d.is_delete || savingEnabledId === d.id}
+                      inputProps={{
+                        'aria-label': zh('是否启用此目录', 'Whether this directory is enabled'),
+                      }}
+                    />
+                  </label>
+                  <div className="flex w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto whitespace-nowrap pb-1 md:w-auto md:overflow-visible [&>button]:shrink-0">
+                    {!isEditing ? (
+                      <>
+                        {scanningId !== d.id &&
+                          status !== 'scanning' &&
+                          status !== 'rescanning' && (
+                            <button
+                              type="button"
+                              onClick={() => handleScan(d)}
+                              title={zh(
+                                '点击立刻开始一次目录扫描和 JAV 刮削',
+                                'Click to immediately scan the directory and scrape JAV metadata'
+                              )}
+                              disabled={d.is_delete || working}
+                              className="rounded border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                            >
+                              {zh('手动扫描', 'Scan now')}
+                            </button>
+                          )}
                         <button
                           type="button"
-                          onClick={() => handleScan(d)}
-                          title={zh(
-                            '点击立刻开始一次目录扫描和 JAV 刮削',
-                            'Click to immediately scan the directory and scrape JAV metadata'
-                          )}
-                          disabled={d.is_delete || working}
-                          className="rounded border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+                          onClick={() => openScanSettings(d)}
+                          disabled={d.is_delete || savingScanSettingsId === d.id}
+                          className="rounded border border-violet-200 px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-60"
                         >
-                          {zh('手动扫描', 'Scan now')}
+                          {savingScanSettingsId === d.id
+                            ? zh('保存中…', 'Saving...')
+                            : zh('扫描设置', 'Scan settings')}
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => openScanSettings(d)}
-                        disabled={d.is_delete || savingScanSettingsId === d.id}
-                        className="rounded border border-violet-200 px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-60"
-                      >
-                        {savingScanSettingsId === d.id
-                          ? zh('保存中…', 'Saving...')
-                          : zh('扫描设置', 'Scan settings')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setToolDirectory(d)
-                          setToolMode(DIRECTORY_PROCESS_SIDECAR)
-                          setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
-                          setRowErrorId(null)
-                          setRowErrorMsg('')
-                        }}
-                        disabled={d.is_delete || working}
-                        className="rounded border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-60"
-                      >
-                        {processingId === d.id ? zh('启动中…', 'Starting...') : zh('工具', 'Tools')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => startEdit(d)}
-                        disabled={d.is_delete || working}
-                        className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                      >
-                        {zh('编辑', 'Edit')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(d)}
-                        disabled={d.is_delete || working}
-                        className="rounded border px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
-                      >
-                        {deletingId === d.id ? zh('删除中…', 'Deleting...') : zh('删除', 'Delete')}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleEditSubmit}
-                        disabled={working}
-                        className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white disabled:opacity-60"
-                      >
-                        {savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelEdit}
-                        disabled={working}
-                        className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-                      >
-                        {zh('取消', 'Cancel')}
-                      </button>
-                    </>
-                  )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setToolDirectory(d)
+                            setToolMode(DIRECTORY_PROCESS_SIDECAR)
+                            setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
+                            setRowErrorId(null)
+                            setRowErrorMsg('')
+                          }}
+                          disabled={d.is_delete || working}
+                          className="rounded border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+                        >
+                          {processingId === d.id
+                            ? zh('启动中…', 'Starting...')
+                            : zh('工具', 'Tools')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startEdit(d)}
+                          disabled={d.is_delete || working}
+                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          {zh('编辑', 'Edit')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(d)}
+                          disabled={d.is_delete || working}
+                          className="rounded border px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {deletingId === d.id
+                            ? zh('删除中…', 'Deleting...')
+                            : zh('删除', 'Delete')}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleEditSubmit}
+                          disabled={working}
+                          className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white disabled:opacity-60"
+                        >
+                          {savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEdit}
+                          disabled={working}
+                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                        >
+                          {zh('取消', 'Cancel')}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             )

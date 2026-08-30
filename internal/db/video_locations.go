@@ -261,7 +261,8 @@ func activeVideoLocationSubquery(ctx context.Context) *gorm.DB {
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.video_id = video.id").
 		Where("COALESCE(vl.is_delete, 0) = 0").
-		Where("COALESCE(d.is_delete, 0) = 0")
+		Where("COALESCE(d.is_delete, 0) = 0").
+		Where("COALESCE(d.enabled, 1) <> 0")
 }
 
 func activeLocationWhereSQL(locationAlias, directoryAlias string) string {
@@ -274,8 +275,9 @@ func activeLocationWhereSQL(locationAlias, directoryAlias string) string {
 		directoryAlias = "directory"
 	}
 	return fmt.Sprintf(
-		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.is_delete, 0) = 0",
+		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.enabled, 1) <> 0",
 		locationAlias,
+		directoryAlias,
 		directoryAlias,
 	)
 }

@@ -36,7 +36,6 @@ export default function JavIdolView({
   idolGlobalSort,
   buildPageUrl,
   buildIdolUrl,
-  directoryIds = [],
   preferChineseName = false,
   onFirst,
   onPrev,
@@ -190,7 +189,6 @@ export default function JavIdolView({
           onOpenFavorites={onOpenFavorites}
           onMerged={onMerged}
           buildIdolUrl={buildIdolUrl}
-          directoryIds={directoryIds}
           preferChineseName={preferChineseName}
         />
       )}

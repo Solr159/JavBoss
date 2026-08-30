@@ -27,7 +27,6 @@ import (
 type javFilterQuery struct {
 	IdolIDs           []int64
 	TagIDs            []int64
-	DirectoryIDs      []int64
 	Search            string
 	Prefix            string
 	StudioID          int64
@@ -40,13 +39,12 @@ type javFilterQuery struct {
 
 func parseJavFilterQuery(c *gin.Context) (javFilterQuery, bool) {
 	query := javFilterQuery{
-		IdolIDs:      parseInt64CSV(c.Query("idol_ids")),
-		TagIDs:       parseInt64CSV(c.Query("tag_ids")),
-		DirectoryIDs: parseDirectoryIDs(c.Query("directory_ids")),
-		Search:       strings.TrimSpace(c.Query("search")),
-		Prefix:       strings.TrimSpace(c.Query("prefix")),
-		StudioID:     -1,
-		SoloOnly:     queryBool(c, "solo", false),
+		IdolIDs:  parseInt64CSV(c.Query("idol_ids")),
+		TagIDs:   parseInt64CSV(c.Query("tag_ids")),
+		Search:   strings.TrimSpace(c.Query("search")),
+		Prefix:   strings.TrimSpace(c.Query("prefix")),
+		StudioID: -1,
+		SoloOnly: queryBool(c, "solo", false),
 	}
 	if studioParam := strings.TrimSpace(c.Query("studio_id")); studioParam != "" {
 		parsed, err := strconv.ParseInt(studioParam, 10, 64)
@@ -110,7 +108,7 @@ func searchJav(c *gin.Context) {
 		seed = &parsed
 	}
 
-	items, total, err := dbpkg.SearchJavWithPrefixFilters(c.Request.Context(), filterQuery.IdolIDs, filterQuery.TagIDs, filterQuery.Search, filterQuery.Prefix, sort, limit, offset, seed, filterQuery.DirectoryIDs, dbpkg.JavSearchFilters{
+	items, total, err := dbpkg.SearchJavWithPrefixFilters(c.Request.Context(), filterQuery.IdolIDs, filterQuery.TagIDs, filterQuery.Search, filterQuery.Prefix, sort, limit, offset, seed, nil, dbpkg.JavSearchFilters{
 		StudioID:          filterQuery.StudioID,
 		SeriesID:          filterQuery.SeriesID,
 		SoloOnly:          filterQuery.SoloOnly,
@@ -140,7 +138,7 @@ func listJavFilterOptions(c *gin.Context) {
 		filterQuery.TagIDs,
 		filterQuery.Search,
 		filterQuery.Prefix,
-		filterQuery.DirectoryIDs,
+		nil,
 		dbpkg.JavSearchFilters{
 			StudioID:          filterQuery.StudioID,
 			SeriesID:          filterQuery.SeriesID,
@@ -167,7 +165,7 @@ func listJavFilterOptions(c *gin.Context) {
 }
 
 func listJavPrefixes(c *gin.Context) {
-	items, err := dbpkg.ListJavPrefixes(c.Request.Context(), parseDirectoryIDs(c.Query("directory_ids")))
+	items, err := dbpkg.ListJavPrefixes(c.Request.Context(), nil)
 	if err != nil {
 		logging.Error("list jav prefixes error: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 番号前缀失败", "Failed to load JAV code prefixes")
@@ -226,7 +224,7 @@ func resolveJavSampleImages(c *gin.Context) {
 		return
 	}
 
-	item, err := dbpkg.GetJav(c.Request.Context(), id, parseDirectoryIDs(c.Query("directory_ids")))
+	item, err := dbpkg.GetJav(c.Request.Context(), id, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "JAV 作品不存在", "JAV item was not found")
@@ -406,7 +404,7 @@ func javSampleImagesToModel(info *jav.JavInfo) models.JavSampleImages {
 }
 
 func listJavTags(c *gin.Context) {
-	tags, err := dbpkg.ListJavTags(c.Request.Context(), parseDirectoryIDs(c.Query("directory_ids")))
+	tags, err := dbpkg.ListJavTags(c.Request.Context(), nil)
 	if err != nil {
 		logging.Error("list jav tags error: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 标签失败", "Failed to load JAV tags")
@@ -579,7 +577,7 @@ func updateJavItem(c *gin.Context) {
 				respondLocalizedError(c, http.StatusInternalServerError, "应用配置尚未加载", "Application configuration is not loaded")
 				return
 			}
-			item, err := dbpkg.GetJav(c.Request.Context(), id, parseDirectoryIDs(c.Query("directory_ids")))
+			item, err := dbpkg.GetJav(c.Request.Context(), id, nil)
 			if err != nil {
 				logging.Error("get jav for cover update error: %v", err)
 				respondLocalizedError(c, http.StatusBadRequest, "读取 JAV 作品信息失败", "Failed to load the JAV item")
@@ -604,7 +602,7 @@ func updateJavItem(c *gin.Context) {
 		ReleaseUnix:    releaseUnix,
 		DurationMin:    req.DurationMin,
 		FavoriteRating: req.FavoriteRating,
-	}, parseDirectoryIDs(c.Query("directory_ids")))
+	}, nil)
 	if err != nil {
 		logging.Error("update jav item error: %v", err)
 		respondLocalizedError(c, http.StatusBadRequest, "保存 JAV 作品信息失败", "Failed to save JAV item information")

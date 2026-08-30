@@ -6,7 +6,6 @@ import JavView from '@/components/JavView'
 function JavIdolRoute({
   buildJavUrl,
   config,
-  directoryIds,
   hasMore,
   hasNext,
   hasPrev,
@@ -61,7 +60,6 @@ function JavIdolRoute({
       onNext={onNext}
       onLast={onLast}
       items={items}
-      directoryIds={directoryIds}
       preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
       onSelectIdol={onSelectIdol}
       onOpenFavorites={onOpenFavorites}
@@ -77,7 +75,6 @@ function JavIdolRoute({
 
 function JavStudioRoute({
   buildJavUrl,
-  directoryIds,
   hasMore,
   hasNext,
   hasPrev,
@@ -151,7 +148,6 @@ function JavStudioRoute({
       onSelectPrefix={onSelectPrefix}
       onOpenFavorites={onOpenFavorites}
       onOpenSeriesFavorites={onOpenSeriesFavorites}
-      directoryIds={directoryIds}
       waterfallMode={waterfallMode}
       onWaterfallModeChange={onWaterfallModeChange}
       onLoadMore={onLoadMore}

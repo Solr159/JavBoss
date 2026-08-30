@@ -20,6 +20,77 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func TestListVideosIgnoresDirectoryIDsAndUsesEnabledDirectories(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("open test database: %v", err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, dbErr := database.DB(); dbErr == nil {
+			_ = sqlDB.Close()
+		}
+	})
+
+	dir := models.Directory{Path: "/media/api-directory-scope"}
+	video := models.Video{Fingerprint: "api-directory-scope-video"}
+	if err := database.Create(&dir).Error; err != nil {
+		t.Fatalf("create directory: %v", err)
+	}
+	if err := database.Create(&video).Error; err != nil {
+		t.Fatalf("create video: %v", err)
+	}
+	if _, err := dbpkg.UpsertVideoLocation(
+		context.Background(),
+		video.ID,
+		dir.ID,
+		"movie.mp4",
+		time.Unix(1710000000, 0).UTC(),
+	); err != nil {
+		t.Fatalf("create video location: %v", err)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/videos", listVideos)
+	requestList := func(query string) struct {
+		Items []models.Video `json:"items"`
+		Total int64          `json:"total"`
+	} {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/videos?"+query, nil)
+		router.ServeHTTP(recorder, request)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("list videos status = %d body=%s", recorder.Code, recorder.Body.String())
+		}
+		var payload struct {
+			Items []models.Video `json:"items"`
+			Total int64          `json:"total"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &payload); err != nil {
+			t.Fatalf("decode list videos response: %v", err)
+		}
+		return payload
+	}
+
+	visible := requestList("directory_ids=0")
+	if visible.Total != 1 || len(visible.Items) != 1 {
+		t.Fatalf("enabled directory should remain visible despite directory_ids=0: %#v", visible)
+	}
+
+	enabled := false
+	if _, err := dbpkg.UpdateDirectory(context.Background(), dir.ID, nil, nil, &enabled); err != nil {
+		t.Fatalf("disable directory: %v", err)
+	}
+	hidden := requestList("directory_ids=" + strconv.FormatInt(dir.ID, 10))
+	if hidden.Total != 0 || len(hidden.Items) != 0 {
+		t.Fatalf("disabled directory must remain hidden despite directory_ids: %#v", hidden)
+	}
+}
+
 func TestRevealVideoLocationRejectsRemoteRequest(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

@@ -16,6 +16,7 @@ import AppModal from '@/components/AppModal'
 import Pagination from '@/components/Pagination'
 import { SeriesCard } from '@/components/JavSeriesView'
 import WaterfallLoader from '@/components/WaterfallLoader'
+import { useStore } from '@/store'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import { openJavDBWithAssist } from '@/utils/javdb'
@@ -41,7 +42,6 @@ export default function JavStudioView({
   onSelectPrefix,
   onOpenFavorites,
   onOpenSeriesFavorites,
-  directoryIds = [],
   waterfallMode,
   onWaterfallModeChange,
   onLoadMore,
@@ -83,7 +83,6 @@ export default function JavStudioView({
           buildStudioUrl={buildStudioUrl}
           buildSeriesUrl={buildSeriesUrl}
           onSelectSeries={onSelectSeries}
-          directoryIds={directoryIds}
           onMerged={onMerged}
         />
       )}
@@ -106,7 +105,6 @@ function JavStudioGrid({
   onOpenSeriesFavorites,
   buildStudioUrl,
   buildSeriesUrl,
-  directoryIds,
   onMerged,
 }) {
   const [editItem, setEditItem] = useState(null)
@@ -146,7 +144,6 @@ function JavStudioGrid({
             onOpenSeriesFavorites={onOpenSeriesFavorites}
             onOpenEditor={setEditItem}
             buildSeriesUrl={buildSeriesUrl}
-            directoryIds={directoryIds}
           />
         ))}
       </div>
@@ -154,7 +151,6 @@ function JavStudioGrid({
         key={`studio-edit-${editItem?.id || 'closed'}`}
         open={Boolean(editItem)}
         item={editItem}
-        directoryIds={directoryIds}
         onClose={() => setEditItem(null)}
         onSaved={(updated) => {
           const id = Number(updated?.id)
@@ -186,9 +182,13 @@ export function StudioCard({
   onSeriesListOpenChange,
   onOpenEditor,
   buildSeriesUrl,
-  directoryIds = [],
   seriesListModalZIndex = 1500,
 }) {
+  const directoryVisibilityKey = useStore((state) =>
+    (state.directories || [])
+      .map((directory) => `${directory.id}:${directory.enabled !== false ? '1' : '0'}`)
+      .join(',')
+  )
   const sampleCode = String(item?.sample_code || '').trim()
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
@@ -316,13 +316,13 @@ export function StudioCard({
     setPreviewSeries(series)
     setSeriesHoverAnchorEl(event.currentTarget)
 
-    const cacheKey = `${seriesId}|${(directoryIds || []).join(',')}`
+    const cacheKey = `${seriesId}|${directoryVisibilityKey}`
     const cached = seriesPreviewCacheRef.current.get(cacheKey)
     if (cached) {
       setPreviewSeries(cached)
       return
     }
-    fetchJavSeriesPreview(seriesId, { directoryIds })
+    fetchJavSeriesPreview(seriesId)
       .then((loadedSeries) => {
         seriesPreviewCacheRef.current.set(cacheKey, loadedSeries)
         if (activeSeriesHoverIdRef.current === Number(loadedSeries?.id)) {
@@ -769,7 +769,7 @@ export function StudioCard({
   )
 }
 
-function JavStudioEditModal({ open, item, directoryIds = [], onClose, onSaved, onMerged }) {
+function JavStudioEditModal({ open, item, onClose, onSaved, onMerged }) {
   const [form, setForm] = useState(() => buildStudioEditForm(item))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -810,14 +810,10 @@ function JavStudioEditModal({ open, item, directoryIds = [], onClose, onSaved, o
     setSaving(true)
     setError('')
     try {
-      const updated = await updateJavStudio(
-        studioId,
-        {
-          name: String(form.name || '').trim(),
-          aliases: mergeStudioAliases(form.aliases, studioAliasTextToList(form.alias_input)),
-        },
-        { directoryIds }
-      )
+      const updated = await updateJavStudio(studioId, {
+        name: String(form.name || '').trim(),
+        aliases: mergeStudioAliases(form.aliases, studioAliasTextToList(form.alias_input)),
+      })
       onSaved?.({
         ...updated,
         aliases: Array.isArray(updated?.aliases) ? updated.aliases : [],
@@ -907,7 +903,6 @@ function JavStudioEditModal({ open, item, directoryIds = [], onClose, onSaved, o
       <JavStudioMergeModal
         open={mergeOpen}
         item={item}
-        directoryIds={directoryIds}
         onClose={() => setMergeOpen(false)}
         onMerged={onMerged}
       />
@@ -971,7 +966,7 @@ function StudioAliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd
   )
 }
 
-function JavStudioMergeModal({ open, item, directoryIds = [], onClose, onMerged }) {
+function JavStudioMergeModal({ open, item, onClose, onMerged }) {
   const [search, setSearch] = useState('')
   const [options, setOptions] = useState([])
   const [selectedId, setSelectedId] = useState(0)
@@ -1031,7 +1026,6 @@ function JavStudioMergeModal({ open, item, directoryIds = [], onClose, onMerged 
       const updated = await mergeJavStudios({
         canonicalId: selectedId,
         mergeIds: [sourceId],
-        directoryIds,
       })
       onMerged?.(updated)
     } catch (err) {

@@ -28,7 +28,7 @@ type tagsBatchDeleteRequest struct {
 func listTags(c *gin.Context) {
 	tags, err := dbpkg.ListTags(
 		c.Request.Context(),
-		parseDirectoryIDs(c.Query("directory_ids")),
+		nil,
 		queryBool(c, "hide_jav", false),
 	)
 	if err != nil {

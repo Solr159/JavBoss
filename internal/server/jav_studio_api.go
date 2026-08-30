@@ -21,7 +21,6 @@ func listJavStudios(c *gin.Context) {
 	limit := queryInt(c, "limit", 100)
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	favoriteGroupID := int64(0)
 	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
 		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
@@ -32,14 +31,14 @@ func listJavStudios(c *gin.Context) {
 		favoriteGroupID = parsed
 	}
 
-	items, total, err := dbpkg.ListJavStudios(c.Request.Context(), search, limit, offset, directoryIDs, favoriteGroupID)
+	items, total, err := dbpkg.ListJavStudios(c.Request.Context(), search, limit, offset, nil, favoriteGroupID)
 	if err != nil {
 		logging.Error("list jav studios: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载片商列表失败", "Failed to load studios")
 		return
 	}
 
-	enrichJavStudioSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavStudioSummaries(c.Request.Context(), items)
 
 	c.JSON(http.StatusOK, gin.H{
 		"items": items,
@@ -82,8 +81,7 @@ func mergeJavStudios(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	item, err := dbpkg.MergeJavStudios(c.Request.Context(), req.CanonicalID, req.MergeIDs, directoryIDs)
+	item, err := dbpkg.MergeJavStudios(c.Request.Context(), req.CanonicalID, req.MergeIDs, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "片商不存在", "Studio was not found")
@@ -93,7 +91,7 @@ func mergeJavStudios(c *gin.Context) {
 		respondLocalizedError(c, http.StatusBadRequest, "合并片商失败，请检查所选片商是否有效", "Failed to merge studios; check the selected studios")
 		return
 	}
-	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir())
 	c.JSON(http.StatusOK, item)
 }
 
@@ -112,11 +110,10 @@ func updateJavStudio(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	item, err := dbpkg.UpdateJavStudioProfile(c.Request.Context(), id, dbpkg.JavStudioUpdateInput{
 		Name:    req.Name,
 		Aliases: req.Aliases,
-	}, directoryIDs)
+	}, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "片商不存在", "Studio was not found")
@@ -126,7 +123,7 @@ func updateJavStudio(c *gin.Context) {
 		respondLocalizedError(c, http.StatusBadRequest, "保存片商信息失败", "Failed to save studio information")
 		return
 	}
-	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir())
 	c.JSON(http.StatusOK, item)
 }
 
@@ -137,8 +134,7 @@ func getJavStudio(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	item, err := dbpkg.GetJavStudioSummary(c.Request.Context(), id, directoryIDs)
+	item, err := dbpkg.GetJavStudioSummary(c.Request.Context(), id, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "片商不存在", "Studio was not found")
@@ -149,7 +145,7 @@ func getJavStudio(c *gin.Context) {
 		return
 	}
 
-	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	enrichJavStudioSummary(c.Request.Context(), item, javCoverDir())
 	c.JSON(http.StatusOK, item)
 }
 
@@ -157,7 +153,6 @@ func listJavSeries(c *gin.Context) {
 	limit := queryInt(c, "limit", 100)
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	favoriteGroupID := int64(0)
 	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
 		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
@@ -168,14 +163,14 @@ func listJavSeries(c *gin.Context) {
 		favoriteGroupID = parsed
 	}
 
-	items, total, err := dbpkg.ListJavSeries(c.Request.Context(), search, limit, offset, directoryIDs, favoriteGroupID)
+	items, total, err := dbpkg.ListJavSeries(c.Request.Context(), search, limit, offset, nil, favoriteGroupID)
 	if err != nil {
 		logging.Error("list jav series: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载系列列表失败", "Failed to load series")
 		return
 	}
 
-	enrichJavSeriesSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavSeriesSummaries(c.Request.Context(), items)
 
 	c.JSON(http.StatusOK, gin.H{
 		"items": items,
@@ -190,8 +185,7 @@ func getJavSeries(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	item, err := dbpkg.GetJavSeriesSummary(c.Request.Context(), id, directoryIDs)
+	item, err := dbpkg.GetJavSeriesSummary(c.Request.Context(), id, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "系列不存在", "Series was not found")
@@ -202,7 +196,7 @@ func getJavSeries(c *gin.Context) {
 		return
 	}
 
-	enrichJavSeriesSummary(c.Request.Context(), item, javCoverDir(), directoryIDs)
+	enrichJavSeriesSummary(c.Request.Context(), item, javCoverDir())
 	c.JSON(http.StatusOK, item)
 }
 
@@ -286,17 +280,17 @@ func getJavStudioJavDBURL(c *gin.Context) {
 	respondLocalizedError(c, http.StatusNotFound, "未找到对应的 JavDB 片商页面", "JavDB studio page was not found")
 }
 
-func enrichJavStudioSummaries(ctx context.Context, items []dbpkg.JavStudioSummary, directoryIDs []int64) {
+func enrichJavStudioSummaries(ctx context.Context, items []dbpkg.JavStudioSummary) {
 	coverDir := javCoverDir()
 	for i := range items {
-		enrichJavStudioSummary(ctx, &items[i], coverDir, directoryIDs)
+		enrichJavStudioSummary(ctx, &items[i], coverDir)
 	}
 }
 
-func enrichJavSeriesSummaries(ctx context.Context, items []dbpkg.JavSeriesSummary, directoryIDs []int64) {
+func enrichJavSeriesSummaries(ctx context.Context, items []dbpkg.JavSeriesSummary) {
 	coverDir := javCoverDir()
 	for i := range items {
-		enrichJavSeriesSummary(ctx, &items[i], coverDir, directoryIDs)
+		enrichJavSeriesSummary(ctx, &items[i], coverDir)
 	}
 }
 
@@ -308,7 +302,7 @@ func javCoverDir() string {
 	return ""
 }
 
-func enrichJavStudioSummary(ctx context.Context, item *dbpkg.JavStudioSummary, coverDir string, directoryIDs []int64) {
+func enrichJavStudioSummary(ctx context.Context, item *dbpkg.JavStudioSummary, coverDir string) {
 	item.Name = strings.TrimSpace(item.Name)
 	item.SampleCode = strings.TrimSpace(item.SampleCode)
 
@@ -318,7 +312,7 @@ func enrichJavStudioSummary(ctx context.Context, item *dbpkg.JavStudioSummary, c
 	if _, ok := manager.FindCoverPath(coverDir, item.SampleCode); ok {
 		return
 	}
-	codes, err := dbpkg.ListStudioCoverCodes(ctx, item.ID, directoryIDs)
+	codes, err := dbpkg.ListStudioCoverCodes(ctx, item.ID, nil)
 	if err != nil {
 		logging.Error("list studio cover codes id=%d: %v", item.ID, err)
 		return
@@ -341,7 +335,7 @@ func enrichJavStudioSummary(ctx context.Context, item *dbpkg.JavStudioSummary, c
 	}
 }
 
-func enrichJavSeriesSummary(ctx context.Context, item *dbpkg.JavSeriesSummary, coverDir string, directoryIDs []int64) {
+func enrichJavSeriesSummary(ctx context.Context, item *dbpkg.JavSeriesSummary, coverDir string) {
 	item.Name = strings.TrimSpace(item.Name)
 	item.SampleCode = strings.TrimSpace(item.SampleCode)
 
@@ -351,7 +345,7 @@ func enrichJavSeriesSummary(ctx context.Context, item *dbpkg.JavSeriesSummary, c
 	if _, ok := manager.FindCoverPath(coverDir, item.SampleCode); ok {
 		return
 	}
-	codes, err := dbpkg.ListSeriesCoverCodes(ctx, item.ID, directoryIDs)
+	codes, err := dbpkg.ListSeriesCoverCodes(ctx, item.ID, nil)
 	if err != nil {
 		logging.Error("list series cover codes id=%d: %v", item.ID, err)
 		return

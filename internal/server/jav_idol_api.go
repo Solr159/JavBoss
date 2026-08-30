@@ -24,7 +24,6 @@ func listJavIdols(c *gin.Context) {
 	offset := queryInt(c, "offset", 0)
 	search := strings.TrimSpace(c.Query("search"))
 	sort := strings.TrimSpace(c.Query("sort"))
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	favoriteGroupID := int64(0)
 	if favoriteGroupParam := strings.TrimSpace(c.Query("favorite_group_id")); favoriteGroupParam != "" {
 		parsed, err := strconv.ParseInt(favoriteGroupParam, 10, 64)
@@ -39,14 +38,14 @@ func listJavIdols(c *gin.Context) {
 		return
 	}
 
-	items, total, err := dbpkg.ListJavIdols(c.Request.Context(), search, sort, limit, offset, directoryIDs, favoriteGroupID, filters)
+	items, total, err := dbpkg.ListJavIdols(c.Request.Context(), search, sort, limit, offset, nil, favoriteGroupID, filters)
 	if err != nil {
 		logging.Error("list jav idols: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "加载女优列表失败", "Failed to load idols")
 		return
 	}
 
-	enrichJavIdolSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavIdolSummaries(c.Request.Context(), items)
 
 	c.JSON(http.StatusOK, gin.H{
 		"items": items,
@@ -137,7 +136,7 @@ func listJavIdolOptions(c *gin.Context) {
 		search,
 		limit,
 		offset,
-		parseDirectoryIDs(c.Query("directory_ids")),
+		nil,
 	)
 	if err != nil {
 		logging.Error("list jav idol options: %v", err)
@@ -183,8 +182,7 @@ func mergeJavIdols(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	item, err := dbpkg.MergeJavIdols(c.Request.Context(), req.CanonicalID, req.MergeIDs, directoryIDs)
+	item, err := dbpkg.MergeJavIdols(c.Request.Context(), req.CanonicalID, req.MergeIDs, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
@@ -195,7 +193,7 @@ func mergeJavIdols(c *gin.Context) {
 		return
 	}
 	items := []dbpkg.JavIdolSummary{*item}
-	enrichJavIdolSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavIdolSummaries(c.Request.Context(), items)
 	c.JSON(http.StatusOK, items[0])
 }
 
@@ -237,7 +235,6 @@ func updateJavIdol(c *gin.Context) {
 		}
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
 	item, err := dbpkg.UpdateJavIdol(c.Request.Context(), id, dbpkg.JavIdolUpdateInput{
 		Name:         req.Name,
 		RomanName:    req.RomanName,
@@ -250,7 +247,7 @@ func updateJavIdol(c *gin.Context) {
 		Hips:         req.Hips,
 		Cup:          req.Cup,
 		Aliases:      req.Aliases,
-	}, directoryIDs)
+	}, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
@@ -261,7 +258,7 @@ func updateJavIdol(c *gin.Context) {
 		return
 	}
 	items := []dbpkg.JavIdolSummary{*item}
-	enrichJavIdolSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavIdolSummaries(c.Request.Context(), items)
 	c.JSON(http.StatusOK, items[0])
 }
 
@@ -275,7 +272,7 @@ func listJavIdolCoverOptions(c *gin.Context) {
 	options, err := dbpkg.ListIdolCoverOptions(
 		c.Request.Context(),
 		id,
-		parseDirectoryIDs(c.Query("directory_ids")),
+		nil,
 	)
 	if err != nil {
 		logging.Error("list jav idol cover options id=%d: %v", id, err)
@@ -313,7 +310,7 @@ func updateJavIdolCover(c *gin.Context) {
 		id,
 		req.JavID,
 		req.CropLeft,
-		parseDirectoryIDs(c.Query("directory_ids")),
+		nil,
 	)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -326,7 +323,7 @@ func updateJavIdolCover(c *gin.Context) {
 	}
 
 	items := []dbpkg.JavIdolSummary{*item}
-	enrichJavIdolSummaries(c.Request.Context(), items, parseDirectoryIDs(c.Query("directory_ids")))
+	enrichJavIdolSummaries(c.Request.Context(), items)
 	c.JSON(http.StatusOK, items[0])
 }
 
@@ -337,8 +334,7 @@ func getJavIdol(c *gin.Context) {
 		return
 	}
 
-	directoryIDs := parseDirectoryIDs(c.Query("directory_ids"))
-	item, err := dbpkg.GetJavIdolSummary(c.Request.Context(), id, directoryIDs)
+	item, err := dbpkg.GetJavIdolSummary(c.Request.Context(), id, nil)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "女优不存在", "Idol was not found")
@@ -350,7 +346,7 @@ func getJavIdol(c *gin.Context) {
 	}
 
 	items := []dbpkg.JavIdolSummary{*item}
-	enrichJavIdolSummaries(c.Request.Context(), items, directoryIDs)
+	enrichJavIdolSummaries(c.Request.Context(), items)
 	c.JSON(http.StatusOK, items[0])
 }
 
@@ -375,18 +371,18 @@ func getJavIdolJavDBURL(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"url": profileURL})
 }
 
-func enrichJavIdolSummaries(ctx context.Context, items []dbpkg.JavIdolSummary, directoryIDs []int64) {
+func enrichJavIdolSummaries(ctx context.Context, items []dbpkg.JavIdolSummary) {
 	cfg := common.AppConfig
 	coverDir := ""
 	if cfg != nil {
 		coverDir = cfg.JavCoverDir
 	}
 	for i := range items {
-		enrichJavIdolSummary(ctx, &items[i], coverDir, directoryIDs)
+		enrichJavIdolSummary(ctx, &items[i], coverDir)
 	}
 }
 
-func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, coverDir string, directoryIDs []int64) {
+func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, coverDir string) {
 	item.Name = strings.TrimSpace(item.Name)
 	item.RomanName = strings.TrimSpace(item.RomanName)
 	item.JapaneseName = strings.TrimSpace(item.JapaneseName)
@@ -407,7 +403,7 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 			return
 		}
 	}
-	codes, err := dbpkg.ListIdolCoverCodes(ctx, item.ID, directoryIDs)
+	codes, err := dbpkg.ListIdolCoverCodes(ctx, item.ID, nil)
 	if err != nil {
 		logging.Error("list idol cover codes id=%d: %v", item.ID, err)
 		return

@@ -103,6 +103,7 @@ func CreateDirectory(ctx context.Context, path string) (*models.Directory, error
 				dir.Path = normalized
 				dir.IsDelete = false
 				dir.Missing = false
+				dir.Enabled = true
 				return nil
 			})
 			if updErr != nil {
@@ -123,7 +124,7 @@ func CreateDirectory(ctx context.Context, path string) (*models.Directory, error
 }
 
 // UpdateDirectory updates a directory's attributes. Pass nil to leave a field untouched.
-func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool) (*models.Directory, error) {
+func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool, enabled *bool) (*models.Directory, error) {
 	var normalizedPath *string
 	if path != nil {
 		normalized, err := normalizeDirectoryPath(*path)
@@ -165,6 +166,9 @@ func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool
 		}
 		if isDelete != nil {
 			dir.IsDelete = *isDelete
+		}
+		if enabled != nil {
+			dir.Enabled = *enabled
 		}
 		return nil
 	})

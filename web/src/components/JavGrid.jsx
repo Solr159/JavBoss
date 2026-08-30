@@ -43,7 +43,7 @@ import { getJavDisplayTitle } from '@/utils/jav'
 import { findJavEditOptionByName } from '@/utils/javEdit'
 import { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 import { getJavTagDisplayName, withJavTagDisplayName } from '@/utils/javTag'
-import { directoryQueryIds, useStore, videoSelectionKey } from '@/store'
+import { useStore, videoSelectionKey } from '@/store'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
@@ -128,7 +128,11 @@ export default function JavGrid({
   onManageVideoDelete,
   onManageVideoTagClick,
 }) {
-  const directoryIds = useStore(directoryQueryIds)
+  const directoryVisibilityKey = useStore((state) =>
+    (state.directories || [])
+      .map((directory) => `${directory.id}:${directory.enabled !== false ? '1' : '0'}`)
+      .join(',')
+  )
   const preferChineseName = useStore((state) =>
     configFlag(state.config?.jav_idol_prefer_chinese_name)
   )
@@ -184,7 +188,7 @@ export default function JavGrid({
       return idol || null
     }
 
-    const cacheKey = `${idolId}|${(directoryIds || []).join(',')}`
+    const cacheKey = `${idolId}|${directoryVisibilityKey}`
     const cached = idolPreviewCacheRef.current.get(cacheKey)
     if (cached) {
       return cached
@@ -195,7 +199,7 @@ export default function JavGrid({
       return inflight
     }
 
-    const request = fetchJavIdolPreview(idolId, { directoryIds })
+    const request = fetchJavIdolPreview(idolId)
       .then((preview) => {
         idolPreviewCacheRef.current.set(cacheKey, preview)
         return preview
@@ -213,7 +217,7 @@ export default function JavGrid({
       return studio || null
     }
 
-    const cacheKey = `${studioId}|${(directoryIds || []).join(',')}`
+    const cacheKey = `${studioId}|${directoryVisibilityKey}`
     const cached = studioPreviewCacheRef.current.get(cacheKey)
     if (cached) {
       return cached
@@ -224,7 +228,7 @@ export default function JavGrid({
       return inflight
     }
 
-    const request = fetchJavStudioPreview(studioId, { directoryIds })
+    const request = fetchJavStudioPreview(studioId)
       .then((preview) => {
         studioPreviewCacheRef.current.set(cacheKey, preview)
         return preview
@@ -242,7 +246,7 @@ export default function JavGrid({
       return series || null
     }
 
-    const cacheKey = `${seriesId}|${(directoryIds || []).join(',')}`
+    const cacheKey = `${seriesId}|${directoryVisibilityKey}`
     const cached = seriesPreviewCacheRef.current.get(cacheKey)
     if (cached) {
       return cached
@@ -253,7 +257,7 @@ export default function JavGrid({
       return inflight
     }
 
-    const request = fetchJavSeriesPreview(seriesId, { directoryIds })
+    const request = fetchJavSeriesPreview(seriesId)
       .then((preview) => {
         seriesPreviewCacheRef.current.set(cacheKey, preview)
         return preview
@@ -321,7 +325,6 @@ export default function JavGrid({
             loadSeriesPreview={loadSeriesPreview}
             onIdolPreviewUpdated={handleIdolPreviewUpdated}
             onOpenCoverPreview={setCoverPreview}
-            directoryIds={directoryIds}
             preferChineseName={preferChineseName}
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}
@@ -412,7 +415,7 @@ function formatDateInputFromUnix(value) {
 
 const JAV_EDIT_FETCH_LIMIT = 500
 
-async function fetchAllJavEditOptions(fetcher, { directoryIds = [] } = {}) {
+async function fetchAllJavEditOptions(fetcher) {
   const all = []
   let offset = 0
   let total = null
@@ -421,7 +424,6 @@ async function fetchAllJavEditOptions(fetcher, { directoryIds = [] } = {}) {
       limit: JAV_EDIT_FETCH_LIMIT,
       offset,
       search: '',
-      directoryIds,
     })
     const items = Array.isArray(resp?.items) ? resp.items : []
     all.push(...items)
@@ -659,7 +661,7 @@ function editableJavTitle(item) {
   return String(item?.title || '')
 }
 
-function JavCustomTagModal({ open, item, directoryIds, onClose, onSaved }) {
+function JavCustomTagModal({ open, item, onClose, onSaved }) {
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const [selectedTagIds, setSelectedTagIds] = useState([])
@@ -749,13 +751,9 @@ function JavCustomTagModal({ open, item, directoryIds, onClose, onSaved }) {
     setSaving(true)
     setError('')
     try {
-      const updated = await updateJavItem(
-        javID,
-        {
-          tag_ids: selectedTagIds.map((id) => Number(id)).filter((id) => id > 0),
-        },
-        { directoryIds }
-      )
+      const updated = await updateJavItem(javID, {
+        tag_ids: selectedTagIds.map((id) => Number(id)).filter((id) => id > 0),
+      })
       void loadJavTags?.({ force: true })
       onSaved?.(updated)
     } catch (saveError) {
@@ -902,7 +900,7 @@ function JavCustomTagModal({ open, item, directoryIds, onClose, onSaved }) {
   )
 }
 
-function JavEditModal({ open, item, directoryIds, preferChineseName = false, onClose, onSaved }) {
+function JavEditModal({ open, item, preferChineseName = false, onClose, onSaved }) {
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
@@ -946,7 +944,6 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
   useCloseOnOutsidePointer(scrapedTagPickerOpen, scrapedTagPickerRef, setScrapedTagPickerOpen)
   useCloseOnOutsidePointer(tagPickerOpen, tagPickerRef, setTagPickerOpen)
   const code = String(item?.code || '').trim()
-  const directoryIdsKey = (directoryIds || []).join(',')
   const userTagOptions = useMemo(() => tagOptions.filter((tag) => isUserJavTag(tag)), [tagOptions])
   const scrapedTagOptions = useMemo(
     () => tagOptions.filter((tag) => !isUserJavTag(tag)),
@@ -1128,16 +1125,13 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
 
   useEffect(() => {
     if (!open) return undefined
-    const activeDirectoryIds = directoryIdsKey
-      ? directoryIdsKey.split(',').map((id) => Number(id))
-      : []
     let cancelled = false
     setOptionsLoading(true)
     setOptionsError('')
     Promise.all([
       fetchAllJavEditOptions(fetchJavStudios),
       fetchAllJavEditOptions(fetchJavSeries),
-      fetchAllJavEditOptions(fetchJavIdolOptions, { directoryIds: activeDirectoryIds }),
+      fetchAllJavEditOptions(fetchJavIdolOptions),
     ])
       .then(([studios, series, idols]) => {
         if (cancelled) return
@@ -1158,7 +1152,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
     return () => {
       cancelled = true
     }
-  }, [directoryIdsKey, open])
+  }, [open])
 
   if (!open) return null
 
@@ -1288,7 +1282,7 @@ function JavEditModal({ open, item, directoryIds, preferChineseName = false, onC
         release_date: releaseDate,
         duration_min: duration,
       }
-      const updated = await updateJavItem(item.id, payload, { directoryIds })
+      const updated = await updateJavItem(item.id, payload)
       void loadJavTags?.({ force: true })
       const normalizedUpdated = {
         ...updated,
@@ -2190,7 +2184,6 @@ function JavCard({
   loadSeriesPreview,
   onIdolPreviewUpdated,
   onOpenCoverPreview,
-  directoryIds,
   preferChineseName = false,
   titleMaxRows,
   idolTagMaxRows,
@@ -2397,7 +2390,7 @@ function JavCard({
     setFavoriteRatingSaving(true)
     setFavoriteRatingError('')
     try {
-      const updated = await updateJavItem(javID, { favorite_rating: nextRating }, { directoryIds })
+      const updated = await updateJavItem(javID, { favorite_rating: nextRating })
       const savedRating = Number(updated?.favorite_rating) || nextRating
       setFavoriteRating(savedRating)
       useStore.setState((state) => {
@@ -3071,7 +3064,6 @@ function JavCard({
                   buildSeriesUrl={buildSeriesFilterHref}
                   onOpenSeriesFavorites={onOpenSeriesFavorites}
                   onSeriesListOpenChange={handleStudioSeriesListOpenChange}
-                  directoryIds={directoryIds}
                 />
               ) : null}
             </div>
@@ -3156,7 +3148,6 @@ function JavCard({
                 key={`idol-cover-${idolCoverEditorItem?.id || 'closed'}`}
                 open={Boolean(idolCoverEditorItem)}
                 item={idolCoverEditorItem}
-                directoryIds={directoryIds}
                 preferChineseName={preferChineseName}
                 onClose={() => setIdolCoverEditorItem(null)}
                 onSaved={handleIdolCoverSaved}
@@ -3165,7 +3156,6 @@ function JavCard({
                 key={`idol-editor-${idolEditorItem?.id || 'closed'}`}
                 open={Boolean(idolEditorItem)}
                 item={idolEditorItem}
-                directoryIds={directoryIds}
                 preferChineseName={preferChineseName}
                 onClose={() => setIdolEditorItem(null)}
                 onSaved={handleIdolSaved}
@@ -3233,7 +3223,6 @@ function JavCard({
       <JavEditModal
         open={editorOpen}
         item={item}
-        directoryIds={directoryIds}
         preferChineseName={preferChineseName}
         onClose={() => setEditorOpen(false)}
         onSaved={handleEditorSaved}
@@ -3241,7 +3230,6 @@ function JavCard({
       <JavCustomTagModal
         open={customTagEditorOpen}
         item={item}
-        directoryIds={directoryIds}
         onClose={() => setCustomTagEditorOpen(false)}
         onSaved={handleCustomTagsSaved}
       />
@@ -3280,7 +3268,6 @@ function JavCard({
           buildStudioUrl={buildStudioFilterHref}
           buildSeriesUrl={buildSeriesFilterHref}
           buildTagUrl={buildTagFilterHref}
-          directoryIds={directoryIds}
           onOpenIdolFavorites={onOpenFavorites}
           onOpenStudioFavorites={onOpenStudioFavorites}
           onOpenSeriesFavorites={onOpenSeriesFavorites}

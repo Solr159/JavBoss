@@ -480,7 +480,6 @@ export default function JavDetailModal({
   buildStudioUrl,
   buildSeriesUrl,
   buildTagUrl,
-  directoryIds,
   onOpenIdolFavorites,
   onOpenStudioFavorites,
   onOpenSeriesFavorites,
@@ -517,7 +516,6 @@ export default function JavDetailModal({
   const hoverCloseTimerRef = useRef(null)
   const activeHoverKeyRef = useRef('')
   const hoverPreviewLockedRef = useRef(false)
-  const directoryIdentity = (directoryIds || []).join(',')
 
   useEffect(() => {
     return () => {
@@ -543,10 +541,7 @@ export default function JavDetailModal({
       return undefined
     }
 
-    const requestOptions = {
-      directoryIds: directoryIdentity ? directoryIdentity.split(',') : [],
-    }
-    const resolvedImages = getResolvedJavSampleImages(itemId, requestOptions)
+    const resolvedImages = getResolvedJavSampleImages(itemId)
     if (resolvedImages) {
       setSampleImages(normalizeSampleImages(resolvedImages))
       setSampleImagesLoading(false)
@@ -554,7 +549,7 @@ export default function JavDetailModal({
     }
 
     setSampleImagesLoading(true)
-    void resolveJavSampleImages(itemId, requestOptions)
+    void resolveJavSampleImages(itemId)
       .then((images) => {
         if (!cancelled) setSampleImages(normalizeSampleImages(images))
       })
@@ -568,7 +563,7 @@ export default function JavDetailModal({
     return () => {
       cancelled = true
     }
-  }, [directoryIdentity, itemId, itemSampleImages])
+  }, [itemId, itemSampleImages])
 
   const clearHoverCloseTimer = () => {
     if (!hoverCloseTimerRef.current) return
@@ -954,7 +949,6 @@ export default function JavDetailModal({
               buildSeriesUrl={buildSeriesUrl}
               onOpenSeriesFavorites={onOpenSeriesFavorites}
               onSeriesListOpenChange={handleStudioSeriesListOpenChange}
-              directoryIds={directoryIds}
               seriesListModalZIndex={1600}
             />
           ) : null}
