@@ -104,7 +104,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./data:/app/data
-      - /:/host:ro
+      - /:/host:ro # 默认只读挂载，如果需要使用目录整理、文件重命名、文件删除等功能，将末尾的':ro'移除
     restart: unless-stopped
 ```
 
@@ -114,7 +114,7 @@ services:
 docker compose up -d
 ```
 
-Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
+Docker 部署下默认只能使用浏览器播放器（较为简陋且依赖服务端转码），如果需要使用 MPV，参考 Client模式说明。添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
 </dd>
 </dl>
@@ -122,7 +122,8 @@ Docker 部署下使用浏览器播放视频，不会调用本机 mpv。添加目
 </br>
 
 **浏览器访问地址：`http://localhost:8655`，非 docker 方式启动后，程序会自动打开浏览器。</br>**
-**Docker 方式启动默认支持局域网设备访问，将 `localhost` 改为部署主机的局域网ip。非 docker 方式需要在全局设置中手动开启局域网访问，然后重启软件。</br>**
+**Docker 部署默认支持局域网设备访问，将 `localhost` 改为部署主机的局域网ip。</br>**
+**非 Docker 部署请在设置中手动开启局域网访问，然后重启软件。</br>**
 **默认登录密码为 `admin`，可在全局设置中修改。**
 
 ### 2. 添加本地目录
