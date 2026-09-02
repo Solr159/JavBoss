@@ -11,6 +11,7 @@ const DIRECTORY_PROCESS_SIDECAR = 'sidecar'
 const DIRECTORY_PROCESS_ORGANIZE = 'organize'
 const DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR = 'organize_with_sidecar'
 const DIRECTORY_PROCESS_LAYOUT_PREFIX = 'prefix'
+const DIRECTORY_PROCESS_LAYOUT_CODE = 'code'
 const DIRECTORY_PROCESS_LAYOUT_IDOL = 'idol'
 
 const directoryProcessOptions = () => [
@@ -45,6 +46,11 @@ const directoryProcessLayoutOptions = () => [
     layout: DIRECTORY_PROCESS_LAYOUT_PREFIX,
     title: zh('按番号前缀', 'By code prefix'),
     example: 'JAV/IPX/IPX-001/...',
+  },
+  {
+    layout: DIRECTORY_PROCESS_LAYOUT_CODE,
+    title: zh('按完整番号', 'By complete code'),
+    example: 'JAV/IPX-001/...',
   },
   {
     layout: DIRECTORY_PROCESS_LAYOUT_IDOL,

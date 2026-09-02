@@ -118,6 +118,38 @@ func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 	}
 }
 
+func TestProcessJavItemOrganizesByCompleteCode(t *testing.T) {
+	root := t.TempDir()
+	videoName := "original-name.mp4"
+	writeTestFile(t, filepath.Join(root, videoName), []byte("video"))
+
+	item := models.Jav{
+		Code:   "ipx-001",
+		Videos: []models.Video{{Path: videoName}},
+	}
+	summary := &DirectoryProcessSummary{}
+	processJavItem(
+		t.Context(),
+		root,
+		&item,
+		DirectoryProcessOrganize,
+		DirectoryProcessLayoutCode,
+		"",
+		summary,
+	)
+
+	target := filepath.Join(root, "JAV", "IPX-001", videoName)
+	if _, err := os.Stat(target); err != nil {
+		t.Fatalf("complete-code organized video missing: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "JAV", "IPX")); !os.IsNotExist(err) {
+		t.Fatalf("prefix directory unexpectedly exists: %v", err)
+	}
+	if summary.Moved != 1 || summary.Failed != 0 {
+		t.Fatalf("summary = %+v, want one move and no failures", summary)
+	}
+}
+
 func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 	root := t.TempDir()
 	coverDir := t.TempDir()
