@@ -49,7 +49,7 @@ const directoryProcessLayoutOptions = () => [
   },
   {
     layout: DIRECTORY_PROCESS_LAYOUT_CODE,
-    title: zh('������', 'By complete code'),
+    title: zh('按完整番号', 'By complete code'),
     example: 'JAV/IPX-001/...',
   },
   {
