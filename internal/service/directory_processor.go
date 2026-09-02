@@ -28,6 +28,7 @@ const (
 	DirectoryProcessOrganize            = "organize"
 	DirectoryProcessOrganizeWithSidecar = "organize_with_sidecar"
 	DirectoryProcessLayoutPrefix        = "prefix"
+	DirectoryProcessLayoutCode          = "code"
 	DirectoryProcessLayoutIdol          = "idol"
 	directoryOrganizeParent             = "JAV"
 	directoryUnknownIdol                = "未知女优"
@@ -146,6 +147,8 @@ func directoryProcessLayout(layout string) (string, bool) {
 	switch strings.TrimSpace(layout) {
 	case "", DirectoryProcessLayoutPrefix:
 		return DirectoryProcessLayoutPrefix, true
+	case DirectoryProcessLayoutCode:
+		return DirectoryProcessLayoutCode, true
 	case DirectoryProcessLayoutIdol:
 		return DirectoryProcessLayoutIdol, true
 	default:
@@ -225,13 +228,20 @@ func processJavItem(
 		target := source
 		if mode != DirectoryProcessSidecar {
 			group := prefix
-			if layout == DirectoryProcessLayoutIdol {
-				group = organizeIdolComponent(item.Idols)
+			if layout == DirectoryProcessLayoutCode {
+				target, err = safeDirectoryFilePath(
+					root,
+					filepath.Join(directoryOrganizeParent, code, filepath.Base(source)),
+				)
+			} else {
+				if layout == DirectoryProcessLayoutIdol {
+					group = organizeIdolComponent(item.Idols)
+				}
+				target, err = safeDirectoryFilePath(
+					root,
+					filepath.Join(directoryOrganizeParent, group, code, filepath.Base(source)),
+				)
 			}
-			target, err = safeDirectoryFilePath(
-				root,
-				filepath.Join(directoryOrganizeParent, group, code, filepath.Base(source)),
-			)
 			if err != nil {
 				summary.Failed++
 				logging.Error("resolve directory processing target failed path=%s err=%v", video.Path, err)
