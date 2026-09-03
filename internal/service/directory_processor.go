@@ -48,15 +48,18 @@ var (
 
 // DirectoryProcessSummary records the result of one directory processing job.
 type DirectoryProcessSummary struct {
-	Locations        int
-	Moved            int
-	AlreadyOrganized int
-	Sidecars         int
-	Skipped          int
-	Failed           int
-	MoveFailures     []DirectoryProcessIssue
-	SkippedItems     []DirectoryProcessIssue
-	SidecarFailures  []DirectoryProcessIssue
+	Locations                int
+	Moved                    int
+	AlreadyOrganized         int
+	Sidecars                 int
+	Skipped                  int
+	Failed                   int
+	EmptyDirectoriesRemoved  int
+	MoveFailures             []DirectoryProcessIssue
+	SkippedItems             []DirectoryProcessIssue
+	SidecarFailures          []DirectoryProcessIssue
+	DirectoryCleanupFailures []DirectoryProcessIssue
+	emptyDirectoryCandidates []string
 }
 
 // DirectoryProcessIssue describes one file that was not fully processed.
@@ -137,7 +140,7 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
 		} else {
 			logging.Info(
-				"directory processing complete id=%d mode=%s locations=%d moved=%d already_organized=%d sidecars=%d skipped=%d failed=%d",
+				"directory processing complete id=%d mode=%s locations=%d moved=%d already_organized=%d sidecars=%d skipped=%d failed=%d empty_directories_removed=%d cleanup_failed=%d",
 				directory.ID,
 				mode,
 				summary.Locations,
@@ -146,6 +149,8 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 				summary.Sidecars,
 				summary.Skipped,
 				summary.Failed,
+				summary.EmptyDirectoriesRemoved,
+				len(summary.DirectoryCleanupFailures),
 			)
 		}
 		if err := writeDirectoryProcessReport(
@@ -215,9 +220,14 @@ func ProcessDirectory(
 	summary := &DirectoryProcessSummary{}
 	for i := range items {
 		if err := ctx.Err(); err != nil {
+			cleanupEmptySourceDirectories(directory.Path, summary)
 			return summary, err
 		}
 		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary)
+	}
+	cleanupEmptySourceDirectories(directory.Path, summary)
+	if err := ctx.Err(); err != nil {
+		return summary, err
 	}
 	return summary, nil
 }
@@ -305,6 +315,10 @@ func processJavItem(
 			}
 			if moved {
 				summary.Moved++
+				summary.emptyDirectoryCandidates = append(
+					summary.emptyDirectoryCandidates,
+					filepath.Dir(source),
+				)
 			} else {
 				summary.AlreadyOrganized++
 			}
@@ -406,6 +420,121 @@ func reportRelativePath(root, path string) string {
 	return filepath.ToSlash(cleaned)
 }
 
+func pathWithinDirectory(root, path string) bool {
+	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && relative != ".." &&
+		!strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func addDirectoryCleanupFailure(
+	root string,
+	path string,
+	reason string,
+	summary *DirectoryProcessSummary,
+) {
+	if summary == nil {
+		return
+	}
+	summary.DirectoryCleanupFailures = append(
+		summary.DirectoryCleanupFailures,
+		DirectoryProcessIssue{
+			SourcePath: reportRelativePath(root, path),
+			Reason:     reason,
+		},
+	)
+}
+
+func cleanupEmptySourceDirectories(root string, summary *DirectoryProcessSummary) {
+	if summary == nil || len(summary.emptyDirectoryCandidates) == 0 {
+		return
+	}
+	root = filepath.Clean(strings.TrimSpace(root))
+	if !filepath.IsAbs(root) {
+		addDirectoryCleanupFailure(root, root, "所选目录不是有效的绝对路径", summary)
+		return
+	}
+
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		addDirectoryCleanupFailure(root, root, directoryProcessFailureReason(err), summary)
+		return
+	}
+
+	candidates := make(map[string]struct{})
+	for _, candidate := range summary.emptyDirectoryCandidates {
+		current := filepath.Clean(candidate)
+		for current != root && pathWithinDirectory(root, current) {
+			candidates[current] = struct{}{}
+			parent := filepath.Dir(current)
+			if parent == current {
+				break
+			}
+			current = parent
+		}
+	}
+	paths := make([]string, 0, len(candidates))
+	for path := range candidates {
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		return len(paths[i]) > len(paths[j])
+	})
+
+	for _, path := range paths {
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			addDirectoryCleanupFailure(root, path, "为避免越过符号链接，未自动删除此目录", summary)
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+
+		realPath, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		relativePath, err := filepath.Rel(root, path)
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		expectedRealPath := filepath.Join(realRoot, relativePath)
+		if !pathWithinDirectory(realRoot, realPath) ||
+			filepath.Clean(realPath) != filepath.Clean(expectedRealPath) {
+			addDirectoryCleanupFailure(root, path, "为避免越过符号链接，未自动删除此目录", summary)
+			continue
+		}
+
+		entries, err := os.ReadDir(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		if len(entries) != 0 {
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			logging.Error("remove empty source directory failed path=%s err=%v", path, err)
+			continue
+		}
+		summary.EmptyDirectoriesRemoved++
+	}
+	summary.emptyDirectoryCandidates = nil
+}
+
 func directoryProcessFailureReason(err error) string {
 	if err == nil {
 		return "未知错误"
@@ -456,6 +585,7 @@ func reportLineValue(value string) string {
 func writeDirectoryProcessIssueSection(
 	builder *strings.Builder,
 	title string,
+	sourceLabel string,
 	items []DirectoryProcessIssue,
 ) {
 	if len(items) == 0 {
@@ -464,8 +594,12 @@ func writeDirectoryProcessIssueSection(
 	fmt.Fprintf(builder, "\n【%s】\n", title)
 	for i := range items {
 		issue := items[i]
-		fmt.Fprintf(builder, "\n%d. %s\n", i+1, reportLineValue(issue.Code))
-		fmt.Fprintf(builder, "源文件：%s\n", reportLineValue(issue.SourcePath))
+		label := strings.TrimSpace(issue.Code)
+		if label == "" {
+			label = filepath.Base(filepath.FromSlash(issue.SourcePath))
+		}
+		fmt.Fprintf(builder, "\n%d. %s\n", i+1, reportLineValue(label))
+		fmt.Fprintf(builder, "%s：%s\n", sourceLabel, reportLineValue(issue.SourcePath))
 		if issue.TargetPath != "" {
 			fmt.Fprintf(builder, "目标文件：%s\n", reportLineValue(issue.TargetPath))
 		}
@@ -510,10 +644,18 @@ func writeDirectoryProcessReport(
 	fmt.Fprintf(&builder, "移动失败并留在原处：%d\n", len(summary.MoveFailures))
 	fmt.Fprintf(&builder, "NFO/封面生成成功：%d\n", summary.Sidecars)
 	fmt.Fprintf(&builder, "NFO/封面生成失败：%d\n", len(summary.SidecarFailures))
+	fmt.Fprintf(&builder, "已删除空目录：%d\n", summary.EmptyDirectoriesRemoved)
+	fmt.Fprintf(&builder, "空目录清理失败：%d\n", len(summary.DirectoryCleanupFailures))
 
-	writeDirectoryProcessIssueSection(&builder, "移动失败并留在原处", summary.MoveFailures)
-	writeDirectoryProcessIssueSection(&builder, "未满足整理条件", summary.SkippedItems)
-	writeDirectoryProcessIssueSection(&builder, "NFO/封面生成失败", summary.SidecarFailures)
+	writeDirectoryProcessIssueSection(&builder, "移动失败并留在原处", "源文件", summary.MoveFailures)
+	writeDirectoryProcessIssueSection(&builder, "未满足整理条件", "源文件", summary.SkippedItems)
+	writeDirectoryProcessIssueSection(&builder, "NFO/封面生成失败", "源文件", summary.SidecarFailures)
+	writeDirectoryProcessIssueSection(
+		&builder,
+		"空目录清理失败",
+		"目录",
+		summary.DirectoryCleanupFailures,
+	)
 
 	reportPath := filepath.Join(root, directoryProcessReportName)
 	if err := writeFileAtomically(reportPath, strings.NewReader(builder.String()), 0o644); err != nil {
