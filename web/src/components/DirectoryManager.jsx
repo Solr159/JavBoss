@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react'
 import BuildRoundedIcon from '@mui/icons-material/BuildRounded'
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
-import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import { CircularProgress, IconButton, Switch, Tooltip } from '@mui/material'
 
@@ -751,26 +749,22 @@ export default function DirectoryManager({
                       </>
                     ) : (
                       <>
-                        <DirectoryRowIconButton
-                          label={
-                            savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')
-                          }
+                        <button
+                          type="button"
                           onClick={handleEditSubmit}
                           disabled={working}
+                          className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white disabled:opacity-60"
                         >
-                          {savingId === d.id ? (
-                            <CircularProgress size={16} color="inherit" />
-                          ) : (
-                            <SaveRoundedIcon fontSize="small" />
-                          )}
-                        </DirectoryRowIconButton>
-                        <DirectoryRowIconButton
-                          label={zh('取消', 'Cancel')}
+                          {savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+                        </button>
+                        <button
+                          type="button"
                           onClick={cancelEdit}
                           disabled={working}
+                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                         >
-                          <CloseRoundedIcon fontSize="small" />
-                        </DirectoryRowIconButton>
+                          {zh('取消', 'Cancel')}
+                        </button>
                       </>
                     )}
                   </div>
