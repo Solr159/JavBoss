@@ -530,6 +530,14 @@ export default function DirectoryManager({
             const status = directoryWorkStatus(d)
             const statusDisplay = directoryWorkStatusDisplay(status)
             const lastScanFinishedAt = formatScanFinishedAt(d.last_scan_summary)
+            const autoScanIntervalMinutes = Math.max(1, Number(d.auto_scan_interval_minutes) || 1)
+            const autoScanDisplay =
+              d.auto_scan_enabled !== false
+                ? zh(
+                    `自动扫描：每 ${autoScanIntervalMinutes} 分钟`,
+                    `Automatic scan: Every ${autoScanIntervalMinutes} min`
+                  )
+                : zh('自动扫描：已关闭', 'Automatic scan: Off')
             const working =
               savingId === d.id ||
               savingEnabledId === d.id ||
@@ -546,7 +554,32 @@ export default function DirectoryManager({
               >
                 <div className="min-w-0 space-y-1 pr-12 md:pr-0">
                   {!isEditing ? (
-                    <div className="truncate text-sm font-medium">{displayPath(d.path)}</div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="min-w-0 truncate text-sm font-medium">
+                        {displayPath(d.path)}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 text-xs font-normal text-zinc-500">
+                        <span>{autoScanDisplay}</span>
+                        <Tooltip title={zh('编辑扫描设置', 'Edit scan settings')} arrow>
+                          <span className="inline-flex">
+                            <IconButton
+                              type="button"
+                              size="small"
+                              onClick={() => openScanSettings(d)}
+                              disabled={d.is_delete || savingScanSettingsId === d.id}
+                              aria-label={zh('编辑扫描设置', 'Edit scan settings')}
+                              className="!h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 disabled:!opacity-60"
+                            >
+                              {savingScanSettingsId === d.id ? (
+                                <CircularProgress size={13} color="inherit" />
+                              ) : (
+                                <SettingsRoundedIcon sx={{ fontSize: 15 }} />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </div>
+                    </div>
                   ) : (
                     <form onSubmit={handleEditSubmit} className="space-y-2">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -673,17 +706,6 @@ export default function DirectoryManager({
                               <RefreshRoundedIcon fontSize="small" />
                             </DirectoryRowIconButton>
                           )}
-                        <DirectoryRowIconButton
-                          label={zh('扫描设置', 'Scan settings')}
-                          onClick={() => openScanSettings(d)}
-                          disabled={d.is_delete || savingScanSettingsId === d.id}
-                        >
-                          {savingScanSettingsId === d.id ? (
-                            <CircularProgress size={16} color="inherit" />
-                          ) : (
-                            <SettingsRoundedIcon fontSize="small" />
-                          )}
-                        </DirectoryRowIconButton>
                         <DirectoryRowIconButton
                           label={zh('工具', 'Tools')}
                           onClick={() => {
