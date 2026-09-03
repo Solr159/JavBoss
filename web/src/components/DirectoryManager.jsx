@@ -857,8 +857,8 @@ export default function DirectoryManager({
           {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
-                '整理后的文件统一位于所选目录中的 JAV 文件夹下。任务完成后，将在所选目录根目录生成并覆盖“JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
-                'Organized files are stored under the JAV folder inside the selected directory. When the task finishes, JavBoss-整理报告.txt is generated or replaced in the selected directory root, listing files that were not organized and the reasons.'
+                '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
+                'Organized files are stored in “selected directory/JAV”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.'
               )}
             </div>
           )}
