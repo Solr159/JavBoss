@@ -34,6 +34,7 @@ const (
 	directoryUnknownIdol                = "未知女优"
 	directoryMultipleIdols              = "多女优"
 	directoryMaxJoinedIdols             = 3
+	directoryProcessReportName          = "JavBoss-整理报告.txt"
 )
 
 var (
@@ -47,11 +48,26 @@ var (
 
 // DirectoryProcessSummary records the result of one directory processing job.
 type DirectoryProcessSummary struct {
-	Locations int
-	Moved     int
-	Sidecars  int
-	Skipped   int
-	Failed    int
+	Locations                int
+	Moved                    int
+	AlreadyOrganized         int
+	Sidecars                 int
+	Skipped                  int
+	Failed                   int
+	EmptyDirectoriesRemoved  int
+	MoveFailures             []DirectoryProcessIssue
+	SkippedItems             []DirectoryProcessIssue
+	SidecarFailures          []DirectoryProcessIssue
+	DirectoryCleanupFailures []DirectoryProcessIssue
+	emptyDirectoryCandidates []string
+}
+
+// DirectoryProcessIssue describes one file that was not fully processed.
+type DirectoryProcessIssue struct {
+	Code       string
+	SourcePath string
+	TargetPath string
+	Reason     string
 }
 
 func directoryProcessMode(raw string) (mode string, status string, ok bool) {
@@ -117,20 +133,36 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 		defer setDirectoryProcessingStatus(directory.ID, "")
 		defer release()
 
+		startedAt := time.Now()
 		summary, processErr := ProcessDirectory(context.Background(), directory, mode, layout)
+		finishedAt := time.Now()
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
 		} else {
 			logging.Info(
-				"directory processing complete id=%d mode=%s locations=%d moved=%d sidecars=%d skipped=%d failed=%d",
+				"directory processing complete id=%d mode=%s locations=%d moved=%d already_organized=%d sidecars=%d skipped=%d failed=%d empty_directories_removed=%d cleanup_failed=%d",
 				directory.ID,
 				mode,
 				summary.Locations,
 				summary.Moved,
+				summary.AlreadyOrganized,
 				summary.Sidecars,
 				summary.Skipped,
 				summary.Failed,
+				summary.EmptyDirectoriesRemoved,
+				len(summary.DirectoryCleanupFailures),
 			)
+		}
+		if err := writeDirectoryProcessReport(
+			directory.Path,
+			mode,
+			layout,
+			summary,
+			processErr,
+			startedAt,
+			finishedAt,
+		); err != nil {
+			logging.Error("write directory processing report failed id=%d path=%s err=%v", directory.ID, directory.Path, err)
 		}
 
 		release()
@@ -188,9 +220,14 @@ func ProcessDirectory(
 	summary := &DirectoryProcessSummary{}
 	for i := range items {
 		if err := ctx.Err(); err != nil {
+			cleanupEmptySourceDirectories(directory.Path, summary)
 			return summary, err
 		}
 		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary)
+	}
+	cleanupEmptySourceDirectories(directory.Path, summary)
+	if err := ctx.Err(); err != nil {
+		return summary, err
 	}
 	return summary, nil
 }
@@ -207,9 +244,17 @@ func processJavItem(
 	if item == nil || summary == nil {
 		return
 	}
+	summary.Locations += len(item.Videos)
 	code, prefix, ok := organizeCodeParts(item.Code)
 	if !ok {
 		summary.Skipped += len(item.Videos)
+		for i := range item.Videos {
+			summary.SkippedItems = append(summary.SkippedItems, DirectoryProcessIssue{
+				Code:       strings.TrimSpace(item.Code),
+				SourcePath: reportRelativePath(root, item.Videos[i].Path),
+				Reason:     "番号为空或无法生成安全的目录名",
+			})
+		}
 		return
 	}
 
@@ -217,11 +262,15 @@ func processJavItem(
 		if err := ctx.Err(); err != nil {
 			return
 		}
-		summary.Locations++
 		video := &item.Videos[i]
 		source, err := safeDirectoryFilePath(root, video.Path)
 		if err != nil {
 			summary.Failed++
+			summary.MoveFailures = append(summary.MoveFailures, DirectoryProcessIssue{
+				Code:       code,
+				SourcePath: reportRelativePath(root, video.Path),
+				Reason:     directoryProcessFailureReason(err),
+			})
 			logging.Error("resolve directory processing source failed path=%s err=%v", video.Path, err)
 			continue
 		}
@@ -244,25 +293,45 @@ func processJavItem(
 			}
 			if err != nil {
 				summary.Failed++
+				summary.MoveFailures = append(summary.MoveFailures, DirectoryProcessIssue{
+					Code:       code,
+					SourcePath: reportRelativePath(root, source),
+					Reason:     directoryProcessFailureReason(err),
+				})
 				logging.Error("resolve directory processing target failed path=%s err=%v", video.Path, err)
 				continue
 			}
 			moved, moveErr := moveMediaGroup(source, target)
 			if moveErr != nil {
 				summary.Failed++
+				summary.MoveFailures = append(summary.MoveFailures, DirectoryProcessIssue{
+					Code:       code,
+					SourcePath: reportRelativePath(root, source),
+					TargetPath: reportRelativePath(root, target),
+					Reason:     directoryProcessFailureReason(moveErr),
+				})
 				logging.Error("move directory media failed source=%s target=%s err=%v", source, target, moveErr)
 				continue
 			}
 			if moved {
 				summary.Moved++
+				summary.emptyDirectoryCandidates = append(
+					summary.emptyDirectoryCandidates,
+					filepath.Dir(source),
+				)
 			} else {
-				summary.Skipped++
+				summary.AlreadyOrganized++
 			}
 		}
 
 		if mode == DirectoryProcessSidecar || mode == DirectoryProcessOrganizeWithSidecar {
 			if err := writeJavSidecars(target, item, coverDir); err != nil {
 				summary.Failed++
+				summary.SidecarFailures = append(summary.SidecarFailures, DirectoryProcessIssue{
+					Code:       code,
+					SourcePath: reportRelativePath(root, target),
+					Reason:     directoryProcessFailureReason(err),
+				})
 				logging.Error("write JAV Sidecar failed path=%s code=%s err=%v", target, item.Code, err)
 				continue
 			}
@@ -334,6 +403,265 @@ func sanitizeOrganizeComponent(value string) string {
 		}
 	}
 	return strings.Trim(builder.String(), " ._-")
+}
+
+func reportRelativePath(root, path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "（未知）"
+	}
+	cleaned := filepath.Clean(filepath.FromSlash(path))
+	if filepath.IsAbs(cleaned) {
+		if relative, err := filepath.Rel(filepath.Clean(root), cleaned); err == nil &&
+			relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			cleaned = relative
+		}
+	}
+	return filepath.ToSlash(cleaned)
+}
+
+func pathWithinDirectory(root, path string) bool {
+	relative, err := filepath.Rel(filepath.Clean(root), filepath.Clean(path))
+	return err == nil && relative != ".." &&
+		!strings.HasPrefix(relative, ".."+string(filepath.Separator))
+}
+
+func addDirectoryCleanupFailure(
+	root string,
+	path string,
+	reason string,
+	summary *DirectoryProcessSummary,
+) {
+	if summary == nil {
+		return
+	}
+	summary.DirectoryCleanupFailures = append(
+		summary.DirectoryCleanupFailures,
+		DirectoryProcessIssue{
+			SourcePath: reportRelativePath(root, path),
+			Reason:     reason,
+		},
+	)
+}
+
+func cleanupEmptySourceDirectories(root string, summary *DirectoryProcessSummary) {
+	if summary == nil || len(summary.emptyDirectoryCandidates) == 0 {
+		return
+	}
+	root = filepath.Clean(strings.TrimSpace(root))
+	if !filepath.IsAbs(root) {
+		addDirectoryCleanupFailure(root, root, "所选目录不是有效的绝对路径", summary)
+		return
+	}
+
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		addDirectoryCleanupFailure(root, root, directoryProcessFailureReason(err), summary)
+		return
+	}
+
+	candidates := make(map[string]struct{})
+	for _, candidate := range summary.emptyDirectoryCandidates {
+		current := filepath.Clean(candidate)
+		for current != root && pathWithinDirectory(root, current) {
+			candidates[current] = struct{}{}
+			parent := filepath.Dir(current)
+			if parent == current {
+				break
+			}
+			current = parent
+		}
+	}
+	paths := make([]string, 0, len(candidates))
+	for path := range candidates {
+		paths = append(paths, path)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		return len(paths[i]) > len(paths[j])
+	})
+
+	for _, path := range paths {
+		info, err := os.Lstat(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			addDirectoryCleanupFailure(root, path, "为避免越过符号链接，未自动删除此目录", summary)
+			continue
+		}
+		if !info.IsDir() {
+			continue
+		}
+
+		realPath, err := filepath.EvalSymlinks(path)
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		relativePath, err := filepath.Rel(root, path)
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		expectedRealPath := filepath.Join(realRoot, relativePath)
+		if !pathWithinDirectory(realRoot, realPath) ||
+			filepath.Clean(realPath) != filepath.Clean(expectedRealPath) {
+			addDirectoryCleanupFailure(root, path, "为避免越过符号链接，未自动删除此目录", summary)
+			continue
+		}
+
+		entries, err := os.ReadDir(path)
+		if errors.Is(err, os.ErrNotExist) {
+			continue
+		}
+		if err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			continue
+		}
+		if len(entries) != 0 {
+			continue
+		}
+		if err := os.Remove(path); err != nil {
+			addDirectoryCleanupFailure(root, path, directoryProcessFailureReason(err), summary)
+			logging.Error("remove empty source directory failed path=%s err=%v", path, err)
+			continue
+		}
+		summary.EmptyDirectoriesRemoved++
+	}
+	summary.emptyDirectoryCandidates = nil
+}
+
+func directoryProcessFailureReason(err error) string {
+	if err == nil {
+		return "未知错误"
+	}
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "target already exists"):
+		return "目标位置已存在同名文件"
+	case strings.Contains(message, "existing NFO is not managed by JavBoss"):
+		return "已有非 JavBoss 管理的 NFO，未覆盖该文件"
+	case errors.Is(err, os.ErrPermission):
+		return "没有足够的文件或目录访问权限"
+	case errors.Is(err, os.ErrNotExist):
+		return "源文件或相关目录不存在"
+	default:
+		return message
+	}
+}
+
+func directoryProcessModeDisplay(mode string) string {
+	switch mode {
+	case DirectoryProcessSidecar:
+		return "仅生成 NFO 和封面"
+	case DirectoryProcessOrganize:
+		return "仅整理目录"
+	case DirectoryProcessOrganizeWithSidecar:
+		return "整理并生成 NFO 和封面"
+	default:
+		return mode
+	}
+}
+
+func directoryProcessLayoutDisplay(layout string) string {
+	switch layout {
+	case DirectoryProcessLayoutCode:
+		return "按完整番号（JAV/番号）"
+	case DirectoryProcessLayoutIdol:
+		return "按女优（JAV/女优/番号）"
+	default:
+		return "按番号前缀（JAV/前缀/番号）"
+	}
+}
+
+func reportLineValue(value string) string {
+	return strings.NewReplacer("\r", `\r`, "\n", `\n`, "\t", `\t`).Replace(value)
+}
+
+func writeDirectoryProcessIssueSection(
+	builder *strings.Builder,
+	title string,
+	sourceLabel string,
+	items []DirectoryProcessIssue,
+) {
+	if len(items) == 0 {
+		return
+	}
+	fmt.Fprintf(builder, "\n【%s】\n", title)
+	for i := range items {
+		issue := items[i]
+		label := strings.TrimSpace(issue.Code)
+		if label == "" {
+			label = filepath.Base(filepath.FromSlash(issue.SourcePath))
+		}
+		fmt.Fprintf(builder, "\n%d. %s\n", i+1, reportLineValue(label))
+		fmt.Fprintf(builder, "%s：%s\n", sourceLabel, reportLineValue(issue.SourcePath))
+		if issue.TargetPath != "" {
+			fmt.Fprintf(builder, "目标文件：%s\n", reportLineValue(issue.TargetPath))
+		}
+		fmt.Fprintf(builder, "原因：%s\n", reportLineValue(issue.Reason))
+	}
+}
+
+func writeDirectoryProcessReport(
+	root string,
+	mode string,
+	layout string,
+	summary *DirectoryProcessSummary,
+	processErr error,
+	startedAt time.Time,
+	finishedAt time.Time,
+) error {
+	root = filepath.Clean(strings.TrimSpace(root))
+	if root == "" || !filepath.IsAbs(root) {
+		return errors.New("directory report root must be absolute")
+	}
+	if summary == nil {
+		summary = &DirectoryProcessSummary{}
+	}
+
+	var builder strings.Builder
+	builder.WriteString("JavBoss 目录整理报告\n\n")
+	fmt.Fprintf(&builder, "开始时间：%s\n", startedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&builder, "完成时间：%s\n", finishedAt.Format("2006-01-02 15:04:05"))
+	fmt.Fprintf(&builder, "处理模式：%s\n", directoryProcessModeDisplay(mode))
+	if mode != DirectoryProcessSidecar {
+		fmt.Fprintf(&builder, "整理方式：%s\n", directoryProcessLayoutDisplay(layout))
+	}
+	if processErr != nil {
+		fmt.Fprintf(&builder, "任务结果：未完成（%s）\n", reportLineValue(directoryProcessFailureReason(processErr)))
+	} else {
+		builder.WriteString("任务结果：已完成\n")
+	}
+	fmt.Fprintf(&builder, "\n参与处理视频：%d\n", summary.Locations)
+	fmt.Fprintf(&builder, "成功移动：%d\n", summary.Moved)
+	fmt.Fprintf(&builder, "已经位于目标位置：%d\n", summary.AlreadyOrganized)
+	fmt.Fprintf(&builder, "未满足整理条件：%d\n", summary.Skipped)
+	fmt.Fprintf(&builder, "移动失败并留在原处：%d\n", len(summary.MoveFailures))
+	fmt.Fprintf(&builder, "NFO/封面生成成功：%d\n", summary.Sidecars)
+	fmt.Fprintf(&builder, "NFO/封面生成失败：%d\n", len(summary.SidecarFailures))
+	fmt.Fprintf(&builder, "已删除空目录：%d\n", summary.EmptyDirectoriesRemoved)
+	fmt.Fprintf(&builder, "空目录清理失败：%d\n", len(summary.DirectoryCleanupFailures))
+
+	writeDirectoryProcessIssueSection(&builder, "移动失败并留在原处", "源文件", summary.MoveFailures)
+	writeDirectoryProcessIssueSection(&builder, "未满足整理条件", "源文件", summary.SkippedItems)
+	writeDirectoryProcessIssueSection(&builder, "NFO/封面生成失败", "源文件", summary.SidecarFailures)
+	writeDirectoryProcessIssueSection(
+		&builder,
+		"空目录清理失败",
+		"目录",
+		summary.DirectoryCleanupFailures,
+	)
+
+	reportPath := filepath.Join(root, directoryProcessReportName)
+	if err := writeFileAtomically(reportPath, strings.NewReader(builder.String()), 0o644); err != nil {
+		return fmt.Errorf("write processing report: %w", err)
+	}
+	return nil
 }
 
 func safeDirectoryFilePath(root, relative string) (string, error) {

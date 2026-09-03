@@ -245,6 +245,80 @@ func TestProcessJavItemOrganizesBySortedIdols(t *testing.T) {
 	}
 }
 
+func TestCleanupEmptySourceDirectoriesOnlyRemovesMovedSourceAncestors(t *testing.T) {
+	root := t.TempDir()
+	removeSource := filepath.Join(root, "remove", "leaf", "first.mp4")
+	keepSource := filepath.Join(root, "keep", "leaf", "second.mp4")
+	unrelatedEmpty := filepath.Join(root, "unrelated-empty")
+	writeTestFile(t, removeSource, []byte("first"))
+	writeTestFile(t, keepSource, []byte("second"))
+	writeTestFile(t, filepath.Join(root, "keep", "leaf", ".DS_Store"), []byte("keep"))
+	if err := os.MkdirAll(unrelatedEmpty, 0o755); err != nil {
+		t.Fatalf("create unrelated empty directory: %v", err)
+	}
+
+	summary := &DirectoryProcessSummary{}
+	for _, item := range []models.Jav{
+		{Code: "IPX-001", Videos: []models.Video{{Path: "remove/leaf/first.mp4"}}},
+		{Code: "IPX-002", Videos: []models.Video{{Path: "keep/leaf/second.mp4"}}},
+	} {
+		processJavItem(
+			t.Context(),
+			root,
+			&item,
+			DirectoryProcessOrganize,
+			DirectoryProcessLayoutPrefix,
+			"",
+			summary,
+		)
+	}
+	cleanupEmptySourceDirectories(root, summary)
+
+	if summary.EmptyDirectoriesRemoved != 2 || len(summary.DirectoryCleanupFailures) != 0 {
+		t.Fatalf("cleanup summary = %+v, want two removed directories and no failures", summary)
+	}
+	if _, err := os.Stat(filepath.Join(root, "remove")); !os.IsNotExist(err) {
+		t.Fatalf("empty moved-source ancestors should be removed: %v", err)
+	}
+	for _, path := range []string{
+		root,
+		filepath.Join(root, "keep", "leaf"),
+		unrelatedEmpty,
+	} {
+		if info, err := os.Stat(path); err != nil || !info.IsDir() {
+			t.Fatalf("directory should remain %s: info=%v err=%v", path, info, err)
+		}
+	}
+}
+
+func TestCleanupEmptySourceDirectoriesDoesNotFollowSymlinks(t *testing.T) {
+	root := t.TempDir()
+	externalRoot := t.TempDir()
+	externalLeaf := filepath.Join(externalRoot, "leaf")
+	if err := os.MkdirAll(externalLeaf, 0o755); err != nil {
+		t.Fatalf("create external directory: %v", err)
+	}
+	link := filepath.Join(root, "linked")
+	if err := os.Symlink(externalRoot, link); err != nil {
+		t.Skipf("create directory symlink: %v", err)
+	}
+
+	summary := &DirectoryProcessSummary{
+		emptyDirectoryCandidates: []string{filepath.Join(link, "leaf")},
+	}
+	cleanupEmptySourceDirectories(root, summary)
+
+	if summary.EmptyDirectoriesRemoved != 0 || len(summary.DirectoryCleanupFailures) == 0 {
+		t.Fatalf("cleanup summary = %+v, want a recorded symlink safety skip", summary)
+	}
+	if info, err := os.Stat(externalLeaf); err != nil || !info.IsDir() {
+		t.Fatalf("external directory should remain: info=%v err=%v", info, err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("source symlink should remain: info=%v err=%v", info, err)
+	}
+}
+
 func TestOrganizeIdolComponentFallsBackToUnknownIdol(t *testing.T) {
 	if got := organizeIdolComponent(nil); got != directoryUnknownIdol {
 		t.Fatalf("organizeIdolComponent(nil) = %q, want %q", got, directoryUnknownIdol)
@@ -353,6 +427,163 @@ func TestMoveMediaGroupSkipsExistingTargetWithoutChangingSource(t *testing.T) {
 	targetData, readErr := os.ReadFile(target)
 	if readErr != nil || string(targetData) != "target" {
 		t.Fatalf("target changed after conflict: data=%q err=%v", targetData, readErr)
+	}
+}
+
+func TestProcessJavItemRecordsMoveFailureThatRemainsAtSource(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "incoming", "same.mp4")
+	target := filepath.Join(root, "JAV", "IPX", "IPX-001", "same.mp4")
+	writeTestFile(t, source, []byte("source"))
+	writeTestFile(t, target, []byte("target"))
+
+	item := models.Jav{
+		Code:   "IPX-001",
+		Videos: []models.Video{{Path: "incoming/same.mp4"}},
+	}
+	summary := &DirectoryProcessSummary{}
+	processJavItem(
+		t.Context(),
+		root,
+		&item,
+		DirectoryProcessOrganize,
+		DirectoryProcessLayoutPrefix,
+		"",
+		summary,
+	)
+
+	if summary.Failed != 1 || len(summary.MoveFailures) != 1 || len(summary.SidecarFailures) != 0 {
+		t.Fatalf("summary = %+v, want one move failure only", summary)
+	}
+	failure := summary.MoveFailures[0]
+	if failure.Code != "IPX-001" || failure.SourcePath != "incoming/same.mp4" ||
+		failure.TargetPath != "JAV/IPX/IPX-001/same.mp4" ||
+		failure.Reason != "目标位置已存在同名文件" {
+		t.Fatalf("move failure = %+v", failure)
+	}
+	if data, err := os.ReadFile(source); err != nil || string(data) != "source" {
+		t.Fatalf("failed source should remain unchanged: data=%q err=%v", data, err)
+	}
+}
+
+func TestProcessJavItemSeparatesSidecarFailureFromMoveFailure(t *testing.T) {
+	root := t.TempDir()
+	videoName := "movie.mp4"
+	writeTestFile(t, filepath.Join(root, "incoming", videoName), []byte("video"))
+	writeTestFile(
+		t,
+		filepath.Join(root, "incoming", "movie.nfo"),
+		[]byte("<movie><title>User metadata</title></movie>"),
+	)
+
+	item := models.Jav{
+		Code:   "IPX-001",
+		Videos: []models.Video{{Path: filepath.ToSlash(filepath.Join("incoming", videoName))}},
+	}
+	summary := &DirectoryProcessSummary{}
+	processJavItem(
+		t.Context(),
+		root,
+		&item,
+		DirectoryProcessOrganizeWithSidecar,
+		DirectoryProcessLayoutPrefix,
+		"",
+		summary,
+	)
+
+	if summary.Moved != 1 || summary.Failed != 1 || len(summary.MoveFailures) != 0 ||
+		len(summary.SidecarFailures) != 1 {
+		t.Fatalf("summary = %+v, want a successful move and one Sidecar failure", summary)
+	}
+	failure := summary.SidecarFailures[0]
+	if failure.SourcePath != "JAV/IPX/IPX-001/movie.mp4" ||
+		failure.Reason != "已有非 JavBoss 管理的 NFO，未覆盖该文件" {
+		t.Fatalf("Sidecar failure = %+v", failure)
+	}
+	if _, err := os.Stat(filepath.Join(root, "JAV", "IPX", "IPX-001", videoName)); err != nil {
+		t.Fatalf("video should have moved before Sidecar failure: %v", err)
+	}
+}
+
+func TestWriteDirectoryProcessReportOverwritesPreviousReport(t *testing.T) {
+	root := t.TempDir()
+	reportPath := filepath.Join(root, directoryProcessReportName)
+	writeTestFile(t, reportPath, []byte("stale failure"))
+
+	startedAt := time.Date(2026, time.September, 2, 14, 30, 0, 0, time.Local)
+	finishedAt := startedAt.Add(18 * time.Second)
+	summary := &DirectoryProcessSummary{
+		Locations:               5,
+		Moved:                   2,
+		AlreadyOrganized:        1,
+		Sidecars:                1,
+		Skipped:                 1,
+		Failed:                  2,
+		EmptyDirectoriesRemoved: 2,
+		MoveFailures: []DirectoryProcessIssue{{
+			Code:       "IPX-001",
+			SourcePath: "incoming/IPX-001.mp4",
+			TargetPath: "JAV/IPX/IPX-001/IPX-001.mp4",
+			Reason:     "目标位置已存在同名文件",
+		}},
+		SkippedItems: []DirectoryProcessIssue{{
+			SourcePath: "incoming/unknown.mp4",
+			Reason:     "番号为空或无法生成安全的目录名",
+		}},
+		SidecarFailures: []DirectoryProcessIssue{{
+			Code:       "IPX-002",
+			SourcePath: "JAV/IPX/IPX-002/IPX-002.mp4",
+			Reason:     "已有非 JavBoss 管理的 NFO，未覆盖该文件",
+		}},
+		DirectoryCleanupFailures: []DirectoryProcessIssue{{
+			SourcePath: "incoming/locked",
+			Reason:     "没有足够的文件或目录访问权限",
+		}},
+	}
+
+	if err := writeDirectoryProcessReport(
+		root,
+		DirectoryProcessOrganizeWithSidecar,
+		DirectoryProcessLayoutPrefix,
+		summary,
+		nil,
+		startedAt,
+		finishedAt,
+	); err != nil {
+		t.Fatalf("write directory processing report: %v", err)
+	}
+
+	data, err := os.ReadFile(reportPath)
+	if err != nil {
+		t.Fatalf("read directory processing report: %v", err)
+	}
+	report := string(data)
+	for _, expected := range []string{
+		"JavBoss 目录整理报告",
+		"开始时间：2026-09-02 14:30:00",
+		"完成时间：2026-09-02 14:30:18",
+		"处理模式：整理并生成 NFO 和封面",
+		"整理方式：按番号前缀（JAV/前缀/番号）",
+		"参与处理视频：5",
+		"成功移动：2",
+		"已经位于目标位置：1",
+		"未满足整理条件：1",
+		"移动失败并留在原处：1",
+		"NFO/封面生成失败：1",
+		"已删除空目录：2",
+		"空目录清理失败：1",
+		"源文件：incoming/IPX-001.mp4",
+		"目标文件：JAV/IPX/IPX-001/IPX-001.mp4",
+		"源文件：incoming/unknown.mp4",
+		"源文件：JAV/IPX/IPX-002/IPX-002.mp4",
+		"目录：incoming/locked",
+	} {
+		if !strings.Contains(report, expected) {
+			t.Fatalf("processing report missing %q:\n%s", expected, report)
+		}
+	}
+	if strings.Contains(report, "stale failure") {
+		t.Fatalf("previous report content was not replaced:\n%s", report)
 	}
 }
 

@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
-import Switch from '@mui/material/Switch'
+import BuildRoundedIcon from '@mui/icons-material/BuildRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
+import { CircularProgress, IconButton, Switch, Tooltip } from '@mui/material'
 
 import { pickDirectory } from '@/api'
 import AppModal from '@/components/AppModal'
@@ -148,6 +153,40 @@ function isWindowsPlatform() {
     navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || ''
 
   return /windows/i.test(String(platform))
+}
+
+function DirectoryRowIconButton({ label, disabled = false, children, ...props }) {
+  return (
+    <Tooltip title={label} arrow>
+      <span className="inline-flex">
+        <IconButton
+          {...props}
+          type="button"
+          size="small"
+          disabled={disabled}
+          aria-label={label}
+          className="!h-8 !w-8 !rounded-lg !p-1.5 disabled:!opacity-60"
+          sx={{
+            border: '1px solid',
+            borderColor: 'grey.300',
+            backgroundColor: 'common.white',
+            color: 'grey.800',
+            '&:hover': {
+              borderColor: 'grey.500',
+              backgroundColor: 'grey.100',
+              color: 'common.black',
+            },
+            '&.Mui-disabled': {
+              borderColor: 'grey.200',
+              backgroundColor: 'common.white',
+            },
+          }}
+        >
+          {children}
+        </IconButton>
+      </span>
+    </Tooltip>
+  )
 }
 
 export default function DirectoryManager({
@@ -489,6 +528,14 @@ export default function DirectoryManager({
             const status = directoryWorkStatus(d)
             const statusDisplay = directoryWorkStatusDisplay(status)
             const lastScanFinishedAt = formatScanFinishedAt(d.last_scan_summary)
+            const autoScanIntervalMinutes = Math.max(1, Number(d.auto_scan_interval_minutes) || 1)
+            const autoScanDisplay =
+              d.auto_scan_enabled !== false
+                ? zh(
+                    `自动扫描：每 ${autoScanIntervalMinutes} 分钟`,
+                    `Automatic scan: Every ${autoScanIntervalMinutes} min`
+                  )
+                : zh('自动扫描：已关闭', 'Automatic scan: Off')
             const working =
               savingId === d.id ||
               savingEnabledId === d.id ||
@@ -505,7 +552,32 @@ export default function DirectoryManager({
               >
                 <div className="min-w-0 space-y-1 pr-12 md:pr-0">
                   {!isEditing ? (
-                    <div className="truncate text-sm font-medium">{displayPath(d.path)}</div>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="min-w-0 truncate text-sm font-medium">
+                        {displayPath(d.path)}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1 text-xs font-normal text-zinc-500">
+                        <span>{autoScanDisplay}</span>
+                        <Tooltip title={zh('编辑扫描设置', 'Edit scan settings')} arrow>
+                          <span className="inline-flex">
+                            <IconButton
+                              type="button"
+                              size="small"
+                              onClick={() => openScanSettings(d)}
+                              disabled={d.is_delete || savingScanSettingsId === d.id}
+                              aria-label={zh('编辑扫描设置', 'Edit scan settings')}
+                              className="!h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 disabled:!opacity-60"
+                            >
+                              {savingScanSettingsId === d.id ? (
+                                <CircularProgress size={13} color="inherit" />
+                              ) : (
+                                <SettingsRoundedIcon sx={{ fontSize: 15 }} />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </div>
+                    </div>
                   ) : (
                     <form onSubmit={handleEditSubmit} className="space-y-2">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -605,7 +677,10 @@ export default function DirectoryManager({
                 <div className="contents md:flex md:flex-col md:items-end md:gap-2">
                   <label
                     className="absolute right-2 top-2 flex items-center gap-1 text-xs text-zinc-600 md:static"
-                    title={zh('是否启用此目录', 'Whether this directory is enabled')}
+                    title={zh(
+                      '是否显示此目录里的内容',
+                      'Whether to show content from this directory'
+                    )}
                   >
                     <span>{zh('启用', 'Enabled')}</span>
                     <Switch
@@ -614,41 +689,32 @@ export default function DirectoryManager({
                       onChange={(event) => handleEnabledChange(d, event.target.checked)}
                       disabled={d.is_delete || savingEnabledId === d.id}
                       inputProps={{
-                        'aria-label': zh('是否启用此目录', 'Whether this directory is enabled'),
+                        'aria-label': zh(
+                          '是否显示此目录里的内容',
+                          'Whether to show content from this directory'
+                        ),
                       }}
                     />
                   </label>
-                  <div className="flex w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto whitespace-nowrap pb-1 md:w-auto md:overflow-visible [&>button]:shrink-0">
+                  <div className="flex w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto whitespace-nowrap pb-1 md:w-auto md:overflow-visible [&>button]:shrink-0 [&>span]:shrink-0">
                     {!isEditing ? (
                       <>
                         {scanningId !== d.id &&
                           status !== 'scanning' &&
                           status !== 'rescanning' && (
-                            <button
-                              type="button"
-                              onClick={() => handleScan(d)}
-                              title={zh(
-                                '点击立刻开始一次目录扫描和 JAV 刮削',
-                                'Click to immediately scan the directory and scrape JAV metadata'
+                            <DirectoryRowIconButton
+                              label={zh(
+                                '手动扫描（点击立刻进行一次目录扫描和 JAV 刮削）',
+                                'Manual scan (click to immediately scan the directory and scrape JAV metadata)'
                               )}
+                              onClick={() => handleScan(d)}
                               disabled={d.is_delete || working}
-                              className="rounded border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                             >
-                              {zh('手动扫描', 'Scan now')}
-                            </button>
+                              <RefreshRoundedIcon fontSize="small" />
+                            </DirectoryRowIconButton>
                           )}
-                        <button
-                          type="button"
-                          onClick={() => openScanSettings(d)}
-                          disabled={d.is_delete || savingScanSettingsId === d.id}
-                          className="rounded border border-violet-200 px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-60"
-                        >
-                          {savingScanSettingsId === d.id
-                            ? zh('保存中…', 'Saving...')
-                            : zh('扫描设置', 'Scan settings')}
-                        </button>
-                        <button
-                          type="button"
+                        <DirectoryRowIconButton
+                          label={zh('工具', 'Tools')}
                           onClick={() => {
                             setToolDirectory(d)
                             setToolMode(DIRECTORY_PROCESS_SIDECAR)
@@ -657,30 +723,35 @@ export default function DirectoryManager({
                             setRowErrorMsg('')
                           }}
                           disabled={d.is_delete || working}
-                          className="rounded border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-60"
                         >
-                          {processingId === d.id
-                            ? zh('启动中…', 'Starting...')
-                            : zh('工具', 'Tools')}
-                        </button>
-                        <button
-                          type="button"
+                          {processingId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <BuildRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={zh('编辑', 'Edit')}
                           onClick={() => startEdit(d)}
                           disabled={d.is_delete || working}
-                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                         >
-                          {zh('编辑', 'Edit')}
-                        </button>
-                        <button
-                          type="button"
+                          <EditRoundedIcon fontSize="small" />
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={
+                            deletingId === d.id
+                              ? zh('删除中…', 'Deleting...')
+                              : zh('删除', 'Delete')
+                          }
                           onClick={() => handleDelete(d)}
                           disabled={d.is_delete || working}
-                          className="rounded border px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
                         >
-                          {deletingId === d.id
-                            ? zh('删除中…', 'Deleting...')
-                            : zh('删除', 'Delete')}
-                        </button>
+                          {deletingId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
                       </>
                     ) : (
                       <>
@@ -857,8 +928,8 @@ export default function DirectoryManager({
           {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
-                '整理后的文件统一位于所选目录中的 JAV 文件夹下。',
-                'Organized files are stored under the JAV folder inside the selected directory.'
+                '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
+                'Organized files are stored in “selected directory/JAV”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.'
               )}
             </div>
           )}
