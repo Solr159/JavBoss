@@ -677,7 +677,10 @@ export default function DirectoryManager({
                 <div className="contents md:flex md:flex-col md:items-end md:gap-2">
                   <label
                     className="absolute right-2 top-2 flex items-center gap-1 text-xs text-zinc-600 md:static"
-                    title={zh('是否启用此目录', 'Whether this directory is enabled')}
+                    title={zh(
+                      '是否显示此目录里的内容',
+                      'Whether to show content from this directory'
+                    )}
                   >
                     <span>{zh('启用', 'Enabled')}</span>
                     <Switch
@@ -686,7 +689,10 @@ export default function DirectoryManager({
                       onChange={(event) => handleEnabledChange(d, event.target.checked)}
                       disabled={d.is_delete || savingEnabledId === d.id}
                       inputProps={{
-                        'aria-label': zh('是否启用此目录', 'Whether this directory is enabled'),
+                        'aria-label': zh(
+                          '是否显示此目录里的内容',
+                          'Whether to show content from this directory'
+                        ),
                       }}
                     />
                   </label>
