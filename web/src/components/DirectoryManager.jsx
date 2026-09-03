@@ -699,7 +699,10 @@ export default function DirectoryManager({
                           status !== 'scanning' &&
                           status !== 'rescanning' && (
                             <DirectoryRowIconButton
-                              label={zh('手动扫描', 'Scan now')}
+                              label={zh(
+                                '手动扫描（点击立刻进行一次目录扫描和 JAV 刮削）',
+                                'Manual scan (click to immediately scan the directory and scrape JAV metadata)'
+                              )}
                               onClick={() => handleScan(d)}
                               disabled={d.is_delete || working}
                             >
