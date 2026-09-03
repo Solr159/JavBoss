@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import Switch from '@mui/material/Switch'
+import BuildRoundedIcon from '@mui/icons-material/BuildRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import SaveRoundedIcon from '@mui/icons-material/SaveRounded'
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
+import { CircularProgress, IconButton, Switch, Tooltip } from '@mui/material'
 
 import { pickDirectory } from '@/api'
 import AppModal from '@/components/AppModal'
@@ -148,6 +155,40 @@ function isWindowsPlatform() {
     navigator.userAgentData?.platform || navigator.platform || navigator.userAgent || ''
 
   return /windows/i.test(String(platform))
+}
+
+function DirectoryRowIconButton({ label, disabled = false, children, ...props }) {
+  return (
+    <Tooltip title={label} arrow>
+      <span className="inline-flex">
+        <IconButton
+          {...props}
+          type="button"
+          size="small"
+          disabled={disabled}
+          aria-label={label}
+          className="!h-8 !w-8 !rounded-lg !p-1.5 disabled:!opacity-60"
+          sx={{
+            border: '1px solid',
+            borderColor: 'grey.300',
+            backgroundColor: 'common.white',
+            color: 'grey.800',
+            '&:hover': {
+              borderColor: 'grey.500',
+              backgroundColor: 'grey.100',
+              color: 'common.black',
+            },
+            '&.Mui-disabled': {
+              borderColor: 'grey.200',
+              backgroundColor: 'common.white',
+            },
+          }}
+        >
+          {children}
+        </IconButton>
+      </span>
+    </Tooltip>
+  )
 }
 
 export default function DirectoryManager({
@@ -618,37 +659,33 @@ export default function DirectoryManager({
                       }}
                     />
                   </label>
-                  <div className="flex w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto whitespace-nowrap pb-1 md:w-auto md:overflow-visible [&>button]:shrink-0">
+                  <div className="flex w-full flex-nowrap items-center justify-end gap-2 overflow-x-auto whitespace-nowrap pb-1 md:w-auto md:overflow-visible [&>button]:shrink-0 [&>span]:shrink-0">
                     {!isEditing ? (
                       <>
                         {scanningId !== d.id &&
                           status !== 'scanning' &&
                           status !== 'rescanning' && (
-                            <button
-                              type="button"
+                            <DirectoryRowIconButton
+                              label={zh('手动扫描', 'Scan now')}
                               onClick={() => handleScan(d)}
-                              title={zh(
-                                '点击立刻开始一次目录扫描和 JAV 刮削',
-                                'Click to immediately scan the directory and scrape JAV metadata'
-                              )}
                               disabled={d.is_delete || working}
-                              className="rounded border border-emerald-200 px-3 py-1.5 text-xs text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
                             >
-                              {zh('手动扫描', 'Scan now')}
-                            </button>
+                              <RefreshRoundedIcon fontSize="small" />
+                            </DirectoryRowIconButton>
                           )}
-                        <button
-                          type="button"
+                        <DirectoryRowIconButton
+                          label={zh('扫描设置', 'Scan settings')}
                           onClick={() => openScanSettings(d)}
                           disabled={d.is_delete || savingScanSettingsId === d.id}
-                          className="rounded border border-violet-200 px-3 py-1.5 text-xs text-violet-700 hover:bg-violet-50 disabled:opacity-60"
                         >
-                          {savingScanSettingsId === d.id
-                            ? zh('保存中…', 'Saving...')
-                            : zh('扫描设置', 'Scan settings')}
-                        </button>
-                        <button
-                          type="button"
+                          {savingScanSettingsId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <SettingsRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={zh('工具', 'Tools')}
                           onClick={() => {
                             setToolDirectory(d)
                             setToolMode(DIRECTORY_PROCESS_SIDECAR)
@@ -657,49 +694,58 @@ export default function DirectoryManager({
                             setRowErrorMsg('')
                           }}
                           disabled={d.is_delete || working}
-                          className="rounded border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50 disabled:opacity-60"
                         >
-                          {processingId === d.id
-                            ? zh('启动中…', 'Starting...')
-                            : zh('工具', 'Tools')}
-                        </button>
-                        <button
-                          type="button"
+                          {processingId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <BuildRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={zh('编辑', 'Edit')}
                           onClick={() => startEdit(d)}
                           disabled={d.is_delete || working}
-                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                         >
-                          {zh('编辑', 'Edit')}
-                        </button>
-                        <button
-                          type="button"
+                          <EditRoundedIcon fontSize="small" />
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={
+                            deletingId === d.id
+                              ? zh('删除中…', 'Deleting...')
+                              : zh('删除', 'Delete')
+                          }
                           onClick={() => handleDelete(d)}
                           disabled={d.is_delete || working}
-                          className="rounded border px-3 py-1.5 text-xs text-red-700 hover:bg-red-50 disabled:opacity-60"
                         >
-                          {deletingId === d.id
-                            ? zh('删除中…', 'Deleting...')
-                            : zh('删除', 'Delete')}
-                        </button>
+                          {deletingId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <DeleteOutlineRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
                       </>
                     ) : (
                       <>
-                        <button
-                          type="button"
+                        <DirectoryRowIconButton
+                          label={
+                            savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')
+                          }
                           onClick={handleEditSubmit}
                           disabled={working}
-                          className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white disabled:opacity-60"
                         >
-                          {savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-                        </button>
-                        <button
-                          type="button"
+                          {savingId === d.id ? (
+                            <CircularProgress size={16} color="inherit" />
+                          ) : (
+                            <SaveRoundedIcon fontSize="small" />
+                          )}
+                        </DirectoryRowIconButton>
+                        <DirectoryRowIconButton
+                          label={zh('取消', 'Cancel')}
                           onClick={cancelEdit}
                           disabled={working}
-                          className="rounded border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-60"
                         >
-                          {zh('取消', 'Cancel')}
-                        </button>
+                          <CloseRoundedIcon fontSize="small" />
+                        </DirectoryRowIconButton>
                       </>
                     )}
                   </div>
