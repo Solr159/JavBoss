@@ -73,6 +73,11 @@ export default function VideoView({
   const effectiveSort = videoTempSort || videoGlobalSort
   const currentOption = findVideoSortOption(effectiveSort) || VIDEO_SORT_OPTIONS[0]
   const activeWaterfallMode = waterfallMode && !randomMode
+  const paginationPage = randomMode ? 1 : page
+  const paginationLastPage = randomMode ? 1 : lastPage
+  const paginationTotalItems = randomMode ? videos.length : totalItems
+  const paginationCanPrev = randomMode ? false : canPrev
+  const paginationCanNext = randomMode ? false : canNext
 
   const isOptionActive = (option) => {
     return findVideoSortOption(effectiveSort)?.base === option.base
@@ -154,33 +159,31 @@ export default function VideoView({
         <div className="pagination-toolbar-grid relative grid md:grid-cols-[1fr_auto_1fr] md:items-center">
           <div />
           <div className="flex justify-center">
-            {!randomMode && (
-              <Pagination
-                page={page}
-                lastPage={lastPage}
-                totalItems={totalItems}
-                hasPrev={canPrev}
-                hasNext={canNext}
-                loading={loading}
-                buildPageUrl={({ page: targetPage }) =>
-                  buildVideoUrl({ page: targetPage, random: false })
-                }
-                onFirst={() => setPage(1)}
-                onPrev={() => {
-                  if (canPrev) setPage(page - 1)
-                }}
-                onGoToPage={(p) => setPage(p)}
-                onNext={() => {
-                  if (canNext) setPage(page + 1)
-                }}
-                onLast={() => {
-                  goToLastPage()
-                }}
-                waterfallMode={activeWaterfallMode}
-                onWaterfallModeChange={onWaterfallModeChange}
-                totalItemsAction={bulkActionMenu}
-              />
-            )}
+            <Pagination
+              page={paginationPage}
+              lastPage={paginationLastPage}
+              totalItems={paginationTotalItems}
+              hasPrev={paginationCanPrev}
+              hasNext={paginationCanNext}
+              loading={loading}
+              buildPageUrl={({ page: targetPage }) =>
+                buildVideoUrl({ page: targetPage, random: false })
+              }
+              onFirst={() => setPage(1)}
+              onPrev={() => {
+                if (canPrev) setPage(page - 1)
+              }}
+              onGoToPage={(p) => setPage(p)}
+              onNext={() => {
+                if (canNext) setPage(page + 1)
+              }}
+              onLast={() => {
+                goToLastPage()
+              }}
+              waterfallMode={activeWaterfallMode}
+              onWaterfallModeChange={onWaterfallModeChange}
+              totalItemsAction={bulkActionMenu}
+            />
           </div>
           <div className="flex justify-end">
             {!randomMode && (
