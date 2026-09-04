@@ -493,6 +493,89 @@ func playVideoFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+func playVideoPlaylist(c *gin.Context) {
+	if runtimeconfig.DisableMPVPlayback() {
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用 MPV 播放", "MPV playback is disabled")
+		return
+	}
+
+	var req videoPlaylistRequest
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Items) == 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "播放列表请求无效", "Invalid playlist request")
+		return
+	}
+
+	dataDir := ""
+	if common.AppConfig != nil {
+		dataDir = filepath.Dir(common.AppConfig.DatabasePath)
+	}
+	items := make([]mpv.PlaylistItem, 0, len(req.Items))
+	videoIDs := make([]int64, 0, len(req.Items))
+	for _, requested := range req.Items {
+		if requested.VideoID <= 0 || requested.LocationID < 0 {
+			respondLocalizedError(c, http.StatusBadRequest, "播放列表包含无效视频", "Playlist contains an invalid video")
+			return
+		}
+
+		var location *models.VideoLocation
+		var err error
+		if requested.LocationID > 0 {
+			location, err = dbpkg.GetActiveVideoLocation(c.Request.Context(), requested.VideoID, requested.LocationID)
+		} else {
+			location, err = dbpkg.GetPrimaryVideoLocation(c.Request.Context(), requested.VideoID)
+		}
+		if err != nil {
+			logging.Error("resolve playlist video location error: %v", err)
+			respondLocalizedError(c, http.StatusInternalServerError, "加载播放列表失败", "Failed to load playlist")
+			return
+		}
+		if location == nil {
+			respondLocalizedError(c, http.StatusNotFound, "播放列表中的视频文件位置不存在", "A video location in the playlist does not exist")
+			return
+		}
+
+		fullPath, _, err := resolveVideoPath(location.RelativePath, location.DirectoryRef.Path)
+		if err != nil {
+			respondLocalizedError(c, http.StatusBadRequest, "播放列表中的视频文件路径无效", "A video path in the playlist is invalid")
+			return
+		}
+		if _, err := os.Stat(fullPath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				respondLocalizedError(c, http.StatusNotFound, "播放列表中的视频文件不存在", "A video file in the playlist does not exist")
+			} else {
+				logging.Error("stat playlist video file error: %v", err)
+				respondLocalizedError(c, http.StatusInternalServerError, "读取播放列表中的视频文件失败", "Failed to inspect a video file in the playlist")
+			}
+			return
+		}
+
+		items = append(items, mpv.PlaylistItem{
+			Path: fullPath,
+			Options: mpv.PlayOptions{
+				DataDir: dataDir,
+				VideoID: requested.VideoID,
+			},
+		})
+		videoIDs = append(videoIDs, requested.VideoID)
+	}
+
+	if err := mpv.PlayPlaylist(items); err != nil {
+		logging.Error("play video playlist error: %v", err)
+		if strings.Contains(err.Error(), "mpv not found") {
+			respondLocalizedError(c, http.StatusServiceUnavailable, "未找到 MPV 播放器", err.Error())
+			return
+		}
+		respondLocalizedError(c, http.StatusInternalServerError, "播放列表启动失败", "Failed to start playlist")
+		return
+	}
+	for _, videoID := range videoIDs {
+		if err := dbpkg.IncrementVideoPlayCount(c.Request.Context(), videoID); err != nil {
+			logging.Error("increment playlist video play count error: %v", err)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "count": len(items)})
+}
+
 func revealVideoLocation(c *gin.Context) {
 	if isRemoteRequest(c.Request.RemoteAddr) {
 		respondLocalizedError(c, http.StatusForbidden, "通过局域网访问时无法打开文件所在位置", "Cannot reveal file locations when accessing over the local network")
@@ -1152,6 +1235,15 @@ type videoPathRequest struct {
 	Path         string  `json:"path"`
 	DirPath      string  `json:"dir_path"`
 	StartTimeSec float64 `json:"start_time"`
+}
+
+type videoPlaylistItemRequest struct {
+	VideoID    int64 `json:"video_id"`
+	LocationID int64 `json:"location_id"`
+}
+
+type videoPlaylistRequest struct {
+	Items []videoPlaylistItemRequest `json:"items"`
 }
 
 func resolveVideoPathFromBody(c *gin.Context) (string, string, error) {

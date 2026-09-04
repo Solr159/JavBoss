@@ -302,7 +302,8 @@ local user_opts = {
 
 local osc_param = {                  -- calculated by osc_init()
     playresy = 0,                    -- canvas size Y
-    playresx = 0,                    -- canvas size X
+    playresx = 0,                    -- width available to the OSC
+    displayresx = 0,                 -- full canvas width, including external panels
     display_aspect = 1,
     unscaled_y = 0,
     areas = {},
@@ -712,7 +713,7 @@ local function get_virt_scale_factor()
     if w <= 0 or h <= 0 then
         return 0, 0
     end
-    return osc_param.playresx / w, osc_param.playresy / h
+    return osc_param.displayresx / w, osc_param.playresy / h
 end
 
 local function recently_touched()
@@ -2853,7 +2854,14 @@ local function osc_init()
     if display_aspect > 0 then
         osc_param.display_aspect = display_aspect
     end
-    osc_param.playresx = osc_param.playresy * osc_param.display_aspect
+    osc_param.displayresx = osc_param.playresy * osc_param.display_aspect
+    local display_w = select(1, mp.get_osd_size())
+    local sidebar_width = mp.get_property_number("user-data/javboss/playlist-sidebar-width", 0) or 0
+    local sidebar_virtual_width = 0
+    if display_w and display_w > 0 and sidebar_width > 0 then
+        sidebar_virtual_width = sidebar_width * osc_param.displayresx / display_w
+    end
+    osc_param.playresx = math.max(1, osc_param.displayresx - sidebar_virtual_width)
 
     -- stop seeking with the slider to prevent skipping files
     state.active_element = nil
@@ -3698,7 +3706,7 @@ local function render()
     end
 
     -- submit
-    set_osd(state.osd, osc_param.playresy * osc_param.display_aspect, osc_param.playresy, ass.text, 1000)
+    set_osd(state.osd, osc_param.displayresx, osc_param.playresy, ass.text, 1000)
 end
 
 -- called by mpv on every frame
@@ -3833,6 +3841,7 @@ mp.register_event("start-file", request_init)
 mp.observe_property("track-list", "native", update_tracklist)
 observe_cached("playlist-count", request_init)
 observe_cached("playlist-pos", request_init)
+mp.observe_property("user-data/javboss/playlist-sidebar-width", "number", request_init_resize)
 observe_cached("chapter-list", function ()
     state.chapter_list = state.chapter_list or {}
     table.sort(state.chapter_list, function(a, b) return a.time < b.time end)

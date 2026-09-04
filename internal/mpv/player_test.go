@@ -69,6 +69,43 @@ func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
 	}
 }
 
+func TestBuildLoadFileCommandAppendsToPlaylist(t *testing.T) {
+	command := buildLoadFileCommandWithMode("/videos/b.mp4", PlayOptions{}, "append")
+	expected := []any{"loadfile", "/videos/b.mp4", "append"}
+	if !reflect.DeepEqual(command, expected) {
+		t.Fatalf("expected loadfile command %v, got %v", expected, command)
+	}
+}
+
+func TestBuildPlaylistLoadFileCommandUsesPerFileScreenshotDirectory(t *testing.T) {
+	dataDir := t.TempDir()
+	command, err := buildPlaylistLoadFileCommand(PlaylistItem{
+		Path: "/videos/b.mp4",
+		Options: PlayOptions{
+			DataDir:      dataDir,
+			VideoID:      84,
+			StartTimeSec: 2.5,
+		},
+	}, "append")
+	if err != nil {
+		t.Fatalf("build playlist loadfile command: %v", err)
+	}
+	expected := []any{
+		"loadfile",
+		"/videos/b.mp4",
+		"append",
+		-1,
+		map[string]string{
+			"screenshot-directory": filepath.Join(dataDir, "video", "84", "screenshot"),
+			"screenshot-template":  playbackScreenshotTemplate,
+			"start":                "2.5",
+		},
+	}
+	if !reflect.DeepEqual(command, expected) {
+		t.Fatalf("expected playlist loadfile command %v, got %v", expected, command)
+	}
+}
+
 func TestBuildBeforeLoadCommandsRestoreWindowAndConfigureScreenshots(t *testing.T) {
 	dataDir := t.TempDir()
 

@@ -287,6 +287,18 @@ export async function playVideoFile({ id, locationId, path, dirPath, startTime }
   }
 }
 
+export async function playVideoPlaylist(items) {
+  const res = await apiFetch('/videos/playlist', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ items }),
+  })
+  if (!res.ok) {
+    throw await apiError(res)
+  }
+  return res.json()
+}
+
 export async function revealVideoLocation({ path, dirPath }) {
   const res = await apiFetch('/videos/reveal', {
     method: 'POST',

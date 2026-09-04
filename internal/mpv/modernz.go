@@ -18,12 +18,15 @@ var modernZRequiredFiles = []struct {
 	{source: "modernz-icons.ttf", target: filepath.Join("fonts", "modernz-icons.ttf")},
 	{source: "thumbfast.lua", target: filepath.Join("scripts", "thumbfast.lua")},
 	{source: "thumbfast.conf", target: filepath.Join("script-opts", "thumbfast.conf")},
+	{source: "playlist_sidebar.lua", target: filepath.Join("scripts", "playlist_sidebar.lua")},
+	{source: "playlist_sidebar.conf", target: filepath.Join("script-opts", "playlist_sidebar.conf")},
 }
 
 type modernZAssets struct {
 	ConfigDir           string
 	ScriptPath          string
 	ThumbfastScriptPath string
+	PlaylistScriptPath  string
 }
 
 func ensureModernZAssets() (modernZAssets, error) {
@@ -49,6 +52,7 @@ func ensureModernZAssets() (modernZAssets, error) {
 		ConfigDir:           configDir,
 		ScriptPath:          filepath.Join(configDir, "scripts", "modernz.lua"),
 		ThumbfastScriptPath: filepath.Join(configDir, "scripts", "thumbfast.lua"),
+		PlaylistScriptPath:  filepath.Join(configDir, "scripts", "playlist_sidebar.lua"),
 	}, nil
 }
 
@@ -108,7 +112,7 @@ func findModernZSourceDir() (string, error) {
 		}
 	}
 
-	return "", errors.New("ModernZ assets not found; expected modernz/modernz.lua, modernz.conf, modernz-icons.ttf, thumbfast.lua, and thumbfast.conf")
+	return "", errors.New("ModernZ assets not found; expected ModernZ, thumbfast, and playlist sidebar assets")
 }
 
 func modernZCandidateDirs(base string) []string {

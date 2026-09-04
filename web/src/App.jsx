@@ -8,6 +8,7 @@ import {
   deleteVideoLocation,
   updateConfig,
   playVideoFile,
+  playVideoPlaylist,
   openVideoFile,
   revealVideoLocation,
   updateVideoJavScrapeSettings,
@@ -346,6 +347,7 @@ export default function App() {
   const [selectionJavTagsOpen, setSelectionJavTagsOpen] = useState(false)
   const [selectionJavTagChoices, setSelectionJavTagChoices] = useState([])
   const [selectionJavTagSaving, setSelectionJavTagSaving] = useState(false)
+  const [selectionPlaying, setSelectionPlaying] = useState(false)
   const [selectionDeleting, setSelectionDeleting] = useState(false)
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
@@ -2700,6 +2702,45 @@ export default function App() {
     })
   }, [])
 
+  const handlePlaySelection = useCallback(async () => {
+    if (selectionPlaying || !mpvEnabled) return
+    const targets = selectedList
+      .map((item) => {
+        const videoId = Number(item?.video_id || item?.video?.id)
+        const locationId = Number(item?.location_id || item?.video?.location_id || 0)
+        if (!Number.isFinite(videoId) || videoId <= 0) return null
+        return {
+          video_id: videoId,
+          location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : 0,
+        }
+      })
+      .filter(Boolean)
+    if (targets.length !== selectedList.length || targets.length === 0) {
+      showCenterToast(
+        zh(
+          '无法播放：部分所选视频缺少文件信息',
+          'Cannot play: some selected videos are missing file information'
+        )
+      )
+      return
+    }
+
+    setSelectionPlaying(true)
+    try {
+      const result = await playVideoPlaylist(targets)
+      const count = Number(result?.count) || targets.length
+      setSelectionOpsOpen(false)
+      showToast(
+        zh(`已将 ${count} 个视频加入 MPV 播放列表`, `Added ${count} videos to the MPV playlist`)
+      )
+    } catch (err) {
+      console.error(zh('加入 MPV 播放列表失败', 'Failed to add to MPV playlist'), err)
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setSelectionPlaying(false)
+    }
+  }, [mpvEnabled, selectedList, selectionPlaying, showCenterToast, showToast])
+
   const handleDeleteSelection = useCallback(async () => {
     if (selectionDeleting) return
     const targets = selectedList
@@ -4372,8 +4413,11 @@ export default function App() {
         selectedList={selectedList}
         selectedCount={selectedCount}
         selectedJavCount={selectedJavIds.length}
+        mpvEnabled={mpvEnabled}
+        playing={selectionPlaying}
         deleting={selectionDeleting}
         onRemoveSelected={handleRemoveSelectedVideo}
+        onPlaySelected={handlePlaySelection}
         onOpenTags={() => {
           loadTags()
           setSelectionTagAction('add')

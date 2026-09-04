@@ -1,5 +1,6 @@
 import { Button, IconButton, Tooltip } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
+import PlaylistPlayRoundedIcon from '@mui/icons-material/PlaylistPlayRounded'
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
 import AppModal from '@/components/AppModal'
 import { zh } from '@/utils/i18n'
@@ -14,19 +15,23 @@ export default function SelectionOpsModal({
   onOpenJavTags,
   onOpenRemoveTags,
   onRemoveSelected,
+  onPlaySelected,
   onDeleteSelected,
+  mpvEnabled = true,
+  playing = false,
   deleting = false,
 }) {
   if (!open) return null
 
   const list = Array.isArray(selectedList) ? selectedList : []
   const count = Number.isFinite(selectedCount) ? selectedCount : 0
+  const busy = playing || deleting
 
   return (
     <AppModal
       ariaLabel={zh('已选择文件', 'Selected Files')}
       className="px-4"
-      closeDisabled={deleting}
+      closeDisabled={busy}
       contentClassName="w-full max-w-lg rounded-lg bg-white p-4 shadow-xl"
       onClose={onClose}
     >
@@ -34,6 +39,7 @@ export default function SelectionOpsModal({
         <h2 className="text-base font-semibold">{zh('已选择文件', 'Selected Files')}</h2>
         <button
           onClick={onClose}
+          disabled={busy}
           className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
           aria-label={zh('关闭', 'Close')}
         >
@@ -57,7 +63,7 @@ export default function SelectionOpsModal({
                       size="small"
                       color="error"
                       onClick={() => onRemoveSelected?.(item.id)}
-                      disabled={deleting}
+                      disabled={busy}
                       aria-label={zh('移除所选', 'Remove from selection')}
                       className="!h-6 !w-6 !p-0"
                     >
@@ -72,18 +78,22 @@ export default function SelectionOpsModal({
       </div>
       <div className="mt-4 flex flex-wrap justify-end gap-2">
         <Button
-          variant="outlined"
+          variant="contained"
           size="small"
-          onClick={onOpenTags}
-          disabled={count === 0 || deleting}
+          onClick={onPlaySelected}
+          disabled={count === 0 || !mpvEnabled || busy}
+          startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
         >
+          {playing ? zh('正在加入…', 'Adding...') : zh('加入 MPV 播放列表', 'Add to MPV Playlist')}
+        </Button>
+        <Button variant="outlined" size="small" onClick={onOpenTags} disabled={count === 0 || busy}>
           {zh('添加标签', 'Add Tags')}
         </Button>
         <Button
           variant="outlined"
           size="small"
           onClick={onOpenJavTags}
-          disabled={selectedJavCount === 0 || deleting}
+          disabled={selectedJavCount === 0 || busy}
         >
           {zh('添加 JAV 标签', 'Add JAV Tags')}
         </Button>
@@ -92,7 +102,7 @@ export default function SelectionOpsModal({
           color="error"
           size="small"
           onClick={onOpenRemoveTags}
-          disabled={count === 0 || deleting}
+          disabled={count === 0 || busy}
         >
           {zh('移除标签', 'Remove Tags')}
         </Button>
@@ -101,7 +111,7 @@ export default function SelectionOpsModal({
           color="error"
           size="small"
           onClick={onDeleteSelected}
-          disabled={count === 0 || deleting}
+          disabled={count === 0 || busy}
           startIcon={<DeleteOutlineIcon fontSize="inherit" />}
         >
           {deleting ? zh('删除中…', 'Deleting...') : zh('删除所选视频', 'Delete Selected Videos')}

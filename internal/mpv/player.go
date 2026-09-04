@@ -35,6 +35,12 @@ type PlayOptions struct {
 	EnableNetworkThumbnail bool
 }
 
+// PlaylistItem describes one file in an MPV playlist.
+type PlaylistItem struct {
+	Path    string
+	Options PlayOptions
+}
+
 type playerSession struct {
 	mu      sync.Mutex
 	cmd     *exec.Cmd
@@ -77,6 +83,25 @@ func PlayVideo(path string, options PlayOptions) error {
 	return defaultSession.PlayVideo(path, options)
 }
 
+// PlayPlaylist opens the files in one MPV window in the order provided.
+func PlayPlaylist(items []PlaylistItem) error {
+	if len(items) == 0 {
+		return errors.New("playlist is empty")
+	}
+	for _, item := range items {
+		if strings.TrimSpace(item.Path) == "" {
+			return errors.New("playlist path is empty")
+		}
+	}
+
+	cancelFocusRestoreAttempts()
+	rememberFocusRestoreOwner(0)
+	if !loadConfiguredPlayerReuseWindow() {
+		return playPlaylistInNewProcess(items)
+	}
+	return defaultSession.PlayPlaylist(items)
+}
+
 func ResetPlayerSession() {
 	defaultSession.Reset()
 }
@@ -94,6 +119,24 @@ func playVideoInNewProcess(path string, options PlayOptions) error {
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			logging.Error("play video command exited with error: %v", err)
+		}
+	}()
+	return nil
+}
+
+func playPlaylistInNewProcess(items []PlaylistItem) error {
+	cmd, err := buildPlaylistOneShotCommand(items)
+	if err != nil {
+		return err
+	}
+	logging.Info("play playlist command: %v", cmd.Args)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("play playlist: %w", err)
+	}
+	focusStartedProcessWindow(cmd.Process.Pid, "play playlist")
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			logging.Error("play playlist command exited with error: %v", err)
 		}
 	}()
 	return nil
@@ -126,6 +169,35 @@ func (s *playerSession) PlayVideo(path string, options PlayOptions) error {
 		return fmt.Errorf("play video: %w", lastErr)
 	}
 	return errors.New("play video failed")
+}
+
+func (s *playerSession) PlayPlaylist(items []PlaylistItem) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := s.ensureRunningLocked(items[0].Options); err != nil {
+			return err
+		}
+		if err := s.playPlaylistLocked(items); err != nil {
+			lastErr = err
+			if isIPCResponseError(err) {
+				return err
+			}
+			logging.Error("mpv ipc playlist playback failed, restarting player: %v", err)
+			s.stopLocked()
+			continue
+		}
+		if s.cmd != nil && s.cmd.Process != nil {
+			focusStartedProcessWindow(s.cmd.Process.Pid, "play playlist")
+		}
+		return nil
+	}
+	if lastErr != nil {
+		return fmt.Errorf("play playlist: %w", lastErr)
+	}
+	return errors.New("play playlist failed")
 }
 
 func (s *playerSession) Reset() {
@@ -227,6 +299,48 @@ func (s *playerSession) playVideoLocked(path string, options PlayOptions) error 
 	return nil
 }
 
+func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
+	commands, err := buildBeforeLoadCommands(items[0].Options)
+	if err != nil {
+		return err
+	}
+	for _, command := range commands {
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			if isIPCResponseError(err) && isOptionalBeforeLoadCommand(command) {
+				logging.Error("optional mpv ipc command ignored: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	for index, item := range items {
+		mode := "append"
+		if index == 0 {
+			mode = "replace"
+		}
+		command, err := buildPlaylistLoadFileCommand(item, mode)
+		if err != nil {
+			return err
+		}
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			return err
+		}
+	}
+	if !shouldRestoreWindowBeforeLoad() {
+		time.Sleep(darwinAfterLoadWindowRestoreDelay)
+	}
+	for _, command := range buildAfterLoadCommands() {
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			if isOptionalPlaybackCommand(command) {
+				logging.Error("optional mpv ipc command ignored: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
 func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	cmd, _, err := buildCommandWithIPC(path, options)
 	return cmd, err
@@ -234,6 +348,26 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 
 func buildOneShotCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	return buildCommandArgs(path, options, "")
+}
+
+func buildPlaylistOneShotCommand(items []PlaylistItem) (*exec.Cmd, error) {
+	baseOptions := items[0].Options
+	baseOptions.StartTimeSec = 0
+	cmd, err := buildCommandArgs("", baseOptions, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, item := range items {
+		fileArgs, err := buildPlaybackScreenshotArgs(item.Options)
+		if err != nil {
+			return nil, err
+		}
+		fileArgs = append(fileArgs, buildPlaybackStartArgs(item.Options)...)
+		cmd.Args = append(cmd.Args, "--{")
+		cmd.Args = append(cmd.Args, fileArgs...)
+		cmd.Args = append(cmd.Args, item.Path, "--}")
+	}
+	return cmd, nil
 }
 
 func buildCommandWithIPC(path string, options PlayOptions) (*exec.Cmd, string, error) {
@@ -280,6 +414,7 @@ func buildCommandArgs(path string, options PlayOptions, ipcPath string) (*exec.C
 	args = append(args, buildThumbfastScriptArgs(mpvPath, options.EnableNetworkThumbnail)...)
 	args = append(args, "--script="+modernZ.ScriptPath)
 	args = append(args, "--script="+modernZ.ThumbfastScriptPath)
+	args = append(args, "--script="+modernZ.PlaylistScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
 		return nil, err
 	} else if len(screenshotArgs) > 0 {
@@ -383,11 +518,38 @@ func isOptionalPlaybackCommand(command []any) bool {
 }
 
 func buildLoadFileCommand(path string, options PlayOptions) []any {
-	command := []any{"loadfile", path, "replace"}
+	return buildLoadFileCommandWithMode(path, options, "replace")
+}
+
+func buildLoadFileCommandWithMode(path string, options PlayOptions, mode string) []any {
+	command := []any{"loadfile", path, mode}
 	if options.StartTimeSec > 0 {
 		command = append(command, -1, "start="+strconv.FormatFloat(options.StartTimeSec, 'f', -1, 64))
 	}
 	return command
+}
+
+func buildPlaylistLoadFileCommand(item PlaylistItem, mode string) ([]any, error) {
+	options := map[string]string{
+		"screenshot-template": playbackScreenshotTemplate,
+	}
+	screenshotDir, err := ensurePlaybackScreenshotDir(item.Options)
+	if err != nil {
+		return nil, err
+	}
+	if screenshotDir == "" {
+		screenshotDir, err = ensureFallbackScreenshotDir()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if screenshotDir != "" {
+		options["screenshot-directory"] = screenshotDir
+	}
+	if item.Options.StartTimeSec > 0 {
+		options["start"] = strconv.FormatFloat(item.Options.StartTimeSec, 'f', -1, 64)
+	}
+	return []any{"loadfile", item.Path, mode, -1, options}, nil
 }
 
 func buildPlaybackScreenshotArgs(options PlayOptions) ([]string, error) {
