@@ -108,6 +108,7 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		"min_width=240\n",
 		"resize_handle_width=10\n",
 		"font_size=22\n",
+		"font=auto\n",
 		"auto_hide_single=yes\n",
 		"hide_fullscreen=yes\n",
 	} {
@@ -130,6 +131,10 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		`if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then`,
 		`{"mouse_move", handle_mouse_move}`,
 		`local handle_active = dragging or handle_hovered`,
+		`return "Microsoft YaHei UI"`,
+		`return "PingFang SC"`,
+		`return "Noto Sans CJK SC"`,
+		`\\fn%s`,
 		`update_interaction_area(width, height, dragging or handle_hovered)`,
 		`local changed = hovered ~= handle_hovered`,
 		`if not mouse_x or mouse_x < pane_left then`,

@@ -12,6 +12,7 @@ local opts = {
     footer_height = 34,
     row_height = 42,
     font_size = 22,
+    font = "auto",
     scroll_rows = 3,
     auto_hide_single = true,
     hide_fullscreen = true,
@@ -19,6 +20,21 @@ local opts = {
 }
 
 options.read_options(opts, "playlist_sidebar")
+
+local function resolve_font()
+    if opts.font and opts.font ~= "" and opts.font ~= "auto" then
+        return opts.font
+    end
+    local platform = mp.get_property("platform") or ""
+    if platform == "windows" then
+        return "Microsoft YaHei UI"
+    elseif platform == "darwin" then
+        return "PingFang SC"
+    end
+    return "Noto Sans CJK SC"
+end
+
+local sidebar_font = resolve_font():gsub("[\\{}]", "")
 
 local section = "javboss-playlist-sidebar"
 local width_property = "user-data/javboss/playlist-sidebar-width"
@@ -182,13 +198,17 @@ local function render()
     append_rect(parts, pane_left, 0, width, height, "17191F", "08")
     append_rect(parts, pane_left, opts.header_height - 1, width, opts.header_height, "424650", "00")
     parts[#parts + 1] = string.format(
-        "{\\an7\\pos(%d,17)\\bord0\\shad0\\fs25\\b1\\1c&HFFFFFF&}%s",
+        "{\\an4\\pos(%d,%d)\\bord0\\shad0\\fs25\\b1\\fsp0\\fn%s\\1c&HFFFFFF&}%s",
         pane_left + 18,
+        math.floor(opts.header_height / 2),
+        sidebar_font,
         ass_escape(opts.title)
     )
     parts[#parts + 1] = string.format(
-        "{\\an9\\pos(%d,19)\\bord0\\shad0\\fs17\\1c&HAAAEB8&}%d/%d",
+        "{\\an6\\pos(%d,%d)\\bord0\\shad0\\fs16\\b0\\fsp0\\fn%s\\1c&HAAAEB8&}%d / %d",
         width - 16,
+        math.floor(opts.header_height / 2),
+        sidebar_font,
         current,
         count
     )
@@ -198,7 +218,7 @@ local function render()
         local entry = playlist[index]
         local row = index - visible_start
         local top = opts.header_height + row * opts.row_height
-        local text_y = top + math.floor((opts.row_height - opts.font_size) / 2) - 1
+        local text_y = top + math.floor(opts.row_height / 2)
         local is_current = index == current
         if is_current then
             append_rect(parts, pane_left + 8, top + 2, width - 8, top + opts.row_height - 2, "49331E", "00")
@@ -207,17 +227,25 @@ local function render()
             append_rect(parts, pane_left + 8, top + 2, width - 8, top + opts.row_height - 2, "20232A", "30")
         end
         parts[#parts + 1] = string.format(
-            "{\\an7\\pos(%d,%d)\\clip(%d,%d,%d,%d)\\bord0\\shad0\\fs%d\\1c&H%s&}%s%02d  %s",
+            "{\\an4\\pos(%d,%d)\\bord0\\shad0\\fs15\\b0\\fsp0\\fn%s\\1c&H%s&}%02d",
             pane_left + 18,
+            text_y,
+            sidebar_font,
+            is_current and "F0A34A" or "858A94",
+            index
+        )
+        parts[#parts + 1] = string.format(
+            "{\\an4\\pos(%d,%d)\\clip(%d,%d,%d,%d)\\bord0\\shad0\\fs%d\\b%d\\fsp0\\fn%s\\1c&H%s&}%s",
+            pane_left + 52,
             text_y,
             pane_left + 14,
             top,
             width - 12,
             top + opts.row_height,
             opts.font_size,
+            is_current and 1 or 0,
+            sidebar_font,
             is_current and "FFFFFF" or "CDD0D7",
-            is_current and "▶ " or "",
-            index,
             entry_label(entry)
         )
     end
@@ -237,19 +265,21 @@ local function render()
         local handle_y = clamp(handle_mouse_y or math.floor(height / 2), 24, height - 24)
         append_rect(parts, pane_left - 13, handle_y - 20, pane_left + 15, handle_y + 20, "272A32", "00")
         parts[#parts + 1] = string.format(
-            "{\\an5\\pos(%d,%d)\\bord0\\shad0\\fs23\\b1\\1c&HF0A34A&}↔",
+            "{\\an5\\pos(%d,%d)\\bord0\\shad0\\fs23\\b1\\fn%s\\1c&HF0A34A&}↔",
             pane_left + 1,
-            handle_y
+            handle_y,
+            sidebar_font
         )
     end
     parts[#parts + 1] = string.format(
-        "{\\an8\\pos(%d,%d)\\clip(%d,%d,%d,%d)\\bord0\\shad0\\fs14\\1c&H9297A2&}拖动左边缘调宽 · 滚轮浏览 · 点击播放",
+        "{\\an5\\pos(%d,%d)\\clip(%d,%d,%d,%d)\\bord0\\shad0\\fs14\\b0\\fsp0\\fn%s\\1c&H9297A2&}拖动左边缘调宽 · 滚轮浏览 · 点击播放",
         pane_left + math.floor(pane_width / 2),
-        height - 23,
+        height - math.floor(opts.footer_height / 2),
         pane_left + 6,
         height - opts.footer_height,
         width - 6,
-        height
+        height,
+        sidebar_font
     )
 
     overlay.res_x = width
