@@ -127,6 +127,7 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		`mp.commandv("playlist-play-index", index - 1)`,
 		`publish_width(pane_width)`,
 		`{"mbtn_left", end_click, begin_click}`,
+		`if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then`,
 		`{"mouse_move", handle_mouse_move}`,
 		`local handle_active = dragging or handle_hovered`,
 		`update_interaction_area(width, height, dragging or handle_hovered)`,
@@ -141,6 +142,11 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		if !strings.Contains(string(script), expected) {
 			t.Fatalf("expected bundled playlist sidebar script to contain %q", expected)
 		}
+	}
+	dragCheck := strings.Index(string(script), `if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then`)
+	videoAreaCheck := strings.Index(string(script), `if not mouse_x or mouse_x < pane_left then`)
+	if dragCheck < 0 || videoAreaCheck < 0 || dragCheck >= videoAreaCheck {
+		t.Fatal("expected resize handle detection before the video-area click guard")
 	}
 
 	modernZScript, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))

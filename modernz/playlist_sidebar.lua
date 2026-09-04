@@ -306,10 +306,6 @@ local function begin_click()
         return
     end
     local mouse_x, mouse_y = mp.get_mouse_pos()
-    if not mouse_x or mouse_x < pane_left then
-        click_armed = false
-        return
-    end
     if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then
         dragging = true
         handle_hovered = true
@@ -318,6 +314,10 @@ local function begin_click()
         local _, height = mp.get_osd_size()
         update_interaction_area(window_width, height, true)
         request_render()
+        return
+    end
+    if not mouse_x or mouse_x < pane_left then
+        click_armed = false
         return
     end
     click_armed = true
