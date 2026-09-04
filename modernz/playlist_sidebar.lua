@@ -419,6 +419,22 @@ local function handle_mouse_move()
     end
 end
 
+-- save-position-on-quit does not persist progress when mpv advances or jumps
+-- between playlist entries. Save while the old file is still loaded so the
+-- regular resume-playback option can restore it when that entry is opened again.
+local function save_position_before_unload()
+    if not mp.get_property_native("options/save-position-on-quit", false) then
+        return
+    end
+    if mp.get_property_native("eof-reached", false) then
+        return
+    end
+    if not mp.get_property("path") then
+        return
+    end
+    mp.commandv("write-watch-later-config")
+end
+
 mp.set_key_bindings({
     {"mbtn_left", end_click, begin_click},
     {"mouse_move", handle_mouse_move},
@@ -432,6 +448,7 @@ for _, property in ipairs({"playlist", "playlist-pos", "fullscreen", "osd-dimens
     mp.observe_property(property, "native", request_render)
 end
 
+mp.add_hook("on_unload", 50, save_position_before_unload)
 mp.register_event("file-loaded", request_render)
 mp.register_event("shutdown", function()
     hide_sidebar()

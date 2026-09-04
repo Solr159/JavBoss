@@ -143,6 +143,10 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		`table.concat(parts, "\n")`,
 		`{"wheel_up", function() scroll(-1) end}`,
 		`{"wheel_down", function() scroll(1) end}`,
+		`mp.get_property_native("options/save-position-on-quit", false)`,
+		`mp.get_property_native("eof-reached", false)`,
+		`mp.commandv("write-watch-later-config")`,
+		`mp.add_hook("on_unload", 50, save_position_before_unload)`,
 	} {
 		if !strings.Contains(string(script), expected) {
 			t.Fatalf("expected bundled playlist sidebar script to contain %q", expected)
