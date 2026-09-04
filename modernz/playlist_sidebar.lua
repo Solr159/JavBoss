@@ -34,6 +34,8 @@ local pane_left = 0
 local window_width = 0
 local dragging = false
 local click_armed = false
+local handle_hovered = false
+local handle_mouse_y = nil
 
 local function clamp(value, minimum, maximum)
     return math.max(minimum, math.min(maximum, value))
@@ -83,6 +85,8 @@ local function hide_sidebar()
         mp.set_mouse_area(0, 0, 0, 0, section)
         sidebar_visible = false
     end
+    handle_hovered = false
+    handle_mouse_y = nil
     publish_width(0)
     set_margin(base_margin_right)
 end
@@ -103,6 +107,15 @@ end
 local function panel_width(window_width)
     local maximum = math.max(1, math.floor(window_width * opts.max_width_ratio))
     return math.max(1, math.min(current_width, maximum))
+end
+
+local function update_interaction_area(width, height, expanded)
+    if expanded then
+        mp.set_mouse_area(0, 0, width, height, section)
+    else
+        local left = math.max(0, pane_left - math.floor(opts.resize_handle_width / 2))
+        mp.set_mouse_area(left, 0, width, height, section)
+    end
 end
 
 local function append_rect(parts, x1, y1, x2, y2, color, alpha)
@@ -210,15 +223,25 @@ local function render()
     end
 
     append_rect(parts, pane_left, height - opts.footer_height, width, height, "111319", "10")
+    local handle_active = dragging or handle_hovered
     append_rect(
         parts,
         pane_left,
         0,
-        pane_left + (dragging and 4 or 2),
+        pane_left + (handle_active and 4 or 2),
         height,
-        dragging and "F0A34A" or "555A65",
+        handle_active and "F0A34A" or "555A65",
         "00"
     )
+    if handle_active then
+        local handle_y = clamp(handle_mouse_y or math.floor(height / 2), 24, height - 24)
+        append_rect(parts, pane_left - 13, handle_y - 20, pane_left + 15, handle_y + 20, "272A32", "00")
+        parts[#parts + 1] = string.format(
+            "{\\an5\\pos(%d,%d)\\bord0\\shad0\\fs23\\b1\\1c&HF0A34A&}↔",
+            pane_left + 1,
+            handle_y
+        )
+    end
     parts[#parts + 1] = string.format(
         "{\\an8\\pos(%d,%d)\\clip(%d,%d,%d,%d)\\bord0\\shad0\\fs14\\1c&H9297A2&}拖动左边缘调宽 · 滚轮浏览 · 点击播放",
         pane_left + math.floor(pane_width / 2),
@@ -236,11 +259,7 @@ local function render()
     -- only honors a single position, which collapses the labels and rows.
     overlay.data = table.concat(parts, "\n")
     overlay:update()
-    if dragging then
-        mp.set_mouse_area(0, 0, width, height, section)
-    else
-        mp.set_mouse_area(math.max(0, pane_left - math.floor(opts.resize_handle_width / 2)), 0, width, height, section)
-    end
+    update_interaction_area(width, height, dragging or handle_hovered)
     mp.enable_key_bindings(section, "allow-hide-cursor")
     sidebar_visible = true
 end
@@ -286,12 +305,18 @@ local function begin_click()
     if not sidebar_visible then
         return
     end
-    local mouse_x = select(1, mp.get_mouse_pos())
+    local mouse_x, mouse_y = mp.get_mouse_pos()
+    if not mouse_x or mouse_x < pane_left then
+        click_armed = false
+        return
+    end
     if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then
         dragging = true
+        handle_hovered = true
+        handle_mouse_y = mouse_y
         click_armed = false
         local _, height = mp.get_osd_size()
-        mp.set_mouse_area(0, 0, window_width, height, section)
+        update_interaction_area(window_width, height, true)
         request_render()
         return
     end
@@ -329,16 +354,44 @@ local function resize_from_mouse()
 end
 
 local function cancel_drag()
+    local was_active = dragging or handle_hovered
+    handle_hovered = false
+    handle_mouse_y = nil
     if dragging then
         dragging = false
         click_armed = false
+    end
+    local _, height = mp.get_osd_size()
+    update_interaction_area(window_width, height, false)
+    if was_active then
+        request_render()
+    end
+end
+
+local function handle_mouse_move()
+    local mouse_x, mouse_y = mp.get_mouse_pos()
+    if dragging then
+        handle_mouse_y = mouse_y
+        resize_from_mouse()
+        return
+    end
+    local hovered = mouse_x ~= nil and math.abs(mouse_x - pane_left) <= opts.resize_handle_width
+    local changed = hovered ~= handle_hovered
+    local moved = hovered and mouse_y and (not handle_mouse_y or math.abs(mouse_y - handle_mouse_y) >= 2)
+    if changed or moved then
+        handle_hovered = hovered
+        handle_mouse_y = hovered and mouse_y or nil
+        if changed then
+            local _, height = mp.get_osd_size()
+            update_interaction_area(window_width, height, hovered)
+        end
         request_render()
     end
 end
 
 mp.set_key_bindings({
     {"mbtn_left", end_click, begin_click},
-    {"mouse_move", resize_from_mouse},
+    {"mouse_move", handle_mouse_move},
     {"mouse_leave", cancel_drag},
     {"wheel_up", function() scroll(-1) end},
     {"wheel_down", function() scroll(1) end},
