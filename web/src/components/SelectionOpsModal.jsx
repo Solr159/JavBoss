@@ -76,46 +76,55 @@ export default function SelectionOpsModal({
           </ul>
         )}
       </div>
-      <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <Button
-          variant="contained"
-          size="small"
-          onClick={onPlaySelected}
-          disabled={count === 0 || !mpvEnabled || busy}
-          startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
-        >
-          {playing ? zh('正在加入…', 'Adding...') : zh('加入 MPV 播放列表', 'Add to MPV Playlist')}
-        </Button>
-        <Button variant="outlined" size="small" onClick={onOpenTags} disabled={count === 0 || busy}>
-          {zh('添加标签', 'Add Tags')}
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={onOpenJavTags}
-          disabled={selectedJavCount === 0 || busy}
-        >
-          {zh('添加 JAV 标签', 'Add JAV Tags')}
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          size="small"
-          onClick={onOpenRemoveTags}
-          disabled={count === 0 || busy}
-        >
-          {zh('移除标签', 'Remove Tags')}
-        </Button>
-        <Button
-          variant="contained"
-          color="error"
-          size="small"
-          onClick={onDeleteSelected}
-          disabled={count === 0 || busy}
-          startIcon={<DeleteOutlineIcon fontSize="inherit" />}
-        >
-          {deleting ? zh('删除中…', 'Deleting...') : zh('删除所选视频', 'Delete Selected Videos')}
-        </Button>
+      <div className="mt-4 flex flex-col gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onOpenTags}
+            disabled={count === 0 || busy}
+          >
+            {zh('添加标签', 'Add Tags')}
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={onOpenJavTags}
+            disabled={selectedJavCount === 0 || busy}
+          >
+            {zh('添加 JAV 标签', 'Add JAV Tags')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={onOpenRemoveTags}
+            disabled={count === 0 || busy}
+          >
+            {zh('移除标签', 'Remove Tags')}
+          </Button>
+        </div>
+        <div className="flex flex-nowrap justify-end gap-2">
+          <Button
+            variant="contained"
+            size="small"
+            onClick={onPlaySelected}
+            disabled={count === 0 || !mpvEnabled || busy}
+            startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
+          >
+            {playing ? zh('正在播放…', 'Playing...') : zh('使用 MPV 播放全部', 'Play all with MPV')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            onClick={onDeleteSelected}
+            disabled={count === 0 || busy}
+            startIcon={<DeleteOutlineIcon fontSize="inherit" />}
+          >
+            {deleting ? zh('删除中…', 'Deleting...') : zh('删除所选视频', 'Delete Selected Videos')}
+          </Button>
+        </div>
       </div>
     </AppModal>
   )
