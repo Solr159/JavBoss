@@ -4,9 +4,11 @@ package mpv
 
 import (
 	"bufio"
+	"encoding/binary"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,8 +38,10 @@ func TestPlaylistIPCAndScreenshotRoutingWithMPV(t *testing.T) {
 		t.Fatal(err)
 	}
 	items := make([]PlaylistItem, 600)
+	started := make(chan int, 100)
 	for i := range items {
-		items[i] = PlaylistItem{Path: imageA, Options: PlayOptions{DataDir: dir, VideoID: int64(i + 1)}}
+		index := i
+		items[i] = PlaylistItem{Path: imageA, Title: "中文视频 " + strconv.Itoa(i+1), Options: PlayOptions{DataDir: dir, VideoID: int64(i + 1)}, OnStarted: func() { started <- index }}
 	}
 	if err := playPlaylistInNewProcess(items); err != nil {
 		t.Fatal(err)
@@ -65,7 +69,33 @@ func TestPlaylistIPCAndScreenshotRoutingWithMPV(t *testing.T) {
 	if got := readMPVTestProperty(t, endpoint, "idle"); got != false {
 		t.Fatalf("one-shot idle=%v, want false", got)
 	}
-	if err := playPlaylistInNewProcess(items[:2]); err != nil {
+	assertStarted := func(want int) {
+		t.Helper()
+		select {
+		case got := <-started:
+			if got != want {
+				t.Fatalf("started entry %d, want %d", got, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatalf("no playback notification for %d", want)
+		}
+	}
+	assertStarted(0)
+	select {
+	case got := <-started:
+		t.Fatalf("queued entry counted: %d", got)
+	default:
+	}
+	titles := readMPVTestProperty(t, endpoint, "user-data/javboss/playlist-titles").(map[string]any)
+	pendingID := readMPVTestProperty(t, endpoint, "playlist/1/id").(float64)
+	if titles[strconv.FormatInt(int64(pendingID), 10)] != "中文视频 2" {
+		t.Fatalf("pending entry has no readable title: %v", titles)
+	}
+	secondItems := append([]PlaylistItem(nil), items[:2]...)
+	for i := range secondItems {
+		secondItems[i].OnStarted = nil
+	}
+	if err := playPlaylistInNewProcess(secondItems); err != nil {
 		t.Fatal(err)
 	}
 	secondArgs, err := os.ReadFile(argsPath)
@@ -89,6 +119,14 @@ func TestPlaylistIPCAndScreenshotRoutingWithMPV(t *testing.T) {
 		t.Fatalf("second playlist-count=%v, want 2", got)
 	}
 	waitMPVTestProperty(t, endpoint, "screenshot-directory", filepath.Join(dir, "video", "1", "screenshot"))
+	if err := runIPCCommand(endpoint, []any{"playlist-play-index", 2}); err != nil {
+		t.Fatal(err)
+	}
+	assertStarted(2)
+	if err := runIPCCommand(endpoint, []any{"playlist-play-index", 2}); err != nil {
+		t.Fatal(err)
+	}
+	assertStarted(2)
 	s := &playerSession{ipcPath: endpoint}
 	if err := s.playVideoLocked(imageB, PlayOptions{DataDir: dir, VideoID: 999}); err != nil {
 		t.Fatal(err)
@@ -119,6 +157,70 @@ func TestPlaylistIPCAndScreenshotRoutingWithMPV(t *testing.T) {
 		}
 		if time.Now().After(deadline) {
 			t.Fatal("IPC socket was not cleaned up after player exit")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	// A fresh reusable player must keep the first item's seek local to that item.
+	wave := make([]byte, 44+8000*2*10)
+	copy(wave, "RIFF")
+	binary.LittleEndian.PutUint32(wave[4:], uint32(len(wave)-8))
+	copy(wave[8:], "WAVEfmt ")
+	binary.LittleEndian.PutUint32(wave[16:], 16)
+	binary.LittleEndian.PutUint16(wave[20:], 1)
+	binary.LittleEndian.PutUint16(wave[22:], 1)
+	binary.LittleEndian.PutUint32(wave[24:], 8000)
+	binary.LittleEndian.PutUint32(wave[28:], 16000)
+	binary.LittleEndian.PutUint16(wave[32:], 2)
+	binary.LittleEndian.PutUint16(wave[34:], 16)
+	copy(wave[36:], "data")
+	binary.LittleEndian.PutUint32(wave[40:], uint32(len(wave)-44))
+	waveA, waveB := filepath.Join(dir, "a.wav"), filepath.Join(dir, "b.wav")
+	for _, path := range []string{waveA, waveB} {
+		if err := os.WriteFile(path, wave, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reusable := &playerSession{}
+	t.Cleanup(reusable.Reset)
+	if err := reusable.PlayPlaylist([]PlaylistItem{
+		{Path: waveA, Options: PlayOptions{StartTimeSec: 2, DataDir: dir, VideoID: 700}},
+		{Path: waveB, Options: PlayOptions{DataDir: dir, VideoID: 701}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	reuseEndpoint := reusable.ipcPath
+	args, err = os.ReadFile(argsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(args), "--start=") {
+		t.Fatal("reusable process inherited a global start position")
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		if position, ok := readMPVTestProperty(t, reuseEndpoint, "time-pos").(float64); ok && position >= 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("first entry did not honor its start position")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if err := runIPCCommand(reuseEndpoint, []any{"playlist-play-index", 1}); err != nil {
+		t.Fatal(err)
+	}
+	waitMPVTestProperty(t, reuseEndpoint, "path", waveB)
+	waitMPVTestProperty(t, reuseEndpoint, "screenshot-directory", filepath.Join(dir, "video", "701", "screenshot"))
+	deadline = time.Now().Add(5 * time.Second)
+	for {
+		if position, ok := readMPVTestProperty(t, reuseEndpoint, "time-pos").(float64); ok {
+			if position >= 1 {
+				t.Fatalf("second entry inherited start: %v", position)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("second entry did not start")
 		}
 		time.Sleep(20 * time.Millisecond)
 	}

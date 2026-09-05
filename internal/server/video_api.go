@@ -510,7 +510,6 @@ func playVideoPlaylist(c *gin.Context) {
 		dataDir = filepath.Dir(common.AppConfig.DatabasePath)
 	}
 	items := make([]mpv.PlaylistItem, 0, len(req.Items))
-	videoIDs := make([]int64, 0, len(req.Items))
 	for _, requested := range req.Items {
 		if requested.VideoID <= 0 || requested.LocationID < 0 {
 			respondLocalizedError(c, http.StatusBadRequest, "播放列表包含无效视频", "Playlist contains an invalid video")
@@ -549,14 +548,22 @@ func playVideoPlaylist(c *gin.Context) {
 			return
 		}
 
+		videoID := requested.VideoID
 		items = append(items, mpv.PlaylistItem{
-			Path: fullPath,
+			Path:  fullPath,
+			Title: location.Filename,
+			OnStarted: func() {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				if err := dbpkg.IncrementVideoPlayCount(ctx, videoID); err != nil {
+					logging.Error("increment playlist video play count error: %v", err)
+				}
+			},
 			Options: mpv.PlayOptions{
 				DataDir: dataDir,
 				VideoID: requested.VideoID,
 			},
 		})
-		videoIDs = append(videoIDs, requested.VideoID)
 	}
 
 	if err := mpv.PlayPlaylist(items); err != nil {
@@ -567,11 +574,6 @@ func playVideoPlaylist(c *gin.Context) {
 		}
 		respondLocalizedError(c, http.StatusInternalServerError, "播放列表启动失败", "Failed to start playlist")
 		return
-	}
-	for _, videoID := range videoIDs {
-		if err := dbpkg.IncrementVideoPlayCount(c.Request.Context(), videoID); err != nil {
-			logging.Error("increment playlist video play count error: %v", err)
-		}
 	}
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "count": len(items)})
 }

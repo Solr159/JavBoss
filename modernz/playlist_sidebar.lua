@@ -67,7 +67,8 @@ local function ass_escape(value)
 end
 
 local function entry_label(entry)
-    local label = entry.title
+    local titles = mp.get_property_native("user-data/javboss/playlist-titles", {})
+    local label = titles[tostring(entry.id)] or entry.title
     if not label or label == "" then
         label = entry.filename or ""
         if not label:find("://", 1, true) then
@@ -444,7 +445,7 @@ mp.set_key_bindings({
 }, section, "force")
 mp.disable_key_bindings(section)
 
-for _, property in ipairs({"playlist", "playlist-pos", "fullscreen", "osd-dimensions"}) do
+for _, property in ipairs({"playlist", "playlist-pos", "fullscreen", "osd-dimensions", "user-data/javboss/playlist-titles"}) do
     mp.observe_property(property, "native", request_render)
 end
 

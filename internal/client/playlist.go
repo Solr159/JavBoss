@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"javboss/internal/common/logging"
 	"javboss/internal/mpv"
@@ -39,6 +40,7 @@ func (c *Client) handlePlaylist(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	dataDir := c.clientDataDir()
+	remote := c.remoteState()
 	items := make([]mpv.PlaylistItem, 0, len(request.Items))
 	for _, item := range request.Items {
 		query := make(url.Values)
@@ -60,8 +62,19 @@ func (c *Client) handlePlaylist(w http.ResponseWriter, r *http.Request) {
 			respondJSONError(w, http.StatusInternalServerError, "创建本机播放会话失败", "Could not create the local playback session")
 			return
 		}
+		title := strings.TrimSpace(item.Title)
+		if title == "" {
+			title = "Video #" + strconv.FormatInt(item.VideoID, 10)
+		}
+		videoID := item.VideoID
 		items = append(items, mpv.PlaylistItem{
-			Path: c.localBaseURL + "/__client/media/" + token,
+			Path:  c.localBaseURL + "/__client/media/" + token,
+			Title: title,
+			OnStarted: func() {
+				if c.remoteState() == remote {
+					c.incrementRemotePlayCount(videoID, cookie)
+				}
+			},
 			Options: mpv.PlayOptions{
 				DataDir: dataDir, VideoID: item.VideoID,
 				StartTimeSec: item.StartTimeSec, EnableNetworkThumbnail: true,
@@ -78,11 +91,6 @@ func (c *Client) handlePlaylist(w http.ResponseWriter, r *http.Request) {
 			logging.Error("start client screenshot sync failed: %v", err)
 		}
 	}
-	go func() {
-		for _, item := range items {
-			c.incrementRemotePlayCount(item.Options.VideoID, cookie)
-		}
-	}()
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "count": len(items)})
 }

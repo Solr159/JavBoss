@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"javboss/internal/mpv"
 )
 
 func TestPlaylistPlaysLocalGrantsAndStartsScreenshotSync(t *testing.T) {
+	var firstCount, secondCount atomic.Int64
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/videos/playlist" {
 			t.Error("playlist request reached remote player")
@@ -21,6 +23,12 @@ func TestPlaylistPlaysLocalGrantsAndStartsScreenshotSync(t *testing.T) {
 		if r.Header.Get("Cookie") != "session=secret" {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
+		}
+		if r.URL.Path == "/videos/42/play" {
+			firstCount.Add(1)
+		}
+		if r.URL.Path == "/videos/43/play" {
+			secondCount.Add(1)
 		}
 		if strings.HasSuffix(r.URL.Path, "/stream") {
 			w.WriteHeader(http.StatusPartialContent)
@@ -34,7 +42,7 @@ func TestPlaylistPlaysLocalGrantsAndStartsScreenshotSync(t *testing.T) {
 		played = items
 		return nil
 	}
-	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/videos/playlist", strings.NewReader(`{"items":[{"video_id":42,"location_id":7,"start_time":12.5},{"video_id":43,"location_id":8}]}`))
+	req := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/videos/playlist", strings.NewReader(`{"items":[{"video_id":42,"location_id":7,"start_time":12.5,"title":"中文 {测试}.mp4"},{"video_id":43,"location_id":8}]}`))
 	req.Header.Set("Cookie", "session=secret")
 	req.Header.Set("Sec-Fetch-Site", "same-origin")
 	w := httptest.NewRecorder()
@@ -62,6 +70,16 @@ func TestPlaylistPlaysLocalGrantsAndStartsScreenshotSync(t *testing.T) {
 	}
 	if played[0].Options.StartTimeSec != 12.5 {
 		t.Fatal("lost start time")
+	}
+	if played[0].Title != "中文 {测试}.mp4" || played[1].Title != "Video #43" {
+		t.Fatalf("missing readable titles: %q, %q", played[0].Title, played[1].Title)
+	}
+	if firstCount.Load() != 0 || secondCount.Load() != 0 {
+		t.Fatal("queue creation incremented counts")
+	}
+	played[0].OnStarted()
+	if firstCount.Load() != 1 || secondCount.Load() != 0 {
+		t.Fatal("starting first entry must count only that entry")
 	}
 	c.screenshotMu.Lock()
 	defer c.screenshotMu.Unlock()

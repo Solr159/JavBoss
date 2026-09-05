@@ -2725,6 +2725,7 @@ export default function App() {
         return {
           video_id: videoId,
           location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : 0,
+          title: item?.label || item?.video?.filename || `Video #${videoId}`,
         }
       })
       .filter(Boolean)
@@ -3839,6 +3840,7 @@ export default function App() {
           return {
             video_id: videoId,
             location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : 0,
+            title: video?.filename || `Video #${videoId}`,
           }
         })
         .filter(Boolean)
