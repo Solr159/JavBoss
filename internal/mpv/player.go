@@ -70,6 +70,7 @@ func (e *ipcResponseError) Error() string {
 var (
 	defaultSession     playerSession
 	nextIPCRequestID   atomic.Int64
+	nextIPCSessionID   atomic.Int64
 	dialMPVIPCOverride func(path string, timeout time.Duration) (io.ReadWriteCloser, error)
 )
 
@@ -125,20 +126,25 @@ func playVideoInNewProcess(path string, options PlayOptions) error {
 }
 
 func playPlaylistInNewProcess(items []PlaylistItem) error {
-	cmd, err := buildPlaylistOneShotCommand(items)
-	if err != nil {
+	// Each launch owns its own IPC session, independent of the reusable player.
+	s := &playerSession{}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	baseOptions := items[0].Options
+	baseOptions.StartTimeSec = 0
+	if err := s.ensureRunningLocked(baseOptions); err != nil {
 		return err
 	}
-	logging.Info("play playlist command: %v", cmd.Args)
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("play playlist: %w", err)
+	if err := s.playPlaylistLocked(items); err != nil {
+		s.stopLocked()
+		return err
 	}
-	focusStartedProcessWindow(cmd.Process.Pid, "play playlist")
-	go func() {
-		if err := cmd.Wait(); err != nil {
-			logging.Error("play playlist command exited with error: %v", err)
-		}
-	}()
+	// Stay idle while populating the queue, then restore normal one-shot exit behavior.
+	if err := runIPCCommand(s.ipcPath, []any{"set_property", "idle", "no"}); err != nil {
+		s.stopLocked()
+		return err
+	}
+	focusStartedProcessWindow(s.cmd.Process.Pid, "play playlist")
 	return nil
 }
 
@@ -248,6 +254,9 @@ func (s *playerSession) waitForExit(cmd *exec.Cmd) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cmd == cmd {
+		if runtime.GOOS != "windows" && s.ipcPath != "" {
+			_ = os.Remove(s.ipcPath)
+		}
 		s.cmd = nil
 		s.ipcPath = ""
 	}
@@ -281,7 +290,13 @@ func (s *playerSession) playVideoLocked(path string, options PlayOptions) error 
 			return err
 		}
 	}
-	if err := runIPCCommand(s.ipcPath, buildLoadFileCommand(path, options)); err != nil {
+	// Screenshot settings must be file-local: unloading a playlist entry restores
+	// its previous settings, including any directory set before loadfile.
+	loadCommand, err := buildLoadFileCommand(path, options)
+	if err != nil {
+		return err
+	}
+	if err := runIPCCommand(s.ipcPath, loadCommand); err != nil {
 		return err
 	}
 	if !shouldRestoreWindowBeforeLoad() {
@@ -348,26 +363,6 @@ func buildCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 
 func buildOneShotCommand(path string, options PlayOptions) (*exec.Cmd, error) {
 	return buildCommandArgs(path, options, "")
-}
-
-func buildPlaylistOneShotCommand(items []PlaylistItem) (*exec.Cmd, error) {
-	baseOptions := items[0].Options
-	baseOptions.StartTimeSec = 0
-	cmd, err := buildCommandArgs("", baseOptions, "")
-	if err != nil {
-		return nil, err
-	}
-	for _, item := range items {
-		fileArgs, err := buildPlaybackScreenshotArgs(item.Options)
-		if err != nil {
-			return nil, err
-		}
-		fileArgs = append(fileArgs, buildPlaybackStartArgs(item.Options)...)
-		cmd.Args = append(cmd.Args, "--{")
-		cmd.Args = append(cmd.Args, fileArgs...)
-		cmd.Args = append(cmd.Args, item.Path, "--}")
-	}
-	return cmd, nil
 }
 
 func buildCommandWithIPC(path string, options PlayOptions) (*exec.Cmd, string, error) {
@@ -452,10 +447,11 @@ func buildPlaybackStartArgs(options PlayOptions) []string {
 }
 
 func playbackIPCPath() (string, error) {
+	id := strconv.FormatInt(nextIPCSessionID.Add(1), 10)
 	if runtime.GOOS == "windows" {
-		return `\\.\pipe\javboss-mpv-` + strconv.Itoa(os.Getpid()), nil
+		return `\\.\pipe\javboss-mpv-` + strconv.Itoa(os.Getpid()) + "-" + id, nil
 	}
-	return sessionPath("mpv-ipc.sock")
+	return sessionPath("mpv-ipc-" + id + ".sock")
 }
 
 func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
@@ -517,16 +513,8 @@ func isOptionalPlaybackCommand(command []any) bool {
 	return name == "set_property" && property == "window-minimized"
 }
 
-func buildLoadFileCommand(path string, options PlayOptions) []any {
-	return buildLoadFileCommandWithMode(path, options, "replace")
-}
-
-func buildLoadFileCommandWithMode(path string, options PlayOptions, mode string) []any {
-	command := []any{"loadfile", path, mode}
-	if options.StartTimeSec > 0 {
-		command = append(command, -1, "start="+strconv.FormatFloat(options.StartTimeSec, 'f', -1, 64))
-	}
-	return command
+func buildLoadFileCommand(path string, options PlayOptions) ([]any, error) {
+	return buildPlaylistLoadFileCommand(PlaylistItem{Path: path, Options: options}, "replace")
 }
 
 func buildPlaylistLoadFileCommand(item PlaylistItem, mode string) ([]any, error) {

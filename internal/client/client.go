@@ -28,6 +28,7 @@ type Options struct {
 	RemoteURL    string
 	Transport    http.RoundTripper
 	PlayVideo    func(path string, options mpv.PlayOptions) error
+	PlayPlaylist func(items []mpv.PlaylistItem) error
 }
 
 type remoteState struct {
@@ -40,6 +41,7 @@ type Client struct {
 	localBaseURL string
 	transport    http.RoundTripper
 	playVideo    func(path string, options mpv.PlayOptions) error
+	playPlaylist func(items []mpv.PlaylistItem) error
 	settings     *settingsStore
 
 	remoteMu sync.RWMutex
@@ -90,6 +92,10 @@ func New(options Options) (*Client, error) {
 	if playVideo == nil {
 		playVideo = mpv.PlayVideo
 	}
+	playPlaylist := options.PlayPlaylist
+	if playPlaylist == nil {
+		playPlaylist = mpv.PlayPlaylist
+	}
 	settings, err := loadSettingsStore(options.BaseDir)
 	if err != nil {
 		return nil, err
@@ -100,6 +106,7 @@ func New(options Options) (*Client, error) {
 		localBaseURL:     localBaseURL,
 		transport:        transport,
 		playVideo:        playVideo,
+		playPlaylist:     playPlaylist,
 		settings:         settings,
 		grants:           make(map[string]*mediaGrant),
 		grantKeys:        make(map[string]string),
@@ -136,6 +143,8 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		c.handleMedia(w, r)
 	case r.URL.Path == "/videos/play":
 		c.handlePlay(w, r)
+	case r.URL.Path == "/videos/playlist":
+		c.handlePlaylist(w, r)
 	case r.URL.Path == "/videos/open" || r.URL.Path == "/videos/reveal":
 		respondJSONError(w, http.StatusNotImplemented, "Client 模式不支持打开远端文件或所在目录", "Client mode cannot open or reveal a remote file")
 	case r.URL.Path == "/config":

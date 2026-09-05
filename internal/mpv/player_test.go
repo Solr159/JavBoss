@@ -62,16 +62,16 @@ func TestBuildPlaybackStartArgsIncludesStartTime(t *testing.T) {
 }
 
 func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
-	command := buildLoadFileCommand("/videos/a.mp4", PlayOptions{StartTimeSec: 12.345})
-	expected := []any{"loadfile", "/videos/a.mp4", "replace", -1, "start=12.345"}
-	if !reflect.DeepEqual(command, expected) {
-		t.Fatalf("expected loadfile command %v, got %v", expected, command)
+	dataDir := t.TempDir()
+	command, err := buildLoadFileCommand("/videos/a.mp4", PlayOptions{DataDir: dataDir, VideoID: 42, StartTimeSec: 12.345})
+	if err != nil {
+		t.Fatal(err)
 	}
-}
-
-func TestBuildLoadFileCommandAppendsToPlaylist(t *testing.T) {
-	command := buildLoadFileCommandWithMode("/videos/b.mp4", PlayOptions{}, "append")
-	expected := []any{"loadfile", "/videos/b.mp4", "append"}
+	expected := []any{"loadfile", "/videos/a.mp4", "replace", -1, map[string]string{
+		"start":                "12.345",
+		"screenshot-directory": filepath.Join(dataDir, "video", "42", "screenshot"),
+		"screenshot-template":  playbackScreenshotTemplate,
+	}}
 	if !reflect.DeepEqual(command, expected) {
 		t.Fatalf("expected loadfile command %v, got %v", expected, command)
 	}
