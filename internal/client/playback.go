@@ -23,6 +23,7 @@ import (
 const mediaGrantTTL = 24 * time.Hour
 
 type playRequest struct {
+	Title        string  `json:"title"`
 	VideoID      int64   `json:"video_id"`
 	LocationID   int64   `json:"location_id"`
 	Path         string  `json:"path"`

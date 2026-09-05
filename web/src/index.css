@@ -872,12 +872,19 @@ body.has-page-scroll .sticky-pagination {
   color: #1d4ed8;
 }
 
-.pagination-selection-action.MuiButton-root {
-  min-width: 0 !important;
-  min-height: 0 !important;
-  padding: 1.8px 7.2px !important;
-  font-size: 11px !important;
-  line-height: 18px !important;
+.pagination-bulk-action.MuiIconButton-root {
+  width: 21.6px;
+  height: 21.6px;
+  border-radius: 5.4px;
+  background: transparent;
+  padding: 2.7px;
+  color: #475569;
+  font-size: 15px;
+}
+
+.pagination-bulk-action.MuiIconButton-root:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .topbar-selection-action.MuiButton-root {

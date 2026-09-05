@@ -1,5 +1,6 @@
+import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
-import { Button, Popover } from '@mui/material'
+import { IconButton, Menu, MenuItem, Popover, Tooltip } from '@mui/material'
 import { useState } from 'react'
 import Pagination from '@/components/Pagination'
 import VideoGrid from '@/components/VideoGrid'
@@ -42,7 +43,12 @@ export default function VideoView({
   videos,
   selectedVideoIds,
   toggleSelectVideo,
-  onToggleSelectPage,
+  onSelectAll,
+  onSelectPage,
+  onPlayPage,
+  onPlayAll,
+  bulkActionBusy,
+  mpvEnabled,
   openPlayer,
   openAlternatePlayer,
   revealFile,
@@ -60,13 +66,18 @@ export default function VideoView({
   hasMore,
 }) {
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
+  const [bulkActionAnchorEl, setBulkActionAnchorEl] = useState(null)
   const pageIds = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
   const pageSelectable = pageIds.length > 0
-  const hasSelection = selectedVideoIds.size > 0
-  const pageAllSelected = pageSelectable && pageIds.every((id) => selectedVideoIds.has(id))
+  const hasVideos = Number(totalItems) > 0
   const effectiveSort = videoTempSort || videoGlobalSort
   const currentOption = findVideoSortOption(effectiveSort) || VIDEO_SORT_OPTIONS[0]
   const activeWaterfallMode = waterfallMode && !randomMode
+  const paginationPage = randomMode ? 1 : page
+  const paginationLastPage = randomMode ? 1 : lastPage
+  const paginationTotalItems = randomMode ? videos.length : totalItems
+  const paginationCanPrev = randomMode ? false : canPrev
+  const paginationCanNext = randomMode ? false : canNext
 
   const isOptionActive = (option) => {
     return findVideoSortOption(effectiveSort)?.base === option.base
@@ -80,53 +91,99 @@ export default function VideoView({
     setSortAnchorEl(null)
   }
 
+  const runBulkAction = (action) => {
+    setBulkActionAnchorEl(null)
+    action?.()
+  }
+
+  const bulkActionMenu = (
+    <>
+      <Tooltip title={zh('视频批量操作', 'Video bulk actions')} arrow>
+        <span className="inline-flex">
+          <IconButton
+            size="small"
+            onClick={(event) => setBulkActionAnchorEl(event.currentTarget)}
+            disabled={!hasVideos || bulkActionBusy}
+            aria-label={zh('视频批量操作', 'Video bulk actions')}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(bulkActionAnchorEl)}
+            className="pagination-bulk-action"
+          >
+            <SettingsRoundedIcon fontSize="inherit" />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Menu
+        open={Boolean(bulkActionAnchorEl)}
+        anchorEl={bulkActionAnchorEl}
+        onClose={() => setBulkActionAnchorEl(null)}
+        disableScrollLock
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        MenuListProps={{
+          dense: true,
+          'aria-label': zh('视频批量操作', 'Video bulk actions'),
+        }}
+      >
+        <MenuItem
+          disabled={!hasVideos || bulkActionBusy}
+          onClick={() => runBulkAction(onSelectAll)}
+        >
+          {zh('全选', 'Select all')}
+        </MenuItem>
+        <MenuItem
+          disabled={!pageSelectable || bulkActionBusy}
+          onClick={() => runBulkAction(onSelectPage)}
+        >
+          {zh('全选本页', 'Select page')}
+        </MenuItem>
+        <MenuItem
+          disabled={!pageSelectable || !mpvEnabled || bulkActionBusy}
+          onClick={() => runBulkAction(onPlayPage)}
+        >
+          {zh('使用 MPV 播放本页', 'Play page with MPV')}
+        </MenuItem>
+        <MenuItem
+          disabled={!hasVideos || !mpvEnabled || bulkActionBusy}
+          onClick={() => runBulkAction(onPlayAll)}
+        >
+          {zh('使用 MPV 播放全部', 'Play all with MPV')}
+        </MenuItem>
+      </Menu>
+    </>
+  )
+
   return (
     <>
       <div className="sticky-pagination mb-4">
         <div className="pagination-toolbar-grid relative grid md:grid-cols-[1fr_auto_1fr] md:items-center">
           <div />
           <div className="flex justify-center">
-            {!randomMode && (
-              <Pagination
-                page={page}
-                lastPage={lastPage}
-                totalItems={totalItems}
-                hasPrev={canPrev}
-                hasNext={canNext}
-                loading={loading}
-                buildPageUrl={({ page: targetPage }) =>
-                  buildVideoUrl({ page: targetPage, random: false })
-                }
-                onFirst={() => setPage(1)}
-                onPrev={() => {
-                  if (canPrev) setPage(page - 1)
-                }}
-                onGoToPage={(p) => setPage(p)}
-                onNext={() => {
-                  if (canNext) setPage(page + 1)
-                }}
-                onLast={() => {
-                  goToLastPage()
-                }}
-                waterfallMode={activeWaterfallMode}
-                onWaterfallModeChange={onWaterfallModeChange}
-                totalItemsAction={
-                  hasSelection ? (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={onToggleSelectPage}
-                      disabled={!pageSelectable}
-                      className="pagination-selection-action"
-                    >
-                      {pageAllSelected
-                        ? zh('取消全选', 'Unselect page')
-                        : zh('全选本页', 'Select page')}
-                    </Button>
-                  ) : null
-                }
-              />
-            )}
+            <Pagination
+              page={paginationPage}
+              lastPage={paginationLastPage}
+              totalItems={paginationTotalItems}
+              hasPrev={paginationCanPrev}
+              hasNext={paginationCanNext}
+              loading={loading}
+              buildPageUrl={({ page: targetPage }) =>
+                buildVideoUrl({ page: targetPage, random: false })
+              }
+              onFirst={() => setPage(1)}
+              onPrev={() => {
+                if (canPrev) setPage(page - 1)
+              }}
+              onGoToPage={(p) => setPage(p)}
+              onNext={() => {
+                if (canNext) setPage(page + 1)
+              }}
+              onLast={() => {
+                goToLastPage()
+              }}
+              waterfallMode={activeWaterfallMode}
+              onWaterfallModeChange={onWaterfallModeChange}
+              totalItemsAction={bulkActionMenu}
+            />
           </div>
           <div className="flex justify-end">
             {!randomMode && (

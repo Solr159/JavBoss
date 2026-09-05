@@ -35,10 +35,20 @@ type PlayOptions struct {
 	EnableNetworkThumbnail bool
 }
 
+// PlaylistItem describes one file in an MPV playlist.
+type PlaylistItem struct {
+	Path    string
+	Title   string
+	Options PlayOptions
+	// OnStarted runs once per successful playback of this entry, including replays.
+	OnStarted func()
+}
+
 type playerSession struct {
 	mu      sync.Mutex
 	cmd     *exec.Cmd
 	ipcPath string
+	events  *playlistEvents
 }
 
 type ipcRequest struct {
@@ -64,6 +74,7 @@ func (e *ipcResponseError) Error() string {
 var (
 	defaultSession     playerSession
 	nextIPCRequestID   atomic.Int64
+	nextIPCSessionID   atomic.Int64
 	dialMPVIPCOverride func(path string, timeout time.Duration) (io.ReadWriteCloser, error)
 )
 
@@ -75,6 +86,25 @@ func PlayVideo(path string, options PlayOptions) error {
 		return playVideoInNewProcess(path, options)
 	}
 	return defaultSession.PlayVideo(path, options)
+}
+
+// PlayPlaylist opens the files in one MPV window in the order provided.
+func PlayPlaylist(items []PlaylistItem) error {
+	if len(items) == 0 {
+		return errors.New("playlist is empty")
+	}
+	for _, item := range items {
+		if strings.TrimSpace(item.Path) == "" {
+			return errors.New("playlist path is empty")
+		}
+	}
+
+	cancelFocusRestoreAttempts()
+	rememberFocusRestoreOwner(0)
+	if !loadConfiguredPlayerReuseWindow() {
+		return playPlaylistInNewProcess(items)
+	}
+	return defaultSession.PlayPlaylist(items)
 }
 
 func ResetPlayerSession() {
@@ -96,6 +126,29 @@ func playVideoInNewProcess(path string, options PlayOptions) error {
 			logging.Error("play video command exited with error: %v", err)
 		}
 	}()
+	return nil
+}
+
+func playPlaylistInNewProcess(items []PlaylistItem) error {
+	// Each launch owns its own IPC session, independent of the reusable player.
+	s := &playerSession{}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	baseOptions := items[0].Options
+	baseOptions.StartTimeSec = 0
+	if err := s.ensureRunningLocked(baseOptions); err != nil {
+		return err
+	}
+	if err := s.playPlaylistLocked(items); err != nil {
+		s.stopLocked()
+		return err
+	}
+	// Stay idle while populating the queue, then restore normal one-shot exit behavior.
+	if err := runIPCCommand(s.ipcPath, []any{"set_property", "idle", "no"}); err != nil {
+		s.stopLocked()
+		return err
+	}
+	focusStartedProcessWindow(s.cmd.Process.Pid, "play playlist")
 	return nil
 }
 
@@ -128,6 +181,35 @@ func (s *playerSession) PlayVideo(path string, options PlayOptions) error {
 	return errors.New("play video failed")
 }
 
+func (s *playerSession) PlayPlaylist(items []PlaylistItem) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := s.ensureRunningLocked(items[0].Options); err != nil {
+			return err
+		}
+		if err := s.playPlaylistLocked(items); err != nil {
+			lastErr = err
+			if isIPCResponseError(err) {
+				return err
+			}
+			logging.Error("mpv ipc playlist playback failed, restarting player: %v", err)
+			s.stopLocked()
+			continue
+		}
+		if s.cmd != nil && s.cmd.Process != nil {
+			focusStartedProcessWindow(s.cmd.Process.Pid, "play playlist")
+		}
+		return nil
+	}
+	if lastErr != nil {
+		return fmt.Errorf("play playlist: %w", lastErr)
+	}
+	return errors.New("play playlist failed")
+}
+
 func (s *playerSession) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -140,6 +222,9 @@ func (s *playerSession) ensureRunningLocked(options PlayOptions) error {
 		return nil
 	}
 
+	// Reusable processes have no global seek position. Both single-video and
+	// playlist loads supply start positions as file-local options.
+	options.StartTimeSec = 0
 	cmd, ipcPath, err := buildCommandWithIPC("", options)
 	if err != nil {
 		return err
@@ -165,6 +250,11 @@ func (s *playerSession) ensureRunningLocked(options PlayOptions) error {
 		s.stopLocked()
 		return err
 	}
+	s.events, err = newPlaylistEvents(ipcPath)
+	if err != nil {
+		s.stopLocked()
+		return err
+	}
 	return nil
 }
 
@@ -176,12 +266,23 @@ func (s *playerSession) waitForExit(cmd *exec.Cmd) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.cmd == cmd {
+		if s.events != nil {
+			s.events.close()
+			s.events = nil
+		}
+		if runtime.GOOS != "windows" && s.ipcPath != "" {
+			_ = os.Remove(s.ipcPath)
+		}
 		s.cmd = nil
 		s.ipcPath = ""
 	}
 }
 
 func (s *playerSession) stopLocked() {
+	if s.events != nil {
+		s.events.close()
+		s.events = nil
+	}
 	cmd := s.cmd
 	ipcPath := s.ipcPath
 	s.cmd = nil
@@ -209,7 +310,86 @@ func (s *playerSession) playVideoLocked(path string, options PlayOptions) error 
 			return err
 		}
 	}
-	if err := runIPCCommand(s.ipcPath, buildLoadFileCommand(path, options)); err != nil {
+	// Screenshot settings must be file-local: unloading a playlist entry restores
+	// its previous settings, including any directory set before loadfile.
+	loadCommand, err := buildLoadFileCommand(path, options)
+	if err != nil {
+		return err
+	}
+	if err := runIPCCommand(s.ipcPath, loadCommand); err != nil {
+		return err
+	}
+	if !shouldRestoreWindowBeforeLoad() {
+		time.Sleep(darwinAfterLoadWindowRestoreDelay)
+	}
+	for _, command := range buildAfterLoadCommands() {
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			if isOptionalPlaybackCommand(command) {
+				logging.Error("optional mpv ipc command ignored: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
+	commands, err := buildBeforeLoadCommands(items[0].Options)
+	if err != nil {
+		return err
+	}
+	for _, command := range commands {
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			if isIPCResponseError(err) && isOptionalBeforeLoadCommand(command) {
+				logging.Error("optional mpv ipc command ignored: %v", err)
+				continue
+			}
+			return err
+		}
+	}
+	// Register titles and playback callbacks before any new entry starts.
+	if err := runIPCCommand(s.ipcPath, []any{"stop"}); err != nil {
+		return err
+	}
+	if err := runIPCCommand(s.ipcPath, []any{"playlist-clear"}); err != nil {
+		return err
+	}
+	for _, item := range items {
+		command, err := buildPlaylistLoadFileCommand(item, "append")
+		if err != nil {
+			return err
+		}
+		if err := runIPCCommand(s.ipcPath, command); err != nil {
+			return err
+		}
+	}
+	data, err := queryIPCCommand(s.ipcPath, []any{"get_property", "playlist"})
+	if err != nil {
+		return err
+	}
+	var entries []struct {
+		ID int64 `json:"id"`
+	}
+	if err := json.Unmarshal(data, &entries); err != nil {
+		return fmt.Errorf("read playlist entries: %w", err)
+	}
+	if len(entries) != len(items) {
+		return errors.New("playlist changed while loading")
+	}
+	callbacks := make(map[int64]func(), len(items))
+	titles := make(map[string]string, len(items))
+	for index, entry := range entries {
+		callbacks[entry.ID] = items[index].OnStarted
+		if title := strings.TrimSpace(items[index].Title); title != "" {
+			titles[strconv.FormatInt(entry.ID, 10)] = title
+		}
+	}
+	s.events.setCallbacks(callbacks)
+	if err := runIPCCommand(s.ipcPath, []any{"set_property", "user-data/javboss/playlist-titles", titles}); err != nil {
+		return err
+	}
+	if err := runIPCCommand(s.ipcPath, []any{"playlist-play-index", 0}); err != nil {
 		return err
 	}
 	if !shouldRestoreWindowBeforeLoad() {
@@ -280,6 +460,7 @@ func buildCommandArgs(path string, options PlayOptions, ipcPath string) (*exec.C
 	args = append(args, buildThumbfastScriptArgs(mpvPath, options.EnableNetworkThumbnail)...)
 	args = append(args, "--script="+modernZ.ScriptPath)
 	args = append(args, "--script="+modernZ.ThumbfastScriptPath)
+	args = append(args, "--script="+modernZ.PlaylistScriptPath)
 	if screenshotArgs, err := buildPlaybackScreenshotArgs(options); err != nil {
 		return nil, err
 	} else if len(screenshotArgs) > 0 {
@@ -317,10 +498,11 @@ func buildPlaybackStartArgs(options PlayOptions) []string {
 }
 
 func playbackIPCPath() (string, error) {
+	id := strconv.FormatInt(nextIPCSessionID.Add(1), 10)
 	if runtime.GOOS == "windows" {
-		return `\\.\pipe\javboss-mpv-` + strconv.Itoa(os.Getpid()), nil
+		return `\\.\pipe\javboss-mpv-` + strconv.Itoa(os.Getpid()) + "-" + id, nil
 	}
-	return sessionPath("mpv-ipc.sock")
+	return sessionPath("mpv-ipc-" + id + ".sock")
 }
 
 func buildBeforeLoadCommands(options PlayOptions) ([][]any, error) {
@@ -382,12 +564,34 @@ func isOptionalPlaybackCommand(command []any) bool {
 	return name == "set_property" && property == "window-minimized"
 }
 
-func buildLoadFileCommand(path string, options PlayOptions) []any {
-	command := []any{"loadfile", path, "replace"}
-	if options.StartTimeSec > 0 {
-		command = append(command, -1, "start="+strconv.FormatFloat(options.StartTimeSec, 'f', -1, 64))
+func buildLoadFileCommand(path string, options PlayOptions) ([]any, error) {
+	return buildPlaylistLoadFileCommand(PlaylistItem{Path: path, Options: options}, "replace")
+}
+
+func buildPlaylistLoadFileCommand(item PlaylistItem, mode string) ([]any, error) {
+	options := map[string]string{
+		"screenshot-template": playbackScreenshotTemplate,
 	}
-	return command
+	if title := strings.TrimSpace(item.Title); title != "" {
+		options["force-media-title"] = title
+	}
+	screenshotDir, err := ensurePlaybackScreenshotDir(item.Options)
+	if err != nil {
+		return nil, err
+	}
+	if screenshotDir == "" {
+		screenshotDir, err = ensureFallbackScreenshotDir()
+		if err != nil {
+			return nil, err
+		}
+	}
+	if screenshotDir != "" {
+		options["screenshot-directory"] = screenshotDir
+	}
+	if item.Options.StartTimeSec > 0 {
+		options["start"] = strconv.FormatFloat(item.Options.StartTimeSec, 'f', -1, 64)
+	}
+	return []any{"loadfile", item.Path, mode, -1, options}, nil
 }
 
 func buildPlaybackScreenshotArgs(options PlayOptions) ([]string, error) {
@@ -446,9 +650,14 @@ func waitForIPCReady(ipcPath string) error {
 }
 
 func runIPCCommand(ipcPath string, command []any) error {
+	_, err := queryIPCCommand(ipcPath, command)
+	return err
+}
+
+func queryIPCCommand(ipcPath string, command []any) (json.RawMessage, error) {
 	conn, err := dialMPVIPC(ipcPath, ipcCommandTimeout)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer conn.Close()
 
@@ -462,18 +671,18 @@ func runIPCCommand(ipcPath string, command []any) error {
 		RequestID: requestID,
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	raw = append(raw, '\n')
 	if _, err := conn.Write(raw); err != nil {
-		return err
+		return nil, err
 	}
 
 	reader := bufio.NewReader(conn)
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		var response ipcResponse
@@ -484,12 +693,12 @@ func runIPCCommand(ipcPath string, command []any) error {
 			continue
 		}
 		if response.Error != "" && response.Error != "success" {
-			return &ipcResponseError{
+			return nil, &ipcResponseError{
 				command: commandName(command),
 				message: response.Error,
 			}
 		}
-		return nil
+		return response.Data, nil
 	}
 }
 

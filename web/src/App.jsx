@@ -8,6 +8,7 @@ import {
   deleteVideoLocation,
   updateConfig,
   playVideoFile,
+  playVideoPlaylist,
   openVideoFile,
   revealVideoLocation,
   updateVideoJavScrapeSettings,
@@ -43,6 +44,7 @@ import {
   replaceJavFavoriteGroups,
   processDirectory,
   scanDirectory,
+  fetchVideos,
 } from '@/api'
 import GlobalSettingsModal from '@/components/GlobalSettingsModal'
 import DownloadView from '@/components/DownloadView'
@@ -98,6 +100,17 @@ import { useAuth } from '@/auth'
 
 const JAV_SCRAPE_OVERRIDE_SKIP = ':skip'
 const JAV_SCRAPE_OVERRIDE_MANUAL_PREFIX = ':manual:'
+const MPV_BULK_PLAY_CONFIRM_THRESHOLD = 500
+
+const confirmLargeMPVPlaylist = (count) => {
+  if (count <= MPV_BULK_PLAY_CONFIRM_THRESHOLD) return true
+  return window.confirm(
+    zh(
+      `即将使用 MPV 播放 ${count} 个视频。视频数量较多，可能造成 MPV 加载卡顿，是否继续？`,
+      `You are about to play ${count} videos with MPV. A large playlist may cause MPV to load slowly. Continue?`
+    )
+  )
+}
 
 const normalizeDefaultPlayer = (value) => {
   const normalized = String(value || '')
@@ -346,7 +359,9 @@ export default function App() {
   const [selectionJavTagsOpen, setSelectionJavTagsOpen] = useState(false)
   const [selectionJavTagChoices, setSelectionJavTagChoices] = useState([])
   const [selectionJavTagSaving, setSelectionJavTagSaving] = useState(false)
+  const [selectionPlaying, setSelectionPlaying] = useState(false)
   const [selectionDeleting, setSelectionDeleting] = useState(false)
+  const [videoBulkActionBusy, setVideoBulkActionBusy] = useState(false)
   const [videoPageSizeInput, setVideoPageSizeInput] = useState(pageSize)
   const [videoSortInput, setVideoSortInput] = useState(sortOrder)
   const [videoHideJavInput, setVideoHideJavInput] = useState(videoHideJav)
@@ -2700,6 +2715,47 @@ export default function App() {
     })
   }, [])
 
+  const handlePlaySelection = useCallback(async () => {
+    if (selectionPlaying || !mpvEnabled) return
+    const targets = selectedList
+      .map((item) => {
+        const videoId = Number(item?.video_id || item?.video?.id)
+        const locationId = Number(item?.location_id || item?.video?.location_id || 0)
+        if (!Number.isFinite(videoId) || videoId <= 0) return null
+        return {
+          video_id: videoId,
+          location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : 0,
+          title: item?.label || item?.video?.filename || `Video #${videoId}`,
+        }
+      })
+      .filter(Boolean)
+    if (targets.length !== selectedList.length || targets.length === 0) {
+      showCenterToast(
+        zh(
+          '无法播放：部分所选视频缺少文件信息',
+          'Cannot play: some selected videos are missing file information'
+        )
+      )
+      return
+    }
+    if (!confirmLargeMPVPlaylist(targets.length)) return
+
+    setSelectionPlaying(true)
+    try {
+      const result = await playVideoPlaylist(targets)
+      const count = Number(result?.count) || targets.length
+      setSelectionOpsOpen(false)
+      showToast(
+        zh(`已将 ${count} 个视频加入 MPV 播放列表`, `Added ${count} videos to the MPV playlist`)
+      )
+    } catch (err) {
+      console.error(zh('加入 MPV 播放列表失败', 'Failed to add to MPV playlist'), err)
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setSelectionPlaying(false)
+    }
+  }, [mpvEnabled, selectedList, selectionPlaying, showCenterToast, showToast])
+
   const handleDeleteSelection = useCallback(async () => {
     if (selectionDeleting) return
     const targets = selectedList
@@ -3707,36 +3763,176 @@ export default function App() {
     [saveScrollBeforeUrlStateChange]
   )
 
-  const handleToggleSelectPage = useCallback(() => {
-    if (!Array.isArray(videos) || videos.length === 0) return
-    useStore.setState((state) => {
-      const pageKeys = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
-      if (pageKeys.length === 0) return {}
-      const nextIds = new Set(state.selectedVideoIds)
-      const nextMeta = { ...state.selectedVideoMeta }
-      const allSelected = pageKeys.every((key) => nextIds.has(key))
-      if (allSelected) {
-        pageKeys.forEach((key) => {
-          nextIds.delete(key)
-          delete nextMeta[key]
-        })
-      } else {
-        videos.forEach((video) => {
-          const key = videoSelectionKey(video)
-          if (!video?.id || !key) return
-          nextIds.add(key)
-          nextMeta[key] = {
-            label: video.filename || video.path || `#${video.id}`,
-            video_id: video.id,
+  const addVideosToSelection = useCallback((items) => {
+    const entries = (Array.isArray(items) ? items : [])
+      .map((video) => {
+        const key = videoSelectionKey(video)
+        const videoId = Number(video?.id)
+        if (!key || !Number.isFinite(videoId) || videoId <= 0) return null
+        return {
+          key,
+          meta: {
+            label: video.filename || video.path || `#${videoId}`,
+            video_id: videoId,
             location_id: video.location_id || null,
             jav_id: video.jav_id || null,
             jav_code: video.jav?.code || video.locations?.[0]?.jav?.code || '',
-          }
-        })
-      }
+          },
+        }
+      })
+      .filter(Boolean)
+
+    if (entries.length === 0) return 0
+    useStore.setState((state) => {
+      const nextIds = new Set(state.selectedVideoIds)
+      const nextMeta = { ...state.selectedVideoMeta }
+      entries.forEach(({ key, meta }) => {
+        nextIds.add(key)
+        nextMeta[key] = meta
+      })
       return { selectedVideoIds: nextIds, selectedVideoMeta: nextMeta }
     })
-  }, [videos])
+    return entries.length
+  }, [])
+
+  const fetchAllMatchingVideos = useCallback(async () => {
+    if (randomMode) {
+      return Array.isArray(videos) ? videos : []
+    }
+
+    const batchSize = 500
+    let expectedTotal = Math.max(0, Number(total) || 0)
+    let offset = 0
+    const items = []
+    const effectiveSort = videoTempSort || sortOrder
+
+    while (offset < expectedTotal) {
+      const limit = Math.min(batchSize, expectedTotal - offset)
+      const response = await fetchVideos({
+        limit,
+        offset,
+        tags: selectedTags,
+        search: searchTerm || '',
+        sort: effectiveSort,
+        hideJav: videoHideJav,
+      })
+      const batch = Array.isArray(response?.items) ? response.items : []
+      items.push(...batch)
+      const responseTotal = Number(response?.total)
+      if (Number.isFinite(responseTotal) && responseTotal >= 0) {
+        expectedTotal = responseTotal
+      }
+      if (batch.length === 0) break
+      offset += limit
+    }
+
+    return items
+  }, [randomMode, searchTerm, selectedTags, sortOrder, total, videoHideJav, videoTempSort, videos])
+
+  const playVideosWithMPV = useCallback(
+    async (items) => {
+      const list = Array.isArray(items) ? items : []
+      const targets = list
+        .map((video) => {
+          const videoId = Number(video?.id)
+          const locationId = Number(video?.location_id || 0)
+          if (!Number.isFinite(videoId) || videoId <= 0) return null
+          return {
+            video_id: videoId,
+            location_id: Number.isFinite(locationId) && locationId > 0 ? locationId : 0,
+            title: video?.filename || `Video #${videoId}`,
+          }
+        })
+        .filter(Boolean)
+      if (targets.length !== list.length || targets.length === 0) {
+        showCenterToast(
+          zh(
+            '无法播放：部分视频缺少文件信息',
+            'Cannot play: some videos are missing file information'
+          )
+        )
+        return
+      }
+      if (!confirmLargeMPVPlaylist(targets.length)) return
+
+      const result = await playVideoPlaylist(targets)
+      const count = Number(result?.count) || targets.length
+      showToast(
+        zh(`已将 ${count} 个视频加入 MPV 播放列表`, `Added ${count} videos to the MPV playlist`)
+      )
+    },
+    [showCenterToast, showToast]
+  )
+
+  const handleSelectVideoPage = useCallback(() => {
+    const count = addVideosToSelection(videos)
+    if (count > 0) {
+      showToast(zh(`已选择本页 ${count} 个视频`, `Selected ${count} videos on this page`))
+    }
+  }, [addVideosToSelection, showToast, videos])
+
+  const handleSelectAllVideos = useCallback(async () => {
+    if (videoBulkActionBusy) return
+    setVideoBulkActionBusy(true)
+    try {
+      const items = await fetchAllMatchingVideos()
+      const count = addVideosToSelection(items)
+      if (count > 0) {
+        showToast(zh(`已选择全部 ${count} 个视频`, `Selected all ${count} videos`))
+      }
+    } catch (err) {
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setVideoBulkActionBusy(false)
+    }
+  }, [
+    addVideosToSelection,
+    fetchAllMatchingVideos,
+    showCenterToast,
+    showToast,
+    videoBulkActionBusy,
+  ])
+
+  const handlePlayVideoPage = useCallback(async () => {
+    if (selectionPlaying || videoBulkActionBusy || !mpvEnabled) return
+    setSelectionPlaying(true)
+    try {
+      await playVideosWithMPV(videos)
+    } catch (err) {
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setSelectionPlaying(false)
+    }
+  }, [
+    mpvEnabled,
+    playVideosWithMPV,
+    selectionPlaying,
+    showCenterToast,
+    videoBulkActionBusy,
+    videos,
+  ])
+
+  const handlePlayAllVideos = useCallback(async () => {
+    if (selectionPlaying || videoBulkActionBusy || !mpvEnabled) return
+    setSelectionPlaying(true)
+    setVideoBulkActionBusy(true)
+    try {
+      const items = await fetchAllMatchingVideos()
+      await playVideosWithMPV(items)
+    } catch (err) {
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setVideoBulkActionBusy(false)
+      setSelectionPlaying(false)
+    }
+  }, [
+    fetchAllMatchingVideos,
+    mpvEnabled,
+    playVideosWithMPV,
+    selectionPlaying,
+    showCenterToast,
+    videoBulkActionBusy,
+  ])
 
   const activeError = isJavMode
     ? javTab === 'download'
@@ -4143,7 +4339,12 @@ export default function App() {
             videos={videos}
             selectedVideoIds={selectedVideoIds}
             toggleSelectVideo={toggleSelectVideo}
-            onToggleSelectPage={handleToggleSelectPage}
+            onSelectAll={handleSelectAllVideos}
+            onSelectPage={handleSelectVideoPage}
+            onPlayPage={handlePlayVideoPage}
+            onPlayAll={handlePlayAllVideos}
+            bulkActionBusy={videoBulkActionBusy || selectionPlaying}
+            mpvEnabled={mpvEnabled}
             openPlayer={handleOpenPlayer}
             openAlternatePlayer={alternatePlayer ? handleOpenAlternatePlayer : null}
             revealFile={desktopIntegrationEnabled ? handleRevealVideoFile : null}
@@ -4372,8 +4573,11 @@ export default function App() {
         selectedList={selectedList}
         selectedCount={selectedCount}
         selectedJavCount={selectedJavIds.length}
+        mpvEnabled={mpvEnabled}
+        playing={selectionPlaying}
         deleting={selectionDeleting}
         onRemoveSelected={handleRemoveSelectedVideo}
+        onPlaySelected={handlePlaySelection}
         onOpenTags={() => {
           loadTags()
           setSelectionTagAction('add')
