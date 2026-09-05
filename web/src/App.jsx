@@ -3783,6 +3783,10 @@ export default function App() {
   }, [])
 
   const fetchAllMatchingVideos = useCallback(async () => {
+    if (randomMode) {
+      return Array.isArray(videos) ? videos : []
+    }
+
     const batchSize = 500
     let expectedTotal = Math.max(0, Number(total) || 0)
     let offset = 0
@@ -3810,7 +3814,7 @@ export default function App() {
     }
 
     return items
-  }, [searchTerm, selectedTags, sortOrder, total, videoHideJav, videoTempSort])
+  }, [randomMode, searchTerm, selectedTags, sortOrder, total, videoHideJav, videoTempSort, videos])
 
   const playVideosWithMPV = useCallback(
     async (items) => {
