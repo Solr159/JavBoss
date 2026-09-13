@@ -44,16 +44,12 @@ const PLATFORM_CHOICES = [
 ];
 
 const PLATFORM_BY_LABEL = new Map(PLATFORM_CHOICES.map((p) => [p.label, p]));
-// BtbN GPL builds include NVENC, QSV and AMF (plus VAAPI on Linux).
-// Pin a month-end build: upstream retains these for two years; daily builds
-// expire after 14 days. Linux requires glibc >= 2.28 and kernel >= 4.18.
 const FF_BINARY_DOWNLOADS = new Map([
   [
     "windows-x86_64",
     {
-      ffmpeg: "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n8.1.2-50-g1a748fe2cd-win64-gpl-8.1.zip",
-      ffmpegDownloadSHA256: "273abb45f3f9f76c303e35ff39f5bb6c23c163ae65f6244a32b7d4a7f6cf0616",
-      ffmpegSHA256: "19121c4a9dece4780f33e6cfc2ba58e36347d4c64f0df4efc05a6959a8191aa6",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
+      ffmpegSHA256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
       ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-win-x64.exe",
       ffprobeSHA256: "fc37ca23d31ee08bb8f7e108edf3822f6ef3efc1a8d306bbe0b779190230710b",
     },
@@ -61,9 +57,8 @@ const FF_BINARY_DOWNLOADS = new Map([
   [
     "linux-x86_64",
     {
-      ffmpeg: "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n8.1.2-50-g1a748fe2cd-linux64-gpl-8.1.tar.xz",
-      ffmpegDownloadSHA256: "c733b4b2951e5957e15505f788b2c65a7a41b6da4b289e295852cc38079b4d2b",
-      ffmpegSHA256: "ad7a8c8e8fe4f50972f32f63705cfcc57f44cd3531f57aa8defe388372242f5e",
+      ffmpeg: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
+      ffmpegSHA256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
       ffprobe: "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffprobe-linux-x64",
       ffprobeSHA256: "065d3c56926052a76e884c4e4b51b7d95248da9391ab7effdcca6b94ceab98cf",
     },
@@ -585,8 +580,6 @@ async function createZip(outDir, zipPath) {
   }
   const baseDir = path.dirname(outDir);
   const baseName = path.basename(outDir);
-  // zip updates existing archives and otherwise retains removed bundled files.
-  await fsp.rm(zipPath, { force: true });
   await runCommand("zip", ["-rq", zipPath, baseName], { cwd: baseDir });
 }
 
@@ -602,7 +595,7 @@ async function runRelease(choice, version) {
   const ffmpegOk = choice.goos !== "darwin" || (await isBundledFfmpegReady(choice));
   if (!ffmpegOk) {
     console.error(
-      `[release] bin/${choice.label} 缺少或版本不匹配 ffmpeg，请先选择 “download-dependencies” 下载。`,
+      `[release] bin/${choice.label} 缺少 ffmpeg，请先选择 “download-dependencies” 下载。`,
     );
     process.exitCode = 1;
     return;
