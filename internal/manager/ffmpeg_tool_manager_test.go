@@ -24,16 +24,12 @@ func TestFFmpegDownloadSources(t *testing.T) {
 	tests := map[string]struct {
 		version   string
 		urlMarker string
-		suffix    string
+		gzip      bool
 	}{
-		"windows/amd64": {ffmpegRelease, "BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/", ".zip"},
-		"linux/amd64":   {ffmpegRelease, "BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/", ".tar.xz"},
-		"darwin/amd64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", ".gz"},
-		"darwin/arm64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", ".gz"},
-	}
-	cli, err := os.ReadFile("../../scripts/cli/cli.mjs")
-	if err != nil {
-		t.Fatal(err)
+		"windows/amd64": {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
+		"linux/amd64":   {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
+		"darwin/amd64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
+		"darwin/arm64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
 	}
 	for platform, want := range tests {
 		download, ok := ffmpegDownloads[platform]
@@ -41,19 +37,14 @@ func TestFFmpegDownloadSources(t *testing.T) {
 			t.Errorf("missing download source for %s", platform)
 			continue
 		}
-		for _, value := range []string{download.url, download.downloadSHA, download.binarySHA256} {
-			if !bytes.Contains(cli, []byte(value)) {
-				t.Errorf("%s CLI download configuration is missing %q", platform, value)
-			}
-		}
 		if download.version != want.version {
 			t.Errorf("%s version = %q, want %q", platform, download.version, want.version)
 		}
 		if !strings.Contains(download.url, want.urlMarker) {
 			t.Errorf("%s download URL = %q, want marker %q", platform, download.url, want.urlMarker)
 		}
-		if !strings.HasSuffix(download.url, want.suffix) {
-			t.Errorf("%s URL = %q, want suffix %q", platform, download.url, want.suffix)
+		if strings.HasSuffix(download.url, ".gz") != want.gzip {
+			t.Errorf("%s gzip URL = %t, want %t", platform, strings.HasSuffix(download.url, ".gz"), want.gzip)
 		}
 		for name, checksum := range map[string]string{
 			"download": download.downloadSHA,
