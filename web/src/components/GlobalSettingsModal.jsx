@@ -161,11 +161,7 @@ export default function GlobalSettingsModal({
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
   const ffmpegInstalledLabel =
-    ffmpegStatus?.source === 'builtin'
-      ? zh('已内置', 'Built in')
-      : ffmpegStatus?.source === 'system'
-        ? zh('系统可用', 'Available on system')
-        : zh('已安装', 'Installed')
+    ffmpegStatus?.source === 'builtin' ? zh('已内置', 'Built in') : zh('已安装', 'Installed')
 
   const resetPlayerBasicInputs = () => {
     setPlayerWindowWidthInput(String(PLAYER_BASIC_DEFAULTS.windowWidth))

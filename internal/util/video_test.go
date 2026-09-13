@@ -2,8 +2,10 @@ package util
 
 import (
 	"encoding/binary"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -171,33 +173,112 @@ func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
 	}
 }
 
-func TestFindFFmpegPathUsesEnvironmentInContainerMode(t *testing.T) {
-	ffmpegPath := filepath.Join(t.TempDir(), "container-ffmpeg")
-	if err := os.WriteFile(ffmpegPath, []byte("container ffmpeg"), 0o755); err != nil {
-		t.Fatalf("write container FFmpeg fixture: %v", err)
-	}
-	t.Setenv("JAVBOSS_CONTAINER", "1")
+func TestFindFFmpegPathOnlyUsesProjectFiles(t *testing.T) {
+	t.Setenv("JAVBOSS_CONTAINER", "")
 	t.Setenv("JAVBOSS_DOCKER", "")
-	t.Setenv("FFMPEG_PATH", ffmpegPath)
+	for _, source := range []string{"none", "bundled", "downloaded"} {
+		t.Run(source, func(t *testing.T) {
+			baseDir := t.TempDir()
+			t.Chdir(baseDir)
+			binName := filepath.Base(FFmpegToolRelativePath())
+			systemDir := t.TempDir()
+			systemPath := filepath.Join(systemDir, binName)
+			if err := os.WriteFile(systemPath, []byte("system ffmpeg"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", systemDir)
+			t.Setenv("FFMPEG_PATH", systemPath)
 
-	got, err := findFFmpegPath()
-	if err != nil {
-		t.Fatalf("find FFmpeg: %v", err)
-	}
-	if filepath.Clean(got) != filepath.Clean(ffmpegPath) {
-		t.Fatalf("findFFmpegPath() = %q, want %q", got, ffmpegPath)
+			want := ""
+			if source == "bundled" {
+				want = filepath.Join(baseDir, "internal", "bin", binName)
+			} else if source == "downloaded" {
+				want = filepath.Join(baseDir, FFmpegToolRelativePath())
+			}
+			if want != "" {
+				if err := os.MkdirAll(filepath.Dir(want), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(want, []byte("project ffmpeg"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if source == "bundled" && runtime.GOOS != "darwin" {
+				want = ""
+			}
+			got, err := findFFmpegPath()
+			if want == "" {
+				if err == nil || got != "" {
+					t.Fatalf("unmanaged FFmpeg was accepted: %q, %v", got, err)
+				}
+			} else if err != nil || got != want {
+				t.Fatalf("findFFmpegPath() = %q, %v; want %q", got, err, want)
+			}
+		})
 	}
 }
 
-func TestShouldUseFFmpegPathOnlyInContainerMode(t *testing.T) {
-	if shouldUseFFBinaryEnv("ffmpeg", false) {
-		t.Fatal("FFMPEG_PATH should be ignored outside container mode")
+func TestFindFFprobePathIgnoresEnvironmentAndSystemPath(t *testing.T) {
+	baseDir := t.TempDir()
+	t.Chdir(baseDir)
+	t.Setenv("JAVBOSS_CONTAINER", "")
+	t.Setenv("JAVBOSS_DOCKER", "")
+	binName := "ffprobe" + filepath.Ext(FFmpegToolRelativePath())
+	systemDir := t.TempDir()
+	systemPath := filepath.Join(systemDir, binName)
+	if err := os.WriteFile(systemPath, []byte("system ffprobe"), 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if !shouldUseFFBinaryEnv("ffmpeg", true) {
-		t.Fatal("FFMPEG_PATH should be used in container mode")
+	t.Setenv("FFPROBE_PATH", systemPath)
+	t.Setenv("PATH", systemDir)
+	if got, err := findFFprobePath(); err == nil || got != "" {
+		t.Fatalf("environment/system FFprobe was accepted: %q, %v", got, err)
 	}
-	if !shouldUseFFBinaryEnv("ffprobe", false) {
-		t.Fatal("FFPROBE_PATH should remain available outside container mode")
+
+	bundledPath := filepath.Join(baseDir, "internal", "bin", binName)
+	if err := os.MkdirAll(filepath.Dir(bundledPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(bundledPath, []byte("bundled ffprobe"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := findFFprobePath(); err != nil || got != bundledPath {
+		t.Fatalf("findFFprobePath() = %q, %v; want %q", got, err, bundledPath)
+	}
+}
+
+func TestDockerFFBinaryLookupOnlyUsesFixedImagePath(t *testing.T) {
+	t.Setenv("JAVBOSS_CONTAINER", "1")
+	t.Setenv("JAVBOSS_DOCKER", "")
+	t.Chdir(t.TempDir())
+	t.Setenv("FFMPEG_PATH", "/ignored/ffmpeg")
+	t.Setenv("FFPROBE_PATH", "/ignored/ffprobe")
+	for _, name := range []string{"ffmpeg", "ffprobe"} {
+		for _, installed := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/installed=%t", name, installed), func(t *testing.T) {
+				want := "/app/internal/bin/" + name
+				var calls []string
+				lookup := func(candidate string) (string, error) {
+					calls = append(calls, candidate)
+					if candidate == want && !installed {
+						return "", os.ErrNotExist
+					}
+					// Other paths would succeed, exposing any unwanted fallback.
+					return candidate, nil
+				}
+				got, err := findFFBinaryPathWithLookup(name, lookup)
+				if len(calls) != 1 || calls[0] != want {
+					t.Fatalf("lookup paths = %v, want only %s", calls, want)
+				}
+				if installed {
+					if err != nil || got != want {
+						t.Fatalf("got %q, %v; want %q", got, err, want)
+					}
+				} else if err == nil || got != "" {
+					t.Fatalf("missing image binary must fail without fallback: %q, %v", got, err)
+				}
+			})
+		}
 	}
 }
 
@@ -214,8 +295,8 @@ func TestFFBinaryCandidatesForBasePlatformOrder(t *testing.T) {
 		want []string
 	}{
 		{name: "macOS prioritizes bundled FFmpeg", goos: "darwin", want: []string{bundledPath, downloadedPath}},
-		{name: "Windows prioritizes downloaded FFmpeg", goos: "windows", want: []string{downloadedPath, bundledPath}},
-		{name: "Linux prioritizes downloaded FFmpeg", goos: "linux", want: []string{downloadedPath, bundledPath}},
+		{name: "Windows only uses tool downloads", goos: "windows", want: []string{downloadedPath}},
+		{name: "Linux only uses tool downloads", goos: "linux", want: []string{downloadedPath}},
 	}
 
 	for _, tt := range tests {

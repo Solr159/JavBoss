@@ -24,12 +24,16 @@ func TestFFmpegDownloadSources(t *testing.T) {
 	tests := map[string]struct {
 		version   string
 		urlMarker string
-		gzip      bool
+		suffix    string
 	}{
-		"windows/amd64": {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
-		"linux/amd64":   {ffmpegRelease, "shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/", false},
-		"darwin/amd64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
-		"darwin/arm64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", true},
+		"windows/amd64": {ffmpegRelease, "BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/", ".zip"},
+		"linux/amd64":   {ffmpegRelease, "BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/", ".tar.xz"},
+		"darwin/amd64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", ".gz"},
+		"darwin/arm64":  {"6.1.1", "eugeneware/ffmpeg-static/releases/download/b6.1.1/", ".gz"},
+	}
+	cli, err := os.ReadFile("../../scripts/cli/cli.mjs")
+	if err != nil {
+		t.Fatal(err)
 	}
 	for platform, want := range tests {
 		download, ok := ffmpegDownloads[platform]
@@ -37,14 +41,19 @@ func TestFFmpegDownloadSources(t *testing.T) {
 			t.Errorf("missing download source for %s", platform)
 			continue
 		}
+		for _, value := range []string{download.url, download.downloadSHA, download.binarySHA256} {
+			if !bytes.Contains(cli, []byte(value)) {
+				t.Errorf("%s CLI download configuration is missing %q", platform, value)
+			}
+		}
 		if download.version != want.version {
 			t.Errorf("%s version = %q, want %q", platform, download.version, want.version)
 		}
 		if !strings.Contains(download.url, want.urlMarker) {
 			t.Errorf("%s download URL = %q, want marker %q", platform, download.url, want.urlMarker)
 		}
-		if strings.HasSuffix(download.url, ".gz") != want.gzip {
-			t.Errorf("%s gzip URL = %t, want %t", platform, strings.HasSuffix(download.url, ".gz"), want.gzip)
+		if !strings.HasSuffix(download.url, want.suffix) {
+			t.Errorf("%s URL = %q, want suffix %q", platform, download.url, want.suffix)
 		}
 		for name, checksum := range map[string]string{
 			"download": download.downloadSHA,
@@ -345,21 +354,13 @@ func TestNewFFmpegToolManagerUsesPersistentDataPath(t *testing.T) {
 
 func TestFFmpegToolManagerDetectsBuiltInFFmpeg(t *testing.T) {
 	tests := []struct {
-		name          string
-		containerMode bool
-		resolvedPath  func(string) string
+		name         string
+		resolvedPath func(string) string
 	}{
 		{
-			name: "macOS release bundle",
+			name: "release bundle",
 			resolvedPath: func(baseDir string) string {
 				return filepath.Join(baseDir, "internal", "bin", "ffmpeg")
-			},
-		},
-		{
-			name:          "Docker image",
-			containerMode: true,
-			resolvedPath: func(baseDir string) string {
-				return filepath.Join(baseDir, "usr", "local", "bin", "ffmpeg")
 			},
 		},
 	}
@@ -376,10 +377,9 @@ func TestFFmpegToolManagerDetectsBuiltInFFmpeg(t *testing.T) {
 			}
 
 			manager := &FFmpegToolManager{
-				context:       context.Background(),
-				targetPath:    filepath.Join(baseDir, "data", "tools", "test", "ffmpeg"),
-				bundledDir:    filepath.Join(baseDir, "internal", "bin"),
-				containerMode: tt.containerMode,
+				context:    context.Background(),
+				targetPath: filepath.Join(baseDir, "data", "tools", "test", "ffmpeg"),
+				bundledDir: filepath.Join(baseDir, "internal", "bin"),
 				resolveFFmpeg: func() (string, error) {
 					return resolvedPath, nil
 				},
@@ -398,6 +398,86 @@ func TestFFmpegToolManagerDetectsBuiltInFFmpeg(t *testing.T) {
 			}
 			if started {
 				t.Fatal("StartDownload() = true for built-in FFmpeg")
+			}
+		})
+	}
+}
+
+func TestFFmpegToolManagerIgnoresSystemInstallation(t *testing.T) {
+	for _, containerMode := range []string{"", "1"} {
+		t.Run("container="+containerMode, func(t *testing.T) {
+			t.Setenv("JAVBOSS_CONTAINER", containerMode)
+			t.Setenv("JAVBOSS_DOCKER", "")
+			baseDir := t.TempDir()
+			systemPath := filepath.Join(t.TempDir(), currentTestFFmpegBinaryName())
+			payload := []byte("system ffmpeg")
+			if err := os.WriteFile(systemPath, payload, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			manager := NewFFmpegToolManager(context.Background(), baseDir)
+			manager.resolveFFmpeg = func() (string, error) { return systemPath, nil }
+			status := manager.Status()
+			if status.Installed || status.Source != "" {
+				t.Fatalf("system FFmpeg should not count as installed: %+v", status)
+			}
+
+			// An unrelated resolver result must not hide a valid tool download.
+			if err := os.MkdirAll(filepath.Dir(manager.targetPath), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manager.targetPath, payload, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256(payload)
+			manager.binarySHA = hex.EncodeToString(digest[:])
+			status = manager.Status()
+			if containerMode != "" {
+				if status.Installed || status.Source != "" || status.UpgradeAvailable {
+					t.Fatalf("Docker must ignore downloaded FFmpeg: %+v", status)
+				}
+			} else if !status.Installed || status.Source != "downloaded" {
+				t.Fatalf("valid tool download was not detected: %+v", status)
+			}
+		})
+	}
+}
+
+func TestDockerFFmpegToolManagerOnlyUsesImage(t *testing.T) {
+	t.Setenv("JAVBOSS_CONTAINER", "1")
+	t.Setenv("JAVBOSS_DOCKER", "")
+	for _, installed := range []bool{true, false} {
+		name := "missing image binary"
+		if installed {
+			name = "installed image binary"
+		}
+		t.Run(name, func(t *testing.T) {
+			manager := NewFFmpegToolManager(context.Background(), t.TempDir())
+			// Even a valid managed download must not be used inside Docker.
+			payload := []byte("downloaded ffmpeg")
+			if err := os.MkdirAll(filepath.Dir(manager.targetPath), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(manager.targetPath, payload, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			digest := sha256.Sum256(payload)
+			manager.binarySHA = hex.EncodeToString(digest[:])
+			manager.resolveFFmpeg = func() (string, error) {
+				if installed {
+					return "/app/internal/bin/ffmpeg", nil
+				}
+				return "", os.ErrNotExist
+			}
+			status := manager.Status()
+			if status.Installed != installed || status.Path != "/app/internal/bin/ffmpeg" || status.Supported || status.UpgradeAvailable {
+				t.Fatalf("unexpected Docker tool status: %+v", status)
+			}
+			if installed && status.Source != "builtin" {
+				t.Fatalf("source = %q, want builtin", status.Source)
+			}
+			started, err := manager.StartDownload()
+			if started || (!installed && err == nil) {
+				t.Fatalf("Docker must never download FFmpeg: started=%t, err=%v", started, err)
 			}
 		})
 	}

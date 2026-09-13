@@ -201,6 +201,9 @@ var (
 	ffprobeErr  error
 )
 
+// ContainerFFBinaryDir is the only location used for FFmpeg tools in Docker.
+const ContainerFFBinaryDir = "/app/internal/bin"
+
 // ResolveFFprobePath resolves the ffprobe binary location.
 func ResolveFFprobePath() (string, error) {
 	ffprobeOnce.Do(func() {
@@ -209,17 +212,18 @@ func ResolveFFprobePath() (string, error) {
 	return ffprobePath, ffprobeErr
 }
 
-// ResolveFFmpegPath resolves the ffmpeg binary location.
+// ResolveFFmpegPath uses only the fixed image path in Docker. Native installations
+// use tool downloads, with a bundled executable also supported on macOS.
 func ResolveFFmpegPath() (string, error) {
 	return findFFmpegPath()
 }
 
 func findFFprobePath() (string, error) {
-	return findFFBinaryPath("FFPROBE_PATH", "ffprobe")
+	return findFFBinaryPath("ffprobe")
 }
 
 func findFFmpegPath() (string, error) {
-	return findFFBinaryPath("FFMPEG_PATH", "ffmpeg")
+	return findFFBinaryPath("ffmpeg")
 }
 
 // FFmpegToolRelativePath returns the persistent project-relative path used for
@@ -241,13 +245,21 @@ func FFmpegToolRelativePath() string {
 	return filepath.Join("data", "tools", platformOS+"-"+platformArch, binName)
 }
 
-func findFFBinaryPath(envKey, name string) (string, error) {
-	var candidates []string
-	containerMode := runtimeconfig.ContainerMode()
-	if env := strings.TrimSpace(os.Getenv(envKey)); env != "" &&
-		shouldUseFFBinaryEnv(name, containerMode) {
-		candidates = append(candidates, env)
+func findFFBinaryPath(name string) (string, error) {
+	return findFFBinaryPathWithLookup(name, exec.LookPath)
+}
+
+func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)) (string, error) {
+	if runtimeconfig.ContainerMode() {
+		imagePath := ContainerFFBinaryDir + "/" + name
+		resolved, err := lookup(imagePath)
+		if err != nil {
+			return "", fmt.Errorf("%s unavailable in Docker image at %s: %w", name, imagePath, err)
+		}
+		return resolved, nil
 	}
+
+	var candidates []string
 
 	binName := name
 	if runtime.GOOS == "windows" {
@@ -267,27 +279,21 @@ func findFFBinaryPath(envKey, name string) (string, error) {
 			ffBinaryCandidatesForBase(execDir, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
 		)
 	}
-	candidates = append(candidates, binName)
-
 	for _, candidate := range candidates {
 		if candidate == "" {
 			continue
 		}
-		if resolved, err := exec.LookPath(candidate); err == nil {
+		if resolved, err := lookup(candidate); err == nil {
 			return resolved, nil
 		}
 	}
 	if name == "ffmpeg" {
-		if containerMode {
-			return "", fmt.Errorf("%s not found; set %s or place binary at %s", name, envKey, filepath.ToSlash(FFmpegToolRelativePath()))
+		if runtime.GOOS != "darwin" {
+			return "", fmt.Errorf("%s not found; download it from Tools to %s", name, filepath.ToSlash(FFmpegToolRelativePath()))
 		}
-		return "", fmt.Errorf("%s not found; place binary at %s", name, filepath.ToSlash(FFmpegToolRelativePath()))
+		return "", fmt.Errorf("%s not found; use the release bundle at internal/bin/%s or download it from Tools to %s", name, binName, filepath.ToSlash(FFmpegToolRelativePath()))
 	}
-	return "", fmt.Errorf("%s not found; set %s or place binary at internal/bin/%s", name, envKey, binName)
-}
-
-func shouldUseFFBinaryEnv(name string, containerMode bool) bool {
-	return name != "ffmpeg" || containerMode
+	return "", fmt.Errorf("%s not found; place binary at internal/bin/%s", name, binName)
 }
 
 func ffBinaryCandidatesForBase(baseDir string, name string, binName string, goos string, ffmpegToolPath string) []string {
@@ -300,7 +306,7 @@ func ffBinaryCandidatesForBase(baseDir string, name string, binName string, goos
 	if goos == "darwin" {
 		return []string{bundledPath, downloadedPath}
 	}
-	return []string{downloadedPath, bundledPath}
+	return []string{downloadedPath}
 }
 
 // ProbeVideo extracts codec/resolution/fps/duration using ffprobe.
