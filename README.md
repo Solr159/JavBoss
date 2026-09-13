@@ -9,9 +9,6 @@
   <a href="https://go.dev/"><img alt="Go" src="https://img.shields.io/badge/Go-1.25%2B-00ADD8?logo=go&logoColor=white"></a>
 </p>
 
-**此项目仍处于快速迭代中，点个 Star ⭐支持一下，不错过任何新版本功能更新，你的支持是作者积极更新的动力😊。**
-
-
 ## 为什么选择 JavBoss？
 
 - 零配置开箱即用，小白也能轻松上手。
