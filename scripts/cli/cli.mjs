@@ -580,6 +580,8 @@ async function createZip(outDir, zipPath) {
   }
   const baseDir = path.dirname(outDir);
   const baseName = path.basename(outDir);
+  // zip updates existing archives and otherwise retains removed bundled files.
+  await fsp.rm(zipPath, { force: true });
   await runCommand("zip", ["-rq", zipPath, baseName], { cwd: baseDir });
 }
 
