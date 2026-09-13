@@ -79,6 +79,8 @@ func directoryProcessMode(raw string) (mode string, status string, ok bool) {
 		return mode, DirectoryWorkOrganizing, true
 	case DirectoryProcessOrganizeWithSidecar:
 		return mode, DirectoryWorkOrganizingWithSidecar, true
+	case DirectoryProcessTranscode:
+		return mode, DirectoryWorkTranscoding, true
 	default:
 		return "", "", false
 	}
@@ -107,6 +109,9 @@ func StartDirectoryProcessing(ctx context.Context, directory models.Directory, m
 		return ErrInvalidDirectoryProcessMode
 	}
 	mode = normalizedMode
+	if mode == DirectoryProcessTranscode {
+		return startDirectoryTranscode(ctx, directory)
+	}
 	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return ErrInvalidDirectoryProcessLayout
@@ -200,6 +205,9 @@ func ProcessDirectory(
 		return nil, ErrInvalidDirectoryProcessMode
 	}
 	mode = normalizedMode
+	if mode == DirectoryProcessTranscode {
+		return nil, errors.New("transcoding requires an asynchronous directory job")
+	}
 	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return nil, ErrInvalidDirectoryProcessLayout
