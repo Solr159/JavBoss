@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -133,6 +134,7 @@ func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
 }
 
 func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
+	t.Setenv("JAVBOSS_BUILD_MODE", "development")
 	originalWorkingDir, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("get working directory: %v", err)
@@ -174,6 +176,7 @@ func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
 }
 
 func TestFindFFmpegPathOnlyUsesProjectFiles(t *testing.T) {
+	t.Setenv("JAVBOSS_BUILD_MODE", "development")
 	t.Setenv("JAVBOSS_CONTAINER", "")
 	t.Setenv("JAVBOSS_DOCKER", "")
 	for _, source := range []string{"none", "bundled", "downloaded"} {
@@ -219,6 +222,7 @@ func TestFindFFmpegPathOnlyUsesProjectFiles(t *testing.T) {
 }
 
 func TestFindFFprobePathIgnoresEnvironmentAndSystemPath(t *testing.T) {
+	t.Setenv("JAVBOSS_BUILD_MODE", "development")
 	baseDir := t.TempDir()
 	t.Chdir(baseDir)
 	t.Setenv("JAVBOSS_CONTAINER", "")
@@ -247,7 +251,56 @@ func TestFindFFprobePathIgnoresEnvironmentAndSystemPath(t *testing.T) {
 	}
 }
 
+func TestReleaseFFBinaryLookupOnlyUsesExecutableDirectory(t *testing.T) {
+	t.Setenv("JAVBOSS_BUILD_MODE", "release")
+	t.Setenv("JAVBOSS_CONTAINER", "")
+	t.Setenv("JAVBOSS_DOCKER", "")
+	t.Chdir(t.TempDir())
+	execPath, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	execDir := filepath.Dir(execPath)
+	for _, name := range []string{"ffmpeg", "ffprobe"} {
+		for _, installed := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%s/installed=%t", name, installed), func(t *testing.T) {
+				binName := name + filepath.Ext(FFmpegToolRelativePath())
+				want := filepath.Join(execDir, "internal", "bin", binName)
+				if name == "ffmpeg" {
+					want = filepath.Join(execDir, FFmpegToolRelativePath())
+				}
+				calls := 0
+				lookup := func(candidate string) (string, error) {
+					calls++
+					rel, err := filepath.Rel(execDir, candidate)
+					if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+						t.Errorf("release looked outside executable directory: %q", candidate)
+						// A working-directory or system binary would be available.
+						return candidate, nil
+					}
+					if installed && candidate == want {
+						return candidate, nil
+					}
+					return "", os.ErrNotExist
+				}
+				got, err := findFFBinaryPathWithLookup(name, lookup)
+				if calls == 0 {
+					t.Fatal("executable directory was not checked")
+				}
+				if installed {
+					if err != nil || got != want {
+						t.Fatalf("got %q, %v; want %q", got, err, want)
+					}
+				} else if err == nil || got != "" {
+					t.Fatalf("missing release binary must fail without fallback: %q, %v", got, err)
+				}
+			})
+		}
+	}
+}
+
 func TestDockerFFBinaryLookupOnlyUsesFixedImagePath(t *testing.T) {
+	t.Setenv("JAVBOSS_BUILD_MODE", "release")
 	t.Setenv("JAVBOSS_CONTAINER", "1")
 	t.Setenv("JAVBOSS_DOCKER", "")
 	t.Chdir(t.TempDir())

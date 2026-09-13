@@ -214,6 +214,7 @@ func ResolveFFprobePath() (string, error) {
 
 // ResolveFFmpegPath uses only the fixed image path in Docker. Native installations
 // use tool downloads, with a bundled executable also supported on macOS.
+// Release builds resolve paths only relative to the executable directory.
 func ResolveFFmpegPath() (string, error) {
 	return findFFmpegPath()
 }
@@ -266,11 +267,14 @@ func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)
 		binName = name + ".exe"
 	}
 
-	if wd, err := os.Getwd(); err == nil {
-		candidates = append(
-			candidates,
-			ffBinaryCandidatesForBase(wd, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
-		)
+	releaseMode := os.Getenv("JAVBOSS_BUILD_MODE") == "release"
+	if !releaseMode {
+		if wd, err := os.Getwd(); err == nil {
+			candidates = append(
+				candidates,
+				ffBinaryCandidatesForBase(wd, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
+			)
+		}
 	}
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
@@ -278,6 +282,8 @@ func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)
 			candidates,
 			ffBinaryCandidatesForBase(execDir, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
 		)
+	} else if releaseMode {
+		return "", fmt.Errorf("resolve executable directory for %s: %w", name, err)
 	}
 	for _, candidate := range candidates {
 		if candidate == "" {
