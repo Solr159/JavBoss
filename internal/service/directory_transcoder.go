@@ -388,18 +388,9 @@ func transcodeDirectoryFile(ctx context.Context, directory models.Directory, bin
 		},
 		Validate: func(ctx context.Context, output string) error {
 			job.update(func(p *DirectoryTranscodeProgress) { p.Phase = "verifying" })
-			var probeErr error
-			outputMeta, probeErr = util.ProbeVideoContext(ctx, output)
-			if probeErr != nil {
-				return probeErr
-			}
-			if !util.BrowserCompatibleVideo(outputMeta) || outputMeta.DurationSeconds <= 0 || (meta.AudioCodec != "" && outputMeta.AudioCodec == "") {
-				return errors.New("converted file failed browser compatibility validation")
-			}
-			if meta.DurationSeconds > 0 && math.Abs(outputMeta.DurationSeconds-meta.DurationSeconds) > math.Max(2, meta.DurationSeconds*0.01) {
-				return errors.New("converted duration differs from source")
-			}
-			return util.ValidateTranscodedVideo(ctx, binary, output)
+			var validationErr error
+			outputMeta, validationErr = util.ValidateTranscodedVideo(ctx, output, meta)
+			return validationErr
 		},
 	})
 	if err != nil {

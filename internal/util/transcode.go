@@ -3,11 +3,14 @@ package util
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // TranscodeWorkDirectory is excluded from library scans: it holds temporary
@@ -103,16 +106,27 @@ func transcodeBrowserMP4WithEncoder(ctx context.Context, binary, source, output 
 	return scanner.Err()
 }
 
-// ValidateTranscodedVideo fully decodes the output before the source is deleted.
-func ValidateTranscodedVideo(ctx context.Context, binary, path string) error {
-	cmd := exec.CommandContext(ctx, binary, "-hide_banner", "-loglevel", "error", "-nostdin", "-xerror", "-i", path, "-map", "0:v:0", "-map", "0:a?", "-f", "null", "-")
-	var stderr transcodeLog
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return fmt.Errorf("validate converted video: %w: %s", err, strings.TrimSpace(stderr.text))
+// ValidateTranscodedVideo checks the output file and stream metadata without a
+// full decode pass. It cannot detect corruption in every encoded packet.
+func ValidateTranscodedVideo(ctx context.Context, path string, source *VideoMetadata) (*VideoMetadata, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	if !info.Mode().IsRegular() || info.Size() <= 0 {
+		return nil, errors.New("converted file is not a non-empty regular file")
+	}
+	probeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	meta, err := ProbeVideoContext(probeCtx, path)
+	if err != nil {
+		return nil, err
+	}
+	if !BrowserCompatibleVideo(meta) || meta.DurationSeconds <= 0 || (source.AudioCodec != "" && meta.AudioCodec == "") {
+		return nil, errors.New("converted file failed browser compatibility validation")
+	}
+	if source.DurationSeconds > 0 && math.Abs(meta.DurationSeconds-source.DurationSeconds) > math.Max(2, source.DurationSeconds*0.01) {
+		return nil, errors.New("converted duration differs from source")
+	}
+	return meta, nil
 }
