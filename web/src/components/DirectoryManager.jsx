@@ -8,6 +8,7 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import { CircularProgress, IconButton, Switch, Tooltip } from '@mui/material'
 
 import DirectoryPickerModal from '@/components/DirectoryPickerModal'
+import DirectoryTranscodeProgress from '@/components/DirectoryTranscodeProgress'
 import AppModal from '@/components/AppModal'
 import { useStore } from '@/store'
 import { apiHostPath, displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
@@ -17,11 +18,20 @@ import { getErrorMessage } from '@/utils/errors'
 const DIRECTORY_PROCESS_SIDECAR = 'sidecar'
 const DIRECTORY_PROCESS_ORGANIZE = 'organize'
 const DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR = 'organize_with_sidecar'
+const DIRECTORY_PROCESS_TRANSCODE = 'transcode'
 const DIRECTORY_PROCESS_LAYOUT_PREFIX = 'prefix'
 const DIRECTORY_PROCESS_LAYOUT_CODE = 'code'
 const DIRECTORY_PROCESS_LAYOUT_IDOL = 'idol'
 
 const directoryProcessOptions = () => [
+  {
+    mode: DIRECTORY_PROCESS_TRANSCODE,
+    title: zh('转为浏览器可播放的 MP4', 'Convert to browser-playable MP4'),
+    description: zh(
+      '递归检查视频，将不符合通用浏览器兼容标准的文件转为 MP4；保留标签、播放次数等信息，成功后删除源文件。',
+      'Recursively convert videos that do not meet common browser compatibility requirements to MP4. Preserve tags and play counts; delete source files after success.'
+    ),
+  },
   {
     mode: DIRECTORY_PROCESS_SIDECAR,
     title: zh('仅生成 NFO 和封面', 'Generate NFO and covers only'),
@@ -114,6 +124,12 @@ const directoryWorkStatus = (directory) =>
 
 const directoryWorkStatusDisplay = (status) => {
   switch (status) {
+    case 'transcoding':
+      return {
+        label: zh('当前状态：转码中', 'Status: Transcoding'),
+        badge: 'bg-blue-50 text-blue-700',
+        dot: 'animate-pulse bg-blue-500',
+      }
     case 'scanning':
       return {
         label: zh('当前状态：扫描中', 'Status: Scanning'),
@@ -679,6 +695,11 @@ export default function DirectoryManager({
                   {rowErrorId === d.id && rowErrorMsg && (
                     <div className="text-xs text-red-600">{rowErrorMsg}</div>
                   )}
+                  <DirectoryTranscodeProgress
+                    key={`${d.id}-${d.transcode_progress?.started_at_unix_ms}`}
+                    directoryId={d.id}
+                    progress={d.transcode_progress}
+                  />
                 </div>
                 <div className="contents md:flex md:flex-col md:items-end md:gap-2">
                   <label
@@ -891,7 +912,15 @@ export default function DirectoryManager({
               </label>
             ))}
           </div>
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+          {toolMode === DIRECTORY_PROCESS_TRANSCODE && (
+            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              {zh(
+                '输出为 H.264 / AAC MP4，保留各音轨及可转换的文本字幕；图片字幕等不支持的情况会报错并保留源文件。已兼容的 MP4 / WebM 会跳过，同名目标文件不会覆盖。源文件仅在校验和记录更新成功后删除。',
+                'Output: H.264 / AAC MP4, retaining audio tracks and convertible text subtitles. Unsupported streams such as bitmap subtitles cause a failure and retain the source. Compatible MP4 / WebM files are skipped; existing targets are never overwritten. Sources are deleted only after validation and record updates.'
+              )}
+            </div>
+          )}
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_TRANSCODE && (
             <div className="mt-4">
               <div className="text-sm font-medium text-zinc-900">
                 {zh('整理方式', 'Organization layout')}
@@ -934,7 +963,7 @@ export default function DirectoryManager({
               )}
             </div>
           )}
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_TRANSCODE && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
                 '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',

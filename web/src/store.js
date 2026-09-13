@@ -31,6 +31,7 @@ import {
 import { normalizeVideoSort } from '@/constants/video'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
+import { transcodeResultsChanged } from '@/utils/directoryTranscode'
 
 const VIDEO_PAGE_SIZE = 25
 const JAV_PAGE_SIZE = 24
@@ -724,7 +725,20 @@ export const useStore = create((set, get) => ({
     try {
       const directories = await fetchDirectories()
       const active = directories.filter((d) => !d.is_delete)
+      const previous = new Map(get().directories.map((directory) => [directory.id, directory]))
+      const converted = active.some((directory) =>
+        transcodeResultsChanged(
+          previous.get(directory.id)?.transcode_progress,
+          directory.transcode_progress
+        )
+      )
       set({ directories: active })
+      if (converted) {
+        await Promise.allSettled([
+          get().loadVideos({ force: true }),
+          get().loadJavs({ force: true }),
+        ])
+      }
     } catch (e) {
       console.error(zh('加载目录失败', 'Failed to load directories'), e)
     }

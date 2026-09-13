@@ -534,6 +534,12 @@ export async function scanDirectory(id) {
   return res.json()
 }
 
+export async function cancelDirectoryTranscode(id) {
+  const res = await apiFetch(`/directories/${id}/transcode`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
 export async function fetchJavs({
   limit = 25,
   offset = 0,
