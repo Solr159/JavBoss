@@ -1,11 +1,32 @@
 package util
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 )
+
+func TestBrowserCompatibleMKVChecksAllProbedAudioTracks(t *testing.T) {
+	for _, codec := range []string{"aac", "mp3", "dts", "ac3", ""} {
+		t.Run(codec, func(t *testing.T) {
+			data := fmt.Sprintf(`{"streams":[
+				{"codec_type":"video","codec_name":"h264","pix_fmt":"yuv420p"},
+				{"codec_type":"audio","codec_name":"aac"},
+				{"codec_type":"audio","codec_name":%q}
+			],"format":{"format_name":"matroska,webm"}}`, codec)
+			meta, err := parseFFprobeOutput([]byte(data), "movie.mkv")
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := codec == "aac" || codec == "mp3"
+			if got := BrowserCompatibleVideo(meta); got != want {
+				t.Fatalf("compatible = %t, want %t for second audio codec %q", got, want, codec)
+			}
+		})
+	}
+}
 
 func TestValidateTranscodedVideoQuickChecks(t *testing.T) {
 	binary, err := exec.LookPath("ffmpeg")
@@ -71,7 +92,13 @@ func TestBrowserCompatibleVideoChecksActualContainerAndPixelFormat(t *testing.T)
 		{"disguised transport stream", "mp4", "mpegts", "h264", "aac", "yuv420p", false},
 		{"hevc", "mp4", "mov", "hevc", "aac", "yuv420p", false},
 		{"ac3", "mp4", "mov", "h264", "ac3", "yuv420p", false},
-		{"mkv", "mkv", "matroska", "h264", "aac", "yuv420p", false},
+		{"mkv", "mkv", "matroska", "h264", "aac", "yuv420p", true},
+		{"silent mkv", "mkv", "matroska", "h264", "", "yuv420p", true},
+		{"mp3 mkv", "mkv", "matroska", "h264", "mp3", "yuv420p", true},
+		{"hevc mkv", "mkv", "matroska", "hevc", "aac", "yuv420p", false},
+		{"10 bit mkv", "mkv", "matroska", "h264", "aac", "yuv420p10le", false},
+		{"dts mkv", "mkv", "matroska", "h264", "dts", "yuv420p", false},
+		{"disguised mkv", "mkv", "mpegts", "h264", "aac", "yuv420p", false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

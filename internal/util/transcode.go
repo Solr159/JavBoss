@@ -17,8 +17,9 @@ import (
 // outputs and original files retained only during the commit/recovery window.
 const TranscodeWorkDirectory = ".javboss-transcode"
 
-// BrowserCompatibleVideo uses a conservative common-browser baseline, including
-// the actual demuxer and pixel format rather than trusting a filename extension.
+// BrowserCompatibleVideo determines which files directory conversion can skip.
+// MKV with compatible streams is retained for browsers supporting Matroska;
+// playback can fall back to HLS elsewhere. Check the actual demuxer as well.
 func BrowserCompatibleVideo(meta *VideoMetadata) bool {
 	if meta == nil || !AssessPlaybackSupport(meta).SupportsDirect {
 		return false
@@ -26,6 +27,8 @@ func BrowserCompatibleVideo(meta *VideoMetadata) bool {
 	switch meta.Container {
 	case "mp4":
 		return meta.FormatName == "mov" && (meta.PixelFormat == "yuv420p" || meta.PixelFormat == "yuvj420p")
+	case "mkv":
+		return meta.FormatName == "matroska" && (meta.PixelFormat == "yuv420p" || meta.PixelFormat == "yuvj420p")
 	case "webm":
 		return (meta.FormatName == "matroska" || meta.FormatName == "webm") && meta.PixelFormat == "yuv420p"
 	}

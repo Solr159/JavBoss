@@ -915,8 +915,8 @@ export default function DirectoryManager({
           {toolMode === DIRECTORY_PROCESS_TRANSCODE && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
-                '输出为 H.264 / AAC MP4，保留各音轨及可转换的文本字幕；图片字幕等不支持的情况会报错并保留源文件。已兼容的 MP4 / WebM 会跳过，同名目标文件不会覆盖。源文件仅在校验和记录更新成功后删除。',
-                'Output: H.264 / AAC MP4, retaining audio tracks and convertible text subtitles. Unsupported streams such as bitmap subtitles cause a failure and retain the source. Compatible MP4 / WebM files are skipped; existing targets are never overwritten. Sources are deleted only after validation and record updates.'
+                '输出为 H.264 / AAC MP4，保留各音轨及可转换的文本字幕；图片字幕等不支持的情况会报错并保留源文件。已兼容的 MP4 / WebM，以及 H.264、8 位 4:2:0、AAC/MP3 或无音轨的 MKV 会直接跳过。同名目标文件不会覆盖。源文件仅在校验和记录更新成功后删除。',
+                'Output: H.264 / AAC MP4, retaining audio tracks and convertible text subtitles. Unsupported streams such as bitmap subtitles cause a failure and retain the source. Compatible MP4 / WebM and MKV with H.264 8-bit 4:2:0 and AAC/MP3 or no audio are skipped. Existing targets are never overwritten. Sources are deleted only after validation and record updates.'
               )}
             </div>
           )}

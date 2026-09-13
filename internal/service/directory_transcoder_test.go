@@ -181,6 +181,63 @@ func TestDirectoryTranscodeRealCopiesPreserveMetadataAfterRescan(t *testing.T) {
 	}
 }
 
+func TestDirectoryTranscodeSkipsCompatibleMKVWithoutChangingFilesOrRecords(t *testing.T) {
+	for _, tracked := range []bool{false, true} {
+		t.Run(map[bool]string{false: "untracked", true: "tracked"}[tracked], func(t *testing.T) {
+			gdb, directory := transcodeTestDatabase(t)
+			source := filepath.Join(directory.Path, "movie.mkv")
+			transcodeTestSample(t, source, "libx264")
+			before, err := os.ReadFile(source)
+			if err != nil {
+				t.Fatal(err)
+			}
+			video := models.Video{PlayCount: 17}
+			var location models.VideoLocation
+			if tracked {
+				location = transcodeTestLocation(t, gdb, directory, "movie.mkv", &video)
+				tag := models.Tag{Name: "kept"}
+				if err := gdb.Create(&tag).Error; err != nil {
+					t.Fatal(err)
+				}
+				if err := gdb.Create(&models.VideoTag{VideoID: video.ID, TagID: tag.ID}).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			job := &directoryTranscodeJob{started: time.Now()}
+			// A missing encoder binary proves skipping never starts FFmpeg.
+			if err := runDirectoryTranscode(t.Context(), directory, filepath.Join(t.TempDir(), "missing-ffmpeg"), job); err != nil {
+				t.Fatal(err)
+			}
+			if job.progress.Skipped != 1 || job.progress.Converted != 0 || job.progress.Failed != 0 || job.transcoder != nil {
+				t.Fatalf("compatible MKV was processed: %+v", job.progress)
+			}
+			after, err := os.ReadFile(source)
+			if err != nil || string(after) != string(before) {
+				t.Fatal("skipped source changed")
+			}
+			for _, path := range []string{filepath.Join(directory.Path, "movie.mp4"), filepath.Join(directory.Path, util.TranscodeWorkDirectory)} {
+				if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("unexpected output: %s %v", path, err)
+				}
+			}
+			if tracked {
+				var saved models.VideoLocation
+				if err := gdb.Preload("Video.Tags").First(&saved, location.ID).Error; err != nil {
+					t.Fatal(err)
+				}
+				if saved.VideoID != video.ID || saved.RelativePath != "movie.mkv" || saved.Video.PlayCount != 17 || len(saved.Video.Tags) != 1 {
+					t.Fatalf("skipped metadata changed: %+v", saved)
+				}
+			} else {
+				var count int64
+				if err := gdb.Model(&models.Video{}).Count(&count).Error; err != nil || count != 0 {
+					t.Fatalf("skipping unexpectedly registered a video: %d %v", count, err)
+				}
+			}
+		})
+	}
+}
+
 func TestDirectoryTranscodeFailuresRetainSources(t *testing.T) {
 	for _, scenario := range []string{"target conflict", "encoder failure", "database failure", "incompatible mp4"} {
 		t.Run(scenario, func(t *testing.T) {
