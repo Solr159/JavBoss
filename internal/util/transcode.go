@@ -39,18 +39,28 @@ func (w *transcodeLog) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// TranscodeBrowserMP4 reports encoded media time while ffmpeg is running. Output
-// must be a new temporary path; -n protects any existing file.
+// TranscodeBrowserMP4 is the software-only entry point. Directory jobs use
+// BrowserTranscoder to select hardware automatically. Output must be a new
+// temporary path; -n protects any existing file.
 func TranscodeBrowserMP4(ctx context.Context, binary, source, output string, progress func(float64, string)) error {
-	cmd := exec.CommandContext(ctx, binary,
-		"-hide_banner", "-loglevel", "error", "-nostdin", "-xerror", "-n", "-i", source,
+	return transcodeBrowserMP4WithEncoder(ctx, binary, source, output, softwareBrowserEncoder(), nil, progress)
+}
+
+func transcodeBrowserMP4Args(source, output string, encoder browserVideoEncoder, meta *VideoMetadata) []string {
+	args := []string{"-hide_banner", "-loglevel", "error", "-nostdin", "-xerror", "-n"}
+	args = append(args, encoder.deviceArgs...)
+	args = append(args, "-i", source,
 		"-map", "0:v:0", "-map", "0:a?", "-map", "0:s?", "-dn",
-		"-map_metadata", "-1",
-		"-c:v", "libx264", "-preset", "medium", "-crf", "20",
-		"-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-pix_fmt", "yuv420p",
+		"-map_metadata", "-1")
+	args = append(args, encoder.videoArgs(meta)...)
+	return append(args,
 		"-c:a", "aac", "-profile:a", "aac_low", "-b:a", "192k", "-ac", "2",
 		"-c:s", "mov_text",
 		"-movflags", "+faststart", "-progress", "pipe:1", "-nostats", "-f", "mp4", output)
+}
+
+func transcodeBrowserMP4WithEncoder(ctx context.Context, binary, source, output string, encoder browserVideoEncoder, meta *VideoMetadata, progress func(float64, string)) error {
+	cmd := exec.CommandContext(ctx, binary, transcodeBrowserMP4Args(source, output, encoder, meta)...)
 	var stderr transcodeLog
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()

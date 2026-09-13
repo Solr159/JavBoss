@@ -14,6 +14,7 @@ export default function DirectoryTranscodeProgress({ directoryId, progress }) {
   const labels = {
     discovering: zh('正在查找视频', 'Finding videos'),
     probing: zh('正在检查兼容性', 'Checking compatibility'),
+    selecting_encoder: zh('正在检测硬件编码器', 'Checking hardware encoders'),
     transcoding: zh('正在转码', 'Transcoding'),
     verifying: zh('正在校验输出', 'Validating output'),
     finalizing: zh('正在更新记录并删除源文件', 'Updating records and deleting source'),
@@ -52,6 +53,45 @@ export default function DirectoryTranscodeProgress({ directoryId, progress }) {
           </button>
         )}
       </div>
+      {progress.encoder && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded px-2 py-0.5 font-medium ${
+              progress.hardware_acceleration
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-zinc-100 text-zinc-700'
+            }`}
+          >
+            {progress.hardware_acceleration
+              ? zh('GPU 硬件编码', 'GPU hardware encoding')
+              : zh('CPU 软件编码', 'CPU software encoding')}
+          </span>
+          <span className="font-mono">{progress.encoder}</span>
+        </div>
+      )}
+      {progress.encoder_fallback_reason && (
+        <div className="text-zinc-600">
+          {progress.encoder_fallback_reason === 'encoding_failed'
+            ? zh(
+                '硬件编码或校验失败，已回退 CPU 重试。',
+                'Hardware encoding or validation failed; retrying with CPU.'
+              )
+            : zh(
+                '未检测到可用硬件编码器，使用 CPU。',
+                'No usable hardware encoder detected; using CPU.'
+              )}
+          {progress.hardware_error && (
+            <details className="mt-1">
+              <summary className="cursor-pointer">
+                {zh('查看硬件检测详情', 'Hardware details')}
+              </summary>
+              <pre className="mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap break-all">
+                {progress.hardware_error}
+              </pre>
+            </details>
+          )}
+        </div>
+      )}
       <progress
         aria-label={zh('目录转码总进度', 'Overall directory transcode progress')}
         max="100"

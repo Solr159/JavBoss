@@ -35,28 +35,33 @@ type TranscodeIssue struct {
 // DirectoryTranscodeProgress is polled with GET /directories. Counters refer to
 // candidate files; current_percent remains below 100 until validation and commit.
 type DirectoryTranscodeProgress struct {
-	StartedAtUnixMS int64            `json:"started_at_unix_ms"`
-	Phase           string           `json:"phase"`
-	Total           int              `json:"total"`
-	Processed       int              `json:"processed"`
-	Converted       int              `json:"converted"`
-	Skipped         int              `json:"skipped"`
-	Failed          int              `json:"failed"`
-	CurrentFile     string           `json:"current_file"`
-	CurrentPercent  float64          `json:"current_percent"`
-	DurationSeconds float64          `json:"duration_seconds"`
-	EncodedSeconds  float64          `json:"encoded_seconds"`
-	Speed           string           `json:"speed"`
-	ElapsedMS       int64            `json:"elapsed_ms"`
-	Error           string           `json:"error,omitempty"`
-	Issues          []TranscodeIssue `json:"issues,omitempty"`
+	StartedAtUnixMS       int64            `json:"started_at_unix_ms"`
+	Phase                 string           `json:"phase"`
+	Total                 int              `json:"total"`
+	Processed             int              `json:"processed"`
+	Converted             int              `json:"converted"`
+	Skipped               int              `json:"skipped"`
+	Failed                int              `json:"failed"`
+	CurrentFile           string           `json:"current_file"`
+	CurrentPercent        float64          `json:"current_percent"`
+	DurationSeconds       float64          `json:"duration_seconds"`
+	EncodedSeconds        float64          `json:"encoded_seconds"`
+	Speed                 string           `json:"speed"`
+	Encoder               string           `json:"encoder,omitempty"`
+	HardwareAcceleration  bool             `json:"hardware_acceleration"`
+	EncoderFallbackReason string           `json:"encoder_fallback_reason,omitempty"`
+	HardwareError         string           `json:"hardware_error,omitempty"`
+	ElapsedMS             int64            `json:"elapsed_ms"`
+	Error                 string           `json:"error,omitempty"`
+	Issues                []TranscodeIssue `json:"issues,omitempty"`
 }
 
 type directoryTranscodeJob struct {
-	mu       sync.Mutex
-	progress DirectoryTranscodeProgress
-	started  time.Time
-	cancel   context.CancelFunc
+	mu         sync.Mutex
+	progress   DirectoryTranscodeProgress
+	started    time.Time
+	cancel     context.CancelFunc
+	transcoder *util.BrowserTranscoder
 }
 
 func (j *directoryTranscodeJob) update(f func(*DirectoryTranscodeProgress)) {
@@ -351,31 +356,53 @@ func transcodeDirectoryFile(ctx context.Context, directory models.Directory, bin
 		}
 	}()
 	output := filepath.Join(stage, "output.mp4")
-	job.update(func(p *DirectoryTranscodeProgress) { p.Phase = "transcoding"; p.DurationSeconds = meta.DurationSeconds })
-	err = util.TranscodeBrowserMP4(ctx, binary, source, output, func(seconds float64, speed string) {
-		job.update(func(p *DirectoryTranscodeProgress) {
-			p.EncodedSeconds, p.Speed = seconds, speed
-			if meta.DurationSeconds > 0 {
-				p.CurrentPercent = math.Min(99, 100*seconds/meta.DurationSeconds)
+	job.update(func(p *DirectoryTranscodeProgress) {
+		p.Phase = "selecting_encoder"
+		p.DurationSeconds = meta.DurationSeconds
+	})
+	if job.transcoder == nil {
+		job.transcoder = util.NewBrowserTranscoder(binary)
+	}
+	var outputMeta *util.VideoMetadata
+	err = job.transcoder.Transcode(ctx, source, output, util.BrowserTranscodeOptions{
+		Metadata: meta,
+		Progress: func(seconds float64, speed string) {
+			job.update(func(p *DirectoryTranscodeProgress) {
+				p.EncodedSeconds, p.Speed = seconds, speed
+				if meta.DurationSeconds > 0 {
+					p.CurrentPercent = math.Min(99, 100*seconds/meta.DurationSeconds)
+				}
+			})
+		},
+		EncoderChanged: func(status util.BrowserEncoderStatus) {
+			changed := false
+			job.update(func(p *DirectoryTranscodeProgress) {
+				changed = p.Encoder != status.Name || p.EncoderFallbackReason != status.FallbackReason
+				p.Encoder, p.HardwareAcceleration = status.Name, status.Hardware
+				p.EncoderFallbackReason, p.HardwareError = status.FallbackReason, status.Detail
+				p.Phase, p.CurrentPercent, p.EncodedSeconds, p.Speed = "transcoding", 0, 0, ""
+			})
+			if changed {
+				logging.Info("directory transcode encoder id=%d encoder=%s hardware=%t fallback=%s detail=%s", directory.ID, status.Name, status.Hardware, status.FallbackReason, status.Detail)
 			}
-		})
+		},
+		Validate: func(ctx context.Context, output string) error {
+			job.update(func(p *DirectoryTranscodeProgress) { p.Phase = "verifying" })
+			var probeErr error
+			outputMeta, probeErr = util.ProbeVideoContext(ctx, output)
+			if probeErr != nil {
+				return probeErr
+			}
+			if !util.BrowserCompatibleVideo(outputMeta) || outputMeta.DurationSeconds <= 0 || (meta.AudioCodec != "" && outputMeta.AudioCodec == "") {
+				return errors.New("converted file failed browser compatibility validation")
+			}
+			if meta.DurationSeconds > 0 && math.Abs(outputMeta.DurationSeconds-meta.DurationSeconds) > math.Max(2, meta.DurationSeconds*0.01) {
+				return errors.New("converted duration differs from source")
+			}
+			return util.ValidateTranscodedVideo(ctx, binary, output)
+		},
 	})
 	if err != nil {
-		return false, err
-	}
-	job.update(func(p *DirectoryTranscodeProgress) { p.Phase = "verifying" })
-	outputMeta, err := util.ProbeVideoContext(ctx, output)
-	if err != nil {
-		return false, err
-	}
-	if !util.BrowserCompatibleVideo(outputMeta) || outputMeta.DurationSeconds <= 0 || (meta.AudioCodec != "" && outputMeta.AudioCodec == "") {
-		return false, errors.New("converted file failed browser compatibility validation")
-	}
-	if meta.DurationSeconds > 0 && math.Abs(outputMeta.DurationSeconds-meta.DurationSeconds) > math.Max(2, meta.DurationSeconds*0.01) {
-		return false, errors.New("converted duration differs from source")
-	}
-	// Catch truncation/read failures even when the container header is valid.
-	if err := util.ValidateTranscodedVideo(ctx, binary, output); err != nil {
 		return false, err
 	}
 	after, err := os.Lstat(source)
@@ -408,6 +435,7 @@ func writeTranscodeReport(root string, job *directoryTranscodeJob) error {
 	snapshot := job.progress
 	job.mu.Unlock()
 	var report strings.Builder
+	fmt.Fprintf(&report, "编码器 / Encoder: %s\n硬件编码 / Hardware encoding: %t\n回退原因 / Fallback: %s\n%s\n", snapshot.Encoder, snapshot.HardwareAcceleration, snapshot.EncoderFallbackReason, snapshot.HardwareError)
 	fmt.Fprintf(&report, "JavBoss 转码报告 / Transcode report\n状态 / Status: %s\n总数 / Total: %d\n成功 / Converted: %d\n兼容已跳过 / Already compatible: %d\n失败 / Failed: %d\n%s\n", snapshot.Phase, snapshot.Total, snapshot.Converted, snapshot.Skipped, snapshot.Failed, snapshot.Error)
 	for _, issue := range snapshot.Issues {
 		fmt.Fprintf(&report, "\n%s\n%s\n", issue.Path, issue.Error)

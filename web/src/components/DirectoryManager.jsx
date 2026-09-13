@@ -28,8 +28,8 @@ const directoryProcessOptions = () => [
     mode: DIRECTORY_PROCESS_TRANSCODE,
     title: zh('转为浏览器可播放的 MP4', 'Convert to browser-playable MP4'),
     description: zh(
-      '递归检查视频，将不符合通用浏览器兼容标准的文件转为 MP4；保留标签、播放次数等信息，成功后删除源文件。',
-      'Recursively convert videos that do not meet common browser compatibility requirements to MP4. Preserve tags and play counts; delete source files after success.'
+      '递归检查视频，优先使用可用的 GPU 转为兼容 MP4，不可用时回退 CPU；保留标签、播放次数等信息，成功后删除源文件。',
+      'Recursively convert videos to compatible MP4, preferring available GPU encoding with CPU fallback. Preserve tags and play counts; delete source files after success.'
     ),
   },
   {
