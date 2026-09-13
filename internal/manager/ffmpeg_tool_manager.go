@@ -1,8 +1,6 @@
 package manager
 
 import (
-	"bufio"
-	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,7 +21,7 @@ import (
 	"javboss/internal/util"
 )
 
-const ffmpegRelease = "8.1.2"
+const ffmpegRelease = "8.1.2-50-g1a748fe2cd-20260831"
 
 type ffmpegDownload struct {
 	version      string
@@ -32,18 +30,21 @@ type ffmpegDownload struct {
 	binarySHA256 string
 }
 
+// Keep Windows/Linux sources and both checksums aligned with scripts/cli/cli.mjs.
+// BtbN month-end builds are retained for two years; Linux needs glibc >= 2.28
+// and kernel >= 4.18. These builds include NVENC, QSV, AMF and Linux VAAPI.
 var ffmpegDownloads = map[string]ffmpegDownload{
 	"windows/amd64": {
 		version:      ffmpegRelease,
-		url:          "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-win-x64.exe",
-		downloadSHA:  "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
-		binarySHA256: "4044b3924c977ad31229d504c5d5b8685f9553124fbaff6e9c99048b42830341",
+		url:          "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n8.1.2-50-g1a748fe2cd-win64-gpl-8.1.zip",
+		downloadSHA:  "273abb45f3f9f76c303e35ff39f5bb6c23c163ae65f6244a32b7d4a7f6cf0616",
+		binarySHA256: "19121c4a9dece4780f33e6cfc2ba58e36347d4c64f0df4efc05a6959a8191aa6",
 	},
 	"linux/amd64": {
 		version:      ffmpegRelease,
-		url:          "https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/n8.1.2-1/ffmpeg-linux-x64",
-		downloadSHA:  "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
-		binarySHA256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
+		url:          "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-n8.1.2-50-g1a748fe2cd-linux64-gpl-8.1.tar.xz",
+		downloadSHA:  "c733b4b2951e5957e15505f788b2c65a7a41b6da4b289e295852cc38079b4d2b",
+		binarySHA256: "ad7a8c8e8fe4f50972f32f63705cfcc57f44cd3531f57aa8defe388372242f5e",
 	},
 	// TODO: macOS 暂时保留 FFmpeg 6.1.1。Shaka 8.1.2 构建最低要求 macOS 15，
 	// 无法兼容目前仍需支持的 macOS 12–14；其他兼容构建又会让发布包增大 20 MB
@@ -121,8 +122,14 @@ func NewFFmpegToolManager(ctx context.Context, baseDir string) *FFmpegToolManage
 		downloadSHA:   download.downloadSHA,
 		binarySHA:     download.binarySHA256,
 		httpClient:    util.NewHTTPClient(0),
-		containerMode: runtimeconfig.ContainerMode(),
 		resolveFFmpeg: util.ResolveFFmpegPath,
+		containerMode: runtimeconfig.ContainerMode(),
+	}
+	if manager.containerMode {
+		manager.displayPath = util.ContainerFFBinaryDir + "/ffmpeg"
+		manager.bundledDir = util.ContainerFFBinaryDir
+		manager.downloadURL = ""
+		return manager
 	}
 	if manager.managedFFmpegNeedsUpgrade() {
 		logging.Info("managed FFmpeg at %s does not match release %s and can be upgraded", manager.displayPath, manager.version)
@@ -166,6 +173,9 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 	if m.downloading || installed {
 		return false, nil
 	}
+	if m.containerMode {
+		return false, errors.New("FFmpeg must be provided by the Docker image at /app/internal/bin/ffmpeg; rebuild the image to restore it")
+	}
 	if m.downloadURL == "" {
 		return false, errors.New("automatic FFmpeg download is not supported on this platform")
 	}
@@ -180,11 +190,18 @@ func (m *FFmpegToolManager) StartDownload() (bool, error) {
 }
 
 func (m *FFmpegToolManager) detectInstallation() (bool, string, bool) {
+	if m.containerMode {
+		if m.resolveFFmpeg != nil {
+			resolvedPath, err := m.resolveFFmpeg()
+			if err == nil && resolvedPath == util.ContainerFFBinaryDir+"/ffmpeg" {
+				return true, "builtin", false
+			}
+		}
+		return false, "", false
+	}
 	if m.resolveFFmpeg != nil {
 		if resolvedPath, err := m.resolveFFmpeg(); err == nil && isUsableFFmpegFile(resolvedPath) {
 			switch {
-			case m.containerMode:
-				return true, "builtin", false
 			case sameFilePath(resolvedPath, m.targetPath):
 				if m.managedFFmpegIsCurrent() {
 					return true, "downloaded", false
@@ -192,8 +209,6 @@ func (m *FFmpegToolManager) detectInstallation() (bool, string, bool) {
 				return false, "", true
 			case pathWithinDirectory(resolvedPath, m.bundledDir):
 				return true, "builtin", false
-			default:
-				return true, "system", false
 			}
 		}
 	}
@@ -253,6 +268,29 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	m.totalBytes = resp.ContentLength
 	m.mu.Unlock()
 
+	archiveFile, err := os.CreateTemp(m.tempDir, ".ffmpeg-archive-*")
+	if err != nil {
+		return fmt.Errorf("create FFmpeg archive file: %w", err)
+	}
+	defer os.Remove(archiveFile.Name())
+	defer archiveFile.Close()
+
+	hasher := sha256.New()
+	countedBody := &downloadProgressReader{
+		reader: resp.Body,
+		update: m.updateProgress,
+		hash:   hasher,
+	}
+	if _, err := io.Copy(archiveFile, countedBody); err != nil {
+		return fmt.Errorf("save FFmpeg download: %w", err)
+	}
+	if actualSHA := hex.EncodeToString(hasher.Sum(nil)); !strings.EqualFold(actualSHA, m.downloadSHA) {
+		return fmt.Errorf("verify FFmpeg download checksum: got %s", actualSHA)
+	}
+	if _, err := archiveFile.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind FFmpeg download: %w", err)
+	}
+
 	tempPattern := ".ffmpeg-download-*"
 	if strings.EqualFold(filepath.Ext(m.targetPath), ".exe") {
 		tempPattern += ".exe"
@@ -264,47 +302,16 @@ func (m *FFmpegToolManager) downloadToTarget() error {
 	tempPath := tempFile.Name()
 	defer os.Remove(tempPath)
 
-	hasher := sha256.New()
-	countedBody := &downloadProgressReader{
-		reader: resp.Body,
-		update: m.updateProgress,
-		hash:   hasher,
-	}
-	bufferedBody := bufio.NewReader(countedBody)
-	magic, err := bufferedBody.Peek(2)
-	if err != nil {
-		_ = tempFile.Close()
-		return fmt.Errorf("read FFmpeg download header: %w", err)
-	}
-
-	downloadReader := io.Reader(bufferedBody)
-	var gzipReader *gzip.Reader
-	if magic[0] == 0x1f && magic[1] == 0x8b {
-		gzipReader, err = gzip.NewReader(bufferedBody)
-		if err != nil {
-			_ = tempFile.Close()
-			return fmt.Errorf("open FFmpeg archive: %w", err)
-		}
-		downloadReader = gzipReader
-	}
-
-	_, copyErr := io.Copy(tempFile, downloadReader)
-	var gzipErr error
-	if gzipReader != nil {
-		gzipErr = gzipReader.Close()
-	}
+	extractErr := extractFFmpegDownload(archiveFile, tempFile, filepath.Base(m.targetPath))
 	closeErr := tempFile.Close()
-	if copyErr != nil {
-		return fmt.Errorf("extract FFmpeg: %w", copyErr)
-	}
-	if gzipErr != nil {
-		return fmt.Errorf("close FFmpeg archive: %w", gzipErr)
+	if extractErr != nil {
+		return fmt.Errorf("extract FFmpeg: %w", extractErr)
 	}
 	if closeErr != nil {
 		return fmt.Errorf("save FFmpeg: %w", closeErr)
 	}
-	if actualSHA := hex.EncodeToString(hasher.Sum(nil)); !strings.EqualFold(actualSHA, m.downloadSHA) {
-		return fmt.Errorf("verify FFmpeg download checksum: got %s", actualSHA)
+	if !fileMatchesSHA256(tempPath, m.binarySHA) {
+		return errors.New("verify FFmpeg binary checksum: mismatch")
 	}
 	if err := os.Chmod(tempPath, 0o755); err != nil {
 		return fmt.Errorf("make FFmpeg executable: %w", err)

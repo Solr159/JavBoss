@@ -524,9 +524,11 @@ func startReleaseKeyboardControls(ctx context.Context, cancel context.CancelFunc
 
 func resolveBaseDir() (string, error) {
 	if buildMode == "release" {
-		if execPath, err := os.Executable(); err == nil {
-			return filepath.Dir(execPath), nil
+		execPath, err := os.Executable()
+		if err != nil {
+			return "", fmt.Errorf("resolve executable directory: %w", err)
 		}
+		return filepath.Dir(execPath), nil
 	}
 	if wd, err := os.Getwd(); err == nil {
 		return wd, nil

@@ -29,18 +29,26 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS ffmpeg-build
 
 ARG TARGETARCH
-ARG FFMPEG_RELEASE=n8.1.2-1
+# Keep the month-end BtbN build aligned with scripts/cli/cli.mjs.
+# Month-end releases are retained for two years; daily releases expire sooner.
+ARG FFMPEG_RELEASE=autobuild-2026-08-31-13-27
+ARG FFMPEG_VERSION=n8.1.2-50-g1a748fe2cd
+ARG FFPROBE_RELEASE=n8.1.2-1
 
 RUN set -eu; \
   case "${TARGETARCH}" in \
     amd64) \
-      asset_arch="x64"; \
-      ffmpeg_sha256="9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee"; \
+      ffmpeg_arch="linux64"; \
+      ffprobe_arch="x64"; \
+      archive_sha256="c733b4b2951e5957e15505f788b2c65a7a41b6da4b289e295852cc38079b4d2b"; \
+      ffmpeg_sha256="ad7a8c8e8fe4f50972f32f63705cfcc57f44cd3531f57aa8defe388372242f5e"; \
       ffprobe_sha256="065d3c56926052a76e884c4e4b51b7d95248da9391ab7effdcca6b94ceab98cf" \
       ;; \
     arm64) \
-      asset_arch="arm64"; \
-      ffmpeg_sha256="6e7b1d7d1aa8c35e3fedd78a140aa0968717aeb7386ecfb0ee00773d9f0a4503"; \
+      ffmpeg_arch="linuxarm64"; \
+      ffprobe_arch="arm64"; \
+      archive_sha256="ae5da4f51b9052390f414005f8ab26c1eed1268f327cce7cb79aa076b29bd66e"; \
+      ffmpeg_sha256="1b216dbbe46adf213945d357ef958404eed1632e7fb38a85f7f030ed9c212bcf"; \
       ffprobe_sha256="fd2aca1456f0261cabef4514b6d97a70fa342003347f51b39c473dd364328089" \
       ;; \
     *) \
@@ -48,18 +56,24 @@ RUN set -eu; \
       exit 1 \
       ;; \
   esac; \
-  release_url="https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/${FFMPEG_RELEASE}"; \
-  wget -q -O /ffmpeg "${release_url}/ffmpeg-linux-${asset_arch}"; \
+  archive_name="ffmpeg-${FFMPEG_VERSION}-${ffmpeg_arch}-gpl-8.1"; \
+  release_url="https://github.com/BtbN/FFmpeg-Builds/releases/download/${FFMPEG_RELEASE}"; \
+  wget -q -O /ffmpeg.tar.xz "${release_url}/${archive_name}.tar.xz"; \
+  echo "${archive_sha256}  /ffmpeg.tar.xz" | sha256sum -c -; \
+  tar -xJf /ffmpeg.tar.xz -C / --strip-components=2 "${archive_name}/bin/ffmpeg"; \
   echo "${ffmpeg_sha256}  /ffmpeg" | sha256sum -c -; \
-  wget -q -O /ffprobe "${release_url}/ffprobe-linux-${asset_arch}"; \
+  rm /ffmpeg.tar.xz; \
+  ffprobe_url="https://github.com/shaka-project/static-ffmpeg-binaries/releases/download/${FFPROBE_RELEASE}"; \
+  wget -q -O /ffprobe "${ffprobe_url}/ffprobe-linux-${ffprobe_arch}"; \
   echo "${ffprobe_sha256}  /ffprobe" | sha256sum -c -; \
   chmod 0755 /ffmpeg /ffprobe
 
-FROM gcr.io/distroless/base-debian12:latest@sha256:76b3162a31477bca4a245b836c624f4c4a1a3705e99b9003907d992bec2c4bca
+# BtbN FFmpeg needs libgcc_s, supplied by the distroless cc image.
+FROM gcr.io/distroless/cc-debian12:latest@sha256:e5d81ddde149641e2a9ba55be4545bc125c67de07508b03ba4c22e6eb0ded5aa
 
 WORKDIR /app
-COPY --from=ffmpeg-build /ffmpeg /usr/local/bin/ffmpeg
-COPY --from=ffmpeg-build /ffprobe /usr/local/bin/ffprobe
+COPY --from=ffmpeg-build /ffmpeg ./internal/bin/ffmpeg
+COPY --from=ffmpeg-build /ffprobe ./internal/bin/ffprobe
 COPY --from=go-build /out/javboss ./javboss
 COPY --from=web-build /src/web/dist ./web/dist
 
@@ -68,9 +82,7 @@ ENV JAVBOSS_CONTAINER=1 \
   JAVBOSS_DISABLE_MPV=1 \
   JAVBOSS_USE_FFMPEG_SCREENSHOTS=1 \
   JAVBOSS_HOST_PATH_PREFIX=1 \
-  JAVBOSS_PROXY_HOST_GATEWAY=1 \
-  FFMPEG_PATH=/usr/local/bin/ffmpeg \
-  FFPROBE_PATH=/usr/local/bin/ffprobe
+  JAVBOSS_PROXY_HOST_GATEWAY=1
 
 EXPOSE 17654
 VOLUME ["/app/data"]
