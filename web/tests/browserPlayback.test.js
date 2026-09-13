@@ -91,6 +91,19 @@ test('MOV uses the MP4 playback hint when Chrome rejects QuickTime MIME', () => 
   assert.equal(selectPlaybackSource({ ...movInfo, audio_codec: 'dts' }, media), hls)
 })
 
+test('compatible MKV plays directly when supported and uses HLS otherwise', () => {
+  const mkv = { ...direct, mime_type: 'video/x-matroska' }
+  const mkvInfo = { ...info, preferred_kind: 'direct', video_codec: 'h264', sources: [mkv, hls] }
+  assert.equal(
+    selectPlaybackSource(mkvInfo, {
+      canPlayType: (type) =>
+        type === 'video/x-matroska; codecs="avc1, mp4a.40.2"' ? 'probably' : '',
+    }),
+    mkv
+  )
+  assert.equal(selectPlaybackSource(mkvInfo, { canPlayType: () => '' }), hls)
+})
+
 test('MOV retains QuickTime MIME when the browser supports it natively', () => {
   const mov = { ...direct, mime_type: 'video/quicktime' }
   assert.equal(
