@@ -174,7 +174,7 @@ Docker 部署下默认只能使用浏览器播放器（维护力度较弱只保�
 **连接设置：**`显示已拥有状态`和`磁力下载`需要先连接 JavBoss：
 
 1. 在 JavBoss 的“全局设置”→“安全”→“浏览器扩展 API 令牌”中新建令牌并复制。
-2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 Server 地址和 API 令牌，点击“测试连接”确认可用。
+2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 JavBoss 访问地址和 API 令牌，点击“测试连接”确认可用。
 3. 按需开启功能，设置修改后自动保存。
 
 扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-browser-extension-v0.14.0.zip)下载。
