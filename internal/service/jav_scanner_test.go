@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,118 +15,157 @@ import (
 	"javboss/internal/models"
 )
 
-func TestScanJavSeriesMetadataProviderRoundFallsBackToJavMenu(t *testing.T) {
-	var avmooNoUpdateRounds atomic.Uint32
-	avmooUpdates := []int64{0, 0, 3, 0, 0}
-	avmooIndex := 0
-	var calls []string
-	avmooScan := func(context.Context) (int64, error) {
-		calls = append(calls, "avmoo")
-		updated := avmooUpdates[avmooIndex]
-		avmooIndex++
-		return updated, nil
-	}
-	javMenuScan := func(context.Context) (int64, error) {
-		calls = append(calls, "javmenu")
-		return 1, nil
-	}
-
-	for range 7 {
-		if err := scanJavSeriesMetadataProviderRound(
-			context.Background(),
-			&avmooNoUpdateRounds,
-			avmooScan,
-			javMenuScan,
-		); err != nil {
-			t.Fatalf("scan provider round: %v", err)
-		}
-	}
-
-	want := []string{"avmoo", "avmoo", "javmenu", "avmoo", "avmoo", "avmoo", "javmenu"}
-	if !reflect.DeepEqual(calls, want) {
-		t.Fatalf("provider calls = %#v, want %#v", calls, want)
-	}
-	if got := avmooNoUpdateRounds.Load(); got != 0 {
-		t.Fatalf("avmoo no-update rounds = %d, want 0 after JavMenu fallback", got)
-	}
-}
-
-func TestScanMissingJavLocalSeriesUsesOnlyJavMenu(t *testing.T) {
-	gdb, err := db.Open(filepath.Join(t.TempDir(), "missing-series.db"))
+func TestScanJavSeriesAndIdolMetadata(t *testing.T) {
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "series-idols.db"))
 	if err != nil {
-		t.Fatalf("open test database: %v", err)
+		t.Fatal(err)
 	}
 	previousDB := common.DB
 	common.DB = gdb
 	t.Cleanup(func() {
 		common.DB = previousDB
-		if sqlDB, dbErr := gdb.DB(); dbErr == nil {
+		if sqlDB, err := gdb.DB(); err == nil {
 			_ = sqlDB.Close()
 		}
 	})
-
-	now := time.Unix(1710000000, 0).UTC()
-	series := []models.JavSeries{
-		{Name: "Existing Local Series"},
-		{Name: "English Hint", IsEnglish: true},
+	studio := models.JavStudio{Name: "Existing Studio"}
+	series := models.JavSeries{Name: "Existing Series"}
+	english := models.JavSeries{Name: "English Hint", IsEnglish: true}
+	idol := models.JavIdol{Name: "Existing Idol"}
+	for _, record := range []any{&studio, &series, &english, &idol} {
+		if err := gdb.Create(record).Error; err != nil {
+			t.Fatal(err)
+		}
 	}
-	if err := gdb.Create(&series).Error; err != nil {
-		t.Fatalf("create series: %v", err)
+	uncensored, censored := true, false
+	cases := []struct {
+		code                            string
+		state                           *bool
+		hasSeries, hasIdols, hasEnglish bool
+		info                            *jav.JavInfo
+		wantSeries, wantIdol            string
+		lookup                          bool
+	}{
+		{code: "UNKNOWN-001", info: &jav.JavInfo{Series: " API Series ", Actors: []string{"API Idol", "API Idol"}}, wantSeries: "API Series", wantIdol: "API Idol", lookup: true},
+		{code: "CENSORED-001", state: &censored, hasIdols: true, info: &jav.JavInfo{Series: "API Series", Actors: []string{"Replacement Idol"}}, wantSeries: "API Series", wantIdol: "Existing Idol", lookup: true},
+		{code: "UNCENSORED-001", state: &uncensored, hasSeries: true, info: &jav.JavInfo{Series: "Replacement Series", Actors: []string{"API Idol"}}, wantSeries: "Existing Series", wantIdol: "API Idol", lookup: true},
+		{code: "ENGLISH-001", hasEnglish: true, info: &jav.JavInfo{Series: "API Series", Actors: []string{"API Idol"}}, wantSeries: "API Series", wantIdol: "API Idol", lookup: true},
+		{code: "COMPLETE-001", hasSeries: true, hasIdols: true, wantSeries: "Existing Series", wantIdol: "Existing Idol"},
+		{code: "EMPTY-001", info: &jav.JavInfo{Series: "  "}, lookup: true},
+		{code: "NOTFOUND-001", lookup: true},
+		{code: ""},
+		{code: "   "},
 	}
-	localSeries := series[0]
-	englishSeries := series[1]
-	uncensored := true
-	rows := []models.Jav{
-		{Code: "NO-HINT-001", FetchedAt: now, CreatedAt: now},
-		{Code: "EN-HINT-001", SeriesEnID: &englishSeries.ID, FetchedAt: now.Add(time.Second), CreatedAt: now.Add(time.Second)},
-		{Code: "EXISTING-001", SeriesID: &localSeries.ID, FetchedAt: now.Add(2 * time.Second), CreatedAt: now.Add(2 * time.Second)},
-		{Code: "UNCENSORED-001", IsUncensored: &uncensored, FetchedAt: now.Add(3 * time.Second), CreatedAt: now.Add(3 * time.Second)},
+	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{}}
+	var wantKeys []string
+	var rows []models.Jav
+	for _, tc := range cases {
+		row := models.Jav{Code: tc.code, Title: "Original title", ZhTitle: "Original Chinese title", StudioID: &studio.ID, IsUncensored: tc.state}
+		if tc.hasSeries {
+			row.SeriesID = &series.ID
+		}
+		if tc.hasEnglish {
+			row.SeriesEnID = &english.ID
+		}
+		if err := gdb.Create(&row).Error; err != nil {
+			t.Fatal(err)
+		}
+		if tc.hasIdols {
+			if err := gdb.Create(&models.JavIdolMap{JavID: row.ID, JavIdolID: idol.ID}).Error; err != nil {
+				t.Fatal(err)
+			}
+		}
+		rows = append(rows, row)
+		key := "v5:jav:javdb-api:lookup_jav:" + tc.code
+		if tc.lookup {
+			wantKeys = append(wantKeys, key)
+		}
+		if tc.info != nil {
+			info := *tc.info
+			info.Title, info.Studio, info.IsUncensored = "Replacement title", "Replacement Studio", &uncensored
+			cache.values[key] = info
+		}
 	}
-	if err := gdb.Create(&rows).Error; err != nil {
-		t.Fatalf("create jav rows: %v", err)
-	}
-
-	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{
-		"v2:jav:javmenu:lookup_jav:NO-HINT-001": {Series: "JavMenu Local Series"},
-		"v2:jav:javmenu:lookup_jav:EN-HINT-001": {},
-	}}
 	jav.SetCache(cache)
-	t.Cleanup(func() {
-		jav.SetCache(nil)
-	})
-
-	updated, err := scanMissingJavLocalSeriesWithJavMenu(context.Background())
-	if err != nil {
-		t.Fatalf("scan missing local series: %v", err)
-	}
-	if updated != 1 {
-		t.Fatalf("updated series = %d, want 1", updated)
-	}
-
-	wantKeys := []string{
-		"v2:jav:javmenu:lookup_jav:NO-HINT-001",
-		"v2:jav:javmenu:lookup_jav:EN-HINT-001",
+	t.Cleanup(func() { jav.SetCache(nil) })
+	if err := ScanJavSeriesAndIdolMetadata(context.Background()); err != nil {
+		t.Fatal(err)
 	}
 	sort.Strings(cache.keys)
 	sort.Strings(wantKeys)
 	if !reflect.DeepEqual(cache.keys, wantKeys) {
-		t.Fatalf("lookup cache keys = %#v, want %#v", cache.keys, wantKeys)
+		t.Fatalf("lookups=%v, want %v", cache.keys, wantKeys)
 	}
+	for i, tc := range cases {
+		t.Run(tc.code, func(t *testing.T) {
+			var got models.Jav
+			if err := gdb.Preload("Series").Preload("Idols").First(&got, rows[i].ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if tc.wantSeries == "" {
+				if got.SeriesID != nil {
+					t.Fatalf("unexpected series: %+v", got.Series)
+				}
+			} else if got.Series == nil || got.Series.Name != tc.wantSeries || got.Series.IsEnglish {
+				t.Fatalf("series=%+v, want %s", got.Series, tc.wantSeries)
+			}
+			if tc.wantIdol == "" {
+				if len(got.Idols) != 0 {
+					t.Fatalf("unexpected idols: %+v", got.Idols)
+				}
+			} else if len(got.Idols) != 1 || got.Idols[0].Name != tc.wantIdol {
+				t.Fatalf("idols=%+v, want %s", got.Idols, tc.wantIdol)
+			}
+			if got.Title != rows[i].Title || got.ZhTitle != rows[i].ZhTitle || !reflect.DeepEqual(got.StudioID, rows[i].StudioID) || !reflect.DeepEqual(got.SeriesEnID, rows[i].SeriesEnID) || !reflect.DeepEqual(got.IsUncensored, tc.state) {
+				t.Fatalf("unrelated metadata changed: %+v", got)
+			}
+		})
+	}
+	cache.keys = nil
+	if err := ScanJavSeriesAndIdolMetadata(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	sort.Strings(cache.keys)
+	if want := []string{"v5:jav:javdb-api:lookup_jav:EMPTY-001", "v5:jav:javdb-api:lookup_jav:NOTFOUND-001"}; !reflect.DeepEqual(cache.keys, want) {
+		t.Fatalf("second scan lookups=%v, want %v", cache.keys, want)
+	}
+}
 
-	var filled models.Jav
-	if err := gdb.Preload("Series").Where("code = ?", "NO-HINT-001").First(&filled).Error; err != nil {
-		t.Fatalf("load filled jav: %v", err)
+func TestScanUncensoredJavMetadataStillFillsStudioSeriesAndIdols(t *testing.T) {
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "avsox.db"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if filled.Series == nil || filled.Series.Name != "JavMenu Local Series" {
-		t.Fatalf("unexpected filled series: %#v", filled.Series)
+	previousDB := common.DB
+	common.DB = gdb
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, err := gdb.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	uncensored := true
+	row := models.Jav{Code: "UNC-001", IsUncensored: &uncensored}
+	if err := gdb.Create(&row).Error; err != nil {
+		t.Fatal(err)
 	}
-
-	var empty models.Jav
-	if err := gdb.Where("code = ?", "EN-HINT-001").First(&empty).Error; err != nil {
-		t.Fatalf("load empty-series jav: %v", err)
+	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{
+		"v3:jav:avsox:lookup_jav:UNC-001": {Studio: "AVSOX Studio", Series: "AVSOX Series", Actors: []string{"AVSOX Idol"}},
+	}}
+	jav.SetCache(cache)
+	t.Cleanup(func() { jav.SetCache(nil) })
+	if err := ScanUncensoredJavMetadata(context.Background()); err != nil {
+		t.Fatal(err)
 	}
-	if empty.SeriesID != nil {
-		t.Fatalf("empty JavMenu series should not be persisted: %#v", empty.SeriesID)
+	var got models.Jav
+	if err := gdb.Preload("Studio").Preload("Series").Preload("Idols").First(&got, row.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if got.Studio == nil || got.Studio.Name != "AVSOX Studio" || got.Series == nil || got.Series.Name != "AVSOX Series" || len(got.Idols) != 1 || got.Idols[0].Name != "AVSOX Idol" {
+		t.Fatalf("AVSOX fields not filled: %+v", got)
+	}
+	if !reflect.DeepEqual(cache.keys, []string{"v3:jav:avsox:lookup_jav:UNC-001"}) {
+		t.Fatalf("lookups=%v", cache.keys)
 	}
 }
 
@@ -140,7 +178,7 @@ func (c *javScannerLookupCache) Get(key string, _ time.Time) ([]byte, bool, erro
 	c.keys = append(c.keys, key)
 	info, ok := c.values[key]
 	if !ok {
-		return nil, false, nil
+		return []byte(`{"status":"not_found"}`), true, nil
 	}
 	raw, err := json.Marshal(struct {
 		Status string      `json:"status"`
@@ -156,7 +194,7 @@ func (c *javScannerLookupCache) Set(string, []byte, time.Time) error {
 	return nil
 }
 
-func TestScanJavDatabasePromotesStudioWithExistingEnglishSeries(t *testing.T) {
+func TestScanJavDatabasePromotesStudioWithoutBackfillingSeriesOrCensorState(t *testing.T) {
 	gdb, err := db.Open(filepath.Join(t.TempDir(), "english-studio.db"))
 	if err != nil {
 		t.Fatal(err)
@@ -174,15 +212,12 @@ func TestScanJavDatabasePromotesStudioWithExistingEnglishSeries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.UpdateJavEnglishSeriesIfMissing(ctx, rec.ID, "English Series"); err != nil {
-		t.Fatal(err)
-	}
 	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{
 		"v4:jav:javdatabase:lookup_jav:STUDIO-001": {Studio: "English Studio", Series: "Other Series"},
 	}}
 	jav.SetCache(cache)
 	t.Cleanup(func() { jav.SetCache(nil) })
-	if err := backfillJavEnglishStudioNamesAndSeries(ctx); err != nil {
+	if err := ScanJavMetadata(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(cache.keys, []string{"v4:jav:javdatabase:lookup_jav:STUDIO-001"}) {
@@ -192,7 +227,7 @@ func TestScanJavDatabasePromotesStudioWithExistingEnglishSeries(t *testing.T) {
 	if err := gdb.Preload("Studio").Preload("SeriesEn").First(&stored, rec.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if stored.Studio.Name != "English Studio" || *stored.StudioID != *rec.StudioID || stored.Title != "Original title" || stored.SeriesEn.Name != "English Series" {
+	if stored.Studio.Name != "English Studio" || *stored.StudioID != *rec.StudioID || stored.Title != "Original title" || stored.SeriesEnID != nil || stored.IsUncensored != nil {
 		t.Fatalf("unexpected metadata: %+v", stored)
 	}
 	var alias models.JavStudioAlias
@@ -203,7 +238,7 @@ func TestScanJavDatabasePromotesStudioWithExistingEnglishSeries(t *testing.T) {
 		t.Fatal("wrong alias owner")
 	}
 	cache.keys = nil
-	if err := backfillJavEnglishStudioNamesAndSeries(ctx); err != nil {
+	if err := ScanJavMetadata(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if len(cache.keys) != 0 {
