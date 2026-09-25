@@ -18,7 +18,7 @@ const (
 )
 
 var lookupJavCacheKeyVersionByProvider = map[Provider]string{
-	ProviderJavBus:      "v5",
+	ProviderJavBus:      "v6", // Include the studio parsed from the movie page.
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
 	ProviderJavDBAPI:    "v5", // Preserve separators when validating movie numbers.
