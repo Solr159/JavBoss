@@ -22,7 +22,7 @@ var javSeriesAvmooNoUpdateRounds atomic.Uint32
 type periodicScanFunc func(context.Context) error
 type localSeriesScanFunc func(context.Context) (int64, error)
 
-// StartJavMetadataScanner periodically fills missing JAV metadata using the fast providers.
+// StartJavMetadataScanner periodically fills missing censor state and studio/series hints.
 func StartJavMetadataScanner(ctx context.Context, interval time.Duration) {
 	startPeriodicScanner(ctx, interval, "jav metadata", ScanJavMetadata)
 }
@@ -54,16 +54,13 @@ func startPeriodicScanner(ctx context.Context, interval time.Duration, name stri
 	}()
 }
 
-// ScanJavMetadata fills general metadata plus JavDatabase studio and internal
+// ScanJavMetadata fills censor state plus JavDatabase studio and internal
 // English-series hints. Frontend-visible series remain in the dedicated scanner.
 func ScanJavMetadata(ctx context.Context) error {
 	if common.DB == nil {
 		return errors.New("nil db")
 	}
 
-	if err := scanMissingJavZhInfo(ctx, javFastZhMetadataProviders()); err != nil {
-		return err
-	}
 	if err := scanMissingJavUncensoredBackfillOnce(ctx); err != nil {
 		return err
 	}
@@ -93,11 +90,11 @@ func scanMissingJavStudioAndEnglishSeries(ctx context.Context) error {
 			studio = strings.TrimSpace(info.Studio)
 			seriesEn = strings.TrimSpace(info.Series)
 		}
-		if item.StudioID == nil && studio != "" {
-			if updated, err := db.UpdateJavStudioIfMissing(ctx, item.ID, studio); err != nil {
+		if studio != "" {
+			if updated, err := db.PromoteJavStudioEnglishName(ctx, item.ID, studio); err != nil {
 				logging.Error("update jav studio failed id=%d code=%s err=%v", item.ID, code, err)
 			} else if updated {
-				logging.Info("jav studio updated id=%d code=%s studio=%s", item.ID, code, studio)
+				logging.Info("jav studio English name updated id=%d code=%s studio=%s", item.ID, code, studio)
 			}
 		}
 		if item.SeriesEnID == nil && seriesEn != "" {
@@ -128,10 +125,6 @@ func lookupJavDatabaseMetadata(ctx context.Context, item db.JavMetadataScanItem)
 		return nil, code, false, nil
 	}
 	return info, code, true, nil
-}
-
-func javFastZhMetadataProviders() []jav.Provider {
-	return []jav.Provider{jav.ProviderJavBus}
 }
 
 // ScanJavSeriesMetadata normally runs Avmoo. After two consecutive Avmoo rounds
@@ -408,42 +401,4 @@ func shuffleJavMetadataScanItems(items []db.JavMetadataScanItem) {
 	rand.Shuffle(len(items), func(i, j int) {
 		items[i], items[j] = items[j], items[i]
 	})
-}
-
-// 某些信息可能是通过英文数据源javdatabase获取的，缺少中日文元数据信息，这个函数专门用来补齐。
-func scanMissingJavZhInfo(ctx context.Context, providers []jav.Provider) error {
-	items, err := db.ListJavsMissingTitle(ctx)
-	if err != nil {
-		return err
-	}
-	for _, item := range items {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-
-		code := strings.TrimSpace(item.Code)
-		if code == "" {
-			continue
-		}
-
-		for _, provider := range providers {
-			info, err := jav.LookupJavByCode(code, provider)
-			if err != nil {
-				if !errors.Is(err, jav.ResourceNotFonud) {
-					logging.Error("lookup %s metadata failed id=%d code=%s err=%v", provider.String(), item.ID, code, err)
-				}
-				continue
-			}
-			if info == nil || strings.TrimSpace(info.Title) == "" {
-				continue
-			}
-			if _, err := db.SaveJavInfo(ctx, info); err != nil {
-				logging.Error("update jav title metadata failed provider=%s id=%d code=%s err=%v", provider.String(), item.ID, code, err)
-				continue
-			}
-			logging.Info("jav title metadata updated provider=%s id=%d code=%s title=%s", provider.String(), item.ID, code, strings.TrimSpace(info.Title))
-			break
-		}
-	}
-	return nil
 }

@@ -99,6 +99,7 @@ type Jav struct {
 	IsUncensored   *bool           `json:"is_uncensored"`
 	SampleImages   JavSampleImages `json:"sample_images" gorm:"type:text;not null;default:'[]'"`
 	FavoriteRating float64         `json:"favorite_rating" gorm:"not null;default:0"`
+	ZhTitle        string          `json:"zh_title" gorm:"not null;default:''"`
 	Tags           []JavTag        `json:"tags,omitempty" gorm:"-"`
 	Idols          []JavIdol       `json:"idols,omitempty" gorm:"many2many:jav_idol_map"`
 	Videos         []Video         `json:"videos,omitempty" gorm:"-"`

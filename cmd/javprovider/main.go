@@ -41,6 +41,10 @@ func main() {
 			provider: jav.ProviderJavDB,
 		},
 		{
+			name:     "javdb-api",
+			provider: jav.ProviderJavDBAPI,
+		},
+		{
 			name:     "avmoo",
 			provider: jav.ProviderAvmoo,
 		},

@@ -8,24 +8,30 @@ import (
 	"time"
 )
 
+const notFoundURLCacheTTL = 7 * 24 * time.Hour
+
 var (
 	defaultHTTPClientOnce sync.Once
 	defaultHTTPClient     *http.Client
-	notFoundURLCache      sync.Map
+	notFoundURLCache      sync.Map // URL -> expiration time.Time
 )
 
 // ErrCachedNotFound indicates the URL was previously requested and returned 404.
 var ErrCachedNotFound = errors.New("cached not found")
 
-// DoRequest issues the request with a shared 404 cache to avoid re-fetching missing URLs.
+// DoRequest caches missing URLs for seven days, then allows another request.
 func DoRequest(req *http.Request) (*http.Response, error) {
 	if req == nil || req.URL == nil {
 		return nil, errors.New("nil request")
 	}
 	url := req.URL.String()
 	if url != "" {
-		if _, ok := notFoundURLCache.Load(url); ok {
-			return nil, ErrCachedNotFound
+		if expiresAt, ok := notFoundURLCache.Load(url); ok {
+			if time.Now().Before(expiresAt.(time.Time)) {
+				return nil, ErrCachedNotFound
+			}
+			// Preserve a newer entry if another request refreshed it concurrently.
+			notFoundURLCache.CompareAndDelete(url, expiresAt)
 		}
 	}
 	resp, err := DefaultHTTPClient().Do(req)
@@ -33,7 +39,7 @@ func DoRequest(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	if resp.StatusCode == http.StatusNotFound && url != "" {
-		notFoundURLCache.Store(url, struct{}{})
+		notFoundURLCache.Store(url, time.Now().Add(notFoundURLCacheTTL))
 	}
 	return resp, nil
 }

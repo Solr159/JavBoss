@@ -16,14 +16,6 @@ import (
 	"javboss/internal/models"
 )
 
-func TestJavMetadataFastZhProvidersExcludeSlowProviders(t *testing.T) {
-	got := javFastZhMetadataProviders()
-	want := []jav.Provider{jav.ProviderJavBus}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("javFastZhMetadataProviders() = %#v, want %#v", got, want)
-	}
-}
-
 func TestScanJavSeriesMetadataProviderRoundFallsBackToJavMenu(t *testing.T) {
 	var avmooNoUpdateRounds atomic.Uint32
 	avmooUpdates := []int64{0, 0, 3, 0, 0}
@@ -162,4 +154,59 @@ func (c *javScannerLookupCache) Get(key string, _ time.Time) ([]byte, bool, erro
 
 func (c *javScannerLookupCache) Set(string, []byte, time.Time) error {
 	return nil
+}
+
+func TestScanJavDatabasePromotesStudioWithExistingEnglishSeries(t *testing.T) {
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "english-studio.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousDB := common.DB
+	common.DB = gdb
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, err := gdb.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	ctx := context.Background()
+	rec, err := db.SaveJavInfo(ctx, &jav.JavInfo{Code: "STUDIO-001", Title: "Original title", Studio: "元の片商", Provider: jav.ProviderJavDBAPI})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.UpdateJavEnglishSeriesIfMissing(ctx, rec.ID, "English Series"); err != nil {
+		t.Fatal(err)
+	}
+	cache := &javScannerLookupCache{values: map[string]jav.JavInfo{
+		"v4:jav:javdatabase:lookup_jav:STUDIO-001": {Studio: "English Studio", Series: "Other Series"},
+	}}
+	jav.SetCache(cache)
+	t.Cleanup(func() { jav.SetCache(nil) })
+	if err := scanMissingJavStudioAndEnglishSeries(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(cache.keys, []string{"v4:jav:javdatabase:lookup_jav:STUDIO-001"}) {
+		t.Fatalf("requests=%v", cache.keys)
+	}
+	var stored models.Jav
+	if err := gdb.Preload("Studio").Preload("SeriesEn").First(&stored, rec.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if stored.Studio.Name != "English Studio" || *stored.StudioID != *rec.StudioID || stored.Title != "Original title" || stored.SeriesEn.Name != "English Series" {
+		t.Fatalf("unexpected metadata: %+v", stored)
+	}
+	var alias models.JavStudioAlias
+	if err := gdb.Where("alias = ?", "元の片商").First(&alias).Error; err != nil {
+		t.Fatal(err)
+	}
+	if alias.JavStudioID != *stored.StudioID {
+		t.Fatal("wrong alias owner")
+	}
+	cache.keys = nil
+	if err := scanMissingJavStudioAndEnglishSeries(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(cache.keys) != 0 {
+		t.Fatalf("promoted studio selected again: %v", cache.keys)
+	}
 }

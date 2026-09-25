@@ -24,6 +24,7 @@ const (
 	ProviderJavMenu
 	ProviderMinnanoAV
 	ProviderManualScrape
+	ProviderJavDBAPI
 )
 
 func (p Provider) String() string {
@@ -34,6 +35,8 @@ func (p Provider) String() string {
 		return "javdatabase"
 	case ProviderUser:
 		return "user"
+	case ProviderJavDBAPI:
+		return "javdb-api"
 	case ProviderJavDB:
 		return "javdb"
 	case ProviderAvmoo:
@@ -59,7 +62,7 @@ func (p Provider) String() string {
 func ParseProvider(value int) Provider {
 	p := Provider(value)
 	switch p {
-	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB, ProviderJavModel, ProviderAvsox, ProviderJavMenu, ProviderMinnanoAV, ProviderManualScrape:
+	case ProviderJavBus, ProviderJavDatabase, ProviderUser, ProviderJavDB, ProviderAvmoo, ProviderThePornDB, ProviderJavModel, ProviderAvsox, ProviderJavMenu, ProviderMinnanoAV, ProviderManualScrape, ProviderJavDBAPI:
 		return p
 	default:
 		return ProviderUnknown
@@ -72,6 +75,7 @@ var lookupProvidersByProvider = map[Provider]lookupProvider{
 	ProviderJavBus:      javBusProvider,
 	ProviderJavDatabase: javDatabaseProvider,
 	ProviderJavDB:       javDBProvider,
+	ProviderJavDBAPI:    javDBAPIProvider,
 	ProviderAvmoo:       avmooProvider,
 	ProviderThePornDB:   thePornDBProvider,
 	ProviderJavModel:    javModelProvider,
@@ -83,6 +87,7 @@ var lookupProvidersByProvider = map[Provider]lookupProvider{
 // JavInfo holds basic metadata extracted from a JAV metadata provider.
 type JavInfo struct {
 	Title        string
+	ZhTitle      string
 	Code         string
 	Studio       string
 	Series       string

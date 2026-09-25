@@ -106,6 +106,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			want:     "v4:jav:javdb:lookup_jav:ABC-001",
 		},
 		{
+			name:     "javdb-api lookup jav uses detail type version",
+			provider: ProviderJavDBAPI,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v4:jav:javdb-api:lookup_jav:ABC-001",
+		},
+		{
 			name:     "avmoo lookup jav uses provider version",
 			provider: ProviderAvmoo,
 			method:   "lookup_jav",

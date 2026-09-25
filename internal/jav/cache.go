@@ -21,6 +21,7 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 	ProviderJavBus:      "v5",
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
+	ProviderJavDBAPI:    "v4", // Read censor state from the detail type field.
 	ProviderAvmoo:       "v6",
 	ProviderAvsox:       "v3",
 	ProviderJavMenu:     "v2",
