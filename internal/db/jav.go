@@ -125,13 +125,12 @@ type JavStudioUpdateInput struct {
 	Aliases []string
 }
 
-// JavMetadataScanItem contains a JAV row that needs studio or series metadata.
+// JavMetadataScanItem contains a JAV row that needs metadata backfill.
 type JavMetadataScanItem struct {
-	ID         int64  `gorm:"column:id"`
-	Code       string `gorm:"column:code"`
-	StudioID   *int64 `gorm:"column:studio_id"`
-	SeriesID   *int64 `gorm:"column:series_id"`
-	SeriesEnID *int64 `gorm:"column:series_en_id"`
+	ID       int64  `gorm:"column:id"`
+	Code     string `gorm:"column:code"`
+	StudioID *int64 `gorm:"column:studio_id"`
+	SeriesID *int64 `gorm:"column:series_id"`
 }
 
 // GetJav returns one JAV record with visible files and tags.
@@ -890,6 +889,7 @@ func visibleScrapedJavTagProviders() []int {
 	return []int{
 		int(jav.ProviderJavBus),
 		int(jav.ProviderJavDB),
+		int(jav.ProviderJavDBAPI),
 		int(jav.ProviderAvmoo),
 		int(jav.ProviderAvsox),
 		int(jav.ProviderJavMenu),
@@ -3016,84 +3016,47 @@ func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string,
 	return codes, nil
 }
 
-// ListJavsMissingStudioOrEnglishSeries returns non-uncensored JAV rows whose
-// studio or internal English-series relation is empty.
-func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsNeedingEnglishStudioNameBackfill returns coded JAVs not marked
+// uncensored whose studio is missing or has a non-English name.
+func ListJavsNeedingEnglishStudioNameBackfill(ctx context.Context) ([]JavMetadataScanItem, error) {
+	var studios []models.JavStudio
+	if err := common.DB.WithContext(ctx).Select("id", "name").Find(&studios).Error; err != nil {
+		return nil, fmt.Errorf("list studios for English name backfill: %w", err)
+	}
+	var localStudioIDs []int64
+	for _, studio := range studios {
+		if !isEnglishStudioName(studio.Name) {
+			localStudioIDs = append(localStudioIDs, studio.ID)
+		}
+	}
 	var items []JavMetadataScanItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, studio_id, series_en_id").
+		Select("id, code, studio_id").
 		Where("COALESCE(code, '') <> ''").
 		Where("COALESCE(is_uncensored, 0) = 0").
-		Where("studio_id IS NULL OR series_en_id IS NULL").
+		Where("studio_id IS NULL OR studio_id IN ?", localStudioIDs).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing studio or english series: %w", err)
+		return nil, fmt.Errorf("list javs needing English studio name backfill: %w", err)
 	}
 	return items, nil
 }
 
-// ListJavsMissingLocalSeries returns every non-uncensored JAV row whose
-// frontend-visible series relation is empty, regardless of English-series hints.
-func ListJavsMissingLocalSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsMissingSeriesOrIdols returns coded JAVs with no series or no idol mappings,
+// regardless of censor state or internal English-series hints.
+func ListJavsMissingSeriesOrIdols(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var items []JavMetadataScanItem
+	idols := common.DB.WithContext(ctx).
+		Table("jav_idol_map jim").Select("1").Where("jim.jav_id = jav.id")
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, series_id, series_en_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(is_uncensored, 0) = 0").
-		Where("series_id IS NULL").
+		Select("id, code, series_id").
+		Where("TRIM(COALESCE(code, '')) <> ''").
+		Where("series_id IS NULL OR NOT EXISTS (?)", idols).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing local series: %w", err)
-	}
-	return items, nil
-}
-
-// ListJavsMissingLocalSeriesWithEnglishSeries returns non-uncensored JAV rows
-// that have an English hint but are still missing the frontend-visible series.
-func ListJavsMissingLocalSeriesWithEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code, series_id, series_en_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(is_uncensored, 0) = 0").
-		Where("series_id IS NULL").
-		Where("series_en_id IS NOT NULL").
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing local series with english series: %w", err)
-	}
-	return items, nil
-}
-
-// ListJavsMissingTitle returns JAV rows whose primary title is empty.
-func ListJavsMissingTitle(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code, studio_id, series_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("TRIM(COALESCE(title, '')) = ''").
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing title: %w", err)
-	}
-	return items, nil
-}
-
-// ListJavsMissingUncensored returns JAV rows whose censored/uncensored state is unknown.
-func ListJavsMissingUncensored(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code").
-		Where("COALESCE(code, '') <> ''").
-		Where("is_uncensored IS NULL").
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing uncensored state: %w", err)
+		return nil, fmt.Errorf("list javs missing series or idols: %w", err)
 	}
 	return items, nil
 }
@@ -3262,8 +3225,8 @@ func UpdateJavSeriesIfMissing(ctx context.Context, javID int64, series string) (
 	return updateJavSeriesIfMissing(ctx, javID, series, false)
 }
 
-// UpdateJavEnglishSeriesIfMissing records the internal JavDatabase series hint
-// used to decide which rows need the slow Avmoo localized-series lookup.
+// UpdateJavEnglishSeriesIfMissing stores an internal English series without
+// overwriting an existing value. Background scanners no longer populate it.
 func UpdateJavEnglishSeriesIfMissing(ctx context.Context, javID int64, series string) (bool, error) {
 	return updateJavSeriesIfMissing(ctx, javID, series, true)
 }
@@ -3344,6 +3307,9 @@ func saveJavInfoTx(tx *gorm.DB, info *jav.JavInfo, now ...time.Time) (*models.Ja
 	}
 	javRec.Code = info.Code
 	javRec.Title = info.Title
+	if zhTitle := strings.TrimSpace(info.ZhTitle); zhTitle != "" {
+		javRec.ZhTitle = zhTitle
+	}
 	javRec.ReleaseUnix = info.ReleaseUnix
 	javRec.DurationMin = info.DurationMin
 	javRec.FetchedAt = ts
@@ -3500,6 +3466,26 @@ func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 	if name == "" {
 		return nil, errors.New("studio name cannot be empty")
 	}
+	studio, err := findJavStudioByNameOrAliasTx(tx, name)
+	if err != nil {
+		return nil, err
+	}
+	if studio != nil {
+		return studio, nil
+	}
+	studio = &models.JavStudio{Name: name}
+	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(studio).Error; err != nil {
+		return nil, fmt.Errorf("ensure studio %q: %w", name, err)
+	}
+	if studio.ID == 0 {
+		if err := tx.Where("name = ?", name).First(studio).Error; err != nil {
+			return nil, fmt.Errorf("load studio %q: %w", name, err)
+		}
+	}
+	return studio, nil
+}
+
+func findJavStudioByNameOrAliasTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 	var studio models.JavStudio
 	err := tx.Where("name = ?", name).First(&studio).Error
 	if err == nil {
@@ -3521,16 +3507,7 @@ func ensureStudioTx(tx *gorm.DB, name string) (*models.JavStudio, error) {
 	if studio.ID > 0 {
 		return &studio, nil
 	}
-	studio = models.JavStudio{Name: name}
-	if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&studio).Error; err != nil {
-		return nil, fmt.Errorf("ensure studio %q: %w", name, err)
-	}
-	if studio.ID == 0 {
-		if err := tx.Where("name = ?", name).First(&studio).Error; err != nil {
-			return nil, fmt.Errorf("load studio %q: %w", name, err)
-		}
-	}
-	return &studio, nil
+	return nil, nil
 }
 
 func ensureSeriesTx(tx *gorm.DB, name string) (*models.JavSeries, error) {
@@ -3851,30 +3828,39 @@ func MergeJavStudios(ctx context.Context, canonicalID int64, sourceIDs []int64, 
 		if len(sources) != len(cleanSourceIDs) {
 			return gorm.ErrRecordNotFound
 		}
-		if err := moveJavStudioAliasesTx(tx, canonical, sources); err != nil {
-			return err
-		}
-		if err := tx.Model(&models.Jav{}).
-			Where("studio_id IN ?", cleanSourceIDs).
-			Update("studio_id", canonicalID).Error; err != nil {
-			return fmt.Errorf("move jav studio works: %w", err)
-		}
-		if err := tx.Model(&models.JavSeries{}).
-			Where("studio_id IN ?", cleanSourceIDs).
-			Update("studio_id", canonicalID).Error; err != nil {
-			return fmt.Errorf("move jav studio series: %w", err)
-		}
-		if err := moveJavStudioFavoriteMapsTx(tx, canonicalID, cleanSourceIDs); err != nil {
-			return err
-		}
-		if err := tx.Where("id IN ?", cleanSourceIDs).Delete(&models.JavStudio{}).Error; err != nil {
-			return fmt.Errorf("delete merged jav studios: %w", err)
-		}
-		return nil
+		return mergeJavStudiosTx(tx, canonical, sources)
 	}); err != nil {
 		return nil, err
 	}
 	return GetJavStudioSummary(ctx, canonicalID, directoryIDs)
+}
+
+func mergeJavStudiosTx(tx *gorm.DB, canonical models.JavStudio, sources []models.JavStudio) error {
+	canonicalID := canonical.ID
+	cleanSourceIDs := make([]int64, 0, len(sources))
+	for _, source := range sources {
+		cleanSourceIDs = append(cleanSourceIDs, source.ID)
+	}
+	if err := moveJavStudioAliasesTx(tx, canonical, sources); err != nil {
+		return err
+	}
+	if err := tx.Model(&models.Jav{}).
+		Where("studio_id IN ?", cleanSourceIDs).
+		Update("studio_id", canonicalID).Error; err != nil {
+		return fmt.Errorf("move jav studio works: %w", err)
+	}
+	if err := tx.Model(&models.JavSeries{}).
+		Where("studio_id IN ?", cleanSourceIDs).
+		Update("studio_id", canonicalID).Error; err != nil {
+		return fmt.Errorf("move jav studio series: %w", err)
+	}
+	if err := moveJavStudioFavoriteMapsTx(tx, canonicalID, cleanSourceIDs); err != nil {
+		return err
+	}
+	if err := tx.Where("id IN ?", cleanSourceIDs).Delete(&models.JavStudio{}).Error; err != nil {
+		return fmt.Errorf("delete merged jav studios: %w", err)
+	}
+	return nil
 }
 
 func moveJavStudioAliasesTx(tx *gorm.DB, canonical models.JavStudio, sources []models.JavStudio) error {

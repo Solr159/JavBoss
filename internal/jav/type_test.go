@@ -12,6 +12,7 @@ func TestLookupProvidersByProviderIncludesMetadataProviders(t *testing.T) {
 		ProviderJavBus,
 		ProviderJavDatabase,
 		ProviderJavDB,
+		ProviderJavDBAPI,
 		ProviderAvmoo,
 		ProviderAvsox,
 		ProviderJavMenu,

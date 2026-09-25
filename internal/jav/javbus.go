@@ -362,6 +362,7 @@ func parseDocument(doc *html.Node) *JavInfo {
 	}
 	title := cleanTitle(rawTitle)
 	code := extractCode(doc)
+	studio := extractJavBusField(doc, "製作商", "制作商", "メーカー", "studio")
 	series := extractJavBusField(doc, "系列", "series")
 	releaseUnix, duration := extractDetails(doc)
 
@@ -376,6 +377,7 @@ func parseDocument(doc *html.Node) *JavInfo {
 	return &JavInfo{
 		Title:        title,
 		Code:         code,
+		Studio:       studio,
 		Series:       series,
 		ReleaseUnix:  releaseUnix,
 		DurationMin:  duration,

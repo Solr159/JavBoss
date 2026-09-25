@@ -89,7 +89,7 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderJavBus,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v5:jav:javbus:lookup_jav:ABC-001",
+			want:     "v6:jav:javbus:lookup_jav:ABC-001",
 		},
 		{
 			name:     "javdatabase lookup jav uses provider version",
@@ -104,6 +104,34 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			method:   "lookup_jav",
 			input:    "abc-001",
 			want:     "v4:jav:javdb:lookup_jav:ABC-001",
+		},
+		{
+			name:     "javdb-api lookup jav uses strict number version",
+			provider: ProviderJavDBAPI,
+			method:   "lookup_jav",
+			input:    "abc-001",
+			want:     "v5:jav:javdb-api:lookup_jav:ABC-001",
+		},
+		{
+			name:     "javdb-api studio link uses strict number version",
+			provider: ProviderJavDBAPI,
+			method:   "lookup_studio_url",
+			input:    "053026_001",
+			want:     "v2:jav:javdb-api:lookup_studio_url:053026_001",
+		},
+		{
+			name:     "javdb-api series link uses strict number version",
+			provider: ProviderJavDBAPI,
+			method:   "lookup_series_url",
+			input:    "053026_001",
+			want:     "v2:jav:javdb-api:lookup_series_url:053026_001",
+		},
+		{
+			name:     "javdb-api actress link uses strict number version",
+			provider: ProviderJavDBAPI,
+			method:   "lookup_actress_url_code_name",
+			input:    "053026_001|Actress",
+			want:     "v2:jav:javdb-api:lookup_actress_url_code_name:053026_001|Actress",
 		},
 		{
 			name:     "avmoo lookup jav uses provider version",

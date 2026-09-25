@@ -18,9 +18,10 @@ const (
 )
 
 var lookupJavCacheKeyVersionByProvider = map[Provider]string{
-	ProviderJavBus:      "v5",
+	ProviderJavBus:      "v6", // Include the studio parsed from the movie page.
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
+	ProviderJavDBAPI:    "v5", // Preserve separators when validating movie numbers.
 	ProviderAvmoo:       "v6",
 	ProviderAvsox:       "v3",
 	ProviderJavMenu:     "v2",
@@ -148,6 +149,12 @@ func lookupCacheKey(provider Provider, method, input string) string {
 
 func lookupCacheKeyVersion(provider Provider, method string) string {
 	provider = ParseProvider(int(provider))
+	if provider == ProviderJavDBAPI {
+		switch method {
+		case "lookup_actress_url_code_name", "lookup_series_url", "lookup_studio_url":
+			return "v2" // These links also depend on strict movie-number matching.
+		}
+	}
 	if provider == ProviderJavDB && method == "lookup_actress_url_code_name" {
 		return "v3"
 	}

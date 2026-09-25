@@ -22,22 +22,22 @@ func TestJavLinkProvidersForCode(t *testing.T) {
 		want []jav.Provider
 	}{
 		{
-			name: "gana prefers javmenu",
+			name: "gana uses javmenu then javbus",
 			code: "gana-1234",
 			want: []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus},
 		},
 		{
-			name: "stars prefers javbus",
+			name: "stars uses javbus then avmoo",
 			code: " STARS-001 ",
 			want: []jav.Provider{jav.ProviderJavBus, jav.ProviderAvmoo},
 		},
 		{
-			name: "ap uses avmoo only",
+			name: "ap uses avmoo",
 			code: "ap-001",
 			want: []jav.Provider{jav.ProviderAvmoo},
 		},
 		{
-			name: "other uses javbus only",
+			name: "other uses javbus",
 			code: "IPX-228",
 			want: []jav.Provider{jav.ProviderJavBus},
 		},

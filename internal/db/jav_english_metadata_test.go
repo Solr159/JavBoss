@@ -36,7 +36,7 @@ func TestEnglishJavMetadataCannotBePersisted(t *testing.T) {
 	}
 }
 
-func TestInternalEnglishSeriesGuidesLocalizedSeriesLookup(t *testing.T) {
+func TestInternalEnglishSeriesRemainsHidden(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 
@@ -57,14 +57,13 @@ func TestInternalEnglishSeriesGuidesLocalizedSeriesLookup(t *testing.T) {
 		t.Fatal("expected internal English series to be stored")
 	}
 
-	candidates, err := ListJavsMissingLocalSeriesWithEnglishSeries(ctx)
-	if err != nil {
-		t.Fatalf("ListJavsMissingLocalSeriesWithEnglishSeries: %v", err)
+	if err := gdb.First(&javRec, javRec.ID).Error; err != nil {
+		t.Fatal(err)
 	}
-	if len(candidates) != 1 || candidates[0].ID != javRec.ID || candidates[0].SeriesEnID == nil {
-		t.Fatalf("unexpected localized-series candidates: %#v", candidates)
+	if javRec.SeriesEnID == nil {
+		t.Fatal("missing internal English series")
 	}
-	englishSeriesID := *candidates[0].SeriesEnID
+	englishSeriesID := *javRec.SeriesEnID
 	if _, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{SeriesID: &englishSeriesID}, nil); err == nil {
 		t.Fatal("frontend edit accepted an internal English series")
 	}

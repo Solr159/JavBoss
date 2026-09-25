@@ -189,6 +189,71 @@ func TestParseJavBusMovieInfoIncludesSeries(t *testing.T) {
 	}
 }
 
+func TestParseJavBusMovieInfoIncludesStudio(t *testing.T) {
+	for _, tc := range []struct {
+		name, field, want string
+	}{
+		{"traditional", `<p><span class="header">製作商:</span> <a href="/studio/abc"> アイデアポケット </a></p>`, "アイデアポケット"},
+		{"simplified", `<p><span class="header">制作商：</span><span><a href="/studio/abc">片商</a></span></p>`, "片商"},
+		{"English", `<p><span class="header">Studio:</span> <a href="/studio/abc">Idea Pocket</a></p>`, "Idea Pocket"},
+		{"Japanese", `<p><span class="header">メーカー:</span> <a href="/studio/abc">片商</a></p>`, "片商"},
+		{"plain text", `<p><span class="header">製作商:</span> 片商 </p>`, "片商"},
+		{"missing studio", "", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			doc, err := html.Parse(strings.NewReader(`<html><body>
+				<h3>ABC-001 Test Title</h3>
+				<p><span>識別碼:</span><span>ABC-001</span></p>
+				<p><span>發行商:</span><a href="/label/other">Other Label</a></p>
+				` + tc.field + `</body></html>`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			info := parseDocument(doc)
+			if info == nil || info.Studio != tc.want {
+				t.Fatalf("info=%+v, want studio=%q", info, tc.want)
+			}
+		})
+	}
+}
+
+func TestJavBusLookupIncludesStudioAfterCacheUpdate(t *testing.T) {
+	client := util.DefaultHTTPClient()
+	originalTransport := client.Transport
+	SetCache(newMemoryLookupCache())
+	t.Cleanup(func() {
+		client.Transport = originalTransport
+		SetCache(nil)
+		resetJavBusRateLimiterForTest()
+	})
+	resetJavBusRateLimiterForTest()
+	calls := 0
+	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body: io.NopCloser(strings.NewReader(`<html><body>
+				<h3>MIDE-557 Test Title</h3>
+				<p><span class="header">識別碼:</span><span>MIDE-557</span></p>
+				<p><span class="header">製作商:</span> <a href="https://www.javbus.com/studio/4v">ムーディーズ</a></p>
+				<p><span class="header">發行商:</span> <a href="https://www.javbus.com/label/1mh">MOODYZDIVA</a></p>
+				</body></html>`)),
+			Request: req,
+		}, nil
+	})
+	lookupCacheSetHit("v5:jav:javbus:lookup_jav:MIDE-557", &JavInfo{Code: "MIDE-557", Title: "Old result without studio"})
+	for i := 0; i < 2; i++ {
+		info, err := LookupJavByCode("MIDE-557", ProviderJavBus)
+		if err != nil || info == nil || info.Studio != "ムーディーズ" {
+			t.Fatalf("lookup %d: info=%+v err=%v", i, info, err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("HTTP requests=%d, want 1 followed by a cache hit", calls)
+	}
+}
+
 func TestJavBusLookupCodeRewritesSpecialPrefixes(t *testing.T) {
 	cases := []struct {
 		code string
