@@ -51,6 +51,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.POST("/directories", createDirectory)
 	router.GET("/directories/browse", browseDirectories)
 	router.POST("/directories/:id/process", processDirectory)
+	router.DELETE("/directories/:id/transcode", cancelDirectoryTranscode)
 	router.POST("/directories/:id/scan", scanDirectory)
 	router.PATCH("/directories/:id", updateDirectory)
 
