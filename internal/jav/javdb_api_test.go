@@ -104,10 +104,14 @@ func TestJavDBAPIResolveNumber(t *testing.T) {
 		notFound   bool
 	}{
 		{"exact wins", "abc-001", []javDBAPIMovie{{ID: "other", Number: "ABC001"}, {ID: "exact", Number: "ABC-001"}}, "exact", false},
-		{"format equivalent", "ABC_001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}}, "one", false},
+		{"different separator", "ABC_001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}}, "", true},
+		{"numeric separator mismatch", "053026_001", []javDBAPIMovie{{ID: "one", Number: "053026-001"}}, "", true},
+		{"numeric exact wins", "053026_001", []javDBAPIMovie{{ID: "other", Number: "053026-001"}, {ID: "exact", Number: "053026_001"}}, "exact", false},
+		{"missing separator", "ABC-001", []javDBAPIMovie{{ID: "one", Number: "ABC001"}}, "", true},
+		{"case and whitespace", " abc-001 ", []javDBAPIMovie{{ID: "one", Number: " ABC-001 "}}, "one", false},
 		{"duplicates", "ABC-001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}, {ID: "one", Number: "ABC-001"}}, "one", false},
 		{"ambiguous exact", "ABC-001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}, {ID: "two", Number: "ABC-001"}}, "", false},
-		{"ambiguous equivalent", "ABC_001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}, {ID: "two", Number: "ABC001"}}, "", false},
+		{"no normalized fallback", "ABC_001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}, {ID: "two", Number: "ABC001"}}, "", true},
 		{"no first hit fallback", "ABC-001", []javDBAPIMovie{{ID: "wrong", Number: "ABC-002"}}, "", true},
 		{"missing id", "ABC-001", []javDBAPIMovie{{Number: "ABC-001"}}, "", false},
 	} {
@@ -115,6 +119,57 @@ func TestJavDBAPIResolveNumber(t *testing.T) {
 			got, err := resolveJavDBAPIMovieID(tc.movies, tc.code)
 			if got != tc.want || (err != nil) != (tc.want == "") || errors.Is(err, ResourceNotFonud) != tc.notFound {
 				t.Fatalf("got %q, %v", got, err)
+			}
+		})
+	}
+}
+
+func TestJavDBAPILookupPreservesNumberSeparators(t *testing.T) {
+	const code = "053026_001"
+	for _, tc := range []struct {
+		name, searchNumber, detailNumber string
+		valid, notFound                  bool
+		wantCalls                        int
+	}{
+		{"search mismatch", "053026-001", "053026-001", false, true, 1},
+		{"detail mismatch", code, "053026-001", false, false, 2},
+		{"exact match", code, code, true, false, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			p := newJavDBAPITestProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				switch r.URL.Path {
+				case "/api/v2/search":
+					fmt.Fprintf(w, `{"success":1,"data":{"movies":[{"id":"m1","number":%q}]}}`, tc.searchNumber)
+				case "/api/v4/movies/m1":
+					fmt.Fprintf(w, `{"success":1,"data":{"movie":{"number":%q,"origin_title":"Title"}}}`, tc.detailNumber)
+				default:
+					t.Errorf("unexpected path: %s", r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			})
+			original := lookupProvidersByProvider[ProviderJavDBAPI]
+			lookupProvidersByProvider[ProviderJavDBAPI] = p
+			SetCache(newMemoryLookupCache())
+			t.Cleanup(func() {
+				lookupProvidersByProvider[ProviderJavDBAPI] = original
+				SetCache(nil)
+			})
+			// A previous lookup may have cached the wrong number under this query.
+			lookupCacheSetHit("v4:jav:javdb-api:lookup_jav:"+code, &JavInfo{Code: "053026-001", Title: "Wrong"})
+			info, err := LookupJavByCode(code, ProviderJavDBAPI)
+			if (err == nil) != tc.valid || errors.Is(err, ResourceNotFonud) != tc.notFound {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if tc.valid && (info == nil || info.Code != code) {
+				t.Fatalf("wrong movie returned: %+v", info)
+			}
+			if !tc.valid && info != nil {
+				t.Fatalf("mismatched movie returned: %+v", info)
+			}
+			if calls != tc.wantCalls {
+				t.Fatalf("requests=%d want=%d", calls, tc.wantCalls)
 			}
 		})
 	}

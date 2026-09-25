@@ -196,7 +196,7 @@ func (movie *javDBAPIMovie) metadataTitle() string {
 
 func (p *javDBAPI) movieByCode(code string) (*javDBAPIMovie, error) {
 	code = strings.TrimSpace(code)
-	if normalizeJavDBCode(code) == "" {
+	if code == "" {
 		return nil, ResourceNotFonud
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -237,36 +237,30 @@ func (p *javDBAPI) movieByCode(code string) (*javDBAPIMovie, error) {
 	if err := json.Unmarshal(data, &movie); err != nil {
 		return nil, fmt.Errorf("javdb-api: decode movie: %w", err)
 	}
-	if normalizeJavDBCode(movie.Number) != normalizeJavDBCode(code) || movie.metadataTitle() == "" {
+	if !strings.EqualFold(strings.TrimSpace(movie.Number), code) || movie.metadataTitle() == "" {
 		logging.Error("javdb-api invalid detail: code=%q movie_id=%s returned_code=%q has_title=%t", code, id, movie.Number, movie.metadataTitle() != "")
 		return nil, fmt.Errorf("javdb-api: invalid or mismatched movie detail")
 	}
 	return &movie, nil
 }
 
-// Prefer an exact number; accept formatting differences only when unambiguous.
+// Separators are part of the number: 053026_001 and 053026-001 must not match.
 func resolveJavDBAPIMovieID(movies []javDBAPIMovie, code string) (string, error) {
-	for _, exact := range []bool{true, false} {
-		var id string
-		for _, movie := range movies {
-			matched := strings.EqualFold(strings.TrimSpace(movie.Number), strings.TrimSpace(code))
-			if !exact {
-				matched = normalizeJavDBCode(movie.Number) == normalizeJavDBCode(code)
-			}
-			if !matched {
-				continue
-			}
-			if movie.ID == "" {
-				return "", fmt.Errorf("javdb-api: matched movie has no id")
-			}
-			if id != "" && id != string(movie.ID) {
-				return "", fmt.Errorf("javdb-api: ambiguous code %q", code)
-			}
-			id = string(movie.ID)
+	var id string
+	for _, movie := range movies {
+		if !strings.EqualFold(strings.TrimSpace(movie.Number), strings.TrimSpace(code)) {
+			continue
 		}
-		if id != "" {
-			return id, nil
+		if movie.ID == "" {
+			return "", fmt.Errorf("javdb-api: matched movie has no id")
 		}
+		if id != "" && id != string(movie.ID) {
+			return "", fmt.Errorf("javdb-api: ambiguous code %q", code)
+		}
+		id = string(movie.ID)
+	}
+	if id != "" {
+		return id, nil
 	}
 	return "", ResourceNotFonud
 }
