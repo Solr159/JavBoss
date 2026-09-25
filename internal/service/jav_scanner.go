@@ -15,9 +15,9 @@ import (
 
 type periodicScanFunc func(context.Context) error
 
-// StartJavMetadataScanner periodically promotes studio names to English.
-func StartJavMetadataScanner(ctx context.Context, interval time.Duration) {
-	startPeriodicScanner(ctx, interval, "jav metadata", ScanJavMetadata)
+// StartJavStudioEnglishNamesScanner periodically promotes studio names to English.
+func StartJavStudioEnglishNamesScanner(ctx context.Context, interval time.Duration) {
+	startPeriodicScanner(ctx, interval, "jav studio English names", ScanJavStudioEnglishNames)
 }
 
 // StartUncensoredJavMetadataScanner periodically fills uncensored metadata through AVSOX.
@@ -47,8 +47,8 @@ func startPeriodicScanner(ctx context.Context, interval time.Duration, name stri
 	}()
 }
 
-// ScanJavMetadata promotes studio names using JavDatabase metadata.
-func ScanJavMetadata(ctx context.Context) error {
+// ScanJavStudioEnglishNames promotes studio names using JavDatabase metadata.
+func ScanJavStudioEnglishNames(ctx context.Context) error {
 	if common.DB == nil {
 		return errors.New("nil db")
 	}

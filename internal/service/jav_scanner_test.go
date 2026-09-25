@@ -217,7 +217,7 @@ func TestScanJavDatabasePromotesStudioWithoutBackfillingSeriesOrCensorState(t *t
 	}}
 	jav.SetCache(cache)
 	t.Cleanup(func() { jav.SetCache(nil) })
-	if err := ScanJavMetadata(ctx); err != nil {
+	if err := ScanJavStudioEnglishNames(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if !reflect.DeepEqual(cache.keys, []string{"v4:jav:javdatabase:lookup_jav:STUDIO-001"}) {
@@ -238,7 +238,7 @@ func TestScanJavDatabasePromotesStudioWithoutBackfillingSeriesOrCensorState(t *t
 		t.Fatal("wrong alias owner")
 	}
 	cache.keys = nil
-	if err := ScanJavMetadata(ctx); err != nil {
+	if err := ScanJavStudioEnglishNames(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if len(cache.keys) != 0 {
