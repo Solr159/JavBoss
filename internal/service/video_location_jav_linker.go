@@ -206,13 +206,13 @@ func javLinkProvidersForCode(code string) []jav.Provider {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	switch {
 	case strings.HasPrefix(code, "GANA-"):
-		return []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavMenu, jav.ProviderJavBus}
+		return []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus}
 	case strings.HasPrefix(code, "STARS-"):
-		return []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavBus, jav.ProviderAvmoo}
+		return []jav.Provider{jav.ProviderJavBus, jav.ProviderAvmoo}
 	case strings.HasPrefix(code, "AP-"):
-		return []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvmoo}
+		return []jav.Provider{jav.ProviderAvmoo}
 	default:
-		return []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavBus}
+		return []jav.Provider{jav.ProviderJavBus}
 	}
 }
 

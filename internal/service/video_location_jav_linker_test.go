@@ -22,24 +22,24 @@ func TestJavLinkProvidersForCode(t *testing.T) {
 		want []jav.Provider
 	}{
 		{
-			name: "gana falls back to javmenu then javbus",
+			name: "gana uses javmenu then javbus",
 			code: "gana-1234",
-			want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavMenu, jav.ProviderJavBus},
+			want: []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus},
 		},
 		{
-			name: "stars falls back to javbus then avmoo",
+			name: "stars uses javbus then avmoo",
 			code: " STARS-001 ",
-			want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavBus, jav.ProviderAvmoo},
+			want: []jav.Provider{jav.ProviderJavBus, jav.ProviderAvmoo},
 		},
 		{
-			name: "ap falls back to avmoo",
+			name: "ap uses avmoo",
 			code: "ap-001",
-			want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvmoo},
+			want: []jav.Provider{jav.ProviderAvmoo},
 		},
 		{
-			name: "other falls back to javbus",
+			name: "other uses javbus",
 			code: "IPX-228",
-			want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderJavBus},
+			want: []jav.Provider{jav.ProviderJavBus},
 		},
 	}
 	for _, tt := range tests {
