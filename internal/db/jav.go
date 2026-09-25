@@ -3017,12 +3017,13 @@ func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string,
 	return codes, nil
 }
 
-// ListJavsMissingStudioOrEnglishSeries also includes studios still using a
-// non-English name, even when the internal English series has already been filled.
-func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsNeedingEnglishStudioNameOrSeriesBackfill returns coded JAVs not marked
+// uncensored whose studio is missing or has a non-English name, or whose internal
+// English series is missing.
+func ListJavsNeedingEnglishStudioNameOrSeriesBackfill(ctx context.Context) ([]JavMetadataScanItem, error) {
 	var studios []models.JavStudio
 	if err := common.DB.WithContext(ctx).Select("id", "name").Find(&studios).Error; err != nil {
-		return nil, fmt.Errorf("list studios for English name scan: %w", err)
+		return nil, fmt.Errorf("list studios for English name backfill: %w", err)
 	}
 	var localStudioIDs []int64
 	for _, studio := range studios {
@@ -3039,7 +3040,7 @@ func ListJavsMissingStudioOrEnglishSeries(ctx context.Context) ([]JavMetadataSca
 		Where("studio_id IS NULL OR series_en_id IS NULL OR studio_id IN ?", localStudioIDs).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing English studio or series: %w", err)
+		return nil, fmt.Errorf("list javs needing English studio name or series backfill: %w", err)
 	}
 	return items, nil
 }

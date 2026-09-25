@@ -2287,7 +2287,7 @@ func TestMissingOnlyJavMetadataUpdatesFillEmptyValues(t *testing.T) {
 	}
 }
 
-func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
+func TestListJavsNeedingEnglishStudioNameOrSeriesBackfill(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -2316,9 +2316,9 @@ func TestListJavsMissingStudioAndInternalEnglishSeries(t *testing.T) {
 		t.Fatalf("create jav rows: %v", err)
 	}
 
-	fastCandidates, err := ListJavsMissingStudioOrEnglishSeries(ctx)
+	fastCandidates, err := ListJavsNeedingEnglishStudioNameOrSeriesBackfill(ctx)
 	if err != nil {
-		t.Fatalf("ListJavsMissingStudioOrEnglishSeries: %v", err)
+		t.Fatalf("ListJavsNeedingEnglishStudioNameOrSeriesBackfill: %v", err)
 	}
 	if len(fastCandidates) != 2 ||
 		fastCandidates[0].Code != "MISS-STUDIO" ||

@@ -64,14 +64,16 @@ func ScanJavMetadata(ctx context.Context) error {
 	if err := scanMissingJavUncensoredBackfillOnce(ctx); err != nil {
 		return err
 	}
-	if err := scanMissingJavStudioAndEnglishSeries(ctx); err != nil {
+	if err := backfillJavEnglishStudioNamesAndSeries(ctx); err != nil {
 		return err
 	}
 	return nil
 }
 
-func scanMissingJavStudioAndEnglishSeries(ctx context.Context) error {
-	items, err := db.ListJavsMissingStudioOrEnglishSeries(ctx)
+// backfillJavEnglishStudioNamesAndSeries promotes studio names to English and
+// fills missing internal English series using JavDatabase metadata.
+func backfillJavEnglishStudioNamesAndSeries(ctx context.Context) error {
+	items, err := db.ListJavsNeedingEnglishStudioNameOrSeriesBackfill(ctx)
 	if err != nil {
 		return err
 	}
