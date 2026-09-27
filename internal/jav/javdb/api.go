@@ -392,3 +392,9 @@ func (p *API) request(ctx context.Context, path string, params url.Values) (*htt
 func (p *API) CheckConnectivity(ctx context.Context) (*http.Response, error) {
 	return p.request(ctx, "/api/v2/search", url.Values{"q": {"SSIS-001"}, "page": {"1"}, "limit": {"1"}})
 }
+
+// ConnectivityURL identifies the API origin, which is separate from the website.
+func (p *API) ConnectivityURL() string {
+	p.init()
+	return p.baseURL
+}

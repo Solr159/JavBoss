@@ -34,9 +34,11 @@ provider's cache version without changing existing provider IDs.
 
 Run `GOCACHE=$(pwd)/.gocache go test ./internal/jav/...` from the repository root.
 
-Connectivity checks in Network & Proxy use these authenticated routes:
+Connectivity checks in JAV Providers use these authenticated routes:
 
-- `GET /jav/providers`: list registered providers supporting connectivity checks (`id`, `name`).
+- `GET /jav/providers`: list registered providers supporting connectivity checks
+  (`id`, `name`, `domain`). The displayed domain comes from each provider's
+  connectivity origin; JavDB's website and API have separate domains.
 - `POST /jav/providers/:provider/connectivity`: check one numeric provider ID using
   the server's saved proxy configuration. No body or query parameters are needed;
   arbitrary target URLs are not accepted. Returns `provider`, `status`,

@@ -253,9 +253,12 @@ func buildThePornDBRequest(ctx context.Context, targetURL string) (*http.Request
 // CheckConnectivity checks the authenticated API without consulting the lookup cache.
 // The caller owns the response body.
 func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildThePornDBRequest(ctx, "https://api.theporndb.net/jav?external_id=SSIS-001")
+	req, err := buildThePornDBRequest(ctx, p.ConnectivityURL()+"/jav?external_id=SSIS-001")
 	if err != nil {
 		return nil, err
 	}
 	return util.DefaultHTTPClient().Do(req)
 }
+
+// ConnectivityURL identifies the origin used for connectivity checks.
+func (p *Client) ConnectivityURL() string { return "https://api.theporndb.net" }

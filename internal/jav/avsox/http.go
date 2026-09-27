@@ -330,9 +330,12 @@ type avsoxStatusError struct {
 // CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
 // The caller owns the response body.
 func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildAvsoxRequest(ctx, avsoxBaseURL+"/", avsoxBaseURL)
+	req, err := buildAvsoxRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
 	if err != nil {
 		return nil, err
 	}
 	return p.doAvsoxRequest(req)
 }
+
+// ConnectivityURL identifies the origin used for connectivity checks.
+func (p *Client) ConnectivityURL() string { return avsoxBaseURL }

@@ -144,8 +144,8 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
           {disabled && (
             <p className="mt-1 text-sm text-amber-700">
               {zh(
-                '请先保存或取消代理编辑，再进行检测。',
-                'Save or cancel proxy edits before checking.'
+                '请先在“网络与代理”中保存或取消代理编辑，再进行检测。',
+                'Save or cancel proxy edits in Network & Proxy before checking.'
               )}
             </p>
           )}
@@ -196,7 +196,10 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
           const name = providerNames[provider.name] || provider.name
           return (
             <li key={provider.id} className="flex flex-wrap items-center gap-3 py-3">
-              <span className="w-28 text-sm font-medium text-zinc-800">{name}</span>
+              <div className="min-w-0 basis-full sm:w-52 sm:shrink-0 sm:basis-auto">
+                <div className="text-sm font-medium text-zinc-800">{name}</div>
+                <div className="mt-0.5 break-all text-xs text-zinc-500">{provider.domain}</div>
+              </div>
               <div className={`min-w-0 flex-1 text-sm ${color}`}>
                 <span className="break-words">{resultLabel(result)}</span>
                 {result?.http_status > 0 && <span> · HTTP {result.http_status}</span>}

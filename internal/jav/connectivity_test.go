@@ -20,6 +20,8 @@ import (
 
 type connectivityFunc func(context.Context) (*http.Response, error)
 
+func (connectivityFunc) ConnectivityURL() string { return "https://provider.invalid" }
+
 func (f connectivityFunc) CheckConnectivity(ctx context.Context) (*http.Response, error) {
 	return f(ctx)
 }
@@ -72,6 +74,9 @@ func TestConnectivityProvidersCoverRegistry(t *testing.T) {
 		t.Fatalf("connectivity must cover all registered providers: %+v", providers)
 	}
 	for i, provider := range providers {
+		if provider.Domain == "" {
+			t.Fatalf("provider %s has no connectivity domain", provider.Name)
+		}
 		if i > 0 && provider.ID <= providers[i-1].ID {
 			t.Fatal("provider order must be stable")
 		}
@@ -88,6 +93,9 @@ func TestConnectivityUsesCurrentProxyAndSignedAPIWithoutCaching(t *testing.T) {
 	t.Cleanup(func() { util.SetProxyPort(0) })
 	api := javdb.NewAPI(nil, "http://provider.invalid")
 	client := NewClient(map[Provider]any{ProviderJavDBAPI: api}, nil)
+	if providers := client.ConnectivityProviders(); len(providers) != 1 || providers[0].Domain != "provider.invalid" {
+		t.Fatalf("displayed domain must follow the configured API origin: %+v", providers)
+	}
 	for _, status := range []int{404, 200} {
 		calls := 0
 		proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"sort"
 	"time"
 )
@@ -13,12 +14,14 @@ import (
 // ConnectivityChecker makes a fresh HTTP request using the provider's transport.
 // Implementations must honor ctx and leave closing the response body to the caller.
 type ConnectivityChecker interface {
+	ConnectivityURL() string
 	CheckConnectivity(context.Context) (*http.Response, error)
 }
 
 type ConnectivityProvider struct {
-	ID   Provider `json:"id"`
-	Name string   `json:"name"`
+	ID     Provider `json:"id"`
+	Name   string   `json:"name"`
+	Domain string   `json:"domain"`
 }
 
 type ConnectivityResult struct {
@@ -33,8 +36,12 @@ func ConnectivityProviders() []ConnectivityProvider { return defaultClient.Conne
 func (c *Client) ConnectivityProviders() []ConnectivityProvider {
 	result := make([]ConnectivityProvider, 0, len(c.providers))
 	for id, implementation := range c.providers {
-		if _, ok := implementation.(ConnectivityChecker); ok {
-			result = append(result, ConnectivityProvider{ID: id, Name: id.String()})
+		if checker, ok := implementation.(ConnectivityChecker); ok {
+			target, err := url.Parse(checker.ConnectivityURL())
+			if err != nil || target.Hostname() == "" {
+				continue
+			}
+			result = append(result, ConnectivityProvider{ID: id, Name: id.String(), Domain: target.Hostname()})
 		}
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })

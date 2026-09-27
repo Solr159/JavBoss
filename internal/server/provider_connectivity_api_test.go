@@ -21,6 +21,14 @@ func TestProviderConnectivityRoutes(t *testing.T) {
 	if err := json.Unmarshal(list.Body.Bytes(), &providers); err != nil || list.Code != http.StatusOK || len(providers) != 10 {
 		t.Fatalf("provider list: status=%d body=%s err=%v", list.Code, list.Body, err)
 	}
+	for _, provider := range providers {
+		if provider.Domain == "" {
+			t.Fatalf("provider %s is missing its domain", provider.Name)
+		}
+		if provider.ID == jav.ProviderJavDBAPI && provider.Domain != "jdforrepam.com" {
+			t.Fatalf("JavDB API must show its API domain, got %s", provider.Domain)
+		}
+	}
 	for _, id := range []string{"0", "3", "11", "999", "invalid"} {
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/jav/providers/"+id+"/connectivity", nil))

@@ -37,6 +37,11 @@ const SETTINGS_SECTIONS = [
     summary: { zh: '网络连接与代理设置', en: 'Network connection and proxy settings' },
   },
   {
+    id: 'jav-providers',
+    title: { zh: 'JAV 数据源', en: 'JAV Providers' },
+    summary: { zh: '数据源域名与连通性检测', en: 'Provider domains and connectivity checks' },
+  },
+  {
     id: 'tools',
     title: { zh: '工具', en: 'Tools' },
     summary: { zh: '下载与管理运行工具', en: 'Download and manage runtime tools' },
@@ -620,10 +625,6 @@ export default function GlobalSettingsModal({
     <div className="space-y-5">
       {renderLANAccessPanel()}
       {renderProxyPanel()}
-      <ProviderConnectivityPanel
-        key={`${proxyHost || ''}:${proxyPort || 0}`}
-        disabled={proxyEditing || savingProxy}
-      />
     </div>
   )
 
@@ -1486,6 +1487,12 @@ export default function GlobalSettingsModal({
           {currentSection === 'display' && renderDisplayPanel()}
           {currentSection === 'shortcuts' && renderShortcutsPanel()}
           {currentSection === 'network' && renderNetworkPanel()}
+          {currentSection === 'jav-providers' && (
+            <ProviderConnectivityPanel
+              key={`${proxyHost || ''}:${proxyPort || 0}`}
+              disabled={proxyEditing || savingProxy}
+            />
+          )}
           {currentSection === 'tools' && renderToolsPanel()}
           {currentSection === 'player' && renderPlayerPanel()}
           {currentSection === 'directories' && renderDirectoriesPanel()}
