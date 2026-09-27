@@ -144,7 +144,7 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="text-[13px] font-semibold text-zinc-800">
-            {zh('数据源连通性检测', 'Provider Connectivity')}
+            {zh('连通性检测', 'Connectivity Check')}
           </h4>
           <p className="mt-1 text-xs leading-5 text-zinc-500">
             {zh(
