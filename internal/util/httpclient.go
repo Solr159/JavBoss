@@ -65,16 +65,23 @@ func NewHTTPClient(timeout time.Duration) *http.Client {
 	return NewHTTPClientWithTransport(timeout, nil)
 }
 
-// NewHTTPClientWithTransport allows customizing the base transport while keeping proxy auto-detection.
+// NewHTTPClientWithTransport configures a transport on first use and rebuilds it
+// after proxy settings change. The outer client retains its timeout and redirect policy.
 func NewHTTPClientWithTransport(timeout time.Duration, configure func(*http.Transport)) *http.Client {
-	transport := &http.Transport{
-		Proxy: DetectProxyFunc(),
-	}
-	if configure != nil {
-		configure(transport)
+	create := func() *http.Transport {
+		transport := &http.Transport{
+			Proxy: DetectProxyFunc(),
+			// Retired transports may still have active requests. Let their connections
+			// expire after becoming idle, without tracking or wrapping response bodies.
+			IdleConnTimeout: 90 * time.Second,
+		}
+		if configure != nil {
+			configure(transport)
+		}
+		return transport
 	}
 	return &http.Client{
 		Timeout:   timeout,
-		Transport: transport,
+		Transport: &proxyTransport{create: create},
 	}
 }

@@ -29,7 +29,31 @@ var (
 	proxyOnce     sync.Once
 	proxyFunc     func(*http.Request) (*url.URL, error)
 	proxyOverride atomic.Pointer[proxyConfig]
+	proxyVersion  atomic.Uint64
+	proxyUpdateMu sync.Mutex
 )
+
+// Updating the version invalidates every client's cached transport independently.
+// Identical settings keep their version so unrelated config saves preserve connections.
+func setProxyConfig(config *proxyConfig) {
+	proxyUpdateMu.Lock()
+	defer proxyUpdateMu.Unlock()
+	if proxyConfigKey(proxyOverride.Load()) == proxyConfigKey(config) {
+		return
+	}
+	proxyOverride.Store(config)
+	proxyVersion.Add(1)
+}
+
+func proxyConfigKey(config *proxyConfig) string {
+	if config == nil {
+		return ProxyModeAuto
+	}
+	if config.url == nil {
+		return ProxyModeDirect
+	}
+	return config.url.String()
+}
 
 // DetectProxyFunc returns a cached function honoring direct/manual settings before
 // env/system proxies provided by go-ieproxy (env has priority inside).
@@ -43,7 +67,7 @@ func DetectProxyFunc() func(*http.Request) (*url.URL, error) {
 // SetProxy configures the manual HTTP proxy. Use port <= 0 for auto-detection.
 func SetProxy(host string, port int) {
 	if port <= 0 {
-		proxyOverride.Store(nil)
+		setProxyConfig(nil)
 		logging.Info("proxy: cleared configured proxy")
 		return
 	}
@@ -53,7 +77,7 @@ func SetProxy(host string, port int) {
 	}
 	u := &url.URL{Scheme: "http", Host: net.JoinHostPort(host, strconv.Itoa(port))}
 	u = mapProxyURLForContainer(u)
-	proxyOverride.Store(&proxyConfig{url: u})
+	setProxyConfig(&proxyConfig{url: u})
 	logging.Info("proxy: using configured proxy %s", u.Redacted())
 }
 
@@ -78,7 +102,7 @@ func ResolveProxyMode(mode, portRaw string) string {
 func SetProxySettings(mode, host, port string) {
 	switch ResolveProxyMode(mode, port) {
 	case ProxyModeDirect:
-		proxyOverride.Store(&proxyConfig{})
+		setProxyConfig(&proxyConfig{})
 		logging.Info("proxy: using direct connections")
 	case ProxyModeManual:
 		SetProxyFromStrings(host, port)

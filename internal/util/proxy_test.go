@@ -61,13 +61,14 @@ func TestProxyModesApplyToExistingClient(t *testing.T) {
 	autoURL, _ := url.Parse(automatic.URL)
 	manualURL, _ := url.Parse(manual.URL)
 	manualPort, _ := strconv.Atoi(manualURL.Port())
-	client := NewHTTPClient(time.Second)
-	defer client.CloseIdleConnections()
 	fallbackCalls := 0
-	client.Transport.(*http.Transport).Proxy = configuredProxy(func(*http.Request) (*url.URL, error) {
-		fallbackCalls++
-		return autoURL, nil
+	client := NewHTTPClientWithTransport(time.Second, func(transport *http.Transport) {
+		transport.Proxy = configuredProxy(func(*http.Request) (*url.URL, error) {
+			fallbackCalls++
+			return autoURL, nil
+		})
 	})
+	defer client.CloseIdleConnections()
 	for _, mode := range []string{ProxyModeAuto, ProxyModeDirect, ProxyModeManual, ProxyModeAuto, ProxyModeDirect} {
 		SetProxySettings(mode, manualURL.Hostname(), strconv.Itoa(manualPort))
 		before := fallbackCalls

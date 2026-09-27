@@ -55,6 +55,11 @@ Network & Proxy stores `proxy_mode` as `auto` (default), `direct` (skip environm
 and system proxies), or `manual` (use `proxy_host` and `proxy_port`). Existing
 settings without a mode retain manual proxy behavior when a valid port is present.
 Mode changes take effect on subsequent requests and clear connectivity results.
+Proxy configuration changes increment an in-memory version. Each HTTP client
+checks that version before a request and rebuilds its transport when outdated,
+including HTTP/2 connection pools. Identical settings preserve existing pools.
+Requests already in progress can finish using their original connection; old
+idle connections are closed and busy connections expire after becoming idle.
 The last manual address is retained when switching to auto or direct mode.
 
 Each check makes a fresh GET using the provider's normal headers, transport and
