@@ -1,192 +1,104 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"io"
 	"os"
-	"strconv"
+	"os/signal"
 	"strings"
+
+	"github.com/urfave/cli/v3"
 
 	"javboss/internal/jav"
 )
 
-type methodOption struct {
-	name   string
-	prompt string
-	call   func(jav.Provider, string) (any, error)
-}
-
-type providerOption struct {
-	name     string
-	provider jav.Provider
-	methods  []methodOption
-}
-
 func main() {
-	reader := bufio.NewReader(os.Stdin)
-	providers := []providerOption{
-		{
-			name:     "javbus",
-			provider: jav.ProviderJavBus,
-		},
-		{
-			name:     "javdatabase",
-			provider: jav.ProviderJavDatabase,
-		},
-		{
-			name:     "javdb",
-			provider: jav.ProviderJavDB,
-		},
-		{
-			name:     "javdb-api",
-			provider: jav.ProviderJavDBAPI,
-		},
-		{
-			name:     "avmoo",
-			provider: jav.ProviderAvmoo,
-		},
-		{
-			name:     "avsox",
-			provider: jav.ProviderAvsox,
-		},
-		{
-			name:     "javmenu",
-			provider: jav.ProviderJavMenu,
-		},
-		{
-			name:     "javmodel",
-			provider: jav.ProviderJavModel,
-		},
-		{
-			name:     "theporndb",
-			provider: jav.ProviderThePornDB,
-		},
-		{
-			name:     "minnanoav",
-			provider: jav.ProviderMinnanoAV,
-		},
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	if err := newCommand().run(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
+		if errors.Is(err, context.Canceled) {
+			os.Exit(130)
+		}
+		fmt.Fprintln(os.Stderr, "javprovider:", err)
+		os.Exit(1)
 	}
-	methods := []methodOption{
-		{
-			name:   "LookupActressByCode",
-			prompt: "请输入番号",
-			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByCode(context.Background(), input, provider)
-			},
-		},
-		{
-			name:   "LookupActressByJapaneseName",
-			prompt: "请输入女优日文名",
-			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByJapaneseName(context.Background(), input, provider)
-			},
-		},
-		{
-			name:   "LookupJavByCode",
-			prompt: "请输入番号",
-			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupJavByCode(context.Background(), input, provider)
-			},
-		},
-	}
+}
 
-	provider := providers[mustChoose(reader, "请选择 provider", providerNames(providers))]
-	method := methods[mustChoose(reader, "请选择 method", methodNames(methods))]
-	input := mustReadNonEmpty(reader, method.prompt)
-
-	result, err := safeCall(method, provider.provider, input)
+func (cmd command) run(ctx context.Context, args []string, in io.Reader, out, errOut io.Writer) error {
+	var provider providerOption
+	method, err := cmd.findMethod("LookupJavByCode")
 	if err != nil {
-		if errors.Is(err, errMethodNotSupported) {
-			fmt.Println("不支持")
-			return
-		}
-		log.Fatalf("调用失败: %v", err)
+		return err
 	}
-	if result == nil {
-		fmt.Println("null")
-		return
+	app := &cli.Command{
+		Name:            "javprovider",
+		Usage:           "查询 JAV 影片和演员资料；不带参数进入交互模式",
+		HideHelpCommand: true,
+		Reader:          in, Writer: errOut, ErrWriter: errOut,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name: "provider", Usage: "数据来源: " + strings.Join(providerNames(cmd.providers), ", "),
+				Required: len(args) > 0,
+				Action: func(_ context.Context, _ *cli.Command, value string) error {
+					var err error
+					provider, err = cmd.findProvider(value)
+					return err
+				},
+			},
+			&cli.StringFlag{
+				Name: "method", Value: "LookupJavByCode", Usage: "查询方法: " + strings.Join(methodNames(cmd.methods), ", "),
+				Action: func(_ context.Context, _ *cli.Command, value string) error {
+					var err error
+					method, err = cmd.findMethod(value)
+					return err
+				},
+			},
+			&cli.StringFlag{Name: "input", Usage: "查询内容（番号或女优名字）", Required: len(args) > 0, Validator: nonEmptyInput},
+		},
+		Action: func(ctx context.Context, c *cli.Command) error {
+			if c.Args().Present() {
+				return errors.New("不支持位置参数，请使用 --provider、--method 和 --input")
+			}
+			input := strings.TrimSpace(c.String("input"))
+			if len(args) == 0 {
+				var err error
+				provider, method, input, err = cmd.selectLookup(ctx, in, out)
+				if err != nil {
+					return err
+				}
+			}
+			return executeLookup(ctx, out, provider, method, input)
+		},
 	}
-
-	switch value := result.(type) {
-	case string:
-		fmt.Println(value)
-	default:
-		data, err := json.MarshalIndent(value, "", "  ")
-		if err != nil {
-			log.Fatalf("序列化失败: %v", err)
-		}
-		fmt.Println(string(data))
-	}
+	return app.Run(ctx, append([]string{"javprovider"}, args...))
 }
 
-var errMethodNotSupported = errors.New("method not supported")
-
-func providerNames(providers []providerOption) []string {
-	names := make([]string, 0, len(providers))
-	for _, provider := range providers {
-		names = append(names, provider.name)
+func nonEmptyInput(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return errors.New("查询内容不能为空")
 	}
-	return names
+	return nil
 }
 
-func methodNames(methods []methodOption) []string {
-	names := make([]string, 0, len(methods))
-	for _, method := range methods {
-		names = append(names, method.name)
-	}
-	return names
-}
-
-func mustChoose(reader *bufio.Reader, title string, options []string) int {
-	if len(options) == 0 {
-		log.Fatalf("%s: 没有可选项", title)
-	}
-	fmt.Println(title + ":")
-	for i, option := range options {
-		fmt.Printf("%d. %s\n", i+1, option)
-	}
-	for {
-		text := mustReadNonEmpty(reader, "请输入编号")
-		index, err := strconv.Atoi(text)
-		if err != nil || index < 1 || index > len(options) {
-			fmt.Printf("无效编号，请输入 1-%d\n", len(options))
-			continue
+func executeLookup(ctx context.Context, out io.Writer, provider providerOption, method methodOption, input string) error {
+	result, err := method.call(ctx, provider.provider, input)
+	if err != nil {
+		if errors.Is(err, jav.ErrUnsupportedOperation) {
+			return fmt.Errorf("%s 不支持 %s: %w", provider.name, method.name, err)
 		}
-		return index - 1
+		return fmt.Errorf("调用 %s/%s 失败: %w", provider.name, method.name, err)
 	}
-}
-
-func mustReadNonEmpty(reader *bufio.Reader, prompt string) string {
-	for {
-		fmt.Printf("%s: ", prompt)
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			log.Fatalf("读取输入失败: %v", err)
-		}
-		text = strings.TrimSpace(text)
-		if text != "" {
-			return text
-		}
+	if value, ok := result.(string); ok {
+		_, err = fmt.Fprintln(out, value)
+		return err
 	}
-}
-
-func safeCall(method methodOption, provider jav.Provider, input string) (result any, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = errMethodNotSupported
-		}
-	}()
-	result, err = method.call(provider, input)
-	if err == nil {
-		return result, nil
+	encoder := json.NewEncoder(out)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(result); err != nil {
+		return fmt.Errorf("输出结果失败: %w", err)
 	}
-	lower := strings.ToLower(err.Error())
-	if strings.Contains(lower, "not supported") || strings.Contains(lower, "unsupported") || strings.Contains(lower, "unimplemented") {
-		return nil, errMethodNotSupported
-	}
-	return result, err
+	return nil
 }

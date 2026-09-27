@@ -42,3 +42,33 @@ type MovieURLLookup interface {
 type GenreCategoryLookup interface {
 	FetchGenreCategories(context.Context) ([]metadata.GenreCategory, error)
 }
+
+// Capabilities describes the operations implemented by a registered provider.
+type Capabilities struct {
+	Movie, ActressByCode, ActressByName bool
+	ActressURL, SeriesURL, StudioURL    bool
+	MovieURL, GenreCategories           bool
+}
+
+// CapabilitiesFor reports supported operations without making network requests.
+// Unknown providers and non-lookup sources have no capabilities.
+func CapabilitiesFor(provider Provider) Capabilities {
+	return defaultClient.CapabilitiesFor(provider)
+}
+
+func (c *Client) CapabilitiesFor(provider Provider) Capabilities {
+	implementation, err := c.providerFor(provider)
+	if err != nil {
+		return Capabilities{}
+	}
+	var result Capabilities
+	_, result.Movie = implementation.(MovieLookup)
+	_, result.ActressByCode = implementation.(ActressCodeLookup)
+	_, result.ActressByName = implementation.(ActressNameLookup)
+	_, result.ActressURL = implementation.(ActressURLLookup)
+	_, result.SeriesURL = implementation.(SeriesURLLookup)
+	_, result.StudioURL = implementation.(StudioURLLookup)
+	_, result.MovieURL = implementation.(MovieURLLookup)
+	_, result.GenreCategories = implementation.(GenreCategoryLookup)
+	return result
+}

@@ -30,17 +30,8 @@ func TestProviderCapabilities(t *testing.T) {
 		{ProviderMinnanoAV, false, false, true, false, false, false},
 	} {
 		t.Run(tc.provider.String(), func(t *testing.T) {
-			p, err := client.providerFor(tc.provider)
-			if err != nil {
-				t.Fatal(err)
-			}
-			_, movie := p.(MovieLookup)
-			_, actressCode := p.(ActressCodeLookup)
-			_, actressName := p.(ActressNameLookup)
-			_, actressURL := p.(ActressURLLookup)
-			_, seriesURL := p.(SeriesURLLookup)
-			_, studioURL := p.(StudioURLLookup)
-			got := [6]bool{movie, actressCode, actressName, actressURL, seriesURL, studioURL}
+			capabilities := client.CapabilitiesFor(tc.provider)
+			got := [6]bool{capabilities.Movie, capabilities.ActressByCode, capabilities.ActressByName, capabilities.ActressURL, capabilities.SeriesURL, capabilities.StudioURL}
 			want := [6]bool{tc.movie, tc.actressCode, tc.actressName, tc.actressURL, tc.seriesURL, tc.studioURL}
 			if got != want {
 				t.Fatalf("capabilities = %v, want %v", got, want)
