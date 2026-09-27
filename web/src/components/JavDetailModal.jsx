@@ -165,17 +165,15 @@ function JavFavoriteRatingEditor({ value, saving, error, onChange }) {
 }
 
 /* eslint-disable jsx-a11y/no-noninteractive-element-to-interactive-role */
-function JavSampleImageGrid({ images, itemId, code }) {
+function JavSampleImageGrid({ images, itemId }) {
   const [previewItem, setPreviewItem] = useState(null)
   const displayImages = useMemo(
     () =>
-      /^FC2-PPV-/i.test(code)
-        ? images.map((_, index) => ({
-            thumbnail_url: `/jav/items/${encodeURIComponent(itemId)}/sample-images/${index}/thumbnail`,
-            detail_url: `/jav/items/${encodeURIComponent(itemId)}/sample-images/${index}/detail`,
-          }))
-        : images,
-    [images, itemId, code]
+      images.map((_, index) => ({
+        thumbnail_url: `/jav/items/${encodeURIComponent(itemId)}/sample-images/${index}/thumbnail`,
+        detail_url: `/jav/items/${encodeURIComponent(itemId)}/sample-images/${index}/detail`,
+      })),
+    [images, itemId]
   )
   const previewItems = useMemo(
     () =>
@@ -888,7 +886,7 @@ export default function JavDetailModal({
                   {zh('正在加载样品图像…', 'Loading sample images...')}
                 </div>
               ) : sampleImages.length > 0 ? (
-                <JavSampleImageGrid images={sampleImages} itemId={itemId} code={code} />
+                <JavSampleImageGrid images={sampleImages} itemId={itemId} />
               ) : (
                 <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                   {sampleImagesError}

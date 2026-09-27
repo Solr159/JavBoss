@@ -343,11 +343,7 @@ func validateJavSampleImageDetailURL(ctx context.Context, detailURL string) (boo
 	if err != nil {
 		return false, fmt.Errorf("build request: %w", err)
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
-	if host := strings.ToLower(parsed.Hostname()); host == "pics.dmm.co.jp" || strings.HasSuffix(host, ".dmm.co.jp") {
-		req.Header.Set("Referer", "https://www.dmm.co.jp/")
-	}
+	util.SetJavImageRequestHeaders(req)
 
 	resp, err := util.DoRequest(req)
 	if err != nil {

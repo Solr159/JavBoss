@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 func TestFC2SampleImagesRetryAndDisplay(t *testing.T) {
@@ -109,5 +111,66 @@ func TestFC2SampleImagesRetryAndDisplay(t *testing.T) {
 				t.Fatal("missing browser cache header")
 			}
 		})
+	}
+}
+
+type sampleImageTransportFunc func(*http.Request) (*http.Response, error)
+
+func (f sampleImageTransportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestSampleImageProxySetsSourceReferer(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, err := database.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	item := models.Jav{Code: "FNS-207", SampleImages: models.JavSampleImages{{
+		ThumbnailURL: "https://www.javbus.com/pics/sample/cbmj_1.jpg",
+		DetailURL:    "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/1fns00207/1fns00207jp-1.jpg",
+	}}}
+	if err := database.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	var plain bytes.Buffer
+	if err := jpeg.Encode(&plain, image.NewRGBA(image.Rect(0, 0, 32, 32)), nil); err != nil {
+		t.Fatal(err)
+	}
+	client := util.DefaultHTTPClient()
+	previousTransport := client.Transport
+	t.Cleanup(func() { client.Transport = previousTransport })
+	var requested []string
+	client.Transport = sampleImageTransportFunc(func(req *http.Request) (*http.Response, error) {
+		requested = append(requested, req.URL.String())
+		wantReferer := "https://www.dmm.co.jp/"
+		if req.URL.Hostname() == "www.javbus.com" {
+			wantReferer = "https://www.javbus.com/"
+		}
+		if req.Header.Get("Referer") != wantReferer {
+			t.Errorf("Referer = %q, want %q", req.Header.Get("Referer"), wantReferer)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"image/jpeg"}}, Body: io.NopCloser(bytes.NewReader(plain.Bytes())), Request: req}, nil
+	})
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.GET("/jav/items/:id/sample-images/:index/:variant", getJavSampleImage)
+	for _, variant := range []string{"thumbnail", "detail"} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, fmt.Sprintf("/jav/items/%d/sample-images/0/%s", item.ID, variant), nil))
+		if recorder.Code != http.StatusOK || !bytes.Equal(recorder.Body.Bytes(), plain.Bytes()) {
+			t.Fatalf("%s did not return the image: status=%d", variant, recorder.Code)
+		}
+	}
+	want := []string{item.SampleImages[0].ThumbnailURL, item.SampleImages[0].DetailURL}
+	if !reflect.DeepEqual(requested, want) {
+		t.Fatalf("requested = %v, want %v", requested, want)
 	}
 }
