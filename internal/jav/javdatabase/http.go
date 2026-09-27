@@ -70,3 +70,16 @@ func buildJavDatabaseRequest(ctx context.Context, targetURL, referer string) (*h
 	}
 	return req, nil
 }
+
+// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
+// The caller owns the response body.
+func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
+	req, err := buildJavDatabaseRequest(ctx, "https://www.javdatabase.com/", "https://www.javdatabase.com/")
+	if err != nil {
+		return nil, err
+	}
+	if err := p.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+	return util.DefaultHTTPClient().Do(req)
+}

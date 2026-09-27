@@ -92,27 +92,7 @@ func (p *API) get(ctx context.Context, path string, params url.Values, dest any)
 		}
 		logging.Info("javdb-api response: path=%s status=%d bytes=%d elapsed=%s", path, status, responseBytes, time.Since(started).Round(time.Millisecond))
 	}()
-	if err := p.limiter.Wait(ctx); err != nil {
-		return err
-	}
-	query := url.Values{
-		"app_channel": {"official"}, "app_version": {"1.9.28"},
-		"app_version_number": {"10928"}, "platform": {"android"},
-		"system_version": {"13"}, "device_model": {"Pixel 6"},
-		"device_name": {"Pixel"}, "device_uuid": {p.deviceID},
-	}
-	for key, values := range params {
-		query[key] = values
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+path+"?"+query.Encode(), nil)
-	if err != nil {
-		return fmt.Errorf("javdb-api: build request: %w", err)
-	}
-	req.Header.Set("jdsignature", javDBAPISignature(time.Now().Unix()))
-	req.Header.Set("User-Agent", "Dart/3.4 (dart:io)")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "zh-TW")
-	resp, err := p.client.Do(req)
+	resp, err := p.request(ctx, path, params)
 	if err != nil {
 		return fmt.Errorf("javdb-api: request: %w", err)
 	}
@@ -379,4 +359,36 @@ func NewProviders() (*Client, *API) {
 	api := NewAPI(nil, "")
 	api.limiter = html.limiter
 	return html, api
+}
+
+// request shares API identity, signing, rate limiting and transport with connectivity checks.
+func (p *API) request(ctx context.Context, path string, params url.Values) (*http.Response, error) {
+	p.init()
+	if err := p.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+	query := url.Values{
+		"app_channel": {"official"}, "app_version": {"1.9.28"},
+		"app_version_number": {"10928"}, "platform": {"android"},
+		"system_version": {"13"}, "device_model": {"Pixel 6"},
+		"device_name": {"Pixel"}, "device_uuid": {p.deviceID},
+	}
+	for key, values := range params {
+		query[key] = values
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+path+"?"+query.Encode(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("javdb-api: build request: %w", err)
+	}
+	req.Header.Set("jdsignature", javDBAPISignature(time.Now().Unix()))
+	req.Header.Set("User-Agent", "Dart/3.4 (dart:io)")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept-Language", "zh-TW")
+	return p.client.Do(req)
+}
+
+// CheckConnectivity checks a signed search request without requiring a matching movie.
+// The caller owns the response body.
+func (p *API) CheckConnectivity(ctx context.Context) (*http.Response, error) {
+	return p.request(ctx, "/api/v2/search", url.Values{"q": {"SSIS-001"}, "page": {"1"}, "limit": {"1"}})
 }

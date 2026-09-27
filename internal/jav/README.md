@@ -33,3 +33,21 @@ behavior tests at the facade. If parsing changes cached output, update that
 provider's cache version without changing existing provider IDs.
 
 Run `GOCACHE=$(pwd)/.gocache go test ./internal/jav/...` from the repository root.
+
+Connectivity checks in Network & Proxy use these authenticated routes:
+
+- `GET /jav/providers`: list registered providers supporting connectivity checks (`id`, `name`).
+- `POST /jav/providers/:provider/connectivity`: check one numeric provider ID using
+  the server's saved proxy configuration. No body or query parameters are needed;
+  arbitrary target URLs are not accepted. Returns `provider`, `status`,
+  `elapsed_ms`, and `http_status` when an HTTP response was received.
+
+Each check makes a fresh GET using the provider's normal headers, transport and
+rate limiter, bypassing lookup and 404 caches. Web providers check their landing
+page; JavDB API and ThePornDB use their authenticated search endpoints. Results
+describe HTTP reachability, not scraping, authentication or metadata completeness.
+`status` is `ok` for 2xx, `http_error` for other HTTP responses, or `timeout`,
+`canceled`, `dns_error`, `tls_error`, `network_error`. Checks have a 20-second upper
+deadline (shorter provider/client timeouts still apply). The frontend runs at most
+three checks concurrently and cancels pending work when the panel closes or proxy
+settings change. Providers should implement `ConnectivityChecker` when added.

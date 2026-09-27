@@ -9,6 +9,7 @@ import DirectoryManager from '@/components/DirectoryManager'
 import AppModal from '@/components/AppModal'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
 import WebHotkeySettings from '@/components/WebHotkeySettings'
+import ProviderConnectivityPanel from '@/components/ProviderConnectivityPanel'
 import { downloadFFmpeg, fetchTools } from '@/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
@@ -619,6 +620,10 @@ export default function GlobalSettingsModal({
     <div className="space-y-5">
       {renderLANAccessPanel()}
       {renderProxyPanel()}
+      <ProviderConnectivityPanel
+        key={`${proxyHost || ''}:${proxyPort || 0}`}
+        disabled={proxyEditing || savingProxy}
+      />
     </div>
   )
 

@@ -59,13 +59,10 @@ func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBRespon
 	}
 
 	targetURL := fmt.Sprintf("https://api.theporndb.net/jav?external_id=%s", url.QueryEscape(code))
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	req, err := buildThePornDBRequest(ctx, targetURL)
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+thePornDBBearerToken)
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; JavBoss/1.0)")
 
 	logging.Info("theporndb request: %s", targetURL)
 	resp, err := util.DoRequest(req)
@@ -240,3 +237,25 @@ func normalizeThePornDBCodeDisplay(value string) string {
 
 // New creates an independent provider client.
 func New() *Client { return &Client{} }
+
+func buildThePornDBRequest(ctx context.Context, targetURL string) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+thePornDBBearerToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; JavBoss/1.0)")
+
+	return req, nil
+}
+
+// CheckConnectivity checks the authenticated API without consulting the lookup cache.
+// The caller owns the response body.
+func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
+	req, err := buildThePornDBRequest(ctx, "https://api.theporndb.net/jav?external_id=SSIS-001")
+	if err != nil {
+		return nil, err
+	}
+	return util.DefaultHTTPClient().Do(req)
+}

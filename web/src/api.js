@@ -7,6 +7,21 @@ const javSampleImagesResolveInFlight = new Map()
 const javSampleImagesResolved = new Map()
 export const authExpiredEvent = 'javboss:auth-expired'
 
+export async function fetchConnectivityProviders({ signal } = {}) {
+  const res = await apiFetch('/jav/providers', { signal, cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
+export async function checkProviderConnectivity(provider, { signal } = {}) {
+  const res = await apiFetch(`/jav/providers/${encodeURIComponent(provider)}/connectivity`, {
+    method: 'POST',
+    signal,
+  })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
 async function apiError(res) {
   const payload = await res.json().catch(() => ({}))
   return new Error(

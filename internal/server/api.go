@@ -71,6 +71,8 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.POST("/videos/tags/replace", replaceTagsForVideos)
 
 	router.GET("/jav", searchJav)
+	router.GET("/jav/providers", listConnectivityProviders)
+	router.POST("/jav/providers/:provider/connectivity", checkProviderConnectivity)
 	router.GET("/jav/filter-options", listJavFilterOptions)
 	router.GET("/jav/avsox-redirect", redirectJavAvsox)
 	router.GET("/jav/javdb-url", getJavJavDBURL)
