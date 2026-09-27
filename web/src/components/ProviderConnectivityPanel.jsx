@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { IconButton, Tooltip } from '@mui/material'
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
+import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 
 import { checkProviderConnectivity, fetchConnectivityProviders } from '@/api'
 import { getErrorMessage } from '@/utils/errors'
@@ -140,10 +143,10 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h4 className="text-sm font-semibold text-zinc-800">
+          <h4 className="text-[13px] font-semibold text-zinc-800">
             {zh('数据源连通性检测', 'Provider Connectivity')}
           </h4>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
             {zh(
               '使用当前的代理设置检测数据源连通性',
               'Check provider connectivity using the current proxy settings'
@@ -162,7 +165,7 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
           <button
             type="button"
             onClick={cancelChecks}
-            className="rounded-xl border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700"
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
           >
             {zh('取消检测', 'Cancel checks')}
           </button>
@@ -171,7 +174,7 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
             type="button"
             onClick={() => startChecks(providers)}
             disabled={disabled || loading || providers.length === 0 || Boolean(loadError)}
-            className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
           >
             {zh('检测全部', 'Check all')}
           </button>
@@ -190,46 +193,104 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
           </button>
         </div>
       )}
-      <ul className="mt-4 divide-y divide-zinc-100" aria-live="polite">
+      <ul
+        className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-3"
+        aria-live="polite"
+      >
         {providers.map((provider) => {
           const result = results[provider.id]
           const pending = !result || ['queued', 'checking', 'canceled'].includes(result.status)
           const color = pending
-            ? 'text-zinc-500'
+            ? 'bg-zinc-100 text-zinc-500'
             : result.status === 'ok'
-              ? 'text-emerald-700'
+              ? 'bg-emerald-50 text-emerald-700'
               : result.status === 'http_error'
-                ? 'text-amber-700'
-                : 'text-red-600'
+                ? 'bg-amber-50 text-amber-700'
+                : 'bg-red-50 text-red-600'
           const name = providerNames[provider.name] || provider.name
+          const checkLabel =
+            result?.status === 'checking'
+              ? zh(`正在检测 ${name}`, `Checking ${name}`)
+              : zh(`检测 ${name} 连通性`, `Check ${name} connectivity`)
+          const checkedAt = result?.checked_at ? new Date(result.checked_at) : null
           return (
-            <li key={provider.id} className="flex flex-wrap items-center gap-3 py-3">
-              <div className="min-w-0 basis-full sm:w-52 sm:shrink-0 sm:basis-auto">
-                <div className="text-sm font-medium text-zinc-800">{name}</div>
-                <div className="mt-0.5 break-all text-xs text-zinc-500">{provider.domain}</div>
-              </div>
-              <div className={`min-w-0 flex-1 text-sm ${color}`}>
-                <span className="break-words">{resultLabel(result)}</span>
-                {result?.http_status > 0 && <span> · HTTP {result.http_status}</span>}
-                {Number.isFinite(result?.elapsed_ms) && <span> · {result.elapsed_ms} ms</span>}
-                {result?.checked_at && (
-                  <div className="mt-0.5 text-xs text-zinc-500">
-                    {zh('上次检测：', 'Last checked: ')}
-                    <time dateTime={result.checked_at}>
-                      {new Date(result.checked_at).toLocaleString()}
-                    </time>
+            <li
+              key={provider.id}
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 transition hover:border-zinc-300 hover:shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold leading-5 text-zinc-800">{name}</div>
+                  <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500">
+                    {provider.domain}
                   </div>
+                </div>
+                <Tooltip title={checkLabel} arrow>
+                  <span className="inline-flex shrink-0">
+                    <IconButton
+                      type="button"
+                      size="small"
+                      aria-label={checkLabel}
+                      onClick={() => startChecks([provider])}
+                      disabled={disabled || checking}
+                      sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: '8px',
+                        color: '#71717a',
+                        '&:hover': { color: '#2563eb', backgroundColor: '#eff6ff' },
+                        '&.Mui-focusVisible': { outline: '2px solid #3b82f6', outlineOffset: 2 },
+                      }}
+                    >
+                      <RefreshRoundedIcon
+                        sx={{ fontSize: 17 }}
+                        className={result?.status === 'checking' ? 'motion-safe:animate-spin' : ''}
+                      />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${color}`}
+                >
+                  <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-current"
+                    aria-hidden="true"
+                  />
+                  <span className="break-words">{resultLabel(result)}</span>
+                </span>
+                {Number.isFinite(result?.elapsed_ms) && (
+                  <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+                    {result.elapsed_ms} ms
+                  </span>
                 )}
               </div>
-              <button
-                type="button"
-                aria-label={zh(`检测 ${name} 连通性`, `Check ${name} connectivity`)}
-                onClick={() => startChecks([provider])}
-                disabled={disabled || checking}
-                className="rounded-xl border border-zinc-200 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-              >
-                {zh('检测', 'Check')}
-              </button>
+              {(result?.http_status > 0 || checkedAt) && (
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2.5 text-[10px] tabular-nums leading-4 text-zinc-500">
+                  {result?.http_status > 0 && <span>HTTP {result.http_status}</span>}
+                  {checkedAt && (
+                    <span
+                      className="ml-auto inline-flex items-center gap-1"
+                      title={zh('上次检测：', 'Last checked: ') + checkedAt.toLocaleString()}
+                    >
+                      <AccessTimeRoundedIcon sx={{ fontSize: 12 }} />
+                      <time
+                        dateTime={result.checked_at}
+                        aria-label={zh('上次检测：', 'Last checked: ') + checkedAt.toLocaleString()}
+                      >
+                        {checkedAt.toLocaleString(undefined, {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                        })}
+                      </time>
+                    </span>
+                  )}
+                </div>
+              )}
             </li>
           )
         })}
