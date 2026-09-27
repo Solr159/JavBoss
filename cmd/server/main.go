@@ -206,7 +206,6 @@ func main() {
 		logger.Fatalf("initialize authentication: %v", err)
 	}
 
-	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
 	serverPort := defaultDevelopmentPort
 	if portOverride > 0 {
 		serverPort = portOverride
@@ -217,6 +216,23 @@ func main() {
 		runtimeconfig.ContainerMode(),
 	)
 
+	if buildMode == "release" {
+		listenAddr, err = releaseListenAddr(baseDir, allowLANAccess, portOverride)
+		if err != nil {
+			logger.Fatalf("resolve release listen address: %v", err)
+		}
+		if runtimeconfig.ContainerMode() {
+			_, port, _ := net.SplitHostPort(listenAddr)
+			listenAddr = net.JoinHostPort("0.0.0.0", port)
+		}
+	}
+	listener, err := net.Listen("tcp", listenAddr)
+	if err != nil {
+		logger.Fatalf("listen on %s: %v", listenAddr, err)
+	}
+	defer listener.Close()
+	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
+
 	srv := &http.Server{
 		Addr:         listenAddr,
 		Handler:      router,
@@ -225,24 +241,7 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			logger.Printf("server shutdown error: %v", err)
-		}
-	}()
-
 	if buildMode == "release" {
-		listenAddr, err := releaseListenAddr(baseDir, allowLANAccess, portOverride)
-		if err != nil {
-			logger.Fatalf("resolve release listen address: %v", err)
-		}
-		listener, err := net.Listen("tcp", listenAddr)
-		if err != nil {
-			logger.Fatalf("listen on %s: %v", listenAddr, err)
-		}
 		actualPort := listener.Addr().(*net.TCPAddr).Port
 		displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 		openURL := displayURL
@@ -251,15 +250,10 @@ func main() {
 			logger.Printf("open browser failed: %v", err)
 		}
 		startReleaseKeyboardControls(ctx, stop, openURL, logger)
-		logger.Printf("server listening on %s", listener.Addr().String())
-		if err := srv.Serve(listener); err != nil && err != http.ErrServerClosed {
-			logger.Fatalf("server error: %v", err)
-		}
-		return
 	}
 
-	logger.Printf("server listening on %s", listenAddr)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	logger.Printf("server listening on %s", listener.Addr().String())
+	if err := server.ServeHTTP(ctx, srv, listener, allowLANAccess, !runtimeconfig.ContainerMode()); err != nil {
 		logger.Fatalf("server error: %v", err)
 	}
 }

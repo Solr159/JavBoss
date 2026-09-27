@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Switch } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import VisibilityOffOutlinedIcon from '@mui/icons-material/VisibilityOffOutlined'
@@ -583,14 +584,17 @@ export default function GlobalSettingsModal({
 
   const renderLANAccessPanel = () => {
     if (containerMode) return null
-    const unchanged = allowLANAccessInput === (allowLANAccess === true)
 
-    const handleSave = async () => {
+    const handleToggle = async (enabled) => {
+      if (savingAllowLANAccess) return
+      const previous = allowLANAccessInput
+      setAllowLANAccessInput(enabled)
       setAllowLANAccessError('')
       setSavingAllowLANAccess(true)
       try {
-        await onSaveAllowLANAccess?.(allowLANAccessInput)
+        await onSaveAllowLANAccess?.(enabled)
       } catch (err) {
+        setAllowLANAccessInput(previous)
         setAllowLANAccessError(getErrorMessage(err))
       } finally {
         setSavingAllowLANAccess(false)
@@ -599,47 +603,35 @@ export default function GlobalSettingsModal({
 
     return (
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-        <div className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
           <div>
-            <h4 className="text-sm font-semibold text-zinc-800">
-              {zh('局域网访问', 'Local Network Access')}
+            <h4 id="lan-access-title" className="text-sm font-semibold text-zinc-800">
+              {zh('允许局域网设备访问', 'Allow access from local network devices')}
             </h4>
-            <p className="mt-1 text-sm text-zinc-500">
+            <p id="lan-access-description" className="mt-1 text-sm text-zinc-500">
               {zh(
-                '开启后，局域网设备可以通过本机 IP 地址访问 JavBoss。修改将在下次启动时生效。',
-                'When enabled, devices on your local network can access JavBoss through this computer’s IP address. Changes take effect after the next restart.'
+                '开启后，局域网设备可以通过本机 IP 地址访问 JavBoss，切换立即生效。',
+                'Allow devices on your local network to access JavBoss through this computer’s IP address. Changes take effect immediately.'
               )}
             </p>
           </div>
-
-          <label className="flex items-center gap-3 text-sm font-medium text-zinc-800">
-            <input
-              type="checkbox"
-              checked={allowLANAccessInput}
-              onChange={(event) => {
-                setAllowLANAccessInput(event.target.checked)
-                setAllowLANAccessError('')
-              }}
-              className="h-4 w-4 rounded"
-            />
-            <span>{zh('允许局域网设备访问', 'Allow access from local network devices')}</span>
-          </label>
-
-          {allowLANAccessError ? (
-            <div className="text-sm text-red-600">{allowLANAccessError}</div>
-          ) : null}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={savingAllowLANAccess || unchanged}
-              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-            >
-              {savingAllowLANAccess ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-            </button>
-          </div>
+          <Switch
+            size="small"
+            checked={allowLANAccessInput}
+            onChange={(_, checked) => handleToggle(checked)}
+            disabled={savingAllowLANAccess || !onSaveAllowLANAccess}
+            inputProps={{
+              role: 'switch',
+              'aria-labelledby': 'lan-access-title',
+              'aria-describedby': 'lan-access-description',
+            }}
+          />
         </div>
+        {allowLANAccessError && (
+          <div className="mt-3 text-sm text-red-600" role="alert">
+            {allowLANAccessError}
+          </div>
+        )}
       </section>
     )
   }

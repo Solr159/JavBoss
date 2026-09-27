@@ -515,9 +515,16 @@ func updateConfig(c *gin.Context) {
 		entries["web_hotkeys"] = string(raw)
 	}
 
-	if err := dbpkg.UpsertConfig(c.Request.Context(), entries); err != nil {
-		logging.Error("update config error: %v", err)
-		respondLocalizedError(c, http.StatusInternalServerError, "保存配置失败", "Failed to save configuration")
+	saveConfig := func() error { return dbpkg.UpsertConfig(c.Request.Context(), entries) }
+	var saveErr error
+	if updateLANAccess != nil && req.AllowLANAccess != nil {
+		saveErr = updateLANAccess(*req.AllowLANAccess, saveConfig)
+	} else {
+		saveErr = saveConfig()
+	}
+	if saveErr != nil {
+		logging.Error("update config error: %v", saveErr)
+		respondLocalizedError(c, http.StatusInternalServerError, "保存或应用配置失败", "Failed to save or apply configuration")
 		return
 	}
 	playerSessionResetNeeded := false

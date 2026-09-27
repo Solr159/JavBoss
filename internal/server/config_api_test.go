@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -17,6 +18,58 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+func TestLANAccessConfigAppliesImmediatelyAndPreservesConfigOnFailure(t *testing.T) {
+	auth := testAuthService(t)
+	previousUpdate := updateLANAccess
+	t.Cleanup(func() { updateLANAccess = previousUpdate })
+	enabled, fail := false, false
+	updateLANAccess = func(next bool, save func() error) error {
+		if fail {
+			return errors.New("port in use")
+		}
+		if err := save(); err != nil {
+			return err
+		}
+		enabled = next
+		return nil
+	}
+	router := NewRouter("", auth)
+	login := performRequest(router, http.MethodPost, "/auth/login", []byte(`{"password":"admin"}`), "http://example.com", nil)
+	if login.Code != http.StatusOK {
+		t.Fatalf("login status=%d body=%s", login.Code, login.Body)
+	}
+	cookie := responseCookie(t, login, authSessionCookie)
+	update := func(enabled bool, wantStatus int) {
+		t.Helper()
+		body := `{"allow_lan_access":false}`
+		if enabled {
+			body = `{"allow_lan_access":true}`
+		}
+		req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		// An authenticated request on an existing remote connection is still handled.
+		req.RemoteAddr = "192.168.1.20:1234"
+		req.AddCookie(cookie)
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != wantStatus {
+			t.Fatalf("status=%d body=%s", response.Code, response.Body)
+		}
+	}
+	for _, next := range []bool{true, false} {
+		update(next, http.StatusOK)
+		if enabled != next {
+			t.Fatalf("enabled=%v, want %v", enabled, next)
+		}
+	}
+	fail = true
+	update(true, http.StatusInternalServerError)
+	cfg, err := dbpkg.ListConfig(context.Background())
+	if err != nil || cfg["allow_lan_access"] != "false" || enabled {
+		t.Fatalf("saved=%s enabled=%v err=%v", cfg["allow_lan_access"], enabled, err)
+	}
+}
 
 func TestProxyModesPersistAndValidate(t *testing.T) {
 	testAuthService(t)
