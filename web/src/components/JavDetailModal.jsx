@@ -83,15 +83,6 @@ function normalizeSampleImages(images) {
   })
 }
 
-function sampleImagesNotFound(images) {
-  return (
-    Array.isArray(images) &&
-    images.length === 1 &&
-    images[0]?.thumbnail_url === ':not_found' &&
-    images[0]?.detail_url === ':not_found'
-  )
-}
-
 function JavFavoriteRatingEditor({ value, saving, error, onChange }) {
   const rating = Number(value) || 0
   const [editing, setEditing] = useState(false)
@@ -546,11 +537,6 @@ export default function JavDetailModal({
       setSampleImagesLoading(false)
       return undefined
     }
-    if (sampleImagesNotFound(itemSampleImages) && !/^FC2-PPV-/i.test(code)) {
-      setSampleImagesLoading(false)
-      return undefined
-    }
-
     const resolvedImages = getResolvedJavSampleImages(itemId)
     if (resolvedImages) {
       setSampleImages(normalizeSampleImages(resolvedImages))
@@ -573,7 +559,7 @@ export default function JavDetailModal({
     return () => {
       cancelled = true
     }
-  }, [itemId, itemSampleImages, code])
+  }, [itemId, itemSampleImages])
 
   const clearHoverCloseTimer = () => {
     if (!hoverCloseTimerRef.current) return

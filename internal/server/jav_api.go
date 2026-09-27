@@ -235,7 +235,7 @@ func resolveJavSampleImages(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "加载样品图失败", "Failed to load sample images")
 		return
 	}
-	if len(item.SampleImages) > 0 && !(isFC2Code(item.Code) && item.SampleImages.IsNotFound()) {
+	if len(item.SampleImages) > 0 && !item.SampleImages.IsNotFound() {
 		c.JSON(http.StatusOK, gin.H{"sample_images": item.SampleImages})
 		return
 	}
