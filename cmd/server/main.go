@@ -345,7 +345,7 @@ func applyRuntimeConfig(ctx context.Context) map[string]string {
 		logging.Error("load runtime config failed: %v", err)
 		return nil
 	}
-	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
+	util.SetProxySettings(cfg["proxy_mode"], cfg["proxy_host"], cfg["proxy_port"])
 	return cfg
 }
 

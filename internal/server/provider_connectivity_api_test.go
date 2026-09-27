@@ -103,7 +103,7 @@ func TestProviderConnectivityCacheSurvivesListingAndClearsOnProxySave(t *testing
 	}{
 		{"", true},
 		{`{"video_waterfall_default":true}`, true},
-		{`{"proxy_port":0}`, false},
+		{`{"proxy_mode":"direct"}`, false},
 	} {
 		if step.config != "" {
 			request(http.MethodPatch, "/config", step.config)

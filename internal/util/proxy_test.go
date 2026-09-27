@@ -1,9 +1,13 @@
 package util
 
 import (
+	"io"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"testing"
+	"time"
 )
 
 func TestSetProxyFromStringsUsesConfiguredHost(t *testing.T) {
@@ -22,6 +26,63 @@ func TestSetProxyFromStringsUsesConfiguredHost(t *testing.T) {
 	}
 	if got, want := u.String(), "http://192.168.1.10:7890"; got != want {
 		t.Fatalf("proxy URL = %q, want %q", got, want)
+	}
+}
+
+func TestResolveProxyMode(t *testing.T) {
+	for _, tt := range []struct{ mode, port, want string }{
+		{"", "", ProxyModeAuto},
+		{"", "0", ProxyModeAuto},
+		{"", "7890", ProxyModeManual},
+		{"", "65536", ProxyModeAuto},
+		{"auto", "7890", ProxyModeAuto},
+		{"direct", "7890", ProxyModeDirect},
+		{"manual", "7890", ProxyModeManual},
+		{" DIRECT ", "", ProxyModeDirect},
+		{"invalid", "7890", ProxyModeAuto},
+	} {
+		if got := ResolveProxyMode(tt.mode, tt.port); got != tt.want {
+			t.Errorf("ResolveProxyMode(%q, %q)=%q want=%q", tt.mode, tt.port, got, tt.want)
+		}
+	}
+}
+
+func TestProxyModesApplyToExistingClient(t *testing.T) {
+	t.Setenv("JAVBOSS_PROXY_HOST_GATEWAY", "0")
+	t.Cleanup(func() { SetProxyPort(0) })
+	server := func(label string) *httptest.Server {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.WriteString(w, label)
+		}))
+		t.Cleanup(srv.Close)
+		return srv
+	}
+	origin, automatic, manual := server("direct"), server("auto"), server("manual")
+	autoURL, _ := url.Parse(automatic.URL)
+	manualURL, _ := url.Parse(manual.URL)
+	manualPort, _ := strconv.Atoi(manualURL.Port())
+	client := NewHTTPClient(time.Second)
+	defer client.CloseIdleConnections()
+	fallbackCalls := 0
+	client.Transport.(*http.Transport).Proxy = configuredProxy(func(*http.Request) (*url.URL, error) {
+		fallbackCalls++
+		return autoURL, nil
+	})
+	for _, mode := range []string{ProxyModeAuto, ProxyModeDirect, ProxyModeManual, ProxyModeAuto, ProxyModeDirect} {
+		SetProxySettings(mode, manualURL.Hostname(), strconv.Itoa(manualPort))
+		before := fallbackCalls
+		response, err := client.Get(origin.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, err := io.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil || string(body) != mode {
+			t.Fatalf("mode=%s route=%q err=%v", mode, body, err)
+		}
+		if mode != ProxyModeAuto && fallbackCalls != before {
+			t.Fatalf("%s unexpectedly consulted the environment/system proxy", mode)
+		}
 	}
 }
 

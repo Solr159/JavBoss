@@ -4976,10 +4976,14 @@ export default function App() {
           return result
         }}
         onRefreshDirectories={loadDirectories}
+        proxyMode={config?.proxy_mode}
         proxyHost={config?.proxy_host || ''}
         proxyPort={Number.parseInt(config?.proxy_port, 10) || 0}
-        onSaveProxySettings={async ({ host, port }) => {
-          const cfg = await updateConfig({ proxy_host: host, proxy_port: port })
+        onSaveProxySettings={async ({ mode, host, port }) => {
+          const cfg = await updateConfig({
+            proxy_mode: mode,
+            ...(mode === 'manual' ? { proxy_host: host, proxy_port: port } : {}),
+          })
           useStore.setState({ config: cfg })
         }}
         allowLANAccess={configFlag(config?.allow_lan_access)}

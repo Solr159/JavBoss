@@ -51,6 +51,12 @@ always make fresh requests. Canceled checks do not replace previous results, and
 older concurrent checks cannot overwrite newer checks or repopulate invalidated
 results. Nothing is persisted to the database or browser storage.
 
+Network & Proxy stores `proxy_mode` as `auto` (default), `direct` (skip environment
+and system proxies), or `manual` (use `proxy_host` and `proxy_port`). Existing
+settings without a mode retain manual proxy behavior when a valid port is present.
+Mode changes take effect on subsequent requests and clear connectivity results.
+The last manual address is retained when switching to auto or direct mode.
+
 Each check makes a fresh GET using the provider's normal headers, transport and
 rate limiter, bypassing lookup and 404 caches. Web providers check their landing
 page; JavDB API and ThePornDB use their authenticated search endpoints. Results

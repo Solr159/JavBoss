@@ -115,6 +115,7 @@ func updateConfig(c *gin.Context) {
 		InitialViewMode        string                `json:"initial_view_mode"`
 		AllowLANAccess         *bool                 `json:"allow_lan_access"`
 		ProxyHost              *string               `json:"proxy_host"`
+		ProxyMode              *string               `json:"proxy_mode"`
 		ProxyPort              *int                  `json:"proxy_port"`
 		PlayerWindowSize       *int                  `json:"player_window_size"`
 		PlayerWindowWidth      *int                  `json:"player_window_width"`
@@ -315,6 +316,34 @@ func updateConfig(c *gin.Context) {
 			respondLocalizedError(c, http.StatusBadRequest, "代理端口必须在 1-65535 之间", "Proxy port must be between 1 and 65535")
 			return
 		}
+	}
+	if req.ProxyMode != nil {
+		mode := strings.ToLower(strings.TrimSpace(*req.ProxyMode))
+		switch mode {
+		case util.ProxyModeAuto, util.ProxyModeDirect, util.ProxyModeManual:
+			entries["proxy_mode"] = mode
+		default:
+			respondLocalizedError(c, http.StatusBadRequest, "代理模式无效", "Invalid proxy mode")
+			return
+		}
+		if mode == util.ProxyModeManual {
+			port := entries["proxy_port"]
+			if req.ProxyPort == nil {
+				current, err := dbpkg.ListConfig(c.Request.Context())
+				if err != nil {
+					respondLocalizedError(c, http.StatusInternalServerError, "读取代理配置失败", "Failed to load proxy settings")
+					return
+				}
+				port = current["proxy_port"]
+			}
+			if util.ResolveProxyMode("", port) != util.ProxyModeManual {
+				respondLocalizedError(c, http.StatusBadRequest, "手动代理需要 1-65535 的端口号", "Manual proxy requires a port between 1 and 65535")
+				return
+			}
+		}
+	} else if req.ProxyPort != nil {
+		// Preserve the behavior of clients that only send the legacy host/port fields.
+		entries["proxy_mode"] = util.ResolveProxyMode("", entries["proxy_port"])
 	}
 	if req.ProxyHost != nil {
 		host := strings.TrimSpace(*req.ProxyHost)
@@ -527,8 +556,8 @@ func updateConfig(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取已保存的配置失败", "Failed to load the saved configuration")
 		return
 	}
-	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
-	if req.ProxyHost != nil || req.ProxyPort != nil {
+	util.SetProxySettings(cfg["proxy_mode"], cfg["proxy_host"], cfg["proxy_port"])
+	if req.ProxyMode != nil || req.ProxyHost != nil || req.ProxyPort != nil {
 		jav.InvalidateConnectivityCache()
 	}
 	applyRuntimeConfigFields(cfg, c.Request.RemoteAddr)
@@ -536,6 +565,7 @@ func updateConfig(c *gin.Context) {
 }
 
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
+	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
 	remoteRequest := isRemoteRequest(remoteAddr)
 	cfg["runtime_os"] = runtime.GOOS
 	cfg["runtime_container"] = strconv.FormatBool(runtimeconfig.ContainerMode())
