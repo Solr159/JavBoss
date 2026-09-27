@@ -35,6 +35,12 @@ func TestJavDBAPIResolveNumber(t *testing.T) {
 		want       string
 		notFound   bool
 	}{
+		{"fc2 ppv alias", "FC2-PPV-1234567", []javDBAPIMovie{{ID: "one", Number: "FC2-1234567"}}, "one", false},
+		{"fc2 returned ppv alias", "FC2-1234567", []javDBAPIMovie{{ID: "one", Number: "fc2-ppv-1234567"}}, "one", false},
+		{"fc2 different digits", "FC2-PPV-1234567", []javDBAPIMovie{{ID: "one", Number: "FC2-1234568"}}, "", true},
+		{"fc2 no prefix match", "FC2-PPV-1234567", []javDBAPIMovie{{ID: "one", Number: "FC2-12345678"}}, "", true},
+		{"fc2 requires digits", "FC2-PPV-123ABC", []javDBAPIMovie{{ID: "one", Number: "FC2-123ABC"}}, "", true},
+		{"fc2 ambiguous aliases", "FC2-PPV-1234567", []javDBAPIMovie{{ID: "one", Number: "FC2-1234567"}, {ID: "two", Number: "FC2-PPV-1234567"}}, "", false},
 		{"exact wins", "abc-001", []javDBAPIMovie{{ID: "other", Number: "ABC001"}, {ID: "exact", Number: "ABC-001"}}, "exact", false},
 		{"different separator", "ABC_001", []javDBAPIMovie{{ID: "one", Number: "ABC-001"}}, "", true},
 		{"numeric separator mismatch", "053026_001", []javDBAPIMovie{{ID: "one", Number: "053026-001"}}, "", true},
@@ -123,6 +129,41 @@ func TestJavDBAPIEmptyCodeAndCancellation(t *testing.T) {
 	var dest any
 	if err := p.get(ctx, "/api/v2/search", nil, &dest); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled request: %v", err)
+	}
+}
+
+func TestJavDBAPIFC2Detail(t *testing.T) {
+	for _, tc := range []struct {
+		name, input, number string
+		valid               bool
+	}{
+		{"short number", "FC2-PPV-1234567", "FC2-1234567", true},
+		{"full number", " fc2-ppv-1234567 ", "FC2-PPV-1234567", true},
+		{"short input", "FC2-1234567", "fc2-ppv-1234567", true},
+		{"wrong detail", "FC2-PPV-1234567", "FC2-1234568", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newJavDBAPITestProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v2/search" {
+					if got := r.URL.Query().Get("q"); got != "FC2-1234567" {
+						t.Errorf("query = %q, want FC2-1234567", got)
+					}
+					fmt.Fprint(w, `{"success":1,"data":{"movies":[{"id":"m1","number":"FC2-PPV-1234567"}]}}`)
+					return
+				}
+				fmt.Fprintf(w, `{"success":1,"data":{"movie":{"number":%q,"origin_title":"Title"}}}`, tc.number)
+			})
+			info, err := p.LookupJavByCode(context.Background(), tc.input)
+			if !tc.valid {
+				if err == nil || info != nil {
+					t.Fatalf("accepted mismatched detail: %+v, %v", info, err)
+				}
+				return
+			}
+			if err != nil || info.Code != "FC2-PPV-1234567" {
+				t.Fatalf("result = %+v, %v; want canonical FC2 code", info, err)
+			}
+		})
 	}
 }
 

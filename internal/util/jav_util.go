@@ -11,6 +11,7 @@ import (
 var CodeRe = regexp.MustCompile(`(?i)([a-z]{2,6})[-_ ]?(\d{2,5})([a-z]{0,2})`)
 
 var (
+	fc2PPVCodeRe                = regexp.MustCompile(`(?i)(^|[^a-z0-9])fc2[-_ ]*ppv[-_ ]*([0-9]+)`)
 	alphaNumericUncensoredRe    = regexp.MustCompile(`(?i)(^|[^a-z0-9])([a-z]+)(?:\s*([-_ ])\s*)?(\d{2,})([^a-z0-9]|$)`)
 	mixedPrefixUncensoredRe     = regexp.MustCompile(`(?i)(^|[^a-z0-9])([a-z0-9]*[a-z][a-z0-9]*\d[a-z0-9]*[a-z][a-z0-9]*)[-_ ](\d{2,})([^a-z0-9]|$)`)
 	mixedPrefixCensoredRe       = regexp.MustCompile(`(?i)(^|[^a-z0-9])([a-z][a-z0-9]{1,5})[-_ ](\d{2,5})([a-z]{0,2})([^a-z0-9]|$)`)
@@ -33,7 +34,19 @@ func ExtractUncensoredCodesFromName(name string) []string {
 	return extractUncensoredCodesFromName(base)
 }
 
+func extractFC2PPVCodes(base string) []string {
+	var out []string
+	seen := make(map[string]struct{})
+	for _, match := range fc2PPVCodeRe.FindAllStringSubmatch(base, -1) {
+		appendUniqueCode(&out, seen, "FC2-PPV-"+match[2])
+	}
+	return out
+}
+
 func extractUncensoredCodesFromName(base string) []string {
+	if codes := extractFC2PPVCodes(base); len(codes) > 0 {
+		return codes
+	}
 	var out []string
 	seen := make(map[string]struct{})
 
@@ -95,6 +108,11 @@ func normalizeUncensoredAlphaPrefix(prefix string) string {
 }
 
 func extractCensoredCodesFromName(base string) []string {
+	// FC2 belongs to uncensored extraction; generic patterns would produce
+	// truncated PPV numbers and unrelated codes from site-name prefixes.
+	if fc2PPVCodeRe.MatchString(base) {
+		return nil
+	}
 	var out []string
 	seen := make(map[string]struct{})
 

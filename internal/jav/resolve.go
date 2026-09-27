@@ -58,6 +58,8 @@ func (c *Client) ResolveJavByCodes(ctx context.Context, possibleCodes, uncensore
 func providersForCode(code string) []Provider {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	switch {
+	case strings.HasPrefix(code, "FC2-PPV-"):
+		return []Provider{ProviderJavDBAPI}
 	case strings.HasPrefix(code, "GANA-"):
 		return []Provider{ProviderJavMenu, ProviderJavBus}
 	case strings.HasPrefix(code, "STARS-"):

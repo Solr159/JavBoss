@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,17 @@ import (
 
 // App request protocol follows javdb-cli (MIT); see THIRD_PARTY_NOTICES.md.
 const javDBAPIBaseURL = "https://jdforrepam.com"
+
+var javDBAPIFC2CodeRe = regexp.MustCompile(`(?i)^FC2-(?:PPV-)?([0-9]+)$`)
+
+// JavDB searches FC2 numbers without PPV. Keep all other separators significant.
+func javDBAPIQueryCode(code string) string {
+	code = strings.TrimSpace(code)
+	if match := javDBAPIFC2CodeRe.FindStringSubmatch(code); match != nil {
+		return "FC2-" + match[1]
+	}
+	return code
+}
 
 // API keeps its device identity and proxy-aware transport for the process lifetime.
 type API struct {
@@ -200,7 +212,7 @@ func (movie *javDBAPIMovie) metadataTitle() string {
 }
 
 func (p *API) movieByCode(ctx context.Context, code string) (*javDBAPIMovie, error) {
-	code = strings.TrimSpace(code)
+	code = javDBAPIQueryCode(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
 	}
@@ -242,7 +254,7 @@ func (p *API) movieByCode(ctx context.Context, code string) (*javDBAPIMovie, err
 	if err := json.Unmarshal(data, &movie); err != nil {
 		return nil, fmt.Errorf("javdb-api: decode movie: %w", err)
 	}
-	if !strings.EqualFold(strings.TrimSpace(movie.Number), code) || movie.metadataTitle() == "" {
+	if !strings.EqualFold(javDBAPIQueryCode(movie.Number), code) || movie.metadataTitle() == "" {
 		logging.Error("javdb-api invalid detail: code=%q movie_id=%s returned_code=%q has_title=%t", code, id, movie.Number, movie.metadataTitle() != "")
 		return nil, fmt.Errorf("javdb-api: invalid or mismatched movie detail")
 	}
@@ -253,7 +265,7 @@ func (p *API) movieByCode(ctx context.Context, code string) (*javDBAPIMovie, err
 func resolveJavDBAPIMovieID(movies []javDBAPIMovie, code string) (string, error) {
 	var id string
 	for _, movie := range movies {
-		if !strings.EqualFold(strings.TrimSpace(movie.Number), strings.TrimSpace(code)) {
+		if !strings.EqualFold(javDBAPIQueryCode(movie.Number), javDBAPIQueryCode(code)) {
 			continue
 		}
 		if movie.ID == "" {
@@ -280,6 +292,11 @@ func (p *API) LookupJavByCode(ctx context.Context, code string) (*metadata.JavIn
 		Studio: strings.TrimSpace(movie.MakerName), Series: strings.TrimSpace(movie.SeriesName),
 		ReleaseUnix: parseutil.ParseDateUnix(movie.ReleaseDate), CoverURL: parseutil.ResolveSampleImageURL(p.baseURL, movie.CoverURL),
 		Provider: metadata.ProviderJavDBAPI, SampleImages: []metadata.SampleImage{},
+	}
+	// Keep the application's canonical number stable for database linking and
+	// subsequent metadata refreshes, regardless of the API's FC2 spelling.
+	if match := javDBAPIFC2CodeRe.FindStringSubmatch(info.Code); match != nil {
+		info.Code = "FC2-PPV-" + match[1]
 	}
 	info.DurationMin, _ = strconv.Atoi(string(movie.Duration))
 	if info.DurationMin < 0 {

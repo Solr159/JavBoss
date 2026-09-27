@@ -2,6 +2,7 @@ package util_test
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"javboss/internal/util"
@@ -134,6 +135,40 @@ func TestExtractCodeFromName(t *testing.T) {
 		got := util.ExtractCodeFromName(tt.input)
 		if !slices.Equal(got, tt.expected) {
 			t.Fatalf("ExtractCodeFromName(%q) = %#v, want %#v", tt.input, got, tt.expected)
+		}
+	}
+}
+
+func TestExtractFC2PPVCodesFromName(t *testing.T) {
+	for _, tc := range []struct {
+		filename string
+		want     []string
+	}{
+		{"102090.Xyz@FC2-PPV-4808856.mp4", []string{"FC2-PPV-4808856"}},
+		{"FC2-PPV-4983452.mp4", []string{"FC2-PPV-4983452"}},
+		{"FC2PPV-4810487.mp4", []string{"FC2-PPV-4810487"}},
+		{"hhd800.com@FC2-PPV-2608885.mp4", []string{"FC2-PPV-2608885"}},
+		{"【标题】fc2ppv3101826 18岁 标题.mp4", []string{"FC2-PPV-3101826"}},
+		{"/videos/FC2_PPV_1234567_1.mp4", []string{"FC2-PPV-1234567"}},
+		{"FC2 PPV 123456789-C.mp4", []string{"FC2-PPV-123456789"}},
+		{"FC2-PPV-0000123.mp4", []string{"FC2-PPV-0000123"}},
+		{"FC2-PPV-1.mp4", []string{"FC2-PPV-1"}},
+		{"FC2-PPV-1234567 fc2ppv1234567 FC2PPV7654321.mp4", []string{"FC2-PPV-1234567", "FC2-PPV-7654321"}},
+	} {
+		t.Run(tc.filename, func(t *testing.T) {
+			if got := util.ExtractCodeFromName(tc.filename); !slices.Equal(got, tc.want) {
+				t.Fatalf("codes = %v, want %v", got, tc.want)
+			}
+			if got := util.ExtractUncensoredCodesFromName(tc.filename); !slices.Equal(got, tc.want) {
+				t.Fatalf("uncensored codes = %v, want %v", got, tc.want)
+			}
+		})
+	}
+	for _, filename := range []string{"FC2-PPV-.mp4", "FC2-PPV-abc.mp4", "FC2-PPV-１２３.mp4", "XFC2PPV1234567.mp4"} {
+		for _, code := range util.ExtractCodeFromName(filename) {
+			if strings.HasPrefix(code, "FC2-PPV-") {
+				t.Fatalf("invalid FC2 filename %q produced code %q", filename, code)
+			}
 		}
 	}
 }
