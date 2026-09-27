@@ -1,9 +1,13 @@
 package manager
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"net/http"
 	"net/url"
@@ -96,15 +100,8 @@ func (m *CoverManager) Exists(code string) bool {
 	if m == nil {
 		return false
 	}
-	path, ok := FindCoverPath(m.coverDir, code)
-	if !ok {
-		return false
-	}
-	info, err := os.Stat(path)
-	if err != nil {
-		return false
-	}
-	return info.Size() >= minValidCoverSizeBytes
+	_, ok := FindCoverPath(m.coverDir, code)
+	return ok
 }
 
 func (m *CoverManager) worker(ctx context.Context) {
@@ -165,8 +162,14 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	if m == nil {
 		return errors.New("cover manager not configured")
 	}
+	providers := m.providers
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(code)), "FC2-PPV-") {
+		// FC2 metadata (including the cover URL) comes from JavDB API. The
+		// general cover sources do not resolve these numbers.
+		providers = []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}
+	}
 	var lastErr error
-	for _, provider := range m.providers {
+	for _, provider := range providers {
 		info, err := lookupJavByCode(ctx, code, provider)
 		if err != nil {
 			if errors.Is(err, jav.ErrNotFound) {
@@ -244,7 +247,8 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 	if err != nil {
 		return fmt.Errorf("create temp: %w", err)
 	}
-	written, err := io.Copy(out, resp.Body)
+	body, encoded := decodeCoverBody(resp.Body)
+	written, err := io.Copy(out, body)
 	if err != nil {
 		out.Close()
 		_ = os.Remove(tmp)
@@ -254,9 +258,9 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		_ = os.Remove(tmp)
 		return fmt.Errorf("close cover: %w", err)
 	}
-	if written < minValidCoverSizeBytes {
+	if (encoded || written < minValidCoverSizeBytes) && !isDecodableCoverFile(tmp) {
 		_ = os.Remove(tmp)
-		return fmt.Errorf("%w: size %d below minimum %d", errInvalidCover, written, minValidCoverSizeBytes)
+		return fmt.Errorf("%w: file (%d bytes) is not a decodable image", errInvalidCover, written)
 	}
 	removeCoverFiles(m.coverDir, code)
 	if err := os.Rename(tmp, target); err != nil {
@@ -264,6 +268,41 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		return fmt.Errorf("finalize cover: %w", err)
 	}
 	return nil
+}
+
+// JavDB API image responses can contain a one-byte XOR key followed by the
+// encoded JPEG/PNG. Detect the decoded image signature instead of relying on
+// the CDN hostname or Content-Type, which may be absent or octet-stream.
+func decodeCoverBody(body io.Reader) (io.Reader, bool) {
+	reader := bufio.NewReader(body)
+	header, _ := reader.Peek(16)
+	if len(header) < 4 || strings.HasPrefix(http.DetectContentType(header), "image/") {
+		return reader, false
+	}
+	key := header[0]
+	decoded := make([]byte, len(header)-1)
+	for i := range decoded {
+		decoded[i] = header[i+1] ^ key
+	}
+	kind := http.DetectContentType(decoded)
+	if kind != "image/jpeg" && kind != "image/png" {
+		return reader, false
+	}
+	_, _ = reader.Discard(1)
+	return &xorCoverReader{reader: reader, key: key}, true
+}
+
+type xorCoverReader struct {
+	reader io.Reader
+	key    byte
+}
+
+func (r *xorCoverReader) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	for i := range p[:n] {
+		p[i] ^= r.key
+	}
+	return n, err
 }
 
 func removeCoverFiles(coverDir, code string) {
@@ -332,12 +371,34 @@ func FindCoverPath(dir, code string) (string, bool) {
 	}
 	for _, ext := range knownExts {
 		p := filepath.Join(dir, code+ext)
-		info, err := os.Stat(p)
-		if err == nil && info.Size() >= minValidCoverSizeBytes {
+		if isValidCoverFile(p) {
 			return p, true
 		}
 	}
 	return "", false
+}
+
+func isValidCoverFile(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+	// FC2 covers are validated when downloaded. Loading them only checks the
+	// filename and file metadata, avoiding another image decode for small files.
+	if strings.HasPrefix(strings.ToLower(filepath.Base(path)), "fc2-ppv-") {
+		return info.Size() > 0
+	}
+	return info.Size() >= minValidCoverSizeBytes
+}
+
+func isDecodableCoverFile(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	return err == nil && !img.Bounds().Empty()
 }
 
 func guessExt(ct string) string {
