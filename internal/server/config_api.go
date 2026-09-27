@@ -15,6 +15,7 @@ import (
 
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/jav"
 	"javboss/internal/mpv"
 	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
@@ -527,6 +528,9 @@ func updateConfig(c *gin.Context) {
 		return
 	}
 	util.SetProxyFromStrings(cfg["proxy_host"], cfg["proxy_port"])
+	if req.ProxyHost != nil || req.ProxyPort != nil {
+		jav.InvalidateConnectivityCache()
+	}
 	applyRuntimeConfigFields(cfg, c.Request.RemoteAddr)
 	c.JSON(http.StatusOK, cfg)
 }

@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"javboss/internal/jav"
+	"javboss/internal/util"
 )
 
 func TestProviderConnectivityRoutes(t *testing.T) {
@@ -59,6 +61,73 @@ func TestProviderConnectivityRequiresAuthentication(t *testing.T) {
 		router.ServeHTTP(recorder, httptest.NewRequest(route.method, route.path, nil))
 		if recorder.Code != http.StatusUnauthorized {
 			t.Fatalf("%s %s: status=%d", route.method, route.path, recorder.Code)
+		}
+	}
+}
+
+type connectivityTransportFunc func(*http.Request) (*http.Response, error)
+
+func (f connectivityTransportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestProviderConnectivityCacheSurvivesListingAndClearsOnProxySave(t *testing.T) {
+	testAuthService(t)
+	jav.InvalidateConnectivityCache()
+	t.Cleanup(jav.InvalidateConnectivityCache)
+	client := util.DefaultHTTPClient()
+	previous := client.Transport
+	t.Cleanup(func() { client.Transport = previous; util.SetProxyPort(0) })
+	requests := 0
+	client.Transport = connectivityTransportFunc(func(req *http.Request) (*http.Response, error) {
+		requests++
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody, Request: req}, nil
+	})
+	router := gin.New()
+	RegisterRoutes(router)
+	request := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s %s: status=%d body=%s", method, path, recorder.Code, recorder.Body)
+		}
+		return recorder
+	}
+	request(http.MethodPost, "/jav/providers/7/connectivity", "")
+	for _, step := range []struct {
+		config string
+		cached bool
+	}{
+		{"", true},
+		{`{"video_waterfall_default":true}`, true},
+		{`{"proxy_port":0}`, false},
+	} {
+		if step.config != "" {
+			request(http.MethodPatch, "/config", step.config)
+		}
+		response := request(http.MethodGet, "/jav/providers", "")
+		var providers []jav.ConnectivityProvider
+		if err := json.Unmarshal(response.Body.Bytes(), &providers); err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, provider := range providers {
+			if provider.ID != jav.ProviderJavModel {
+				continue
+			}
+			found = true
+			if (provider.LastResult != nil) != step.cached {
+				t.Fatalf("config=%s cached=%+v", step.config, provider.LastResult)
+			}
+			if provider.LastResult != nil && provider.LastResult.CheckedAt.IsZero() {
+				t.Fatal("cached results must include the check time")
+			}
+		}
+		if !found || requests != 1 {
+			t.Fatalf("found=%v outbound requests=%d", found, requests)
 		}
 	}
 }

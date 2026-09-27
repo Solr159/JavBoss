@@ -37,12 +37,19 @@ Run `GOCACHE=$(pwd)/.gocache go test ./internal/jav/...` from the repository roo
 Connectivity checks in JAV Providers use these authenticated routes:
 
 - `GET /jav/providers`: list registered providers supporting connectivity checks
-  (`id`, `name`, `domain`). The displayed domain comes from each provider's
+  (`id`, `name`, `domain`, and optional `last_result`). The displayed domain comes from each provider's
   connectivity origin; JavDB's website and API have separate domains.
 - `POST /jav/providers/:provider/connectivity`: check one numeric provider ID using
   the server's saved proxy configuration. No body or query parameters are needed;
   arbitrary target URLs are not accepted. Returns `provider`, `status`,
-  `elapsed_ms`, and `http_status` when an HTTP response was received.
+  `elapsed_ms`, `checked_at` (UTC), and `http_status` when an HTTP response was received.
+
+The latest completed result per provider is retained in server memory until a
+manual check replaces it, proxy settings are saved, or the process restarts. Listing
+providers returns these results without making network requests. Manual checks
+always make fresh requests. Canceled checks do not replace previous results, and
+older concurrent checks cannot overwrite newer checks or repopulate invalidated
+results. Nothing is persisted to the database or browser storage.
 
 Each check makes a fresh GET using the provider's normal headers, transport and
 rate limiter, bypassing lookup and 404 caches. Web providers check their landing

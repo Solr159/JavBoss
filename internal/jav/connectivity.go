@@ -19,16 +19,67 @@ type ConnectivityChecker interface {
 }
 
 type ConnectivityProvider struct {
-	ID     Provider `json:"id"`
-	Name   string   `json:"name"`
-	Domain string   `json:"domain"`
+	ID         Provider            `json:"id"`
+	Name       string              `json:"name"`
+	Domain     string              `json:"domain"`
+	LastResult *ConnectivityResult `json:"last_result,omitempty"`
 }
 
 type ConnectivityResult struct {
-	Provider   Provider `json:"provider"`
-	Status     string   `json:"status"`
-	HTTPStatus int      `json:"http_status,omitempty"`
-	ElapsedMS  int64    `json:"elapsed_ms"`
+	Provider   Provider  `json:"provider"`
+	Status     string    `json:"status"`
+	HTTPStatus int       `json:"http_status,omitempty"`
+	ElapsedMS  int64     `json:"elapsed_ms"`
+	CheckedAt  time.Time `json:"checked_at"`
+}
+
+type connectivityCacheEntry struct {
+	sequence uint64
+	result   ConnectivityResult
+}
+
+// InvalidateConnectivityCache also prevents in-flight checks from restoring old results.
+func InvalidateConnectivityCache() { defaultClient.invalidateConnectivityCache() }
+
+func (c *Client) invalidateConnectivityCache() {
+	c.connectivityMu.Lock()
+	defer c.connectivityMu.Unlock()
+	c.connectivityResults = nil
+}
+
+func (c *Client) cachedConnectivityResult(provider Provider) *ConnectivityResult {
+	c.connectivityMu.Lock()
+	defer c.connectivityMu.Unlock()
+	entry := c.connectivityResults[provider]
+	if entry.result.CheckedAt.IsZero() {
+		return nil
+	}
+	result := entry.result
+	return &result
+}
+
+func (c *Client) beginConnectivityCheck(provider Provider) uint64 {
+	c.connectivityMu.Lock()
+	defer c.connectivityMu.Unlock()
+	if c.connectivityResults == nil {
+		c.connectivityResults = make(map[Provider]connectivityCacheEntry)
+	}
+	c.connectivitySequence++
+	entry := c.connectivityResults[provider]
+	entry.sequence = c.connectivitySequence
+	c.connectivityResults[provider] = entry
+	return entry.sequence
+}
+
+func (c *Client) cacheConnectivityResult(result ConnectivityResult, sequence uint64) {
+	c.connectivityMu.Lock()
+	defer c.connectivityMu.Unlock()
+	entry, exists := c.connectivityResults[result.Provider]
+	if !exists || entry.sequence != sequence {
+		return
+	}
+	entry.result = result
+	c.connectivityResults[result.Provider] = entry
 }
 
 func ConnectivityProviders() []ConnectivityProvider { return defaultClient.ConnectivityProviders() }
@@ -41,7 +92,9 @@ func (c *Client) ConnectivityProviders() []ConnectivityProvider {
 			if err != nil || target.Hostname() == "" {
 				continue
 			}
-			result = append(result, ConnectivityProvider{ID: id, Name: id.String(), Domain: target.Hostname()})
+			result = append(result, ConnectivityProvider{
+				ID: id, Name: id.String(), Domain: target.Hostname(), LastResult: c.cachedConnectivityResult(id),
+			})
 		}
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
@@ -54,8 +107,8 @@ func CheckConnectivity(ctx context.Context, provider Provider) (ConnectivityResu
 
 // CheckConnectivity reports HTTP reachability, not metadata lookup success. It never
 // reads or populates lookup/404 caches, nor exposes URLs, proxy credentials or API identities.
-func (c *Client) CheckConnectivity(ctx context.Context, provider Provider) (ConnectivityResult, error) {
-	result := ConnectivityResult{Provider: provider}
+func (c *Client) CheckConnectivity(ctx context.Context, provider Provider) (result ConnectivityResult, err error) {
+	result = ConnectivityResult{Provider: provider}
 	implementation, err := c.providerFor(provider)
 	if err != nil {
 		return result, err
@@ -64,6 +117,14 @@ func (c *Client) CheckConnectivity(ctx context.Context, provider Provider) (Conn
 	if !ok {
 		return result, ErrUnsupportedOperation
 	}
+	sequence := c.beginConnectivityCheck(provider)
+	callerCtx := ctx
+	defer func() {
+		result.CheckedAt = time.Now().UTC()
+		if result.Status != "canceled" && callerCtx.Err() == nil {
+			c.cacheConnectivityResult(result, sequence)
+		}
+	}()
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	started := time.Now()

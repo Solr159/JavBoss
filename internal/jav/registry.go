@@ -17,9 +17,12 @@ import (
 // Client owns an immutable provider registry and an independently configurable cache.
 // Providers supplied to NewClient must support concurrent queries.
 type Client struct {
-	providers map[Provider]any
-	cacheMu   sync.RWMutex
-	cache     LookupCache
+	providers            map[Provider]any
+	cacheMu              sync.RWMutex
+	cache                LookupCache
+	connectivityMu       sync.Mutex
+	connectivitySequence uint64
+	connectivityResults  map[Provider]connectivityCacheEntry
 }
 
 // NewClient copies providers so callers cannot mutate its registry. Nil selects the built-in providers.

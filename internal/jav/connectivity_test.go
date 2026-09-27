@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -126,5 +127,88 @@ func TestConnectivityHonorsCallerCancellation(t *testing.T) {
 	result, err := NewClient(nil, nil).CheckConnectivity(ctx, ProviderJavBus)
 	if err != nil || result.Status != "canceled" {
 		t.Fatalf("result=%+v err=%v", result, err)
+	}
+}
+
+func TestConnectivityCacheRetainsResultsAndRefreshesManually(t *testing.T) {
+	calls := 0
+	client := NewClient(map[Provider]any{ProviderJavBus: connectivityFunc(func(ctx context.Context) (*http.Response, error) {
+		calls++
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		status := http.StatusForbidden
+		if calls > 1 {
+			status = http.StatusOK
+		}
+		return &http.Response{StatusCode: status, Body: http.NoBody}, nil
+	})}, nil)
+	if client.ConnectivityProviders()[0].LastResult != nil || calls != 0 {
+		t.Fatal("listing unchecked providers must not trigger a check")
+	}
+	for _, wantStatus := range []int{http.StatusForbidden, http.StatusOK} {
+		result, err := client.CheckConnectivity(context.Background(), ProviderJavBus)
+		if err != nil || result.HTTPStatus != wantStatus || result.CheckedAt.IsZero() {
+			t.Fatalf("result=%+v err=%v", result, err)
+		}
+		for range 2 {
+			cached := client.ConnectivityProviders()[0].LastResult
+			if cached == nil || *cached != result {
+				t.Fatalf("cached=%+v want=%+v", cached, result)
+			}
+			cached.Status = "modified copy"
+		}
+	}
+	if calls != 2 {
+		t.Fatalf("manual checks must refresh and listing must reuse results: %d requests", calls)
+	}
+	previous := *client.ConnectivityProviders()[0].LastResult
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, _ = client.CheckConnectivity(ctx, ProviderJavBus)
+	if cached := client.ConnectivityProviders()[0].LastResult; cached == nil || *cached != previous {
+		t.Fatalf("cancellation replaced the completed result: %+v", cached)
+	}
+	client.invalidateConnectivityCache()
+	if client.ConnectivityProviders()[0].LastResult != nil {
+		t.Fatal("invalidated results should be absent")
+	}
+}
+
+func TestConnectivityCacheDiscardsStaleInFlightResults(t *testing.T) {
+	for _, mode := range []string{"newer check", "invalidate", "invalidate and new check"} {
+		t.Run(mode, func(t *testing.T) {
+			started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+			var calls atomic.Int32
+			client := NewClient(map[Provider]any{ProviderJavBus: connectivityFunc(func(context.Context) (*http.Response, error) {
+				if calls.Add(1) == 1 {
+					close(started)
+					<-release
+					return &http.Response{StatusCode: http.StatusForbidden, Body: http.NoBody}, nil
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})}, nil)
+			go func() {
+				defer close(done)
+				_, _ = client.CheckConnectivity(context.Background(), ProviderJavBus)
+			}()
+			<-started
+			if mode != "newer check" {
+				client.invalidateConnectivityCache()
+			}
+			if mode != "invalidate" {
+				_, _ = client.CheckConnectivity(context.Background(), ProviderJavBus)
+			}
+			close(release)
+			<-done
+			cached := client.ConnectivityProviders()[0].LastResult
+			if mode == "invalidate" {
+				if cached != nil {
+					t.Fatalf("old request restored invalidated cache: %+v", cached)
+				}
+			} else if cached == nil || cached.HTTPStatus != http.StatusOK {
+				t.Fatalf("old request replaced the newer result: %+v", cached)
+			}
+		})
 	}
 }

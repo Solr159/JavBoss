@@ -64,7 +64,16 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
     setLoadError('')
     fetchConnectivityProviders({ signal: controller.signal })
       .then((items) => {
-        if (!controller.signal.aborted) setProviders(items)
+        if (!controller.signal.aborted) {
+          setProviders(items)
+          setResults(
+            Object.fromEntries(
+              items
+                .filter((provider) => provider.last_result)
+                .map((provider) => [provider.id, provider.last_result])
+            )
+          )
+        }
       })
       .catch((error) => {
         if (!controller.signal.aborted) setLoadError(getErrorMessage(error))
@@ -87,7 +96,6 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
     controllerRef.current?.abort()
     controllerRef.current = null
     setChecking(false)
-    setResults({})
   }, [disabled])
 
   const startChecks = async (items) => {
@@ -137,8 +145,8 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
           </h4>
           <p className="mt-1 text-sm text-zinc-500">
             {zh(
-              '使用服务端已保存的代理设置检测 HTTP 响应，连通不代表刮削一定成功。',
-              'Checks HTTP responses using the server’s saved proxy settings. Reachability does not guarantee successful scraping.'
+              '使用当前的代理设置检测数据源连通性',
+              'Check provider connectivity using the current proxy settings'
             )}
           </p>
           {disabled && (
@@ -204,6 +212,14 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
                 <span className="break-words">{resultLabel(result)}</span>
                 {result?.http_status > 0 && <span> · HTTP {result.http_status}</span>}
                 {Number.isFinite(result?.elapsed_ms) && <span> · {result.elapsed_ms} ms</span>}
+                {result?.checked_at && (
+                  <div className="mt-0.5 text-xs text-zinc-500">
+                    {zh('上次检测：', 'Last checked: ')}
+                    <time dateTime={result.checked_at}>
+                      {new Date(result.checked_at).toLocaleString()}
+                    </time>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
