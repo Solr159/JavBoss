@@ -258,6 +258,10 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		_ = os.Remove(tmp)
 		return fmt.Errorf("close cover: %w", err)
 	}
+	if written < minValidCoverSizeBytes && !strings.HasPrefix(code, "fc2-ppv-") {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("%w: size %d below minimum %d", errInvalidCover, written, minValidCoverSizeBytes)
+	}
 	if (encoded || written < minValidCoverSizeBytes) && !isDecodableCoverFile(tmp) {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: file (%d bytes) is not a decodable image", errInvalidCover, written)

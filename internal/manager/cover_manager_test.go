@@ -165,6 +165,16 @@ func TestDownloadCoverAcceptsSmallImages(t *testing.T) {
 			if manager.Exists("FC2-PPV-1234567") {
 				t.Fatal("empty FC2 cover must not count as an existing image")
 			}
+			// The same valid small image must not stop provider fallback for
+			// ordinary codes, whose discovery still requires at least 30 KiB.
+			if err := manager.downloadCover(context.Background(), "ABC-001", server.URL+"/cover."+format); !errors.Is(err, errInvalidCover) {
+				t.Fatalf("non-FC2 small cover error = %v, want errInvalidCover", err)
+			}
+			for _, suffix := range []string{"", ".tmp"} {
+				if _, err := os.Stat(filepath.Join(manager.coverDir, "abc-001."+format+suffix)); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("rejected cover file remains (suffix %q): %v", suffix, err)
+				}
+			}
 		})
 	}
 }
@@ -199,11 +209,18 @@ func TestDownloadCoverFromURLReplacesExistingCover(t *testing.T) {
 }
 
 func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
+	var small bytes.Buffer
+	if err := jpeg.Encode(&small, image.NewRGBA(image.Rect(0, 0, 120, 90)), nil); err != nil {
+		t.Fatal(err)
+	}
+	if int64(small.Len()) >= minValidCoverSizeBytes {
+		t.Fatal("fixture must be smaller than the minimum cover size")
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/jpeg")
 		switch r.URL.Path {
 		case "/small.jpg":
-			_, _ = w.Write([]byte(strings.Repeat("x", int(minValidCoverSizeBytes)-1)))
+			_, _ = w.Write(small.Bytes())
 		case "/valid.jpg":
 			_, _ = w.Write([]byte(strings.Repeat("y", int(minValidCoverSizeBytes))))
 		default:
@@ -244,6 +261,15 @@ func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
 	}
 	if info.Size() != minValidCoverSizeBytes {
 		t.Fatalf("final cover size = %d, want %d", info.Size(), minValidCoverSizeBytes)
+	}
+	if !manager.Exists("ABC-001") {
+		t.Fatal("fallback cover must be discoverable")
+	}
+	if err := manager.handleTask(context.Background(), "ABC-001"); err != nil {
+		t.Fatal(err)
+	}
+	if calls[jav.ProviderJavDatabase] != 1 || calls[jav.ProviderJavBus] != 1 {
+		t.Fatalf("existing cover triggered another download: %#v", calls)
 	}
 }
 
