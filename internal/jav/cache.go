@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -43,26 +42,23 @@ type lookupCacheEnvelope struct {
 	Data   json.RawMessage `json:"data,omitempty"`
 }
 
-var lookupCacheState = struct {
-	sync.RWMutex
-	store LookupCache
-}{}
+// SetCache configures the default client's lookup cache. Nil disables caching.
+func SetCache(store LookupCache) { defaultClient.SetCache(store) }
 
-// SetCache configures the process-wide JAV lookup cache. Passing nil disables caching.
-func SetCache(store LookupCache) {
-	lookupCacheState.Lock()
-	lookupCacheState.store = store
-	lookupCacheState.Unlock()
+// SetCache changes this client's lookup cache safely while lookups are running.
+func (c *Client) SetCache(store LookupCache) {
+	c.cacheMu.Lock()
+	c.cache = store
+	c.cacheMu.Unlock()
+}
+func (c *Client) currentLookupCache() LookupCache {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
+	return c.cache
 }
 
-func currentLookupCache() LookupCache {
-	lookupCacheState.RLock()
-	defer lookupCacheState.RUnlock()
-	return lookupCacheState.store
-}
-
-func lookupCacheGet[T any](key string) (*T, bool, error) {
-	store := currentLookupCache()
+func lookupCacheGet[T any](c *Client, key string) (*T, bool, error) {
+	store := c.currentLookupCache()
 	if store == nil {
 		return nil, false, nil
 	}
@@ -76,7 +72,7 @@ func lookupCacheGet[T any](key string) (*T, bool, error) {
 	}
 	switch envelope.Status {
 	case lookupCacheStatusMiss:
-		return nil, true, ResourceNotFonud
+		return nil, true, ErrNotFound
 	case lookupCacheStatusHit:
 		if len(envelope.Data) == 0 {
 			return nil, false, nil
@@ -91,16 +87,16 @@ func lookupCacheGet[T any](key string) (*T, bool, error) {
 	}
 }
 
-func lookupCacheSetHit(key string, value any) {
+func lookupCacheSetHit(c *Client, key string, value any) {
 	if value == nil {
 		return
 	}
-	store := currentLookupCache()
+	store := c.currentLookupCache()
 	if store == nil {
 		return
 	}
 	data, err := json.Marshal(value)
-	if err != nil {
+	if err != nil || string(data) == "null" {
 		return
 	}
 	raw, err := json.Marshal(lookupCacheEnvelope{
@@ -113,8 +109,8 @@ func lookupCacheSetHit(key string, value any) {
 	_ = store.Set(key, raw, time.Now().Add(lookupCacheSuccessTTL))
 }
 
-func lookupCacheSetNotFound(key string) {
-	store := currentLookupCache()
+func lookupCacheSetNotFound(c *Client, key string) {
+	store := c.currentLookupCache()
 	if store == nil {
 		return
 	}
@@ -127,13 +123,13 @@ func lookupCacheSetNotFound(key string) {
 	_ = store.Set(key, raw, time.Now().Add(lookupCacheNotFoundTTL))
 }
 
-func cacheableLookupResult(key string, value any, err error) {
+func cacheableLookupResult(c *Client, key string, value any, err error) {
 	if err == nil {
-		lookupCacheSetHit(key, value)
+		lookupCacheSetHit(c, key, value)
 		return
 	}
-	if errors.Is(err, ResourceNotFonud) {
-		lookupCacheSetNotFound(key)
+	if errors.Is(err, ErrNotFound) {
+		lookupCacheSetNotFound(c, key)
 	}
 }
 

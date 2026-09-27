@@ -1,6 +1,7 @@
 package jav
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -8,21 +9,17 @@ import (
 
 func TestLookupJavByCodeUsesCache(t *testing.T) {
 	cache := newMemoryLookupCache()
-	SetCache(cache)
-	t.Cleanup(func() { SetCache(nil) })
 
-	original := lookupProvidersByProvider[ProviderJavBus]
 	provider := &countingLookupProvider{
 		javInfo: &JavInfo{Code: "ABC-001", Title: "Cached Title", Provider: ProviderJavBus},
 	}
-	lookupProvidersByProvider[ProviderJavBus] = provider
-	t.Cleanup(func() { lookupProvidersByProvider[ProviderJavBus] = original })
+	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
-	first, err := LookupJavByCode("abc-001", ProviderJavBus)
+	first, err := client.LookupJavByCode(context.Background(), "abc-001", ProviderJavBus)
 	if err != nil {
 		t.Fatalf("first lookup: %v", err)
 	}
-	second, err := LookupJavByCode("ABC-001", ProviderJavBus)
+	second, err := client.LookupJavByCode(context.Background(), "ABC-001", ProviderJavBus)
 	if err != nil {
 		t.Fatalf("second lookup: %v", err)
 	}
@@ -36,18 +33,14 @@ func TestLookupJavByCodeUsesCache(t *testing.T) {
 
 func TestLookupJavByCodeCachesNotFound(t *testing.T) {
 	cache := newMemoryLookupCache()
-	SetCache(cache)
-	t.Cleanup(func() { SetCache(nil) })
 
-	original := lookupProvidersByProvider[ProviderJavBus]
-	provider := &countingLookupProvider{err: ResourceNotFonud}
-	lookupProvidersByProvider[ProviderJavBus] = provider
-	t.Cleanup(func() { lookupProvidersByProvider[ProviderJavBus] = original })
+	provider := &countingLookupProvider{err: ErrNotFound}
+	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
 	for i := 0; i < 2; i++ {
-		_, err := LookupJavByCode("MISS-001", ProviderJavBus)
-		if !errors.Is(err, ResourceNotFonud) {
-			t.Fatalf("lookup %d err=%v want ResourceNotFonud", i, err)
+		_, err := client.LookupJavByCode(context.Background(), "MISS-001", ProviderJavBus)
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("lookup %d err=%v want ErrNotFound", i, err)
 		}
 	}
 	if provider.javCalls != 1 {
@@ -57,16 +50,12 @@ func TestLookupJavByCodeCachesNotFound(t *testing.T) {
 
 func TestLookupJavByCodeDoesNotCacheTemporaryErrors(t *testing.T) {
 	cache := newMemoryLookupCache()
-	SetCache(cache)
-	t.Cleanup(func() { SetCache(nil) })
 
-	original := lookupProvidersByProvider[ProviderJavBus]
 	provider := &countingLookupProvider{err: errors.New("temporary")}
-	lookupProvidersByProvider[ProviderJavBus] = provider
-	t.Cleanup(func() { lookupProvidersByProvider[ProviderJavBus] = original })
+	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
 	for i := 0; i < 2; i++ {
-		_, err := LookupJavByCode("TMP-001", ProviderJavBus)
+		_, err := client.LookupJavByCode(context.Background(), "TMP-001", ProviderJavBus)
 		if err == nil {
 			t.Fatalf("lookup %d expected error", i)
 		}
@@ -223,27 +212,7 @@ type countingLookupProvider struct {
 	javCalls int
 }
 
-func (p *countingLookupProvider) LookupActressByCode(string) (*ActressInfo, error) {
-	return p.actress, p.err
-}
-
-func (p *countingLookupProvider) LookupActressByName(string) (*ActressInfo, error) {
-	return p.actress, p.err
-}
-
-func (p *countingLookupProvider) LookupActressURLByCodeAndName(string, string) (string, error) {
-	return p.profileURL, p.err
-}
-
-func (p *countingLookupProvider) LookupJavByCode(string) (*JavInfo, error) {
+func (p *countingLookupProvider) LookupJavByCode(_ context.Context, _ string) (*JavInfo, error) {
 	p.javCalls++
 	return p.javInfo, p.err
-}
-
-func (p *countingLookupProvider) LookupSeriesURLByCode(string) (string, error) {
-	return p.seriesURL, p.err
-}
-
-func (p *countingLookupProvider) LookupStudioURLByCode(string) (string, error) {
-	return p.studioURL, p.err
 }

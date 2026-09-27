@@ -99,7 +99,7 @@ func acceptJavSampleImageURL(_ context.Context, _ string) (bool, error) {
 
 func TestLookupJavSampleImagesByProviderFallsBackFromJavMenuToJavBus(t *testing.T) {
 	var calls []jav.Provider
-	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(code string, provider jav.Provider) (*jav.JavInfo, error) {
+	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ context.Context, code string, provider jav.Provider) (*jav.JavInfo, error) {
 		if code != "IPX-228" {
 			t.Fatalf("unexpected code: %q", code)
 		}
@@ -142,7 +142,7 @@ func TestLookupJavSampleImagesByProviderFallsBackFromJavMenuToJavBus(t *testing.
 
 func TestLookupJavSampleImagesByProviderStopsAfterJavMenuSuccess(t *testing.T) {
 	var calls []jav.Provider
-	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ string, provider jav.Provider) (*jav.JavInfo, error) {
+	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ context.Context, _ string, provider jav.Provider) (*jav.JavInfo, error) {
 		calls = append(calls, provider)
 		if provider != jav.ProviderJavMenu {
 			return nil, errors.New("JavBus must not be called after JavMenu succeeds")
@@ -166,12 +166,12 @@ func TestLookupJavSampleImagesByProviderStopsAfterJavMenuSuccess(t *testing.T) {
 
 func TestLookupJavSampleImagesByProviderPreservesTemporaryErrors(t *testing.T) {
 	temporaryErr := errors.New("network timeout")
-	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ string, provider jav.Provider) (*jav.JavInfo, error) {
+	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ context.Context, _ string, provider jav.Provider) (*jav.JavInfo, error) {
 		switch provider {
 		case jav.ProviderJavMenu:
 			return nil, temporaryErr
 		case jav.ProviderJavBus:
-			return nil, jav.ResourceNotFonud
+			return nil, jav.ErrNotFound
 		default:
 			t.Fatalf("unexpected provider: %s", provider.String())
 			return nil, nil
@@ -186,8 +186,8 @@ func TestLookupJavSampleImagesByProviderPreservesTemporaryErrors(t *testing.T) {
 }
 
 func TestLookupJavSampleImagesByProviderTreatsConfirmedMissAsNotFound(t *testing.T) {
-	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ string, _ jav.Provider) (*jav.JavInfo, error) {
-		return nil, jav.ResourceNotFonud
+	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ context.Context, _ string, _ jav.Provider) (*jav.JavInfo, error) {
+		return nil, jav.ErrNotFound
 	}, acceptJavSampleImageURL)
 	if err != nil {
 		t.Fatalf("confirmed miss returned error: %v", err)
@@ -203,7 +203,7 @@ func TestLookupJavSampleImagesByProviderValidatesLastDetailURLAndFallsBack(t *te
 	images, err := lookupJavSampleImagesByProvider(
 		context.Background(),
 		"IPX-228",
-		func(_ string, provider jav.Provider) (*jav.JavInfo, error) {
+		func(_ context.Context, _ string, provider jav.Provider) (*jav.JavInfo, error) {
 			calls = append(calls, provider)
 			return &jav.JavInfo{SampleImages: []jav.SampleImage{
 				{ThumbnailURL: "thumb-1", DetailURL: provider.String() + "-detail-1"},

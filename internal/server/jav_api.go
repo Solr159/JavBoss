@@ -184,9 +184,9 @@ func getJavJavDBURL(c *gin.Context) {
 		return
 	}
 
-	javdbURL, err := jav.LookupJavDBURLByCode(code)
+	javdbURL, err := jav.LookupJavDBURLByCode(c.Request.Context(), code)
 	if err != nil {
-		if errors.Is(err, jav.ResourceNotFonud) {
+		if errors.Is(err, jav.ErrNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 JavDB 页面", "JavDB page was not found")
 			return
 		}
@@ -204,9 +204,9 @@ func redirectJavAvsox(c *gin.Context) {
 		return
 	}
 
-	detailURL, err := jav.LookupAvsoxURLByCode(code)
+	detailURL, err := jav.LookupAvsoxURLByCode(c.Request.Context(), code)
 	if err != nil {
-		if errors.Is(err, jav.ResourceNotFonud) {
+		if errors.Is(err, jav.ErrNotFound) {
 			respondLocalizedError(c, http.StatusNotFound, "未找到对应的 Avsox 详情页", "Avsox detail page was not found")
 			return
 		}
@@ -269,7 +269,7 @@ func resolveJavSampleImages(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"sample_images": stored})
 }
 
-type javSampleImageLookupFunc func(string, jav.Provider) (*jav.JavInfo, error)
+type javSampleImageLookupFunc func(context.Context, string, jav.Provider) (*jav.JavInfo, error)
 type javSampleImageURLValidator func(context.Context, string) (bool, error)
 
 func lookupJavSampleImagesByProvider(
@@ -284,9 +284,9 @@ func lookupJavSampleImagesByProvider(
 
 	var lookupErrors []error
 	for _, provider := range []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus} {
-		info, err := lookup(code, provider)
+		info, err := lookup(ctx, code, provider)
 		if err != nil {
-			if !errors.Is(err, jav.ResourceNotFonud) {
+			if !errors.Is(err, jav.ErrNotFound) {
 				lookupErrors = append(lookupErrors, fmt.Errorf("%s: %w", provider.String(), err))
 			}
 			continue

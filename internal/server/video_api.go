@@ -833,9 +833,9 @@ func lookupVideoJavScrapeByProvider(c *gin.Context, provider jav.Provider) {
 	}
 
 	providerLabel := videoJavScrapeLookupProviderLabel(provider)
-	info, err := jav.LookupJavByCode(code, provider)
+	info, err := jav.LookupJavByCode(c.Request.Context(), code, provider)
 	if err != nil {
-		if errors.Is(err, jav.ResourceNotFonud) {
+		if errors.Is(err, jav.ErrNotFound) {
 			respondLocalizedError(
 				c,
 				http.StatusNotFound,

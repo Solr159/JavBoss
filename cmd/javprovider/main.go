@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -74,21 +75,21 @@ func main() {
 			name:   "LookupActressByCode",
 			prompt: "请输入番号",
 			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByCode(input, provider)
+				return jav.LookupActressByCode(context.Background(), input, provider)
 			},
 		},
 		{
 			name:   "LookupActressByJapaneseName",
 			prompt: "请输入女优日文名",
 			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByJapaneseName(input, provider)
+				return jav.LookupActressByJapaneseName(context.Background(), input, provider)
 			},
 		},
 		{
 			name:   "LookupJavByCode",
 			prompt: "请输入番号",
 			call: func(provider jav.Provider, input string) (any, error) {
-				return jav.LookupJavByCode(input, provider)
+				return jav.LookupJavByCode(context.Background(), input, provider)
 			},
 		},
 	}

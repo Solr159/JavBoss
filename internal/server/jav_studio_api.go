@@ -223,12 +223,12 @@ func getJavSeriesJavDBURL(c *gin.Context) {
 		if code == "" {
 			continue
 		}
-		seriesURL, err := jav.LookupSeriesURLByCode(code, jav.ProviderJavDB)
+		seriesURL, err := jav.LookupSeriesURLByCode(c.Request.Context(), code, jav.ProviderJavDB)
 		if err == nil && strings.TrimSpace(seriesURL) != "" {
 			c.JSON(http.StatusOK, gin.H{"url": seriesURL})
 			return
 		}
-		if err != nil && !errors.Is(err, jav.ResourceNotFonud) {
+		if err != nil && !errors.Is(err, jav.ErrNotFound) {
 			lastErr = err
 			logging.Error("lookup javdb series url series_id=%d code=%s: %v", seriesID, code, err)
 		}
@@ -263,12 +263,12 @@ func getJavStudioJavDBURL(c *gin.Context) {
 		if code == "" {
 			continue
 		}
-		studioURL, err := jav.LookupStudioURLByCode(code, jav.ProviderJavDB)
+		studioURL, err := jav.LookupStudioURLByCode(c.Request.Context(), code, jav.ProviderJavDB)
 		if err == nil && strings.TrimSpace(studioURL) != "" {
 			c.JSON(http.StatusOK, gin.H{"url": studioURL})
 			return
 		}
-		if err != nil && !errors.Is(err, jav.ResourceNotFonud) {
+		if err != nil && !errors.Is(err, jav.ErrNotFound) {
 			lastErr = err
 			logging.Error("lookup javdb studio url studio_id=%d code=%s: %v", studioID, code, err)
 		}

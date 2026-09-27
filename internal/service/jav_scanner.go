@@ -95,9 +95,9 @@ func lookupJavDatabaseMetadata(ctx context.Context, item db.JavMetadataScanItem)
 		return nil, "", false, nil
 	}
 
-	info, err := jav.LookupJavByCode(code, jav.ProviderJavDatabase)
+	info, err := jav.LookupJavByCode(ctx, code, jav.ProviderJavDatabase)
 	if err != nil {
-		if !errors.Is(err, jav.ResourceNotFonud) {
+		if !errors.Is(err, jav.ErrNotFound) {
 			logging.Error("lookup javdatabase metadata failed id=%d code=%s err=%v", item.ID, code, err)
 		}
 		return nil, code, false, nil
@@ -124,9 +124,9 @@ func ScanJavSeriesAndIdolMetadata(ctx context.Context) error {
 		if code == "" {
 			continue
 		}
-		info, err := jav.LookupJavByCode(code, jav.ProviderJavDBAPI)
+		info, err := jav.LookupJavByCode(ctx, code, jav.ProviderJavDBAPI)
 		if err != nil {
-			if !errors.Is(err, jav.ResourceNotFonud) {
+			if !errors.Is(err, jav.ErrNotFound) {
 				logging.Error("lookup javdb-api series and idols failed id=%d code=%s err=%v", item.ID, code, err)
 			}
 			continue
@@ -183,9 +183,9 @@ func scanMissingUncensoredJavInfoWithAvsox(ctx context.Context) error {
 			continue
 		}
 
-		info, err := jav.LookupJavByCode(code, jav.ProviderAvsox)
+		info, err := jav.LookupJavByCode(ctx, code, jav.ProviderAvsox)
 		if err != nil {
-			if !errors.Is(err, jav.ResourceNotFonud) {
+			if !errors.Is(err, jav.ErrNotFound) {
 				logging.Error("lookup avsox uncensored metadata failed id=%d code=%s err=%v", item.ID, code, err)
 			}
 			continue

@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"testing"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/metadata"
 	"javboss/internal/models"
 )
 
 func TestSaveJavInfoPersistsBothTitles(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
-	info := &jav.JavInfo{Code: "MIDE-557", Title: "日本語の原題", ZhTitle: " 中文标题 ", Provider: jav.ProviderJavDBAPI}
+	info := &metadata.JavInfo{Code: "MIDE-557", Title: "日本語の原題", ZhTitle: " 中文标题 ", Provider: metadata.ProviderJavDBAPI}
 	rec, err := SaveJavInfo(ctx, info)
 	if err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func TestSaveJavInfoPersistsBothTitles(t *testing.T) {
 	}
 	assertTitles("更新した原題", "更新后的中文标题")
 	// Providers without a translated title must not erase one already stored.
-	info.Provider, info.ZhTitle = jav.ProviderJavBus, ""
+	info.Provider, info.ZhTitle = metadata.ProviderJavBus, ""
 	if _, err := SaveJavInfo(ctx, info); err != nil {
 		t.Fatal(err)
 	}

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/metadata"
 	"javboss/internal/models"
 )
 
@@ -14,8 +14,8 @@ func TestEnglishJavMetadataCannotBePersisted(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 
-	for _, provider := range []jav.Provider{jav.ProviderJavDatabase, jav.ProviderThePornDB} {
-		if _, err := SaveJavInfo(ctx, &jav.JavInfo{
+	for _, provider := range []metadata.Provider{metadata.ProviderJavDatabase, metadata.ProviderThePornDB} {
+		if _, err := SaveJavInfo(ctx, &metadata.JavInfo{
 			Code:     "EN-ONLY-001",
 			Title:    "English title",
 			Series:   "English series",

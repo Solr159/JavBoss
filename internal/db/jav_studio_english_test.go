@@ -6,7 +6,7 @@ import (
 	"sort"
 	"testing"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/metadata"
 	"javboss/internal/models"
 )
 
@@ -26,7 +26,7 @@ func TestPromoteJavStudioEnglishName(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			gdb := openTestDB(t)
 			ctx := context.Background()
-			rec, err := SaveJavInfo(ctx, &jav.JavInfo{Code: "TEST-001", Title: "Original", Studio: tc.current, Provider: jav.ProviderJavDBAPI})
+			rec, err := SaveJavInfo(ctx, &metadata.JavInfo{Code: "TEST-001", Title: "Original", Studio: tc.current, Provider: metadata.ProviderJavDBAPI})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -60,7 +60,7 @@ func TestPromoteJavStudioEnglishName(t *testing.T) {
 			if updated, err := PromoteJavStudioEnglishName(ctx, rec.ID, tc.incoming); err != nil || updated {
 				t.Fatalf("repeat updated=%v err=%v", updated, err)
 			}
-			again, err := SaveJavInfo(ctx, &jav.JavInfo{Code: "TEST-001", Title: "Original", Studio: tc.current, Provider: jav.ProviderJavDBAPI})
+			again, err := SaveJavInfo(ctx, &metadata.JavInfo{Code: "TEST-001", Title: "Original", Studio: tc.current, Provider: metadata.ProviderJavDBAPI})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -74,7 +74,7 @@ func TestPromoteJavStudioEnglishName(t *testing.T) {
 func TestPromoteJavStudioEnglishNameUsesExistingAlias(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
-	rec, err := SaveJavInfo(ctx, &jav.JavInfo{Code: "TEST-001", Title: "Title", Studio: "元の片商", Provider: jav.ProviderJavDBAPI})
+	rec, err := SaveJavInfo(ctx, &metadata.JavInfo{Code: "TEST-001", Title: "Title", Studio: "元の片商", Provider: metadata.ProviderJavDBAPI})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestPromoteJavStudioEnglishNameMergesRelationships(t *testing.T) {
 				}
 				alias = models.JavStudioAlias{}
 			}
-			rec, err := SaveJavInfo(ctx, &jav.JavInfo{Code: "TEST-001", Title: "Title", Studio: source.Name, Provider: jav.ProviderJavDBAPI})
+			rec, err := SaveJavInfo(ctx, &metadata.JavInfo{Code: "TEST-001", Title: "Title", Studio: source.Name, Provider: metadata.ProviderJavDBAPI})
 			if err != nil || *rec.StudioID != canonical.ID {
 				t.Fatalf("original name lookup: %+v %v", rec, err)
 			}

@@ -244,9 +244,9 @@ func forcedJavScrapeCode(override string) string {
 
 func lookupAndLinkVideoLocationJav(ctx context.Context, v *db.JavScanVideo, filename string, possibleCodes []string, provider jav.Provider) (bool, error) {
 	for _, code := range possibleCodes {
-		info, err := jav.LookupJavByCode(code, provider)
+		info, err := jav.LookupJavByCode(ctx, code, provider)
 		if err != nil {
-			if errors.Is(err, jav.ResourceNotFonud) {
+			if errors.Is(err, jav.ErrNotFound) {
 				continue
 			}
 			logging.Error("jav lookup failed provider=%s location=%s code=%s err=%v", provider.String(), filename, code, err)

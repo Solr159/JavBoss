@@ -167,9 +167,9 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	}
 	var lastErr error
 	for _, provider := range m.providers {
-		info, err := lookupJavByCode(code, provider)
+		info, err := lookupJavByCode(ctx, code, provider)
 		if err != nil {
-			if errors.Is(err, jav.ResourceNotFonud) {
+			if errors.Is(err, jav.ErrNotFound) {
 				continue
 			}
 			lastErr = err

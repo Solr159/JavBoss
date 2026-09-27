@@ -134,7 +134,7 @@ func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
 
 	originalLookup := lookupJavByCode
 	calls := map[jav.Provider]int{}
-	lookupJavByCode = func(code string, provider jav.Provider) (*jav.JavInfo, error) {
+	lookupJavByCode = func(_ context.Context, code string, provider jav.Provider) (*jav.JavInfo, error) {
 		calls[provider]++
 		switch provider {
 		case jav.ProviderJavDatabase:
@@ -142,7 +142,7 @@ func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
 		case jav.ProviderJavBus:
 			return &jav.JavInfo{CoverURL: server.URL + "/valid.jpg"}, nil
 		default:
-			return nil, jav.ResourceNotFonud
+			return nil, jav.ErrNotFound
 		}
 	}
 	t.Cleanup(func() { lookupJavByCode = originalLookup })

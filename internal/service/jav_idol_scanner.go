@@ -70,17 +70,17 @@ func ScanIdolProfiles(ctx context.Context) error {
 		var javDatabaseLookup idolActressLookup
 		if code != "" {
 			javDatabaseLookup = func() (*jav.ActressInfo, error) {
-				return jav.LookupActressByCode(code, jav.ProviderJavDatabase)
+				return jav.LookupActressByCode(ctx, code, jav.ProviderJavDatabase)
 			}
 		}
 
 		var minnanoAVLookup, javModelLookup idolActressLookup
 		if lookupName != "" {
 			minnanoAVLookup = func() (*jav.ActressInfo, error) {
-				return jav.LookupActressByJapaneseName(lookupName, jav.ProviderMinnanoAV)
+				return jav.LookupActressByJapaneseName(ctx, lookupName, jav.ProviderMinnanoAV)
 			}
 			javModelLookup = func() (*jav.ActressInfo, error) {
-				return jav.LookupActressByJapaneseName(lookupName, jav.ProviderJavModel)
+				return jav.LookupActressByJapaneseName(ctx, lookupName, jav.ProviderJavModel)
 			}
 		}
 
@@ -88,13 +88,13 @@ func ScanIdolProfiles(ctx context.Context) error {
 		minnanoAVInfo = lookupResults[0].info
 		javDatabaseInfo = lookupResults[1].info
 		javModelInfo = lookupResults[2].info
-		if lookupErr := lookupResults[0].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
+		if lookupErr := lookupResults[0].err; lookupErr != nil && !errors.Is(lookupErr, jav.ErrNotFound) {
 			logging.Error("lookup actress (minnanoav) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
-		if lookupErr := lookupResults[1].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
+		if lookupErr := lookupResults[1].err; lookupErr != nil && !errors.Is(lookupErr, jav.ErrNotFound) {
 			logging.Error("lookup actress (javdatabase) failed idol=%s code=%s err=%v", idol.Name, code, lookupErr)
 		}
-		if lookupErr := lookupResults[2].err; lookupErr != nil && !errors.Is(lookupErr, jav.ResourceNotFonud) {
+		if lookupErr := lookupResults[2].err; lookupErr != nil && !errors.Is(lookupErr, jav.ErrNotFound) {
 			logging.Error("lookup actress (javmodel) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
 
