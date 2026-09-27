@@ -164,6 +164,45 @@ func TestLookupJavSampleImagesByProviderStopsAfterJavMenuSuccess(t *testing.T) {
 	}
 }
 
+func TestLookupFC2SampleImagesProviderOrder(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		apiErr         error
+		empty, invalid bool
+		want           []jav.Provider
+	}{
+		{name: "api success", want: []jav.Provider{jav.ProviderJavDBAPI}},
+		{name: "api not found", apiErr: jav.ErrNotFound, want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}},
+		{name: "api failed", apiErr: errors.New("timeout"), want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}},
+		{name: "api empty", empty: true, want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}},
+		{name: "api image invalid", invalid: true, want: []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var calls []jav.Provider
+			images, err := lookupJavSampleImagesByProvider(context.Background(), " fc2-ppv-1234567 ", func(_ context.Context, _ string, provider jav.Provider) (*jav.JavInfo, error) {
+				calls = append(calls, provider)
+				if provider == jav.ProviderJavDBAPI {
+					if tc.apiErr != nil {
+						return nil, tc.apiErr
+					}
+					if tc.empty {
+						return &jav.JavInfo{}, nil
+					}
+				}
+				return &jav.JavInfo{SampleImages: []jav.SampleImage{{DetailURL: provider.String()}}}, nil
+			}, func(_ context.Context, url string) (bool, error) {
+				return !tc.invalid || url != jav.ProviderJavDBAPI.String(), nil
+			})
+			if err != nil || len(images) != 1 || images[0].DetailURL != tc.want[len(tc.want)-1].String() {
+				t.Fatalf("images = %v, err = %v", images, err)
+			}
+			if !reflect.DeepEqual(calls, tc.want) {
+				t.Fatalf("providers = %v, want %v", calls, tc.want)
+			}
+		})
+	}
+}
+
 func TestLookupJavSampleImagesByProviderPreservesTemporaryErrors(t *testing.T) {
 	temporaryErr := errors.New("network timeout")
 	images, err := lookupJavSampleImagesByProvider(context.Background(), "IPX-228", func(_ context.Context, _ string, provider jav.Provider) (*jav.JavInfo, error) {

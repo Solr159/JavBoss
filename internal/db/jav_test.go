@@ -3744,15 +3744,22 @@ func TestMarkJavSampleImagesNotFound(t *testing.T) {
 		t.Fatalf("sample image sentinel was not stored: %#v", stored.SampleImages)
 	}
 
-	images, err := SetJavSampleImagesIfEmpty(ctx, item.ID, models.JavSampleImages{{
+	want := models.JavSampleImages{{
 		ThumbnailURL: "https://example.com/thumb.jpg",
 		DetailURL:    "https://example.com/detail.jpg",
-	}})
+	}}
+	images, err := SetJavSampleImagesIfEmpty(ctx, item.ID, want)
 	if err != nil {
 		t.Fatalf("SetJavSampleImagesIfEmpty: %v", err)
 	}
-	if !images.IsNotFound() {
-		t.Fatalf("sample image sentinel was replaced: %#v", images)
+	if !reflect.DeepEqual(images, want) {
+		t.Fatalf("sample image sentinel was not replaced: %#v", images)
+	}
+	if err := db.First(&stored, item.ID).Error; err != nil {
+		t.Fatalf("load jav: %v", err)
+	}
+	if !reflect.DeepEqual(stored.SampleImages, want) {
+		t.Fatalf("stored sample images = %#v, want %#v", stored.SampleImages, want)
 	}
 }
 

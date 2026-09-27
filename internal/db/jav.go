@@ -3351,7 +3351,8 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	return javRec, nil
 }
 
-// SetJavSampleImagesIfEmpty stores sample images without replacing an existing list.
+// SetJavSampleImagesIfEmpty replaces empty results or a not-found sentinel with
+// sample images, preserving any existing image list.
 func SetJavSampleImagesIfEmpty(ctx context.Context, javID int64, images models.JavSampleImages) (models.JavSampleImages, error) {
 	if javID <= 0 {
 		return nil, errors.New("jav id must be positive")
@@ -3364,7 +3365,7 @@ func SetJavSampleImagesIfEmpty(ctx context.Context, javID int64, images models.J
 	result := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
 		Where("id = ?", javID).
-		Where(`TRIM(COALESCE(sample_images, '')) IN ('', '[]', 'null')`).
+		Where(`TRIM(COALESCE(sample_images, '')) IN ('', '[]', 'null') OR sample_images = ?`, models.NewJavSampleImagesNotFound()).
 		UpdateColumn("sample_images", images)
 	if result.Error != nil {
 		return nil, fmt.Errorf("update JAV sample images: %w", result.Error)

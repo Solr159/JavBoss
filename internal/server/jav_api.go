@@ -19,6 +19,7 @@ import (
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
+	"javboss/internal/jav/javdb"
 	"javboss/internal/manager"
 	"javboss/internal/models"
 	"javboss/internal/util"
@@ -234,7 +235,7 @@ func resolveJavSampleImages(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "加载样品图失败", "Failed to load sample images")
 		return
 	}
-	if len(item.SampleImages) > 0 {
+	if len(item.SampleImages) > 0 && !(isFC2Code(item.Code) && item.SampleImages.IsNotFound()) {
 		c.JSON(http.StatusOK, gin.H{"sample_images": item.SampleImages})
 		return
 	}
@@ -272,6 +273,10 @@ func resolveJavSampleImages(c *gin.Context) {
 type javSampleImageLookupFunc func(context.Context, string, jav.Provider) (*jav.JavInfo, error)
 type javSampleImageURLValidator func(context.Context, string) (bool, error)
 
+func isFC2Code(code string) bool {
+	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(code)), "FC2-PPV-")
+}
+
 func lookupJavSampleImagesByProvider(
 	ctx context.Context,
 	code string,
@@ -283,7 +288,11 @@ func lookupJavSampleImagesByProvider(
 	}
 
 	var lookupErrors []error
-	for _, provider := range []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus} {
+	providers := []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus}
+	if isFC2Code(code) {
+		providers = []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}
+	}
+	for _, provider := range providers {
 		info, err := lookup(ctx, code, provider)
 		if err != nil {
 			if !errors.Is(err, jav.ErrNotFound) {
@@ -357,7 +366,8 @@ func validateJavSampleImageDetailURL(ctx context.Context, detailURL string) (boo
 		return false, fmt.Errorf("image returned %s", resp.Status)
 	}
 
-	header, err := io.ReadAll(io.LimitReader(resp.Body, 512))
+	body, _ := javdb.DecodeImageBody(resp.Body)
+	header, err := io.ReadAll(io.LimitReader(body, 512))
 	if err != nil {
 		return false, fmt.Errorf("read image header: %w", err)
 	}
