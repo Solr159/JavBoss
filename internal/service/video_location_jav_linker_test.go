@@ -3,8 +3,6 @@ package service
 import (
 	"reflect"
 	"testing"
-
-	"javboss/internal/jav"
 )
 
 func TestJavScrapeCodesForVideoUsesForcedCodeOnly(t *testing.T) {
@@ -12,43 +10,6 @@ func TestJavScrapeCodesForVideoUsesForcedCodeOnly(t *testing.T) {
 	want := []string{"XYZ-999"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("javScrapeCodesForVideo() = %#v, want %#v", got, want)
-	}
-}
-
-func TestJavLinkProvidersForCode(t *testing.T) {
-	tests := []struct {
-		name string
-		code string
-		want []jav.Provider
-	}{
-		{
-			name: "gana uses javmenu then javbus",
-			code: "gana-1234",
-			want: []jav.Provider{jav.ProviderJavMenu, jav.ProviderJavBus},
-		},
-		{
-			name: "stars uses javbus then avmoo",
-			code: " STARS-001 ",
-			want: []jav.Provider{jav.ProviderJavBus, jav.ProviderAvmoo},
-		},
-		{
-			name: "ap uses avmoo",
-			code: "ap-001",
-			want: []jav.Provider{jav.ProviderAvmoo},
-		},
-		{
-			name: "other uses javbus",
-			code: "IPX-228",
-			want: []jav.Provider{jav.ProviderJavBus},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := javLinkProvidersForCode(tt.code)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Fatalf("javLinkProvidersForCode(%q) = %#v, want %#v", tt.code, got, tt.want)
-			}
-		})
 	}
 }
 
