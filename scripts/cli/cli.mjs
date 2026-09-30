@@ -530,6 +530,34 @@ async function copyModernZAssets(outDir) {
   await copyDir(path.join(ROOT_DIR, "modernz"), path.join(outDir, "modernz"));
 }
 
+async function createMacCommandLauncher(outDir) {
+  const launcherPath = path.join(outDir, "javboss.command");
+  const launcherContent = [
+    "#!/bin/bash",
+    "set -u",
+    'QUARANTINE_ATTR="com.apple.quarantine"',
+    'SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"',
+    'cd "$SCRIPT_DIR" || exit 1',
+    "",
+    'if command -v xattr >/dev/null 2>&1; then',
+    '  xattr -dr "$QUARANTINE_ATTR" "$SCRIPT_DIR" >/dev/null 2>&1 || true',
+    "fi",
+    "",
+    '"$SCRIPT_DIR/javboss" "$@"',
+    "status=$?",
+    'if [ "$status" -ne 0 ]; then',
+    '  echo',
+    '  echo "JavBoss exited with status $status."',
+    '  read -r -p "Press Enter to close..." _',
+    "fi",
+    'exit "$status"',
+    "",
+  ].join("\n");
+
+  await fsp.writeFile(launcherPath, launcherContent);
+  await fsp.chmod(launcherPath, 0o755);
+}
+
 async function createReleaseConfig(outDir) {
   const configPath = path.join(outDir, "config.toml");
   const configContent = [
@@ -608,6 +636,10 @@ async function runRelease(choice, version) {
   await copyModernZAssets(outDir);
   console.log("[release] 生成默认配置文件");
   await createReleaseConfig(outDir);
+  if (choice.goos === "darwin") {
+    console.log("[release] 生成 macOS .command 启动器");
+    await createMacCommandLauncher(outDir);
+  }
 
   const zipPath = path.join(
     ROOT_DIR,
