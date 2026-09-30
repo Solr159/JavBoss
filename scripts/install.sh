@@ -333,7 +333,6 @@ main() {
   log "installing to $INSTALL_DIR"
   copy_release_files "$release_dir" "$INSTALL_DIR"
   chmod +x "$INSTALL_DIR/javboss" 2>/dev/null || true
-  [[ ! -f "$INSTALL_DIR/javboss.command" ]] || chmod +x "$INSTALL_DIR/javboss.command" 2>/dev/null || true
 
   if command_exists xattr; then
     xattr -dr com.apple.quarantine "$INSTALL_DIR" >/dev/null 2>&1 || true

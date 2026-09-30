@@ -73,6 +73,15 @@ func main() {
 	defer closeLogs()
 	logging.SetLogger(logger)
 	logging.SetColorEnabled(false)
+
+	background, err := startReleaseInBackground(baseDir)
+	if err != nil {
+		log.Fatalf("start background process: %v", err)
+	}
+	if background {
+		return
+	}
+
 	defer mpv.Shutdown()
 
 	bootstrapCfg, err := clientpkg.LoadBootstrapConfig(baseDir)
