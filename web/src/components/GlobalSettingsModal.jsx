@@ -620,8 +620,8 @@ export default function GlobalSettingsModal({
             </h4>
             <p id="lan-access-description" className="mt-1 text-sm text-zinc-500">
               {zh(
-                '开启后，局域网设备可以通过本机 IP 地址访问 JavBoss，切换立即生效。',
-                'Allow devices on your local network to access JavBoss through this computer’s IP address. Changes take effect immediately.'
+                '开启后，局域网设备可以通过本机 IP 地址访问 JavBoss。',
+                'Allow devices on your local network to access JavBoss through this computer’s IP address.'
               )}
             </p>
           </div>
