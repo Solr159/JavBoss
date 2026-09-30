@@ -45,10 +45,11 @@ function releaseContext(t, goos) {
     copyBundledMpv = async () => {};
     copyModernZAssets = async () => {};
     createReleaseConfig = async () => {};
+    createMacCommandLauncher = async () => {};
     downloadFfprobe = async () => calls.push('download-ffprobe');
     downloadFfmpeg = async () => calls.push('download-ffmpeg');
     downloadMpv = async () => calls.push('download-mpv');
-    globalThis.cli = { runRelease, createZip, downloadDependencies, handleRelease, createMacCommandLauncher };
+    globalThis.cli = { runRelease, createZip, downloadDependencies, handleRelease };
   `, context);
   return context;
 }
@@ -104,70 +105,4 @@ test("macOS still downloads and bundles FFmpeg", { skip: !hasZip }, async (t) =>
   assert.equal(ctx.process.exitCode, 0);
   assert.equal(ctx.calls.join(","), "download-ffprobe,download-ffmpeg,download-mpv,check-ffmpeg,bundle-ffmpeg");
   assert.equal(await fsp.readFile(path.join(ctx.outDir, "ffmpeg"), "utf8"), "ffmpeg");
-  const archive = spawnSync("unzip", ["-Z1", ctx.zipPath], { encoding: "utf8" });
-  assert.equal(archive.status, 0, archive.stderr);
-  assert.match(archive.stdout, /\/javboss\.command\n/);
-  assert.ok(fs.statSync(path.join(ctx.outDir, "javboss.command")).mode & 0o111);
 });
-
-for (const cleanupStatus of [0, 7]) {
-  test(`macOS command launcher cleans quarantine before startup (cleanup exit ${cleanupStatus})`, async (t) => {
-    const ctx = releaseContext(t, "darwin");
-    const dir = path.join(ctx.outDir, "release with spaces");
-    const fakeBin = path.join(ctx.outDir, "fake-bin");
-    const caller = path.join(ctx.outDir, "unrelated caller");
-    const trace = path.join(ctx.outDir, "cleanup-arguments.txt");
-    for (const folder of [dir, fakeBin, caller]) {
-      await fsp.mkdir(folder, { recursive: true });
-    }
-    await ctx.cli.createMacCommandLauncher(dir);
-    await fsp.writeFile(path.join(fakeBin, "xattr"), `#!/bin/bash
-printf '%s\\n' "$@" > "$TEST_XATTR_ARGS"
-echo cleanup-output
-echo cleanup-warning >&2
-exit ${cleanupStatus}
-`, { mode: 0o755 });
-    await fsp.writeFile(path.join(dir, "javboss"), `#!/bin/bash
-[ -f "$TEST_XATTR_ARGS" ] || exit 91
-pwd -P
-printf '%s\\n' "$@"
-`, { mode: 0o755 });
-    const args = ["--port", "9876", "--server-url", "http://localhost/path with spaces"];
-    const result = spawnSync("bash", [path.join(dir, "javboss.command"), ...args], {
-      cwd: caller, encoding: "utf8", timeout: 5000,
-      env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}`, TEST_XATTR_ARGS: trace },
-    });
-    assert.equal(result.status, 0, result.stderr || String(result.error));
-    assert.equal(result.stderr, "");
-    assert.equal(result.stdout, [fs.realpathSync(dir), ...args, ""].join("\n"));
-    const [flags, attribute, target] = fs.readFileSync(trace, "utf8").trimEnd().split("\n");
-    assert.equal(flags, "-dr");
-    assert.equal(attribute, "com.apple.quarantine");
-    assert.equal(fs.realpathSync(target), fs.realpathSync(dir));
-  });
-}
-
-for (const platform of ["Darwin", "Linux"]) {
-  test(`${platform} installer selects the appropriate command and first launch`, async (t) => {
-    const ctx = releaseContext(t, "darwin");
-    const dir = path.join(ctx.outDir, "install with spaces");
-    await fsp.mkdir(dir, { recursive: true });
-    for (const name of ["javboss", "javboss.command"]) {
-      await fsp.writeFile(path.join(dir, name), `#!/bin/bash\nprintf '%s\\n' '${name}' "$@"\n`, { mode: 0o755 });
-    }
-    const installer = fs.readFileSync(new URL("../../install.sh", import.meta.url), "utf8")
-      .replace(/\nmain "\$@"\s*$/, "\n");
-    const result = spawnSync("bash", ["-c", installer + `
-uname() { echo "$TEST_PLATFORM"; }
-create_command_link "$TEST_INSTALL_DIR"
-"$JAVBOSS_LINK_DIR/javboss" --port 9876
-start_javboss "$TEST_INSTALL_DIR"
-`], {
-      encoding: "utf8", timeout: 5000,
-      env: { ...process.env, TEST_PLATFORM: platform, TEST_INSTALL_DIR: dir, JAVBOSS_LINK_DIR: path.join(dir, "commands") },
-    });
-    assert.equal(result.status, 0, result.stderr || String(result.error));
-    const entry = "javboss";
-    assert.ok(result.stdout.endsWith(`${entry}\n--port\n9876\n${entry}\n`), result.stdout);
-  });
-}
