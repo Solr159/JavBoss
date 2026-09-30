@@ -347,17 +347,19 @@ export default function GlobalSettingsModal({
     en: 'Global Settings',
   }
 
-  const handleSaveDefaultPlayer = async () => {
+  const handleChangeDefaultPlayer = async (player) => {
+    if (savingDefaultPlayer || !onSaveDefaultPlayer) return
     const next =
-      defaultPlayerInput === 'browser' ||
-      (defaultPlayerInput === 'system' && desktopIntegrationEnabled)
-        ? defaultPlayerInput
-        : 'mpv'
+      player === 'browser' || (player === 'system' && desktopIntegrationEnabled) ? player : 'mpv'
+    const previous = defaultPlayerInput
+    if (next === previous) return
+    setDefaultPlayerInput(next)
     setDefaultPlayerError('')
     setSavingDefaultPlayer(true)
     try {
       await onSaveDefaultPlayer?.(next)
     } catch (err) {
+      setDefaultPlayerInput(previous)
       setDefaultPlayerError(getErrorMessage(err))
     } finally {
       setSavingDefaultPlayer(false)
@@ -383,12 +385,6 @@ export default function GlobalSettingsModal({
   }
 
   const renderDefaultPlayerSettings = () => {
-    const currentDefaultPlayer =
-      defaultPlayer === 'browser' || (defaultPlayer === 'system' && desktopIntegrationEnabled)
-        ? defaultPlayer
-        : 'mpv'
-    const defaultPlayerUnchanged = defaultPlayerInput === currentDefaultPlayer
-
     return (
       <div className="space-y-4">
         {browserPlaybackOnly ? (
@@ -398,35 +394,28 @@ export default function GlobalSettingsModal({
             </h4>
             <p className="mt-1 text-sm text-zinc-500">
               {zh(
-                'Docker 模式下默认使用浏览器播放器，如需使用 MPV 请在本机安装 JavBoss 并开启 Client 模式',
-                'Docker mode uses the browser player by default. To use MPV, install JavBoss on your local machine and enable Client mode.'
+                'Docker 模式下默认使用网页播放器，如需使用 MPV 请在本机安装 JavBoss 并开启 Client 模式',
+                'Docker mode uses the web player by default. To use MPV, install JavBoss on your local machine and enable Client mode.'
               )}
             </p>
           </div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
               <h4 className="text-sm font-semibold text-zinc-800">
                 {zh('默认播放器', 'Default Player')}
               </h4>
               <span className="relative inline-block">
                 <select
                   value={defaultPlayerInput}
-                  onChange={(event) => {
-                    const next = event.target.value
-                    setDefaultPlayerInput(
-                      next === 'browser' || (next === 'system' && desktopIntegrationEnabled)
-                        ? next
-                        : 'mpv'
-                    )
-                    setDefaultPlayerError('')
-                  }}
+                  onChange={(event) => handleChangeDefaultPlayer(event.target.value)}
+                  disabled={savingDefaultPlayer || !onSaveDefaultPlayer}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
                   <option value="mpv">MPV</option>
-                  <option value="browser">{zh('浏览器', 'Browser')}</option>
+                  <option value="browser">{zh('网页播放器', 'Web Player')}</option>
                   {desktopIntegrationEnabled ? (
-                    <option value="system">{zh('系统', 'System')}</option>
+                    <option value="system">{zh('系统播放器', 'System Player')}</option>
                   ) : null}
                 </select>
                 <span
@@ -446,20 +435,11 @@ export default function GlobalSettingsModal({
           </>
         )}
 
-        {defaultPlayerError && <div className="text-sm text-red-600">{defaultPlayerError}</div>}
-
-        {!browserPlaybackOnly ? (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleSaveDefaultPlayer}
-              disabled={savingDefaultPlayer || defaultPlayerUnchanged}
-              className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-            >
-              {savingDefaultPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-            </button>
+        {defaultPlayerError && (
+          <div className="text-sm text-red-600" role="alert">
+            {defaultPlayerError}
           </div>
-        ) : null}
+        )}
       </div>
     )
   }
@@ -724,7 +704,7 @@ export default function GlobalSettingsModal({
                 : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
             }`}
           >
-            {zh('浏览器播放器', 'Browser Player')}
+            {zh('网页播放器', 'Web Player')}
           </button>
           {showMPVSettings ? (
             <button
@@ -772,8 +752,8 @@ export default function GlobalSettingsModal({
                 </label>
                 <p className="text-xs text-zinc-500">
                   {zh(
-                    '在浏览器播放器打开视频时显示当前快捷键说明。',
-                    'Show the current shortcut guide when the browser player opens a video.'
+                    '在网页播放器打开视频时显示当前快捷键说明。',
+                    'Show the current shortcut guide when the web player opens a video.'
                   )}
                 </p>
               </section>
@@ -809,7 +789,7 @@ export default function GlobalSettingsModal({
                         browser_player_show_hotkey_hint: browserPlayerShowHotkeyHintInput,
                       })
                       setBrowserPlayerSuccess(
-                        zh('浏览器播放器设置保存成功', 'Browser player settings saved')
+                        zh('网页播放器设置保存成功', 'Web player settings saved')
                       )
                     } catch (err) {
                       setBrowserPlayerError(getErrorMessage(err))
