@@ -28,11 +28,6 @@ const SETTINGS_SECTIONS = [
     summary: { zh: '界面提示与交互行为', en: 'Interface hints and interactions' },
   },
   {
-    id: 'shortcuts',
-    title: { zh: '快捷键', en: 'Shortcuts' },
-    summary: { zh: '自定义网页操作快捷键', en: 'Customize web shortcuts' },
-  },
-  {
     id: 'network',
     title: { zh: '网络与代理', en: 'Network & Proxy' },
     summary: { zh: '网络连接与代理设置', en: 'Network connection and proxy settings' },
@@ -369,13 +364,18 @@ export default function GlobalSettingsModal({
     }
   }
 
-  const handleSaveInitialViewMode = async () => {
-    const next = initialViewModeInput === 'jav' ? 'jav' : 'video'
+  const handleChangeInitialViewMode = async (mode) => {
+    if (savingInitialViewMode || !onSaveInitialViewMode) return
+    const next = mode === 'jav' ? 'jav' : 'video'
+    const previous = initialViewModeInput
+    if (next === previous) return
+    setInitialViewModeInput(next)
     setInitialViewModeError('')
     setSavingInitialViewMode(true)
     try {
       await onSaveInitialViewMode?.(next)
     } catch (err) {
+      setInitialViewModeInput(previous)
       setInitialViewModeError(getErrorMessage(err))
     } finally {
       setSavingInitialViewMode(false)
@@ -644,28 +644,23 @@ export default function GlobalSettingsModal({
   )
 
   const renderDisplayPanel = () => {
-    const currentInitialViewMode = initialViewMode === 'jav' ? 'jav' : 'video'
-    const initialViewModeUnchanged = initialViewModeInput === currentInitialViewMode
-
     return (
       <div className="space-y-5">
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center justify-between gap-3">
               <h4 className="text-sm font-semibold text-zinc-800">
                 {zh('初始页面', 'Initial Page')}
               </h4>
               <span className="relative inline-block">
                 <select
                   value={initialViewModeInput}
-                  onChange={(event) => {
-                    setInitialViewModeInput(event.target.value === 'jav' ? 'jav' : 'video')
-                    setInitialViewModeError('')
-                  }}
+                  onChange={(event) => handleChangeInitialViewMode(event.target.value)}
+                  disabled={savingInitialViewMode || !onSaveInitialViewMode}
                   className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
                 >
-                  <option value="video">{zh('视频模式', 'Video Mode')}</option>
-                  <option value="jav">{zh('JAV模式', 'JAV Mode')}</option>
+                  <option value="video">{zh('视频', 'Video')}</option>
+                  <option value="jav">JAV</option>
                 </select>
                 <span
                   aria-hidden="true"
@@ -673,29 +668,14 @@ export default function GlobalSettingsModal({
                 />
               </span>
             </div>
-            <p className="text-sm text-zinc-500">
-              {zh(
-                '打开新页面，默认进入所选模式。',
-                'When opening a new page, use the selected mode by default.'
-              )}
-            </p>
-
             {initialViewModeError && (
-              <div className="text-sm text-red-600">{initialViewModeError}</div>
+              <div className="text-sm text-red-600" role="alert">
+                {initialViewModeError}
+              </div>
             )}
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleSaveInitialViewMode}
-                disabled={savingInitialViewMode || initialViewModeUnchanged}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
-              >
-                {savingInitialViewMode ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-              </button>
-            </div>
           </div>
         </section>
+        <WebHotkeySettings hotkeys={webHotkeys} onSave={onSaveWebHotkeys} />
       </div>
     )
   }
@@ -1097,12 +1077,6 @@ export default function GlobalSettingsModal({
     )
   }
 
-  const renderShortcutsPanel = () => (
-    <div className="space-y-5">
-      <WebHotkeySettings hotkeys={webHotkeys} onSave={onSaveWebHotkeys} />
-    </div>
-  )
-
   const renderDirectoriesPanel = () => (
     <div className="space-y-2">
       <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600">
@@ -1500,7 +1474,6 @@ export default function GlobalSettingsModal({
           }`}
         >
           {currentSection === 'display' && renderDisplayPanel()}
-          {currentSection === 'shortcuts' && renderShortcutsPanel()}
           {currentSection === 'network' && renderNetworkPanel()}
           {currentSection === 'jav-providers' && (
             <ProviderConnectivityPanel
