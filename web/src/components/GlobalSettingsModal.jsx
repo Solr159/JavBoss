@@ -466,26 +466,25 @@ export default function GlobalSettingsModal({
 
   const renderProxyPanel = () => (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h4 className="text-sm font-semibold text-zinc-800">
             {zh('代理设置', 'Proxy Settings')}
           </h4>
-          {!proxyEditing && (
-            <button
-              type="button"
-              onClick={() => {
-                setProxyEditing(true)
-                setProxyError('')
-              }}
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-            >
-              {zh('编辑', 'Edit')}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setProxyEditing(true)
+              setProxyError('')
+            }}
+            disabled={proxyEditing}
+            className={`rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 ${proxyEditing ? 'invisible' : ''}`}
+          >
+            {zh('修改', 'Edit')}
+          </button>
         </div>
 
-        <div className="space-y-4 rounded-2xl bg-zinc-50 p-4">
+        <div className="space-y-3 rounded-2xl bg-zinc-50 px-4 py-3">
           <fieldset
             className="flex flex-wrap gap-x-6 gap-y-3"
             disabled={!proxyEditing || savingProxy}
@@ -493,8 +492,8 @@ export default function GlobalSettingsModal({
             <legend className="sr-only">{zh('代理模式', 'Proxy mode')}</legend>
             {[
               { value: 'auto', label: zh('自动检测', 'Auto-detect') },
-              { value: 'direct', label: zh('不使用代理', 'No proxy') },
               { value: 'manual', label: zh('手动设置', 'Manual') },
+              { value: 'direct', label: zh('不使用代理', 'No proxy') },
             ].map((option) => (
               <label key={option.value} className="flex items-center gap-2 text-sm text-zinc-700">
                 <input
@@ -512,6 +511,23 @@ export default function GlobalSettingsModal({
               </label>
             ))}
           </fieldset>
+
+          {proxyModeInput === 'auto' && (
+            <p className="text-sm text-zinc-500">
+              {zh(
+                '自动读取系统代理或环境变量配置。',
+                'Automatically use system proxy settings or environment variables.'
+              )}
+            </p>
+          )}
+          {proxyModeInput === 'direct' && (
+            <p className="text-sm text-zinc-500">
+              {zh(
+                '直接连接网络，忽略系统代理和环境变量中的代理配置。',
+                'Connect directly, ignoring system and environment proxy settings.'
+              )}
+            </p>
+          )}
 
           {proxyModeInput === 'manual' && (
             <div className="grid max-w-2xl gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
