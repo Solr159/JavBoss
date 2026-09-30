@@ -468,21 +468,9 @@ export default function GlobalSettingsModal({
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h4 className="text-sm font-semibold text-zinc-800">
-              {zh('代理设置', 'Proxy Settings')}
-            </h4>
-            <p className="mt-1 text-sm text-zinc-500">
-              {currentProxyMode === 'manual'
-                ? zh(
-                    `当前使用 ${currentProxyHost}:${proxyPort}`,
-                    `Currently using ${currentProxyHost}:${proxyPort}`
-                  )
-                : currentProxyMode === 'direct'
-                  ? zh('当前不使用代理', 'Currently using direct connections')
-                  : zh('当前使用自动检测', 'Currently using auto-detection')}
-            </p>
-          </div>
+          <h4 className="text-sm font-semibold text-zinc-800">
+            {zh('代理设置', 'Proxy Settings')}
+          </h4>
           {!proxyEditing && (
             <button
               type="button"
@@ -497,62 +485,67 @@ export default function GlobalSettingsModal({
           )}
         </div>
 
-        {proxyEditing ? (
-          <div className="space-y-4 rounded-2xl bg-zinc-50 p-4">
-            <fieldset className="flex flex-wrap gap-x-6 gap-y-3" disabled={savingProxy}>
-              <legend className="sr-only">{zh('代理模式', 'Proxy mode')}</legend>
-              {[
-                { value: 'auto', label: zh('自动检测', 'Auto-detect') },
-                { value: 'direct', label: zh('不使用代理', 'No proxy') },
-                { value: 'manual', label: zh('手动设置', 'Manual') },
-              ].map((option) => (
-                <label key={option.value} className="flex items-center gap-2 text-sm text-zinc-700">
-                  <input
-                    type="radio"
-                    name="proxy-mode"
-                    value={option.value}
-                    checked={proxyModeInput === option.value}
-                    onChange={() => {
-                      setProxyModeInput(option.value)
-                      setProxyError('')
-                    }}
-                    className="h-4 w-4"
-                  />
-                  <span>{option.label}</span>
+        <div className="space-y-4 rounded-2xl bg-zinc-50 p-4">
+          <fieldset
+            className="flex flex-wrap gap-x-6 gap-y-3"
+            disabled={!proxyEditing || savingProxy}
+          >
+            <legend className="sr-only">{zh('代理模式', 'Proxy mode')}</legend>
+            {[
+              { value: 'auto', label: zh('自动检测', 'Auto-detect') },
+              { value: 'direct', label: zh('不使用代理', 'No proxy') },
+              { value: 'manual', label: zh('手动设置', 'Manual') },
+            ].map((option) => (
+              <label key={option.value} className="flex items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="radio"
+                  name="proxy-mode"
+                  value={option.value}
+                  checked={proxyModeInput === option.value}
+                  onChange={() => {
+                    setProxyModeInput(option.value)
+                    setProxyError('')
+                  }}
+                  className="h-4 w-4"
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+
+          {proxyModeInput === 'manual' && (
+            <div className="grid max-w-2xl gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  {zh('代理IP', 'Proxy IP')}
                 </label>
-              ))}
-            </fieldset>
-
-            {proxyModeInput === 'manual' && (
-              <div className="grid max-w-2xl gap-3 sm:grid-cols-[minmax(0,1fr)_160px]">
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    {zh('代理IP', 'Proxy IP')}
-                  </label>
-                  <input
-                    value={proxyHostInput}
-                    onChange={(e) => setProxyHostInput(e.target.value)}
-                    placeholder={DEFAULT_PROXY_HOST}
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    {zh('端口号', 'Port')}
-                  </label>
-                  <input
-                    value={proxyInput}
-                    onChange={(e) => setProxyInput(e.target.value)}
-                    placeholder={zh('输入 1-65535', 'Enter 1-65535')}
-                    inputMode="numeric"
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
-                  />
-                </div>
+                <input
+                  value={proxyHostInput}
+                  onChange={(e) => setProxyHostInput(e.target.value)}
+                  disabled={!proxyEditing || savingProxy}
+                  placeholder={DEFAULT_PROXY_HOST}
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                />
               </div>
-            )}
+              <div>
+                <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                  {zh('端口号', 'Port')}
+                </label>
+                <input
+                  value={proxyInput}
+                  onChange={(e) => setProxyInput(e.target.value)}
+                  disabled={!proxyEditing || savingProxy}
+                  placeholder={zh('输入 1-65535', 'Enter 1-65535')}
+                  inputMode="numeric"
+                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          )}
 
-            {proxyError && <div className="text-sm text-red-600">{proxyError}</div>}
+          {proxyError && <div className="text-sm text-red-600">{proxyError}</div>}
 
+          {proxyEditing && (
             <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
@@ -563,6 +556,7 @@ export default function GlobalSettingsModal({
                   setProxyError('')
                   setProxyEditing(false)
                 }}
+                disabled={savingProxy}
                 className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
               >
                 {zh('取消', 'Cancel')}
@@ -576,8 +570,8 @@ export default function GlobalSettingsModal({
                 {savingProxy ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
               </button>
             </div>
-          </div>
-        ) : null}
+          )}
+        </div>
       </div>
     </section>
   )
