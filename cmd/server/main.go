@@ -26,6 +26,7 @@ import (
 	"javboss/internal/db"
 	"javboss/internal/jav"
 	"javboss/internal/models"
+	"javboss/internal/mpv"
 	"javboss/internal/runtimeconfig"
 	"javboss/internal/server"
 	"javboss/internal/service"
@@ -72,6 +73,7 @@ func main() {
 	defer closeLogs()
 	logging.SetLogger(logger)
 	logging.SetColorEnabled(false)
+	defer mpv.Shutdown()
 
 	bootstrapCfg, err := clientpkg.LoadBootstrapConfig(baseDir)
 	if err != nil {

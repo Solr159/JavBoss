@@ -123,7 +123,7 @@ func New(options Options) (*Client, error) {
 }
 
 func (c *Client) Close() {
-	mpv.ResetPlayerSession()
+	mpv.Shutdown()
 	c.closeScreenshotSync()
 	mpv.SetPlayerConfigProvider(nil)
 	if transport, ok := c.transport.(interface{ CloseIdleConnections() }); ok {
