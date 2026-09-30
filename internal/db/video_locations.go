@@ -33,9 +33,11 @@ func VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models
 		return nil, errors.New("directory id cannot be zero")
 	}
 	var locations []models.VideoLocation
+	// Join the belongs-to relation so loading a large directory does not expand
+	// every video ID into a Preload IN query and exceed SQLite's parameter limit.
 	if err := common.DB.WithContext(ctx).
-		Where("directory_id = ?", directoryID).
-		Preload("Video").
+		Where("video_location.directory_id = ?", directoryID).
+		Joins("Video").
 		Find(&locations).Error; err != nil {
 		return nil, fmt.Errorf("load video locations for directory %d: %w", directoryID, err)
 	}
@@ -86,10 +88,21 @@ func HideVideoLocationsByIDs(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := common.DB.WithContext(ctx).
-		Model(&models.VideoLocation{}).
-		Where("id IN ?", ids).
-		Update("is_delete", true).Error; err != nil {
+	// Leave room for update parameters even with SQLite's older 999-variable
+	// limit. Keep all batches atomic, as the original single UPDATE was.
+	const batchSize = 400
+	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for start := 0; start < len(ids); start += batchSize {
+			batch := ids[start:min(start+batchSize, len(ids))]
+			if err := tx.Model(&models.VideoLocation{}).
+				Where("id IN ?", batch).
+				Update("is_delete", true).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
 		return fmt.Errorf("hide video locations: %w", err)
 	}
 	return nil

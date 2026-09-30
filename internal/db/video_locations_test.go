@@ -2,11 +2,144 @@ package db
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"javboss/internal/models"
+
+	"gorm.io/gorm"
 )
+
+func createDirectoryLocationFixtures(t *testing.T, gdb *gorm.DB, count int) (models.Directory, []models.VideoLocation) {
+	t.Helper()
+	dir := models.Directory{Path: "/tmp/large-library"}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	videos := make([]models.Video, count)
+	for i := range videos {
+		videos[i] = models.Video{Fingerprint: fmt.Sprintf("video-%d", i), Size: int64(i + 1), DurationSec: 60}
+	}
+	if err := gdb.CreateInBatches(&videos, 100).Error; err != nil {
+		t.Fatal(err)
+	}
+	locations := make([]models.VideoLocation, count)
+	for i, video := range videos {
+		name := fmt.Sprintf("video-%d.mp4", i)
+		locations[i] = models.VideoLocation{
+			VideoID: video.ID, DirectoryID: dir.ID, RelativePath: name, Filename: name,
+			ModifiedAt: time.Unix(1710000000, 0).UTC(),
+		}
+	}
+	if err := gdb.CreateInBatches(&locations, 100).Error; err != nil {
+		t.Fatal(err)
+	}
+	return dir, locations
+}
+
+func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
+	gdb := openTestDB(t)
+	// Reproduce the reported library size, exceeding SQLite's 32766-variable limit.
+	dir, fixtures := createDirectoryLocationFixtures(t, gdb, 41888)
+	if err := gdb.Model(&fixtures[0]).Update("is_delete", true).Error; err != nil {
+		t.Fatal(err)
+	}
+	duplicate := models.VideoLocation{VideoID: fixtures[0].VideoID, DirectoryID: dir.ID, RelativePath: "copy.mp4"}
+	otherDir := models.Directory{Path: "/tmp/other-library"}
+	if err := gdb.Create(&otherDir).Error; err != nil {
+		t.Fatal(err)
+	}
+	other := models.VideoLocation{VideoID: fixtures[0].VideoID, DirectoryID: otherDir.ID, RelativePath: "other.mp4"}
+	for _, loc := range []*models.VideoLocation{&duplicate, &other} {
+		if err := gdb.Create(loc).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	locations, err := VideoLocationsByDirectory(t.Context(), dir.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(locations) != len(fixtures)+1 {
+		t.Fatalf("got %d locations, want %d", len(locations), len(fixtures)+1)
+	}
+	seen := make(map[int64]bool, len(locations))
+	for _, loc := range locations {
+		if loc.DirectoryID != dir.ID || seen[loc.ID] {
+			t.Fatalf("unexpected or duplicate location: %d", loc.ID)
+		}
+		seen[loc.ID] = true
+		if loc.Video.ID != loc.VideoID || loc.Video.Size == 0 || loc.Video.DurationSec != 60 || loc.Video.Fingerprint == "" {
+			t.Fatalf("video metadata not loaded for location %d: %+v", loc.ID, loc.Video)
+		}
+		if loc.ID == fixtures[0].ID && !loc.IsDelete {
+			t.Fatal("hidden location lost its deletion flag")
+		}
+	}
+	for _, loc := range append(fixtures, duplicate) {
+		if !seen[loc.ID] {
+			t.Fatalf("missing location %d", loc.ID)
+		}
+	}
+	empty, err := VideoLocationsByDirectory(t.Context(), otherDir.ID+1)
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("empty directory: count=%d err=%v", len(empty), err)
+	}
+}
+
+func TestHideVideoLocationsByIDs(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		count    int
+		failLast bool
+	}{
+		{name: "empty", count: 0},
+		{name: "single", count: 1},
+		{name: "large library", count: 41888},
+		{name: "rollback earlier batches", count: 1001, failLast: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			gdb := openTestDB(t)
+			_, locations := createDirectoryLocationFixtures(t, gdb, tc.count+1)
+			ids := make([]int64, tc.count)
+			for i := range ids {
+				ids[i] = locations[i].ID
+			}
+			if tc.failLast {
+				trigger := fmt.Sprintf(`CREATE TRIGGER reject_location_hide BEFORE UPDATE OF is_delete ON video_location
+					WHEN OLD.id = %d BEGIN SELECT RAISE(ABORT, 'forced hide failure'); END`, ids[len(ids)-1])
+				if err := gdb.Exec(trigger).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			err := HideVideoLocationsByIDs(t.Context(), ids)
+			wantHidden := int64(tc.count)
+			if tc.failLast {
+				if err == nil || !strings.Contains(err.Error(), "forced hide failure") {
+					t.Fatalf("expected forced hide failure, got %v", err)
+				}
+				wantHidden = 0
+			} else if err != nil {
+				t.Fatal(err)
+			}
+			var hidden, videos int64
+			if err := gdb.Model(&models.VideoLocation{}).Where("is_delete = ?", true).Count(&hidden).Error; err != nil {
+				t.Fatal(err)
+			}
+			if hidden != wantHidden {
+				t.Fatalf("hidden locations = %d, want %d", hidden, wantHidden)
+			}
+			var untouched models.VideoLocation
+			if err := gdb.First(&untouched, locations[tc.count].ID).Error; err != nil || untouched.IsDelete {
+				t.Fatalf("unselected location changed: %+v, err=%v", untouched, err)
+			}
+			if err := gdb.Model(&models.Video{}).Count(&videos).Error; err != nil || videos != int64(tc.count+1) {
+				t.Fatalf("video metadata changed: count=%d err=%v", videos, err)
+			}
+		})
+	}
+}
 
 func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {
 	gdb := openTestDB(t)
