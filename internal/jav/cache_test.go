@@ -13,7 +13,7 @@ func TestLookupJavByCodeUsesCache(t *testing.T) {
 	provider := &countingLookupProvider{
 		javInfo: &JavInfo{Code: "ABC-001", Title: "Cached Title", Provider: ProviderJavBus},
 	}
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
 	first, err := client.LookupJavByCode(context.Background(), "abc-001", ProviderJavBus)
 	if err != nil {
@@ -35,7 +35,7 @@ func TestLookupJavByCodeCachesNotFound(t *testing.T) {
 	cache := newMemoryLookupCache()
 
 	provider := &countingLookupProvider{err: ErrNotFound}
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
 	for i := 0; i < 2; i++ {
 		_, err := client.LookupJavByCode(context.Background(), "MISS-001", ProviderJavBus)
@@ -52,7 +52,7 @@ func TestLookupJavByCodeDoesNotCacheTemporaryErrors(t *testing.T) {
 	cache := newMemoryLookupCache()
 
 	provider := &countingLookupProvider{err: errors.New("temporary")}
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, cache)
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, cache)
 
 	for i := 0; i < 2; i++ {
 		_, err := client.LookupJavByCode(context.Background(), "TMP-001", ProviderJavBus)
@@ -62,6 +62,49 @@ func TestLookupJavByCodeDoesNotCacheTemporaryErrors(t *testing.T) {
 	}
 	if provider.javCalls != 2 {
 		t.Fatalf("unexpected provider calls: got %d want 2", provider.javCalls)
+	}
+}
+
+type actressNameLookupFunc func(context.Context, string) (*ActressInfo, error)
+
+func (f actressNameLookupFunc) LookupActressByName(ctx context.Context, name string) (*ActressInfo, error) {
+	return f(ctx, name)
+}
+
+func TestAVWikiActressLookupCache(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		err       error
+		wantCalls int
+	}{
+		{"profile", nil, 1},
+		{"missing actress", ErrNotFound, 1},
+		{"unavailable API", errors.New("avwiki: http 403"), 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			provider := actressNameLookupFunc(func(_ context.Context, name string) (*ActressInfo, error) {
+				calls++
+				if tc.err != nil {
+					return nil, tc.err
+				}
+				return &ActressInfo{JapaneseName: name, HeightCM: 160, ProfileURL: "https://av-wiki.net/av-actress/test/"}, nil
+			})
+			client := NewMetadataClient(map[Provider]any{ProviderAVWiki: provider}, newMemoryLookupCache())
+			for range 2 {
+				info, err := client.LookupActressByJapaneseName(context.Background(), "女優名", ProviderAVWiki)
+				if tc.err == nil {
+					if err != nil || info == nil || info.HeightCM != 160 || info.JapaneseName != "女優名" {
+						t.Fatalf("info=%+v error=%v", info, err)
+					}
+				} else if !errors.Is(err, tc.err) {
+					t.Fatalf("error=%v, want %v", err, tc.err)
+				}
+			}
+			if calls != tc.wantCalls {
+				t.Fatalf("calls=%d, want %d", calls, tc.wantCalls)
+			}
+		})
 	}
 }
 
@@ -163,6 +206,13 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			method:   "lookup_actress_name",
 			input:    "倉沢裕美",
 			want:     "v3:jav:minnanoav:lookup_actress_name:倉沢裕美",
+		},
+		{
+			name:     "avwiki actress lookup uses normalized roman name version",
+			provider: ProviderAVWiki,
+			method:   "lookup_actress_name",
+			input:    "九井スナオ",
+			want:     "v2:jav:avwiki:lookup_actress_name:九井スナオ",
 		},
 	}
 

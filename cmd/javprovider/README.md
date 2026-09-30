@@ -22,6 +22,7 @@ go run ./cmd/javprovider --provider javdatabase --method LookupActressByCode --i
 
 # 根据名字查询演员资料
 go run ./cmd/javprovider --provider minnanoav --method LookupActressByJapaneseName --input '女优名字'
+go run ./cmd/javprovider --provider avwiki --method LookupActressByJapaneseName --input '森沢かな'
 
 # 查看所有来源和查询方法
 go run ./cmd/javprovider --help

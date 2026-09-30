@@ -1,4 +1,4 @@
-package javdb
+package javdbapi
 
 import (
 	"context"
@@ -20,11 +20,12 @@ import (
 	"javboss/internal/jav/internal/parseutil"
 	"javboss/internal/jav/internal/ratelimit"
 	"javboss/internal/jav/metadata"
-	"javboss/internal/util"
 )
 
 // App request protocol follows javdb-cli (MIT); see THIRD_PARTY_NOTICES.md.
 const javDBAPIBaseURL = "https://jdforrepam.com"
+const javDBBaseURL = "https://javdb.com"
+const javDBRequestInterval = 500 * time.Millisecond
 
 var javDBAPIFC2CodeRe = regexp.MustCompile(`(?i)^FC2-(?:PPV-)?([0-9]+)$`)
 
@@ -37,13 +38,13 @@ func javDBAPIQueryCode(code string) string {
 	return code
 }
 
-// API keeps its device identity and proxy-aware transport for the process lifetime.
-type API struct {
-	limiter  *ratelimit.Limiter
-	once     sync.Once
-	client   *http.Client
-	baseURL  string
-	deviceID string
+// JavDBAPIClient owns its device identity, request limiter and proxy-aware transport.
+type JavDBAPIClient struct {
+	limiter    *ratelimit.Limiter
+	once       sync.Once
+	httpClient *http.Client
+	baseURL    string
+	deviceID   string
 }
 
 func javDBAPISignature(ts int64) string {
@@ -52,13 +53,10 @@ func javDBAPISignature(ts int64) string {
 	return fmt.Sprintf("%d.lpw6vgqzsp.%x", ts, sum)
 }
 
-func (p *API) init() {
+func (p *JavDBAPIClient) init() {
 	p.once.Do(func() {
 		if p.limiter == nil {
 			p.limiter = ratelimit.New(javDBRequestInterval)
-		}
-		if p.client == nil {
-			p.client = util.NewHTTPClient(20 * time.Second)
 		}
 		if p.baseURL == "" {
 			p.baseURL = javDBAPIBaseURL
@@ -74,7 +72,7 @@ func (p *API) init() {
 	})
 }
 
-func (p *API) get(ctx context.Context, path string, params url.Values, dest any) (err error) {
+func (p *JavDBAPIClient) get(ctx context.Context, path string, params url.Values, dest any) (err error) {
 	p.init()
 	started := time.Now()
 	status, responseBytes := 0, 0
@@ -191,7 +189,7 @@ func (movie *javDBAPIMovie) metadataTitle() string {
 	return strings.TrimSpace(movie.ZhTitle)
 }
 
-func (p *API) movieByCode(ctx context.Context, code string) (*javDBAPIMovie, error) {
+func (p *JavDBAPIClient) movieByCode(ctx context.Context, code string) (*javDBAPIMovie, error) {
 	code = javDBAPIQueryCode(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -262,7 +260,7 @@ func resolveJavDBAPIMovieID(movies []javDBAPIMovie, code string) (string, error)
 	return "", metadata.ErrNotFound
 }
 
-func (p *API) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavDBAPIClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	movie, err := p.movieByCode(ctx, code)
 	if err != nil {
 		return nil, err
@@ -314,7 +312,7 @@ func (p *API) LookupJavByCode(ctx context.Context, code string) (*metadata.JavIn
 	return info, nil
 }
 
-func (p *API) LookupActressURLByCodeAndName(ctx context.Context, code, name string) (string, error) {
+func (p *JavDBAPIClient) LookupActressURLByCodeAndName(ctx context.Context, code, name string) (string, error) {
 	if strings.TrimSpace(name) == "" {
 		return "", metadata.ErrNotFound
 	}
@@ -329,14 +327,14 @@ func (p *API) LookupActressURLByCodeAndName(ctx context.Context, code, name stri
 	}
 	return "", metadata.ErrNotFound
 }
-func (p *API) LookupSeriesURLByCode(ctx context.Context, code string) (string, error) {
+func (p *JavDBAPIClient) LookupSeriesURLByCode(ctx context.Context, code string) (string, error) {
 	movie, err := p.movieByCode(ctx, code)
 	if err != nil {
 		return "", err
 	}
 	return javDBAPIEntityURL("series", movie.SeriesID)
 }
-func (p *API) LookupStudioURLByCode(ctx context.Context, code string) (string, error) {
+func (p *JavDBAPIClient) LookupStudioURLByCode(ctx context.Context, code string) (string, error) {
 	movie, err := p.movieByCode(ctx, code)
 	if err != nil {
 		return "", err
@@ -350,19 +348,14 @@ func javDBAPIEntityURL(kind string, id javDBAPIValue) (string, error) {
 	return javDBBaseURL + "/" + kind + "/" + url.PathEscape(string(id)), nil
 }
 
-// NewAPI creates an app API client. Nil client and empty baseURL use production defaults.
-func NewAPI(client *http.Client, baseURL string) *API { return &API{client: client, baseURL: baseURL} }
-
-// NewProviders creates HTML and API clients sharing the site's request limit.
-func NewProviders() (*Client, *API) {
-	html := New()
-	api := NewAPI(nil, "")
-	api.limiter = html.limiter
-	return html, api
+// New creates an app API provider using the supplied non-nil HTTP client.
+// An empty baseURL selects the production API origin.
+func New(httpClient *http.Client, baseURL string) *JavDBAPIClient {
+	return &JavDBAPIClient{httpClient: httpClient, baseURL: baseURL}
 }
 
-// request shares API identity, signing, rate limiting and transport with connectivity checks.
-func (p *API) request(ctx context.Context, path string, params url.Values) (*http.Response, error) {
+// request uses this client's API identity, signing, rate limiter and transport.
+func (p *JavDBAPIClient) request(ctx context.Context, path string, params url.Values) (*http.Response, error) {
 	p.init()
 	if err := p.limiter.Wait(ctx); err != nil {
 		return nil, err
@@ -384,17 +377,11 @@ func (p *API) request(ctx context.Context, path string, params url.Values) (*htt
 	req.Header.Set("User-Agent", "Dart/3.4 (dart:io)")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Accept-Language", "zh-TW")
-	return p.client.Do(req)
+	return p.httpClient.Do(req)
 }
 
-// CheckConnectivity checks a signed search request without requiring a matching movie.
-// The caller owns the response body.
-func (p *API) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	return p.request(ctx, "/api/v2/search", url.Values{"q": {"SSIS-001"}, "page": {"1"}, "limit": {"1"}})
-}
-
-// ConnectivityURL identifies the API origin, which is separate from the website.
-func (p *API) ConnectivityURL() string {
+// OriginURL identifies the API origin, which is separate from the website.
+func (p *JavDBAPIClient) OriginURL() string {
 	p.init()
 	return p.baseURL
 }

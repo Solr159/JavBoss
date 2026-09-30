@@ -66,7 +66,7 @@ func getJavSampleImage(c *gin.Context) {
 		return
 	}
 	util.SetJavImageRequestHeaders(req)
-	resp, err := util.DoRequest(req)
+	resp, err := util.DefaultCachedHTTPClient().Do(req)
 	if err != nil {
 		c.Status(http.StatusBadGateway)
 		return

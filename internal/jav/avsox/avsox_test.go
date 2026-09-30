@@ -245,7 +245,7 @@ func TestAvsoxSessionAuthErrorDetection(t *testing.T) {
 }
 
 func TestAvsoxSessionCacheReuseAndInvalidate(t *testing.T) {
-	p := New()
+	p := New(NewHTTPClient())
 	session := avsoxSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avsox.click/cn/search/030919_047"}
 	p.sessionCache.Lock()
 	p.sessionCache.session = session

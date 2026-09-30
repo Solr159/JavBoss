@@ -214,7 +214,7 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		return fmt.Errorf("build cover request: %w", err)
 	}
 	setCoverDownloadHeaders(req)
-	resp, err := util.DoRequest(req)
+	resp, err := util.DefaultCachedHTTPClient().Do(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
 			return err

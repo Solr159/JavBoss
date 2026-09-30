@@ -3,10 +3,10 @@ import { IconButton, Tooltip } from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 
-import { checkProviderConnectivity, fetchConnectivityProviders } from '@/api'
+import { checkProviderAvailability, fetchAvailabilityProviders } from '@/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
-import { runProviderChecks } from '@/utils/providerConnectivity'
+import { runProviderChecks } from '@/utils/providerAvailability'
 
 const providerNames = {
   javbus: 'JavBus',
@@ -19,6 +19,7 @@ const providerNames = {
   javmodel: 'JavModel',
   javmenu: 'JavMenu',
   minnanoav: 'MinnanoAV',
+  avwiki: 'AV Wiki',
 }
 
 function resultLabel(result) {
@@ -28,7 +29,11 @@ function resultLabel(result) {
     case 'checking':
       return zh('检测中…', 'Checking...')
     case 'ok':
-      return zh('可连接', 'Reachable')
+      return zh('可用', 'Available')
+    case 'not_found':
+      return zh('未获取到测试数据', 'Test data not found')
+    case 'invalid_response':
+      return zh('数据解析失败或不完整', 'Invalid or incomplete data')
     case 'http_error':
       if (result.http_status === 401) return zh('需要认证', 'Authentication required')
       if (result.http_status === 403) return zh('访问被拒绝', 'Access denied')
@@ -52,7 +57,7 @@ function resultLabel(result) {
   }
 }
 
-export default function ProviderConnectivityPanel({ disabled = false }) {
+export default function ProviderAvailabilityPanel({ disabled = false }) {
   const [providers, setProviders] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
@@ -65,7 +70,7 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
     const controller = new AbortController()
     setLoading(true)
     setLoadError('')
-    fetchConnectivityProviders({ signal: controller.signal })
+    fetchAvailabilityProviders({ signal: controller.signal })
       .then((items) => {
         if (!controller.signal.aborted) {
           setProviders(items)
@@ -113,7 +118,7 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
     try {
       await runProviderChecks(
         items,
-        checkProviderConnectivity,
+        checkProviderAvailability,
         (id, result) => setResults((current) => ({ ...current, [id]: result })),
         controller.signal
       )
@@ -144,12 +149,12 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h4 className="text-[13px] font-semibold text-zinc-800">
-            {zh('连通性检测', 'Connectivity Check')}
+            {zh('可用性检测', 'Availability Check')}
           </h4>
           <p className="mt-1 text-xs leading-5 text-zinc-500">
             {zh(
-              '使用当前的代理设置检测数据源连通性',
-              'Check provider connectivity using the current proxy settings'
+              '使用当前代理设置执行真实查询，成功获取并解析数据后视为可用',
+              'Run a real lookup using the current proxy settings; success requires parsed data'
             )}
           </p>
           {disabled && (
@@ -204,14 +209,14 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
             ? 'bg-zinc-100 text-zinc-500'
             : result.status === 'ok'
               ? 'bg-emerald-50 text-emerald-700'
-              : result.status === 'http_error'
+              : ['http_error', 'not_found', 'invalid_response'].includes(result.status)
                 ? 'bg-amber-50 text-amber-700'
                 : 'bg-red-50 text-red-600'
           const name = providerNames[provider.name] || provider.name
           const checkLabel =
             result?.status === 'checking'
               ? zh(`正在检测 ${name}`, `Checking ${name}`)
-              : zh(`检测 ${name} 连通性`, `Check ${name} connectivity`)
+              : zh(`检测 ${name} 可用性`, `Check ${name} availability`)
           const checkedAt = result?.checked_at ? new Date(result.checked_at) : null
           return (
             <li
@@ -223,6 +228,10 @@ export default function ProviderConnectivityPanel({ disabled = false }) {
                   <div className="text-[13px] font-semibold leading-5 text-zinc-800">{name}</div>
                   <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500">
                     {provider.domain}
+                  </div>
+                  <div className="mt-1 text-[11px] text-zinc-500">
+                    {zh('测试查询：', 'Test lookup: ')}
+                    {provider.sample}
                   </div>
                 </div>
                 <Tooltip title={checkLabel} arrow>

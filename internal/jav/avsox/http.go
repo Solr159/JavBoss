@@ -27,7 +27,7 @@ func (e avsoxStatusError) Error() string {
 	return fmt.Sprintf("avsox: %s code %d", e.source, e.status)
 }
 
-func (p *Client) fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
+func (p *AvsoxClient) fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
 	session, err := p.cachedAvsoxSession(ctx, code)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func (p *Client) fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsox
 	return p.fetchAvsoxMovieWithSession(ctx, session, code)
 }
 
-func (p *Client) fetchAvsoxMovieWithSession(ctx context.Context, session avsoxSession, code string) (*avsoxAPIMovie, error) {
+func (p *AvsoxClient) fetchAvsoxMovieWithSession(ctx context.Context, session avsoxSession, code string) (*avsoxAPIMovie, error) {
 	searchPayload := []any{
 		map[string]string{
 			"search": code,
@@ -81,7 +81,7 @@ func (p *Client) fetchAvsoxMovieWithSession(ctx context.Context, session avsoxSe
 	return &movie, nil
 }
 
-func (p *Client) cachedAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+func (p *AvsoxClient) cachedAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
 	now := time.Now()
 	p.sessionCache.Lock()
 	session := p.sessionCache.session
@@ -93,7 +93,7 @@ func (p *Client) cachedAvsoxSession(ctx context.Context, code string) (avsoxSess
 	return p.refreshAvsoxSession(ctx, code)
 }
 
-func (p *Client) refreshAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+func (p *AvsoxClient) refreshAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
 	session, err := p.fetchAvsoxSession(ctx, code)
 	if err != nil {
 		return avsoxSession{}, err
@@ -105,7 +105,7 @@ func (p *Client) refreshAvsoxSession(ctx context.Context, code string) (avsoxSes
 	return session, nil
 }
 
-func (p *Client) invalidateCachedAvsoxSession(session avsoxSession) {
+func (p *AvsoxClient) invalidateCachedAvsoxSession(session avsoxSession) {
 	p.sessionCache.Lock()
 	if p.sessionCache.session.csrfToken == session.csrfToken && p.sessionCache.session.cookie == session.cookie {
 		p.sessionCache.session = avsoxSession{}
@@ -127,7 +127,7 @@ func isAvsoxSessionAuthError(err error) bool {
 	}
 }
 
-func (p *Client) fetchAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+func (p *AvsoxClient) fetchAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
 	pageURL := fmt.Sprintf("%s/%s/search/%s", avsoxBaseURL, avsoxAPILanguage, url.PathEscape(code))
 	req, err := buildAvsoxRequest(ctx, pageURL, avsoxBaseURL)
 	if err != nil {
@@ -169,7 +169,7 @@ func (p *Client) fetchAvsoxSession(ctx context.Context, code string) (avsoxSessi
 	}, nil
 }
 
-func (p *Client) postAvsoxAPI(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
+func (p *AvsoxClient) postAvsoxAPI(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
 	var lastErr error
 	for attempt := 1; attempt <= avsoxAPITries; attempt++ {
 		err := p.postAvsoxAPIOnce(ctx, session, path, payload, out)
@@ -215,7 +215,7 @@ func shouldRetryAvsoxAPIError(err error) bool {
 	return false
 }
 
-func (p *Client) postAvsoxAPIOnce(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
+func (p *AvsoxClient) postAvsoxAPIOnce(ctx context.Context, session avsoxSession, path string, payload any, out any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -274,25 +274,23 @@ func (p *Client) postAvsoxAPIOnce(ctx context.Context, session avsoxSession, pat
 	return nil
 }
 
-func (p *Client) doAvsoxRequest(req *http.Request) (*http.Response, error) {
+func (p *AvsoxClient) doAvsoxRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return p.defaultAvsoxHTTPClient().Do(req)
+	return p.httpClient.Do(req)
 }
 
-func (p *Client) defaultAvsoxHTTPClient() *http.Client {
-	p.httpOnce.Do(func() {
-		p.httpClient = util.NewHTTPClientWithTransport(avsoxHTTPTimeout, func(t *http.Transport) {
-			t.ForceAttemptHTTP2 = false
-			t.DisableCompression = true
-			t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
-			t.MaxIdleConns = 50
-			t.MaxIdleConnsPerHost = 5
-			t.MaxConnsPerHost = 5
-		})
+// NewHTTPClient creates a fresh proxy-aware HTTP client with this site's transport settings.
+func NewHTTPClient() *http.Client {
+	return util.NewHTTPClientWithTransport(avsoxHTTPTimeout, func(t *http.Transport) {
+		t.ForceAttemptHTTP2 = false
+		t.DisableCompression = true
+		t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
+		t.MaxIdleConns = 50
+		t.MaxIdleConnsPerHost = 5
+		t.MaxConnsPerHost = 5
 	})
-	return p.httpClient
 }
 
 func buildAvsoxRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
@@ -327,15 +325,5 @@ type avsoxStatusError struct {
 	message string
 }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildAvsoxRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	return p.doAvsoxRequest(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return avsoxBaseURL }
+// OriginURL identifies the origin used for availability checks.
+func (p *AvsoxClient) OriginURL() string { return avsoxBaseURL }

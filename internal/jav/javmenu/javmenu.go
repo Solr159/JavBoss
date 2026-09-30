@@ -22,9 +22,10 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Client retrieves metadata from javmenu.
-type Client struct {
-	limiter *ratelimit.Limiter
+// JavMenuClient retrieves metadata from javmenu.
+type JavMenuClient struct {
+	httpClient *http.Client
+	limiter    *ratelimit.Limiter
 }
 
 const (
@@ -34,7 +35,7 @@ const (
 )
 
 // LookupJavByCode fetches metadata for a given code.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavMenuClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -59,7 +60,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 	return info, nil
 }
 
-func (p *Client) fetchJavMenuDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
+func (p *JavMenuClient) fetchJavMenuDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
 	targetURL := fmt.Sprintf("%s/%s", javMenuBaseURL, url.PathEscape(strings.ToUpper(strings.TrimSpace(code))))
 	doc, status, err := p.fetchJavMenuHTML(ctx, targetURL, javMenuBaseURL)
 	if err != nil {
@@ -71,7 +72,7 @@ func (p *Client) fetchJavMenuDetailByCode(ctx context.Context, code string) (*ht
 	return doc, targetURL, nil
 }
 
-func (p *Client) fetchJavMenuHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
+func (p *JavMenuClient) fetchJavMenuHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
 	req, err := buildJavMenuRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, err
@@ -107,11 +108,11 @@ func (p *Client) fetchJavMenuHTML(ctx context.Context, targetURL, referer string
 	return doc, resp.StatusCode, nil
 }
 
-func (p *Client) doJavMenuRequest(req *http.Request) (*http.Response, error) {
+func (p *JavMenuClient) doJavMenuRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return util.DoRequest(req)
+	return p.httpClient.Do(req)
 }
 
 func buildJavMenuRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
@@ -250,21 +251,10 @@ func normalizeJavMenuLabel(label string) string {
 	return strings.Join(strings.Fields(label), "")
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(javMenuRequestInterval)} }
-
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildJavMenuRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	if err := p.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *JavMenuClient {
+	return &JavMenuClient{httpClient: httpClient, limiter: ratelimit.New(javMenuRequestInterval)}
 }
 
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return javMenuBaseURL }
+// OriginURL identifies the origin used for availability checks.
+func (p *JavMenuClient) OriginURL() string { return javMenuBaseURL }

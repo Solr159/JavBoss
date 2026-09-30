@@ -26,6 +26,7 @@ func TestCommandLookupModes(t *testing.T) {
 	}{
 		{"CLI default method", []string{"-provider", "javdb-api", "-input", "ABC-001"}, jav.ProviderJavDBAPI, "LookupJavByCode", "ABC-001"},
 		{"CLI explicit method", []string{"--provider", "minnanoav", "--method", "LookupActressByJapaneseName", "--input", " 女优 名字 "}, jav.ProviderMinnanoAV, "LookupActressByJapaneseName", "女优 名字"},
+		{"CLI avwiki", []string{"--provider", "avwiki", "--method", "LookupActressByJapaneseName", "--input", "森沢かな"}, jav.ProviderAVWiki, "LookupActressByJapaneseName", "森沢かな"},
 		{"CLI case insensitive", []string{"-provider", "JAVDATABASE", "-method", "lookupactressbycode", "-input", "ABC-001"}, jav.ProviderJavDatabase, "LookupActressByCode", "ABC-001"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -139,7 +140,7 @@ func TestSupportedProviders(t *testing.T) {
 		want   []string
 	}{
 		{"LookupActressByCode", []string{"javdatabase"}},
-		{"LookupActressByJapaneseName", []string{"javmodel", "minnanoav"}},
+		{"LookupActressByJapaneseName", []string{"javmodel", "minnanoav", "avwiki"}},
 		{"LookupJavByCode", []string{"javbus", "javdatabase", "javdb", "javdb-api", "avmoo", "avsox", "javmenu", "theporndb"}},
 	} {
 		t.Run(tc.method, func(t *testing.T) {

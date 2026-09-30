@@ -8,10 +8,10 @@ import (
 
 // LookupJavByCode queries the default client.
 func LookupJavByCode(ctx context.Context, code string, provider Provider) (*JavInfo, error) {
-	return defaultClient.LookupJavByCode(ctx, code, provider)
+	return defaultMetadataClient.LookupJavByCode(ctx, code, provider)
 }
 
-func (c *Client) LookupJavByCode(ctx context.Context, code string, provider Provider) (*JavInfo, error) {
+func (c *MetadataClient) LookupJavByCode(ctx context.Context, code string, provider Provider) (*JavInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -35,10 +35,10 @@ func (c *Client) LookupJavByCode(ctx context.Context, code string, provider Prov
 
 // LookupActressByCode queries the default client.
 func LookupActressByCode(ctx context.Context, code string, provider Provider) (*ActressInfo, error) {
-	return defaultClient.LookupActressByCode(ctx, code, provider)
+	return defaultMetadataClient.LookupActressByCode(ctx, code, provider)
 }
 
-func (c *Client) LookupActressByCode(ctx context.Context, code string, provider Provider) (*ActressInfo, error) {
+func (c *MetadataClient) LookupActressByCode(ctx context.Context, code string, provider Provider) (*ActressInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -62,10 +62,10 @@ func (c *Client) LookupActressByCode(ctx context.Context, code string, provider 
 
 // LookupActressByJapaneseName queries the default client.
 func LookupActressByJapaneseName(ctx context.Context, name string, provider Provider) (*ActressInfo, error) {
-	return defaultClient.LookupActressByJapaneseName(ctx, name, provider)
+	return defaultMetadataClient.LookupActressByJapaneseName(ctx, name, provider)
 }
 
-func (c *Client) LookupActressByJapaneseName(ctx context.Context, name string, provider Provider) (*ActressInfo, error) {
+func (c *MetadataClient) LookupActressByJapaneseName(ctx context.Context, name string, provider Provider) (*ActressInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -89,10 +89,10 @@ func (c *Client) LookupActressByJapaneseName(ctx context.Context, name string, p
 
 // LookupActressURLByCodeAndName queries the default client.
 func LookupActressURLByCodeAndName(ctx context.Context, code, name string, provider Provider) (string, error) {
-	return defaultClient.LookupActressURLByCodeAndName(ctx, code, name, provider)
+	return defaultMetadataClient.LookupActressURLByCodeAndName(ctx, code, name, provider)
 }
 
-func (c *Client) LookupActressURLByCodeAndName(ctx context.Context, code, name string, provider Provider) (string, error) {
+func (c *MetadataClient) LookupActressURLByCodeAndName(ctx context.Context, code, name string, provider Provider) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -119,10 +119,10 @@ func (c *Client) LookupActressURLByCodeAndName(ctx context.Context, code, name s
 
 // LookupSeriesURLByCode queries the default client.
 func LookupSeriesURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
-	return defaultClient.LookupSeriesURLByCode(ctx, code, provider)
+	return defaultMetadataClient.LookupSeriesURLByCode(ctx, code, provider)
 }
 
-func (c *Client) LookupSeriesURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
+func (c *MetadataClient) LookupSeriesURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -149,10 +149,10 @@ func (c *Client) LookupSeriesURLByCode(ctx context.Context, code string, provide
 
 // LookupStudioURLByCode queries the default client.
 func LookupStudioURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
-	return defaultClient.LookupStudioURLByCode(ctx, code, provider)
+	return defaultMetadataClient.LookupStudioURLByCode(ctx, code, provider)
 }
 
-func (c *Client) LookupStudioURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
+func (c *MetadataClient) LookupStudioURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -178,7 +178,7 @@ func (c *Client) LookupStudioURLByCode(ctx context.Context, code string, provide
 }
 
 // LookupMovieURLByCode resolves a provider's movie page. JavDB may return its search page for ambiguous results.
-func (c *Client) LookupMovieURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
+func (c *MetadataClient) LookupMovieURLByCode(ctx context.Context, code string, provider Provider) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
@@ -193,16 +193,16 @@ func (c *Client) LookupMovieURLByCode(ctx context.Context, code string, provider
 	return lookup.LookupMovieURLByCode(ctx, code)
 }
 func LookupJavDBURLByCode(ctx context.Context, code string) (string, error) {
-	return defaultClient.LookupMovieURLByCode(ctx, code, ProviderJavDB)
+	return defaultMetadataClient.LookupMovieURLByCode(ctx, code, ProviderJavDB)
 }
 func LookupAvsoxURLByCode(ctx context.Context, code string) (string, error) {
-	return defaultClient.LookupMovieURLByCode(ctx, code, ProviderAvsox)
+	return defaultMetadataClient.LookupMovieURLByCode(ctx, code, ProviderAvsox)
 }
 func FetchJavBusGenreCategories(ctx context.Context) ([]JavBusGenreCategory, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	implementation, err := defaultClient.providerFor(ProviderJavBus)
+	implementation, err := defaultMetadataClient.providerFor(ProviderJavBus)
 	if err != nil {
 		return nil, err
 	}

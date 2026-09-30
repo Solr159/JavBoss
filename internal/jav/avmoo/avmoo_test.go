@@ -224,7 +224,7 @@ func TestAvmooSessionAuthErrorDetection(t *testing.T) {
 }
 
 func TestAvmooSessionCacheReuseAndInvalidate(t *testing.T) {
-	p := New()
+	p := New(NewHTTPClient())
 	session := avmooSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avmoo.shop/tw/search/IPX-228"}
 	p.sessionCache.Lock()
 	p.sessionCache.session = session

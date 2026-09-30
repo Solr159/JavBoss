@@ -30,7 +30,7 @@ func (e avmooStatusError) Error() string {
 	return fmt.Sprintf("avmoo: %s code %d", e.source, e.status)
 }
 
-func (p *Client) fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, error) {
+func (p *AvmooClient) fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, error) {
 	session, err := p.cachedAvmooSession(ctx, code)
 	if err != nil {
 		return nil, err
@@ -49,7 +49,7 @@ func (p *Client) fetchAvmooMovieByCode(ctx context.Context, code string) (*avmoo
 	return p.fetchAvmooMovieWithSession(ctx, session, code)
 }
 
-func (p *Client) fetchAvmooMovieWithSession(ctx context.Context, session avmooSession, code string) (*avmooAPIMovie, error) {
+func (p *AvmooClient) fetchAvmooMovieWithSession(ctx context.Context, session avmooSession, code string) (*avmooAPIMovie, error) {
 	searchPayload := []any{
 		map[string]string{
 			"search": code,
@@ -84,7 +84,7 @@ func (p *Client) fetchAvmooMovieWithSession(ctx context.Context, session avmooSe
 	return &movie, nil
 }
 
-func (p *Client) cachedAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+func (p *AvmooClient) cachedAvmooSession(ctx context.Context, code string) (avmooSession, error) {
 	now := time.Now()
 	p.sessionCache.Lock()
 	session := p.sessionCache.session
@@ -96,7 +96,7 @@ func (p *Client) cachedAvmooSession(ctx context.Context, code string) (avmooSess
 	return p.refreshAvmooSession(ctx, code)
 }
 
-func (p *Client) refreshAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+func (p *AvmooClient) refreshAvmooSession(ctx context.Context, code string) (avmooSession, error) {
 	session, err := p.fetchAvmooSession(ctx, code)
 	if err != nil {
 		return avmooSession{}, err
@@ -108,7 +108,7 @@ func (p *Client) refreshAvmooSession(ctx context.Context, code string) (avmooSes
 	return session, nil
 }
 
-func (p *Client) invalidateCachedAvmooSession(session avmooSession) {
+func (p *AvmooClient) invalidateCachedAvmooSession(session avmooSession) {
 	p.sessionCache.Lock()
 	if p.sessionCache.session.csrfToken == session.csrfToken && p.sessionCache.session.cookie == session.cookie {
 		p.sessionCache.session = avmooSession{}
@@ -130,7 +130,7 @@ func isAvmooSessionAuthError(err error) bool {
 	}
 }
 
-func (p *Client) fetchAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+func (p *AvmooClient) fetchAvmooSession(ctx context.Context, code string) (avmooSession, error) {
 	pageURL := fmt.Sprintf("%s/%s/search/%s", avmooBaseURL, avmooAPILanguage, url.PathEscape(code))
 	req, err := buildAvmooRequest(ctx, pageURL, avmooBaseURL)
 	if err != nil {
@@ -172,7 +172,7 @@ func (p *Client) fetchAvmooSession(ctx context.Context, code string) (avmooSessi
 	}, nil
 }
 
-func (p *Client) postAvmooAPI(ctx context.Context, session avmooSession, path string, payload any, out any) error {
+func (p *AvmooClient) postAvmooAPI(ctx context.Context, session avmooSession, path string, payload any, out any) error {
 	var lastErr error
 	for attempt := 1; attempt <= avmooAPITries; attempt++ {
 		err := p.postAvmooAPIOnce(ctx, session, path, payload, out)
@@ -218,7 +218,7 @@ func shouldRetryAvmooAPIError(err error) bool {
 	return false
 }
 
-func (p *Client) postAvmooAPIOnce(ctx context.Context, session avmooSession, path string, payload any, out any) error {
+func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession, path string, payload any, out any) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -277,7 +277,7 @@ func (p *Client) postAvmooAPIOnce(ctx context.Context, session avmooSession, pat
 	return nil
 }
 
-func (p *Client) fetchAvmooDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
+func (p *AvmooClient) fetchAvmooDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
 	searchURL := fmt.Sprintf("%s/tw/search/%s", avmooBaseURL, url.PathEscape(code))
 	searchDoc, status, err := p.fetchAvmooHTML(ctx, searchURL, avmooBaseURL)
 	if err != nil {
@@ -302,7 +302,7 @@ func (p *Client) fetchAvmooDetailByCode(ctx context.Context, code string) (*html
 	return detailDoc, detailURL, nil
 }
 
-func (p *Client) fetchAvmooHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
+func (p *AvmooClient) fetchAvmooHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
 	req, err := buildAvmooRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, err
@@ -338,25 +338,23 @@ func (p *Client) fetchAvmooHTML(ctx context.Context, targetURL, referer string) 
 	return doc, resp.StatusCode, nil
 }
 
-func (p *Client) doAvmooRequest(req *http.Request) (*http.Response, error) {
+func (p *AvmooClient) doAvmooRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return p.defaultAvmooHTTPClient().Do(req)
+	return p.httpClient.Do(req)
 }
 
-func (p *Client) defaultAvmooHTTPClient() *http.Client {
-	p.httpOnce.Do(func() {
-		p.httpClient = util.NewHTTPClientWithTransport(avmooHTTPTimeout, func(t *http.Transport) {
-			t.ForceAttemptHTTP2 = false
-			t.DisableCompression = true
-			t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
-			t.MaxIdleConns = 50
-			t.MaxIdleConnsPerHost = 5
-			t.MaxConnsPerHost = 5
-		})
+// NewHTTPClient creates a fresh proxy-aware HTTP client with this site's transport settings.
+func NewHTTPClient() *http.Client {
+	return util.NewHTTPClientWithTransport(avmooHTTPTimeout, func(t *http.Transport) {
+		t.ForceAttemptHTTP2 = false
+		t.DisableCompression = true
+		t.TLSClientConfig = &tls.Config{MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS13}
+		t.MaxIdleConns = 50
+		t.MaxIdleConnsPerHost = 5
+		t.MaxConnsPerHost = 5
 	})
-	return p.httpClient
 }
 
 func buildAvmooRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
@@ -391,15 +389,5 @@ type avmooStatusError struct {
 	message string
 }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildAvmooRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	return p.doAvmooRequest(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return avmooBaseURL }
+// OriginURL identifies the origin used for availability checks.
+func (p *AvmooClient) OriginURL() string { return avmooBaseURL }

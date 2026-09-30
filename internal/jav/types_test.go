@@ -19,10 +19,11 @@ func TestLookupProvidersByProviderIncludesMetadataProviders(t *testing.T) {
 		ProviderThePornDB,
 		ProviderJavModel,
 		ProviderMinnanoAV,
+		ProviderAVWiki,
 	}
 
 	for _, provider := range tests {
-		got, ok := defaultClient.providers[provider]
+		got, ok := defaultMetadataClient.providers[provider]
 		if !ok {
 			t.Fatalf("lookup provider missing for %s", provider.String())
 		}
@@ -42,8 +43,8 @@ func TestManualScrapeProviderIsStableAndNotLookupCapable(t *testing.T) {
 	if got := ParseProvider(11); got != ProviderManualScrape {
 		t.Fatalf("ParseProvider(11) = %s, want manual_scrape", got.String())
 	}
-	if _, err := defaultClient.providerFor(ProviderManualScrape); !errors.Is(err, ErrUnsupportedProvider) {
-		t.Fatalf("defaultClient.providerFor(ProviderManualScrape) error = %v, want unsupported provider", err)
+	if _, err := defaultMetadataClient.providerFor(ProviderManualScrape); !errors.Is(err, ErrUnsupportedProvider) {
+		t.Fatalf("defaultMetadataClient.providerFor(ProviderManualScrape) error = %v, want unsupported provider", err)
 	}
 }
 

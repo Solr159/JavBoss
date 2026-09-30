@@ -565,7 +565,7 @@ func updateConfig(c *gin.Context) {
 	}
 	util.SetProxySettings(cfg["proxy_mode"], cfg["proxy_host"], cfg["proxy_port"])
 	if req.ProxyMode != nil || req.ProxyHost != nil || req.ProxyPort != nil {
-		jav.InvalidateConnectivityCache()
+		jav.InvalidateAvailabilityCache()
 	}
 	applyRuntimeConfigFields(cfg, c.Request.RemoteAddr)
 	c.JSON(http.StatusOK, cfg)

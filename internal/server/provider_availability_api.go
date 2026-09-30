@@ -8,20 +8,20 @@ import (
 	"javboss/internal/jav"
 )
 
-func listConnectivityProviders(c *gin.Context) {
+func listAvailabilityProviders(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	c.JSON(http.StatusOK, jav.ConnectivityProviders())
+	c.JSON(http.StatusOK, jav.AvailabilityProviders())
 }
 
-func checkProviderConnectivity(c *gin.Context) {
+func checkProviderAvailability(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("provider"))
 	if err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "数据源无效", "Invalid provider")
 		return
 	}
-	result, err := jav.CheckConnectivity(c.Request.Context(), jav.ParseProvider(id))
+	result, err := jav.CheckAvailability(c.Request.Context(), jav.ParseProvider(id))
 	if err != nil {
-		respondLocalizedError(c, http.StatusBadRequest, "该数据源不支持连通性检测", "Connectivity checks are not supported for this provider")
+		respondLocalizedError(c, http.StatusBadRequest, "该数据源不支持可用性检测", "Availability checks are not supported for this provider")
 		return
 	}
 	c.Header("Cache-Control", "no-store")

@@ -22,12 +22,13 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Client retrieves metadata from javmodel.
-type Client struct {
+// JavModelClient retrieves metadata from javmodel.
+type JavModelClient struct {
+	httpClient *http.Client
 }
 
 // LookupActressByName queries javmodel.
-func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadata.ActressInfo, error) {
+func (p *JavModelClient) LookupActressByName(ctx context.Context, name string) (*metadata.ActressInfo, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, metadata.ErrNotFound
@@ -40,7 +41,7 @@ func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadat
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	searchDoc, status, err := fetchJavModelHTML(ctx, searchURL, base)
+	searchDoc, status, err := p.fetchJavModelHTML(ctx, searchURL, base)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +68,7 @@ func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadat
 		return nil, metadata.ErrNotFound
 	}
 
-	detailDoc, status, err := fetchJavModelHTML(ctx, detailURL, searchURL)
+	detailDoc, status, err := p.fetchJavModelHTML(ctx, detailURL, searchURL)
 	if err != nil {
 		return nil, err
 	}
@@ -95,14 +96,14 @@ func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadat
 	return info, nil
 }
 
-func fetchJavModelHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
+func (p *JavModelClient) fetchJavModelHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
 	req, err := buildJavModelRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, err
 	}
 
 	logging.Info("javmodel request: %s", targetURL)
-	resp, err := util.DoRequest(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
 			return nil, http.StatusNotFound, nil
@@ -358,18 +359,8 @@ func parseBirthDateFlexible(value string) int {
 	return 0
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *JavModelClient { return &JavModelClient{httpClient: httpClient} }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildJavModelRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return "https://javmodel.com" }
+// OriginURL identifies the origin used for availability checks.
+func (p *JavModelClient) OriginURL() string { return "https://javmodel.com" }

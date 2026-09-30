@@ -26,11 +26,11 @@ type command struct {
 }
 
 func newCommand() command {
-	providers := make([]providerOption, 0, 10)
+	providers := make([]providerOption, 0, 11)
 	for _, provider := range []jav.Provider{
 		jav.ProviderJavBus, jav.ProviderJavDatabase, jav.ProviderJavDB, jav.ProviderJavDBAPI,
 		jav.ProviderAvmoo, jav.ProviderAvsox, jav.ProviderJavMenu, jav.ProviderJavModel,
-		jav.ProviderThePornDB, jav.ProviderMinnanoAV,
+		jav.ProviderThePornDB, jav.ProviderMinnanoAV, jav.ProviderAVWiki,
 	} {
 		providers = append(providers, providerOption{name: provider.String(), provider: provider})
 	}

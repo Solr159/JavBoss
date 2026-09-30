@@ -36,7 +36,7 @@ func StartIdolProfileScanner(ctx context.Context, interval time.Duration) {
 }
 
 // ScanIdolProfiles scans jav_idol rows that are missing profile fields.
-// For each idol, it tries to find a solo work code, queries MinnanoAV, JavDatabase, and JavModel
+// For each idol, it tries to find a solo work code, queries AV Wiki, JavDatabase, and JavModel
 // concurrently, merges details in that priority order, normalizes Chinese names, and writes the
 // completed profile fields back to the database.
 func ScanIdolProfiles(ctx context.Context) error {
@@ -58,7 +58,7 @@ func ScanIdolProfiles(ctx context.Context) error {
 		}
 		var (
 			javDatabaseInfo *jav.ActressInfo
-			minnanoAVInfo   *jav.ActressInfo
+			avWikiInfo      *jav.ActressInfo
 			javModelInfo    *jav.ActressInfo
 			code            string
 		)
@@ -74,22 +74,22 @@ func ScanIdolProfiles(ctx context.Context) error {
 			}
 		}
 
-		var minnanoAVLookup, javModelLookup idolActressLookup
+		var avWikiLookup, javModelLookup idolActressLookup
 		if lookupName != "" {
-			minnanoAVLookup = func() (*jav.ActressInfo, error) {
-				return jav.LookupActressByJapaneseName(ctx, lookupName, jav.ProviderMinnanoAV)
+			avWikiLookup = func() (*jav.ActressInfo, error) {
+				return jav.LookupActressByJapaneseName(ctx, lookupName, jav.ProviderAVWiki)
 			}
 			javModelLookup = func() (*jav.ActressInfo, error) {
 				return jav.LookupActressByJapaneseName(ctx, lookupName, jav.ProviderJavModel)
 			}
 		}
 
-		lookupResults := lookupActressProfilesConcurrently(minnanoAVLookup, javDatabaseLookup, javModelLookup)
-		minnanoAVInfo = lookupResults[0].info
+		lookupResults := lookupActressProfilesConcurrently(avWikiLookup, javDatabaseLookup, javModelLookup)
+		avWikiInfo = lookupResults[0].info
 		javDatabaseInfo = lookupResults[1].info
 		javModelInfo = lookupResults[2].info
 		if lookupErr := lookupResults[0].err; lookupErr != nil && !errors.Is(lookupErr, jav.ErrNotFound) {
-			logging.Error("lookup actress (minnanoav) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
+			logging.Error("lookup actress (avwiki) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
 		if lookupErr := lookupResults[1].err; lookupErr != nil && !errors.Is(lookupErr, jav.ErrNotFound) {
 			logging.Error("lookup actress (javdatabase) failed idol=%s code=%s err=%v", idol.Name, code, lookupErr)
@@ -98,7 +98,7 @@ func ScanIdolProfiles(ctx context.Context) error {
 			logging.Error("lookup actress (javmodel) failed idol=%d name=%s err=%v", idol.ID, lookupName, lookupErr)
 		}
 
-		info := mergeActressInfosByPriority(minnanoAVInfo, javDatabaseInfo, javModelInfo)
+		info := mergeActressInfosByPriority(avWikiInfo, javDatabaseInfo, javModelInfo)
 		if info == nil {
 			continue
 		}

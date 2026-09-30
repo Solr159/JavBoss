@@ -11,9 +11,8 @@ import (
 	"javboss/internal/jav/metadata"
 )
 
-// Client retrieves metadata from avsox.
-type Client struct {
-	httpOnce     sync.Once
+// AvsoxClient retrieves metadata from avsox.
+type AvsoxClient struct {
 	httpClient   *http.Client
 	sessionCache struct {
 		sync.Mutex
@@ -37,7 +36,7 @@ const (
 )
 
 // LookupJavByCode fetches metadata for a given code.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *AvsoxClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -62,7 +61,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 }
 
 // LookupMovieURLByCode resolves a movie code to its Avsox detail page.
-func (p *Client) LookupMovieURLByCode(ctx context.Context, code string) (string, error) {
+func (p *AvsoxClient) LookupMovieURLByCode(ctx context.Context, code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", metadata.ErrNotFound
@@ -82,5 +81,7 @@ func (p *Client) LookupMovieURLByCode(ctx context.Context, code string) (string,
 	return detailURL, nil
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(avsoxRequestInterval)} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *AvsoxClient {
+	return &AvsoxClient{httpClient: httpClient, limiter: ratelimit.New(avsoxRequestInterval)}
+}

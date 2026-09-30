@@ -14,9 +14,10 @@ import (
 	"javboss/internal/jav/metadata"
 )
 
-// Client retrieves metadata from javdatabase.
-type Client struct {
-	limiter *ratelimit.Limiter
+// JavDatabaseClient retrieves metadata from javdatabase.
+type JavDatabaseClient struct {
+	httpClient *http.Client
+	limiter    *ratelimit.Limiter
 }
 
 var errNoActressLink = errors.New("javdatabase: actress link not found")
@@ -24,12 +25,12 @@ var errNoActressLink = errors.New("javdatabase: actress link not found")
 const javDatabaseRequestInterval = 500 * time.Millisecond
 
 // LookupActressByCode resolves a solo movie code to its actress profile.
-func (p *Client) LookupActressByCode(ctx context.Context, code string) (*metadata.ActressInfo, error) {
+func (p *JavDatabaseClient) LookupActressByCode(ctx context.Context, code string) (*metadata.ActressInfo, error) {
 	return p.lookupActressByCode(ctx, code)
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavDatabaseClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -65,7 +66,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 	return info, nil
 }
 
-func (p *Client) lookupActressByCode(ctx context.Context, code string) (*metadata.ActressInfo, error) {
+func (p *JavDatabaseClient) lookupActressByCode(ctx context.Context, code string) (*metadata.ActressInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -117,5 +118,7 @@ func (p *Client) lookupActressByCode(ctx context.Context, code string) (*metadat
 	return info, nil
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(javDatabaseRequestInterval)} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *JavDatabaseClient {
+	return &JavDatabaseClient{httpClient: httpClient, limiter: ratelimit.New(javDatabaseRequestInterval)}
+}

@@ -29,6 +29,7 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
 	ProviderMinnanoAV: "v3",
+	ProviderAVWiki:    "v2", // Normalize RomanName to given-name-first order.
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.
@@ -43,21 +44,21 @@ type lookupCacheEnvelope struct {
 }
 
 // SetCache configures the default client's lookup cache. Nil disables caching.
-func SetCache(store LookupCache) { defaultClient.SetCache(store) }
+func SetCache(store LookupCache) { defaultMetadataClient.SetCache(store) }
 
 // SetCache changes this client's lookup cache safely while lookups are running.
-func (c *Client) SetCache(store LookupCache) {
+func (c *MetadataClient) SetCache(store LookupCache) {
 	c.cacheMu.Lock()
 	c.cache = store
 	c.cacheMu.Unlock()
 }
-func (c *Client) currentLookupCache() LookupCache {
+func (c *MetadataClient) currentLookupCache() LookupCache {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 	return c.cache
 }
 
-func lookupCacheGet[T any](c *Client, key string) (*T, bool, error) {
+func lookupCacheGet[T any](c *MetadataClient, key string) (*T, bool, error) {
 	store := c.currentLookupCache()
 	if store == nil {
 		return nil, false, nil
@@ -87,7 +88,7 @@ func lookupCacheGet[T any](c *Client, key string) (*T, bool, error) {
 	}
 }
 
-func lookupCacheSetHit(c *Client, key string, value any) {
+func lookupCacheSetHit(c *MetadataClient, key string, value any) {
 	if value == nil {
 		return
 	}
@@ -109,7 +110,7 @@ func lookupCacheSetHit(c *Client, key string, value any) {
 	_ = store.Set(key, raw, time.Now().Add(lookupCacheSuccessTTL))
 }
 
-func lookupCacheSetNotFound(c *Client, key string) {
+func lookupCacheSetNotFound(c *MetadataClient, key string) {
 	store := c.currentLookupCache()
 	if store == nil {
 		return
@@ -123,7 +124,7 @@ func lookupCacheSetNotFound(c *Client, key string) {
 	_ = store.Set(key, raw, time.Now().Add(lookupCacheNotFoundTTL))
 }
 
-func cacheableLookupResult(c *Client, key string, value any, err error) {
+func cacheableLookupResult(c *MetadataClient, key string, value any, err error) {
 	if err == nil {
 		lookupCacheSetHit(c, key, value)
 		return

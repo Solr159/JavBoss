@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"javboss/internal/jav/internal/parseutil"
@@ -13,9 +12,8 @@ import (
 	"javboss/internal/jav/metadata"
 )
 
-// Client retrieves metadata from javdb.
-type Client struct {
-	httpOnce   sync.Once
+// JavDBClient retrieves metadata from javdb.
+type JavDBClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
 }
@@ -27,7 +25,7 @@ const (
 )
 
 // LookupActressURLByCodeAndName resolves an actress profile URL from a movie detail page.
-func (p *Client) LookupActressURLByCodeAndName(ctx context.Context, code, name string) (string, error) {
+func (p *JavDBClient) LookupActressURLByCodeAndName(ctx context.Context, code, name string) (string, error) {
 	code = strings.TrimSpace(code)
 	name = strings.TrimSpace(name)
 	if code == "" || name == "" {
@@ -50,7 +48,7 @@ func (p *Client) LookupActressURLByCodeAndName(ctx context.Context, code, name s
 }
 
 // LookupSeriesURLByCode resolves a series detail URL from a movie detail page.
-func (p *Client) LookupSeriesURLByCode(ctx context.Context, code string) (string, error) {
+func (p *JavDBClient) LookupSeriesURLByCode(ctx context.Context, code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", metadata.ErrNotFound
@@ -71,7 +69,7 @@ func (p *Client) LookupSeriesURLByCode(ctx context.Context, code string) (string
 }
 
 // LookupStudioURLByCode resolves a studio detail URL from a movie detail page.
-func (p *Client) LookupStudioURLByCode(ctx context.Context, code string) (string, error) {
+func (p *JavDBClient) LookupStudioURLByCode(ctx context.Context, code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", metadata.ErrNotFound
@@ -92,7 +90,7 @@ func (p *Client) LookupStudioURLByCode(ctx context.Context, code string) (string
 }
 
 // LookupJavByCode fetches metadata for a given code.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavDBClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -121,7 +119,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 // LookupMovieURLByCode resolves a movie code to a JavDB detail URL when the
 // search results contain exactly one precise code match. Ambiguous or missing
 // precise matches return the search URL so the user can choose manually.
-func (p *Client) LookupMovieURLByCode(ctx context.Context, code string) (string, error) {
+func (p *JavDBClient) LookupMovieURLByCode(ctx context.Context, code string) (string, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return "", metadata.ErrNotFound
@@ -146,7 +144,7 @@ func (p *Client) LookupMovieURLByCode(ctx context.Context, code string) (string,
 	return detailURL, nil
 }
 
-func (p *Client) lookupJavDBActressURLByName(ctx context.Context, name string) (string, error) {
+func (p *JavDBClient) lookupJavDBActressURLByName(ctx context.Context, name string) (string, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return "", metadata.ErrNotFound
@@ -172,5 +170,7 @@ func (p *Client) lookupJavDBActressURLByName(ctx context.Context, name string) (
 	}
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(javDBRequestInterval)} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *JavDBClient {
+	return &JavDBClient{httpClient: httpClient, limiter: ratelimit.New(javDBRequestInterval)}
+}

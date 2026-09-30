@@ -10,16 +10,16 @@ import (
 	"testing"
 
 	"javboss/internal/jav/internal/parseutil"
-	"javboss/internal/jav/javdb"
+	"javboss/internal/jav/javdbapi"
 )
 
 const javDBAPITestMovie = `{"id":"m1","number":"ABC-001","title":"中文译名","origin_title":"日本語の原題","maker_name":"Maker","maker_id":42,"series_name":"Series","series_id":"s1","release_date":"2025-01-02","duration":"120","cover_url":"https://images.test/cover.jpg","type":0,"tags":[{"name":"Tag"},{"name":"Tag"}],"actors":[{"id":"a1","name":"Actress","gender":0},{"id":"a2","name":"Male","gender":1},{"id":"a3","name":"Unknown"}],"preview_images":[{"thumb_url":"https://images.test/thumb.jpg","large_url":"https://images.test/full.jpg"},{"large_url":"https://images.test/full.jpg"},{"large_url":"https://images.test/only.jpg"}]}`
 
-func newJavDBAPITestProvider(t *testing.T, handler http.HandlerFunc) *javdb.API {
+func newJavDBAPITestProvider(t *testing.T, handler http.HandlerFunc) *javdbapi.JavDBAPIClient {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	return javdb.NewAPI(server.Client(), server.URL)
+	return javdbapi.New(server.Client(), server.URL)
 }
 
 func TestJavDBAPILookup(t *testing.T) {
@@ -59,7 +59,7 @@ func TestJavDBAPILookup(t *testing.T) {
 		}
 	})
 
-	client := NewClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
+	client := NewMetadataClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
 
 	lookupCacheSetHit(client, "v1:jav:javdb-api:lookup_jav:ABC-001", &JavInfo{Code: "ABC-001", Title: "旧中文标题"})
 	lookupCacheSetHit(client, "v2:jav:javdb-api:lookup_jav:ABC-001", &JavInfo{Code: "ABC-001", Title: "日本語の原題"})
@@ -112,7 +112,7 @@ func TestJavDBAPILookupPreservesNumberSeparators(t *testing.T) {
 				}
 			})
 
-			client := NewClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
+			client := NewMetadataClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
 
 			// A previous lookup may have cached the wrong number under this query.
 			lookupCacheSetHit(client, "v4:jav:javdb-api:lookup_jav:"+code, &JavInfo{Code: "053026-001", Title: "Wrong"})
@@ -158,7 +158,7 @@ func TestJavDBAPIErrorsAndCache(t *testing.T) {
 				fmt.Fprint(w, tc.body)
 			})
 
-			client := NewClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
+			client := NewMetadataClient(map[Provider]any{ProviderJavDBAPI: p}, newMemoryLookupCache())
 
 			for i := 0; i < 2; i++ {
 				_, err := client.LookupJavByCode(context.Background(), "ABC-001", ProviderJavDBAPI)

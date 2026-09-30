@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { runProviderChecks } from '../src/utils/providerConnectivity.js'
+import { runProviderChecks } from '../src/utils/providerAvailability.js'
 
 test('checks at most three providers concurrently and publishes partial results', async () => {
   const providers = Array.from({ length: 5 }, (_, id) => ({ id }))

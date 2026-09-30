@@ -53,10 +53,10 @@ type Capabilities struct {
 // CapabilitiesFor reports supported operations without making network requests.
 // Unknown providers and non-lookup sources have no capabilities.
 func CapabilitiesFor(provider Provider) Capabilities {
-	return defaultClient.CapabilitiesFor(provider)
+	return defaultMetadataClient.CapabilitiesFor(provider)
 }
 
-func (c *Client) CapabilitiesFor(provider Provider) Capabilities {
+func (c *MetadataClient) CapabilitiesFor(provider Provider) Capabilities {
 	implementation, err := c.providerFor(provider)
 	if err != nil {
 		return Capabilities{}

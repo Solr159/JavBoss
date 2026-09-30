@@ -144,7 +144,7 @@ func TestSampleImageProxySetsSourceReferer(t *testing.T) {
 	if err := jpeg.Encode(&plain, image.NewRGBA(image.Rect(0, 0, 32, 32)), nil); err != nil {
 		t.Fatal(err)
 	}
-	client := util.DefaultHTTPClient()
+	client := util.DefaultCachedHTTPClient()
 	previousTransport := client.Transport
 	t.Cleanup(func() { client.Transport = previousTransport })
 	var requested []string

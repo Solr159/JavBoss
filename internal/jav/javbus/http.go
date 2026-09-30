@@ -16,7 +16,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (p *Client) fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, error) {
+func (p *JavBusClient) fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, error) {
 	base := "https://www.javbus.com"
 
 	url := fmt.Sprintf("%s/%s", base, code)
@@ -62,7 +62,7 @@ func (p *Client) fetchJavBusDocument(ctx context.Context, code string) (*html.No
 	return doc, url, nil
 }
 
-func (p *Client) fetchJavBusGenreDocument(ctx context.Context, targetURL string) (*html.Node, error) {
+func (p *JavBusClient) fetchJavBusGenreDocument(ctx context.Context, targetURL string) (*html.Node, error) {
 	req, err := buildRequest(ctx, targetURL)
 	if err != nil {
 		return nil, err
@@ -90,11 +90,11 @@ func (p *Client) fetchJavBusGenreDocument(ctx context.Context, targetURL string)
 	return doc, nil
 }
 
-func (p *Client) doJavBusRequest(req *http.Request) (*http.Response, error) {
+func (p *JavBusClient) doJavBusRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return util.DoRequest(req)
+	return p.httpClient.Do(req)
 }
 
 func buildRequest(ctx context.Context, url string) (*http.Request, error) {
@@ -110,18 +110,5 @@ func buildRequest(ctx context.Context, url string) (*http.Request, error) {
 	return req, nil
 }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildRequest(ctx, p.ConnectivityURL()+"/")
-	if err != nil {
-		return nil, err
-	}
-	if err := p.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return "https://www.javbus.com" }
+// OriginURL identifies the origin used for availability checks.
+func (p *JavBusClient) OriginURL() string { return "https://www.javbus.com" }

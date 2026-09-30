@@ -9,7 +9,7 @@ import (
 
 // ResolveJavByCodes queries the default client using the automatic provider strategy.
 func ResolveJavByCodes(ctx context.Context, possibleCodes, uncensoredPossibleCodes []string) (*JavInfo, error) {
-	return defaultClient.ResolveJavByCodes(ctx, possibleCodes, uncensoredPossibleCodes)
+	return defaultMetadataClient.ResolveJavByCodes(ctx, possibleCodes, uncensoredPossibleCodes)
 }
 
 // ResolveJavByCodes tries candidates in order, using each code's preferred providers,
@@ -18,7 +18,7 @@ func ResolveJavByCodes(ctx context.Context, possibleCodes, uncensoredPossibleCod
 // Other lookup errors are collected and returned only if no lookup succeeds;
 // ErrNotFound is returned when all lookups miss (including empty candidate lists).
 // Cancellation or expiration of ctx stops resolution immediately.
-func (c *Client) ResolveJavByCodes(ctx context.Context, possibleCodes, uncensoredPossibleCodes []string) (*JavInfo, error) {
+func (c *MetadataClient) ResolveJavByCodes(ctx context.Context, possibleCodes, uncensoredPossibleCodes []string) (*JavInfo, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

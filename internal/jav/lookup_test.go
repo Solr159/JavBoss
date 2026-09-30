@@ -13,7 +13,7 @@ func (f movieLookupFunc) LookupJavByCode(ctx context.Context, code string) (*Jav
 }
 
 func TestProviderCapabilities(t *testing.T) {
-	client := NewClient(nil, nil)
+	client := NewMetadataClient(nil, nil)
 	for _, tc := range []struct {
 		provider                                                          Provider
 		movie, actressCode, actressName, actressURL, seriesURL, studioURL bool
@@ -28,6 +28,7 @@ func TestProviderCapabilities(t *testing.T) {
 		{ProviderThePornDB, true, false, false, false, false, false},
 		{ProviderJavModel, false, false, true, false, false, false},
 		{ProviderMinnanoAV, false, false, true, false, false, false},
+		{ProviderAVWiki, false, false, true, false, false, false},
 	} {
 		t.Run(tc.provider.String(), func(t *testing.T) {
 			capabilities := client.CapabilitiesFor(tc.provider)
@@ -41,7 +42,7 @@ func TestProviderCapabilities(t *testing.T) {
 }
 
 func TestUnsupportedLookupErrors(t *testing.T) {
-	client := NewClient(nil, nil)
+	client := NewMetadataClient(nil, nil)
 	ctx := context.Background()
 	for _, tc := range []struct {
 		name   string
@@ -81,7 +82,7 @@ func TestLookupPreservesContext(t *testing.T) {
 		<-got.Done()
 		return nil, got.Err()
 	})
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, nil)
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, nil)
 	done := make(chan error, 1)
 	go func() { _, err := client.LookupJavByCode(ctx, "ABC-001", ProviderJavBus); done <- err }()
 	<-called
@@ -93,7 +94,7 @@ func TestLookupPreservesContext(t *testing.T) {
 
 func TestCancelledLookupDoesNotReadCacheOrCallProvider(t *testing.T) {
 	provider := &countingLookupProvider{javInfo: &JavInfo{Code: "ABC-001"}}
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, newMemoryLookupCache())
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, newMemoryLookupCache())
 	lookupCacheSetHit(client, lookupCacheKey(ProviderJavBus, "lookup_jav", "ABC-001"), provider.javInfo)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -109,11 +110,11 @@ func TestClientRegistryAndCacheAreIndependent(t *testing.T) {
 	first := &countingLookupProvider{javInfo: &JavInfo{Title: "first"}}
 	second := &countingLookupProvider{javInfo: &JavInfo{Title: "second"}}
 	registry := map[Provider]any{ProviderJavBus: first}
-	one := NewClient(registry, newMemoryLookupCache())
+	one := NewMetadataClient(registry, newMemoryLookupCache())
 	registry[ProviderJavBus] = second
-	two := NewClient(registry, newMemoryLookupCache())
+	two := NewMetadataClient(registry, newMemoryLookupCache())
 	for _, tc := range []struct {
-		client *Client
+		client *MetadataClient
 		title  string
 	}{{one, "first"}, {two, "second"}, {one, "first"}} {
 		info, err := tc.client.LookupJavByCode(context.Background(), "ABC-001", ProviderJavBus)
@@ -128,7 +129,7 @@ func TestClientRegistryAndCacheAreIndependent(t *testing.T) {
 
 func TestProviderPanicIsNotMisreportedAsUnsupported(t *testing.T) {
 	provider := movieLookupFunc(func(context.Context, string) (*JavInfo, error) { panic("parser bug") })
-	client := NewClient(map[Provider]any{ProviderJavBus: provider}, nil)
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: provider}, nil)
 	defer func() {
 		if got := recover(); got != "parser bug" {
 			t.Fatalf("panic = %v", got)

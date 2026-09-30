@@ -18,14 +18,15 @@ import (
 	"javboss/internal/util"
 )
 
-// Client retrieves metadata from theporndb.
-type Client struct {
+// ThePornDBClient retrieves metadata from theporndb.
+type ThePornDBClient struct {
+	httpClient *http.Client
 }
 
 const thePornDBBearerToken = "uqtWi1LRXC2ngClxz8QrqfOERuH2qbuh89CQAiXx85088612"
 
 // LookupJavByCode queries theporndb.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *ThePornDBClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -34,7 +35,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	payload, err := fetchThePornDBJavByCode(ctx, code)
+	payload, err := p.fetchThePornDBJavByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +53,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 	return info, nil
 }
 
-func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBResponse, error) {
+func (p *ThePornDBClient) fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBResponse, error) {
 	code = strings.ToLower(strings.TrimSpace(code))
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -65,7 +66,7 @@ func fetchThePornDBJavByCode(ctx context.Context, code string) (*thePornDBRespon
 	}
 
 	logging.Info("theporndb request: %s", targetURL)
-	resp, err := util.DoRequest(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
 			return nil, metadata.ErrNotFound
@@ -235,8 +236,8 @@ func normalizeThePornDBCodeDisplay(value string) string {
 	return value
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *ThePornDBClient { return &ThePornDBClient{httpClient: httpClient} }
 
 func buildThePornDBRequest(ctx context.Context, targetURL string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
@@ -250,15 +251,5 @@ func buildThePornDBRequest(ctx context.Context, targetURL string) (*http.Request
 	return req, nil
 }
 
-// CheckConnectivity checks the authenticated API without consulting the lookup cache.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildThePornDBRequest(ctx, p.ConnectivityURL()+"/jav?external_id=SSIS-001")
-	if err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return "https://api.theporndb.net" }
+// OriginURL identifies the origin used for availability checks.
+func (p *ThePornDBClient) OriginURL() string { return "https://api.theporndb.net" }

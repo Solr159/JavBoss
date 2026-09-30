@@ -9,7 +9,43 @@ import (
 	"time"
 )
 
-func TestDoRequestNotFoundCacheExpires(t *testing.T) {
+func TestPlainHTTPClientDoesNotUseNotFoundCache(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+	t.Cleanup(func() { notFoundURLCache.Delete(server.URL) })
+
+	for _, cached := range []bool{false, true} {
+		expiresAt := time.Now().Add(time.Hour)
+		if cached {
+			notFoundURLCache.Store(server.URL, expiresAt)
+		}
+		req, err := http.NewRequest(http.MethodGet, server.URL, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := server.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusNotFound {
+			t.Fatalf("status=%d want=404", resp.StatusCode)
+		}
+		entry, exists := notFoundURLCache.Load(server.URL)
+		if exists != cached || (cached && entry != expiresAt) {
+			t.Fatalf("uncached request modified cache: entry=%v exists=%v", entry, exists)
+		}
+	}
+	if requests.Load() != 2 {
+		t.Fatalf("requests=%d want=2", requests.Load())
+	}
+}
+
+func TestNotFoundCacheTransportExpires(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusNotFound, http.StatusInternalServerError} {
 		t.Run(http.StatusText(status), func(t *testing.T) {
 			var requests atomic.Int32
@@ -21,10 +57,8 @@ func TestDoRequestNotFoundCacheExpires(t *testing.T) {
 				w.WriteHeader(status)
 			}))
 			defer server.Close()
-			previousClient := DefaultHTTPClient()
-			defaultHTTPClient = server.Client()
+			client := WithNotFoundCache(server.Client())
 			t.Cleanup(func() {
-				defaultHTTPClient = previousClient
 				notFoundURLCache.Delete(server.URL)
 			})
 
@@ -34,7 +68,7 @@ func TestDoRequestNotFoundCacheExpires(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				resp, err := DoRequest(req)
+				resp, err := client.Do(req)
 				if resp != nil {
 					defer resp.Body.Close()
 				}

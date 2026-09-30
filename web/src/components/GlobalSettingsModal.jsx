@@ -10,7 +10,7 @@ import DirectoryManager from '@/components/DirectoryManager'
 import AppModal from '@/components/AppModal'
 import PlayerSettingsModal from '@/components/PlayerSettingsModal'
 import WebHotkeySettings from '@/components/WebHotkeySettings'
-import ProviderConnectivityPanel from '@/components/ProviderConnectivityPanel'
+import ProviderAvailabilityPanel from '@/components/ProviderAvailabilityPanel'
 import { downloadFFmpeg, fetchTools } from '@/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
@@ -35,7 +35,7 @@ const SETTINGS_SECTIONS = [
   {
     id: 'jav-providers',
     title: { zh: 'JAV 数据源', en: 'JAV Providers' },
-    summary: { zh: '数据源域名与连通性检测', en: 'Provider domains and connectivity checks' },
+    summary: { zh: '数据源域名与可用性检测', en: 'Provider domains and availability checks' },
   },
   {
     id: 'tools',
@@ -1466,7 +1466,7 @@ export default function GlobalSettingsModal({
           {currentSection === 'display' && renderDisplayPanel()}
           {currentSection === 'network' && renderNetworkPanel()}
           {currentSection === 'jav-providers' && (
-            <ProviderConnectivityPanel
+            <ProviderAvailabilityPanel
               key={`${currentProxyMode}:${proxyHost || ''}:${proxyPort || 0}`}
               disabled={proxyEditing || savingProxy}
             />

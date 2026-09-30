@@ -1,4 +1,4 @@
-package javdb
+package javdbapi
 
 import (
 	"context"
@@ -15,11 +15,11 @@ import (
 
 const javDBAPITestMovie = `{"id":"m1","number":"ABC-001","title":"中文译名","origin_title":"日本語の原題","maker_name":"Maker","maker_id":42,"series_name":"Series","series_id":"s1","release_date":"2025-01-02","duration":"120","cover_url":"https://images.test/cover.jpg","type":0,"tags":[{"name":"Tag"},{"name":"Tag"}],"actors":[{"id":"a1","name":"Actress","gender":0},{"id":"a2","name":"Male","gender":1},{"id":"a3","name":"Unknown"}],"preview_images":[{"thumb_url":"https://images.test/thumb.jpg","large_url":"https://images.test/full.jpg"},{"large_url":"https://images.test/full.jpg"},{"large_url":"https://images.test/only.jpg"}]}`
 
-func newJavDBAPITestProvider(t *testing.T, handler http.HandlerFunc) *API {
+func newJavDBAPITestProvider(t *testing.T, handler http.HandlerFunc) *JavDBAPIClient {
 	t.Helper()
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	return &API{client: server.Client(), baseURL: server.URL}
+	return &JavDBAPIClient{httpClient: server.Client(), baseURL: server.URL}
 }
 
 func TestJavDBAPISignature(t *testing.T) {
@@ -201,14 +201,12 @@ func TestJavDBAPILookupCancelsInFlightRequest(t *testing.T) {
 	}
 }
 
-func TestJavDBProvidersShareOnlyTheirOwnLimiter(t *testing.T) {
-	html, api := NewProviders()
-	otherHTML, otherAPI := NewProviders()
-	if html.limiter != api.limiter || otherHTML.limiter != otherAPI.limiter {
-		t.Fatal("HTML and API should share the site's request limit")
-	}
-	if html.limiter == otherHTML.limiter {
-		t.Fatal("independent clients share mutable limiter state")
+func TestAPIClientsAreIndependent(t *testing.T) {
+	first, second := New(&http.Client{}, ""), New(&http.Client{}, "")
+	first.init()
+	second.init()
+	if first.httpClient == second.httpClient || first.limiter == second.limiter || first.deviceID == second.deviceID {
+		t.Fatal("API clients share transport, limiter or device identity")
 	}
 }
 
@@ -218,7 +216,7 @@ func TestJavDBAPIProviderIdentity(t *testing.T) {
 	}
 
 	// Ensure the device ID is not shared by different installations/instances.
-	first, second := &API{}, &API{}
+	first, second := &JavDBAPIClient{}, &JavDBAPIClient{}
 	first.init()
 	second.init()
 	if first.deviceID == second.deviceID {

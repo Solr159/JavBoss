@@ -3,6 +3,7 @@ package javbus
 import (
 	"context"
 	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -12,15 +13,16 @@ import (
 	"javboss/internal/jav/metadata"
 )
 
-// Client retrieves metadata from javbus.
-type Client struct {
-	limiter *ratelimit.Limiter
+// JavBusClient retrieves metadata from javbus.
+type JavBusClient struct {
+	httpClient *http.Client
+	limiter    *ratelimit.Limiter
 }
 
 const javBusRequestInterval = 500 * time.Millisecond
 
 // LookupJavByCode fetches metadata for a given code.
-func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavBusClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	code = strings.TrimSpace(code)
 	if code == "" {
 		return nil, metadata.ErrNotFound
@@ -47,7 +49,7 @@ func (p *Client) LookupJavByCode(ctx context.Context, code string) (*metadata.Ja
 	return info, nil
 }
 
-func (p *Client) fetchInfo(ctx context.Context, code string) (*metadata.JavInfo, error) {
+func (p *JavBusClient) fetchInfo(ctx context.Context, code string) (*metadata.JavInfo, error) {
 	doc, url, err := p.fetchJavBusDocument(ctx, code)
 	if err != nil {
 		return nil, err
@@ -76,7 +78,7 @@ var javBusCodeRewrites = []javBusCodeRewrite{
 
 // FetchGenreCategories loads the censored and uncensored JavBus genre
 // indexes and returns the category assigned to each label by JavBus.
-func (p *Client) FetchGenreCategories(ctx context.Context) ([]metadata.GenreCategory, error) {
+func (p *JavBusClient) FetchGenreCategories(ctx context.Context) ([]metadata.GenreCategory, error) {
 	pages := []struct {
 		url        string
 		pathPrefix string
@@ -107,5 +109,7 @@ func (p *Client) FetchGenreCategories(ctx context.Context) ([]metadata.GenreCate
 	return genres, nil
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(javBusRequestInterval)} }
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *JavBusClient {
+	return &JavBusClient{httpClient: httpClient, limiter: ratelimit.New(javBusRequestInterval)}
+}

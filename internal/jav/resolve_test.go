@@ -61,7 +61,7 @@ func TestResolveJavByCodes(t *testing.T) {
 					return nil, fmt.Errorf("lookup: %w", ErrNotFound)
 				})
 			}
-			client := NewClient(providers, nil)
+			client := NewMetadataClient(providers, nil)
 			info, err := client.ResolveJavByCodes(context.Background(), []string{"GANA-001", "STARS-001"}, []string{"123456_001", "123456_002"})
 			if !reflect.DeepEqual(calls, tc.wantCalls) {
 				t.Fatalf("calls = %v, want %v", calls, tc.wantCalls)
@@ -88,7 +88,7 @@ func TestResolveJavByCodes(t *testing.T) {
 }
 
 func TestResolveJavByCodesEmptyCandidates(t *testing.T) {
-	client := NewClient(map[Provider]any{}, nil)
+	client := NewMetadataClient(map[Provider]any{}, nil)
 	info, err := client.ResolveJavByCodes(context.Background(), nil, nil)
 	if info != nil || !errors.Is(err, ErrNotFound) {
 		t.Fatalf("result = %+v, %v; want not found", info, err)
@@ -97,7 +97,7 @@ func TestResolveJavByCodesEmptyCandidates(t *testing.T) {
 
 func TestResolveJavByCodesUncensoredCandidatesOnly(t *testing.T) {
 	want := &JavInfo{Code: "123456_001", Provider: ProviderAvsox}
-	client := NewClient(map[Provider]any{
+	client := NewMetadataClient(map[Provider]any{
 		ProviderAvsox: movieLookupFunc(func(_ context.Context, code string) (*JavInfo, error) {
 			if code != want.Code {
 				t.Fatalf("code = %q, want %q", code, want.Code)
@@ -136,7 +136,7 @@ func TestResolveJavByCodesCancellation(t *testing.T) {
 				cancel()
 			}
 			calls := 0
-			client := NewClient(map[Provider]any{
+			client := NewMetadataClient(map[Provider]any{
 				ProviderJavMenu: movieLookupFunc(func(got context.Context, _ string) (*JavInfo, error) {
 					calls++
 					if got != ctx {

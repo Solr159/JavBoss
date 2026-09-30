@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"javboss/internal/jav/metadata"
-	"javboss/internal/util"
 
 	"golang.org/x/net/html"
 )
@@ -201,13 +200,8 @@ func TestJavBusLookupCodeRewritesSpecialPrefixes(t *testing.T) {
 }
 
 func TestJavBusLookupJavByCodeRewritesSpecialPrefixes(t *testing.T) {
-	p := New()
-	client := util.DefaultHTTPClient()
-	originalTransport := client.Transport
-	t.Cleanup(func() {
-		client.Transport = originalTransport
-
-	})
+	client := &http.Client{}
+	p := New(client)
 
 	var requestedPaths []string
 	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {

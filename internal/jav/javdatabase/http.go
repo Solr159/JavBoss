@@ -14,7 +14,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (p *Client) fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
+func (p *JavDatabaseClient) fetchJavDatabaseHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
 	req, err := buildJavDatabaseRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, err
@@ -50,11 +50,11 @@ func (p *Client) fetchJavDatabaseHTML(ctx context.Context, targetURL, referer st
 	return doc, resp.StatusCode, nil
 }
 
-func (p *Client) doJavDatabaseRequest(req *http.Request) (*http.Response, error) {
+func (p *JavDatabaseClient) doJavDatabaseRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return util.DoRequest(req)
+	return p.httpClient.Do(req)
 }
 
 func buildJavDatabaseRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
@@ -71,18 +71,5 @@ func buildJavDatabaseRequest(ctx context.Context, targetURL, referer string) (*h
 	return req, nil
 }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildJavDatabaseRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	if err := p.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return "https://www.javdatabase.com" }
+// OriginURL identifies the origin used for availability checks.
+func (p *JavDatabaseClient) OriginURL() string { return "https://www.javdatabase.com" }

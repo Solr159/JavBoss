@@ -9,7 +9,7 @@ import (
 	"slices"
 	"testing"
 
-	"javboss/internal/jav/javdb"
+	"javboss/internal/jav/javdbapi"
 	"javboss/internal/util"
 )
 
@@ -31,7 +31,7 @@ func TestResolveFC2FilenameThroughJavDBAPI(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	client := NewClient(map[Provider]any{ProviderJavDBAPI: javdb.NewAPI(server.Client(), server.URL)}, nil)
+	client := NewMetadataClient(map[Provider]any{ProviderJavDBAPI: javdbapi.New(server.Client(), server.URL)}, nil)
 	filename := "FC2PPV-4810487.mp4"
 	info, err := client.ResolveJavByCodes(context.Background(), util.ExtractCodeFromName(filename), util.ExtractUncensoredCodesFromName(filename))
 	if err != nil {
@@ -58,7 +58,7 @@ func TestResolveFC2ProviderFallback(t *testing.T) {
 		for _, forced := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%s/forced=%t", tc.name, forced), func(t *testing.T) {
 				var calls []Provider
-				client := NewClient(map[Provider]any{
+				client := NewMetadataClient(map[Provider]any{
 					ProviderJavDBAPI: movieLookupFunc(func(_ context.Context, code string) (*JavInfo, error) {
 						calls = append(calls, ProviderJavDBAPI)
 						if code != "FC2-PPV-1234567" {

@@ -23,9 +23,10 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Client retrieves actress profiles from みんなのAV.com.
-type Client struct {
-	limiter *ratelimit.Limiter
+// MinnanoAVClient retrieves actress profiles from みんなのAV.com.
+type MinnanoAVClient struct {
+	httpClient *http.Client
+	limiter    *ratelimit.Limiter
 }
 
 const (
@@ -44,7 +45,7 @@ var (
 )
 
 // LookupActressByName resolves an exact actress name to a profile.
-func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadata.ActressInfo, error) {
+func (p *MinnanoAVClient) LookupActressByName(ctx context.Context, name string) (*metadata.ActressInfo, error) {
 	name = normalizeMinnanoAVName(name)
 	if name == "" {
 		return nil, metadata.ErrNotFound
@@ -55,7 +56,7 @@ func (p *Client) LookupActressByName(ctx context.Context, name string) (*metadat
 	return p.lookupMinnanoAVActressByName(ctx, minnanoAVBaseURL, name)
 }
 
-func (p *Client) lookupMinnanoAVActressByName(ctx context.Context, baseURL, name string) (*metadata.ActressInfo, error) {
+func (p *MinnanoAVClient) lookupMinnanoAVActressByName(ctx context.Context, baseURL, name string) (*metadata.ActressInfo, error) {
 	searchURL, err := buildMinnanoAVActressSearchURL(baseURL, name)
 	if err != nil {
 		return nil, err
@@ -111,7 +112,7 @@ func buildMinnanoAVActressSearchURL(baseURL, name string) (string, error) {
 	return base.String(), nil
 }
 
-func (p *Client) fetchMinnanoAVHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, string, error) {
+func (p *MinnanoAVClient) fetchMinnanoAVHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, string, error) {
 	req, err := buildMinnanoAVRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, "", err
@@ -121,7 +122,7 @@ func (p *Client) fetchMinnanoAVHTML(ctx context.Context, targetURL, referer stri
 	}
 
 	logging.Info("minnanoav request: %s", targetURL)
-	resp, err := util.DoRequest(req)
+	resp, err := p.httpClient.Do(req)
 	if err != nil {
 		if errors.Is(err, util.ErrCachedNotFound) {
 			return nil, http.StatusNotFound, targetURL, nil
@@ -367,21 +368,10 @@ func minnanoAVNameWithoutQualifier(value string) string {
 	return normalizeMinnanoAVName(value)
 }
 
-// New creates an independent provider client.
-func New() *Client { return &Client{limiter: ratelimit.New(minnanoAVRequestInterval)} }
-
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildMinnanoAVRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	if err := p.limiter.Wait(ctx); err != nil {
-		return nil, err
-	}
-	return util.DefaultHTTPClient().Do(req)
+// New creates a provider using the supplied non-nil HTTP client.
+func New(httpClient *http.Client) *MinnanoAVClient {
+	return &MinnanoAVClient{httpClient: httpClient, limiter: ratelimit.New(minnanoAVRequestInterval)}
 }
 
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return minnanoAVBaseURL }
+// OriginURL identifies the origin used for availability checks.
+func (p *MinnanoAVClient) OriginURL() string { return minnanoAVBaseURL }

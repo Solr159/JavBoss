@@ -48,11 +48,7 @@ func TestLookupActressProfilesConcurrently(t *testing.T) {
 }
 
 func TestMergeActressInfosUsesProviderPriority(t *testing.T) {
-	minnanoAVInfo := &jav.ActressInfo{
-		RomanName:    "Minnano Roman",
-		JapaneseName: "みんなの名前",
-		HeightCM:     160,
-	}
+	avWikiInfo := &jav.ActressInfo{RomanName: "AV Wiki Roman", HeightCM: 165, Waist: 60, Bust: 85}
 	javDatabaseInfo := &jav.ActressInfo{
 		RomanName:   "JavDatabase Roman",
 		ChineseName: "数据库中文名",
@@ -66,17 +62,24 @@ func TestMergeActressInfosUsesProviderPriority(t *testing.T) {
 		Cup:         5,
 	}
 
-	info := mergeActressInfosByPriority(minnanoAVInfo, javDatabaseInfo, javModelInfo)
+	info := mergeActressInfosByPriority(avWikiInfo, javDatabaseInfo, javModelInfo)
 	if info == nil {
 		t.Fatal("mergeActressInfosByPriority returned nil")
 	}
-	if info.RomanName != "Minnano Roman" || info.JapaneseName != "みんなの名前" || info.HeightCM != 160 {
-		t.Fatalf("minnanoav priority fields were replaced: %#v", info)
+	if info.RomanName != "AV Wiki Roman" || info.HeightCM != 165 {
+		t.Fatalf("avwiki priority fields were replaced: %#v", info)
 	}
-	if info.ChineseName != "数据库中文名" || info.Bust != 88 {
+	if info.Waist != 60 || info.Bust != 85 {
+		t.Fatalf("avwiki fallback fields were not used: %#v", info)
+	}
+	if info.ChineseName != "数据库中文名" {
 		t.Fatalf("javdatabase fallback fields were not used: %#v", info)
 	}
 	if info.Cup != 5 {
 		t.Fatalf("javmodel fallback field was not used: %#v", info)
+	}
+	info = mergeActressInfosByPriority(nil, javDatabaseInfo, javModelInfo)
+	if info.RomanName != "JavDatabase Roman" || info.HeightCM != 170 || info.Bust != 88 || info.Cup != 5 {
+		t.Fatalf("remaining providers did not fill profile when avwiki was unavailable: %#v", info)
 	}
 }

@@ -17,7 +17,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func (p *Client) fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
+func (p *JavDBClient) fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
 	searchURL := javDBSearchURL(code)
 	searchDoc, status, err := p.fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
 	if err != nil {
@@ -42,7 +42,7 @@ func (p *Client) fetchJavDBDetailByCode(ctx context.Context, code string) (*html
 	return detailDoc, detailURL, nil
 }
 
-func (p *Client) fetchJavDBHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
+func (p *JavDBClient) fetchJavDBHTML(ctx context.Context, targetURL, referer string) (*html.Node, int, error) {
 	req, err := buildJavDBRequest(ctx, targetURL, referer)
 	if err != nil {
 		return nil, 0, err
@@ -78,28 +78,26 @@ func (p *Client) fetchJavDBHTML(ctx context.Context, targetURL, referer string) 
 	return doc, resp.StatusCode, nil
 }
 
-func (p *Client) doJavDBRequest(req *http.Request) (*http.Response, error) {
+func (p *JavDBClient) doJavDBRequest(req *http.Request) (*http.Response, error) {
 	if err := p.limiter.Wait(req.Context()); err != nil {
 		return nil, err
 	}
-	return p.defaultJavDBHTTPClient().Do(req)
+	return p.httpClient.Do(req)
 }
 
-func (p *Client) defaultJavDBHTTPClient() *http.Client {
-	p.httpOnce.Do(func() {
-		p.httpClient = util.NewHTTPClientWithTransport(15*time.Second, func(t *http.Transport) {
-			t.ForceAttemptHTTP2 = true
-			t.TLSClientConfig = &tls.Config{
-				MinVersion: tls.VersionTLS12,
-				MaxVersion: tls.VersionTLS13,
-				NextProtos: []string{"h2", "http/1.1"},
-			}
-			t.MaxIdleConns = 200
-			t.MaxIdleConnsPerHost = 20
-			t.MaxConnsPerHost = 50
-		})
+// NewHTTPClient creates a fresh proxy-aware HTTP client with this site's transport settings.
+func NewHTTPClient() *http.Client {
+	return util.NewHTTPClientWithTransport(15*time.Second, func(t *http.Transport) {
+		t.ForceAttemptHTTP2 = true
+		t.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			MaxVersion: tls.VersionTLS13,
+			NextProtos: []string{"h2", "http/1.1"},
+		}
+		t.MaxIdleConns = 200
+		t.MaxIdleConnsPerHost = 20
+		t.MaxConnsPerHost = 50
 	})
-	return p.httpClient
 }
 
 func buildJavDBRequest(ctx context.Context, targetURL, referer string) (*http.Request, error) {
@@ -117,15 +115,5 @@ func buildJavDBRequest(ctx context.Context, targetURL, referer string) (*http.Re
 	return req, nil
 }
 
-// CheckConnectivity requests the site using its normal headers and transport, without lookup caching.
-// The caller owns the response body.
-func (p *Client) CheckConnectivity(ctx context.Context) (*http.Response, error) {
-	req, err := buildJavDBRequest(ctx, p.ConnectivityURL()+"/", p.ConnectivityURL())
-	if err != nil {
-		return nil, err
-	}
-	return p.doJavDBRequest(req)
-}
-
-// ConnectivityURL identifies the origin used for connectivity checks.
-func (p *Client) ConnectivityURL() string { return javDBBaseURL }
+// OriginURL identifies the origin used for availability checks.
+func (p *JavDBClient) OriginURL() string { return javDBBaseURL }

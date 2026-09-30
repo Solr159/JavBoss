@@ -7,16 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"javboss/internal/util"
+	"javboss/internal/jav/javbus"
 )
 
 func TestJavBusLookupIncludesStudioAfterCacheUpdate(t *testing.T) {
-	httpClient := util.DefaultHTTPClient()
-	originalTransport := httpClient.Transport
-	client := NewClient(nil, newMemoryLookupCache())
-	t.Cleanup(func() {
-		httpClient.Transport = originalTransport
-	})
+	httpClient := &http.Client{}
+	client := NewMetadataClient(map[Provider]any{ProviderJavBus: javbus.New(httpClient)}, newMemoryLookupCache())
 	calls := 0
 	httpClient.Transport = testRoundTripFunc(func(req *http.Request) (*http.Response, error) {
 		calls++
