@@ -475,12 +475,14 @@ async function buildBackendRelease(choice, outDir) {
     CGO_ENABLED: "1",
   };
   console.log(`[release] 构建后端 (${choice.goos}/${choice.goarch})`);
+  const ldflags = "-s -w -X main.buildMode=release" +
+    (choice.goos === "windows" ? " -H windowsgui" : "");
   await runCommand(
     "go",
     [
       "build",
       "-ldflags",
-      "-s -w -X main.buildMode=release",
+      ldflags,
       "-o",
       binPath,
       "./cmd/server",

@@ -30,6 +30,7 @@ function releaseContext(t, goos) {
     globalThis.choice = PLATFORM_CHOICES.find(p => p.goos === goos);
     globalThis.outDir = path.join(ROOT_DIR, 'release', 'javboss-test-' + choice.label);
     globalThis.zipPath = outDir + '.zip';
+    globalThis.originalBuildBackendRelease = buildBackendRelease;
     isBundledFfprobeReady = async () => true;
     isBundledMpvReady = async () => true;
     isBundledFfmpegReady = async () => { calls.push('check-ffmpeg'); return true; };
@@ -51,6 +52,26 @@ function releaseContext(t, goos) {
     globalThis.cli = { runRelease, createZip, downloadDependencies, handleRelease };
   `, context);
   return context;
+}
+
+for (const goos of ["windows", "linux", "darwin"]) {
+  test(`${goos} release selects the correct executable subsystem`, async (t) => {
+    const ctx = releaseContext(t, goos);
+    vm.runInContext(`
+      commandExists = async () => true;
+      runCommand = async (command, args, options) => calls.push({ command, args, options });
+    `, ctx);
+    await ctx.originalBuildBackendRelease(ctx.choice, ctx.outDir);
+    const { command, args, options } = ctx.calls[0];
+    assert.equal(command, "go");
+    assert.equal(args[0], "build");
+    const ldflags = args[args.indexOf("-ldflags") + 1];
+    assert.match(ldflags, /-X main\.buildMode=release/);
+    assert.equal(ldflags.includes("-H windowsgui"), goos === "windows");
+    assert.equal(options.env.GOOS, goos);
+    assert.equal(options.env.CGO_ENABLED, "1");
+    assert.equal(args[args.indexOf("-o") + 1], path.join(ctx.outDir, goos === "windows" ? "javboss.exe" : "javboss"));
+  });
 }
 
 for (const goos of ["windows", "linux"]) {

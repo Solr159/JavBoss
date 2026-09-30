@@ -243,19 +243,12 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	if buildMode == "release" {
-		actualPort := listener.Addr().(*net.TCPAddr).Port
-		displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
-		openURL := displayURL
-		printReleaseStartupHint(displayURL)
-		if err := util.OpenFile(openURL); err != nil {
-			logger.Printf("open browser failed: %v", err)
-		}
-		startReleaseKeyboardControls(ctx, stop, openURL, logger)
-	}
-
+	actualPort := listener.Addr().(*net.TCPAddr).Port
+	displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 	logger.Printf("server listening on %s", listener.Addr().String())
-	if err := server.ServeHTTP(ctx, srv, listener, allowLANAccess, !runtimeconfig.ContainerMode()); err != nil {
+	if err := serveWithReleaseControls(ctx, stop, displayURL, "", logger, func() error {
+		return server.ServeHTTP(ctx, srv, listener, allowLANAccess, !runtimeconfig.ContainerMode())
+	}); err != nil {
 		logger.Fatalf("server error: %v", err)
 	}
 }
@@ -311,25 +304,11 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 		return fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
 	defer listener.Close()
-	go func() {
-		<-ctx.Done()
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			logger.Printf("client server shutdown error: %v", err)
-		}
-	}()
-
 	displayURL := fmt.Sprintf("http://localhost:%d", port)
-	if buildMode == "release" {
-		printReleaseClientStartupHint(displayURL, serverURL)
-		if err := util.OpenFile(displayURL); err != nil {
-			logger.Printf("open browser failed: %v", err)
-		}
-		startReleaseKeyboardControls(ctx, stop, displayURL, logger)
-	}
 	logger.Printf("client mode listening on %s, remote server %s", listenAddr, strings.TrimSpace(serverURL))
-	if err := srv.Serve(listener); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := serveWithReleaseControls(ctx, stop, displayURL, serverURL, logger, func() error {
+		return server.ServeHTTP(ctx, srv, listener, false, false)
+	}); err != nil {
 		return fmt.Errorf("client server: %w", err)
 	}
 	return nil
@@ -569,8 +548,7 @@ func acquireSingleInstanceLock(path string, logger *log.Logger) (*util.FileLock,
 	lock, err := util.AcquireFileLock(path)
 	if err != nil {
 		if errors.Is(err, util.ErrLockHeld) {
-			fmt.Println("JavBoss 已在运行，无法重复启动。")
-			waitForUserExit()
+			notifyAlreadyRunning("JavBoss 已在运行，无法重复启动。")
 			return nil, false
 		}
 		logger.Fatalf("acquire lock %s: %v", path, err)
@@ -585,8 +563,7 @@ func acquireExistingSingleInstanceLock(path string, logger *log.Logger) (*util.F
 			return nil, true
 		}
 		if errors.Is(err, util.ErrLockHeld) {
-			fmt.Println("PornBoss 已在运行，无法重复启动。")
-			waitForUserExit()
+			notifyAlreadyRunning("PornBoss 已在运行，无法重复启动。")
 			return nil, false
 		}
 		logger.Fatalf("acquire lock %s: %v", path, err)
