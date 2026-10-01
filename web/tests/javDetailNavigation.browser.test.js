@@ -136,6 +136,25 @@ test(
       await waitFor(modal)
       assert.equal(await evaluate(`${scroll}.scrollTop`), 250)
     }
+    // Resolved samples must be available before restoring a position below the original content.
+    await evaluate('window.releaseSampleImages()')
+    await waitFor(`${scroll}.scrollHeight - ${scroll}.clientHeight > 1800`)
+    await evaluate(`${scroll}.scrollTop = 1800`)
+    await waitFor('history.state.usr.__javbossJavDetail?.scrollTop === 1800')
+    await evaluate(
+      `[...${modal}.querySelectorAll('a')].find(a => a.textContent.trim() === 'Test actress').click()`
+    )
+    await waitFor(`!${modal}`)
+    await evaluate('history.back()')
+    await waitFor(`${modal} && ${scroll}.scrollTop === 1800`)
+    // A reload has no image cache; don't overwrite the saved position with the clamped value.
+    await command('Page.reload')
+    await waitFor(`${modal} && window.releaseSampleImages`)
+    assert.equal(await evaluate('history.state.usr.__javbossJavDetail.scrollTop'), 1800)
+    await evaluate('window.releaseSampleImages()')
+    await waitFor(`${scroll}.scrollTop === 1800`)
+    await evaluate(`${scroll}.scrollTop = 250`)
+    await waitFor('history.state.usr.__javbossJavDetail?.scrollTop === 250')
     // A second detail layer must return to JAV details before closing to the list.
     await evaluate(`document.querySelector('#nested-studio').click()`)
     await waitFor('location.search.includes("studio_detail=2")')
@@ -174,6 +193,45 @@ test(
     await waitFor(`!${modal} && location.search.includes('studio_id=2')`)
     await evaluate('history.back()')
     await waitFor(modal)
+    const star = `${modal}.querySelector(':is(section[aria-label="操作"], section[aria-label="Actions"]) button svg[data-testid="StarRoundedIcon"]')`
+    await evaluate(
+      `window.testStore.setState({javItems: []}); window.testStore.getState().patchJavFavoriteCount('jav', 1, [7], null)`
+    )
+    await waitFor(star)
+    await waitFor('window.cachedDetail?.favorite_count === 1')
+    await evaluate(
+      `window.testStore.setState({javItems: [{...window.cachedDetail}], javTotal: 1}); window.testStore.getState().patchJavFavoriteCount('jav', 1, [], 7)`
+    )
+    await waitFor(`!${star} && window.cachedDetail?.favorite_count === 0`)
+    assert.equal(
+      await evaluate('window.testStore.getState().javItems.length'),
+      0,
+      'detail updates even after removal from its list'
+    )
+    await evaluate(`window.testStore.getState().patchJavFavoriteCount('jav', 1, [7], null)`)
+    await waitFor(star)
+    await evaluate(`window.testStore.getState().invalidateJavFavoriteCounts('jav')`)
+    await waitFor(`!${star} && window.cachedDetail?.favorite_count === 0`)
+    const seriesStar = `document.querySelector('#favorite-series svg[data-testid="StarRoundedIcon"]')`
+    await evaluate(`window.testStore.getState().patchJavFavoriteCount('series', 3, [7], null)`)
+    await waitFor(seriesStar)
+    await evaluate(`window.testStore.getState().invalidateJavFavoriteCounts('series')`)
+    await waitFor(`!${seriesStar}`)
+    // Removing one group must retain the star when another membership remains.
+    await evaluate(
+      `window.favoriteSelections.series = [9]; window.testStore.getState().invalidateJavFavoriteCounts('series')`
+    )
+    await waitFor(seriesStar)
+    await command('Page.navigate', { url: `${fixture}?view=jav&prefix=ABC&jav_detail=1` })
+    await waitFor(modal)
+    const idolLink = `[...${modal}.querySelectorAll('a')].find(a => a.textContent.trim() === 'Test actress')`
+    assert.ok(!(await evaluate(`${idolLink}.href`)).includes('prefix='))
+    await evaluate(`${idolLink}.click()`)
+    await waitFor(`!${modal} && location.search.includes('idol_ids=4')`)
+    assert.ok(
+      !(await evaluate('location.search')).includes('prefix='),
+      'ordinary actress clicks clear the same prefix as the anchor URL'
+    )
     await command('Page.navigate', { url: `${fixture}?view=jav&jav_detail=99` })
     await waitFor(`document.querySelector('[role="alert"]')`)
     await evaluate(`document.querySelector('[role="dialog"] button').click()`)

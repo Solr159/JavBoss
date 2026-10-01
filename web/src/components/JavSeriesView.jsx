@@ -5,7 +5,7 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
 import Pagination from '@/components/Pagination'
 import WaterfallLoader from '@/components/WaterfallLoader'
-import { useStore } from '@/store'
+import useJavFavoriteCount from '@/hooks/useJavFavoriteCount'
 import { zh } from '@/utils/i18n'
 import { openJavDBWithAssist } from '@/utils/javdb'
 
@@ -115,8 +115,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
     studioName && Number.isFinite(studioId) && studioId > 0 && typeof onSelectStudio === 'function'
   const workCount = Number(item?.work_count)
   const showWorkCount = Number.isFinite(workCount) && workCount > 0
-  const savedFavoriteCount = useStore((state) => state.seriesFavoriteCounts[item?.id])
-  const favoriteCount = savedFavoriteCount ?? (Number(item?.favorite_count) || 0)
+  const favoriteCount = useJavFavoriteCount('series', item)
   const searchName = String(item?.name || '').trim()
   const javDBSearchURL = searchName
     ? `https://javdb.com/search?f=series&q=${encodeURIComponent(searchName)}`

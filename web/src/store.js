@@ -289,7 +289,102 @@ export const useStore = create((set, get) => ({
   seriesPage: 1,
   seriesPageSize: JAV_SERIES_PAGE_SIZE,
   seriesFavoriteGroupId: null,
-  seriesFavoriteCounts: {},
+  selectJavIdol: (id) =>
+    set({
+      viewMode: 'jav',
+      videoTempSort: '',
+      javTab: 'list',
+      javTempSort: '',
+      idolTempSort: '',
+      javRandomMode: false,
+      javRandomSeed: null,
+      javIdolIds: [id],
+      javPrefix: '',
+      javTags: [],
+      javStudioId: null,
+      javStudioName: '',
+      javSeriesId: null,
+      javSeriesName: '',
+      javSoloOnly: false,
+      javFavoriteRatingEnabled: false,
+      javFavoriteRatingMin: 0.5,
+      javFavoriteRatingMax: 5,
+      idolFavoriteGroupId: null,
+      javSearchTerm: '',
+      javPage: 1,
+      idolPage: 1,
+      studioPage: 1,
+      seriesPage: 1,
+    }),
+  patchJavFavoriteCount: (type, entityID, groupIds, activeGroupId) => {
+    const id = Number(entityID)
+    if (!Number.isFinite(id) || id <= 0) return
+
+    const nextGroupIds = Array.from(
+      new Set((groupIds || []).map((value) => Number(value)).filter((value) => value > 0))
+    )
+    const nextGroupSet = new Set(nextGroupIds)
+    const activeGroupID = Number(activeGroupId)
+    const removeFromCurrentList =
+      Number.isFinite(activeGroupID) && activeGroupID > 0 ? !nextGroupSet.has(activeGroupID) : false
+    const listKey =
+      type === 'jav'
+        ? 'javItems'
+        : type === 'studio'
+          ? 'studioItems'
+          : type === 'series'
+            ? 'seriesItems'
+            : 'idolItems'
+    const totalKey =
+      type === 'jav'
+        ? 'javTotal'
+        : type === 'studio'
+          ? 'studioTotal'
+          : type === 'series'
+            ? 'seriesTotal'
+            : 'idolTotal'
+
+    set((state) => {
+      // Details and previews need updates even when absent from the current list.
+      const sharedCounts = {
+        favoriteCountsByType: {
+          ...state.favoriteCountsByType,
+          [type]: { ...state.favoriteCountsByType[type], [id]: nextGroupIds.length },
+        },
+      }
+      const items = Array.isArray(state[listKey]) ? state[listKey] : []
+      let changed = false
+      const nextItems = removeFromCurrentList
+        ? items.filter((item) => {
+            const keep = Number(item?.id) !== id
+            if (!keep) changed = true
+            return keep
+          })
+        : items.map((item) => {
+            if (Number(item?.id) !== id) return item
+            changed = true
+            return { ...item, favorite_count: nextGroupIds.length }
+          })
+      if (!changed) return sharedCounts
+      return {
+        ...sharedCounts,
+        [listKey]: nextItems,
+        ...(removeFromCurrentList
+          ? { [totalKey]: Math.max(0, Number(state[totalKey] || 0) - 1) }
+          : {}),
+      }
+    })
+  },
+  favoriteCountsByType: {},
+  favoriteCountsRevision: {},
+  invalidateJavFavoriteCounts: (type) =>
+    set((state) => ({
+      favoriteCountsByType: { ...state.favoriteCountsByType, [type]: {} },
+      favoriteCountsRevision: {
+        ...state.favoriteCountsRevision,
+        [type]: (state.favoriteCountsRevision[type] || 0) + 1,
+      },
+    })),
   seriesItems: [],
   seriesTotal: 0,
   seriesLoading: false,

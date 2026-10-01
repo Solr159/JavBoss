@@ -1,3 +1,4 @@
+import { restoreDetailScroll } from '@/utils/restoreDetailScroll'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -501,8 +502,15 @@ export default function JavDetailModal({
   onVideoTagClick,
 }) {
   const initialScrollRef = useRef(initialScrollTop)
+  const restoringScrollRef = useRef(false)
+  const scrollCleanupRef = useRef(null)
   const restoreScroll = useCallback((node) => {
-    if (node) node.scrollTop = initialScrollRef.current
+    scrollCleanupRef.current?.()
+    if (!node) return
+    restoringScrollRef.current = true
+    scrollCleanupRef.current = restoreDetailScroll(node, initialScrollRef.current, () => {
+      restoringScrollRef.current = false
+    })
   }, [])
   const handleFilterClick = (event, action, value) => {
     if (
@@ -529,7 +537,9 @@ export default function JavDetailModal({
   const emptyVideoSelection = useMemo(() => new Set(), [])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])
   const [hoverPreview, setHoverPreview] = useState(null)
-  const [sampleImages, setSampleImages] = useState(() => normalizeSampleImages(itemSampleImages))
+  const [sampleImages, setSampleImages] = useState(() =>
+    normalizeSampleImages(getResolvedJavSampleImages(itemId) || itemSampleImages)
+  )
   const [sampleImagesLoading, setSampleImagesLoading] = useState(false)
   const [sampleImagesError, setSampleImagesError] = useState('')
   const hoverCloseTimerRef = useRef(null)
@@ -703,8 +713,10 @@ export default function JavDetailModal({
 
       <div
         ref={restoreScroll}
-        onScroll={(event) => onScrollChange?.(event.currentTarget.scrollTop)}
-        className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"
+        onScroll={(event) => {
+          if (!restoringScrollRef.current) onScrollChange?.(event.currentTarget.scrollTop)
+        }}
+        className="min-h-0 flex-1 overflow-y-auto p-4 [overflow-anchor:none] sm:p-6"
       >
         <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
           <div className="group relative aspect-[800/538] w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm">

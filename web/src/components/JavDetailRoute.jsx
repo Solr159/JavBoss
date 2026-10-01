@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import useJavFavoriteCount from '@/hooks/useJavFavoriteCount'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchJavItem } from '@/api'
 import AppModal from '@/components/AppModal'
 import JavGrid from '@/components/JavGrid'
@@ -21,14 +22,19 @@ export default function JavDetailRoute({
   const listedItem = useStore((state) =>
     state.javItems?.find((entry) => Number(entry.id) === itemId)
   )
-  const updateItem = useCallback(
-    (updated) => {
-      if (!updated?.id) return
-      setItem(updated)
-      onLoaded(updated)
-    },
-    [onLoaded]
+  const updateItem = useCallback((updated) => {
+    if (!updated?.id) return
+    setItem(updated)
+  }, [])
+
+  const favoriteCount = useJavFavoriteCount('jav', item)
+  const detailItem = useMemo(
+    () => (item ? { ...item, favorite_count: favoriteCount } : null),
+    [item, favoriteCount]
   )
+  useEffect(() => {
+    if (detailItem) onLoaded(detailItem)
+  }, [detailItem, onLoaded])
 
   useEffect(() => {
     if (listedItem) updateItem(listedItem)
@@ -67,7 +73,7 @@ export default function JavDetailRoute({
   return (
     <JavGrid
       {...actions}
-      items={[item]}
+      items={[detailItem]}
       detailView={{
         onClose,
         scrollTop: initialState.scrollTop,

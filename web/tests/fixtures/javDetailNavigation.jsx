@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import useUrlStateSync from '@/hooks/useUrlStateSync'
 import { JavDetailNavigationContext } from '@/hooks/javDetailNavigation'
 import { StudioDetailNavigationContext } from '@/hooks/studioDetailNavigation'
+import { SeriesCard } from '@/components/JavSeriesView'
 import JavGrid from '@/components/JavGrid'
 import JavDetailRoute from '@/components/JavDetailRoute'
 import JavStudioDetailModal from '@/components/JavStudioDetailModal'
@@ -29,15 +30,36 @@ const item = {
   sample_images: ['not_found'],
 }
 useStore.setState({ javItems: location.search.includes('jav_detail=') ? [] : [item] })
+window.testStore = useStore
+window.favoriteSelections = { jav: [], series: [] }
+window.holdSampleImages = true
+window.releaseSampleImages = null
+const sampleImages = Array.from({ length: 60 }, (_, i) => ({
+  thumbnail_url: `image-${i}`,
+  detail_url: `image-${i}`,
+}))
 window.javDetailRequests = 0
 window.fixtureLoadId = Math.random()
 window.fetch = async (url) => {
+  if (String(url).endsWith('/favorite-groups')) {
+    const type = String(url).includes('/series/') ? 'series' : 'jav'
+    return Response.json({ selected_group_ids: window.favoriteSelections[type] })
+  }
   if (String(url) === '/jav/items/1') {
     window.javDetailRequests++
     return Response.json(item)
   }
   if (String(url) === '/jav/studios/2') return Response.json(studio)
-  if (String(url).includes('/sample-images')) return Response.json({ sample_images: [] })
+  if (String(url).endsWith('/sample-images')) {
+    if (window.holdSampleImages)
+      return new Promise((resolve) => {
+        window.releaseSampleImages = () => {
+          window.holdSampleImages = false
+          resolve(Response.json({ sample_images: sampleImages }))
+        }
+      })
+    return Response.json({ sample_images: sampleImages })
+  }
   return new Response('Not found', { status: 404 })
 }
 function Fixture() {
@@ -60,9 +82,22 @@ function Fixture() {
       buildUrlFromState({ ...state, jav: { ...state.jav, ...options } }, location.pathname),
     onStudioClick: (value) => select({ studioId: value.id }),
     onSeriesClick: (value) => select({ seriesId: value.id }),
-    onIdolClick: (value) => select({ idolIds: [value.id] }),
+    onIdolClick: (value) => {
+      useStore.setState({ javPrefix: state.jav.prefix })
+      useStore.getState().selectJavIdol(value.id)
+      const updated = useStore.getState()
+      select({ idolIds: updated.javIdolIds, prefix: updated.javPrefix })
+    },
     onTagClick: (value) => select({ tagIds: [value.id] }),
   }
+  const { cacheJavDetail } = route
+  const cacheDetail = useCallback(
+    (loaded) => {
+      cacheJavDetail(loaded)
+      window.cachedDetail = loaded
+    },
+    [cacheJavDetail]
+  )
   return (
     <StudioDetailNavigationContext.Provider value={route.openStudioDetail}>
       <JavDetailNavigationContext.Provider value={route.openJavDetail}>
@@ -79,7 +114,7 @@ function Fixture() {
               itemId={route.javDetailId}
               initialItem={route.javDetailItem}
               initialState={route.javDetailState}
-              onLoaded={route.cacheJavDetail}
+              onLoaded={cacheDetail}
               onStateChange={route.saveJavDetailState}
               onClose={route.closeJavDetail}
             />
@@ -97,6 +132,9 @@ function Fixture() {
               buildJavUrl={actions.buildJavUrl}
             />
           ) : null}
+          <div id="favorite-series">
+            <SeriesCard item={{ id: 3, name: 'Favorite test series', favorite_count: 0 }} />
+          </div>
           <button id="nested-studio" onClick={() => route.openStudioDetail(studio)}>
             Open studio
           </button>

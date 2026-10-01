@@ -3378,6 +3378,7 @@ export default function App() {
   const reloadFavoriteData = useCallback(
     async (entityType) => {
       const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
+      useStore.getState().invalidateJavFavoriteCounts(type)
       const tabByType = { jav: 'list', idol: 'idol', studio: 'studio', series: 'series' }
       const reloadByType = {
         jav: loadJavs,
@@ -3485,68 +3486,9 @@ export default function App() {
   const patchFavoriteCountInCurrentList = useCallback(
     (entityType, entityID, groupIds) => {
       const type = ['jav', 'idol', 'studio', 'series'].includes(entityType) ? entityType : 'idol'
-      const id = Number(entityID)
-      if (!Number.isFinite(id) || id <= 0) return
-
-      const nextGroupIds = Array.from(
-        new Set((groupIds || []).map((value) => Number(value)).filter((value) => value > 0))
-      )
-      const nextGroupSet = new Set(nextGroupIds)
-      const activeGroupID = Number(activeFavoriteGroupId(type))
-      const removeFromCurrentList =
-        Number.isFinite(activeGroupID) && activeGroupID > 0
-          ? !nextGroupSet.has(activeGroupID)
-          : false
-      const listKey =
-        type === 'jav'
-          ? 'javItems'
-          : type === 'studio'
-            ? 'studioItems'
-            : type === 'series'
-              ? 'seriesItems'
-              : 'idolItems'
-      const totalKey =
-        type === 'jav'
-          ? 'javTotal'
-          : type === 'studio'
-            ? 'studioTotal'
-            : type === 'series'
-              ? 'seriesTotal'
-              : 'idolTotal'
-
-      useStore.setState((state) => {
-        // Series cards in studio details and hover previews may be absent from seriesItems.
-        const sharedCounts =
-          type === 'series'
-            ? {
-                seriesFavoriteCounts: {
-                  ...state.seriesFavoriteCounts,
-                  [id]: nextGroupIds.length,
-                },
-              }
-            : {}
-        const items = Array.isArray(state[listKey]) ? state[listKey] : []
-        let changed = false
-        const nextItems = removeFromCurrentList
-          ? items.filter((item) => {
-              const keep = Number(item?.id) !== id
-              if (!keep) changed = true
-              return keep
-            })
-          : items.map((item) => {
-              if (Number(item?.id) !== id) return item
-              changed = true
-              return { ...item, favorite_count: nextGroupIds.length }
-            })
-        if (!changed) return sharedCounts
-        return {
-          ...sharedCounts,
-          [listKey]: nextItems,
-          ...(removeFromCurrentList
-            ? { [totalKey]: Math.max(0, Number(state[totalKey] || 0) - 1) }
-            : {}),
-        }
-      })
+      useStore
+        .getState()
+        .patchJavFavoriteCount(type, entityID, groupIds, activeFavoriteGroupId(type))
     },
     [activeFavoriteGroupId]
   )
@@ -3676,31 +3618,7 @@ export default function App() {
       const id = Number(idol?.id ?? idol)
       if (!Number.isFinite(id) || id <= 0) return
       saveScrollBeforeUrlStateChange()
-      useStore.setState({
-        viewMode: 'jav',
-        videoTempSort: '',
-        javTab: 'list',
-        javTempSort: '',
-        idolTempSort: '',
-        javRandomMode: false,
-        javRandomSeed: null,
-        javIdolIds: [id],
-        javTags: [],
-        javStudioId: null,
-        javStudioName: '',
-        javSeriesId: null,
-        javSeriesName: '',
-        javSoloOnly: false,
-        javFavoriteRatingEnabled: false,
-        javFavoriteRatingMin: 0.5,
-        javFavoriteRatingMax: 5,
-        idolFavoriteGroupId: null,
-        javSearchTerm: '',
-        javPage: 1,
-        idolPage: 1,
-        studioPage: 1,
-        seriesPage: 1,
-      })
+      useStore.getState().selectJavIdol(id)
     },
     [saveScrollBeforeUrlStateChange]
   )
