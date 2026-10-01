@@ -1,60 +1,24 @@
 import assert from 'node:assert/strict'
-import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createServer } from 'vite'
+import { chromePath, startChrome } from './chrome.js'
 
-const chromePath = process.env.CHROME_BIN || '/usr/bin/google-chrome'
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const browserUnavailable = !existsSync(chromePath) || typeof WebSocket === 'undefined'
 
-export async function openBrowser(t) {
+export async function openBrowser(t, { cacheDir = 'node_modules/.vite-app-test' } = {}) {
   const root = fileURLToPath(new URL('../../', import.meta.url))
   const server = await createServer({
     root,
-    cacheDir: 'node_modules/.vite-app-test',
+    cacheDir,
     server: { port: 0, host: '127.0.0.1' },
   })
   await server.listen()
   t.after(() => server.close())
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`
-  const profile = await mkdtemp(path.join(os.tmpdir(), 'javboss-history-'))
-  const chrome = spawn(
-    chromePath,
-    [
-      '--headless',
-      '--no-sandbox',
-      '--disable-gpu',
-      '--remote-debugging-port=0',
-      `--user-data-dir=${profile}`,
-      '--no-first-run',
-      '--no-default-browser-check',
-      'about:blank',
-    ],
-    { stdio: 'ignore' }
-  )
-  t.after(async () => {
-    if (chrome.exitCode === null && chrome.signalCode === null) {
-      const stopped = new Promise((resolve) => chrome.once('exit', resolve))
-      chrome.kill()
-      await stopped
-    }
-    await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
-  })
-  let port
-  for (let i = 0; i < 100; i++) {
-    try {
-      port = (await readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0]
-      break
-    } catch {
-      await pause(50)
-    }
-  }
-  assert.ok(port, 'Chrome started')
+  const { port } = await startChrome(t)
   const target = await (
     await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })
   ).json()
