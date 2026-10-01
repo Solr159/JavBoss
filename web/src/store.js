@@ -289,6 +289,7 @@ export const useStore = create((set, get) => ({
   seriesPage: 1,
   seriesPageSize: JAV_SERIES_PAGE_SIZE,
   seriesFavoriteGroupId: null,
+  seriesFavoriteCounts: {},
   seriesItems: [],
   seriesTotal: 0,
   seriesLoading: false,

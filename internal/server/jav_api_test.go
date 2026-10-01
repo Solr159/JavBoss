@@ -307,3 +307,51 @@ func TestValidateJavSampleImageDetailURL(t *testing.T) {
 		})
 	}
 }
+
+func TestGetJavItemDetail(t *testing.T) {
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousDB := common.DB
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB = previousDB
+		if sqlDB, err := database.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	studio := models.JavStudio{ID: 2, Name: "Detail studio"}
+	if err := database.Create(&studio).Error; err != nil {
+		t.Fatal(err)
+	}
+	item := models.Jav{ID: 1, Code: "ABC-001", Title: "Detail title", StudioID: &studio.ID}
+	if err := database.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	router := gin.New()
+	router.GET("/jav/items/:id", getJavItem)
+	for _, tc := range []struct {
+		id     string
+		status int
+	}{
+		{"1", http.StatusOK}, {"99", http.StatusNotFound}, {"invalid", http.StatusBadRequest}, {"0", http.StatusBadRequest}, {"-1", http.StatusBadRequest},
+	} {
+		t.Run(tc.id, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/jav/items/"+tc.id, nil))
+			if response.Code != tc.status {
+				t.Fatalf("status = %d, want %d: %s", response.Code, tc.status, response.Body.String())
+			}
+			if tc.status == http.StatusOK {
+				var loaded models.Jav
+				if err := json.Unmarshal(response.Body.Bytes(), &loaded); err != nil {
+					t.Fatal(err)
+				}
+				if loaded.ID != item.ID || loaded.Code != item.Code || loaded.Title != item.Title || loaded.Studio == nil || loaded.Studio.Name != studio.Name {
+					t.Fatalf("unexpected detail: %+v", loaded)
+				}
+			}
+		})
+	}
+}

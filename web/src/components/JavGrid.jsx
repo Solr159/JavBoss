@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { JavDetailNavigationContext } from '@/hooks/javDetailNavigation'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { IconButton, Popper, Rating, Tooltip } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
@@ -99,6 +100,7 @@ function ReleaseIcon() {
 }
 
 export default function JavGrid({
+  detailView,
   items,
   selectedIds,
   onToggleSelect,
@@ -299,6 +301,7 @@ export default function JavGrid({
           <JavCard
             key={item.id || item.code}
             item={item}
+            detailView={detailView}
             checked={selectedIds?.has(Number(item.id)) || false}
             onToggleSelect={onToggleSelect}
             selectionDisabled={selectionDisabled}
@@ -2161,6 +2164,7 @@ function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFilterLin
 
 function JavCard({
   item,
+  detailView,
   checked = false,
   onToggleSelect,
   selectionDisabled = false,
@@ -2211,7 +2215,7 @@ function JavCard({
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
   const [customTagEditorOpen, setCustomTagEditorOpen] = useState(false)
-  const [detailOpen, setDetailOpen] = useState(false)
+  const openJavDetail = useContext(JavDetailNavigationContext)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
   const cover = coverBase ? `${coverBase}${coverVersion ? `?v=${coverVersion}` : ''}` : null
 
@@ -2360,7 +2364,7 @@ function JavCard({
 
   const handleOpenDetail = () => {
     clearHoverPreview()
-    setDetailOpen(true)
+    openJavDetail?.(item)
   }
 
   const handleOpenEditor = (event) => {
@@ -2402,6 +2406,7 @@ function JavCard({
     setFavoriteRatingError('')
     try {
       const updated = await updateJavItem(javID, { favorite_rating: nextRating })
+      detailView?.onItemUpdated?.(updated)
       const savedRating = Number(updated?.favorite_rating) || nextRating
       setFavoriteRating(savedRating)
       useStore.setState((state) => {
@@ -2423,6 +2428,7 @@ function JavCard({
   }
 
   const handleEditorSaved = (updated, coverUpdated) => {
+    detailView?.onItemUpdated?.(updated)
     if (updated?.id) {
       useStore.setState((state) => {
         if (!Array.isArray(state.javItems)) return {}
@@ -2440,6 +2446,7 @@ function JavCard({
   }
 
   const handleCustomTagsSaved = (updated) => {
+    detailView?.onItemUpdated?.(updated)
     if (updated?.id) {
       useStore.setState((state) => {
         if (!Array.isArray(state.javItems)) return {}
@@ -2474,7 +2481,6 @@ function JavCard({
   const [idolCoverEditorItem, setIdolCoverEditorItem] = useState(null)
   const [idolEditorItem, setIdolEditorItem] = useState(null)
   const closeTimerRef = useRef(null)
-  const hoverPreviewLockedRef = useRef(false)
   const activeIdolHoverIdRef = useRef(null)
   const activeStudioHoverIdRef = useRef(null)
   const activeSeriesHoverIdRef = useRef(null)
@@ -2606,35 +2612,11 @@ function JavCard({
 
   const scheduleHoverClose = () => {
     clearHoverCloseTimer()
-    if (hoverPreviewLockedRef.current) return
     closeTimerRef.current = window.setTimeout(() => {
       clearHoverPreview()
       closeTimerRef.current = null
     }, 120)
   }
-
-  const handleStudioSeriesListOpenChange = useCallback((open) => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
-    }
-    hoverPreviewLockedRef.current = Boolean(open)
-    if (open) {
-      return
-    }
-    closeTimerRef.current = window.setTimeout(() => {
-      activeIdolHoverIdRef.current = null
-      activeStudioHoverIdRef.current = null
-      activeSeriesHoverIdRef.current = null
-      setPreviewIdol(null)
-      setIdolHoverAnchorEl(null)
-      setPreviewStudio(null)
-      setStudioHoverAnchorEl(null)
-      setPreviewSeries(null)
-      setSeriesHoverAnchorEl(null)
-      closeTimerRef.current = null
-    }, 120)
-  }, [])
 
   const handleIdolHoverStart = (idol, event) => {
     clearHoverCloseTimer()
@@ -2770,509 +2752,513 @@ function JavCard({
 
   return (
     <>
-      <div
-        className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg ${checked ? 'border-sky-400 ring-2 ring-sky-200' : ''}`}
-      >
-        <div className="card-hover-scope group relative aspect-[800/538] overflow-hidden bg-white">
-          {cover ? (
-            <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
-              {item?.code || zh('未知番号', 'Unknown code')}
-            </div>
-          )}
-          <button
-            type="button"
-            className="absolute inset-0 z-[1] cursor-pointer"
-            onClick={handleOpenDetail}
-            aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
-          />
-          <div className="card-hover-focus-visible pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
+      {!detailView ? (
+        <div
+          className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg ${checked ? 'border-sky-400 ring-2 ring-sky-200' : ''}`}
+        >
+          <div className="card-hover-scope group relative aspect-[800/538] overflow-hidden bg-white">
+            {cover ? (
+              <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
+                {item?.code || zh('未知番号', 'Unknown code')}
+              </div>
+            )}
             <button
-              onClick={handlePlay}
-              disabled={!canPlay}
-              className={`pointer-events-auto rounded-full p-3 ${
-                canPlay ? 'bg-black/60 hover:bg-black/80' : 'cursor-not-allowed bg-black/30'
-              }`}
-              aria-label={zh('播放', 'Play')}
-              title={zh('播放', 'Play')}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-10 w-10"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </button>
-          </div>
-          <div
-            className="absolute left-2 top-2 z-10 flex items-center gap-1"
-            onMouseLeave={() => {
-              setFavoriteRatingEditing(false)
-              setFavoriteRatingPreview(null)
-            }}
-            onBlur={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget)) return
-              setFavoriteRatingEditing(false)
-              setFavoriteRatingPreview(null)
-            }}
-          >
-            <Tooltip
-              title={
-                favoriteRatingError ||
-                (favoriteRatingPreview === 0
-                  ? zh('清空喜爱度', 'Clear favorite rating')
-                  : hasFavoriteRatingTooltipValue
-                    ? zh(
-                        `喜爱度：${favoriteRatingTooltipValue.toFixed(1)} 分`,
-                        `Favorite rating: ${favoriteRatingTooltipValue.toFixed(1)}`
-                      )
-                    : zh('设置喜爱度评分', 'Set favorite rating'))
-              }
-              placement="top"
-              arrow
-            >
-              <span
-                role="group"
-                aria-label={zh('喜爱度评分', 'Favorite rating')}
-                className={`flex items-center rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
-                  favoriteRatingSaving
-                    ? 'opacity-60'
-                    : favoriteRating > 0
-                      ? 'opacity-100'
-                      : 'card-hover-focus-visible opacity-0 group-hover:opacity-100'
+              type="button"
+              className="absolute inset-0 z-[1] cursor-pointer"
+              onClick={handleOpenDetail}
+              aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
+            />
+            <div className="card-hover-focus-visible pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                onClick={handlePlay}
+                disabled={!canPlay}
+                className={`pointer-events-auto rounded-full p-3 ${
+                  canPlay ? 'bg-black/60 hover:bg-black/80' : 'cursor-not-allowed bg-black/30'
                 }`}
+                aria-label={zh('播放', 'Play')}
+                title={zh('播放', 'Play')}
               >
-                <span
-                  className="flex overflow-hidden transition-[width] duration-150"
-                  style={{ width: favoriteRatingWidth }}
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="h-10 w-10"
                 >
-                  <Rating
-                    name={`jav-favorite-rating-${item?.id || code || 'unknown'}`}
-                    value={favoriteRating}
-                    precision={0.5}
-                    size="small"
-                    icon={<FavoriteRoundedIcon fontSize="inherit" />}
-                    emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
-                    disabled={favoriteRatingSaving || !item?.id}
-                    onChange={handleFavoriteRatingChange}
-                    onClick={(event) => event.stopPropagation()}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onMouseEnter={() => setFavoriteRatingEditing(true)}
-                    onFocus={() => setFavoriteRatingEditing(true)}
-                    onChangeActive={(_, value) =>
-                      setFavoriteRatingPreview(value >= 0.5 ? value : null)
-                    }
-                    sx={{
-                      flexShrink: 0,
-                      color: '#fbbf24',
-                      fontSize: 21,
-                      '& .MuiRating-iconEmpty': {
-                        color: 'rgba(255,255,255,0.85)',
-                      },
-                    }}
-                  />
-                </span>
-                {favoriteRatingEditing && favoriteRating > 0 ? (
-                  <button
-                    type="button"
-                    className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20"
-                    disabled={favoriteRatingSaving || !item?.id}
-                    aria-label={zh('清除喜爱度评分', 'Clear favorite rating')}
-                    onMouseEnter={() => setFavoriteRatingPreview(0)}
-                    onMouseLeave={() => setFavoriteRatingPreview(null)}
-                    onMouseDown={(event) => event.stopPropagation()}
-                    onClick={(event) => handleFavoriteRatingChange(event, 0)}
-                  >
-                    <RemoveCircleOutlineRoundedIcon sx={{ fontSize: 15 }} />
-                  </button>
-                ) : null}
-                {favoriteRating > 0 && !favoriteRatingEditing ? (
-                  <span className="ml-1 shrink-0 text-xs font-semibold tabular-nums leading-none text-white">
-                    {favoriteRating.toFixed(1)}
-                  </span>
-                ) : null}
-              </span>
-            </Tooltip>
-            {onToggleSelect && Number(item?.id) > 0 ? (
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </button>
+            </div>
+            <div
+              className="absolute left-2 top-2 z-10 flex items-center gap-1"
+              onMouseLeave={() => {
+                setFavoriteRatingEditing(false)
+                setFavoriteRatingPreview(null)
+              }}
+              onBlur={(event) => {
+                if (event.currentTarget.contains(event.relatedTarget)) return
+                setFavoriteRatingEditing(false)
+                setFavoriteRatingPreview(null)
+              }}
+            >
               <Tooltip
-                title={checked ? zh('取消选择', 'Deselect') : zh('选择', 'Select')}
+                title={
+                  favoriteRatingError ||
+                  (favoriteRatingPreview === 0
+                    ? zh('清空喜爱度', 'Clear favorite rating')
+                    : hasFavoriteRatingTooltipValue
+                      ? zh(
+                          `喜爱度：${favoriteRatingTooltipValue.toFixed(1)} 分`,
+                          `Favorite rating: ${favoriteRatingTooltipValue.toFixed(1)}`
+                        )
+                      : zh('设置喜爱度评分', 'Set favorite rating'))
+                }
                 placement="top"
                 arrow
               >
-                <button
-                  type="button"
-                  role="checkbox"
-                  aria-checked={checked}
-                  aria-label={zh(`选择 ${code || item.title}`, `Select ${code || item.title}`)}
-                  disabled={selectionDisabled}
-                  onKeyDown={(event) => {
-                    if (event.key === ' ' || event.key === 'Enter') event.stopPropagation()
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onToggleSelect(item)
-                  }}
-                  className={`card-hover-focus-visible flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/65 shadow-lg shadow-black/40 transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60 [@media(hover:none)]:opacity-100 ${
-                    checked
-                      ? 'text-sky-300 opacity-100'
-                      : 'text-white opacity-0 group-hover:opacity-100'
+                <span
+                  role="group"
+                  aria-label={zh('喜爱度评分', 'Favorite rating')}
+                  className={`flex items-center rounded-full bg-black/70 px-1.5 py-0.5 shadow-lg shadow-black/50 transition-opacity ${
+                    favoriteRatingSaving
+                      ? 'opacity-60'
+                      : favoriteRating > 0
+                        ? 'opacity-100'
+                        : 'card-hover-focus-visible opacity-0 group-hover:opacity-100'
                   }`}
                 >
-                  {checked ? (
-                    <CheckBoxRoundedIcon sx={{ fontSize: 18 }} />
-                  ) : (
-                    <CheckBoxOutlineBlankRoundedIcon sx={{ fontSize: 18 }} />
-                  )}
-                </button>
+                  <span
+                    className="flex overflow-hidden transition-[width] duration-150"
+                    style={{ width: favoriteRatingWidth }}
+                  >
+                    <Rating
+                      name={`jav-favorite-rating-${item?.id || code || 'unknown'}`}
+                      value={favoriteRating}
+                      precision={0.5}
+                      size="small"
+                      icon={<FavoriteRoundedIcon fontSize="inherit" />}
+                      emptyIcon={<FavoriteBorderRoundedIcon fontSize="inherit" />}
+                      disabled={favoriteRatingSaving || !item?.id}
+                      onChange={handleFavoriteRatingChange}
+                      onClick={(event) => event.stopPropagation()}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onMouseEnter={() => setFavoriteRatingEditing(true)}
+                      onFocus={() => setFavoriteRatingEditing(true)}
+                      onChangeActive={(_, value) =>
+                        setFavoriteRatingPreview(value >= 0.5 ? value : null)
+                      }
+                      sx={{
+                        flexShrink: 0,
+                        color: '#fbbf24',
+                        fontSize: 21,
+                        '& .MuiRating-iconEmpty': {
+                          color: 'rgba(255,255,255,0.85)',
+                        },
+                      }}
+                    />
+                  </span>
+                  {favoriteRatingEditing && favoriteRating > 0 ? (
+                    <button
+                      type="button"
+                      className="ml-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-white transition hover:bg-white/20"
+                      disabled={favoriteRatingSaving || !item?.id}
+                      aria-label={zh('清除喜爱度评分', 'Clear favorite rating')}
+                      onMouseEnter={() => setFavoriteRatingPreview(0)}
+                      onMouseLeave={() => setFavoriteRatingPreview(null)}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => handleFavoriteRatingChange(event, 0)}
+                    >
+                      <RemoveCircleOutlineRoundedIcon sx={{ fontSize: 15 }} />
+                    </button>
+                  ) : null}
+                  {favoriteRating > 0 && !favoriteRatingEditing ? (
+                    <span className="ml-1 shrink-0 text-xs font-semibold tabular-nums leading-none text-white">
+                      {favoriteRating.toFixed(1)}
+                    </span>
+                  ) : null}
+                </span>
               </Tooltip>
-            ) : null}
-          </div>
-          {externalLinks.length > 0 ? (
-            <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-              {externalLinks.map((site) => (
+              {onToggleSelect && Number(item?.id) > 0 ? (
                 <Tooltip
-                  key={site.key}
-                  title={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
+                  title={checked ? zh('取消选择', 'Deselect') : zh('选择', 'Select')}
                   placement="top"
                   arrow
                 >
-                  <a
-                    href={site.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/70 shadow-lg shadow-black/60 transition hover:bg-black/85"
-                    aria-label={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
-                    onClick={(event) => handleExternalLinkClick(event, site)}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    aria-label={zh(`选择 ${code || item.title}`, `Select ${code || item.title}`)}
+                    disabled={selectionDisabled}
+                    onKeyDown={(event) => {
+                      if (event.key === ' ' || event.key === 'Enter') event.stopPropagation()
+                    }}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onToggleSelect(item)
+                    }}
+                    className={`card-hover-focus-visible flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/65 shadow-lg shadow-black/40 transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60 [@media(hover:none)]:opacity-100 ${
+                      checked
+                        ? 'text-sky-300 opacity-100'
+                        : 'text-white opacity-0 group-hover:opacity-100'
+                    }`}
                   >
-                    <img
-                      src={site.icon}
-                      alt={site.name}
-                      className={`${site.key === 'javmenu' ? 'h-5 w-5' : 'h-4 w-4'} ${site.loading ? 'animate-pulse' : ''}`}
-                      loading="lazy"
-                    />
-                  </a>
+                    {checked ? (
+                      <CheckBoxRoundedIcon sx={{ fontSize: 18 }} />
+                    ) : (
+                      <CheckBoxOutlineBlankRoundedIcon sx={{ fontSize: 18 }} />
+                    )}
+                  </button>
                 </Tooltip>
-              ))}
+              ) : null}
             </div>
-          ) : null}
-          <button
-            type="button"
-            className="card-hover-focus-visible absolute right-12 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100"
-            title={zh('编辑自定义标签', 'Edit custom tags')}
-            aria-label={zh('编辑自定义标签', 'Edit custom tags')}
-            onClick={handleOpenCustomTags}
-          >
-            <LocalOfferOutlinedIcon sx={{ fontSize: 18 }} />
-          </button>
-          <button
-            type="button"
-            className={`card-hover-focus-visible absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
-              favoriteCount > 0
-                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
-                : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
-            }`}
-            title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
-            aria-label={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
-            onClick={handleOpenJavFavorites}
-          >
-            {favoriteCount > 0 ? (
-              <StarRoundedIcon sx={{ fontSize: 18 }} />
-            ) : (
-              <StarBorderRoundedIcon sx={{ fontSize: 18 }} />
-            )}
-          </button>
-          {cover || canOpen ? (
-            <div className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-              {cover ? (
+            {externalLinks.length > 0 ? (
+              <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                {externalLinks.map((site) => (
+                  <Tooltip
+                    key={site.key}
+                    title={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
+                    placement="top"
+                    arrow
+                  >
+                    <a
+                      href={site.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/70 shadow-lg shadow-black/60 transition hover:bg-black/85"
+                      aria-label={zh(`在 ${site.name} 中打开`, `Open in ${site.name}`)}
+                      onClick={(event) => handleExternalLinkClick(event, site)}
+                    >
+                      <img
+                        src={site.icon}
+                        alt={site.name}
+                        className={`${site.key === 'javmenu' ? 'h-5 w-5' : 'h-4 w-4'} ${site.loading ? 'animate-pulse' : ''}`}
+                        loading="lazy"
+                      />
+                    </a>
+                  </Tooltip>
+                ))}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              className="card-hover-focus-visible absolute right-12 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100"
+              title={zh('编辑自定义标签', 'Edit custom tags')}
+              aria-label={zh('编辑自定义标签', 'Edit custom tags')}
+              onClick={handleOpenCustomTags}
+            >
+              <LocalOfferOutlinedIcon sx={{ fontSize: 18 }} />
+            </button>
+            <button
+              type="button"
+              className={`card-hover-focus-visible absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+                favoriteCount > 0
+                  ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+                  : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
+              }`}
+              title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
+              aria-label={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
+              onClick={handleOpenJavFavorites}
+            >
+              {favoriteCount > 0 ? (
+                <StarRoundedIcon sx={{ fontSize: 18 }} />
+              ) : (
+                <StarBorderRoundedIcon sx={{ fontSize: 18 }} />
+              )}
+            </button>
+            {cover || canOpen ? (
+              <div className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                {cover ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenCoverPreview}
+                    title={zh('查看封面', 'View cover')}
+                    aria-label={zh('查看封面', 'View cover')}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+                  >
+                    <SearchIcon className="h-5 w-5 text-white" fontSize="inherit" />
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={handleOpenCoverPreview}
-                  title={zh('查看封面', 'View cover')}
-                  aria-label={zh('查看封面', 'View cover')}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+                  onClick={handleOpenScreenshots}
+                  disabled={!canOpen}
+                  title={zh('查看截图', 'View screenshots')}
+                  aria-label={zh('查看截图', 'View screenshots')}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg shadow-black/60 ${
+                    canOpen ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
+                  }`}
                 >
-                  <SearchIcon className="h-5 w-5 text-white" fontSize="inherit" />
+                  <PhotoLibraryOutlinedIcon className="h-5 w-5 text-white" fontSize="inherit" />
                 </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={handleOpenScreenshots}
-                disabled={!canOpen}
-                title={zh('查看截图', 'View screenshots')}
-                aria-label={zh('查看截图', 'View screenshots')}
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg shadow-black/60 ${
-                  canOpen ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
-                }`}
-              >
-                <PhotoLibraryOutlinedIcon className="h-5 w-5 text-white" fontSize="inherit" />
-              </button>
-            </div>
-          ) : null}
-        </div>
-        <div className="flex flex-1 flex-col gap-2 p-3">
-          <div className="text-sm leading-tight" title={titleText} style={titleClampStyle}>
-            {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
-            {codeText ? ' ' : null}
-            <span className="font-medium text-gray-800">{mainTitle}</span>
+              </div>
+            ) : null}
           </div>
-          <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
-            <span className="inline-flex shrink-0 items-center gap-1">
-              <Tooltip title={zh('发行日期', 'Release date')} arrow>
-                <span className="inline-flex">
-                  <ReleaseIcon />
-                </span>
-              </Tooltip>
-              <span>{releaseText}</span>
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1">
-              <Tooltip title={zh('时长', 'Duration')} arrow>
-                <span className="inline-flex">
-                  <DurationIcon />
-                </span>
-              </Tooltip>
-              <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
-            </span>
-            {studioText ? (
-              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-                <Tooltip title={zh('片商', 'Studio')} arrow>
+          <div className="flex flex-1 flex-col gap-2 p-3">
+            <div className="text-sm leading-tight" title={titleText} style={titleClampStyle}>
+              {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
+              {codeText ? ' ' : null}
+              <span className="font-medium text-gray-800">{mainTitle}</span>
+            </div>
+            <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Tooltip title={zh('发行日期', 'Release date')} arrow>
                   <span className="inline-flex">
-                    <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
+                    <ReleaseIcon />
+                  </span>
+                </Tooltip>
+                <span>{releaseText}</span>
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Tooltip title={zh('时长', 'Duration')} arrow>
+                  <span className="inline-flex">
+                    <DurationIcon />
+                  </span>
+                </Tooltip>
+                <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
+              </span>
+              {studioText ? (
+                <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+                  <Tooltip title={zh('片商', 'Studio')} arrow>
+                    <span className="inline-flex">
+                      <VideocamOutlinedIcon
+                        sx={{ fontSize: 16 }}
+                        className="shrink-0 text-sky-600"
+                      />
+                    </span>
+                  </Tooltip>
+                  <a
+                    href={buildStudioFilterHref(item.studio)}
+                    className={`block min-w-0 truncate text-left ${
+                      canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                    }`}
+                    onClick={(event) =>
+                      handleFilterLinkClick(event, () => {
+                        if (canFilterStudio) onStudioClick(item.studio)
+                      })
+                    }
+                    onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
+                    onMouseLeave={scheduleHoverClose}
+                  >
+                    {studioText}
+                  </a>
+                </span>
+              ) : null}
+            </div>
+            {!hideSeries && seriesText ? (
+              <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">
+                <Tooltip title={zh('系列', 'Series')} arrow>
+                  <span className="inline-flex">
+                    <CollectionsBookmarkOutlinedIcon
+                      sx={{ fontSize: 14 }}
+                      className="shrink-0 text-emerald-600"
+                    />
                   </span>
                 </Tooltip>
                 <a
-                  href={buildStudioFilterHref(item.studio)}
-                  className={`block min-w-0 truncate text-left ${
-                    canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                  href={buildSeriesFilterHref(preferredSeries)}
+                  className={`min-w-0 whitespace-normal break-words text-left leading-snug ${
+                    canFilterSeries ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
                   }`}
                   onClick={(event) =>
                     handleFilterLinkClick(event, () => {
-                      if (canFilterStudio) onStudioClick(item.studio)
+                      if (canFilterSeries) onSeriesClick(preferredSeries)
                     })
                   }
-                  onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
+                  onMouseEnter={(event) => handleSeriesHoverStart(preferredSeries, event)}
                   onMouseLeave={scheduleHoverClose}
                 >
-                  {studioText}
+                  {seriesText}
                 </a>
-              </span>
+              </div>
             ) : null}
-          </div>
-          {!hideSeries && seriesText ? (
-            <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">
-              <Tooltip title={zh('系列', 'Series')} arrow>
-                <span className="inline-flex">
-                  <CollectionsBookmarkOutlinedIcon
-                    sx={{ fontSize: 14 }}
-                    className="shrink-0 text-emerald-600"
-                  />
-                </span>
-              </Tooltip>
-              <a
-                href={buildSeriesFilterHref(preferredSeries)}
-                className={`min-w-0 whitespace-normal break-words text-left leading-snug ${
-                  canFilterSeries ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
-                }`}
-                onClick={(event) =>
-                  handleFilterLinkClick(event, () => {
-                    if (canFilterSeries) onSeriesClick(preferredSeries)
-                  })
-                }
-                onMouseEnter={(event) => handleSeriesHoverStart(preferredSeries, event)}
+            <Popper
+              open={Boolean(previewStudio && studioHoverAnchorEl)}
+              anchorEl={studioHoverAnchorEl}
+              placement="right-start"
+              className="z-[1400]"
+              modifiers={[
+                {
+                  name: 'offset',
+                  options: {
+                    offset: [10, 0],
+                  },
+                },
+              ]}
+            >
+              <div
+                className="w-[320px]"
+                onMouseEnter={clearHoverCloseTimer}
                 onMouseLeave={scheduleHoverClose}
               >
-                {seriesText}
-              </a>
-            </div>
-          ) : null}
-          <Popper
-            open={Boolean(previewStudio && studioHoverAnchorEl)}
-            anchorEl={studioHoverAnchorEl}
-            placement="right-start"
-            className="z-[1400]"
-            modifiers={[
-              {
-                name: 'offset',
-                options: {
-                  offset: [10, 0],
-                },
-              },
-            ]}
-          >
-            <div
-              className="w-[320px]"
-              onMouseEnter={clearHoverCloseTimer}
-              onMouseLeave={scheduleHoverClose}
-            >
-              {previewStudio ? (
-                <StudioCard
-                  item={previewStudio}
-                  href={buildStudioFilterHref(previewStudio)}
-                  onSelectStudio={(studio) => onStudioClick?.(studio)}
-                  onSelectSeries={(series) => onSeriesClick?.(series)}
-                  onSelectPrefix={(prefix) => onPrefixClick?.(prefix)}
-                  onOpenFavorites={onOpenStudioFavorites}
-                  buildSeriesUrl={buildSeriesFilterHref}
-                  onOpenSeriesFavorites={onOpenSeriesFavorites}
-                  onSeriesListOpenChange={handleStudioSeriesListOpenChange}
-                />
-              ) : null}
-            </div>
-          </Popper>
-          <Popper
-            open={Boolean(previewSeries && seriesHoverAnchorEl)}
-            anchorEl={seriesHoverAnchorEl}
-            placement="right-start"
-            className="z-[1400]"
-            modifiers={[
-              {
-                name: 'offset',
-                options: {
-                  offset: [10, 0],
-                },
-              },
-            ]}
-          >
-            <div
-              className="w-[260px]"
-              onMouseEnter={clearHoverCloseTimer}
-              onMouseLeave={scheduleHoverClose}
-            >
-              {previewSeries ? (
-                <SeriesCard
-                  item={previewSeries}
-                  href={buildSeriesFilterHref(previewSeries)}
-                  onSelectSeries={(series) => onSeriesClick?.(series)}
-                  onSelectStudio={(studio) => onStudioClick?.(studio)}
-                  onOpenFavorites={onOpenSeriesFavorites}
-                />
-              ) : null}
-            </div>
-          </Popper>
-          {!hideIdols && Array.isArray(item?.idols) && item.idols.length > 0 && (
-            <>
-              <IdolTagList
-                idols={item.idols}
-                maxRows={idolTagMaxRows}
-                preferChineseName={preferChineseName}
-                buildIdolFilterHref={buildIdolFilterHref}
-                onIdolClick={onIdolClick}
-                onFilterLinkClick={handleFilterLinkClick}
-                onIdolHoverStart={handleIdolHoverStart}
-                onIdolHoverEnd={scheduleHoverClose}
-              />
-              <Popper
-                open={Boolean(previewIdol && idolHoverAnchorEl)}
-                anchorEl={idolHoverAnchorEl}
-                placement="right-start"
-                className="z-[1400]"
-                modifiers={[
-                  {
-                    name: 'offset',
-                    options: {
-                      offset: [10, 0],
-                    },
-                  },
-                ]}
-              >
-                <div
-                  className="w-[220px]"
-                  onMouseEnter={clearHoverCloseTimer}
-                  onMouseLeave={scheduleHoverClose}
-                >
-                  {previewIdol ? (
-                    <IdolCard
-                      item={previewIdol}
-                      onSelectIdol={(idol) => onIdolClick?.(idol)}
-                      onOpenFavorites={onOpenFavorites}
-                      onOpenCoverEditor={handleOpenIdolCoverEditor}
-                      onOpenEditor={handleOpenIdolEditor}
-                      href={buildIdolFilterHref(previewIdol)}
-                      coverAspectPercent={coverAspectPercent}
-                      showWorkCount={showIdolWorkCount}
-                      preferChineseName={preferChineseName}
-                    />
-                  ) : null}
-                </div>
-              </Popper>
-              <JavIdolCoverModal
-                key={`idol-cover-${idolCoverEditorItem?.id || 'closed'}`}
-                open={Boolean(idolCoverEditorItem)}
-                item={idolCoverEditorItem}
-                preferChineseName={preferChineseName}
-                onClose={() => setIdolCoverEditorItem(null)}
-                onSaved={handleIdolCoverSaved}
-              />
-              <JavIdolEditModal
-                key={`idol-editor-${idolEditorItem?.id || 'closed'}`}
-                open={Boolean(idolEditorItem)}
-                item={idolEditorItem}
-                preferChineseName={preferChineseName}
-                onClose={() => setIdolEditorItem(null)}
-                onSaved={handleIdolSaved}
-                onMerged={() => {
-                  setIdolEditorItem(null)
-                  setPreviewIdol(null)
-                }}
-              />
-            </>
-          )}
-          {!hideTags && tags.length > 0 && (
-            <JavTagList
-              tags={tags}
-              maxRows={tagMaxRows}
-              buildTagFilterHref={buildTagFilterHref}
-              onTagClick={onTagClick}
-              onFilterLinkClick={handleFilterLinkClick}
-            />
-          )}
-          {!hideActions ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenFile}
-                    disabled={!canOpen}
-                    aria-label={openFileLabel || zh('打开文件', 'Open file')}
-                    className="h-6 w-6"
-                  >
-                    <PlayArrowIcon fontSize="inherit" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenEditor}
-                    aria-label={zh('编辑 JAV', 'Edit JAV')}
-                    className="h-6 w-6"
-                  >
-                    <MovieEdit fontSize="inherit" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title={zh('视频管理', 'Manage videos')}>
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenVideoManager}
-                    disabled={!Array.isArray(item?.videos) || item.videos.length === 0}
-                    aria-label={zh('视频管理', 'Manage videos')}
-                    className="h-6 w-6"
-                  >
-                    <VideoLibraryOutlinedIcon fontSize="inherit" />
-                  </IconButton>
-                </Tooltip>
+                {previewStudio ? (
+                  <StudioCard
+                    item={previewStudio}
+                    href={buildStudioFilterHref(previewStudio)}
+                    onSelectStudio={(studio) => onStudioClick?.(studio)}
+                    onSelectSeries={(series) => onSeriesClick?.(series)}
+                    onSelectPrefix={(prefix) => onPrefixClick?.(prefix)}
+                    onOpenFavorites={onOpenStudioFavorites}
+                    buildSeriesUrl={buildSeriesFilterHref}
+                    onOpenSeriesFavorites={onOpenSeriesFavorites}
+                  />
+                ) : null}
               </div>
-              {Array.isArray(item?.videos) && item.videos.length > 1 && (
-                <span className="text-xs text-gray-500">
-                  {zh(`${item.videos.length} 个视频`, `${item.videos.length} video files`)}
-                </span>
-              )}
-            </div>
-          ) : null}
+            </Popper>
+            <Popper
+              open={Boolean(previewSeries && seriesHoverAnchorEl)}
+              anchorEl={seriesHoverAnchorEl}
+              placement="right-start"
+              className="z-[1400]"
+              modifiers={[
+                {
+                  name: 'offset',
+                  options: {
+                    offset: [10, 0],
+                  },
+                },
+              ]}
+            >
+              <div
+                className="w-[260px]"
+                onMouseEnter={clearHoverCloseTimer}
+                onMouseLeave={scheduleHoverClose}
+              >
+                {previewSeries ? (
+                  <SeriesCard
+                    item={previewSeries}
+                    href={buildSeriesFilterHref(previewSeries)}
+                    onSelectSeries={(series) => onSeriesClick?.(series)}
+                    onSelectStudio={(studio) => onStudioClick?.(studio)}
+                    onOpenFavorites={onOpenSeriesFavorites}
+                  />
+                ) : null}
+              </div>
+            </Popper>
+            {!hideIdols && Array.isArray(item?.idols) && item.idols.length > 0 && (
+              <>
+                <IdolTagList
+                  idols={item.idols}
+                  maxRows={idolTagMaxRows}
+                  preferChineseName={preferChineseName}
+                  buildIdolFilterHref={buildIdolFilterHref}
+                  onIdolClick={onIdolClick}
+                  onFilterLinkClick={handleFilterLinkClick}
+                  onIdolHoverStart={handleIdolHoverStart}
+                  onIdolHoverEnd={scheduleHoverClose}
+                />
+                <Popper
+                  open={Boolean(previewIdol && idolHoverAnchorEl)}
+                  anchorEl={idolHoverAnchorEl}
+                  placement="right-start"
+                  className="z-[1400]"
+                  modifiers={[
+                    {
+                      name: 'offset',
+                      options: {
+                        offset: [10, 0],
+                      },
+                    },
+                  ]}
+                >
+                  <div
+                    className="w-[220px]"
+                    onMouseEnter={clearHoverCloseTimer}
+                    onMouseLeave={scheduleHoverClose}
+                  >
+                    {previewIdol ? (
+                      <IdolCard
+                        item={previewIdol}
+                        onSelectIdol={(idol) => onIdolClick?.(idol)}
+                        onOpenFavorites={onOpenFavorites}
+                        onOpenCoverEditor={handleOpenIdolCoverEditor}
+                        onOpenEditor={handleOpenIdolEditor}
+                        href={buildIdolFilterHref(previewIdol)}
+                        coverAspectPercent={coverAspectPercent}
+                        showWorkCount={showIdolWorkCount}
+                        preferChineseName={preferChineseName}
+                      />
+                    ) : null}
+                  </div>
+                </Popper>
+              </>
+            )}
+            {!hideTags && tags.length > 0 && (
+              <JavTagList
+                tags={tags}
+                maxRows={tagMaxRows}
+                buildTagFilterHref={buildTagFilterHref}
+                onTagClick={onTagClick}
+                onFilterLinkClick={handleFilterLinkClick}
+              />
+            )}
+            {!hideActions ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
+                    <IconButton
+                      size="small"
+                      onClick={handleOpenFile}
+                      disabled={!canOpen}
+                      aria-label={openFileLabel || zh('打开文件', 'Open file')}
+                      className="h-6 w-6"
+                    >
+                      <PlayArrowIcon fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
+                    <IconButton
+                      size="small"
+                      onClick={handleOpenEditor}
+                      aria-label={zh('编辑 JAV', 'Edit JAV')}
+                      className="h-6 w-6"
+                    >
+                      <MovieEdit fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={zh('视频管理', 'Manage videos')}>
+                    <IconButton
+                      size="small"
+                      onClick={handleOpenVideoManager}
+                      disabled={!Array.isArray(item?.videos) || item.videos.length === 0}
+                      aria-label={zh('视频管理', 'Manage videos')}
+                      className="h-6 w-6"
+                    >
+                      <VideoLibraryOutlinedIcon fontSize="inherit" />
+                    </IconButton>
+                  </Tooltip>
+                </div>
+                {Array.isArray(item?.videos) && item.videos.length > 1 && (
+                  <span className="text-xs text-gray-500">
+                    {zh(`${item.videos.length} 个视频`, `${item.videos.length} video files`)}
+                  </span>
+                )}
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
+      ) : null}
+      <JavIdolCoverModal
+        key={`idol-cover-${idolCoverEditorItem?.id || 'closed'}`}
+        open={Boolean(idolCoverEditorItem)}
+        item={idolCoverEditorItem}
+        preferChineseName={preferChineseName}
+        onClose={() => setIdolCoverEditorItem(null)}
+        onSaved={handleIdolCoverSaved}
+      />
+      <JavIdolEditModal
+        key={`idol-editor-${idolEditorItem?.id || 'closed'}`}
+        open={Boolean(idolEditorItem)}
+        item={idolEditorItem}
+        preferChineseName={preferChineseName}
+        onClose={() => setIdolEditorItem(null)}
+        onSaved={handleIdolSaved}
+        onMerged={() => {
+          setIdolEditorItem(null)
+          setPreviewIdol(null)
+        }}
+      />
       <JavEditModal
         open={editorOpen}
         item={item}
@@ -3286,7 +3272,7 @@ function JavCard({
         onClose={() => setCustomTagEditorOpen(false)}
         onSaved={handleCustomTagsSaved}
       />
-      {detailOpen ? (
+      {detailView ? (
         <JavDetailModal
           item={item}
           cover={cover}
@@ -3299,7 +3285,9 @@ function JavCard({
           externalLinks={externalLinks}
           preferChineseName={preferChineseName}
           canPlay={canPlay}
-          onClose={() => setDetailOpen(false)}
+          onClose={detailView.onClose}
+          initialScrollTop={detailView.scrollTop}
+          onScrollChange={detailView.onScrollChange}
           onPlay={handlePlay}
           onOpenFavorites={() => onOpenJavFavorites?.(item)}
           onEdit={() => setEditorOpen(true)}
@@ -3311,6 +3299,7 @@ function JavCard({
           onSelectSeries={onSeriesClick}
           onSelectIdol={onIdolClick}
           onSelectPrefix={onPrefixClick}
+          onSelectTag={onTagClick}
           loadIdolPreview={loadIdolPreview}
           loadStudioPreview={loadStudioPreview}
           loadSeriesPreview={loadSeriesPreview}

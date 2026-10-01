@@ -1,6 +1,19 @@
+import {
+  JAV_DETAIL_HISTORY_KEY,
+  getJavDetailId,
+  withJavDetail,
+  normalizeJavDetailState,
+} from '@/utils/javDetailHistory'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useNavigationType } from 'react-router-dom'
 import { buildUrlFromState, parseUrlState } from '@/utils/urlState'
+import {
+  STUDIO_DETAIL_HISTORY_KEY,
+  getStudioDetailId,
+  withStudioDetail,
+  normalizeStudioDetailState,
+  canReturnToStudioBackground,
+} from '@/utils/studioDetailHistory'
 
 const HISTORY_INDEX_KEY = '__javbossHistoryIndex'
 const HISTORY_SCROLL_KEY = '__javbossScroll'
@@ -52,6 +65,18 @@ export default function useUrlStateSync({
     () => `${location.pathname}${location.search}`,
     [location.pathname, location.search]
   )
+  const pageRoute = useMemo(
+    () => withJavDetail(withStudioDetail(currentRoute, null), null),
+    [currentRoute]
+  )
+  const javDetailId = getJavDetailId(location.search)
+  const javDetailCacheRef = useRef(new Map())
+  const studioBackgroundRoute = withStudioDetail(currentRoute, null)
+  const studioDetailId = getStudioDetailId(location.search)
+  const studioDetailCacheRef = useRef(new Map())
+  const lastAppliedPageRouteRef = useRef(null)
+  const leaveDetailRef = useRef(false)
+  const [detailNavigationRequest, setDetailNavigationRequest] = useState(0)
   const isPoppingRef = useRef(false)
   const lastUrlRef = useRef(currentRoute)
   const routeInitializedRef = useRef(false)
@@ -136,6 +161,147 @@ export default function useUrlStateSync({
     saveCurrentScrollPosition()
     window.history.forward()
   }, [saveCurrentScrollPosition])
+
+  const cacheStudioDetail = useCallback((item) => {
+    const id = Number(item?.id)
+    if (Number.isSafeInteger(id) && id > 0) studioDetailCacheRef.current.set(id, item)
+  }, [])
+
+  const openStudioDetail = useCallback(
+    (item) => {
+      const id = Number(item?.id)
+      if (!Number.isSafeInteger(id) || id <= 0 || id === studioDetailId) return
+      cacheStudioDetail(item)
+      saveCurrentScrollPosition()
+      const nextIndex = browserHistoryIndexRef.current + 1
+      navigate(withStudioDetail(studioBackgroundRoute, id), {
+        state: {
+          ...getHistoryUserState(window.history.state),
+          [HISTORY_INDEX_KEY]: nextIndex,
+          [HISTORY_SCROLL_KEY]: readWindowScrollPosition(),
+          [STUDIO_DETAIL_HISTORY_KEY]: {
+            id,
+            backgroundRoute: studioBackgroundRoute,
+            ...normalizeStudioDetailState(),
+          },
+        },
+      })
+      setBrowserNavigationFromIndex(nextIndex, nextIndex)
+    },
+    [
+      cacheStudioDetail,
+      navigate,
+      studioBackgroundRoute,
+      saveCurrentScrollPosition,
+      setBrowserNavigationFromIndex,
+      studioDetailId,
+    ]
+  )
+
+  const closeStudioDetail = useCallback(() => {
+    const historyState = window.history.state
+    const detailState = getHistoryAppStateValue(historyState, STUDIO_DETAIL_HISTORY_KEY)
+    if (canReturnToStudioBackground(detailState, studioDetailId, studioBackgroundRoute)) {
+      handleBrowserBack()
+      return
+    }
+    // A direct link has no background entry to return to.
+    navigate(studioBackgroundRoute, {
+      replace: true,
+      state: { ...getHistoryUserState(historyState), [STUDIO_DETAIL_HISTORY_KEY]: null },
+    })
+  }, [handleBrowserBack, navigate, studioBackgroundRoute, studioDetailId])
+
+  const saveStudioDetailState = useCallback(
+    (changes) => {
+      if (!studioDetailId) return
+      const currentState = window.history.state || {}
+      const detailState = getHistoryAppStateValue(currentState, STUDIO_DETAIL_HISTORY_KEY)
+      window.history.replaceState(
+        withHistoryAppState(currentState, {
+          [STUDIO_DETAIL_HISTORY_KEY]: { ...detailState, id: studioDetailId, ...changes },
+        }),
+        '',
+        currentRoute
+      )
+    },
+    [currentRoute, studioDetailId]
+  )
+
+  const cacheJavDetail = useCallback((item) => {
+    const id = Number(item?.id)
+    if (Number.isSafeInteger(id) && id > 0) javDetailCacheRef.current.set(id, item)
+  }, [])
+
+  const openJavDetail = useCallback(
+    (item) => {
+      const id = Number(item?.id)
+      if (!Number.isSafeInteger(id) || id <= 0 || id === javDetailId) return
+      cacheJavDetail(item)
+      saveCurrentScrollPosition()
+      const nextIndex = browserHistoryIndexRef.current + 1
+      navigate(withJavDetail(pageRoute, id), {
+        state: {
+          [HISTORY_INDEX_KEY]: nextIndex,
+          [HISTORY_SCROLL_KEY]: readWindowScrollPosition(),
+          [JAV_DETAIL_HISTORY_KEY]: {
+            id,
+            backgroundRoute: pageRoute,
+            ...normalizeJavDetailState(),
+          },
+        },
+      })
+      setBrowserNavigationFromIndex(nextIndex, nextIndex)
+    },
+    [
+      cacheJavDetail,
+      javDetailId,
+      navigate,
+      pageRoute,
+      saveCurrentScrollPosition,
+      setBrowserNavigationFromIndex,
+    ]
+  )
+
+  const closeJavDetail = useCallback(() => {
+    const historyState = window.history.state
+    const detailState = getHistoryAppStateValue(historyState, JAV_DETAIL_HISTORY_KEY)
+    if (detailState?.id === javDetailId && detailState?.backgroundRoute === pageRoute) {
+      handleBrowserBack()
+      return
+    }
+    navigate(pageRoute, {
+      replace: true,
+      state: { ...getHistoryUserState(historyState), [JAV_DETAIL_HISTORY_KEY]: null },
+    })
+  }, [handleBrowserBack, javDetailId, navigate, pageRoute])
+
+  const saveJavDetailState = useCallback(
+    (changes) => {
+      if (!javDetailId) return
+      const currentState = window.history.state || {}
+      const detailState = getHistoryAppStateValue(currentState, JAV_DETAIL_HISTORY_KEY)
+      window.history.replaceState(
+        withHistoryAppState(currentState, {
+          [JAV_DETAIL_HISTORY_KEY]: { ...detailState, id: javDetailId, ...changes },
+        }),
+        '',
+        currentRoute
+      )
+    },
+    [currentRoute, javDetailId]
+  )
+
+  const navigateFromStudioDetail = useCallback(
+    (action) => {
+      saveCurrentScrollPosition()
+      leaveDetailRef.current = true
+      action()
+      // Also push a result entry when its filters match the underlying page.
+      setDetailNavigationRequest((request) => request + 1)
+    },
+    [saveCurrentScrollPosition]
+  )
 
   useEffect(() => {
     if (!('scrollRestoration' in window.history)) return undefined
@@ -247,9 +413,13 @@ export default function useUrlStateSync({
       cancelScheduledScrollRestore()
       setBrowserNavigationFromIndex(index, max)
     }
-    const parsed = parseUrlState(location.search, { defaultView: initialViewMode })
-    onParsedView?.(parsed.view)
-    applyUrlState(parsed, { fromPopstate: fromRouterPop, route: currentRoute })
+    // Opening or closing a detail must not reload the underlying list.
+    if (lastAppliedPageRouteRef.current !== pageRoute) {
+      const parsed = parseUrlState(location.search, { defaultView: initialViewMode })
+      onParsedView?.(parsed.view)
+      applyUrlState(parsed, { fromPopstate: fromRouterPop, route: currentRoute })
+      lastAppliedPageRouteRef.current = pageRoute
+    }
     routeInitializedRef.current = true
   }, [
     applyUrlState,
@@ -262,6 +432,7 @@ export default function useUrlStateSync({
     location.state,
     navigationType,
     onParsedView,
+    pageRoute,
     readBrowserHistoryIndex,
     setBrowserNavigationFromIndex,
   ])
@@ -270,7 +441,14 @@ export default function useUrlStateSync({
     if (!hydrated) return
     const nextUrl = buildUrlFromState(currentUrlState, location.pathname)
     const currentUrl = currentRoute
-    if (nextUrl === currentUrl) {
+    const canonicalPageRoute = buildUrlFromState(
+      parseUrlState(location.search, { defaultView: initialViewMode }),
+      location.pathname
+    )
+    if (
+      !leaveDetailRef.current &&
+      (nextUrl === pageRoute || ((studioDetailId || javDetailId) && nextUrl === canonicalPageRoute))
+    ) {
       preNavigationScrollSaveUrlRef.current = null
       lastUrlRef.current = nextUrl
       isPoppingRef.current = false
@@ -282,6 +460,7 @@ export default function useUrlStateSync({
       isPoppingRef.current = false
       return
     }
+    leaveDetailRef.current = false
     pendingScrollRestoreRef.current = null
     cancelScheduledScrollRestore()
     if (preNavigationScrollSaveUrlRef.current === currentUrl) {
@@ -303,14 +482,41 @@ export default function useUrlStateSync({
     cancelScheduledScrollRestore,
     currentRoute,
     currentUrlState,
+    detailNavigationRequest,
     hydrated,
+    initialViewMode,
     location.pathname,
+    location.search,
+    pageRoute,
+    studioDetailId,
+    javDetailId,
     navigate,
     saveCurrentScrollPosition,
     setBrowserNavigationFromIndex,
   ])
 
   return {
+    javDetailId,
+    javDetailItem: javDetailCacheRef.current.get(javDetailId) || null,
+    javDetailState: normalizeJavDetailState(
+      getHistoryAppStateValue(window.history.state, JAV_DETAIL_HISTORY_KEY)
+    ),
+    cacheJavDetail,
+    openJavDetail,
+    closeJavDetail,
+    saveJavDetailState,
+    navigateFromJavDetail: navigateFromStudioDetail,
+    studioDetailId,
+    studioDetailKey: location.key,
+    studioDetailItem: studioDetailCacheRef.current.get(studioDetailId) || null,
+    cacheStudioDetail,
+    studioDetailState: normalizeStudioDetailState(
+      getHistoryAppStateValue(window.history.state, STUDIO_DETAIL_HISTORY_KEY)
+    ),
+    openStudioDetail,
+    closeStudioDetail,
+    saveStudioDetailState,
+    navigateFromStudioDetail,
     browserNavigation,
     currentRoute,
     handleBrowserBack,

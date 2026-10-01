@@ -218,6 +218,26 @@ func redirectJavAvsox(c *gin.Context) {
 	c.Redirect(http.StatusFound, detailURL)
 }
 
+// getJavItem returns the detail used by reloads and direct detail links.
+func getJavItem(c *gin.Context) {
+	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "JAV 作品 ID 无效", "Invalid JAV item ID")
+		return
+	}
+	item, err := dbpkg.GetJav(c.Request.Context(), id, nil)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			respondLocalizedError(c, http.StatusNotFound, "JAV 作品不存在", "JAV item was not found")
+			return
+		}
+		logging.Error("get JAV item id=%d: %v", id, err)
+		respondLocalizedError(c, http.StatusInternalServerError, "加载 JAV 详情失败", "Failed to load JAV details")
+		return
+	}
+	c.JSON(http.StatusOK, item)
+}
+
 func resolveJavSampleImages(c *gin.Context) {
 	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
 	if err != nil || id <= 0 {

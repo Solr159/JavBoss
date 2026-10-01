@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
@@ -472,6 +472,9 @@ export default function JavDetailModal({
   onSelectSeries,
   onSelectIdol,
   onSelectPrefix,
+  onSelectTag,
+  initialScrollTop = 0,
+  onScrollChange,
   loadIdolPreview,
   loadStudioPreview,
   loadSeriesPreview,
@@ -497,6 +500,23 @@ export default function JavDetailModal({
   onVideoDelete,
   onVideoTagClick,
 }) {
+  const initialScrollRef = useRef(initialScrollTop)
+  const restoreScroll = useCallback((node) => {
+    if (node) node.scrollTop = initialScrollRef.current
+  }, [])
+  const handleFilterClick = (event, action, value) => {
+    if (
+      !action ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    )
+      return
+    event.preventDefault()
+    action(value)
+  }
   const titleId = `jav-detail-title-${item?.id || 'item'}`
   const itemId = item?.id
   const itemSampleImages = item?.sample_images
@@ -514,7 +534,6 @@ export default function JavDetailModal({
   const [sampleImagesError, setSampleImagesError] = useState('')
   const hoverCloseTimerRef = useRef(null)
   const activeHoverKeyRef = useRef('')
-  const hoverPreviewLockedRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -567,13 +586,11 @@ export default function JavDetailModal({
 
   const closeHoverPreview = () => {
     activeHoverKeyRef.current = ''
-    hoverPreviewLockedRef.current = false
     setHoverPreview(null)
   }
 
   const scheduleHoverClose = () => {
     clearHoverCloseTimer()
-    if (hoverPreviewLockedRef.current) return
     hoverCloseTimerRef.current = window.setTimeout(() => {
       closeHoverPreview()
       hoverCloseTimerRef.current = null
@@ -604,12 +621,6 @@ export default function JavDetailModal({
       })
   }
 
-  const handleStudioSeriesListOpenChange = (open) => {
-    clearHoverCloseTimer()
-    hoverPreviewLockedRef.current = Boolean(open)
-    if (!open) scheduleHoverClose()
-  }
-
   const detailRows = [
     {
       label: zh('识别码', 'Code'),
@@ -635,6 +646,7 @@ export default function JavDetailModal({
       content: studioName ? (
         <a
           href={buildStudioUrl?.(studio) || '#'}
+          onClick={(event) => handleFilterClick(event, onSelectStudio, studio)}
           className="text-left font-medium text-blue-700 hover:underline"
           onMouseEnter={(event) => handleHoverStart('studio', studio, event)}
           onMouseLeave={scheduleHoverClose}
@@ -650,6 +662,7 @@ export default function JavDetailModal({
       content: seriesName ? (
         <a
           href={buildSeriesUrl?.(series) || '#'}
+          onClick={(event) => handleFilterClick(event, onSelectSeries, series)}
           className="text-left font-medium text-blue-700 hover:underline"
           onMouseEnter={(event) => handleHoverStart('series', series, event)}
           onMouseLeave={scheduleHoverClose}
@@ -688,7 +701,11 @@ export default function JavDetailModal({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+      <div
+        ref={restoreScroll}
+        onScroll={(event) => onScrollChange?.(event.currentTarget.scrollTop)}
+        className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6"
+      >
         <div className="grid items-stretch gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(19rem,2fr)]">
           <div className="group relative aspect-[800/538] w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50 shadow-sm">
             {cover ? (
@@ -739,6 +756,7 @@ export default function JavDetailModal({
                     <a
                       key={idol?.id || idol?.name}
                       href={buildIdolUrl?.(idol) || '#'}
+                      onClick={(event) => handleFilterClick(event, onSelectIdol, idol)}
                       className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 transition hover:border-purple-300 hover:bg-purple-100"
                       onMouseEnter={(event) => handleHoverStart('idol', idol, event)}
                       onMouseLeave={scheduleHoverClose}
@@ -760,6 +778,7 @@ export default function JavDetailModal({
                       <a
                         key={`${tag?.id || tag?.name}-${tag?.provider || 0}`}
                         href={buildTagUrl?.(tag) || '#'}
+                        onClick={(event) => handleFilterClick(event, onSelectTag, tag)}
                         className={`rounded px-2.5 py-1 text-xs font-medium transition ${
                           isUser
                             ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
@@ -942,8 +961,7 @@ export default function JavDetailModal({
               onOpenFavorites={onOpenStudioFavorites}
               buildSeriesUrl={buildSeriesUrl}
               onOpenSeriesFavorites={onOpenSeriesFavorites}
-              onSeriesListOpenChange={handleStudioSeriesListOpenChange}
-              seriesListModalZIndex={1600}
+              previewZIndex={1599}
             />
           ) : null}
           {hoverPreview?.type === 'series' ? (
