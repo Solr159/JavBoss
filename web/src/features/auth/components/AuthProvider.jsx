@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { authExpiredEvent } from '@/api/client'
 import {
@@ -8,10 +8,9 @@ import {
   logoutSession,
 } from '@/features/auth/api'
 import LoginPage from '@/features/auth/components/LoginPage'
+import { AuthContext } from '@/features/auth/context'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
-
-const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [checking, setChecking] = useState(true)
@@ -75,10 +74,4 @@ export function AuthProvider({ children }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) throw new Error('useAuth must be used within AuthProvider')
-  return context
 }

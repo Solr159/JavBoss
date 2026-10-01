@@ -1,8 +1,8 @@
+import { useCloseOnOutsidePointer } from '@/shared/hooks/useCloseOnOutsidePointer'
 import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
 import { useState, useRef, useMemo, useEffect } from 'react'
 import {
-  useCloseOnOutsidePointer,
   mergeOptionsById,
   includeSelectedOptions,
   filterOptionsByName,

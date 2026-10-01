@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { zh } from '@/utils/i18n'
-import usePlaybackCapabilities from '@/features/playback/usePlaybackCapabilities'
+import usePlaybackCapabilities from '@/features/playback/hooks/usePlaybackCapabilities'
 import { canOpenAlternatePlayer } from '@/utils/playbackCapabilities'
 import {
   openVideoFile,

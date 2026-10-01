@@ -1,4 +1,4 @@
-import useJavFavoriteCount from '@/hooks/useJavFavoriteCount'
+import useJavFavoriteCount from '@/features/favorites/hooks/useJavFavoriteCount'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchJavItem } from '@/features/jav/api'
 import AppModal from '@/shared/ui/AppModal'

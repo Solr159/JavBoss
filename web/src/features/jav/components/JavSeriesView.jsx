@@ -5,7 +5,7 @@ import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 
 import Pagination from '@/shared/ui/Pagination'
 import WaterfallLoader from '@/shared/ui/WaterfallLoader'
-import useJavFavoriteCount from '@/hooks/useJavFavoriteCount'
+import useJavFavoriteCount from '@/features/favorites/hooks/useJavFavoriteCount'
 import { zh } from '@/utils/i18n'
 import { openJavDBWithAssist } from '@/utils/javdb'
 

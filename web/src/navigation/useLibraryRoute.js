@@ -4,7 +4,7 @@ import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
 import { normalizeInitialViewMode } from '@/utils/config'
 import { normalizeIdolProfileFilters, createDefaultIdolProfileFilters } from '@/constants/jav'
 import { normalizeUrlStateFromStore } from '@/utils/urlState'
-import useUrlStateSync from '@/hooks/useUrlStateSync'
+import useUrlStateSync from '@/navigation/useUrlStateSync'
 import { buildVideoQueryLink, buildJavQueryLink } from '@/navigation/queryLinks'
 
 export default function useLibraryRoute({ setJavSearchInput, setSearchInput, configLoaded }) {

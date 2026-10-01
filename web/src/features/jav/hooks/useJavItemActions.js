@@ -1,6 +1,6 @@
 import { useMemo, useState, useContext, useEffect, useRef } from 'react'
 import { getIdolCardLayoutProps } from '@/features/jav/components/JavIdolGrid'
-import { JavDetailNavigationContext } from '@/hooks/javDetailNavigation'
+import { JavDetailNavigationContext } from '@/navigation/javDetailNavigation'
 import { zh } from '@/utils/i18n'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { normalizeJavTitleMaxRows } from '@/features/jav/presentation'

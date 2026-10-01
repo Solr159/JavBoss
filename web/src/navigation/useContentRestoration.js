@@ -1,6 +1,6 @@
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
-import useScrollRestoration from '@/hooks/useScrollRestoration'
+import useScrollRestoration from '@/navigation/useScrollRestoration'
 
 export default function useContentRestoration({
   isJavMode,

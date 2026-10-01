@@ -1,7 +1,8 @@
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { getJavTagDisplayName } from '@/utils/javTag'
 import { zh } from '@/utils/i18n'
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
+import { useCloseOnOutsidePointer } from '@/shared/hooks/useCloseOnOutsidePointer'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 
 export function formatDateInputFromUnix(value) {
@@ -120,20 +121,6 @@ export function optionById(options, id) {
 export function optionsByIds(options, ids) {
   const lookup = new Map((options || []).map((option) => [String(option?.id), option]))
   return (ids || []).map((id) => lookup.get(String(id))).filter(Boolean)
-}
-
-export function useCloseOnOutsidePointer(open, rootRef, onOpenChange) {
-  useEffect(() => {
-    if (!open) return undefined
-
-    const handlePointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) {
-        onOpenChange?.(false)
-      }
-    }
-    document.addEventListener('pointerdown', handlePointerDown, true)
-    return () => document.removeEventListener('pointerdown', handlePointerDown, true)
-  }, [onOpenChange, open, rootRef])
 }
 
 export function JavEditDropdown({
