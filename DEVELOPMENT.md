@@ -3,7 +3,7 @@
 ## 开发环境依赖
 
 - Go `1.25.1` 或更高版本
-- Node.js 和 npm
+- Node.js 24 和 npm（与 PR 检查和 Docker 构建一致）
 
 ## 技术栈
 
@@ -50,7 +50,9 @@ DOCKER_MODE=1 ./scripts/cli.sh dev backend
 
 ```bash
 cd web
+npm test
 npm run lint
+npm run format:check
 npm run build
 ```
 
