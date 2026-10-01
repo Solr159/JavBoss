@@ -10,7 +10,7 @@ import {
 import { createJavTag, updateJavItem } from '@/features/jav/api'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
-import AppModal from '@/components/AppModal'
+import AppModal from '@/shared/ui/AppModal'
 
 export function JavCustomTagModal({ open, item, onClose, onSaved }) {
   const tagOptions = useStore((state) => state.javTagOptions || [])

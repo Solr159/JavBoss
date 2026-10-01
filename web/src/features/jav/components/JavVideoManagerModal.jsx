@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { videoSelectionKey } from '@/store'
-import AppModal from '@/components/AppModal'
+import AppModal from '@/shared/ui/AppModal'
 import { zh } from '@/utils/i18n'
-import VideoGrid from '@/components/VideoGrid'
+import VideoGrid from '@/features/video/components/VideoGrid'
 
 export function JavVideoManagerModal({
   open,

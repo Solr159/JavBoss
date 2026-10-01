@@ -1,5 +1,5 @@
-import JavIdolCoverModal from '@/components/JavIdolCoverModal'
-import { JavIdolEditModal } from '@/components/JavIdolGrid'
+import JavIdolCoverModal from '@/features/jav/components/JavIdolCoverModal'
+import { JavIdolEditModal } from '@/features/jav/components/JavIdolGrid'
 import { JavEditModal } from '@/features/jav/components/JavEditModal'
 import { JavCustomTagModal } from '@/features/jav/components/JavCustomTagModal'
 

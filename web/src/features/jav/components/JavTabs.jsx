@@ -1,7 +1,7 @@
-import JavIdolView from '@/components/JavIdolView'
-import JavSeriesView from '@/components/JavSeriesView'
-import JavStudioView from '@/components/JavStudioView'
-import JavView from '@/components/JavView'
+import JavIdolView from '@/features/jav/components/JavIdolView'
+import JavSeriesView from '@/features/jav/components/JavSeriesView'
+import JavStudioView from '@/features/jav/components/JavStudioView'
+import JavView from '@/features/jav/components/JavView'
 
 function JavIdolRoute({
   buildJavUrl,

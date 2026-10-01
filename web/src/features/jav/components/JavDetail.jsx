@@ -1,5 +1,5 @@
 import useJavItemActions from '@/features/jav/hooks/useJavItemActions'
-import JavDetailModal from '@/components/JavDetailModal'
+import JavDetailModal from '@/features/jav/components/JavDetailModal'
 import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
 
 export default function JavDetail(props) {

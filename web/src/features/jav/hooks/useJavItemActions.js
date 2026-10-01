@@ -1,5 +1,5 @@
 import { useMemo, useState, useContext, useEffect, useRef } from 'react'
-import { getIdolCardLayoutProps } from '@/components/JavIdolGrid'
+import { getIdolCardLayoutProps } from '@/features/jav/components/JavIdolGrid'
 import { JavDetailNavigationContext } from '@/hooks/javDetailNavigation'
 import { zh } from '@/utils/i18n'
 import { getJavDisplayTitle } from '@/utils/jav'

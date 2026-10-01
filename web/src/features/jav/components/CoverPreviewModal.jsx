@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import AppModal from '@/components/AppModal'
+import AppModal from '@/shared/ui/AppModal'
 import { zh } from '@/utils/i18n'
 
 export function CoverPreviewModal({ preview, onClose }) {

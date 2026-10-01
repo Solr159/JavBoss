@@ -32,7 +32,7 @@ import {
 } from '@/features/jav/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
-import AppModal from '@/components/AppModal'
+import AppModal from '@/shared/ui/AppModal'
 import { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'

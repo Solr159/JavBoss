@@ -2,7 +2,7 @@ import { videoQueryKey } from '@/query/listQueries'
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
 import { useCallback, useEffect } from 'react'
-import VideoView from '@/components/VideoView'
+import VideoView from '@/features/video/components/VideoView'
 
 export default function VideoRoute({
   hydrated,

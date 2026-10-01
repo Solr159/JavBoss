@@ -7,7 +7,7 @@ import {
   loginWithPassword,
   logoutSession,
 } from '@/features/auth/api'
-import LoginPage from '@/components/LoginPage'
+import LoginPage from '@/features/auth/components/LoginPage'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
