@@ -5,7 +5,7 @@ import {
   createExtensionToken,
   rotateExtensionToken,
   deleteExtensionToken,
-} from '@/api'
+} from '@/features/auth/api'
 import AppModal from '@/components/AppModal'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { addJavTagToJavs, addJavsToFavoriteGroups, fetchJavs } from '@/api'
+import { addJavTagToJavs, fetchJavs } from '@/features/jav/api'
+import { addJavsToFavoriteGroups } from '@/features/favorites/api'
 import { resolveJavSort } from '@/constants/jav'
 import { useStore } from '@/store'
 import { getErrorMessage } from '@/utils/errors'

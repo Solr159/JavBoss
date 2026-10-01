@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { fetchJavFavoriteSelection } from '@/api'
+import { fetchJavFavoriteSelection } from '@/features/favorites/api'
 import { useStore } from '@/store'
 
 // Invalidations also reach mounted previews and details outside the active list.

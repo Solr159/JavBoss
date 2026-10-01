@@ -1,8 +1,10 @@
 import useJavFavoriteCount from '@/hooks/useJavFavoriteCount'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { fetchJavItem } from '@/api'
+import { fetchJavItem } from '@/features/jav/api'
 import AppModal from '@/components/AppModal'
-import JavGrid from '@/components/JavGrid'
+import JavDetail from '@/features/jav/components/JavDetail'
+import useJavPreviews from '@/features/jav/hooks/useJavPreviews'
+import useJavPresentation from '@/features/jav/hooks/useJavPresentation'
 import { useStore } from '@/store'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -32,6 +34,9 @@ export default function JavDetailRoute({
     () => (item ? { ...item, favorite_count: favoriteCount } : null),
     [item, favoriteCount]
   )
+  const detailItems = useMemo(() => [detailItem], [detailItem])
+  const { displayItems, ...presentation } = useJavPresentation(detailItems)
+  const previews = useJavPreviews()
   useEffect(() => {
     if (detailItem) onLoaded(detailItem)
   }, [detailItem, onLoaded])
@@ -71,9 +76,12 @@ export default function JavDetailRoute({
       </AppModal>
     )
   return (
-    <JavGrid
+    <JavDetail
       {...actions}
-      items={[detailItem]}
+      item={displayItems[0]}
+      {...presentation}
+      {...previews}
+      onIdolPreviewUpdated={previews.handleIdolPreviewUpdated}
       detailView={{
         onClose,
         scrollTop: initialState.scrollTop,

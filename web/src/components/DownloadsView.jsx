@@ -17,7 +17,7 @@ import {
   fetchDownloadJobs,
   revealDownloadLocation,
   retryDownloadJob,
-} from '@/api'
+} from '@/features/downloads/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import { useStore } from '@/store'

@@ -356,6 +356,7 @@ export default function JavSettingsModal({
   javTagShowSimplifiedInput = false,
   onJavTagShowSimplifiedChange,
   onSave,
+  saving = false,
 }) {
   const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(initialTab))
 
@@ -795,6 +796,7 @@ export default function JavSettingsModal({
           <button
             type="button"
             onClick={onSave}
+            disabled={saving}
             className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
             {zh('保存', 'Save')}

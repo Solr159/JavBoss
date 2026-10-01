@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
+import { authExpiredEvent } from '@/api/client'
 import {
-  authExpiredEvent,
   changePassword as changePasswordRequest,
   fetchAuthStatus,
   loginWithPassword,
   logoutSession,
-} from '@/api'
+} from '@/features/auth/api'
 import LoginPage from '@/components/LoginPage'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'

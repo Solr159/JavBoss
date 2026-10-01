@@ -13,7 +13,7 @@ import {
   fetchVideoScreenshots,
   resetVideoCover,
   updateVideoCover,
-} from '@/api'
+} from '@/features/video/api'
 import { getVideoDisplayName } from '@/utils/display'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'

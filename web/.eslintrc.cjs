@@ -27,6 +27,19 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['src/App.jsx', 'src/components/**/*.jsx'],
+      rules: {
+        'no-restricted-properties': [
+          'error',
+          {
+            object: 'useStore',
+            property: 'setState',
+            message: '请通过业务模块或命名的 store action 更新状态，避免展示组件直接修改全局数据。',
+          },
+        ],
+      },
+    },
+    {
       files: ['tests/**/*.js'],
       rules: {
         'no-restricted-imports': 'off',

@@ -1,362 +1,352 @@
-import JavIdolView from '@/components/JavIdolView'
-import JavSeriesView from '@/components/JavSeriesView'
-import JavStudioView from '@/components/JavStudioView'
-import JavView from '@/components/JavView'
+import { javQueryKey, idolQueryKey, studioQueryKey, seriesQueryKey } from '@/query/listQueries'
+import { useStore } from '@/store'
+import { useShallow } from 'zustand/react/shallow'
+import { resolveJavSort, IDOL_FAVORITE_ORDER_SORT } from '@/constants/jav'
+import { useEffect } from 'react'
+import JavTabs from '@/features/jav/components/JavTabs'
 
-function JavIdolRoute({
-  buildJavUrl,
-  config,
-  hasMore,
-  hasNext,
-  hasPrev,
-  idolGlobalSort,
-  idolTempSort,
-  items,
-  lastPage,
-  loading,
-  loadingMore,
-  onFirst,
-  onGoToPage,
-  onLast,
-  onLoadMore,
-  onNext,
-  onOpenFavorites,
-  onMerged,
-  onPrev,
-  onSelectIdol,
-  onWaterfallModeChange,
-  page,
-  setIdolTempSort,
-  totalItems,
-  waterfallMode,
-}) {
-  return (
-    <JavIdolView
-      page={page}
-      lastPage={lastPage}
-      totalItems={totalItems}
-      hasPrev={hasPrev}
-      hasNext={hasNext}
-      loading={loading}
-      idolTempSort={idolTempSort}
-      idolGlobalSort={idolGlobalSort}
-      setIdolTempSort={setIdolTempSort}
-      buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'idol' })}
-      buildIdolUrl={(idol) =>
-        buildJavUrl({
-          page: 1,
-          search: '',
-          tab: 'list',
-          idolIds: [idol.id],
-          tagIds: [],
-          prefix: '',
-          favoriteRatingEnabled: false,
-          tempSort: '',
-        })
-      }
-      onFirst={onFirst}
-      onPrev={onPrev}
-      onGoToPage={onGoToPage}
-      onNext={onNext}
-      onLast={onLast}
-      items={items}
-      preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
-      onSelectIdol={onSelectIdol}
-      onOpenFavorites={onOpenFavorites}
-      onMerged={onMerged}
-      waterfallMode={waterfallMode}
-      onWaterfallModeChange={onWaterfallModeChange}
-      onLoadMore={onLoadMore}
-      loadingMore={loadingMore}
-      hasMore={hasMore}
-    />
-  )
-}
+export default function JavRoute({
+  hydrated,
+  configLoaded,
 
-function JavStudioRoute({
   buildJavUrl,
-  hasMore,
-  hasNext,
-  hasPrev,
-  items,
-  lastPage,
-  loading,
-  loadingMore,
-  onFirst,
-  onGoToPage,
-  onLast,
-  onLoadMore,
-  onMerged,
-  onNext,
-  onOpenFavorites,
-  onOpenSeriesFavorites,
-  onSelectPrefix,
-  onPrev,
-  onSelectSeries,
-  onSelectStudio,
-  onWaterfallModeChange,
-  page,
-  totalItems,
-  waterfallMode,
-}) {
-  return (
-    <JavStudioView
-      page={page}
-      lastPage={lastPage}
-      totalItems={totalItems}
-      hasPrev={hasPrev}
-      hasNext={hasNext}
-      loading={loading}
-      buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'studio' })}
-      buildStudioUrl={(studio) =>
-        buildJavUrl({
-          page: 1,
-          search: '',
-          tab: 'list',
-          idolIds: [],
-          tagIds: [],
-          studioId: studio.id,
-          studioName: studio.name,
-          prefix: '',
-          favoriteRatingEnabled: false,
-          tempSort: '',
-        })
-      }
-      buildSeriesUrl={(series) =>
-        buildJavUrl({
-          page: 1,
-          search: '',
-          tab: 'list',
-          idolIds: [],
-          tagIds: [],
-          studioId: null,
-          seriesId: series.id,
-          seriesName: series.name,
-          prefix: '',
-          favoriteRatingEnabled: false,
-          tempSort: '',
-        })
-      }
-      onFirst={onFirst}
-      onPrev={onPrev}
-      onGoToPage={onGoToPage}
-      onNext={onNext}
-      onLast={onLast}
-      items={items}
-      onSelectStudio={onSelectStudio}
-      onSelectSeries={onSelectSeries}
-      onSelectPrefix={onSelectPrefix}
-      onOpenFavorites={onOpenFavorites}
-      onOpenSeriesFavorites={onOpenSeriesFavorites}
-      waterfallMode={waterfallMode}
-      onWaterfallModeChange={onWaterfallModeChange}
-      onLoadMore={onLoadMore}
-      loadingMore={loadingMore}
-      hasMore={hasMore}
-      onMerged={onMerged}
-    />
-  )
-}
-
-function JavSeriesRoute({
-  buildJavUrl,
-  hasMore,
-  hasNext,
-  hasPrev,
-  items,
-  lastPage,
-  loading,
-  loadingMore,
-  onFirst,
-  onGoToPage,
-  onLast,
-  onLoadMore,
-  onNext,
-  onOpenFavorites,
-  onPrev,
-  onSelectSeries,
-  onSelectStudio,
-  onWaterfallModeChange,
-  page,
-  totalItems,
-  waterfallMode,
-}) {
-  return (
-    <JavSeriesView
-      page={page}
-      lastPage={lastPage}
-      totalItems={totalItems}
-      hasPrev={hasPrev}
-      hasNext={hasNext}
-      loading={loading}
-      buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'series' })}
-      buildSeriesUrl={(series) =>
-        buildJavUrl({
-          page: 1,
-          search: '',
-          tab: 'list',
-          idolIds: [],
-          tagIds: [],
-          studioId: null,
-          seriesId: series.id,
-          seriesName: series.name,
-          prefix: '',
-          favoriteRatingEnabled: false,
-          tempSort: '',
-        })
-      }
-      onFirst={onFirst}
-      onPrev={onPrev}
-      onGoToPage={onGoToPage}
-      onNext={onNext}
-      onLast={onLast}
-      items={items}
-      onSelectSeries={onSelectSeries}
-      onSelectStudio={onSelectStudio}
-      onOpenFavorites={onOpenFavorites}
-      waterfallMode={waterfallMode}
-      onWaterfallModeChange={onWaterfallModeChange}
-      onLoadMore={onLoadMore}
-      loadingMore={loadingMore}
-      hasMore={hasMore}
-    />
-  )
-}
-
-function JavListRoute({
-  activeJavLoading,
-  alternatePlayerLabel,
-  buildJavUrl,
-  hasMore,
-  javResolvedSort,
-  javSortSource,
-  javGridColumns,
-  javHasNext,
-  javHasPrev,
-  javIdolTagMaxRows,
-  javItems,
-  selectedJavIds,
-  onToggleSelect,
-  onSelectAll,
-  onSelectPage,
-  onPlayPage,
-  onPlayAll,
-  bulkActionBusy,
+  handleSelectStudio,
+  handleSelectIdol,
+  handleOpenIdolFavoriteModal,
+  waterfallModes,
+  setWaterfallMode,
+  handleSelectSeries,
+  handleSelectJavPrefix,
+  handleOpenFavoriteModal,
+  javSelection,
   mpvEnabled,
-  javLastPage,
-  javPage,
-  javRandomMode,
-  javTagMaxRows,
-  javTitleMaxRows,
-  javTotal,
-  loadingMore,
-  onIdolClick,
-  onLoadMore,
-  onOpenFavorites,
-  onOpenJavFavorites,
-  onOpenStudioFavorites,
-  onOpenSeriesFavorites,
-  onOpenFile,
-  onOpenScreenshots,
-  onManageVideoPlay,
-  onManageVideoPlayAtTime,
-  onManageVideoCoverChanged,
-  onManageVideoOpenFile,
-  onManageVideoRevealFile,
-  onManageVideoOpenTagPicker,
-  onManageVideoOpenScreenshots,
-  onManageVideoOpenScrapeSettings,
-  onManageVideoRename,
-  onManageVideoDelete,
-  onManageVideoTagClick,
-  onPlay,
-  onPrefixClick,
-  onRevealFile,
-  onSeriesClick,
-  onStudioClick,
-  onTagClick,
-  onWaterfallModeChange,
-  setJavPage,
-  setJavTempSort,
-  waterfallMode,
+  javCardActions,
 }) {
+  const {
+    javSearchTerm,
+    javIdolIds,
+    javTags,
+    javStudioId,
+    javSeriesId,
+    javPrefix,
+    javSoloOnly,
+    javFavoriteRatingEnabled,
+    javFavoriteGroupId,
+    javSort,
+    javSortRules,
+    javTempSort,
+    javRandomMode,
+    javTotal,
+    javPageSize,
+    javPage,
+    idolTotal,
+    idolPageSize,
+    idolPage,
+    studioTotal,
+    studioPageSize,
+    studioPage,
+    seriesTotal,
+    seriesPageSize,
+    seriesPage,
+    javItems,
+    idolItems,
+    studioItems,
+    seriesItems,
+    javTab,
+    idolLoading,
+    studioLoading,
+    seriesLoading,
+    javLoading,
+    loadJavIdols,
+    loadJavFavoriteGroups,
+    loadJavStudios,
+    loadJavSeries,
+    loadJavs,
+
+    idolSort,
+    idolTempSort,
+    idolFavoriteGroupId,
+
+    setIdolTempSort,
+    setIdolPage,
+    config,
+    loadMoreJavIdols,
+    idolLoadingMore,
+    setStudioPage,
+    loadMoreJavStudios,
+    studioLoadingMore,
+    setSeriesPage,
+    loadMoreJavSeries,
+    seriesLoadingMore,
+    setJavPage,
+    setJavTempSort,
+    javGridColumns,
+    javTitleMaxRows,
+    javIdolTagMaxRows,
+    javTagMaxRows,
+    loadMoreJavs,
+    javLoadingMore,
+  } = useStore(
+    useShallow((state) => ({
+      javSearchTerm: state.javSearchTerm,
+      javIdolIds: state.javIdolIds,
+      javTags: state.javTags,
+      javStudioId: state.javStudioId,
+      javSeriesId: state.javSeriesId,
+      javPrefix: state.javPrefix,
+      javSoloOnly: state.javSoloOnly,
+      javFavoriteRatingEnabled: state.javFavoriteRatingEnabled,
+      javFavoriteGroupId: state.javFavoriteGroupId,
+      javSort: state.javSort,
+      javSortRules: state.javSortRules,
+      javTempSort: state.javTempSort,
+      javRandomMode: state.javRandomMode,
+      javTotal: state.javTotal,
+      javPageSize: state.javPageSize,
+      javPage: state.javPage,
+      idolTotal: state.idolTotal,
+      idolPageSize: state.idolPageSize,
+      idolPage: state.idolPage,
+      studioTotal: state.studioTotal,
+      studioPageSize: state.studioPageSize,
+      studioPage: state.studioPage,
+      seriesTotal: state.seriesTotal,
+      seriesPageSize: state.seriesPageSize,
+      seriesPage: state.seriesPage,
+      javItems: state.javItems,
+      idolItems: state.idolItems,
+      studioItems: state.studioItems,
+      seriesItems: state.seriesItems,
+      javTab: state.javTab,
+      idolLoading: state.idolLoading,
+      studioLoading: state.studioLoading,
+      seriesLoading: state.seriesLoading,
+      javLoading: state.javLoading,
+      loadJavIdols: state.loadJavIdols,
+      loadJavFavoriteGroups: state.loadJavFavoriteGroups,
+      loadJavStudios: state.loadJavStudios,
+      loadJavSeries: state.loadJavSeries,
+      loadJavs: state.loadJavs,
+
+      idolSort: state.idolSort,
+      idolTempSort: state.idolTempSort,
+      idolFavoriteGroupId: state.idolFavoriteGroupId,
+
+      setIdolTempSort: state.setIdolTempSort,
+      setIdolPage: state.setIdolPage,
+      config: state.config,
+      loadMoreJavIdols: state.loadMoreJavIdols,
+      idolLoadingMore: state.idolLoadingMore,
+      setStudioPage: state.setStudioPage,
+      loadMoreJavStudios: state.loadMoreJavStudios,
+      studioLoadingMore: state.studioLoadingMore,
+      setSeriesPage: state.setSeriesPage,
+      loadMoreJavSeries: state.loadMoreJavSeries,
+      seriesLoadingMore: state.seriesLoadingMore,
+      setJavPage: state.setJavPage,
+      setJavTempSort: state.setJavTempSort,
+      javGridColumns: state.javGridColumns,
+      javTitleMaxRows: state.javTitleMaxRows,
+      javIdolTagMaxRows: state.javIdolTagMaxRows,
+      javTagMaxRows: state.javTagMaxRows,
+      loadMoreJavs: state.loadMoreJavs,
+      javLoadingMore: state.javLoadingMore,
+    }))
+  )
+  const requestKey = useStore((state) =>
+    (
+      ({ idol: idolQueryKey, studio: studioQueryKey, series: seriesQueryKey })[state.javTab] ||
+      javQueryKey
+    )(state)
+  )
+  const javSortResolution = resolveJavSort({
+    javSearchTerm,
+    javIdolIds,
+    javTags,
+    javStudioId,
+    javSeriesId,
+    javPrefix,
+    javSoloOnly,
+    javFavoriteRatingEnabled,
+    javFavoriteGroupId,
+    javSort,
+    javSortRules,
+    javTempSort,
+    javRandomMode,
+  })
+  const javLastPage = Math.max(1, Math.ceil((javTotal || 0) / javPageSize))
+  const javHasPrev = javPage > 1
+  const javHasNext = javPage < javLastPage
+  const idolLastPage = Math.max(1, Math.ceil((idolTotal || 0) / idolPageSize))
+  const idolHasPrev = idolPage > 1
+  const idolHasNext = idolPage < idolLastPage
+  const studioLastPage = Math.max(1, Math.ceil((studioTotal || 0) / studioPageSize))
+  const studioHasPrev = studioPage > 1
+  const studioHasNext = studioPage < studioLastPage
+  const seriesLastPage = Math.max(1, Math.ceil((seriesTotal || 0) / seriesPageSize))
+  const seriesHasPrev = seriesPage > 1
+  const seriesHasNext = seriesPage < seriesLastPage
+  const javWaterfallHasMore =
+    !javRandomMode && (javPage - 1) * javPageSize + (javItems?.length || 0) < (javTotal || 0)
+  const idolWaterfallHasMore =
+    (idolPage - 1) * idolPageSize + (idolItems?.length || 0) < (idolTotal || 0)
+  const studioWaterfallHasMore =
+    (studioPage - 1) * studioPageSize + (studioItems?.length || 0) < (studioTotal || 0)
+  const seriesWaterfallHasMore =
+    (seriesPage - 1) * seriesPageSize + (seriesItems?.length || 0) < (seriesTotal || 0)
+  const activeJavLoading =
+    javTab === 'download'
+      ? false
+      : javTab === 'idol'
+        ? idolLoading
+        : javTab === 'studio'
+          ? studioLoading
+          : javTab === 'series'
+            ? seriesLoading
+            : javLoading
+  useEffect(() => {
+    if (!hydrated || !configLoaded) return
+    if (javTab === 'idol') {
+      loadJavIdols()
+      loadJavFavoriteGroups('idol')
+    } else if (javTab === 'studio') {
+      loadJavStudios()
+      loadJavFavoriteGroups('studio')
+    } else if (javTab === 'series') {
+      loadJavSeries()
+      loadJavFavoriteGroups('series')
+    } else if (javTab !== 'download') {
+      loadJavs()
+      loadJavFavoriteGroups('jav')
+    }
+  }, [
+    hydrated,
+    configLoaded,
+    javTab,
+    requestKey,
+    loadJavs,
+    loadJavIdols,
+    loadJavStudios,
+    loadJavSeries,
+    loadJavFavoriteGroups,
+  ])
   return (
-    <JavView
-      javPage={javPage}
-      javLastPage={javLastPage}
-      javTotal={javTotal}
-      javHasPrev={javHasPrev}
-      javHasNext={javHasNext}
-      javLoading={activeJavLoading}
-      javRandomMode={javRandomMode}
-      javResolvedSort={javResolvedSort}
-      javSortSource={javSortSource}
+    <JavTabs
+      tab={javTab}
       buildJavUrl={buildJavUrl}
-      setJavPage={setJavPage}
-      setJavTempSort={setJavTempSort}
-      javItems={javItems}
-      selectedJavIds={selectedJavIds}
-      onToggleSelect={onToggleSelect}
-      onSelectAll={onSelectAll}
-      onSelectPage={onSelectPage}
-      onPlayPage={onPlayPage}
-      onPlayAll={onPlayAll}
-      bulkActionBusy={bulkActionBusy}
-      mpvEnabled={mpvEnabled}
-      javGridColumns={javGridColumns}
-      javTitleMaxRows={javTitleMaxRows}
-      javIdolTagMaxRows={javIdolTagMaxRows}
-      javTagMaxRows={javTagMaxRows}
-      onPlay={onPlay}
-      onOpenFile={onOpenFile}
-      openFileLabel={alternatePlayerLabel}
-      onRevealFile={onRevealFile}
-      onOpenScreenshots={onOpenScreenshots}
-      onManageVideoPlay={onManageVideoPlay}
-      onManageVideoPlayAtTime={onManageVideoPlayAtTime}
-      onManageVideoCoverChanged={onManageVideoCoverChanged}
-      onManageVideoOpenFile={onManageVideoOpenFile}
-      onManageVideoRevealFile={onManageVideoRevealFile}
-      onManageVideoOpenTagPicker={onManageVideoOpenTagPicker}
-      onManageVideoOpenScreenshots={onManageVideoOpenScreenshots}
-      onManageVideoOpenScrapeSettings={onManageVideoOpenScrapeSettings}
-      onManageVideoRename={onManageVideoRename}
-      onManageVideoDelete={onManageVideoDelete}
-      onManageVideoTagClick={onManageVideoTagClick}
-      onIdolClick={onIdolClick}
-      onOpenFavorites={onOpenFavorites}
-      onOpenJavFavorites={onOpenJavFavorites}
-      onOpenStudioFavorites={onOpenStudioFavorites}
-      onOpenSeriesFavorites={onOpenSeriesFavorites}
-      onPrefixClick={onPrefixClick}
-      onStudioClick={onStudioClick}
-      onSeriesClick={onSeriesClick}
-      onTagClick={onTagClick}
-      waterfallMode={waterfallMode}
-      onWaterfallModeChange={onWaterfallModeChange}
-      onLoadMore={onLoadMore}
-      loadingMore={loadingMore}
-      hasMore={hasMore}
+      onSelectStudio={handleSelectStudio}
+      idol={{
+        page: idolPage,
+        lastPage: idolLastPage,
+        totalItems: idolTotal,
+        hasPrev: idolHasPrev,
+        hasNext: idolHasNext,
+        loading: idolLoading,
+        idolTempSort,
+        idolGlobalSort: idolFavoriteGroupId ? IDOL_FAVORITE_ORDER_SORT : idolSort,
+        setIdolTempSort,
+        onFirst: () => setIdolPage(1),
+        onPrev: () => idolHasPrev && setIdolPage(idolPage - 1),
+        onGoToPage: (p) => setIdolPage(p),
+        onNext: () => idolHasNext && setIdolPage(idolPage + 1),
+        onLast: () => setIdolPage(idolLastPage),
+        items: idolItems,
+        config,
+        onSelectIdol: handleSelectIdol,
+        onOpenFavorites: handleOpenIdolFavoriteModal,
+        onMerged: () => {
+          loadJavIdols({ force: true })
+          loadJavFavoriteGroups('idol', { force: true })
+        },
+        waterfallMode: waterfallModes.idol,
+        onWaterfallModeChange: (enabled) => setWaterfallMode('idol', enabled),
+        onLoadMore: loadMoreJavIdols,
+        loadingMore: idolLoadingMore,
+        hasMore: idolWaterfallHasMore,
+      }}
+      studio={{
+        page: studioPage,
+        lastPage: studioLastPage,
+        totalItems: studioTotal,
+        hasPrev: studioHasPrev,
+        hasNext: studioHasNext,
+        loading: studioLoading,
+        onFirst: () => setStudioPage(1),
+        onPrev: () => studioHasPrev && setStudioPage(studioPage - 1),
+        onGoToPage: (p) => setStudioPage(p),
+        onNext: () => studioHasNext && setStudioPage(studioPage + 1),
+        onLast: () => setStudioPage(studioLastPage),
+        items: studioItems,
+        onSelectStudio: handleSelectStudio,
+        onSelectSeries: handleSelectSeries,
+        onSelectPrefix: handleSelectJavPrefix,
+        onOpenFavorites: (studio) => handleOpenFavoriteModal('studio', studio),
+        onOpenSeriesFavorites: (series) => handleOpenFavoriteModal('series', series),
+        onMerged: () => {
+          loadJavStudios({ force: true })
+          loadJavSeries({ force: true })
+          loadJavFavoriteGroups('studio', { force: true })
+        },
+        waterfallMode: waterfallModes.studio,
+        onWaterfallModeChange: (enabled) => setWaterfallMode('studio', enabled),
+        onLoadMore: loadMoreJavStudios,
+        loadingMore: studioLoadingMore,
+        hasMore: studioWaterfallHasMore,
+      }}
+      series={{
+        page: seriesPage,
+        lastPage: seriesLastPage,
+        totalItems: seriesTotal,
+        hasPrev: seriesHasPrev,
+        hasNext: seriesHasNext,
+        loading: seriesLoading,
+        onFirst: () => setSeriesPage(1),
+        onPrev: () => seriesHasPrev && setSeriesPage(seriesPage - 1),
+        onGoToPage: (p) => setSeriesPage(p),
+        onNext: () => seriesHasNext && setSeriesPage(seriesPage + 1),
+        onLast: () => setSeriesPage(seriesLastPage),
+        items: seriesItems,
+        onSelectSeries: handleSelectSeries,
+        onOpenFavorites: (series) => handleOpenFavoriteModal('series', series),
+        waterfallMode: waterfallModes.series,
+        onWaterfallModeChange: (enabled) => setWaterfallMode('series', enabled),
+        onLoadMore: loadMoreJavSeries,
+        loadingMore: seriesLoadingMore,
+        hasMore: seriesWaterfallHasMore,
+      }}
+      list={{
+        javPage,
+        javLastPage,
+        javHasPrev,
+        javHasNext,
+        activeJavLoading,
+        javRandomMode,
+        javResolvedSort: javSortResolution.sort,
+        javSortSource: javSortResolution.source,
+        javPrefix,
+        setJavPage,
+        setJavTempSort,
+        javItems,
+        javTotal,
+        javGridColumns,
+        javTitleMaxRows,
+        javIdolTagMaxRows,
+        javTagMaxRows,
+        selectedJavIds: javSelection.selectedIds,
+        onToggleSelect: javSelection.toggle,
+        onSelectAll: javSelection.selectAll,
+        onSelectPage: javSelection.selectPage,
+        onPlayPage: javSelection.playPage,
+        onPlayAll: javSelection.playAll,
+        bulkActionBusy: javSelection.busy,
+        mpvEnabled,
+        ...javCardActions,
+        waterfallMode: waterfallModes.jav,
+        onWaterfallModeChange: (enabled) => setWaterfallMode('jav', enabled),
+        onLoadMore: loadMoreJavs,
+        loadingMore: javLoadingMore,
+        hasMore: javWaterfallHasMore,
+      }}
     />
   )
-}
-
-export default function JavRoute({ tab, ...props }) {
-  if (tab === 'idol') return <JavIdolRoute {...props.idol} buildJavUrl={props.buildJavUrl} />
-  if (tab === 'studio') return <JavStudioRoute {...props.studio} buildJavUrl={props.buildJavUrl} />
-  if (tab === 'series') {
-    return (
-      <JavSeriesRoute
-        {...props.series}
-        buildJavUrl={props.buildJavUrl}
-        onSelectStudio={props.onSelectStudio}
-      />
-    )
-  }
-  return <JavListRoute {...props.list} buildJavUrl={props.buildJavUrl} />
-}
-
-function configFlag(value, fallback = false) {
-  if (value == null || value === '') return fallback
-  return !['0', 'false', 'no', 'off'].includes(String(value).trim().toLowerCase())
 }

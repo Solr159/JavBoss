@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
-import { createVideoScreenshot, fetchPlaybackInfo } from '@/api'
+import { createVideoScreenshot, fetchPlaybackInfo } from '@/features/video/api'
 import { getVideoDisplayName } from '@/utils/display'
 import {
   PLAYER_HOTKEY_ACTIONS,

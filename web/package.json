@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "node --test tests/*.test.js",
+    "test": "node --test",
     "preview": "vite preview --port 5173",
     "lint": "eslint --max-warnings=0 --ext .js,.jsx src tests",
     "format": "prettier --write \"{src,tests}/**/*.{js,jsx,ts,tsx,css,scss}\"",

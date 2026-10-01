@@ -11,12 +11,8 @@ import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import { IconButton, Popper, Rating, Tooltip } from '@mui/material'
 
-import {
-  deleteVideoScreenshot,
-  fetchVideoScreenshotsByIds,
-  getResolvedJavSampleImages,
-  resolveJavSampleImages,
-} from '@/api'
+import { deleteVideoScreenshot, fetchVideoScreenshotsByIds } from '@/features/video/api'
+import { getResolvedJavSampleImages, resolveJavSampleImages } from '@/features/jav/api'
 import AppModal from '@/components/AppModal'
 import { IdolCard, getIdolCardLayoutProps } from '@/components/JavIdolGrid'
 import { SeriesCard } from '@/components/JavSeriesView'

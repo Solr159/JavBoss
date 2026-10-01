@@ -3,7 +3,7 @@ import { IconButton, Tooltip } from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 
-import { checkProviderAvailability, fetchAvailabilityProviders } from '@/api'
+import { checkProviderAvailability, fetchAvailabilityProviders } from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import { runProviderChecks } from '@/utils/providerAvailability'

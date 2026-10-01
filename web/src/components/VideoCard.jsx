@@ -6,7 +6,7 @@ import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
-import { revealVideoLocation } from '@/api'
+import { revealVideoLocation } from '@/features/video/api'
 import { useStore } from '@/store'
 import { displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
 import {

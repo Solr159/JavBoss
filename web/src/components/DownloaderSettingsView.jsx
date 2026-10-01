@@ -11,7 +11,7 @@ import {
   testCloudDrive2,
   updateCloudDrive2Settings,
   updateDownloaderSettings,
-} from '@/api'
+} from '@/features/downloads/api'
 import DirectoryPickerModal from '@/components/DirectoryPickerModal'
 import { getErrorMessage } from '@/utils/errors'
 import { useStore } from '@/store'

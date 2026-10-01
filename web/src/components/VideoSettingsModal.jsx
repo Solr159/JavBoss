@@ -84,6 +84,7 @@ export default function VideoSettingsModal({
   waterfallDefaultInput = false,
   onWaterfallDefaultChange,
   onSave,
+  saving = false,
 }) {
   if (!open) return null
 
@@ -148,6 +149,7 @@ export default function VideoSettingsModal({
         </button>
         <button
           onClick={onSave}
+          disabled={saving}
           className="ml-2 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
         >
           {zh('保存', 'Save')}

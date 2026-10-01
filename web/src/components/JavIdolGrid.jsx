@@ -5,7 +5,7 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
-import { fetchJavIdolOptions, mergeJavIdols, updateJavIdol } from '@/api'
+import { fetchJavIdolOptions, mergeJavIdols, updateJavIdol } from '@/features/jav/api'
 import AppModal from '@/components/AppModal'
 import JavIdolCoverModal, {
   IDOL_COVER_DEFAULT_CROP_LEFT,

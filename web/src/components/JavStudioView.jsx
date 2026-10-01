@@ -11,7 +11,7 @@ import {
   fetchJavStudioOptions,
   mergeJavStudios,
   updateJavStudio,
-} from '@/api'
+} from '@/features/jav/api'
 import AppModal from '@/components/AppModal'
 import Pagination from '@/components/Pagination'
 import { SeriesCard } from '@/components/JavSeriesView'

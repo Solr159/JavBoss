@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import SortRoundedIcon from '@mui/icons-material/SortRounded'
-import { fetchJavStudioPreview } from '@/api'
+import { fetchJavStudioPreview } from '@/features/jav/api'
 import AppModal from '@/components/AppModal'
 import { SeriesCard } from '@/components/JavSeriesView'
 import { getErrorMessage } from '@/utils/errors'
