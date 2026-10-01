@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, IconButton, MenuItem, TextField } from '@mui/material'
+import { Button, IconButton, MenuItem, TextField, Tooltip } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
@@ -356,12 +356,11 @@ export default function TagManagementModal({
         {group.map((t) => {
           const count = Number.isFinite(t.count) ? t.count : null
           const canRename = isTagEditable(t)
-          const showRenameHint = editMode && hoverTagId === t.id && canRename
-          const showDelete = editMode && hoverTagId === t.id && canRename
+          const showDelete = editMode && canRename
           const baseTagClass = tagClassName(t)
           const interactiveTagClass = editMode
             ? canRename
-              ? showRenameHint
+              ? hoverTagId === t.id
                 ? 'skeuo-tag--active'
                 : 'skeuo-tag--editing'
               : ''
@@ -379,24 +378,32 @@ export default function TagManagementModal({
                 if (editMode) setHoverTagId((prev) => (prev === t.id ? null : prev))
               }}
             >
-              <button
-                type="button"
-                className="skeuo-tag-main flex min-w-0 items-center gap-2 text-left"
-                onClick={() => {
-                  if (editMode) {
-                    if (canRename) handleStartRename(t)
-                    return
-                  }
-                  handleTagClick(t.id)
-                }}
-                title={t.name}
+              <Tooltip
+                arrow
+                describeChild
+                disableInteractive
+                placement="top"
+                title={
+                  editMode && canRename
+                    ? zh(`单击重命名：${t.name}`, `Click to rename: ${t.name}`)
+                    : ''
+                }
               >
-                <span className="skeuo-tag-label">{t.name}</span>
-                {!editMode && count !== null && <span className="skeuo-tag-count">{count}</span>}
-                {showRenameHint && (
-                  <span className="skeuo-tag-hint">{zh('单击重命名', 'Click to rename')}</span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  className="skeuo-tag-main flex min-w-0 items-center gap-2 text-left"
+                  onClick={() => {
+                    if (editMode) {
+                      if (canRename) handleStartRename(t)
+                      return
+                    }
+                    handleTagClick(t.id)
+                  }}
+                >
+                  <span className="skeuo-tag-label">{t.name}</span>
+                  {!editMode && count !== null && <span className="skeuo-tag-count">{count}</span>}
+                </button>
+              </Tooltip>
               {showDelete && (
                 <IconButton
                   size="small"

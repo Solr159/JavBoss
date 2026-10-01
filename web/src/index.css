@@ -1169,13 +1169,6 @@ body.has-page-scroll .sticky-pagination {
   color: #fff;
 }
 
-.skeuo-tag-hint {
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #475569;
-}
-
 .tag-management-modal-list .skeuo-tag {
   gap: 0.35rem;
   min-height: 1.85rem;
@@ -1195,25 +1188,20 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .tag-management-modal-list .skeuo-tag--edit-mode {
+  position: relative;
   justify-content: center;
 }
 
 .tag-management-modal-list .skeuo-tag--edit-mode .skeuo-tag-main {
   min-height: 1.35rem;
   justify-content: center;
+  /* Reserve delete-button space so hovering cannot reflow a row-end tag. */
+  padding-right: 2.1rem;
   line-height: 1;
   text-align: center;
 }
 
-.tag-management-modal-list .skeuo-tag--active {
-  position: relative;
-}
-
-.tag-management-modal-list .skeuo-tag--active .skeuo-tag-main {
-  padding-right: 2.1rem;
-}
-
-.tag-management-modal-list .skeuo-tag--active .skeuo-tag-delete {
+.tag-management-modal-list .skeuo-tag--edit-mode .skeuo-tag-delete {
   position: absolute;
   top: 50%;
   right: 0.3rem;
