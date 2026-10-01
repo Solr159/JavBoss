@@ -19,7 +19,6 @@ export default function JavTagModal(props) {
   return (
     <TagManagementModal
       {...props}
-      isTagEditable={isUserJavTag}
       tagClassName={(tag) => (isUserJavTag(tag) ? 'skeuo-tag--user' : 'skeuo-tag--scraped')}
       tagLegend={[
         {
@@ -31,7 +30,6 @@ export default function JavTagModal(props) {
           className: 'border-orange-200 bg-orange-100',
         },
       ]}
-      editModeMessage={zh('只可编辑自定义标签', 'Only custom tags can be edited')}
       categoryEnglishLabels={categoryEnglishLabels}
       formatOrganizeResult={(result) =>
         zh(

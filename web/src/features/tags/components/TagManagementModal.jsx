@@ -205,6 +205,10 @@ export default function TagManagementModal({
     setActionMessage(nextEditMode ? editModeMessage : '')
     setBatchError('')
     setHoverTagId(null)
+    setMultiSelect(false)
+    setSelectedTagIds([])
+    setBatchCategoryValue('')
+    setBatchCategoryOpen(false)
   }
 
   const displayTags = useMemo(() => {
@@ -517,7 +521,7 @@ export default function TagManagementModal({
               {zh('分类管理', 'Manage categories')}
             </Button>
           )}
-          {!editMode && !multiSelect && (
+          {editMode && !multiSelect && (
             <Button
               size="small"
               variant="outlined"
@@ -532,34 +536,34 @@ export default function TagManagementModal({
               {zh('新增标签', 'New tag')}
             </Button>
           )}
-          {!multiSelect && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={handleToggleEditMode}
-              sx={footerButtonSx}
-            >
-              {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
-            </Button>
-          )}
-          {!editMode && (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => {
-                setMultiSelect((prev) => !prev)
-                setSelectedTagIds([])
-                setBatchCategoryValue('')
-                setEditMode(false)
-                setHoverTagId(null)
-              }}
-              sx={footerButtonSx}
-            >
-              {multiSelect ? zh('退出多选', 'Exit multi-select') : zh('多选', 'Multi-select')}
-            </Button>
-          )}
-          {multiSelect && (
-            <>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleToggleEditMode}
+            sx={footerButtonSx}
+          >
+            {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => {
+              setMultiSelect((prev) => !prev)
+              setSelectedTagIds([])
+              setBatchCategoryValue('')
+              setBatchError('')
+              setHoverTagId(null)
+            }}
+            sx={footerButtonSx}
+          >
+            {multiSelect
+              ? zh('退出多选', 'Exit multi-select')
+              : editMode
+                ? zh('多选调整分类', 'Move multiple tags')
+                : zh('多选查找', 'Find by multiple tags')}
+          </Button>
+          {multiSelect &&
+            (editMode ? (
               <Button
                 size="small"
                 variant="outlined"
@@ -574,6 +578,7 @@ export default function TagManagementModal({
               >
                 {zh('调整分类', 'Move tags')}
               </Button>
+            ) : (
               <Button
                 size="small"
                 variant="outlined"
@@ -587,8 +592,7 @@ export default function TagManagementModal({
               >
                 {zh('查找视频', 'Find videos')}
               </Button>
-            </>
-          )}
+            ))}
         </div>
       </div>
       {batchCategoryOpen && (

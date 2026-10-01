@@ -963,7 +963,7 @@ func CreateJavIdol(ctx context.Context, name string) (*models.JavIdol, error) {
 	return &idol, nil
 }
 
-// RenameJavTag renames a user-created JAV tag.
+// RenameJavTag renames a JAV tag.
 func RenameJavTag(ctx context.Context, id int64, newName string) error {
 	newName = strings.TrimSpace(newName)
 	if id == 0 {
@@ -977,10 +977,6 @@ func RenameJavTag(ctx context.Context, id int64, newName string) error {
 	if err := common.DB.WithContext(ctx).First(&tag, id).Error; err != nil {
 		return fmt.Errorf("find jav tag: %w", err)
 	}
-	if !tag.IsUser {
-		return errors.New("tag is not user-defined")
-	}
-
 	if err := common.DB.WithContext(ctx).
 		Model(&models.JavTag{}).
 		Where("id = ?", id).
@@ -990,7 +986,7 @@ func RenameJavTag(ctx context.Context, id int64, newName string) error {
 	return nil
 }
 
-// DeleteJavTag removes a user-created JAV tag and detaches it from any associated entries.
+// DeleteJavTag removes a JAV tag and detaches it from all providers and associated entries.
 func DeleteJavTag(ctx context.Context, id int64) error {
 	if id == 0 {
 		return errors.New("tag id cannot be zero")
@@ -1000,12 +996,8 @@ func DeleteJavTag(ctx context.Context, id int64) error {
 	if err := common.DB.WithContext(ctx).First(&tag, id).Error; err != nil {
 		return fmt.Errorf("find jav tag: %w", err)
 	}
-	if !tag.IsUser {
-		return errors.New("tag is not user-defined")
-	}
-
 	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("jav_tag_id = ? AND provider = ?", id, int(metadata.ProviderUser)).Delete(&models.JavTagMap{}).Error; err != nil {
+		if err := tx.Where("jav_tag_id = ?", id).Delete(&models.JavTagMap{}).Error; err != nil {
 			return fmt.Errorf("delete jav tag relations: %w", err)
 		}
 		if err := deleteJavTagIfUnusedTx(tx, id); err != nil {
