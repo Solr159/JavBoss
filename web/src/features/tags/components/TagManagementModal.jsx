@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, IconButton, MenuItem, TextField, Tooltip } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
+import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
+import ArrowBackOutlinedIcon from '@mui/icons-material/ArrowBackOutlined'
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined'
+import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined'
+import DriveFileMoveOutlinedIcon from '@mui/icons-material/DriveFileMoveOutlined'
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined'
 
 import AppModal from '@/shared/ui/AppModal'
 import SortableList from '@/shared/ui/SortableList'
@@ -33,6 +40,18 @@ const footerButtonSx = {
     backgroundColor: '#f8fafc',
     borderColor: '#94a3b8',
   },
+}
+
+const editButtonSx = {
+  ...compactButtonSx,
+  backgroundColor: '#334155',
+  '&:hover': { backgroundColor: '#1e293b' },
+}
+
+const exitButtonSx = {
+  ...compactButtonSx,
+  color: '#64748b',
+  '&:hover': { backgroundColor: '#e2e8f0', color: '#334155' },
 }
 
 const DEFAULT_CATEGORY_ID = 0
@@ -508,6 +527,7 @@ export default function TagManagementModal({
               size="small"
               variant="outlined"
               onClick={handleOrganizeTags}
+              startIcon={<AutoFixHighOutlinedIcon />}
               disabled={organizing}
               title={organizeButtonTitle}
               sx={footerButtonSx}
@@ -523,37 +543,46 @@ export default function TagManagementModal({
                 setCategoryError('')
                 setCategoryManageOpen(true)
               }}
+              startIcon={<FolderOutlinedIcon />}
               sx={footerButtonSx}
             >
               {zh('分类管理', 'Manage categories')}
             </Button>
           )}
+          {!multiSelect && (
+            <Button
+              size="small"
+              variant={editMode ? 'text' : 'contained'}
+              disableElevation
+              startIcon={editMode ? <ArrowBackOutlinedIcon /> : <EditOutlinedIcon />}
+              onClick={handleToggleEditMode}
+              sx={editMode ? exitButtonSx : editButtonSx}
+            >
+              {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
+            </Button>
+          )}
           {editMode && !multiSelect && (
             <Button
               size="small"
-              variant="outlined"
+              variant="contained"
+              color="success"
+              disableElevation
+              startIcon={<AddOutlinedIcon />}
               onClick={() => {
                 setCreateError('')
                 setNewTagName('')
                 setNewTagCategoryValue(DEFAULT_CATEGORY_VALUE)
                 setCreateOpen(true)
               }}
-              sx={footerButtonSx}
+              sx={compactButtonSx}
             >
               {zh('新增标签', 'New tag')}
             </Button>
           )}
           <Button
             size="small"
-            variant="outlined"
-            onClick={handleToggleEditMode}
-            sx={footerButtonSx}
-          >
-            {editMode ? zh('退出编辑', 'Exit edit') : zh('编辑', 'Edit')}
-          </Button>
-          <Button
-            size="small"
-            variant="outlined"
+            variant={multiSelect ? 'text' : 'outlined'}
+            startIcon={multiSelect ? <ArrowBackOutlinedIcon /> : <ChecklistOutlinedIcon />}
             onClick={() => {
               setMultiSelect((prev) => !prev)
               setSelectedTagIds([])
@@ -561,7 +590,7 @@ export default function TagManagementModal({
               setBatchError('')
               setHoverTagId(null)
             }}
-            sx={footerButtonSx}
+            sx={multiSelect ? exitButtonSx : compactButtonSx}
           >
             {multiSelect
               ? zh('退出多选', 'Exit multi-select')
@@ -573,7 +602,9 @@ export default function TagManagementModal({
             (editMode ? (
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
+                disableElevation
+                startIcon={<DriveFileMoveOutlinedIcon />}
                 onClick={() => {
                   setBatchCategoryValue('')
                   setBatchNewCategoryName('')
@@ -581,21 +612,23 @@ export default function TagManagementModal({
                   setBatchCategoryOpen(true)
                 }}
                 disabled={selectedIds.length === 0}
-                sx={footerButtonSx}
+                sx={compactButtonSx}
               >
                 {zh('调整分类', 'Move tags')}
               </Button>
             ) : (
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
+                disableElevation
+                startIcon={<SearchOutlinedIcon />}
                 onClick={() => {
                   if (selectedIds.length === 0) return
                   onApplyTagFilter(selectedIds)
                   onClose()
                 }}
                 disabled={selectedIds.length === 0}
-                sx={footerButtonSx}
+                sx={compactButtonSx}
               >
                 {zh('查找视频', 'Find videos')}
               </Button>
