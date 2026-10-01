@@ -239,6 +239,10 @@ body.has-page-scroll .sticky-pagination {
   backdrop-filter: blur(14px);
 }
 
+.filter-topbar--menu-open {
+  z-index: 60;
+}
+
 .filter-topbar__body {
   display: flex;
   min-height: 58px;

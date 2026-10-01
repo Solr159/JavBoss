@@ -16,8 +16,6 @@ import {
 } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
 
-const FAVORITE_MENU_RIGHT_SHIFT = 32
-
 function isModifiedClick(event) {
   return Boolean(
     event &&
@@ -429,7 +427,10 @@ export default function TopBar({
       ((!isJavMode || javTab !== 'idol') && hasActiveControlFilter))
 
   return (
-    <header ref={headerRef} className="filter-topbar">
+    <header
+      ref={headerRef}
+      className={`filter-topbar ${favoriteMenuOpen ? 'filter-topbar--menu-open' : ''}`}
+    >
       <div className="filter-topbar__body">
         <button
           type="button"
@@ -440,6 +441,45 @@ export default function TopBar({
           JavBoss
         </button>
         <div className="filter-topbar__controls">
+          {isJavMode && !isJavDownload ? (
+            <div
+              ref={favoriteMenuRef}
+              className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4"
+            >
+              <button
+                type="button"
+                className={`filter-action-button ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
+                onClick={() => {
+                  setFavoriteMenuOpen((open) => !open)
+                  if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
+                }}
+                aria-label={favoriteLabel}
+                aria-haspopup="dialog"
+                aria-expanded={favoriteMenuOpen}
+              >
+                <BookmarksOutlinedIcon fontSize="small" />
+                <span className="max-w-28 truncate">
+                  {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
+                </span>
+              </button>
+              {favoriteMenuOpen ? (
+                <FavoriteGroupMenu
+                  title={favoriteLabel}
+                  allLabel={favoriteAllLabel}
+                  groups={favoriteGroups}
+                  selectedGroupId={selectedFavoriteGroupId}
+                  loading={favoriteGroupsLoading}
+                  error={favoriteGroupsError}
+                  buildGroupUrl={buildFavoriteGroupUrl}
+                  onSelect={(groupId) => {
+                    onFavoriteGroupSelect?.(groupId)
+                    setFavoriteMenuOpen(false)
+                  }}
+                  onOpenManager={(group) => onOpenFavoriteManager?.(group)}
+                />
+              ) : null}
+            </div>
+          ) : null}
           {!isJavDownload ? (
             <form onSubmit={onSubmitSearch} className="filter-search">
               <input
@@ -550,43 +590,6 @@ export default function TopBar({
                 </Button>
               </div>
             ) : null}
-
-            {isJavMode && !isJavDownload ? (
-              <div ref={favoriteMenuRef} className="relative">
-                <button
-                  type="button"
-                  className={`filter-action-button ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
-                  onClick={() => {
-                    setFavoriteMenuOpen((open) => !open)
-                    if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
-                  }}
-                  aria-label={favoriteLabel}
-                  aria-haspopup="dialog"
-                  aria-expanded={favoriteMenuOpen}
-                >
-                  <BookmarksOutlinedIcon fontSize="small" />
-                  <span className="max-w-28 truncate">
-                    {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
-                  </span>
-                </button>
-                {favoriteMenuOpen ? (
-                  <FavoriteGroupMenu
-                    title={favoriteLabel}
-                    allLabel={favoriteAllLabel}
-                    groups={favoriteGroups}
-                    selectedGroupId={selectedFavoriteGroupId}
-                    loading={favoriteGroupsLoading}
-                    error={favoriteGroupsError}
-                    buildGroupUrl={buildFavoriteGroupUrl}
-                    onSelect={(groupId) => {
-                      onFavoriteGroupSelect?.(groupId)
-                      setFavoriteMenuOpen(false)
-                    }}
-                    onOpenManager={(group) => onOpenFavoriteManager?.(group)}
-                  />
-                ) : null}
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
@@ -612,17 +615,14 @@ function FavoriteGroupMenu({
     <div
       role="dialog"
       aria-label={title || zh('女优收藏夹', 'Idol favorites')}
-      className="absolute top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-2rem)] flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
-      style={{ right: `${-FAVORITE_MENU_RIGHT_SHIFT}px` }}
+      className="absolute left-0 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-8rem)] flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
     >
       <span
-        className="absolute top-0 h-0 w-0 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200"
-        style={{ right: `${16 + FAVORITE_MENU_RIGHT_SHIFT}px` }}
+        className="absolute left-4 top-0 h-0 w-0 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200"
         aria-hidden="true"
       />
       <span
-        className="absolute top-px h-0 w-0 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-gray-50"
-        style={{ right: `${17 + FAVORITE_MENU_RIGHT_SHIFT}px` }}
+        className="absolute left-[17px] top-px h-0 w-0 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-gray-50"
         aria-hidden="true"
       />
       <div className="flex items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
