@@ -112,6 +112,11 @@ func runDirectoryScanWithSession(scanCtx context.Context, directory models.Direc
 		}
 	}()
 	logging.Info("sync directory start: id=%d path=%s", directory.ID, directory.Path)
+	if info, err := os.Stat(directory.Path); err == nil && info.IsDir() {
+		if err := recoverDirectoryTranscodes(scanCtx, directory); err != nil {
+			return nil, err
+		}
+	}
 
 	state, err := loadDirectorySyncState(scanCtx, directory.ID, javLinks)
 	if err != nil {
@@ -248,6 +253,9 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 		}
 
 		if entry.IsDir() {
+			if entry.Name() == util.TranscodeWorkDirectory {
+				return filepath.SkipDir
+			}
 			return nil
 		}
 		// Count every visited file, including non-video files, before video filtering/probing.

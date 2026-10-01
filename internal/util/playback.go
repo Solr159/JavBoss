@@ -29,10 +29,16 @@ func AssessPlaybackSupport(meta *VideoMetadata) PlaybackProbeResult {
 	result.AudioCodec = normalizePlaybackValue(meta.AudioCodec)
 
 	audioSafe := result.AudioCodec == "" || result.AudioCodec == "aac" || result.AudioCodec == "mp3"
+	for _, codec := range meta.AudioCodecs {
+		codec = normalizePlaybackValue(codec)
+		if codec != "aac" && codec != "mp3" {
+			audioSafe = false
+		}
+	}
 	webmAudioSafe := result.AudioCodec == "" || result.AudioCodec == "opus" || result.AudioCodec == "vorbis"
 
 	switch result.Container {
-	case "mp4":
+	case "mp4", "mkv":
 		result.SupportsDirect = result.VideoCodec == "h264" && audioSafe
 	case "webm":
 		result.SupportsDirect = (result.VideoCodec == "vp8" || result.VideoCodec == "vp9") && webmAudioSafe

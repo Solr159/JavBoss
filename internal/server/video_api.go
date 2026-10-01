@@ -23,6 +23,7 @@ import (
 	"javboss/internal/models"
 	"javboss/internal/mpv"
 	"javboss/internal/runtimeconfig"
+	"javboss/internal/service"
 	"javboss/internal/util"
 )
 
@@ -652,6 +653,11 @@ func renameVideoLocation(c *gin.Context) {
 	}
 
 	currentRel := filepath.ToSlash(filepath.Clean(filepath.FromSlash(loc.RelativePath)))
+	release, ok := reserveVideoFileMutation(c, loc.DirectoryID)
+	if !ok {
+		return
+	}
+	defer release()
 	parentRel := filepath.ToSlash(filepath.Dir(filepath.FromSlash(currentRel)))
 	nextRel := filename
 	if parentRel != "." && parentRel != "" {
@@ -1196,6 +1202,11 @@ func deleteVideoLocation(c *gin.Context) {
 		respondLocalizedError(c, http.StatusConflict, "目录缺失，无法删除视频", "The directory is missing; video cannot be deleted")
 		return
 	}
+	release, ok := reserveVideoFileMutation(c, loc.DirectoryID)
+	if !ok {
+		return
+	}
+	defer release()
 
 	fullPath, _, err := resolveVideoPath(loc.RelativePath, loc.DirectoryRef.Path)
 	if err != nil {
@@ -1240,6 +1251,17 @@ func parseVideoLocationParams(c *gin.Context) (int64, int64, bool) {
 		return 0, 0, false
 	}
 	return videoID, locationID, true
+}
+
+func reserveVideoFileMutation(c *gin.Context, directoryID int64) (func(), bool) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+	release, err := service.CancelAndReserveDirectoryScan(ctx, directoryID)
+	if err != nil {
+		respondLocalizedError(c, http.StatusConflict, "目录正在执行其他任务，请稍后重试", "The directory is busy; please try again later")
+		return nil, false
+	}
+	return release, true
 }
 
 func isSafeVideoFilename(name string) bool {

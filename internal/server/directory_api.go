@@ -28,10 +28,11 @@ func listDirectories(c *gin.Context) {
 	}
 	type directoryResponse struct {
 		models.Directory
-		IsScanning       bool   `json:"is_scanning"`
-		WorkStatus       string `json:"work_status"`
-		ScannedFileCount int64  `json:"scanned_file_count"` // Current scan only; zero when idle.
-		ScanElapsedMS    int64  `json:"scan_elapsed_ms"`    // Includes file scanning and JAV linking; zero when idle.
+		IsScanning        bool                                `json:"is_scanning"`
+		WorkStatus        string                              `json:"work_status"`
+		ScannedFileCount  int64                               `json:"scanned_file_count"` // Current scan only; zero when idle.
+		ScanElapsedMS     int64                               `json:"scan_elapsed_ms"`    // Includes file scanning and JAV linking; zero when idle.
+		TranscodeProgress *service.DirectoryTranscodeProgress `json:"transcode_progress,omitempty"`
 	}
 	response := make([]directoryResponse, len(dirs))
 	for i := range dirs {
@@ -41,9 +42,10 @@ func listDirectories(c *gin.Context) {
 			dirs[i].ScrapedVideoCount = progress.ScrapedVideoCount
 		}
 		response[i] = directoryResponse{
-			Directory:  dirs[i],
-			IsScanning: workStatus == service.DirectoryWorkScanning,
-			WorkStatus: workStatus,
+			Directory:         dirs[i],
+			IsScanning:        workStatus == service.DirectoryWorkScanning,
+			WorkStatus:        workStatus,
+			TranscodeProgress: service.DirectoryTranscodeSnapshot(dirs[i].ID),
 		}
 		if progress != nil {
 			response[i].ScannedFileCount = progress.ScannedFileCount
@@ -250,6 +252,8 @@ func processDirectory(c *gin.Context) {
 	defer cancel()
 	if err := service.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout); err != nil {
 		switch {
+		case errors.Is(err, service.ErrTranscodeToolsUnavailable):
+			respondLocalizedError(c, http.StatusConflict, "转码需要 FFmpeg 和 FFprobe，请先在工具设置中安装或配置", "Transcoding requires FFmpeg and FFprobe; install or configure them in tool settings")
 		case errors.Is(err, service.ErrInvalidDirectoryProcessMode):
 			respondLocalizedError(c, http.StatusBadRequest, "目录处理模式无效", "Invalid directory processing mode")
 		case errors.Is(err, service.ErrInvalidDirectoryProcessLayout):
@@ -265,4 +269,18 @@ func processDirectory(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusAccepted, gin.H{"work_status": service.DirectoryWorkStatus(id)})
+}
+
+// cancelDirectoryTranscode stops the active ffmpeg process and queued files.
+func cancelDirectoryTranscode(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		respondLocalizedError(c, http.StatusBadRequest, "目录 ID 无效", "Invalid directory ID")
+		return
+	}
+	if !service.CancelDirectoryTranscode(id) {
+		respondLocalizedError(c, http.StatusConflict, "目录没有正在进行的转码任务", "The directory has no active transcode job")
+		return
+	}
+	c.JSON(http.StatusAccepted, gin.H{"status": "cancelling"})
 }

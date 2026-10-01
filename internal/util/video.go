@@ -24,7 +24,9 @@ import (
 type VideoMetadata struct {
 	Codec           string
 	VideoCodec      string
+	PixelFormat     string
 	AudioCodec      string
+	AudioCodecs     []string // All audio streams, in input order; not part of the fingerprint.
 	Container       string
 	FormatName      string
 	Width           int
@@ -336,7 +338,7 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 	cmd := exec.CommandContext(ctx, ffprobe,
 		"-v", "error",
 		"-print_format", "json",
-		"-show_entries", "stream=index,codec_type,codec_name,width,height,avg_frame_rate,r_frame_rate,sample_rate,channels,bit_rate",
+		"-show_entries", "stream=index,codec_type,codec_name,pix_fmt,width,height,avg_frame_rate,r_frame_rate,sample_rate,channels,bit_rate",
 		"-show_entries", "format=duration,size,bit_rate,format_name",
 		path,
 	)
@@ -391,6 +393,7 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 	}
 	var video *ffprobeStream
 	var audio *ffprobeStream
+	var audioCodecs []string
 	for i := range res.Streams {
 		s := res.Streams[i]
 		switch strings.ToLower(strings.TrimSpace(s.CodecType)) {
@@ -399,6 +402,7 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 				video = &s
 			}
 		case "audio":
+			audioCodecs = append(audioCodecs, strings.TrimSpace(s.CodecName))
 			if audio == nil {
 				audio = &s
 			}
@@ -418,6 +422,8 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 	meta := &VideoMetadata{
 		Codec:           strings.TrimSpace(video.CodecName),
 		VideoCodec:      strings.TrimSpace(video.CodecName),
+		PixelFormat:     strings.TrimSpace(video.PixFmt),
+		AudioCodecs:     audioCodecs,
 		FormatName:      normalizeFormatName(res.Format.FormatName),
 		Container:       detectContainer(res.Format.FormatName, path),
 		Width:           video.Width,
