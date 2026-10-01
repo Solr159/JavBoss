@@ -118,7 +118,7 @@ export default function JavStudioDetailModal({
     <AppModal
       ariaLabel={zh('片商详情', 'Studio details')}
       className="p-4"
-      contentClassName="flex max-h-[92vh] w-[min(84rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
+      contentClassName="flex h-[92vh] w-[min(84rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
       contentProps={{ onClick: (event) => event.stopPropagation() }}
       onClose={(event) => {
         event?.stopPropagation()
