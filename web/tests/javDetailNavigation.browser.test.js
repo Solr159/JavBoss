@@ -100,6 +100,12 @@ test(
       }
       assert.fail(`Timed out: ${expression}; URL: ${await evaluate('location.href')}`)
     }
+    const reloadPage = async () => {
+      const previousTimeOrigin = await evaluate('performance.timeOrigin')
+      await command('Page.reload')
+      // The CDP reply can arrive while the previous document is still visible.
+      await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}`)
+    }
     const modal = `document.querySelector('[role="dialog"][aria-labelledby="jav-detail-title-1"]')`
     const scroll = `${modal}.querySelector('.overflow-y-auto')`
     const fixture = `${origin}/tests/fixtures/javDetailNavigation.html`
@@ -148,7 +154,7 @@ test(
     await evaluate('history.back()')
     await waitFor(`${modal} && ${scroll}.scrollTop === 1800`)
     // A reload has no image cache; don't overwrite the saved position with the clamped value.
-    await command('Page.reload')
+    await reloadPage()
     await waitFor(`${modal} && window.releaseSampleImages`)
     assert.equal(await evaluate('history.state.usr.__javbossJavDetail.scrollTop'), 1800)
     await evaluate('window.releaseSampleImages()')
@@ -171,7 +177,7 @@ test(
       `document.querySelector('[role="dialog"][aria-label] button[aria-label]').click()`
     )
     await waitFor(`!location.search.includes('studio_detail=') && ${modal}`)
-    await command('Page.reload')
+    await reloadPage()
     await waitFor(modal)
     assert.equal(await evaluate(`${scroll}.scrollTop`), 250)
     await evaluate(`${modal}.querySelector('button[aria-label]').click()`)

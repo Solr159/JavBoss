@@ -1,0 +1,154 @@
+name: PR checks
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_VERSION: "24"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CGO_ENABLED: "1"
+      GOCACHE: ${{ github.workspace }}/.gocache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Check Go formatting
+        run: |
+          unformatted="$(git ls-files -z '*.go' | xargs -0 gofmt -l)"
+          if [[ -n "$unformatted" ]]; then
+            printf 'Run gofmt on these files:\n%s\n' "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet Go packages
+        run: go vet ./...
+
+      - name: Test Go packages
+        run: go test ./...
+
+      - name: Build Go commands
+        run: go build ./cmd/...
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CHROME_BIN: /usr/bin/google-chrome
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify browser test prerequisites
+        run: |
+          "$CHROME_BIN" --version
+          node --input-type=module -e "import assert from 'node:assert/strict'; assert.equal(typeof WebSocket, 'function');"
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Check frontend formatting
+        run: npm run format:check
+
+      - name: Test frontend, including browser tests
+        # Avoid starting several Chrome/Vite instances at once on the runner.
+        run: npm test -- --test-concurrency=1
+
+      - name: Build frontend
+        run: npm run build
+
+  tooling:
+    name: CLI and browser extension checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: scripts/cli/package-lock.json
+
+      - name: Install CLI dependencies
+        working-directory: scripts/cli
+        run: npm ci
+
+      - name: Verify release test prerequisites
+        run: |
+          command -v zip
+          command -v unzip
+
+      - name: Test CLI
+        working-directory: scripts/cli
+        run: npm test
+
+      - name: Build CLI
+        working-directory: scripts/cli
+        run: npm run build
+
+      - name: Test browser extension
+        run: node --test browser-extension/tests/*.test.js
+
+  merge-check:
+    name: PR merge check
+    if: ${{ always() }}
+    needs: [backend, frontend, tooling]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every check to succeed
+        env:
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          TOOLING_RESULT: ${{ needs.tooling.result }}
+        run: |
+          printf 'Backend: %s\nFrontend: %s\nTooling: %s\n' "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TOOLING_RESULT"
+          [[ "$BACKEND_RESULT" == "success" && "$FRONTEND_RESULT" == "success" && "$TOOLING_RESULT" == "success" ]]

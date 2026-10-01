@@ -100,6 +100,12 @@ test(
       }
       assert.fail(`Timed out: ${expression}; URL: ${await evaluate('location.href')}`)
     }
+    const reloadPage = async () => {
+      const previousTimeOrigin = await evaluate('performance.timeOrigin')
+      await command('Page.reload')
+      // The CDP reply can arrive while the previous document is still visible.
+      await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}`)
+    }
     const modal = `document.querySelector('[role="dialog"][aria-label="片商详情"], [role="dialog"][aria-label="Studio details"]')`
     const loaded = `${modal}?.querySelectorAll('section').length === 2`
     const scroll = `${modal}.querySelector('.overflow-y-auto')`
@@ -152,7 +158,7 @@ test(
     await evaluate('history.back()')
     await waitFor(loaded)
     // A reload uses only the ID and history state, without needing the original card.
-    await command('Page.reload')
+    await reloadPage()
     await waitFor(loaded)
     assert.equal(await evaluate(`${scroll}.scrollTop`), 350)
     await evaluate(`${modal}.querySelector('section:nth-child(2) a button').click()`)
