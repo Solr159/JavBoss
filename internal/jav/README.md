@@ -115,3 +115,7 @@ returned to the UI. Checks have a 30-second upper deadline (shorter provider/cli
 timeouts still apply). The frontend runs at most three checks concurrently and
 cancels pending work when the panel closes or proxy settings change. New providers
 should implement `ProviderOrigin` and a supported movie or actress-name lookup.
+
+Failed checks log the provider, failure status, last HTTP status, elapsed time and
+error cause. Request URL wrappers are removed from logged errors to omit URL
+credentials and query parameters. Canceled checks use informational logging.

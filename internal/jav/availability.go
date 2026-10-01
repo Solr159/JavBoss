@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"javboss/internal/common/logging"
 	"javboss/internal/util"
 )
 
@@ -116,9 +117,16 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 	sequence := c.beginAvailabilityCheck(provider)
 	callerCtx := ctx
 	started := time.Now()
+	var lookupErr error
 	defer func() {
 		result.ElapsedMS = time.Since(started).Milliseconds()
 		result.CheckedAt = time.Now().UTC()
+		if err != nil {
+			lookupErr = err
+		}
+		if result.Status != "ok" {
+			logAvailabilityFailure(result, lookupErr)
+		}
 		if result.Status != "canceled" && callerCtx.Err() == nil && err == nil {
 			c.cacheAvailabilityResult(result, sequence)
 		}
@@ -126,7 +134,8 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	if ctx.Err() != nil {
-		result.Status = availabilityErrorStatus(ctx.Err())
+		lookupErr = ctx.Err()
+		result.Status = availabilityErrorStatus(lookupErr)
 		return result, nil
 	}
 	probe := util.NewHTTPProbe(newProviderHTTPClient(provider))
@@ -137,7 +146,6 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 	}
 	// Query the fresh provider directly, bypassing the metadata lookup cache.
 	sample := availabilitySample(provider)
-	var lookupErr error
 	valid := false
 	switch lookup := implementation.(type) {
 	case MovieLookup:
@@ -155,7 +163,8 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 	result.HTTPStatus = probe.HTTPStatus()
 	switch {
 	case ctx.Err() != nil:
-		result.Status = availabilityErrorStatus(ctx.Err())
+		lookupErr = ctx.Err()
+		result.Status = availabilityErrorStatus(lookupErr)
 	case lookupErr == nil && valid:
 		result.Status = "ok"
 	case lookupErr != nil:
@@ -167,6 +176,33 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 		result.Status = "invalid_response"
 	}
 	return result, nil
+}
+
+func logAvailabilityFailure(result AvailabilityResult, err error) {
+	if result.Status == "canceled" {
+		logging.Info("jav availability check canceled: provider=%s elapsed_ms=%d", result.Provider, result.ElapsedMS)
+		return
+	}
+	status := result.Status
+	if status == "" {
+		status = "error"
+	}
+	// Request URLs may contain proxy credentials, tokens or device identities.
+	// Preserve the underlying cause without logging the URL, including nested
+	// url.Errors produced by proxy requests.
+	for {
+		var requestErr *url.Error
+		if !errors.As(err, &requestErr) {
+			break
+		}
+		err = requestErr.Err
+	}
+	reason := "lookup returned no matching or sufficiently complete metadata"
+	if err != nil {
+		reason = err.Error()
+	}
+	logging.Error("jav availability check failed: provider=%s status=%s http_status=%d elapsed_ms=%d err=%q",
+		result.Provider, status, result.HTTPStatus, result.ElapsedMS, reason)
 }
 
 // These stable examples exercise the capability supported by each provider.

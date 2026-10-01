@@ -1,11 +1,13 @@
 package jav
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +21,73 @@ import (
 	"javboss/internal/jav/javdbapi"
 	"javboss/internal/util"
 )
+
+func TestAvailabilityFailureLogs(t *testing.T) {
+	requestErr := fmt.Errorf("provider request: %w", &url.Error{
+		Op: "Get", URL: "https://site.invalid/?token=secret-token",
+		Err: &url.Error{Op: "Connect", URL: "http://user:secret-password@proxy.invalid", Err: errors.New("connection refused")},
+	})
+	for _, tc := range []struct {
+		name, status, reason string
+		info                 *JavInfo
+		err                  error
+		factoryError, cancel bool
+	}{
+		{name: "network", status: "network_error", reason: "connection refused", err: requestErr},
+		{name: "dns", status: "dns_error", reason: "no such host", err: &net.DNSError{Err: "no such host", Name: "site.invalid"}},
+		{name: "tls", status: "tls_error", reason: "bad certificate", err: &tls.CertificateVerificationError{Err: errors.New("bad certificate")}},
+		{name: "timeout", status: "timeout", reason: "context deadline exceeded", err: context.DeadlineExceeded},
+		{name: "parse", status: "invalid_response", reason: "invalid JSON", err: errors.New("invalid JSON")},
+		{name: "incomplete", status: "invalid_response", reason: "no matching or sufficiently complete metadata"},
+		{name: "missing", status: "not_found", reason: ErrNotFound.Error(), err: ErrNotFound},
+		{name: "factory", status: "error", reason: "provider initialization failed", err: errors.New("provider initialization failed"), factoryError: true},
+		{name: "canceled", cancel: true},
+		{name: "success", info: sampleMovie()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			previous := log.Writer()
+			log.SetOutput(&output)
+			t.Cleanup(func() { log.SetOutput(previous) })
+			client := availabilityTestClient(func(context.Context, string) (*JavInfo, error) { return tc.info, tc.err })
+			if tc.factoryError {
+				client.availabilityFactory = func(Provider, *http.Client) (any, error) { return nil, tc.err }
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if tc.cancel {
+				cancel()
+			}
+			result, err := client.CheckAvailability(ctx, ProviderJavBus)
+			if (err != nil) != tc.factoryError {
+				t.Fatalf("unexpected returned error: %v", err)
+			}
+			message := output.String()
+			if tc.name == "success" {
+				if result.Status != "ok" || message != "" {
+					t.Fatalf("successful check logged failure: result=%+v log=%s", result, message)
+				}
+				return
+			}
+			if tc.cancel {
+				if !strings.Contains(message, "jav availability check canceled:") || strings.Contains(message, "failed:") {
+					t.Fatalf("cancellation logged as failure: %s", message)
+				}
+				return
+			}
+			for _, want := range []string{"jav availability check failed:", "provider=javbus", "status=" + tc.status, "http_status=0", "elapsed_ms=", tc.reason} {
+				if !strings.Contains(message, want) {
+					t.Errorf("log missing %q: %s", want, message)
+				}
+			}
+			for _, secret := range []string{"secret-token", "secret-password", "https://site.invalid", "http://user"} {
+				if strings.Contains(message, secret) {
+					t.Errorf("request URL leaked into log: %s", message)
+				}
+			}
+		})
+	}
+}
 
 type availabilityMovie struct {
 	lookup func(context.Context, string) (*JavInfo, error)
