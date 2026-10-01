@@ -1433,6 +1433,15 @@ func TestSaveJavInfoAppendsIdolsOnlyWhenMappingMissing(t *testing.T) {
 		"岬ななみ": false,
 	})
 
+	save(&metadata.JavInfo{
+		Code:     "AAA-001",
+		Title:    "Updated automatic metadata",
+		Actors:   []string{"別の女優"},
+		Provider: metadata.ProviderJavDB,
+	})
+	assertJavIdolMaps(t, gdb, "AAA-001", map[string]bool{
+		"岬ななみ": false,
+	})
 }
 
 func TestAppendJavIdolsIfMissingForProvider(t *testing.T) {

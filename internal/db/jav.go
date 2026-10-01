@@ -3334,6 +3334,29 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	if err != nil {
 		return nil, err
 	}
+	// Manual metadata replaces the submitted collections, including empty lists.
+	// Automatic providers retain their per-provider tags and fill missing idols.
+	if provider == metadata.ProviderManualScrape {
+		tagIDs := make([]int64, 0, len(tags))
+		for _, tag := range tags {
+			tagIDs = append(tagIDs, tag.ID)
+		}
+		if err := replaceJavScrapedTagsTx(tx, javRec.ID, tagIDs); err != nil {
+			return nil, err
+		}
+		idols, err := ensureJavIdolsTx(tx, info.Actors)
+		if err != nil {
+			return nil, err
+		}
+		idolIDs := make([]int64, 0, len(idols))
+		for _, idol := range idols {
+			idolIDs = append(idolIDs, idol.ID)
+		}
+		if err := replaceJavIdolsTx(tx, javRec.ID, idolIDs); err != nil {
+			return nil, err
+		}
+		return javRec, nil
+	}
 	if err := replaceJavTagsForProviderTx(tx, javRec.ID, tags, info.Provider); err != nil {
 		return nil, err
 	}
