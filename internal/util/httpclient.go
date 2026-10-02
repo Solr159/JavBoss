@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"javboss/internal/common/logging"
 )
 
 const negativeURLCacheTTL = 7 * 24 * time.Hour
@@ -54,13 +56,19 @@ func (t *negativeCacheTransport) RoundTrip(req *http.Request) (*http.Response, e
 	if cached, ok := negativeURLCache.Load(url); ok {
 		entry := cached.(negativeURLCacheEntry)
 		if time.Now().Before(entry.expiresAt) {
+			var cachedErr error
 			switch entry.statusCode {
 			case http.StatusNotFound:
-				return nil, ErrCachedNotFound
+				cachedErr = ErrCachedNotFound
 			case http.StatusForbidden:
 				if cacheForbidden {
-					return nil, ErrCachedForbidden
+					cachedErr = ErrCachedForbidden
 				}
+			}
+			if cachedErr != nil {
+				logging.Info("http response status: %d %s (cached) method=%s url=%s expires_at=%s",
+					entry.statusCode, http.StatusText(entry.statusCode), req.Method, url, entry.expiresAt.Format(time.RFC3339))
+				return nil, cachedErr
 			}
 		} else {
 			// Preserve a newer entry if another request refreshed it concurrently.
