@@ -94,7 +94,7 @@ func TestEnrichSeriesOnlyFillsMissingField(t *testing.T) {
 				}
 			}
 			if !task.uncensored {
-				wantKeys = append(wantKeys, "v2:jav:javmenu:lookup_jav:EMPTY-001", "v2:jav:javmenu:lookup_jav:NOTFOUND-001")
+				wantKeys = append(wantKeys, "v2:jav:javmenu:lookup_jav:EMPTY-001", "v2:jav:javmenu:lookup_jav:NOTFOUND-001", "v4:jav:javdatabase:lookup_jav:EMPTY-001", "v4:jav:javdatabase:lookup_jav:NOTFOUND-001")
 			}
 			jav.SetCache(cache)
 			t.Cleanup(func() { jav.SetCache(nil) })
@@ -138,7 +138,7 @@ func TestEnrichSeriesOnlyFillsMissingField(t *testing.T) {
 			sort.Strings(cache.keys)
 			var want []string
 			if !task.uncensored {
-				want = []string{"v2:jav:javmenu:lookup_jav:EMPTY-001", "v2:jav:javmenu:lookup_jav:NOTFOUND-001", "v5:jav:javdb-api:lookup_jav:EMPTY-001", "v5:jav:javdb-api:lookup_jav:NOTFOUND-001"}
+				want = []string{"v2:jav:javmenu:lookup_jav:EMPTY-001", "v2:jav:javmenu:lookup_jav:NOTFOUND-001", "v4:jav:javdatabase:lookup_jav:EMPTY-001", "v4:jav:javdatabase:lookup_jav:NOTFOUND-001", "v5:jav:javdb-api:lookup_jav:EMPTY-001", "v5:jav:javdb-api:lookup_jav:NOTFOUND-001"}
 			}
 			if !reflect.DeepEqual(cache.keys, want) {
 				t.Fatalf("second scan lookups=%v, want %v", cache.keys, want)
