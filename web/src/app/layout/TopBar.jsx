@@ -698,7 +698,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
   return (
     <div
       className={`group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-        active ? 'border-blue-300 shadow-md' : 'border-amber-200/80 shadow-sm'
+        active ? 'border-amber-300 shadow-md' : 'border-blue-200/80 shadow-sm'
       }`}
     >
       <a
@@ -713,22 +713,22 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         <span
           className={`absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 ${
             active
-              ? 'border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300'
-              : 'border-amber-200 bg-gradient-to-b from-amber-100 to-amber-200'
+              ? 'border-amber-300 bg-gradient-to-b from-amber-200 to-amber-300'
+              : 'border-blue-200 bg-gradient-to-b from-blue-100 to-blue-200'
           }`}
           aria-hidden="true"
         />
         <span
           className={`absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)] ${
             active
-              ? 'border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300'
-              : 'border-amber-200 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200'
+              ? 'border-amber-300 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-300'
+              : 'border-blue-200 bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200'
           }`}
           aria-hidden="true"
         />
         <span
           className={`absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md ${
-            active ? 'bg-blue-400/40' : 'bg-amber-300/45'
+            active ? 'bg-amber-400/40' : 'bg-blue-300/45'
           }`}
           aria-hidden="true"
         />
@@ -736,11 +736,11 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
           <span className="flex items-start gap-1">
             <FolderRoundedIcon
               sx={{ fontSize: 14 }}
-              className={active ? 'shrink-0 text-blue-700' : 'shrink-0 text-amber-700'}
+              className={active ? 'shrink-0 text-amber-700' : 'shrink-0 text-blue-700'}
             />
             <span
               className={`min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 ${
-                active ? 'text-blue-950' : 'text-amber-950'
+                active ? 'text-amber-950' : 'text-blue-950'
               }`}
             >
               {label}
@@ -752,8 +752,8 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         <span
           className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 text-[10px] leading-4 shadow-sm ${
             active
-              ? 'border-blue-200 bg-white/80 text-blue-700'
-              : 'border-amber-200 bg-white/80 text-amber-800'
+              ? 'border-amber-200 bg-white/80 text-amber-700'
+              : 'border-blue-200 bg-white/80 text-blue-800'
           }`}
         >
           {count}
@@ -769,8 +769,8 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
           }}
           className={`absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border bg-white/85 shadow-sm backdrop-blur-sm transition-colors ${
             active
-              ? 'border-blue-200 text-blue-700 hover:bg-blue-50'
-              : 'border-amber-200 text-amber-800 hover:bg-amber-50'
+              ? 'border-amber-200 text-amber-700 hover:bg-amber-50'
+              : 'border-blue-200 text-blue-800 hover:bg-blue-50'
           }`}
           aria-label={zh(`编辑收藏夹 ${label}`, `Edit favorite ${label}`)}
         >
