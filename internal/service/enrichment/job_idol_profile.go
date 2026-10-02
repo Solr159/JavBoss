@@ -1,11 +1,10 @@
-package service
+package enrichment
 
 import (
 	"context"
 	"errors"
 	"math/rand"
 	"strings"
-	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
@@ -14,32 +13,16 @@ import (
 	"javboss/internal/util"
 )
 
-// StartIdolProfileScanner periodically scans JAV idols with incomplete profile data.
-// It runs ScanIdolProfiles immediately and then on every interval until ctx is done, filling
-// missing profile fields such as names, measurements, birth date, and profile URL from external
-// actress metadata providers.
-func StartIdolProfileScanner(ctx context.Context, interval time.Duration) {
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			if err := ScanIdolProfiles(ctx); err != nil {
-				logging.Error("idol profile scan failed: %v", err)
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			}
-		}
-	}()
+// StartIdolProfileEnrichment periodically fills missing JAV idol profile fields.
+func StartIdolProfileEnrichment(ctx context.Context, interval time.Duration) {
+	startPeriodicJob(ctx, interval, "idol profile", EnrichIdolProfiles)
 }
 
-// ScanIdolProfiles scans jav_idol rows that are missing profile fields.
+// EnrichIdolProfiles fills missing profile fields on jav_idol rows.
 // For each idol, it tries to find a solo work code, queries AV Wiki, JavDatabase, and JavModel
 // concurrently, merges details in that priority order, normalizes Chinese names, and writes the
 // completed profile fields back to the database.
-func ScanIdolProfiles(ctx context.Context) error {
+func EnrichIdolProfiles(ctx context.Context) error {
 	idols, err := db.ListIdolsMissingProfile(ctx)
 	if err != nil {
 		return err
@@ -115,81 +98,4 @@ func ScanIdolProfiles(ctx context.Context) error {
 		}
 	}
 	return nil
-}
-
-type idolActressLookup func() (*jav.ActressInfo, error)
-
-type idolActressLookupResult struct {
-	info *jav.ActressInfo
-	err  error
-}
-
-func lookupActressProfilesConcurrently(lookups ...idolActressLookup) []idolActressLookupResult {
-	results := make([]idolActressLookupResult, len(lookups))
-	var workers sync.WaitGroup
-	for index, lookup := range lookups {
-		if lookup == nil {
-			continue
-		}
-		workers.Add(1)
-		go func(index int, lookup idolActressLookup) {
-			defer workers.Done()
-			results[index].info, results[index].err = lookup()
-		}(index, lookup)
-	}
-	workers.Wait()
-	return results
-}
-
-func mergeActressInfosByPriority(infos ...*jav.ActressInfo) *jav.ActressInfo {
-	var merged *jav.ActressInfo
-	for _, info := range infos {
-		merged = mergeActressInfo(merged, info)
-	}
-	return merged
-}
-
-func mergeActressInfo(primary, secondary *jav.ActressInfo) *jav.ActressInfo {
-	if primary == nil && secondary == nil {
-		return nil
-	}
-	if primary == nil {
-		copied := *secondary
-		return &copied
-	}
-	merged := *primary
-	if secondary == nil {
-		return &merged
-	}
-	if merged.RomanName == "" {
-		merged.RomanName = secondary.RomanName
-	}
-	if merged.JapaneseName == "" {
-		merged.JapaneseName = secondary.JapaneseName
-	}
-	if merged.ChineseName == "" {
-		merged.ChineseName = secondary.ChineseName
-	}
-	if merged.HeightCM == 0 {
-		merged.HeightCM = secondary.HeightCM
-	}
-	if merged.Bust == 0 {
-		merged.Bust = secondary.Bust
-	}
-	if merged.Waist == 0 {
-		merged.Waist = secondary.Waist
-	}
-	if merged.Hips == 0 {
-		merged.Hips = secondary.Hips
-	}
-	if merged.BirthDate == 0 {
-		merged.BirthDate = secondary.BirthDate
-	}
-	if merged.Cup == 0 {
-		merged.Cup = secondary.Cup
-	}
-	if merged.ProfileURL == "" {
-		merged.ProfileURL = secondary.ProfileURL
-	}
-	return &merged
 }

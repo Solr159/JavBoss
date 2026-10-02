@@ -1,4 +1,4 @@
-package service
+package enrichment
 
 import (
 	"fmt"

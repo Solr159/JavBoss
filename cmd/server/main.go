@@ -212,7 +212,7 @@ func main() {
 			enrichment.StartUncensoredStudioEnrichment(ctx, time.Minute)
 			enrichment.StartUncensoredSeriesEnrichment(ctx, time.Minute)
 			enrichment.StartUncensoredIdolEnrichment(ctx, time.Minute)
-			service.StartIdolProfileScanner(ctx, time.Minute)
+			enrichment.StartIdolProfileEnrichment(ctx, time.Minute)
 		}
 	}()
 
