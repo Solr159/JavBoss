@@ -129,6 +129,7 @@ test("movie detail resolves idol, series, and studio links", () => {
     detailBlock("片商:", [
       detailLink("アイデアポケット", "/makers/ZXX?f=download#results"),
     ]),
+    detailBlock("發行:", [detailLink("Other Label", "/publishers/other")]),
   ]);
 
   const cases = [
@@ -266,6 +267,9 @@ test("parse maps the JavDB detail fields used by the supplied sample", () => {
     block("日期:", "2026-08-22"),
     block("時長:", "51 分鍾"),
     block("片商:", "10musume", [{ text: "10musume", href: "/makers/mMr" }]),
+    block("發行:", "Other Label", [
+      { text: "Other Label", href: "/publishers/other" },
+    ]),
     block("類別:", "素人, 白虎", [
       { text: "素人", href: "/tags?c3=88" },
       { text: "白虎", href: "/tags?c3=74" },

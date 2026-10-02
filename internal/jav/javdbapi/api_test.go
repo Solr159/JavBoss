@@ -28,6 +28,32 @@ func TestJavDBAPISignature(t *testing.T) {
 	}
 }
 
+func TestJavDBAPIStudioUsesMakerIndependentlyOfPublisher(t *testing.T) {
+	// SSNI-987 returns S1 as maker while both publisher fields are null.
+	for _, publisher := range []string{
+		`"publisher_name":null,"publisher_id":null`,
+		`"publisher_name":"Other Label","publisher_id":"other"`,
+	} {
+		t.Run(publisher, func(t *testing.T) {
+			p := newJavDBAPITestProvider(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/api/v2/search" {
+					fmt.Fprint(w, `{"success":1,"data":{"movies":[{"id":"MZB0P","number":"SSNI-987"}]}}`)
+					return
+				}
+				fmt.Fprintf(w, `{"success":1,"data":{"movie":{"number":"SSNI-987","origin_title":"Fixture title","maker_name":"S1 NO.1 STYLE","maker_id":"7R",%s}}}`, publisher)
+			})
+			info, err := p.LookupJavByCode(context.Background(), "SSNI-987")
+			if err != nil || info == nil || info.Studio != "S1 NO.1 STYLE" {
+				t.Fatalf("studio metadata: info=%+v err=%v", info, err)
+			}
+			link, err := p.LookupStudioURLByCode(context.Background(), "SSNI-987")
+			if err != nil || link != "https://javdb.com/makers/7R" {
+				t.Fatalf("studio link: %q, %v", link, err)
+			}
+		})
+	}
+}
+
 func TestJavDBAPIResolveNumber(t *testing.T) {
 	for _, tc := range []struct {
 		name, code string

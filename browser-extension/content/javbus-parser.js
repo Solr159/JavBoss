@@ -148,14 +148,7 @@
       return {
         code,
         title,
-        studio: fieldValue(document, [
-          "製作商",
-          "制作商",
-          "片商",
-          "メーカー",
-          "studio",
-          "maker",
-        ]),
+        studio: fieldValue(document, ["發行商", "发行商", "レーベル", "label"]),
         series: fieldValue(document, ["系列", "シリーズ", "series"]),
         release_date: parseDate(document),
         duration_min: parseDuration(document),

@@ -23,6 +23,7 @@ test("parse maps the JavLibrary detail fields used by the supplied sample", () =
     ["#video_id .text", node("OFJE-282")],
     ["#video_title h3 a", node("OFJE-282 Fixture title")],
     ["#video_maker .text a", node("S1 NO.1 STYLE")],
+    ["#video_label .text a", node("Other Label")],
     ["#video_date .text", node("2020-10-07")],
     ["#video_length .text", node("480")],
     [
