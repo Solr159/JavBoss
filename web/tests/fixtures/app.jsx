@@ -23,6 +23,8 @@ window.fetch = async (input, init = {}) => {
   if (url.pathname === '/directories')
     return Response.json([{ id: 1, path: '/videos', enabled: true }])
   if (url.pathname === '/videos') return Response.json({ items: [], total: 0 })
+  if (url.pathname === '/downloads')
+    return Response.json({ items: [], total: 0, counts: { active: 0, completed: 0, failed: 0 } })
   if (url.pathname === '/jav') return Response.json({ items: [jav], total: 1 })
   if (url.pathname === '/jav/items/1') return Response.json(jav)
   if (['/jav/idols', '/jav/studios', '/jav/series'].includes(url.pathname))

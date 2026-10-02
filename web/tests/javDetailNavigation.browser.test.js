@@ -26,6 +26,7 @@ test(
     const loadId = await evaluate('window.fixtureLoadId')
     await evaluate(`window.scrollTo(0,420); document.querySelector('.jav-card button').click()`)
     await waitFor(modal)
+    await waitFor(`document.title === 'ABC-001 Test JAV'`)
     assert.ok((await evaluate('location.search')).includes('jav_detail=1'))
     assert.equal(
       await evaluate('window.javDetailRequests'),
@@ -76,8 +77,10 @@ test(
     // A second detail layer must return to JAV details before closing to the list.
     await evaluate(`document.querySelector('#nested-studio').click()`)
     await waitFor('location.search.includes("studio_detail=2")')
+    await waitFor(`document.title === 'Test studio'`)
     await evaluate('history.back()')
     await waitFor(`!location.search.includes('studio_detail=') && ${modal}`)
+    await waitFor(`document.title === 'ABC-001 Test JAV'`)
     assert.equal(await evaluate(`${scroll}.scrollTop`), 250)
     await evaluate('history.forward()')
     await waitFor('location.search.includes("studio_detail=2")')
@@ -96,6 +99,7 @@ test(
     await waitFor(`!${modal} && !location.search.includes('jav_detail=')`)
     await command('Page.navigate', { url: `${fixture}?view=jav&jav_detail=1` })
     await waitFor(modal)
+    await waitFor(`document.title === 'ABC-001 Test JAV'`)
     assert.ok(
       await evaluate('window.javDetailRequests > 0'),
       'direct links load detail without requiring the item in the list'

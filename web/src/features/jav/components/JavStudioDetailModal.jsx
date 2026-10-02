@@ -7,6 +7,8 @@ import { SeriesCard } from '@/features/jav/components/JavSeriesView'
 import { getErrorMessage } from '@/utils/errors'
 import { getStudioCodePrefixes, getStudioSeries } from '@/utils/javStudio'
 import { zh } from '@/utils/i18n'
+import useDocumentTitle from '@/shared/hooks/useDocumentTitle'
+import { formatPageTitle } from '@/navigation/pageTitle'
 
 export default function JavStudioDetailModal({
   studioId,
@@ -62,6 +64,7 @@ export default function JavStudioDetailModal({
   )
 
   const name = item?.name || zh('片商详情', 'Studio details')
+  useDocumentTitle(formatPageTitle(name), { priority: 20 })
   const aliases = Array.isArray(item?.aliases) ? item.aliases.filter(Boolean) : []
   const workCount = Number(item?.work_count) || 0
   const showWorkCount = workCount > 0

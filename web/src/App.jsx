@@ -14,6 +14,8 @@ import useVideoSelection from '@/features/video/hooks/useVideoSelection'
 import useFavoriteGroups from '@/features/favorites/hooks/useFavoriteGroups'
 import useContentRestoration from '@/navigation/useContentRestoration'
 import useSectionNavigation from '@/navigation/useSectionNavigation'
+import useDocumentTitle from '@/shared/hooks/useDocumentTitle'
+import { buildLibraryPageTitle, formatPageTitle } from '@/navigation/pageTitle'
 import useJavSelection from '@/features/jav/hooks/useJavSelection'
 import SideTabs from '@/app/layout/SideTabs'
 import TopBar from '@/app/layout/TopBar'
@@ -377,6 +379,22 @@ export default function App() {
     activeFavoriteGroupsError,
     activeSelectedFavoriteGroupId,
   } = useFavoriteGroups({ isJavMode, saveScrollBeforeUrlStateChange, setJavSearchInput })
+
+  useDocumentTitle(
+    buildLibraryPageTitle({
+      isJavMode,
+      javTab,
+      filterItems: activeFilterItems,
+      javSearchTerm,
+      favoriteGroupName: activeFavoriteGroups.find(
+        (group) => Number(group.id) === Number(activeSelectedFavoriteGroupId)
+      )?.name,
+    })
+  )
+  useDocumentTitle(
+    formatPageTitle(globalSettingsOpen ? zh('全局设置', 'Settings') : zh('下载', 'Downloads')),
+    { priority: 30, enabled: globalSettingsOpen || downloadOpen }
+  )
 
   const { activeError, showDirectorySetupHint } = useContentRestoration({
     isJavMode,

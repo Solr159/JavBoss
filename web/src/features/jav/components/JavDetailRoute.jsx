@@ -8,6 +8,8 @@ import useJavPresentation from '@/features/jav/hooks/useJavPresentation'
 import { useStore } from '@/store'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
+import useDocumentTitle from '@/shared/hooks/useDocumentTitle'
+import { buildJavDetailPageTitle } from '@/navigation/pageTitle'
 
 // Reuse the card's actions and editors while mounting details independently of the list.
 export default function JavDetailRoute({
@@ -36,6 +38,7 @@ export default function JavDetailRoute({
   )
   const detailItems = useMemo(() => [detailItem], [detailItem])
   const { displayItems, ...presentation } = useJavPresentation(detailItems)
+  useDocumentTitle(buildJavDetailPageTitle(displayItems[0]), { priority: 10 })
   const previews = useJavPreviews()
   useEffect(() => {
     if (detailItem) onLoaded(detailItem)

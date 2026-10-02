@@ -33,6 +33,7 @@ test(
     assert.ok((await evaluate('location.search')).includes('studio_detail=1'))
     assert.ok(await evaluate('window.pendingStudioResponses.length > 0'))
     assert.equal(await evaluate(`${modal}.querySelector('a').textContent`), 'Test studio')
+    await waitFor(`document.title === 'Test studio'`)
 
     await evaluate(
       `${modal}.querySelectorAll('section')[0].querySelector('button').click(); ${modal}.querySelectorAll('section')[1].querySelector('button').click(); ${scroll}.scrollTop = 350`
@@ -40,6 +41,7 @@ test(
     await waitFor(`history.state.usr.__javbossStudioDetail?.scrollTop === 350`)
     await evaluate('window.releaseStudioResponses()')
     await waitFor(`${modal}.querySelector('a').textContent === 'Updated studio'`)
+    await waitFor(`document.title === 'Updated studio'`)
     assert.equal(
       await evaluate(`${scroll}.scrollTop`),
       350,
