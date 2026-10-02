@@ -37,6 +37,7 @@ export function createJavSettingsDraft(state) {
     javHideActionsInput: configFlag(config?.jav_hide_actions),
     javFavoriteRatingShowFullInput: configFlag(config?.jav_favorite_rating_show_full, false),
     javWaterfallDefaultInput: configFlag(config?.jav_waterfall_default),
+    javCompactDefaultInput: configFlag(config?.jav_compact_default),
     idolPageSizeInput: idolPageSize,
     idolWaterfallDefaultInput: configFlag(config?.idol_waterfall_default),
     studioPageSizeInput: studioPageSize,

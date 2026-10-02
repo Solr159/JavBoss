@@ -63,6 +63,7 @@ export default function useJavItemActions({
   const [coverVersion, setCoverVersion] = useState(0)
   const [editorOpen, setEditorOpen] = useState(false)
   const [customTagEditorOpen, setCustomTagEditorOpen] = useState(false)
+  const [coverCropEditorOpen, setCoverCropEditorOpen] = useState(false)
   const openJavDetail = useContext(JavDetailNavigationContext)
   const coverBase = code ? `/jav/${encodeURIComponent(code)}/cover` : null
   const cover = coverBase ? `${coverBase}${coverVersion ? `?v=${coverVersion}` : ''}` : null
@@ -292,6 +293,20 @@ export default function useJavItemActions({
       useStore.getState().patchJavItem(updated)
     }
     setCustomTagEditorOpen(false)
+  }
+
+  const handleOpenCoverCropEditor = (event) => {
+    event?.stopPropagation()
+    event?.preventDefault?.()
+    setCoverCropEditorOpen(true)
+  }
+
+  const handleCoverCropSaved = (updated) => {
+    detailView?.onItemUpdated?.(updated)
+    if (updated?.id) {
+      useStore.getState().patchJavItem(updated)
+    }
+    setCoverCropEditorOpen(false)
   }
 
   const canPlay = Boolean(primaryVideo && primaryVideo.id)
@@ -682,5 +697,9 @@ export default function useJavItemActions({
     customTagEditorOpen,
     setCustomTagEditorOpen,
     handleCustomTagsSaved,
+    coverCropEditorOpen,
+    setCoverCropEditorOpen,
+    handleOpenCoverCropEditor,
+    handleCoverCropSaved,
   }
 }

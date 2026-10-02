@@ -231,6 +231,8 @@ function JavListRoute({
   javResolvedSort,
   javSortSource,
   javGridColumns,
+  javCompactMode,
+  onJavCompactModeChange,
   javHasNext,
   javHasPrev,
   javIdolTagMaxRows,
@@ -307,6 +309,8 @@ function JavListRoute({
       javTitleMaxRows={javTitleMaxRows}
       javIdolTagMaxRows={javIdolTagMaxRows}
       javTagMaxRows={javTagMaxRows}
+      javCompactMode={javCompactMode}
+      onJavCompactModeChange={onJavCompactModeChange}
       onPlay={onPlay}
       onOpenFile={onOpenFile}
       openFileLabel={alternatePlayerLabel}

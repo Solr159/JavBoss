@@ -12,19 +12,54 @@ import StarRoundedIcon from '@mui/icons-material/StarRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
+import { useEffect, useState } from 'react'
 import { ReleaseIcon, DurationIcon } from '@/features/jav/components/JavMetadataIcons'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import { StudioCard } from '@/features/jav/components/JavStudioView'
 import { SeriesCard } from '@/features/jav/components/JavSeriesView'
 import { IdolCard } from '@/features/jav/components/JavIdolGrid'
+import {
+  JAV_COVER_DEFAULT_CROP_LEFT,
+  normalizeJavCoverCropLeft,
+  resolveJavCoverObjectPosition,
+} from '@/utils/javCover'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MovieEdit } from '@mui/icons-material'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
 
+function CompactCoverImage({ src, alt, cropLeft }) {
+  const [imageAspect, setImageAspect] = useState(0)
+  useEffect(() => {
+    setImageAspect(0)
+  }, [src])
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="absolute inset-0 h-full w-full select-none object-cover"
+      style={{ objectPosition: `${resolveJavCoverObjectPosition(cropLeft, imageAspect)}% top` }}
+      loading="lazy"
+      draggable={false}
+      onLoad={(event) => {
+        const img = event.currentTarget
+        if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+          setImageAspect(img.naturalWidth / img.naturalHeight)
+        }
+      }}
+    />
+  )
+}
+
 export default function JavCard(props) {
   const model = useJavItemActions(props)
+  const compact = Boolean(props.compact)
+  const coverCropLeft = normalizeJavCoverCropLeft(
+    props.item?.cover_crop_left ?? JAV_COVER_DEFAULT_CROP_LEFT
+  )
   const {
     checked,
     cover,
@@ -50,6 +85,7 @@ export default function JavCard(props) {
     externalLinks,
     handleExternalLinkClick,
     handleOpenCustomTags,
+    handleOpenCoverCropEditor,
     favoriteCount,
     handleOpenJavFavorites,
     canOpen,
@@ -114,11 +150,28 @@ export default function JavCard(props) {
       <div
         className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg ${checked ? 'border-sky-400 ring-2 ring-sky-200' : ''}`}
       >
-        <div className="card-hover-scope group relative aspect-[800/538] overflow-hidden bg-white">
+        <div
+          className={`card-hover-scope group relative overflow-hidden bg-white ${
+            compact ? '' : 'aspect-[800/538]'
+          }`}
+          style={compact ? { paddingTop: `${coverAspectPercent}%` } : undefined}
+        >
           {cover ? (
-            <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
+            compact ? (
+              <CompactCoverImage
+                src={cover}
+                alt={item?.code || zh('JAV 封面', 'JAV cover')}
+                cropLeft={coverCropLeft}
+              />
+            ) : (
+              <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
+            )
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
+            <div
+              className={`items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600 ${
+                compact ? 'absolute inset-0 flex' : 'flex h-full w-full'
+              }`}
+            >
               {item?.code || zh('未知番号', 'Unknown code')}
             </div>
           )}
@@ -271,7 +324,7 @@ export default function JavCard(props) {
               </Tooltip>
             ) : null}
           </div>
-          {externalLinks.length > 0 ? (
+          {!compact && externalLinks.length > 0 ? (
             <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center gap-1.5 opacity-0 transition-opacity group-hover:opacity-100">
               {externalLinks.map((site) => (
                 <Tooltip
@@ -327,6 +380,17 @@ export default function JavCard(props) {
           </button>
           {cover || canOpen ? (
             <div className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+              {compact && cover ? (
+                <button
+                  type="button"
+                  onClick={handleOpenCoverCropEditor}
+                  title={zh('编辑封面起点', 'Edit cover start')}
+                  aria-label={zh('编辑封面起点', 'Edit cover start')}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+                >
+                  <PhotoCameraRoundedIcon className="h-5 w-5 text-white" fontSize="inherit" />
+                </button>
+              ) : null}
               {cover ? (
                 <button
                   type="button"
@@ -353,13 +417,21 @@ export default function JavCard(props) {
             </div>
           ) : null}
         </div>
-        <div className="flex flex-1 flex-col gap-2 p-3">
-          <div className="text-sm leading-tight" title={titleText} style={titleClampStyle}>
+        <div className={`flex flex-1 flex-col ${compact ? 'gap-1 p-2' : 'gap-2 p-3'}`}>
+          <div
+            className={`leading-tight text-gray-800 ${compact ? 'truncate text-xs' : 'text-sm'}`}
+            title={titleText}
+            style={compact ? undefined : titleClampStyle}
+          >
             {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
             {codeText ? ' ' : null}
             <span className="font-medium text-gray-800">{mainTitle}</span>
           </div>
-          <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
+          <div
+            className={`flex min-w-0 flex-nowrap items-center overflow-hidden text-gray-600 ${
+              compact ? 'gap-x-2 text-[11px]' : 'gap-x-3 text-xs'
+            }`}
+          >
             <span className="inline-flex shrink-0 items-center gap-1">
               <Tooltip title={zh('发行日期', 'Release date')} arrow>
                 <span className="inline-flex">
@@ -376,7 +448,7 @@ export default function JavCard(props) {
               </Tooltip>
               <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
             </span>
-            {studioText ? (
+            {!compact && studioText ? (
               <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
                 <Tooltip title={zh('片商', 'Studio')} arrow>
                   <span className="inline-flex">
@@ -401,7 +473,7 @@ export default function JavCard(props) {
               </span>
             ) : null}
           </div>
-          {!hideSeries && seriesText ? (
+          {!compact && !hideSeries && seriesText ? (
             <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">
               <Tooltip title={zh('系列', 'Series')} arrow>
                 <span className="inline-flex">
@@ -429,7 +501,7 @@ export default function JavCard(props) {
             </div>
           ) : null}
           <Popper
-            open={Boolean(previewStudio && studioHoverAnchorEl)}
+            open={Boolean(!compact && previewStudio && studioHoverAnchorEl)}
             anchorEl={studioHoverAnchorEl}
             placement="right-start"
             className="z-[1400]"
@@ -462,7 +534,7 @@ export default function JavCard(props) {
             </div>
           </Popper>
           <Popper
-            open={Boolean(previewSeries && seriesHoverAnchorEl)}
+            open={Boolean(!compact && previewSeries && seriesHoverAnchorEl)}
             anchorEl={seriesHoverAnchorEl}
             placement="right-start"
             className="z-[1400]"
@@ -491,7 +563,7 @@ export default function JavCard(props) {
               ) : null}
             </div>
           </Popper>
-          {!hideIdols && Array.isArray(item?.idols) && item.idols.length > 0 && (
+          {!compact && !hideIdols && Array.isArray(item?.idols) && item.idols.length > 0 && (
             <>
               <IdolTagList
                 idols={item.idols}
@@ -504,7 +576,7 @@ export default function JavCard(props) {
                 onIdolHoverEnd={scheduleHoverClose}
               />
               <Popper
-                open={Boolean(previewIdol && idolHoverAnchorEl)}
+                open={Boolean(!compact && previewIdol && idolHoverAnchorEl)}
                 anchorEl={idolHoverAnchorEl}
                 placement="right-start"
                 className="z-[1400]"
@@ -539,7 +611,7 @@ export default function JavCard(props) {
               </Popper>
             </>
           )}
-          {!hideTags && tags.length > 0 && (
+          {!compact && !hideTags && tags.length > 0 && (
             <JavTagList
               tags={tags}
               maxRows={tagMaxRows}
@@ -548,7 +620,7 @@ export default function JavCard(props) {
               onFilterLinkClick={handleFilterLinkClick}
             />
           )}
-          {!hideActions ? (
+          {!compact && !hideActions ? (
             <div className="flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>

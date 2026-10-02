@@ -589,6 +589,7 @@ type javItemUpdateRequest struct {
 	ReleaseDate    *string  `json:"release_date"`
 	DurationMin    *int     `json:"duration_min"`
 	FavoriteRating *float64 `json:"favorite_rating"`
+	CoverCropLeft  *float64 `json:"cover_crop_left"`
 }
 
 func updateJavItem(c *gin.Context) {
@@ -647,6 +648,7 @@ func updateJavItem(c *gin.Context) {
 		ReleaseUnix:    releaseUnix,
 		DurationMin:    req.DurationMin,
 		FavoriteRating: req.FavoriteRating,
+		CoverCropLeft:  req.CoverCropLeft,
 	}, nil)
 	if err != nil {
 		logging.Error("update jav item error: %v", err)

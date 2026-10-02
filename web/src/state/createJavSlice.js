@@ -9,6 +9,8 @@ import {
   generateSeed,
 } from '@/state/model'
 import { normalizeJavSort } from '@/constants/jav'
+import { updateConfig } from '@/features/settings/api'
+import { getErrorMessage } from '@/utils/errors'
 
 export function createJavSlice({ set, get, lists }) {
   return {
@@ -33,6 +35,25 @@ export function createJavSlice({ set, get, lists }) {
       const n = Math.floor(Number(columns))
       const next = Number.isFinite(n) && n > 0 ? Math.min(n, 12) : JAV_GRID_COLUMNS_AUTO
       set({ javGridColumns: next })
+    },
+    javCompactMode: false,
+    setJavCompactMode: (enabled) => {
+      const next = Boolean(enabled)
+      set({ javCompactMode: next })
+      // Persist the user's choice so it survives reloads and stays in sync with
+      // the "default compact mode" display setting.
+      return updateConfig({ jav_compact_default: next })
+        .then((config) => {
+          if (get().javCompactMode === next) {
+            set({ config })
+          }
+        })
+        .catch((error) => {
+          if (get().javCompactMode === next) {
+            set({ javCompactMode: !next })
+          }
+          get().setJavError?.(getErrorMessage(error))
+        })
     },
     setJavPageSize: (size) => {
       const next = Math.max(1, Math.floor(Number(size) || JAV_PAGE_SIZE))

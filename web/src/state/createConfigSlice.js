@@ -7,6 +7,7 @@ import {
   JAV_TAG_MAX_ROWS_DEFAULT,
 } from '@/state/model'
 import { normalizeJavSort, normalizeJavSortRules, normalizeIdolSort } from '@/constants/jav'
+import { configFlag } from '@/utils/config'
 
 export function createConfigSlice({ get, set }) {
   return {
@@ -81,6 +82,10 @@ export function createConfigSlice({ get, set }) {
         }
         if (javTagMaxRows !== state.javTagMaxRows) {
           updates.javTagMaxRows = javTagMaxRows
+        }
+        const javCompactDefault = configFlag(cfg?.jav_compact_default)
+        if (javCompactDefault !== configFlag(state.config?.jav_compact_default)) {
+          updates.javCompactMode = javCompactDefault
         }
         if (idolSize && idolSize !== state.idolPageSize) {
           updates.idolPageSize = idolSize

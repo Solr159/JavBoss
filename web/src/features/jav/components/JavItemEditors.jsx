@@ -1,4 +1,5 @@
 import JavIdolCoverModal from '@/features/jav/components/JavIdolCoverModal'
+import JavCoverCropModal from '@/features/jav/components/JavCoverCropModal'
 import { JavIdolEditModal } from '@/features/jav/components/JavIdolGrid'
 import { JavEditModal } from '@/features/jav/components/JavEditModal'
 import { JavCustomTagModal } from '@/features/jav/components/JavCustomTagModal'
@@ -20,6 +21,9 @@ export function JavItemEditors({
   customTagEditorOpen,
   setCustomTagEditorOpen,
   handleCustomTagsSaved,
+  coverCropEditorOpen,
+  setCoverCropEditorOpen,
+  handleCoverCropSaved,
 }) {
   return (
     <>
@@ -55,6 +59,12 @@ export function JavItemEditors({
         item={item}
         onClose={() => setCustomTagEditorOpen(false)}
         onSaved={handleCustomTagsSaved}
+      />
+      <JavCoverCropModal
+        open={coverCropEditorOpen}
+        item={item}
+        onClose={() => setCoverCropEditorOpen(false)}
+        onSaved={handleCoverCropSaved}
       />
     </>
   )

@@ -102,6 +102,7 @@ type JavUpdateInput struct {
 	ReleaseUnix    *int64
 	DurationMin    *int
 	FavoriteRating *float64
+	CoverCropLeft  *float64
 }
 
 // JavIdolUpdateInput contains user-editable JAV idol profile fields.
@@ -470,6 +471,9 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 				return errors.New("favorite rating must be 0 or between 0.5 and 5 in 0.5 increments")
 			}
 			updates["favorite_rating"] = favoriteRating
+		}
+		if input.CoverCropLeft != nil {
+			updates["cover_crop_left"] = normalizeCoverCropLeft(*input.CoverCropLeft)
 		}
 		if input.StudioID != nil {
 			studioID := *input.StudioID

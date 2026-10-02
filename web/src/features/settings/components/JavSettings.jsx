@@ -69,6 +69,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       onJavWaterfallDefaultChange={(value) =>
         setDraft((current) => ({ ...current, javWaterfallDefaultInput: value }))
       }
+      javCompactDefaultInput={draft.javCompactDefaultInput}
+      onJavCompactDefaultChange={(value) =>
+        setDraft((current) => ({ ...current, javCompactDefaultInput: value }))
+      }
       idolPageSizeInput={draft.idolPageSizeInput}
       onIdolPageSizeChange={(value) =>
         setDraft((current) => ({ ...current, idolPageSizeInput: value }))

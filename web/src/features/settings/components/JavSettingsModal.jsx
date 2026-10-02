@@ -333,6 +333,8 @@ export default function JavSettingsModal({
   onJavFavoriteRatingShowFullChange,
   javWaterfallDefaultInput = false,
   onJavWaterfallDefaultChange,
+  javCompactDefaultInput = false,
+  onJavCompactDefaultChange,
   idolPageSizeInput,
   onIdolPageSizeChange,
   idolWaterfallDefaultInput = false,
@@ -392,6 +394,7 @@ export default function JavSettingsModal({
       default:
         onJavPageSizeChange?.(24)
         onJavWaterfallDefaultChange?.(false)
+        onJavCompactDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
@@ -486,6 +489,13 @@ export default function JavSettingsModal({
                     label={zh('默认开启瀑布流', 'Enable waterfall by default')}
                     checked={javWaterfallDefaultInput}
                     onChange={onJavWaterfallDefaultChange}
+                  />
+                </SettingsRow>
+                <SettingsRow label={zh('默认开启简洁模式', 'Enable compact mode by default')}>
+                  <SettingsSwitch
+                    label={zh('默认开启简洁模式', 'Enable compact mode by default')}
+                    checked={javCompactDefaultInput}
+                    onChange={onJavCompactDefaultChange}
                   />
                 </SettingsRow>
               </div>

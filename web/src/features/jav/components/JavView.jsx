@@ -1,5 +1,5 @@
 import SwapVertIcon from '@mui/icons-material/SwapVert'
-import { Popover } from '@mui/material'
+import { Popover, Switch } from '@mui/material'
 import { useState } from 'react'
 import JavGrid from '@/features/jav/components/JavGrid'
 import BulkActionsMenu from '@/features/playback/components/BulkActionsMenu'
@@ -46,6 +46,8 @@ export default function JavView({
   javTitleMaxRows,
   javIdolTagMaxRows,
   javTagMaxRows,
+  javCompactMode = false,
+  onJavCompactModeChange,
   onPlay,
   onIdolClick,
   onOpenFavorites,
@@ -135,7 +137,16 @@ export default function JavView({
             }
           />
         </div>
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+          <label className="inline-flex items-center gap-1 text-xs text-gray-600">
+            <span>{zh('简洁模式', 'Compact')}</span>
+            <Switch
+              size="small"
+              checked={Boolean(javCompactMode)}
+              onChange={(event) => onJavCompactModeChange?.(event.target.checked)}
+              inputProps={{ 'aria-label': zh('切换简洁模式', 'Toggle compact mode') }}
+            />
+          </label>
           {!javRandomMode && (
             <div className="pagination-sort-group flex items-center">
               <span className="pagination-sort-label text-gray-500">{zh('排序', 'Sort')}</span>
@@ -229,6 +240,7 @@ export default function JavView({
             onToggleSelect={onToggleSelect}
             selectionDisabled={bulkActionBusy}
             columns={javGridColumns}
+            compact={javCompactMode}
             titleMaxRows={javTitleMaxRows}
             idolTagMaxRows={javIdolTagMaxRows}
             tagMaxRows={javTagMaxRows}

@@ -98,6 +98,7 @@ func updateConfig(c *gin.Context) {
 		JavHideActions         *bool                 `json:"jav_hide_actions"`
 		JavFavoriteRatingFull  *bool                 `json:"jav_favorite_rating_show_full"`
 		JavWaterfallDefault    *bool                 `json:"jav_waterfall_default"`
+		JavCompactDefault      *bool                 `json:"jav_compact_default"`
 		IdolPageSize           *int                  `json:"idol_page_size"`
 		IdolWaterfallDefault   *bool                 `json:"idol_waterfall_default"`
 		StudioPageSize         *int                  `json:"studio_page_size"`
@@ -215,6 +216,9 @@ func updateConfig(c *gin.Context) {
 	}
 	if req.JavWaterfallDefault != nil {
 		entries["jav_waterfall_default"] = strconv.FormatBool(*req.JavWaterfallDefault)
+	}
+	if req.JavCompactDefault != nil {
+		entries["jav_compact_default"] = strconv.FormatBool(*req.JavCompactDefault)
 	}
 	if req.IdolPageSize != nil {
 		if v, ok := clampSize(*req.IdolPageSize); ok {

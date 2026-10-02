@@ -1171,6 +1171,49 @@ func TestUpdateJavFavoriteRating(t *testing.T) {
 	}
 }
 
+func TestUpdateJavCoverCropLeft(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	javRec := models.Jav{Code: "CROP-EDIT", Title: "Crop"}
+	if err := db.Create(&javRec).Error; err != nil {
+		t.Fatalf("create jav: %v", err)
+	}
+
+	created, err := GetJav(ctx, javRec.ID, nil)
+	if err != nil {
+		t.Fatalf("GetJav: %v", err)
+	}
+	if created.CoverCropLeft != 0.53 {
+		t.Fatalf("default cover crop left = %v, want 0.53", created.CoverCropLeft)
+	}
+
+	crop := 0.2
+	updated, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{CoverCropLeft: &crop}, nil)
+	if err != nil {
+		t.Fatalf("UpdateJav cover crop left: %v", err)
+	}
+	if updated.CoverCropLeft != crop {
+		t.Fatalf("cover crop left = %v, want %v", updated.CoverCropLeft, crop)
+	}
+
+	for _, testCase := range []struct {
+		input float64
+		want  float64
+	}{
+		{input: -0.3, want: 0},
+		{input: 1.8, want: 1},
+	} {
+		value := testCase.input
+		clamped, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{CoverCropLeft: &value}, nil)
+		if err != nil {
+			t.Fatalf("UpdateJav cover crop left %v: %v", value, err)
+		}
+		if clamped.CoverCropLeft != testCase.want {
+			t.Fatalf("cover crop left %v clamped to %v, want %v", value, clamped.CoverCropLeft, testCase.want)
+		}
+	}
+}
+
 func TestSearchJavSortByFavoriteRating(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

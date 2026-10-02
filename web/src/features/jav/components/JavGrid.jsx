@@ -12,6 +12,7 @@ export default function JavGrid({
   onToggleSelect,
   selectionDisabled = false,
   columns = 0,
+  compact = false,
   titleMaxRows = 2,
   idolTagMaxRows = 2,
   tagMaxRows = 2,
@@ -73,7 +74,9 @@ export default function JavGrid({
   const gridClassName = 'grid gap-4'
   const gridStyle = fixedColumnCount
     ? { gridTemplateColumns: `repeat(${fixedColumnCount}, minmax(0, 1fr))` }
-    : { gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }
+    : compact
+      ? { gridTemplateColumns: 'repeat(auto-fill, minmax(11rem, 1fr))' }
+      : { gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }
 
   if (!hasItems) {
     return (
@@ -93,6 +96,7 @@ export default function JavGrid({
             checked={selectedIds?.has(Number(item.id)) || false}
             onToggleSelect={onToggleSelect}
             selectionDisabled={selectionDisabled}
+            compact={compact}
             onPlay={onPlay}
             buildJavUrl={buildJavUrl}
             onIdolClick={onIdolClick}

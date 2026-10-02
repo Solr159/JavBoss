@@ -148,6 +148,7 @@ func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	body := []byte(`{
 		"video_waterfall_default": true,
 		"jav_waterfall_default": true,
+		"jav_compact_default": true,
 		"idol_waterfall_default": false,
 		"studio_waterfall_default": true,
 		"series_waterfall_default": false,
@@ -169,6 +170,7 @@ func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	want := map[string]string{
 		"video_waterfall_default":       "true",
 		"jav_waterfall_default":         "true",
+		"jav_compact_default":           "true",
 		"idol_waterfall_default":        "false",
 		"studio_waterfall_default":      "true",
 		"series_waterfall_default":      "false",

@@ -84,6 +84,8 @@ export default function JavRoute({
     javTitleMaxRows,
     javIdolTagMaxRows,
     javTagMaxRows,
+    javCompactMode,
+    setJavCompactMode,
     loadMoreJavs,
     javLoadingMore,
   } = useStore(
@@ -149,6 +151,8 @@ export default function JavRoute({
       javTitleMaxRows: state.javTitleMaxRows,
       javIdolTagMaxRows: state.javIdolTagMaxRows,
       javTagMaxRows: state.javTagMaxRows,
+      javCompactMode: state.javCompactMode,
+      setJavCompactMode: state.setJavCompactMode,
       loadMoreJavs: state.loadMoreJavs,
       javLoadingMore: state.javLoadingMore,
     }))
@@ -332,6 +336,8 @@ export default function JavRoute({
         javTitleMaxRows,
         javIdolTagMaxRows,
         javTagMaxRows,
+        javCompactMode,
+        onJavCompactModeChange: setJavCompactMode,
         selectedJavIds: javSelection.selectedIds,
         onToggleSelect: javSelection.toggle,
         onSelectAll: javSelection.selectAll,

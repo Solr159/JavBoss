@@ -56,6 +56,7 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     javHideActionsInput,
     javFavoriteRatingShowFullInput,
     javWaterfallDefaultInput,
+    javCompactDefaultInput,
     idolPageSizeInput,
     idolWaterfallDefaultInput,
     studioPageSizeInput,
@@ -124,6 +125,7 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     jav_hide_actions: Boolean(javHideActionsInput),
     jav_favorite_rating_show_full: Boolean(javFavoriteRatingShowFullInput),
     jav_waterfall_default: waterfallDefaults.jav,
+    jav_compact_default: Boolean(javCompactDefaultInput),
     idol_page_size: idolSize,
     idol_waterfall_default: waterfallDefaults.idol,
     studio_page_size: studioSize,
@@ -148,6 +150,7 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     onWaterfallChange(key, enabled)
   })
   useStore.setState({
+    javCompactMode: Boolean(javCompactDefaultInput),
     javPageSize: javSize,
     javGridColumns: javColumns,
     javTitleMaxRows: javTitleRows,
