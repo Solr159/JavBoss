@@ -146,6 +146,13 @@ export default function useJavItemActions({
             icon: '/ico/javbus.ico',
           },
           {
+            key: 'javdb',
+            name: 'JavDB',
+            href: javdbSearchURL,
+            icon: '/ico/javdb.png',
+            onClick: handleOpenJavDB,
+          },
+          {
             key: 'avsox',
             name: 'AVSOX',
             href: `/jav/avsox-redirect?code=${encodedCode}`,
