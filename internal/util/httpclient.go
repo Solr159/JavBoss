@@ -8,54 +8,77 @@ import (
 	"time"
 )
 
-const notFoundURLCacheTTL = 7 * 24 * time.Hour
+const negativeURLCacheTTL = 7 * 24 * time.Hour
 
 var (
 	defaultHTTPClientOnce       sync.Once
 	defaultHTTPClient           *http.Client
 	defaultCachedHTTPClientOnce sync.Once
 	defaultCachedHTTPClient     *http.Client
-	notFoundURLCache            sync.Map // URL -> expiration time.Time
+	negativeURLCache            sync.Map // URL -> negativeURLCacheEntry
 )
 
 // ErrCachedNotFound indicates the URL was previously requested and returned 404.
 var ErrCachedNotFound = errors.New("cached not found")
 
-// WithNotFoundCache returns a shallow copy of client whose transport caches 404
-// URLs for seven days. It shares the original connection pool and cookie jar.
+// ErrCachedForbidden indicates a GET or HEAD URL previously returned 403.
+var ErrCachedForbidden = errors.New("cached forbidden")
+
+type negativeURLCacheEntry struct {
+	statusCode int
+	expiresAt  time.Time
+}
+
+// WithNegativeCache returns a shallow copy of client whose transport caches 404
+// responses and GET/HEAD 403 responses for seven days. It shares the original
+// connection pool and cookie jar. POST authentication retries bypass cached 403s.
 // Configure this once before using the returned client; do not use it for checks
 // that must reach the network regardless of previous responses.
-func WithNotFoundCache(client *http.Client) *http.Client {
+func WithNegativeCache(client *http.Client) *http.Client {
 	copy := *client
 	transport := client.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
-	copy.Transport = &notFoundCacheTransport{base: transport}
+	copy.Transport = &negativeCacheTransport{base: transport}
 	return &copy
 }
 
-type notFoundCacheTransport struct {
+type negativeCacheTransport struct {
 	base http.RoundTripper
 }
 
-func (t *notFoundCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *negativeCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	url := req.URL.String()
-	if expiresAt, ok := notFoundURLCache.Load(url); ok {
-		if time.Now().Before(expiresAt.(time.Time)) {
-			return nil, ErrCachedNotFound
+	cacheForbidden := req.Method == "" || req.Method == http.MethodGet || req.Method == http.MethodHead
+	if cached, ok := negativeURLCache.Load(url); ok {
+		entry := cached.(negativeURLCacheEntry)
+		if time.Now().Before(entry.expiresAt) {
+			switch entry.statusCode {
+			case http.StatusNotFound:
+				return nil, ErrCachedNotFound
+			case http.StatusForbidden:
+				if cacheForbidden {
+					return nil, ErrCachedForbidden
+				}
+			}
+		} else {
+			// Preserve a newer entry if another request refreshed it concurrently.
+			negativeURLCache.CompareAndDelete(url, cached)
 		}
-		// Preserve a newer entry if another request refreshed it concurrently.
-		notFoundURLCache.CompareAndDelete(url, expiresAt)
 	}
 	resp, err := t.base.RoundTrip(req)
-	if err == nil && resp != nil && resp.StatusCode == http.StatusNotFound {
-		notFoundURLCache.Store(url, time.Now().Add(notFoundURLCacheTTL))
+	if err == nil && resp != nil && (resp.StatusCode == http.StatusNotFound ||
+		(cacheForbidden && resp.StatusCode == http.StatusForbidden)) {
+		negativeURLCache.Store(url, negativeURLCacheEntry{
+			statusCode: resp.StatusCode,
+			expiresAt:  time.Now().Add(negativeURLCacheTTL),
+		})
 	}
 	return resp, err
 }
 
-func (t *notFoundCacheTransport) CloseIdleConnections() {
+func (t *negativeCacheTransport) CloseIdleConnections() {
 	if transport, ok := t.base.(interface{ CloseIdleConnections() }); ok {
 		transport.CloseIdleConnections()
 	}
@@ -70,11 +93,11 @@ func DefaultHTTPClient() *http.Client {
 	return defaultHTTPClient
 }
 
-// DefaultCachedHTTPClient returns the shared client with a seven-day URL 404
-// cache. It is initialized once and shares DefaultHTTPClient's connection pool.
+// DefaultCachedHTTPClient returns the shared client with a seven-day URL
+// cache for 404 and GET/HEAD 403 responses. It is initialized once and shares DefaultHTTPClient's connection pool.
 func DefaultCachedHTTPClient() *http.Client {
 	defaultCachedHTTPClientOnce.Do(func() {
-		defaultCachedHTTPClient = WithNotFoundCache(DefaultHTTPClient())
+		defaultCachedHTTPClient = WithNegativeCache(DefaultHTTPClient())
 	})
 	return defaultCachedHTTPClient
 }

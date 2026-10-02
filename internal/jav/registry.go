@@ -52,7 +52,7 @@ func defaultProviders() map[Provider]any {
 		// URL caching is configured here, independently of provider parsing.
 		switch id {
 		case ProviderJavBus, ProviderJavDatabase, ProviderJavMenu, ProviderJavModel, ProviderMinnanoAV, ProviderThePornDB:
-			httpClient = util.WithNotFoundCache(httpClient)
+			httpClient = util.WithNegativeCache(httpClient)
 		}
 		result[id], _ = newProvider(id, httpClient)
 	}
