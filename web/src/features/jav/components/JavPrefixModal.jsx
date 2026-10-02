@@ -51,12 +51,22 @@ export default function JavPrefixModal({
   const setCensorMode = (censorMode) => setPreferences((current) => ({ ...current, censorMode }))
   const setSortMode = (sortMode) => setPreferences((current) => ({ ...current, sortMode }))
   const normalizedSearch = search.trim().toLowerCase()
-  const availableInitials = useMemo(() => new Set(getAvailableJavPrefixInitials(items)), [items])
+  const censorItems = useMemo(
+    () =>
+      (items || []).filter((item) => {
+        if (censorMode === 'censored') return item?.is_uncensored === false
+        if (censorMode === 'uncensored') return item?.is_uncensored === true
+        return true
+      }),
+    [censorMode, items]
+  )
+  const availableInitials = useMemo(
+    () => new Set(getAvailableJavPrefixInitials(censorItems)),
+    [censorItems]
+  )
   const filteredItems = useMemo(() => {
     const merged = new Map()
-    ;(items || []).forEach((item) => {
-      if (censorMode === 'censored' && item?.is_uncensored !== false) return
-      if (censorMode === 'uncensored' && item?.is_uncensored !== true) return
+    censorItems.forEach((item) => {
       const prefix = String(item?.prefix || '').trim()
       if (!prefix || !matchesJavPrefixInitial(prefix, selectedInitial)) return
       if (normalizedSearch) {
@@ -125,7 +135,11 @@ export default function JavPrefixModal({
         String(a?.studio_name || '').localeCompare(String(b?.studio_name || ''))
       )
     })
-  }, [censorMode, items, normalizedSearch, selectedInitial, sortMode])
+  }, [censorItems, normalizedSearch, selectedInitial, sortMode])
+
+  useEffect(() => {
+    if (selectedInitial && !availableInitials.has(selectedInitial)) setSelectedInitial('')
+  }, [availableInitials, selectedInitial])
 
   useEffect(() => {
     if (!open) return
@@ -247,8 +261,8 @@ export default function JavPrefixModal({
             aria-label={zh('按番号首字符筛选', 'Filter by first code character')}
           >
             {JAV_PREFIX_INITIAL_OPTIONS.map((initial) => {
-              const active = selectedInitial === initial
               const available = availableInitials.has(initial)
+              const active = available && selectedInitial === initial
               return (
                 <button
                   key={initial}
