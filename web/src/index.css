@@ -311,6 +311,13 @@ body.has-page-scroll .sticky-pagination {
   padding: 0 12px;
 }
 
+.favorite-menu-trigger--selected,
+.favorite-menu-trigger--selected:hover {
+  border-color: #fbbf24;
+  background: #fef3c7;
+  color: #92400e;
+}
+
 .favorite-menu-trigger:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;

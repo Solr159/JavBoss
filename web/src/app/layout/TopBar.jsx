@@ -4,6 +4,7 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
+import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
@@ -448,7 +449,7 @@ export default function TopBar({
             >
               <button
                 type="button"
-                className={`filter-action-button favorite-menu-trigger ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
+                className={`filter-action-button favorite-menu-trigger ${selectedFavoriteGroup ? 'favorite-menu-trigger--selected' : ''}`}
                 onClick={() => {
                   setFavoriteMenuOpen((open) => !open)
                   if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
@@ -458,7 +459,7 @@ export default function TopBar({
                 aria-expanded={favoriteMenuOpen}
                 title={selectedFavoriteGroup?.name || favoriteLabel}
               >
-                <FolderRoundedIcon fontSize="small" />
+                <FolderOutlinedIcon fontSize="small" />
                 <span className="max-w-28 truncate">
                   {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
                 </span>
