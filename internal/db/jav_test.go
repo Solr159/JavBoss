@@ -2170,7 +2170,7 @@ func TestSaveAndUpdateJavStudioAndSeries(t *testing.T) {
 			Title:    "Studio metadata",
 			Studio:   "Idea Pocket",
 			Series:   "Beautiful Girl Series",
-			Provider: metadata.ProviderAvmoo,
+			Provider: metadata.ProviderManualScrape,
 		}, now)
 		return err
 	}); err != nil {
@@ -2296,7 +2296,7 @@ func TestMissingOnlyJavMetadataUpdatesFillEmptyValues(t *testing.T) {
 	}
 }
 
-func TestListJavsNeedingEnglishStudioNameBackfill(t *testing.T) {
+func TestListJavsNeedingStudioNames(t *testing.T) {
 	gdb := openTestDB(t)
 	english := models.JavStudio{Name: "English Studio"}
 	local := models.JavStudio{Name: "本地片商"}
@@ -2312,20 +2312,24 @@ func TestListJavsNeedingEnglishStudioNameBackfill(t *testing.T) {
 		{Code: "ENGLISH-STUDIO", StudioID: &english.ID},
 		{Code: "UNCENSORED", IsUncensored: &uncensored},
 		{Code: ""},
+		{Code: "   "},
 	}
 	if err := gdb.Create(&rows).Error; err != nil {
 		t.Fatal(err)
 	}
-	items, err := ListJavsNeedingEnglishStudioNameBackfill(context.Background())
+	items, err := ListJavsNeedingStudioNames(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 2 || items[0].Code != "MISSING-STUDIO" || items[1].Code != "LOCAL-STUDIO" {
+	if len(items) != 3 || items[0].Code != "MISSING-STUDIO" || items[1].Code != "LOCAL-STUDIO" || items[2].Code != "UNCENSORED" {
 		t.Fatalf("unexpected candidates: %+v", items)
+	}
+	if items[0].IsUncensored != nil || items[2].IsUncensored == nil || !*items[2].IsUncensored {
+		t.Fatalf("censor states not preserved: %+v", items)
 	}
 }
 
-func TestListUncensoredJavsMissingAvsoxMetadata(t *testing.T) {
+func TestListJavsMissingEnrichmentFields(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -2349,6 +2353,7 @@ func TestListUncensoredJavsMissingAvsoxMetadata(t *testing.T) {
 		{Code: "HAVE-ALL", IsUncensored: &uncensored, StudioID: &studio.ID, SeriesID: &series.ID, FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
 		{Code: "CEN-MISS", IsUncensored: &censored, FetchedAt: now.Add(4 * time.Second), CreatedAt: now.Add(4 * time.Second)},
 		{Code: "UNK-MISS", FetchedAt: now.Add(5 * time.Second), CreatedAt: now.Add(5 * time.Second)},
+		{Code: "   ", IsUncensored: &uncensored, CreatedAt: now.Add(7 * time.Second)},
 		{Code: "", IsUncensored: &uncensored, FetchedAt: now.Add(6 * time.Second), CreatedAt: now.Add(6 * time.Second)},
 	}
 	if err := gdb.Create(&rows).Error; err != nil {
@@ -2358,6 +2363,13 @@ func TestListUncensoredJavsMissingAvsoxMetadata(t *testing.T) {
 	if err := gdb.Create(&haveAllIdol).Error; err != nil {
 		t.Fatalf("create idol: %v", err)
 	}
+	var studioOnly models.Jav
+	if err := gdb.Where("code = ?", "MISS-STUDIO").First(&studioOnly).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&models.JavIdolMap{JavID: studioOnly.ID, JavIdolID: haveAllIdol.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
 	var haveAll models.Jav
 	if err := gdb.Where("code = ?", "HAVE-ALL").First(&haveAll).Error; err != nil {
 		t.Fatalf("load have all jav: %v", err)
@@ -2366,25 +2378,33 @@ func TestListUncensoredJavsMissingAvsoxMetadata(t *testing.T) {
 		t.Fatalf("create idol map: %v", err)
 	}
 
-	items, err := ListUncensoredJavsMissingAvsoxMetadata(ctx)
-	if err != nil {
-		t.Fatalf("ListUncensoredJavsMissingAvsoxMetadata: %v", err)
-	}
-	if len(items) != 4 {
-		t.Fatalf("unexpected item count: got %d want 4", len(items))
-	}
-	got := []string{items[0].Code, items[1].Code, items[2].Code, items[3].Code}
-	want := []string{"MISS-BOTH", "MISS-STUDIO", "MISS-SERIES", "MISS-IDOLS"}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("unexpected codes: got %#v want %#v", got, want)
-		}
-	}
-	if items[1].SeriesID == nil || *items[1].SeriesID != series.ID {
-		t.Fatalf("expected existing series id on second item: %#v", items[1])
-	}
-	if items[2].StudioID == nil || *items[2].StudioID != studio.ID {
-		t.Fatalf("expected existing studio id on third item: %#v", items[2])
+	for _, tc := range []struct {
+		name string
+		list func(context.Context) ([]JavEnrichmentItem, error)
+		want []string
+	}{
+		{"series", ListJavsMissingSeries, []string{"MISS-BOTH", "MISS-SERIES", "CEN-MISS", "UNK-MISS"}},
+		{"idols", ListJavsMissingIdols, []string{"MISS-BOTH", "MISS-SERIES", "MISS-IDOLS", "CEN-MISS", "UNK-MISS"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			items, err := tc.list(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []string
+			for _, item := range items {
+				got = append(got, item.Code)
+			}
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("codes=%v, want %v", got, tc.want)
+			}
+			if items[0].IsUncensored == nil || !*items[0].IsUncensored {
+				t.Fatalf("uncensored state lost: %+v", items[0])
+			}
+			if items[len(items)-2].IsUncensored == nil || *items[len(items)-2].IsUncensored || items[len(items)-1].IsUncensored != nil {
+				t.Fatalf("censor states lost: %+v", items)
+			}
+		})
 	}
 }
 
@@ -3238,13 +3258,17 @@ func TestUpdateJavStudioProfileUpdatesAliasesAndResolvesScrapedName(t *testing.T
 		t.Fatalf("unexpected studio alias search: total=%d items=%#v", total, items)
 	}
 
-	if _, err := SaveJavInfo(ctx, &metadata.JavInfo{
+	rec, err := SaveJavInfo(ctx, &metadata.JavInfo{
 		Code:     "STU-EDIT-002",
 		Title:    "Alias scraped studio",
 		Studio:   "Alias Studio",
 		Provider: metadata.ProviderJavBus,
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("SaveJavInfo alias: %v", err)
+	}
+	if updated, err := UpdateJavStudioIfMissing(ctx, rec.ID, "Alias Studio"); err != nil || !updated {
+		t.Fatalf("fill studio by alias: updated=%v err=%v", updated, err)
 	}
 	assertJavStudio(t, db, "STU-EDIT-002", "Main Studio")
 }

@@ -82,6 +82,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 			}
 			info := &metadata.JavInfo{
 				Code: tt.targetCode, Title: "Manual title", Provider: metadata.ProviderManualScrape,
+				Studio: "Manual Studio", Series: "Manual Series",
 			}
 			if !tt.empty {
 				info.Tags = []string{"New tag"}
@@ -110,6 +111,12 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 				t.Fatal(err)
 			}
 			wantActors := []string{}
+			if updatedJav.Studio == nil || updatedJav.Studio.Name != "Manual Studio" {
+				t.Fatalf("manual studio not saved: %+v", updatedJav.Studio)
+			}
+			if updatedJav.Series == nil || updatedJav.Series.Name != "Manual Series" {
+				t.Fatalf("manual series not saved: %+v", updatedJav.Series)
+			}
 			wantTags := map[string]int{}
 			if !tt.newTarget {
 				wantTags[userTag.Name] = int(metadata.ProviderUser)

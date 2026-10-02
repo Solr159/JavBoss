@@ -125,12 +125,13 @@ type JavStudioUpdateInput struct {
 	Aliases []string
 }
 
-// JavMetadataScanItem contains a JAV row that needs metadata backfill.
-type JavMetadataScanItem struct {
-	ID       int64  `gorm:"column:id"`
-	Code     string `gorm:"column:code"`
-	StudioID *int64 `gorm:"column:studio_id"`
-	SeriesID *int64 `gorm:"column:series_id"`
+// JavEnrichmentItem contains a JAV row that needs metadata backfill.
+type JavEnrichmentItem struct {
+	ID           int64  `gorm:"column:id"`
+	Code         string `gorm:"column:code"`
+	StudioID     *int64 `gorm:"column:studio_id"`
+	SeriesID     *int64 `gorm:"column:series_id"`
+	IsUncensored *bool  `gorm:"column:is_uncensored"`
 }
 
 // GetJav returns one JAV record with visible files and tags.
@@ -3008,67 +3009,60 @@ func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string,
 	return codes, nil
 }
 
-// ListJavsNeedingEnglishStudioNameBackfill returns coded JAVs not marked
-// uncensored whose studio is missing or has a non-English name.
-func ListJavsNeedingEnglishStudioNameBackfill(ctx context.Context) ([]JavMetadataScanItem, error) {
+// ListJavsNeedingStudioNames returns coded JAVs whose studio is missing or non-English.
+func ListJavsNeedingStudioNames(ctx context.Context) ([]JavEnrichmentItem, error) {
 	var studios []models.JavStudio
 	if err := common.DB.WithContext(ctx).Select("id", "name").Find(&studios).Error; err != nil {
-		return nil, fmt.Errorf("list studios for English name backfill: %w", err)
+		return nil, fmt.Errorf("list studios for name reconciliation: %w", err)
 	}
-	var localStudioIDs []int64
+	var localIDs []int64
 	for _, studio := range studios {
 		if !isEnglishStudioName(studio.Name) {
-			localStudioIDs = append(localStudioIDs, studio.ID)
+			localIDs = append(localIDs, studio.ID)
 		}
 	}
-	var items []JavMetadataScanItem
+	var items []JavEnrichmentItem
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, studio_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(is_uncensored, 0) = 0").
-		Where("studio_id IS NULL OR studio_id IN ?", localStudioIDs).
+		Select("id, code, studio_id, is_uncensored").
+		Where("TRIM(COALESCE(code, '')) <> ''").
+		Where("studio_id IS NULL OR studio_id IN ?", localIDs).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs needing English studio name backfill: %w", err)
+		return nil, fmt.Errorf("list javs needing studio names: %w", err)
 	}
 	return items, nil
 }
 
-// ListJavsMissingSeriesOrIdols returns coded JAVs with no series or no idol mappings,
-// regardless of censor state or internal English-series hints.
-func ListJavsMissingSeriesOrIdols(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
+// ListJavsMissingSeries returns coded JAVs with no series, regardless of censor
+// state or internal English-series hints.
+func ListJavsMissingSeries(ctx context.Context) ([]JavEnrichmentItem, error) {
+	var items []JavEnrichmentItem
+	if err := common.DB.WithContext(ctx).
+		Model(&models.Jav{}).
+		Select("id, code, studio_id, series_id, is_uncensored").
+		Where("TRIM(COALESCE(code, '')) <> ''").
+		Where("series_id IS NULL").
+		Order("created_at ASC, id ASC").
+		Find(&items).Error; err != nil {
+		return nil, fmt.Errorf("list javs missing series: %w", err)
+	}
+	return items, nil
+}
+
+// ListJavsMissingIdols returns coded JAVs with no idol mappings, regardless of censor state.
+func ListJavsMissingIdols(ctx context.Context) ([]JavEnrichmentItem, error) {
+	var items []JavEnrichmentItem
 	idols := common.DB.WithContext(ctx).
 		Table("jav_idol_map jim").Select("1").Where("jim.jav_id = jav.id")
 	if err := common.DB.WithContext(ctx).
 		Model(&models.Jav{}).
-		Select("id, code, series_id").
+		Select("id, code, studio_id, series_id, is_uncensored").
 		Where("TRIM(COALESCE(code, '')) <> ''").
-		Where("series_id IS NULL OR NOT EXISTS (?)", idols).
+		Where("NOT EXISTS (?)", idols).
 		Order("created_at ASC, id ASC").
 		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list javs missing series or idols: %w", err)
-	}
-	return items, nil
-}
-
-// ListUncensoredJavsMissingAvsoxMetadata returns uncensored JAV rows missing fields avsox can fill.
-func ListUncensoredJavsMissingAvsoxMetadata(ctx context.Context) ([]JavMetadataScanItem, error) {
-	var items []JavMetadataScanItem
-	localIdols := common.DB.WithContext(ctx).
-		Table("jav_idol_map jim").
-		Select("1").
-		Where("jim.jav_id = jav.id")
-	if err := common.DB.WithContext(ctx).
-		Model(&models.Jav{}).
-		Select("id, code, studio_id, series_id").
-		Where("COALESCE(code, '') <> ''").
-		Where("COALESCE(is_uncensored, 0) <> 0").
-		Where("studio_id IS NULL OR series_id IS NULL OR NOT EXISTS (?)", localIdols).
-		Order("created_at ASC, id ASC").
-		Find(&items).Error; err != nil {
-		return nil, fmt.Errorf("list uncensored javs missing avsox metadata: %w", err)
+		return nil, fmt.Errorf("list javs missing idols: %w", err)
 	}
 	return items, nil
 }
@@ -3309,14 +3303,15 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 		isUncensored := *info.IsUncensored
 		javRec.IsUncensored = &isUncensored
 	}
-	if studio := strings.TrimSpace(info.Studio); studio != "" {
+	manualMetadata := provider == metadata.ProviderManualScrape || provider == metadata.ProviderUser
+	if studio := strings.TrimSpace(info.Studio); manualMetadata && studio != "" {
 		studioRec, err := ensureStudioTx(tx, studio)
 		if err != nil {
 			return nil, err
 		}
 		javRec.StudioID = &studioRec.ID
 	}
-	if series := strings.TrimSpace(info.Series); series != "" {
+	if series := strings.TrimSpace(info.Series); manualMetadata && series != "" {
 		seriesRec, err := ensureSeriesTx(tx, series)
 		if err != nil {
 			return nil, err
@@ -3325,8 +3320,13 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	}
 	// Sample images are resolved lazily by the detail API. Metadata scans must
 	// neither import provider sample images nor overwrite a previously resolved
-	// list.
-	if err := tx.Omit("sample_images").Save(javRec).Error; err != nil {
+	// list. Studio and series are enriched in the background; only explicit
+	// manual input may write them during a scrape.
+	omit := []string{"sample_images"}
+	if !manualMetadata {
+		omit = append(omit, "studio_id", "series_id")
+	}
+	if err := tx.Omit(omit...).Save(javRec).Error; err != nil {
 		return nil, fmt.Errorf("save jav: %w", err)
 	}
 

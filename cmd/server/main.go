@@ -30,6 +30,7 @@ import (
 	"javboss/internal/runtimeconfig"
 	"javboss/internal/server"
 	"javboss/internal/service"
+	"javboss/internal/service/enrichment"
 	"javboss/internal/util"
 
 	"javboss/internal/manager"
@@ -205,9 +206,12 @@ func main() {
 		case <-timer.C:
 			service.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
 			service.StartDownloadManager(ctx)
-			service.StartJavStudioEnglishNamesScanner(ctx, time.Minute)
-			service.StartJavSeriesAndIdolMetadataScanner(ctx, time.Minute)
-			service.StartUncensoredJavMetadataScanner(ctx, time.Minute)
+			enrichment.StartCensoredStudioEnrichment(ctx, time.Minute)
+			enrichment.StartCensoredSeriesEnrichment(ctx, time.Minute)
+			enrichment.StartCensoredIdolEnrichment(ctx, time.Minute)
+			enrichment.StartUncensoredStudioEnrichment(ctx, time.Minute)
+			enrichment.StartUncensoredSeriesEnrichment(ctx, time.Minute)
+			enrichment.StartUncensoredIdolEnrichment(ctx, time.Minute)
 			service.StartIdolProfileScanner(ctx, time.Minute)
 		}
 	}()
