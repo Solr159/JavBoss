@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import BookmarksOutlinedIcon from '@mui/icons-material/BookmarksOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
@@ -448,7 +448,7 @@ export default function TopBar({
             >
               <button
                 type="button"
-                className={`filter-action-button ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
+                className={`filter-action-button favorite-menu-trigger ${selectedFavoriteGroup ? 'filter-action-button--active' : ''}`}
                 onClick={() => {
                   setFavoriteMenuOpen((open) => !open)
                   if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
@@ -456,11 +456,16 @@ export default function TopBar({
                 aria-label={favoriteLabel}
                 aria-haspopup="dialog"
                 aria-expanded={favoriteMenuOpen}
+                title={selectedFavoriteGroup?.name || favoriteLabel}
               >
-                <BookmarksOutlinedIcon fontSize="small" />
+                <FolderRoundedIcon fontSize="small" />
                 <span className="max-w-28 truncate">
                   {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
                 </span>
+                <ExpandMoreRoundedIcon
+                  fontSize="small"
+                  className="favorite-menu-trigger__chevron"
+                />
               </button>
               {favoriteMenuOpen ? (
                 <FavoriteGroupMenu

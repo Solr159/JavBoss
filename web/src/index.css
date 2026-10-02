@@ -305,6 +305,21 @@ body.has-page-scroll .sticky-pagination {
   color: #1d4ed8;
 }
 
+.favorite-menu-trigger {
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 12px;
+}
+
+.favorite-menu-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+.favorite-menu-trigger[aria-expanded='true'] .favorite-menu-trigger__chevron {
+  transform: rotate(180deg);
+}
+
 .filter-search {
   display: flex;
   width: clamp(8.5rem, 9.5vw, 10.5rem);
