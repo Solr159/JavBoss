@@ -14,6 +14,21 @@ func envBool(name string) bool {
 	}
 }
 
+// BuildMode reports the current build mode ("development" or "release").
+// It falls back to "development" when JAVBOSS_BUILD_MODE is unset.
+func BuildMode() string {
+	mode := strings.TrimSpace(os.Getenv("JAVBOSS_BUILD_MODE"))
+	if mode == "" {
+		return "development"
+	}
+	return mode
+}
+
+// DevelopmentMode reports whether JavBoss is running outside of a release build.
+func DevelopmentMode() bool {
+	return BuildMode() != "release"
+}
+
 // ContainerMode reports whether JavBoss is running in a container-oriented mode.
 func ContainerMode() bool {
 	return envBool("JAVBOSS_CONTAINER") || envBool("JAVBOSS_DOCKER")

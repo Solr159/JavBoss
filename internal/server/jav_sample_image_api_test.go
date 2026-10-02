@@ -16,9 +16,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/manager"
 	"javboss/internal/models"
 	"javboss/internal/util"
 )
+
+// useSampleImageCache installs a temporary on-disk sample image cache for the test.
+func useSampleImageCache(t *testing.T) {
+	t.Helper()
+	previous := common.SampleImageManager
+	common.SampleImageManager = manager.NewSampleImageManager(t.TempDir())
+	t.Cleanup(func() { common.SampleImageManager = previous })
+}
 
 func TestFC2SampleImagesRetryAndDisplay(t *testing.T) {
 	var plain bytes.Buffer
@@ -62,6 +71,7 @@ func TestFC2SampleImagesRetryAndDisplay(t *testing.T) {
 			_ = sqlDB.Close()
 		}
 	})
+	useSampleImageCache(t)
 	item := models.Jav{Code: "FC2-PPV-1234567", SampleImages: models.NewJavSampleImagesNotFound()}
 	if err := database.Create(&item).Error; err != nil {
 		t.Fatal(err)
@@ -133,6 +143,7 @@ func TestSampleImageProxySetsSourceReferer(t *testing.T) {
 			_ = sqlDB.Close()
 		}
 	})
+	useSampleImageCache(t)
 	item := models.Jav{Code: "FNS-207", SampleImages: models.JavSampleImages{{
 		ThumbnailURL: "https://www.javbus.com/pics/sample/cbmj_1.jpg",
 		DetailURL:    "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/1fns00207/1fns00207jp-1.jpg",

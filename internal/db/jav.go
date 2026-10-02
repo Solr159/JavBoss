@@ -2170,10 +2170,11 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	}
 	filterDate := time.Now().UTC()
 	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)
+	visibleIdols := buildVisibleIdolWorkCountQuery(ctx, directoryIDs)
 
 	countBase := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
-		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols)
+		Joins("JOIN (?) visible_idols ON visible_idols.jav_idol_id = ji.id", visibleIdols)
 	if favoriteGroupID > 0 {
 		countBase = countBase.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
@@ -2231,7 +2232,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 	}
 	base := common.DB.WithContext(ctx).
 		Table("jav_idol ji").
-		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols).
+		Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", soloIdols).
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.jav_idol_id = ji.id", buildIdolFavoriteCountQuery(ctx)).
 		Joins("JOIN jav_idol_map jim ON jim.jav_idol_id = ji.id").
 		Joins("JOIN jav j ON j.id = jim.jav_id").
@@ -2655,12 +2656,14 @@ func FindIdolSoloCode(ctx context.Context, idolID int64) (string, error) {
 	return strings.TrimSpace(codes[0]), nil
 }
 
-// ListIdolsMissingProfile returns idols that have no profile fields populated.
+// ListIdolsMissingProfile returns idols that appear in at least one visible work and
+// still have profile fields to fill. Idols who only appear in multi-actress works are
+// included, so their profiles can be enriched by name even without a solo code.
 func ListIdolsMissingProfile(ctx context.Context) ([]models.JavIdol, error) {
 	var idols []models.JavIdol
-	soloIdols := buildVisibleSoloIdolCoverQuery(ctx, nil)
+	visibleIdols := buildVisibleIdolWorkCountQuery(ctx, nil)
 	if err := common.DB.WithContext(ctx).
-		Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = jav_idol.id", soloIdols).
+		Joins("JOIN (?) visible_idols ON visible_idols.jav_idol_id = jav_idol.id", visibleIdols).
 		Where(`
 (
   japanese_name IS NULL OR japanese_name = '' OR

@@ -532,7 +532,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 		query = query.
 			Select("'idol' AS entity_type, ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, COUNT(DISTINCT j.id) AS work_count, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS sample_code").
 			Joins("JOIN jav_idol ji ON ji.id = jfm.entity_id").
-			Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)).
+			Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)).
 			Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 			Joins("JOIN jav_idol_map jim ON jim.jav_idol_id = ji.id").
 			Joins("JOIN jav j ON j.id = jim.jav_id").

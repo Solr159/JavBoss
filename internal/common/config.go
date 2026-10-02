@@ -8,16 +8,18 @@ import (
 
 // Config represents the application configuration (hardcoded defaults).
 type Config struct {
-	DatabasePath  string `json:"database_path"`
-	ThumbnailsDir string `json:"thumbnails_dir"`
-	JavCoverDir   string `json:"jav_cover_dir"`
+	DatabasePath      string `json:"database_path"`
+	ThumbnailsDir     string `json:"thumbnails_dir"`
+	JavCoverDir       string `json:"jav_cover_dir"`
+	JavSampleImageDir string `json:"jav_sample_image_dir"`
 }
 
 const (
-	defaultDatabasePath  = "data/javboss.db"
-	legacyDatabaseName   = "pornboss.db"
-	defaultThumbnailsDir = "data/thumbnails"
-	defaultJavCoverDir   = "data/cover"
+	defaultDatabasePath      = "data/javboss.db"
+	legacyDatabaseName       = "pornboss.db"
+	defaultThumbnailsDir     = "data/thumbnails"
+	defaultJavCoverDir       = "data/cover"
+	defaultJavSampleImageDir = "data/sample-image"
 )
 
 // Load returns the hardcoded configuration.
@@ -40,9 +42,10 @@ func LoadWithBaseDir(baseDir string) (*Config, error) {
 	}
 
 	cfg := Config{
-		DatabasePath:  defaultDatabasePath,
-		ThumbnailsDir: defaultThumbnailsDir,
-		JavCoverDir:   defaultJavCoverDir,
+		DatabasePath:      defaultDatabasePath,
+		ThumbnailsDir:     defaultThumbnailsDir,
+		JavCoverDir:       defaultJavCoverDir,
+		JavSampleImageDir: defaultJavSampleImageDir,
 	}
 
 	// Resolve paths relative to the base directory.
@@ -89,6 +92,18 @@ func LoadWithBaseDir(baseDir string) (*Config, error) {
 		return nil, fmt.Errorf("create jav_cover_dir: %w", err)
 	}
 	cfg.JavCoverDir = absCovers
+
+	if cfg.JavSampleImageDir == "" {
+		cfg.JavSampleImageDir = filepath.Join(filepath.Dir(cfg.DatabasePath), "sample-image")
+	}
+	absSampleImages, err := resolve(cfg.JavSampleImageDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolve jav_sample_image_dir: %w", err)
+	}
+	if err := os.MkdirAll(absSampleImages, 0o755); err != nil {
+		return nil, fmt.Errorf("create jav_sample_image_dir: %w", err)
+	}
+	cfg.JavSampleImageDir = absSampleImages
 
 	return &cfg, nil
 }

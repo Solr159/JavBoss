@@ -137,6 +137,7 @@ func runDirectoryScanWithSession(scanCtx context.Context, directory models.Direc
 	// 才记录完成时间并允许外层释放扫描会话。
 	finishJavLinkBatch(javLinks)
 	javLinksFinished = true
+	javLinks.logSummary(directory)
 	summary.Duration = time.Since(start)
 	if scanned {
 		lastScanSummary := models.DirectoryScanSummary{
@@ -404,7 +405,9 @@ func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *Fil
 	if loc != nil {
 		state.processedLocationIDs[loc.ID] = struct{}{}
 		state.existingLocationByPath[makePathKey(loc.DirectoryID, loc.RelativePath)] = loc
-		state.javLinks.Enqueue(loc.ID)
+		// This location came from a probed (new or changed) file, so its first JAV
+		// link outcome is worth an individual log line.
+		state.javLinks.EnqueueFresh(loc.ID)
 	}
 	state.existingByID[video.ID] = video
 	return nil

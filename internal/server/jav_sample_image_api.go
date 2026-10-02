@@ -1,28 +1,21 @@
 package server
 
 import (
-	"bytes"
 	"errors"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
-	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
-	"javboss/internal/jav/javdb"
-	"javboss/internal/util"
 )
 
-// getJavSampleImage serves a stored sample image, decoding JavDB's image format.
-// index is zero-based; variant is thumbnail or detail. URLs come only from the
-// item's stored sample list, not from a caller-supplied URL.
+// getJavSampleImage serves a cached sample image, downloading JavDB's image
+// format on a cache miss. index is zero-based; variant is thumbnail or detail.
+// URLs come only from the item's stored sample list, not from a caller-supplied URL.
 func getJavSampleImage(c *gin.Context) {
 	id, idErr := strconv.ParseInt(c.Param("id"), 10, 64)
 	index, indexErr := strconv.Atoi(c.Param("index"))
@@ -55,41 +48,25 @@ func getJavSampleImage(c *gin.Context) {
 			source = sample.ThumbnailURL
 		}
 	}
-	u, err := url.Parse(source)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
-		c.Status(http.StatusBadGateway)
+	source = strings.TrimSpace(source)
+
+	manager := common.SampleImageManager
+	if manager == nil {
+		c.Status(http.StatusInternalServerError)
 		return
 	}
-	req, err := http.NewRequestWithContext(c.Request.Context(), http.MethodGet, source, nil)
+	path, err := manager.Get(c.Request.Context(), source)
 	if err != nil {
 		c.Status(http.StatusBadGateway)
 		return
 	}
-	util.SetJavImageRequestHeaders(req)
-	resp, err := util.DefaultCachedHTTPClient().Do(req)
-	if err != nil {
-		c.Status(http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		c.Status(http.StatusBadGateway)
-		return
-	}
-	body, encoded := javdb.DecodeImageBody(resp.Body)
-	const maxImageBytes = 16 << 20
-	data, err := io.ReadAll(io.LimitReader(body, maxImageBytes+1))
-	contentType := http.DetectContentType(data)
-	if err != nil || len(data) > maxImageBytes || !strings.HasPrefix(contentType, "image/") {
-		c.Status(http.StatusBadGateway)
-		return
-	}
-	if encoded {
-		if _, _, err := image.Decode(bytes.NewReader(data)); err != nil {
-			c.Status(http.StatusBadGateway)
-			return
+	// Warm the full-size sibling while grid thumbnails load so opening the
+	// preview does not wait on the remote host.
+	if variant == "thumbnail" {
+		if detail := strings.TrimSpace(sample.DetailURL); detail != "" && detail != source {
+			manager.Warm(detail)
 		}
 	}
 	c.Header("Cache-Control", "private, max-age=86400")
-	c.Data(http.StatusOK, contentType, data)
+	c.File(path)
 }

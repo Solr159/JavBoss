@@ -311,7 +311,7 @@ func TestListJavCodesForDirectoryOnlyReturnsVisibleDistinctCodes(t *testing.T) {
 	}
 }
 
-func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
+func TestListJavIdolsIncludesIdolsWithVisibleWorks(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -394,20 +394,33 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 		t.Fatalf("ListJavIdols: %v", err)
 	}
 
-	if total != 1 {
-		t.Fatalf("unexpected total: got %d want 1", total)
+	if total != 2 {
+		t.Fatalf("unexpected total: got %d want 2", total)
 	}
-	if len(items) != 1 {
-		t.Fatalf("unexpected item count: got %d want 1", len(items))
+	if len(items) != 2 {
+		t.Fatalf("unexpected item count: got %d want 2", len(items))
 	}
-	if items[0].ID != soloIdol.ID {
-		t.Fatalf("unexpected idol id: got %d want %d", items[0].ID, soloIdol.ID)
+	byID := make(map[int64]JavIdolSummary, len(items))
+	for _, item := range items {
+		byID[item.ID] = item
 	}
-	if items[0].WorkCount != 2 {
-		t.Fatalf("unexpected work count: got %d want 2", items[0].WorkCount)
+
+	solo := byID[soloIdol.ID]
+	if solo.WorkCount != 2 {
+		t.Fatalf("unexpected solo work count: got %d want 2", solo.WorkCount)
 	}
-	if items[0].CoverCode != soloJav.Code {
-		t.Fatalf("unexpected cover code: got %q want %q", items[0].CoverCode, soloJav.Code)
+	if solo.CoverCode != soloJav.Code {
+		t.Fatalf("unexpected solo cover code: got %q want %q", solo.CoverCode, soloJav.Code)
+	}
+
+	// An idol whose works are all multi-actress must still appear, just without
+	// a solo-work cover.
+	groupOnly := byID[groupOnlyIdol.ID]
+	if groupOnly.WorkCount != 1 {
+		t.Fatalf("unexpected group-only work count: got %d want 1", groupOnly.WorkCount)
+	}
+	if groupOnly.CoverCode != "" {
+		t.Fatalf("unexpected group-only cover code: got %q want empty", groupOnly.CoverCode)
 	}
 }
 

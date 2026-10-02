@@ -17,6 +17,7 @@ require (
 	github.com/urfave/cli/v3 v3.13.0
 	golang.org/x/crypto v0.40.0
 	golang.org/x/net v0.42.0
+	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.35.0
 	golang.org/x/term v0.33.0
 	google.golang.org/grpc v1.75.0
@@ -81,7 +82,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/tools v0.34.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect

@@ -8,10 +8,11 @@ import (
 
 // Shared application-wide dependencies.
 var (
-	DB                *gorm.DB
-	ScreenshotManager *manager.ScreenshotManager
-	CoverManager      *manager.CoverManager
-	StreamManager     *manager.StreamManager
-	FFmpegToolManager *manager.FFmpegToolManager
-	AppConfig         *Config
+	DB                 *gorm.DB
+	ScreenshotManager  *manager.ScreenshotManager
+	CoverManager       *manager.CoverManager
+	SampleImageManager *manager.SampleImageManager
+	StreamManager      *manager.StreamManager
+	FFmpegToolManager  *manager.FFmpegToolManager
+	AppConfig          *Config
 )

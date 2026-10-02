@@ -177,10 +177,12 @@ func main() {
 		jav.ProviderThePornDB,
 		jav.ProviderAvsox,
 	})
+	sampleImageManager := manager.NewSampleImageManager(cfg.JavSampleImageDir)
 
 	common.AppConfig = cfg
 	common.ScreenshotManager = screenshotManager
 	common.CoverManager = coverManager
+	common.SampleImageManager = sampleImageManager
 	common.StreamManager = streamManager
 	common.FFmpegToolManager = ffmpegToolManager
 
@@ -195,6 +197,7 @@ func main() {
 
 	screenshotManager.Start(ctx)
 	coverManager.Start(ctx)
+	sampleImageManager.Start(ctx)
 	streamManager.Start(ctx)
 	go func() {
 		timer := time.NewTimer(5 * time.Second)
