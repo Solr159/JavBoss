@@ -32,12 +32,19 @@ function detailField(label, value, plainText = false) {
   };
 }
 
-function detailDocument(fields) {
+function detailDocument(fields, { uncensored = false, code = "ABC-001" } = {}) {
   return {
-    querySelector: (selector) =>
-      selector === "h3" ? { textContent: "ABC-001 Fixture title" } : null,
+    querySelector: (selector) => {
+      if (selector === "h3") return { textContent: `${code} Fixture title` };
+      if (selector === "li.active a")
+        return {
+          textContent: uncensored ? "無碼" : "有碼",
+          getAttribute: () => (uncensored ? "/uncensored" : "/"),
+        };
+      return null;
+    },
     querySelectorAll: (selector) =>
-      selector === "span" ? [detailField("識別碼:", "ABC-001"), ...fields] : [],
+      selector === "span" ? [detailField("識別碼:", code), ...fields] : [],
   };
 }
 
@@ -87,6 +94,41 @@ for (const publisherFields of [[], [detailField("發行商:", "")]]) {
       ]),
       "https://www.javbus.com/ABC-001",
     );
+    assert.equal(result.studio, "");
+  });
+}
+
+for (const label of ["製作商:", "制作商：", "メーカー:", "Studio:", "Maker:"]) {
+  for (const plainText of [false, true]) {
+    test(`uncensored studio uses ${label}, plain text=${plainText}`, () => {
+      const document = detailDocument(
+        [
+          detailField("發行商:", "Unwanted Publisher"),
+          detailField(label, " Fixture Producer ", plainText),
+        ],
+        { uncensored: true, code: "092326_001" },
+      );
+      const result = parser.parse(
+        document,
+        "https://www.javbus.com/092326_001",
+      );
+      assert.equal(result.code, "092326_001");
+      assert.equal(result.is_uncensored, true);
+      assert.equal(result.studio, "Fixture Producer");
+    });
+  }
+}
+
+for (const producerFields of [[], [detailField("製作商:", "")]]) {
+  test(`uncensored studio stays empty when producer is ${producerFields.length ? "empty" : "missing"}`, () => {
+    const result = parser.parse(
+      detailDocument(
+        [detailField("發行商:", "Unwanted Publisher"), ...producerFields],
+        { uncensored: true, code: "092326_001" },
+      ),
+      "https://www.javbus.com/092326_001",
+    );
+    assert.equal(result.is_uncensored, true);
     assert.equal(result.studio, "");
   });
 }

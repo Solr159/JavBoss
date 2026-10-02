@@ -106,14 +106,17 @@ func parseDocument(doc *html.Node) *metadata.JavInfo {
 	}
 	title := cleanTitle(rawTitle)
 	code := extractCode(doc)
-	// JavBus's label (發行商) is the publisher used as our studio.
+	isUncensored := parseJavBusIsUncensored(doc)
+	// Uncensored pages use the producer; censored pages use the publisher.
 	studio := extractJavBusField(doc, "發行商", "发行商", "レーベル", "label")
+	if isUncensored {
+		studio = extractJavBusField(doc, "製作商", "制作商", "メーカー", "studio", "maker")
+	}
 	series := extractJavBusField(doc, "系列", "series")
 	releaseUnix, duration := extractDetails(doc)
 
 	tags := collectGenres(doc)
 	actors := collectActors(doc)
-	isUncensored := parseJavBusIsUncensored(doc)
 	coverURL := parseJavBusCoverURL(doc, "")
 
 	if title == "" && len(tags) == 0 && len(actors) == 0 {
