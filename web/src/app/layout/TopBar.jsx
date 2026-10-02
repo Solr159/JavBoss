@@ -460,9 +460,9 @@ export default function TopBar({
                 title={selectedFavoriteGroup?.name || favoriteLabel}
               >
                 <FolderOutlinedIcon fontSize="small" />
-                <span className="max-w-28 truncate">
-                  {selectedFavoriteGroup?.name || zh('收藏夹', 'Favorites')}
-                </span>
+                {selectedFavoriteGroup ? (
+                  <span className="max-w-28 truncate">{selectedFavoriteGroup.name}</span>
+                ) : null}
                 <ExpandMoreRoundedIcon
                   fontSize="small"
                   className="favorite-menu-trigger__chevron"
