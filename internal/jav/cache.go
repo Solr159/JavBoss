@@ -17,7 +17,7 @@ const (
 )
 
 var lookupJavCacheKeyVersionByProvider = map[Provider]string{
-	ProviderJavBus:      "v6", // Include the studio parsed from the movie page.
+	ProviderJavBus:      "v7", // Use the publisher (label) as studio instead of the producer.
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
 	ProviderJavDBAPI:    "v5", // Preserve separators when validating movie numbers.

@@ -106,7 +106,8 @@ func parseDocument(doc *html.Node) *metadata.JavInfo {
 	}
 	title := cleanTitle(rawTitle)
 	code := extractCode(doc)
-	studio := extractJavBusField(doc, "製作商", "制作商", "メーカー", "studio")
+	// JavBus's label (發行商) is the publisher used as our studio.
+	studio := extractJavBusField(doc, "發行商", "发行商", "レーベル", "label")
 	series := extractJavBusField(doc, "系列", "series")
 	releaseUnix, duration := extractDetails(doc)
 

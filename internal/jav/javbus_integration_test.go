@@ -10,7 +10,7 @@ import (
 	"javboss/internal/jav/javbus"
 )
 
-func TestJavBusLookupIncludesStudioAfterCacheUpdate(t *testing.T) {
+func TestJavBusLookupUsesPublisherAfterCacheUpdate(t *testing.T) {
 	httpClient := &http.Client{}
 	client := NewMetadataClient(map[Provider]any{ProviderJavBus: javbus.New(httpClient)}, newMemoryLookupCache())
 	calls := 0
@@ -28,10 +28,10 @@ func TestJavBusLookupIncludesStudioAfterCacheUpdate(t *testing.T) {
 			Request: req,
 		}, nil
 	})
-	lookupCacheSetHit(client, "v5:jav:javbus:lookup_jav:MIDE-557", &JavInfo{Code: "MIDE-557", Title: "Old result without studio"})
+	lookupCacheSetHit(client, "v6:jav:javbus:lookup_jav:MIDE-557", &JavInfo{Code: "MIDE-557", Title: "Old result with producer", Studio: "ムーディーズ"})
 	for i := 0; i < 2; i++ {
 		info, err := client.LookupJavByCode(context.Background(), "MIDE-557", ProviderJavBus)
-		if err != nil || info == nil || info.Studio != "ムーディーズ" {
+		if err != nil || info == nil || info.Studio != "MOODYZDIVA" {
 			t.Fatalf("lookup %d: info=%+v err=%v", i, info, err)
 		}
 	}

@@ -149,22 +149,26 @@ func TestParseJavBusMovieInfoIncludesSeries(t *testing.T) {
 	}
 }
 
-func TestParseJavBusMovieInfoIncludesStudio(t *testing.T) {
+func TestParseJavBusMovieInfoUsesPublisherAsStudio(t *testing.T) {
 	for _, tc := range []struct {
 		name, field, want string
 	}{
-		{"traditional", `<p><span class="header">製作商:</span> <a href="/studio/abc"> アイデアポケット </a></p>`, "アイデアポケット"},
-		{"simplified", `<p><span class="header">制作商：</span><span><a href="/studio/abc">片商</a></span></p>`, "片商"},
-		{"English", `<p><span class="header">Studio:</span> <a href="/studio/abc">Idea Pocket</a></p>`, "Idea Pocket"},
-		{"Japanese", `<p><span class="header">メーカー:</span> <a href="/studio/abc">片商</a></p>`, "片商"},
-		{"plain text", `<p><span class="header">製作商:</span> 片商 </p>`, "片商"},
-		{"missing studio", "", ""},
+		{"traditional", `<p><span class="header">發行商:</span> <a href="/label/abc"> S1 NO.1 STYLE </a></p>`, "S1 NO.1 STYLE"},
+		{"simplified", `<p><span class="header">发行商：</span><span><a href="/label/abc">片商</a></span></p>`, "片商"},
+		{"English", `<p><span class="header">Label:</span> <a href="/label/abc">Idea Pocket</a></p>`, "Idea Pocket"},
+		{"Japanese", `<p><span class="header">レーベル:</span> <a href="/label/abc">片商</a></p>`, "片商"},
+		{"plain text", `<p><span class="header">發行商:</span> 片商 </p>`, "片商"},
+		{"missing publisher", "", ""},
+		{"empty publisher", `<p><span class="header">發行商:</span></p>`, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			doc, err := html.Parse(strings.NewReader(`<html><body>
 				<h3>ABC-001 Test Title</h3>
 				<p><span>識別碼:</span><span>ABC-001</span></p>
-				<p><span>發行商:</span><a href="/label/other">Other Label</a></p>
+				<p><span>製作商:</span><a href="/studio/other">エスワン ナンバーワンスタイル</a></p>
+				<p><span>制作商:</span><a href="/studio/other">Other Producer</a></p>
+				<p><span>Studio:</span><a href="/studio/other">Other Studio</a></p>
+				<p><span>メーカー:</span><a href="/studio/other">Other Maker</a></p>
 				` + tc.field + `</body></html>`))
 			if err != nil {
 				t.Fatal(err)
