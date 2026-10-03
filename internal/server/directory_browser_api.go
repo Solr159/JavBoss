@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-
-	"javboss/internal/runtimeconfig"
 )
 
 type browsableDirectory struct {
@@ -33,10 +31,6 @@ type directoryBrowseResponse struct {
 // symlinks to directories. Paths retain symlinks so mounted/host paths stay usable.
 func browseDirectories(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
-	if runtimeconfig.DisableDirectoryPicker() {
-		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用目录选择器", "The directory picker is disabled in this deployment")
-		return
-	}
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		home, _ = os.Getwd()

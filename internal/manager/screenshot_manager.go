@@ -271,7 +271,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	shotPath := filepath.Join(tempDir, "00000001.jpg")
 
-	if runtime.GOOS == "darwin" || runtimeconfig.UseFFmpegScreenshots() {
+	if runtime.GOOS == "darwin" || runtimeconfig.ContainerMode() {
 		ffmpegPath, err := util.ResolveFFmpegPath()
 		if err != nil {
 			return fmt.Errorf("resolve ffmpeg path: %w", err)

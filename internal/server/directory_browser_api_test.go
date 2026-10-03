@@ -15,7 +15,6 @@ import (
 
 func TestBrowseDirectories(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("JAVBOSS_DISABLE_DIRECTORY_PICKER", "")
 	// Browsing must work without a desktop, including in container mode.
 	t.Setenv("JAVBOSS_CONTAINER", "1")
 	root := t.TempDir()
@@ -91,7 +90,6 @@ func TestBrowseDirectories(t *testing.T) {
 
 func TestBrowseDirectorySymlinksAndRoot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("JAVBOSS_DISABLE_DIRECTORY_PICKER", "")
 	root := t.TempDir()
 	target := t.TempDir()
 	if err := os.Symlink(target, filepath.Join(root, "linked")); err != nil {
@@ -137,18 +135,10 @@ func TestBrowseDirectorySymlinksAndRoot(t *testing.T) {
 	}
 }
 
-func TestBrowseDirectoriesDisabledAndAuthentication(t *testing.T) {
+func TestBrowseDirectoriesRequiresAuthentication(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("JAVBOSS_DISABLE_DIRECTORY_PICKER", "1")
-	router := gin.New()
-	router.GET("/directories/browse", browseDirectories)
-	recorder := httptest.NewRecorder()
-	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/directories/browse", nil))
-	if recorder.Code != http.StatusNotImplemented {
-		t.Fatalf("disabled status = %d", recorder.Code)
-	}
 	protected := NewRouter("", testAuthService(t))
-	recorder = httptest.NewRecorder()
+	recorder := httptest.NewRecorder()
 	protected.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/directories/browse", nil))
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("unauthenticated status = %d", recorder.Code)
@@ -157,7 +147,6 @@ func TestBrowseDirectoriesDisabledAndAuthentication(t *testing.T) {
 
 func TestBrowseDirectoryPermissionDenied(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("JAVBOSS_DISABLE_DIRECTORY_PICKER", "")
 	path := t.TempDir()
 	if err := os.Chmod(path, 0); err != nil {
 		t.Skipf("cannot remove directory permissions: %v", err)

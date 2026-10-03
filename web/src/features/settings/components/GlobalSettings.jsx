@@ -31,7 +31,6 @@ export default function GlobalSettings({ onToast, open, onClose }) {
     browserPlaybackOnly,
     desktopIntegrationEnabled,
     containerMode,
-    directoryPickerEnabled,
     mpvEnabled,
     defaultPlayer,
   } = usePlaybackCapabilities()
@@ -47,7 +46,6 @@ export default function GlobalSettings({ onToast, open, onClose }) {
       browserPlaybackOnly={browserPlaybackOnly}
       desktopIntegrationEnabled={desktopIntegrationEnabled}
       containerMode={containerMode}
-      directoryPickerEnabled={directoryPickerEnabled}
       serverOS={config?.runtime_os}
       mpvEnabled={mpvEnabled}
       onCreateDirectory={async (payload) => {

@@ -150,7 +150,6 @@ func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
 		t.Fatalf("change working directory: %v", err)
 	}
 	t.Setenv("JAVBOSS_CONTAINER", "")
-	t.Setenv("JAVBOSS_DOCKER", "")
 
 	ignoredEnvPath := filepath.Join(baseDir, "ignored-env-ffmpeg")
 	if err := os.WriteFile(ignoredEnvPath, []byte("ignored ffmpeg"), 0o755); err != nil {
@@ -178,7 +177,6 @@ func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
 func TestFindFFmpegPathOnlyUsesProjectFiles(t *testing.T) {
 	t.Setenv("JAVBOSS_BUILD_MODE", "development")
 	t.Setenv("JAVBOSS_CONTAINER", "")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	for _, source := range []string{"none", "bundled", "downloaded"} {
 		t.Run(source, func(t *testing.T) {
 			baseDir := t.TempDir()
@@ -226,7 +224,6 @@ func TestFindFFprobePathIgnoresEnvironmentAndSystemPath(t *testing.T) {
 	baseDir := t.TempDir()
 	t.Chdir(baseDir)
 	t.Setenv("JAVBOSS_CONTAINER", "")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	binName := "ffprobe" + filepath.Ext(FFmpegToolRelativePath())
 	systemDir := t.TempDir()
 	systemPath := filepath.Join(systemDir, binName)
@@ -254,7 +251,6 @@ func TestFindFFprobePathIgnoresEnvironmentAndSystemPath(t *testing.T) {
 func TestReleaseFFBinaryLookupOnlyUsesExecutableDirectory(t *testing.T) {
 	t.Setenv("JAVBOSS_BUILD_MODE", "release")
 	t.Setenv("JAVBOSS_CONTAINER", "")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	t.Chdir(t.TempDir())
 	execPath, err := os.Executable()
 	if err != nil {
@@ -302,7 +298,6 @@ func TestReleaseFFBinaryLookupOnlyUsesExecutableDirectory(t *testing.T) {
 func TestDockerFFBinaryLookupOnlyUsesFixedImagePath(t *testing.T) {
 	t.Setenv("JAVBOSS_BUILD_MODE", "release")
 	t.Setenv("JAVBOSS_CONTAINER", "1")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	t.Chdir(t.TempDir())
 	t.Setenv("FFMPEG_PATH", "/ignored/ffmpeg")
 	t.Setenv("FFPROBE_PATH", "/ignored/ffprobe")

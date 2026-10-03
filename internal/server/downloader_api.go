@@ -351,7 +351,7 @@ func revealDownloadLocation(c *gin.Context) {
 		respondLocalizedError(c, http.StatusForbidden, "通过局域网访问时无法打开下载位置", "Cannot reveal download locations when accessing over the local network")
 		return
 	}
-	if runtimeconfig.DisableDesktopIntegration() {
+	if runtimeconfig.ContainerMode() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用打开下载位置", "Desktop folder revealing is disabled")
 		return
 	}

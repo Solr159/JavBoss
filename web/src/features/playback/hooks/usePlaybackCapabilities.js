@@ -15,8 +15,6 @@ export default function usePlaybackCapabilities() {
 
   const desktopIntegrationEnabled = configFlag(config?.desktop_integration_enabled, true)
 
-  const directoryPickerEnabled = configFlag(config?.directory_picker_enabled, true)
-
   const mpvEnabled = configFlag(config?.mpv_enabled, true)
 
   const defaultPlayer = browserPlaybackOnly
@@ -56,7 +54,6 @@ export default function usePlaybackCapabilities() {
     clientMode,
     containerMode,
     desktopIntegrationEnabled,
-    directoryPickerEnabled,
     mpvEnabled,
     defaultPlayer,
     alternatePlayer,

@@ -398,7 +398,6 @@ func TestFFmpegToolManagerIgnoresSystemInstallation(t *testing.T) {
 	for _, containerMode := range []string{"", "1"} {
 		t.Run("container="+containerMode, func(t *testing.T) {
 			t.Setenv("JAVBOSS_CONTAINER", containerMode)
-			t.Setenv("JAVBOSS_DOCKER", "")
 			baseDir := t.TempDir()
 			systemPath := filepath.Join(t.TempDir(), currentTestFFmpegBinaryName())
 			payload := []byte("system ffmpeg")
@@ -435,7 +434,6 @@ func TestFFmpegToolManagerIgnoresSystemInstallation(t *testing.T) {
 
 func TestDockerFFmpegToolManagerOnlyUsesImage(t *testing.T) {
 	t.Setenv("JAVBOSS_CONTAINER", "1")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	for _, installed := range []bool{true, false} {
 		name := "missing image binary"
 		if installed {

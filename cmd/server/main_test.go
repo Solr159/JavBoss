@@ -12,7 +12,6 @@ import (
 func TestServerListenAddrRuntimeModes(t *testing.T) {
 	previousMode := buildMode
 	t.Cleanup(func() { buildMode = previousMode })
-	t.Setenv("JAVBOSS_DOCKER", "")
 	for _, tt := range []struct {
 		name      string
 		mode      string
@@ -51,16 +50,13 @@ func TestReleaseLoggerRuntimeModes(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		container string
-		docker    string
 		stdout    bool
 	}{
 		{name: "desktop writes file"},
 		{name: "container writes stdout", container: "1", stdout: true},
-		{name: "legacy container flag writes stdout", docker: "1", stdout: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("JAVBOSS_CONTAINER", tt.container)
-			t.Setenv("JAVBOSS_DOCKER", tt.docker)
 			baseDir := t.TempDir()
 			logsDir := filepath.Join(baseDir, "logs")
 			if tt.stdout {
@@ -94,7 +90,6 @@ func TestReleaseBaseDirRuntimeModes(t *testing.T) {
 	previousMode := buildMode
 	buildMode = "release"
 	t.Cleanup(func() { buildMode = previousMode })
-	t.Setenv("JAVBOSS_DOCKER", "")
 	t.Chdir(t.TempDir())
 	workingDir, err := os.Getwd()
 	if err != nil {

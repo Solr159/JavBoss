@@ -16,23 +16,7 @@ func envBool(name string) bool {
 
 // ContainerMode reports whether JavBoss is running in a container-oriented mode.
 func ContainerMode() bool {
-	return envBool("JAVBOSS_CONTAINER") || envBool("JAVBOSS_DOCKER")
-}
-
-func DisableDirectoryPicker() bool {
-	return envBool("JAVBOSS_DISABLE_DIRECTORY_PICKER")
-}
-
-func DisableDesktopIntegration() bool {
-	return ContainerMode() || envBool("JAVBOSS_DISABLE_DESKTOP_INTEGRATION")
-}
-
-func DisableMPVPlayback() bool {
-	return ContainerMode() || envBool("JAVBOSS_DISABLE_MPV")
-}
-
-func UseFFmpegScreenshots() bool {
-	return ContainerMode() || envBool("JAVBOSS_USE_FFMPEG_SCREENSHOTS")
+	return envBool("JAVBOSS_CONTAINER")
 }
 
 func HostPathPrefixEnabled() bool {

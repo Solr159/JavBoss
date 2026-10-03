@@ -397,10 +397,6 @@ async function startBackendDevChild() {
   };
   if (envBool("DOCKER_MODE")) {
     env.JAVBOSS_CONTAINER = env.JAVBOSS_CONTAINER || "1";
-    env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION =
-      env.JAVBOSS_DISABLE_DESKTOP_INTEGRATION || "1";
-    env.JAVBOSS_DISABLE_MPV = env.JAVBOSS_DISABLE_MPV || "1";
-    env.JAVBOSS_USE_FFMPEG_SCREENSHOTS = env.JAVBOSS_USE_FFMPEG_SCREENSHOTS || "1";
     console.log("[dev] Docker 模式配置已启用");
   }
   const child = spawn("go", ["run", ...args], { cwd: ROOT_DIR, env, stdio: "inherit" });

@@ -453,7 +453,7 @@ func serveVideoFile(c *gin.Context, fullPath string) {
 }
 
 func openVideoFile(c *gin.Context) {
-	if runtimeconfig.DisableDesktopIntegration() {
+	if runtimeconfig.ContainerMode() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用系统播放器", "Desktop file opening is disabled")
 		return
 	}
@@ -475,7 +475,7 @@ func openVideoFile(c *gin.Context) {
 }
 
 func playVideoFile(c *gin.Context) {
-	if runtimeconfig.DisableMPVPlayback() {
+	if runtimeconfig.ContainerMode() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用 MPV 播放", "MPV playback is disabled")
 		return
 	}
@@ -514,7 +514,7 @@ func playVideoFile(c *gin.Context) {
 }
 
 func playVideoPlaylist(c *gin.Context) {
-	if runtimeconfig.DisableMPVPlayback() {
+	if runtimeconfig.ContainerMode() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用 MPV 播放", "MPV playback is disabled")
 		return
 	}
@@ -603,7 +603,7 @@ func revealVideoLocation(c *gin.Context) {
 		respondLocalizedError(c, http.StatusForbidden, "通过局域网访问时无法打开文件所在位置", "Cannot reveal file locations when accessing over the local network")
 		return
 	}
-	if runtimeconfig.DisableDesktopIntegration() {
+	if runtimeconfig.ContainerMode() {
 		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用打开文件位置", "Desktop file revealing is disabled")
 		return
 	}

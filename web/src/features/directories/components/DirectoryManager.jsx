@@ -194,7 +194,6 @@ export default function DirectoryManager({
   onProcess,
   onScan,
   onRefresh,
-  directoryPickerEnabled = true,
   serverOS = '',
 }) {
   const useHostPaths = useStore((state) => hostPathsEnabled(state.config))
@@ -236,16 +235,8 @@ export default function DirectoryManager({
       ? zh(`输入目录路径，例如 ${pathExample}`, `Enter a folder path, e.g. ${pathExample}`)
       : zh('输入服务端的完整目录路径', 'Enter the full folder path on the server')
   const pathHelperText = zh(
-    directoryPickerEnabled
-      ? '建议优先使用“选择目录”，也可以手动输入完整目录路径。'
-      : useHostPaths
-        ? '请输入宿主机上的完整目录路径，Docker 部署会自动映射到容器内路径。'
-        : '请输入容器内可访问的完整目录路径，例如 /media。',
-    directoryPickerEnabled
-      ? 'Use "Choose directory" when possible, or enter the full folder path manually.'
-      : useHostPaths
-        ? 'Enter the full host path. Docker deployments map it to the container path automatically.'
-        : 'Enter a full path that is accessible inside the container, for example /media.'
+    '建议优先使用“选择目录”，也可以手动输入完整目录路径。',
+    'Use "Choose directory" when possible, or enter the full folder path manually.'
   )
   const displayPath = (value) => displayHostPath(value, useHostPaths)
   const apiPath = (value) => apiHostPath(value, useHostPaths)
@@ -544,22 +535,20 @@ export default function DirectoryManager({
                           className="w-full rounded border px-3 py-2 text-sm sm:min-w-[420px] sm:flex-1"
                           placeholder={pathPlaceholder}
                         />
-                        {directoryPickerEnabled ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setRowErrorId(null)
-                              setRowErrorMsg('')
-                              setPickerTarget('edit')
-                            }}
-                            disabled={picking || working}
-                            className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
-                          >
-                            {picking
-                              ? zh('选择中…', 'Picking...')
-                              : zh('选择目录', 'Choose directory')}
-                          </button>
-                        ) : null}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRowErrorId(null)
+                            setRowErrorMsg('')
+                            setPickerTarget('edit')
+                          }}
+                          disabled={picking || working}
+                          className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
+                        >
+                          {picking
+                            ? zh('选择中…', 'Picking...')
+                            : zh('选择目录', 'Choose directory')}
+                        </button>
                       </div>
                       <div className="text-xs text-blue-700">{pathHelperText}</div>
                     </form>
@@ -794,19 +783,17 @@ export default function DirectoryManager({
               placeholder={pathPlaceholder}
               className="flex-1 rounded border px-3 py-2"
             />
-            {directoryPickerEnabled ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setError('')
-                  setPickerTarget('add')
-                }}
-                disabled={picking || submitting}
-                className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
-              >
-                {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setError('')
+                setPickerTarget('add')
+              }}
+              disabled={picking || submitting}
+              className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
+            >
+              {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
+            </button>
           </div>
           <div className="text-xs text-blue-700">{pathHelperText}</div>
           {error && <div className="text-sm text-red-600">{error}</div>}

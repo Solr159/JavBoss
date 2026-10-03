@@ -574,14 +574,13 @@ func updateConfig(c *gin.Context) {
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
 	remoteRequest := isRemoteRequest(remoteAddr)
+	containerMode := runtimeconfig.ContainerMode()
 	cfg["runtime_os"] = runtime.GOOS
-	cfg["runtime_container"] = strconv.FormatBool(runtimeconfig.ContainerMode())
+	cfg["runtime_container"] = strconv.FormatBool(containerMode)
 	cfg["runtime_remote_request"] = strconv.FormatBool(remoteRequest)
-	cfg["directory_picker_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDirectoryPicker())
-	cfg["desktop_integration_enabled"] = strconv.FormatBool(!runtimeconfig.DisableDesktopIntegration())
-	cfg["mpv_enabled"] = strconv.FormatBool(!runtimeconfig.DisableMPVPlayback())
-	browserPlaybackOnly := runtimeconfig.DisableMPVPlayback() && runtimeconfig.DisableDesktopIntegration()
-	cfg["browser_playback_only"] = strconv.FormatBool(browserPlaybackOnly || remoteRequest)
+	cfg["desktop_integration_enabled"] = strconv.FormatBool(!containerMode)
+	cfg["mpv_enabled"] = strconv.FormatBool(!containerMode)
+	cfg["browser_playback_only"] = strconv.FormatBool(containerMode || remoteRequest)
 	cfg["host_path_prefix_enabled"] = strconv.FormatBool(runtimeconfig.HostPathPrefixEnabled())
 }
 

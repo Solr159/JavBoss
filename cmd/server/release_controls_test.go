@@ -14,7 +14,6 @@ func TestContainerReleaseServesWithoutDesktopControls(t *testing.T) {
 	buildMode = "release"
 	t.Cleanup(func() { buildMode = previousMode })
 	t.Setenv("JAVBOSS_CONTAINER", "1")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	t.Setenv("PATH", t.TempDir())
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

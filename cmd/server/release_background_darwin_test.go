@@ -127,7 +127,6 @@ func TestDetachedReleaseEarlyExit(t *testing.T) {
 
 func TestReleaseNonDesktopModesStayAttached(t *testing.T) {
 	t.Setenv(backgroundChildEnv, "")
-	t.Setenv("JAVBOSS_DOCKER", "")
 	previous := buildMode
 	t.Cleanup(func() { buildMode = previous })
 	for _, tc := range []struct {
