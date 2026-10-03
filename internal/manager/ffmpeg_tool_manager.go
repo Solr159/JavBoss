@@ -11,7 +11,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -475,7 +474,7 @@ func pathWithinDirectory(path string, directory string) bool {
 func validateFFmpeg(path string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	output, err := exec.CommandContext(ctx, path, "-version").CombinedOutput()
+	output, err := util.BackgroundCommandContext(ctx, path, "-version").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("validate FFmpeg: %w", err)
 	}

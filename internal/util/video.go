@@ -333,7 +333,7 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 		return nil, err
 	}
 	// -v quiet -print_format json -show_streams -select_streams v:0
-	cmd := exec.CommandContext(ctx, ffprobe,
+	cmd := BackgroundCommandContext(ctx, ffprobe,
 		"-v", "error",
 		"-print_format", "json",
 		"-show_entries", "stream=index,codec_type,codec_name,width,height,avg_frame_rate,r_frame_rate,sample_rate,channels,bit_rate",

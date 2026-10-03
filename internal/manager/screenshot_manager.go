@@ -288,7 +288,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	}
 	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
 
-	cmd := exec.CommandContext(ctx, mpvPath, args...)
+	cmd := util.BackgroundCommandContext(ctx, mpvPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = os.Remove(shotPath)
@@ -316,7 +316,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 
 func runFFmpegScreenshot(ctx context.Context, ffmpegPath string, videoPath string, second float64, outputPath string) error {
 	args := buildFFmpegScreenshotArgs(second, outputPath, videoPath)
-	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
+	cmd := util.BackgroundCommandContext(ctx, ffmpegPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = os.Remove(outputPath)
