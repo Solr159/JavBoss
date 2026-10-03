@@ -20,6 +20,7 @@ export default defineConfig({
       '/videos': backendProxy(),
       '/tags': backendProxy(),
       '/sync': backendProxy(),
+      '/system': backendProxy(),
       '/directories': backendProxy(),
       '/downloader': backendProxy(),
       '/downloads': backendProxy(),

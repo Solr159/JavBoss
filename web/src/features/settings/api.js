@@ -1,5 +1,11 @@
 import { apiFetch, apiError, parseJSONResponse, jsonHeaders } from '@/api/client'
 
+export async function fetchResources({ signal } = {}) {
+  const res = await apiFetch('/system/resources', { signal, cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
 export async function fetchAvailabilityProviders({ signal } = {}) {
   const res = await apiFetch('/jav/providers', { signal, cache: 'no-store' })
   if (!res.ok) throw await apiError(res)

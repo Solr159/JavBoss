@@ -11,12 +11,18 @@ import AppModal from '@/shared/ui/AppModal'
 import PlayerSettingsModal from '@/features/settings/components/PlayerSettingsModal'
 import WebHotkeySettings from '@/features/settings/components/WebHotkeySettings'
 import ProviderAvailabilityPanel from '@/features/settings/components/ProviderAvailabilityPanel'
+import ResourceDashboard from '@/features/settings/components/ResourceDashboard'
 import { downloadFFmpeg, fetchTools } from '@/features/settings/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
 const SETTINGS_SECTIONS = [
+  {
+    id: 'resources',
+    title: { zh: '资源监控', en: 'Resource Monitor' },
+    summary: { zh: 'CPU、内存与磁盘占用', en: 'CPU, memory and disk usage' },
+  },
   {
     id: 'directories',
     title: { zh: '目录管理', en: 'Directory Management' },
@@ -1462,6 +1468,7 @@ export default function GlobalSettingsModal({
           }`}
         >
           {currentSection === 'display' && renderDisplayPanel()}
+          {currentSection === 'resources' && <ResourceDashboard />}
           {currentSection === 'network' && renderNetworkPanel()}
           {currentSection === 'jav-providers' && (
             <ProviderAvailabilityPanel
