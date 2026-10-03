@@ -19,11 +19,6 @@ import { getErrorMessage } from '@/utils/errors'
 
 const SETTINGS_SECTIONS = [
   {
-    id: 'resources',
-    title: { zh: '资源监控', en: 'Resource Monitor' },
-    summary: { zh: 'CPU、内存与磁盘占用', en: 'CPU, memory and disk usage' },
-  },
-  {
     id: 'directories',
     title: { zh: '目录管理', en: 'Directory Management' },
     summary: { zh: '管理扫描目录与路径', en: 'Manage watched folders and paths' },
@@ -57,6 +52,11 @@ const SETTINGS_SECTIONS = [
     id: 'security',
     title: { zh: '安全', en: 'Security' },
     summary: { zh: '账户与 API 令牌', en: 'Account and API tokens' },
+  },
+  {
+    id: 'resources',
+    title: { zh: '资源监控', en: 'Resource Monitor' },
+    summary: { zh: 'CPU、内存与磁盘占用', en: 'CPU, memory and disk usage' },
   },
 ]
 
