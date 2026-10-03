@@ -5,7 +5,122 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/gin-gonic/gin"
 )
+
+func TestServerListenAddrRuntimeModes(t *testing.T) {
+	previousMode := buildMode
+	t.Cleanup(func() { buildMode = previousMode })
+	t.Setenv("JAVBOSS_DOCKER", "")
+	for _, tt := range []struct {
+		name      string
+		mode      string
+		container string
+		port      int
+		config    string
+		want      string
+	}{
+		{name: "development", mode: "development", want: "127.0.0.1:17654"},
+		{name: "desktop release", mode: "release", want: "127.0.0.1:8655"},
+		{name: "desktop configured port", mode: "release", config: "port = 9123\n", want: "127.0.0.1:9123"},
+		{name: "container development", mode: "development", container: "1", want: "0.0.0.0:17654"},
+		{name: "container release", mode: "release", container: "1", want: "0.0.0.0:17654"},
+		{name: "container retains command line port", mode: "release", container: "1", port: 5174, want: "0.0.0.0:5174"},
+		{name: "container ignores desktop port config", mode: "release", container: "1", config: "port = 9123\n", want: "0.0.0.0:17654"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			buildMode = tt.mode
+			t.Setenv("JAVBOSS_CONTAINER", tt.container)
+			baseDir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(baseDir, "config.toml"), []byte(tt.config), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			got, err := serverListenAddr(baseDir, false, tt.port)
+			if err != nil || got != tt.want {
+				t.Fatalf("serverListenAddr() = %q, %v; want %q", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestReleaseLoggerRuntimeModes(t *testing.T) {
+	previousMode := gin.Mode()
+	gin.SetMode(gin.ReleaseMode)
+	t.Cleanup(func() { gin.SetMode(previousMode) })
+	for _, tt := range []struct {
+		name      string
+		container string
+		docker    string
+		stdout    bool
+	}{
+		{name: "desktop writes file"},
+		{name: "container writes stdout", container: "1", stdout: true},
+		{name: "legacy container flag writes stdout", docker: "1", stdout: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("JAVBOSS_CONTAINER", tt.container)
+			t.Setenv("JAVBOSS_DOCKER", tt.docker)
+			baseDir := t.TempDir()
+			logsDir := filepath.Join(baseDir, "logs")
+			if tt.stdout {
+				// A blocked logs path must not prevent a container from starting.
+				if err := os.WriteFile(logsDir, []byte("not a directory"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			logger, closeLogs, err := buildLogger(baseDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(closeLogs)
+			if tt.stdout {
+				if logger.Writer() != os.Stdout {
+					t.Fatal("container logger must use stdout in release mode")
+				}
+				return
+			}
+			logger.Print("release log message")
+			closeLogs()
+			data, err := os.ReadFile(filepath.Join(logsDir, "javboss.log"))
+			if err != nil || !strings.Contains(string(data), "release log message") {
+				t.Fatalf("release log = %q, %v", data, err)
+			}
+		})
+	}
+}
+
+func TestReleaseBaseDirRuntimeModes(t *testing.T) {
+	previousMode := buildMode
+	buildMode = "release"
+	t.Cleanup(func() { buildMode = previousMode })
+	t.Setenv("JAVBOSS_DOCKER", "")
+	t.Chdir(t.TempDir())
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name      string
+		container string
+		want      string
+	}{
+		{name: "desktop uses executable directory", want: filepath.Dir(executable)},
+		{name: "container uses working directory", container: "1", want: workingDir},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("JAVBOSS_CONTAINER", tt.container)
+			got, err := resolveBaseDir()
+			if err != nil || got != tt.want {
+				t.Fatalf("resolveBaseDir() = %q, %v; want %q", got, err, tt.want)
+			}
+		})
+	}
+}
 
 func TestReleaseListenAddr(t *testing.T) {
 	tests := []struct {

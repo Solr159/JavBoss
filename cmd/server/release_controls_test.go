@@ -3,9 +3,38 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
+	"log"
 	"testing"
 	"time"
 )
+
+func TestContainerReleaseServesWithoutDesktopControls(t *testing.T) {
+	previousMode := buildMode
+	buildMode = "release"
+	t.Cleanup(func() { buildMode = previousMode })
+	t.Setenv("JAVBOSS_CONTAINER", "1")
+	t.Setenv("JAVBOSS_DOCKER", "")
+	t.Setenv("PATH", t.TempDir())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	serveErr := errors.New("server stopped")
+	stopCalled := false
+	called := false
+	err := serveWithReleaseControls(ctx, func() {
+		stopCalled = true
+		cancel()
+	}, "http://localhost:17654", "", log.New(io.Discard, "", 0), func() error {
+		called = true
+		return serveErr
+	})
+	if !called || !errors.Is(err, serveErr) {
+		t.Fatalf("serve called = %t, error = %v", called, err)
+	}
+	if stopCalled {
+		t.Fatal("container entered the desktop controls lifecycle")
+	}
+}
 
 func TestServeWithControlsWaitsForShutdown(t *testing.T) {
 	ctx, stop := context.WithCancel(context.Background())

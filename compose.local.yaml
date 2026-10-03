@@ -7,6 +7,7 @@ services:
     build:
       context: .
       args:
+        BUILD_MODE: development
         NPM_CONFIG_REGISTRY: ${NPM_CONFIG_REGISTRY:-https://registry.npmmirror.com}
         GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
         GOSUMDB: ${GOSUMDB:-sum.golang.org}

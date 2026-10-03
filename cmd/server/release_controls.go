@@ -4,11 +4,12 @@ import (
 	"context"
 	"log"
 
+	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
 )
 
 func serveWithReleaseControls(ctx context.Context, stop context.CancelFunc, url, remoteURL string, logger *log.Logger, serve func() error) error {
-	if buildMode != "release" {
+	if buildMode != "release" || runtimeconfig.ContainerMode() {
 		return serve()
 	}
 	return serveWithControls(stop, serve, func() {

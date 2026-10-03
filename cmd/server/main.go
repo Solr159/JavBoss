@@ -109,7 +109,9 @@ func main() {
 		logger.Fatalf("load config: %v", err)
 	}
 
-	if buildMode == "release" {
+	// Desktop releases own a single-instance lock; containers are managed by
+	// their runtime and must not enter interactive duplicate-instance controls.
+	if buildMode == "release" && !runtimeconfig.ContainerMode() {
 		dataDir := filepath.Dir(cfg.DatabasePath)
 		lockPath := filepath.Join(dataDir, "javboss.lock")
 		lock, ok := acquireSingleInstanceLock(lockPath, logger)
@@ -221,25 +223,9 @@ func main() {
 		logger.Fatalf("initialize authentication: %v", err)
 	}
 
-	serverPort := defaultDevelopmentPort
-	if portOverride > 0 {
-		serverPort = portOverride
-	}
-	listenAddr := configuredListenAddr(
-		serverPort,
-		allowLANAccess,
-		runtimeconfig.ContainerMode(),
-	)
-
-	if buildMode == "release" {
-		listenAddr, err = releaseListenAddr(baseDir, allowLANAccess, portOverride)
-		if err != nil {
-			logger.Fatalf("resolve release listen address: %v", err)
-		}
-		if runtimeconfig.ContainerMode() {
-			_, port, _ := net.SplitHostPort(listenAddr)
-			listenAddr = net.JoinHostPort("0.0.0.0", port)
-		}
+	listenAddr, err := serverListenAddr(baseDir, allowLANAccess, portOverride)
+	if err != nil {
+		logger.Fatalf("resolve listen address: %v", err)
 	}
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
@@ -280,7 +266,7 @@ func resolveClientServerURL(flagValue, configuredValue string) string {
 func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, serverURL string, configuredPort int, logger *log.Logger) error {
 	port := configuredPort
 	if port == 0 {
-		if buildMode == "release" {
+		if buildMode == "release" && !runtimeconfig.ContainerMode() {
 			port = defaultReleasePort
 		} else {
 			port = defaultDevelopmentPort
@@ -338,7 +324,8 @@ func applyRuntimeConfig(ctx context.Context) map[string]string {
 }
 
 func buildLogger(baseDir string) (*log.Logger, func(), error) {
-	if gin.Mode() != gin.ReleaseMode {
+	// Container logs belong to the runtime, even for release builds.
+	if runtimeconfig.ContainerMode() || gin.Mode() != gin.ReleaseMode {
 		logger := log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
 		return logger, func() {}, nil
 	}
@@ -367,6 +354,18 @@ func configuredListenAddr(port int, allowLANAccess bool, containerMode bool) str
 		host = "0.0.0.0"
 	}
 	return net.JoinHostPort(host, strconv.Itoa(port))
+}
+
+func serverListenAddr(baseDir string, allowLANAccess bool, portOverride int) (string, error) {
+	if runtimeconfig.ContainerMode() {
+		port := configuredPortWithOverride(defaultDevelopmentPort, portOverride)
+		return configuredListenAddr(port, false, true), nil
+	}
+	if buildMode == "release" {
+		return releaseListenAddr(baseDir, allowLANAccess, portOverride)
+	}
+	port := configuredPortWithOverride(defaultDevelopmentPort, portOverride)
+	return configuredListenAddr(port, allowLANAccess, false), nil
 }
 
 func normalizePortOverride(value int) (int, error) {
@@ -511,7 +510,8 @@ func startReleaseKeyboardControls(ctx context.Context, cancel context.CancelFunc
 }
 
 func resolveBaseDir() (string, error) {
-	if buildMode == "release" {
+	// Containers keep data relative to their configured working directory.
+	if buildMode == "release" && !runtimeconfig.ContainerMode() {
 		execPath, err := os.Executable()
 		if err != nil {
 			return "", fmt.Errorf("resolve executable directory: %w", err)
