@@ -24,6 +24,11 @@
 - Frontend: functional React components in PascalCase (`VideoGrid.jsx`), hooks/helpers camelCase. Keep styles in Tailwind/`index.css`; prefer colocated component styles. Format with `npm run format` / `npm run format:check`; lint with `npm run lint`.
 - Naming: API routes are RESTful (`/videos`, `/tags`, `/directories`); keep new endpoints consistent and document query params.
 
+## README Guidelines
+- `README.md` is for end users. Keep edits concise and restrained, focusing on installation, configuration, usage, and limitations that affect user decisions.
+- Update it only when a change materially affects users; routine implementation changes do not need a README entry. Prefer small edits to existing sections and preserve the document's language and style.
+- Avoid implementation details, API field inventories, debugging notes, and exhaustive technical explanations. Put necessary developer documentation elsewhere and link to it only when useful to users.
+
 ## Database Migration Guidance
 - Do not modify existing DB migration files. Add a new migration for every schema or data migration change, and use that new migration to reconcile schema details such as column order when needed.
 - After every DB migration, verify that the actual database schema exactly matches the structs and GORM tags in `internal/models`, including tables, columns, column types, nullability/defaults, indexes, unique constraints, foreign keys, and join tables.
