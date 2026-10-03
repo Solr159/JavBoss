@@ -2,14 +2,12 @@ package javdatabase
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 
 	"javboss/internal/common/logging"
 	"javboss/internal/jav/internal/htmlutil"
-	"javboss/internal/util"
 
 	"golang.org/x/net/html"
 )
@@ -23,9 +21,6 @@ func (p *JavDatabaseClient) fetchJavDatabaseHTML(ctx context.Context, targetURL,
 	logging.Info("javdatabase request: %s", targetURL)
 	resp, err := p.doJavDatabaseRequest(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, nil
-		}
 		return nil, 0, err
 	}
 	defer resp.Body.Close()

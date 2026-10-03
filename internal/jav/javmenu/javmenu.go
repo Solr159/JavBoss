@@ -2,7 +2,6 @@ package javmenu
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,7 +15,6 @@ import (
 	"javboss/internal/jav/internal/parseutil"
 	"javboss/internal/jav/internal/ratelimit"
 	"javboss/internal/jav/metadata"
-	"javboss/internal/util"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -81,9 +79,6 @@ func (p *JavMenuClient) fetchJavMenuHTML(ctx context.Context, targetURL, referer
 	logging.Info("javmenu request: %s", targetURL)
 	resp, err := p.doJavMenuRequest(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, nil
-		}
 		return nil, 0, err
 	}
 	defer resp.Body.Close()

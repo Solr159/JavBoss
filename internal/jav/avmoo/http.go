@@ -311,9 +311,6 @@ func (p *AvmooClient) fetchAvmooHTML(ctx context.Context, targetURL, referer str
 	logging.Info("avmoo request: %s", targetURL)
 	resp, err := p.doAvmooRequest(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, nil
-		}
 		return nil, 0, err
 	}
 	defer resp.Body.Close()

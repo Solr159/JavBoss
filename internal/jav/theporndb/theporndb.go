@@ -3,7 +3,6 @@ package theporndb
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,9 +67,6 @@ func (p *ThePornDBClient) fetchThePornDBJavByCode(ctx context.Context, code stri
 	logging.Info("theporndb request: %s", targetURL)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, metadata.ErrNotFound
-		}
 		return nil, err
 	}
 	defer resp.Body.Close()

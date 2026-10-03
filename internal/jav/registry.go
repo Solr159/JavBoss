@@ -48,15 +48,16 @@ var defaultMetadataClient = NewMetadataClient(nil, nil)
 func defaultProviders() map[Provider]any {
 	result := make(map[Provider]any)
 	for _, id := range []Provider{ProviderJavBus, ProviderJavDatabase, ProviderJavDB, ProviderJavDBAPI, ProviderAvmoo, ProviderAvsox, ProviderJavMenu, ProviderJavModel, ProviderMinnanoAV, ProviderThePornDB, ProviderAVWiki} {
-		httpClient := newProviderHTTPClient(id)
-		// URL caching is configured here, independently of provider parsing.
-		switch id {
-		case ProviderJavBus, ProviderJavDatabase, ProviderJavMenu, ProviderJavModel, ProviderMinnanoAV, ProviderThePornDB:
-			httpClient = util.WithNegativeCache(httpClient)
-		}
+		httpClient := newCachedProviderHTTPClient(id)
 		result[id], _ = newProvider(id, httpClient)
 	}
 	return result
+}
+
+// Normal lookups cache failed URLs for every provider. Availability checks use
+// newProviderHTTPClient directly so they always reach the network.
+func newCachedProviderHTTPClient(id Provider) *http.Client {
+	return util.WithNegativeCache(newProviderHTTPClient(id))
 }
 
 // newProviderHTTPClient creates a new connection pool with the site's settings.

@@ -2,8 +2,8 @@ package util
 
 import (
 	"crypto/tls"
-	"errors"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,20 +20,17 @@ var (
 	negativeURLCache            sync.Map // URL -> negativeURLCacheEntry
 )
 
-// ErrCachedNotFound indicates the URL was previously requested and returned 404.
-var ErrCachedNotFound = errors.New("cached not found")
-
-// ErrCachedForbidden indicates a GET or HEAD URL previously returned 403.
-var ErrCachedForbidden = errors.New("cached forbidden")
-
 type negativeURLCacheEntry struct {
 	statusCode int
 	expiresAt  time.Time
 }
 
-// WithNegativeCache returns a shallow copy of client whose transport caches 404
-// responses and GET/HEAD 403 responses for seven days. It shares the original
-// connection pool and cookie jar. POST authentication retries bypass cached 403s.
+// WithNegativeCache returns a shallow copy of client whose transport caches
+// GET/HEAD 403 and 404 responses for seven days. It shares the original
+// connection pool and cookie jar. Other methods, including POST lookups and
+// authentication retries, bypass this URL-only cache.
+// Cache hits return an HTTP response with the cached status and an empty body,
+// so callers handle cached and network statuses through the same code path.
 // Configure this once before using the returned client; do not use it for checks
 // that must reach the network regardless of previous responses.
 func WithNegativeCache(client *http.Client) *http.Client {
@@ -52,23 +49,22 @@ type negativeCacheTransport struct {
 
 func (t *negativeCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	url := req.URL.String()
-	cacheForbidden := req.Method == "" || req.Method == http.MethodGet || req.Method == http.MethodHead
+	if req.Method != "" && req.Method != http.MethodGet && req.Method != http.MethodHead {
+		return t.base.RoundTrip(req)
+	}
 	if cached, ok := negativeURLCache.Load(url); ok {
 		entry := cached.(negativeURLCacheEntry)
 		if time.Now().Before(entry.expiresAt) {
-			var cachedErr error
-			switch entry.statusCode {
-			case http.StatusNotFound:
-				cachedErr = ErrCachedNotFound
-			case http.StatusForbidden:
-				if cacheForbidden {
-					cachedErr = ErrCachedForbidden
-				}
-			}
-			if cachedErr != nil {
+			if entry.statusCode == http.StatusNotFound || entry.statusCode == http.StatusForbidden {
 				logging.Info("http response status: %d %s (cached) method=%s url=%s expires_at=%s",
 					entry.statusCode, http.StatusText(entry.statusCode), req.Method, url, entry.expiresAt.Format(time.RFC3339))
-				return nil, cachedErr
+				return &http.Response{
+					StatusCode: entry.statusCode,
+					Status:     strconv.Itoa(entry.statusCode) + " " + http.StatusText(entry.statusCode),
+					Proto:      "HTTP/1.1", ProtoMajor: 1, ProtoMinor: 1,
+					Header: make(http.Header), Body: http.NoBody, ContentLength: 0,
+					Request: req,
+				}, nil
 			}
 		} else {
 			// Preserve a newer entry if another request refreshed it concurrently.
@@ -77,7 +73,7 @@ func (t *negativeCacheTransport) RoundTrip(req *http.Request) (*http.Response, e
 	}
 	resp, err := t.base.RoundTrip(req)
 	if err == nil && resp != nil && (resp.StatusCode == http.StatusNotFound ||
-		(cacheForbidden && resp.StatusCode == http.StatusForbidden)) {
+		resp.StatusCode == http.StatusForbidden) {
 		negativeURLCache.Store(url, negativeURLCacheEntry{
 			statusCode: resp.StatusCode,
 			expiresAt:  time.Now().Add(negativeURLCacheTTL),
@@ -102,7 +98,7 @@ func DefaultHTTPClient() *http.Client {
 }
 
 // DefaultCachedHTTPClient returns the shared client with a seven-day URL
-// cache for 404 and GET/HEAD 403 responses. It is initialized once and shares DefaultHTTPClient's connection pool.
+// cache for GET/HEAD 403 and 404 responses. It is initialized once and shares DefaultHTTPClient's connection pool.
 func DefaultCachedHTTPClient() *http.Client {
 	defaultCachedHTTPClientOnce.Do(func() {
 		defaultCachedHTTPClient = WithNegativeCache(DefaultHTTPClient())

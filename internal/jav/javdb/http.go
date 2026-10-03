@@ -3,7 +3,6 @@ package javdb
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,9 +50,6 @@ func (p *JavDBClient) fetchJavDBHTML(ctx context.Context, targetURL, referer str
 	logging.Info("javdb request: %s", targetURL)
 	resp, err := p.doJavDBRequest(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, nil
-		}
 		return nil, 0, err
 	}
 	defer resp.Body.Close()

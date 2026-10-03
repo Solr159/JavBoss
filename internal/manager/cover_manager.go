@@ -36,6 +36,7 @@ type CoverManager struct {
 const minValidCoverSizeBytes int64 = 30 * 1024
 
 var errInvalidCover = errors.New("invalid cover")
+var errCoverNotFound = errors.New("cover not found")
 
 var lookupJavByCode = jav.LookupJavByCode
 
@@ -150,7 +151,7 @@ func (m *CoverManager) handleTask(parent context.Context, code string) error {
 	defer cancel()
 
 	if err := m.downloadCoverFromProviders(ctx, code); err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
+		if errors.Is(err, errCoverNotFound) {
 			return nil
 		}
 		return err
@@ -188,7 +189,7 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 			continue
 		}
 		if err := m.downloadCover(ctx, code, coverURL); err != nil {
-			if errors.Is(err, util.ErrCachedNotFound) || errors.Is(err, errInvalidCover) {
+			if errors.Is(err, errCoverNotFound) || errors.Is(err, errInvalidCover) {
 				lastErr = err
 				continue
 			}
@@ -201,7 +202,7 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	if lastErr != nil {
 		return fmt.Errorf("download cover from providers: %w", lastErr)
 	}
-	return util.ErrCachedNotFound
+	return errCoverNotFound
 }
 
 func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string) error {
@@ -216,16 +217,13 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 	setCoverDownloadHeaders(req)
 	resp, err := util.DefaultCachedHTTPClient().Do(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return err
-		}
 		return fmt.Errorf("download cover: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusNotFound {
-			return util.ErrCachedNotFound
+			return errCoverNotFound
 		}
 		return fmt.Errorf("download cover: status %s", resp.Status)
 	}

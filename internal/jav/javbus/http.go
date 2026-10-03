@@ -11,7 +11,6 @@ import (
 	"javboss/internal/common/logging"
 	"javboss/internal/jav/internal/htmlutil"
 	"javboss/internal/jav/metadata"
-	"javboss/internal/util"
 
 	"golang.org/x/net/html"
 )
@@ -31,10 +30,6 @@ func (p *JavBusClient) fetchJavBusDocument(ctx context.Context, code string) (*h
 	resp, err := p.doJavBusRequest(req)
 	// TODO: Should not return here, try curl fallback.
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			logging.Info("javbus: cached 404 for %s", url)
-			return nil, "", metadata.ErrNotFound
-		}
 		return nil, "", err
 	}
 	body, err := io.ReadAll(resp.Body)

@@ -1,7 +1,6 @@
 package util
 
 import (
-	"errors"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
@@ -10,16 +9,10 @@ import (
 )
 
 func TestHTTPProbeDoesNotUseNegativeCache(t *testing.T) {
-	for _, tc := range []struct {
-		status    int
-		cachedErr error
-	}{
-		{http.StatusNotFound, ErrCachedNotFound},
-		{http.StatusForbidden, ErrCachedForbidden},
-	} {
-		t.Run(http.StatusText(tc.status), func(t *testing.T) {
+	for _, code := range []int{http.StatusNotFound, http.StatusForbidden} {
+		t.Run(http.StatusText(code), func(t *testing.T) {
 			var status, calls atomic.Int32
-			status.Store(int32(tc.status))
+			status.Store(int32(code))
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				calls.Add(1)
 				w.WriteHeader(int(status.Load()))
@@ -45,18 +38,18 @@ func TestHTTPProbeDoesNotUseNegativeCache(t *testing.T) {
 			if err != nil || resp.StatusCode != 200 || calls.Load() != 2 || probe.HTTPStatus() != 200 {
 				t.Fatalf("resp=%v err=%v calls=%d", resp, err, calls.Load())
 			}
-			if _, err := request(cachedClient); !errors.Is(err, tc.cachedErr) {
+			if resp, err := request(cachedClient); err != nil || resp.StatusCode != code || calls.Load() != 2 {
 				t.Fatal("probe removed existing negative cache")
 			}
 			negativeURLCache.Delete(server.URL)
-			status.Store(int32(tc.status))
+			status.Store(int32(code))
 			if _, err := request(probe.Client); err != nil {
 				t.Fatal(err)
 			}
 			if _, ok := negativeURLCache.Load(server.URL); ok {
 				t.Fatal("probe populated negative cache")
 			}
-			if probe.HTTPStatus() != tc.status {
+			if probe.HTTPStatus() != code {
 				t.Fatal("probe did not record the latest response status")
 			}
 		})

@@ -2,7 +2,6 @@ package minnanoav
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +16,6 @@ import (
 	"javboss/internal/jav/internal/parseutil"
 	"javboss/internal/jav/internal/ratelimit"
 	"javboss/internal/jav/metadata"
-	"javboss/internal/util"
 
 	"github.com/PuerkitoBio/goquery"
 	"golang.org/x/net/html"
@@ -124,9 +122,6 @@ func (p *MinnanoAVClient) fetchMinnanoAVHTML(ctx context.Context, targetURL, ref
 	logging.Info("minnanoav request: %s", targetURL)
 	resp, err := p.httpClient.Do(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return nil, http.StatusNotFound, targetURL, nil
-		}
 		return nil, 0, "", err
 	}
 	defer resp.Body.Close()

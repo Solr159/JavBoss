@@ -367,9 +367,6 @@ func validateJavSampleImageDetailURL(ctx context.Context, detailURL string) (boo
 
 	resp, err := util.DefaultCachedHTTPClient().Do(req)
 	if err != nil {
-		if errors.Is(err, util.ErrCachedNotFound) {
-			return false, nil
-		}
 		return false, fmt.Errorf("request image: %w", err)
 	}
 	defer resp.Body.Close()
