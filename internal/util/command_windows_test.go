@@ -34,7 +34,7 @@ func TestBackgroundCommandHasNoConsole(t *testing.T) {
 }
 
 func TestBackgroundCombinedOutputStartupHelper(t *testing.T) {
-	if len(os.Args) != 3 || os.Args[2] != "--background-startup-helper" {
+	if len(os.Args) != 4 || os.Args[2] != "--" || os.Args[3] != "--background-startup-helper" {
 		return
 	}
 	var startup windows.StartupInfo
@@ -62,7 +62,8 @@ func TestBackgroundCombinedOutputDisablesStartupFeedback(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	output, err := BackgroundCombinedOutput(ctx, executable, "-test.run=^TestBackgroundCombinedOutputStartupHelper$", "--background-startup-helper")
+	// Keep the helper marker out of the testing package's flag parser.
+	output, err := BackgroundCombinedOutput(ctx, executable, "-test.run=^TestBackgroundCombinedOutputStartupHelper$", "--", "--background-startup-helper")
 	if err != nil || string(output) != "no feedback or console" {
 		t.Fatalf("startup feedback check: err=%v output=%q", err, output)
 	}
