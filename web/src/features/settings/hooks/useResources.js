@@ -38,7 +38,7 @@ export default function useResources() {
         }
       } finally {
         clearTimeout(timeout)
-        if (!stopped) timer = setTimeout(poll, 3000)
+        if (!stopped) timer = setTimeout(poll, 2000)
       }
     }
     poll()
