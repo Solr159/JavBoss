@@ -32,3 +32,38 @@ func TestBackgroundCommandHasNoConsole(t *testing.T) {
 		t.Fatalf("background console check: err=%v output=%q", err, output)
 	}
 }
+
+func TestBackgroundCombinedOutputStartupHelper(t *testing.T) {
+	if len(os.Args) != 3 || os.Args[2] != "--background-startup-helper" {
+		return
+	}
+	var startup windows.StartupInfo
+	if err := windows.GetStartupInfo(&startup); err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
+	}
+	if startup.Flags&startfForceOffFeedback == 0 {
+		fmt.Fprint(os.Stderr, "startup feedback is not disabled")
+		os.Exit(1)
+	}
+	window, _, _ := windows.NewLazySystemDLL("kernel32.dll").NewProc("GetConsoleWindow").Call()
+	if window != 0 {
+		fmt.Fprint(os.Stderr, "background process has a console window")
+		os.Exit(1)
+	}
+	fmt.Fprint(os.Stdout, "no feedback or console")
+	os.Exit(0)
+}
+
+func TestBackgroundCombinedOutputDisablesStartupFeedback(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	output, err := BackgroundCombinedOutput(ctx, executable, "-test.run=^TestBackgroundCombinedOutputStartupHelper$", "--background-startup-helper")
+	if err != nil || string(output) != "no feedback or console" {
+		t.Fatalf("startup feedback check: err=%v output=%q", err, output)
+	}
+}

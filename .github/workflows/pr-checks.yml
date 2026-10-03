@@ -57,6 +57,30 @@ jobs:
       - name: Build Go commands
         run: go build ./cmd/...
 
+  windows-background-tools:
+    name: Windows background tools
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      CGO_ENABLED: "0"
+      GOCACHE: ${{ github.workspace }}/.gocache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Test background tools from a console process
+        run: go test -count=1 -timeout=2m ./internal/util -run Background
+
+      - name: Test background tools from a GUI process
+        run: go test -count=1 -timeout=2m -ldflags="-H windowsgui" ./internal/util -run Background
+
   frontend:
     name: Frontend checks
     runs-on: ubuntu-24.04
@@ -140,15 +164,16 @@ jobs:
   merge-check:
     name: PR merge check
     if: ${{ always() }}
-    needs: [backend, frontend, tooling]
+    needs: [backend, windows-background-tools, frontend, tooling]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Require every check to succeed
         env:
           BACKEND_RESULT: ${{ needs.backend.result }}
+          WINDOWS_RESULT: ${{ needs.windows-background-tools.result }}
           FRONTEND_RESULT: ${{ needs.frontend.result }}
           TOOLING_RESULT: ${{ needs.tooling.result }}
         run: |
-          printf 'Backend: %s\nFrontend: %s\nTooling: %s\n' "$BACKEND_RESULT" "$FRONTEND_RESULT" "$TOOLING_RESULT"
-          [[ "$BACKEND_RESULT" == "success" && "$FRONTEND_RESULT" == "success" && "$TOOLING_RESULT" == "success" ]]
+          printf 'Backend: %s\nWindows: %s\nFrontend: %s\nTooling: %s\n' "$BACKEND_RESULT" "$WINDOWS_RESULT" "$FRONTEND_RESULT" "$TOOLING_RESULT"
+          [[ "$BACKEND_RESULT" == "success" && "$WINDOWS_RESULT" == "success" && "$FRONTEND_RESULT" == "success" && "$TOOLING_RESULT" == "success" ]]

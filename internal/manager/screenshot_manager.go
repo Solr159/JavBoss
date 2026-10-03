@@ -288,8 +288,7 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	}
 	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
 
-	cmd := util.BackgroundCommandContext(ctx, mpvPath, args...)
-	out, err := cmd.CombinedOutput()
+	out, err := util.BackgroundCombinedOutput(ctx, mpvPath, args...)
 	if err != nil {
 		_ = os.Remove(shotPath)
 		if errors.Is(err, exec.ErrNotFound) {
