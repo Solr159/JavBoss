@@ -20,6 +20,13 @@ const startfForceOffFeedback = 0x00000080
 // BackgroundCombinedOutput runs a noninteractive tool without a console or
 // Windows' startup busy cursor, including GUI tools such as MPV's image output.
 // It inherits the current environment and directory and supplies EOF on stdin.
+//
+// In the Windows tray release, repeatedly launching mpv.exe for scan thumbnails
+// can make the blue "Working in Background" cursor appear for each screenshot.
+// CREATE_NO_WINDOW only controls console creation; it does not explicitly disable
+// GUI startup feedback. Use STARTF_FORCEOFFFEEDBACK through CreateProcess because
+// exec.Cmd cannot set that STARTUPINFO flag. This is for background tools only,
+// not the interactive MPV player.
 func BackgroundCombinedOutput(ctx context.Context, name string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	if cmd.Err != nil {

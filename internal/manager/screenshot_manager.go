@@ -288,6 +288,8 @@ func (m *ScreenshotManager) capture(ctx context.Context, videoPath string, secon
 	}
 	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
 
+	// Suppress Windows' startup busy cursor when background screenshots repeatedly
+	// launch the GUI mpv.exe; hiding the console alone does not disable that feedback.
 	out, err := util.BackgroundCombinedOutput(ctx, mpvPath, args...)
 	if err != nil {
 		_ = os.Remove(shotPath)
