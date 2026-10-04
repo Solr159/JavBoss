@@ -78,10 +78,10 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 点击下载对应系统的最新版发布包并解压：
 
-- [Windows](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-v2.1.0-windows-x86_64.zip)
-- [Linux](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-v2.1.0-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-v2.1.0-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
-- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-v2.1.0-macos-arm64.zip)（适用于 M 芯片的 macOS）
+- [Windows](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-v2.1.1-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-v2.1.1-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-v2.1.1-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
+- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-v2.1.1-macos-arm64.zip)（适用于 M 芯片的 macOS）
 
 也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
 
@@ -133,14 +133,13 @@ Docker 部署下默认只能使用浏览器播放器（维护力度较弱只保�
 
 </br>
 
-**浏览器访问地址：`http://localhost:8655`，非 docker 方式启动后，程序会自动打开浏览器。</br>**
-**Docker 部署默认支持局域网设备访问，将 `localhost` 改为部署主机的局域网ip。</br>**
-**非 docker 部署请在设置中手动开启局域网访问，然后重启软件。</br>**
-**默认登录密码为 `admin`，可在全局设置中修改。**
+**浏览器访问地址：`http://localhost:8655`，登录密码为 `admin`，可在`设置`->`安全`中修改。</br>**
+**Docker 部署默认支持局域网设备访问，其他部署方式可在`设置`->`网络与代理`中手动开启。</br>**
+**Windows 启动后程序位于右下角系统托盘中，macOS 启动后程序位于顶部菜单栏。**
 
 ### 2. 添加本地目录
 
-点击左下角“设置” -> “目录管理”，添加存放视频的本地文件夹。
+点击左下角`设置` -> `目录管理`，添加存放视频的本地文件夹。
 
 视频扫描入库、封面截图生成、JAV 刮削会在后台持续运行，刷新页面或点击侧边栏视频、JAV 等选项查看当前进度。
 
@@ -154,7 +153,7 @@ Docker 部署下默认只能使用浏览器播放器（维护力度较弱只保�
 
 程序默认会自动持续对目录进行扫描，扫描过程中同步进行 JAV 刮削，相邻两次扫描间隔为1分钟。
 
-可以在 `全局设置` -> `目录管理` -> `扫描设置` 中修改相邻扫描间隔或关闭自动扫描。也可点击 `手动扫描` 立刻触发一次目录扫描和 JAV 刮削。
+可以在 `设置` -> `目录管理` -> `扫描设置` 中修改相邻扫描间隔或关闭自动扫描。也可点击 `手动扫描` 立刻触发一次目录扫描和 JAV 刮削。
 
 一旦目录内容发生任何变化（比如有新视频入库、旧视频被删除、视频移动等），需要再进行一次目录扫描和 JAV 刮削完成内容的更新同步，请根据个人的扫描设置自行把握扫描时机。
 
@@ -177,7 +176,7 @@ Docker 部署下默认只能使用浏览器播放器（维护力度较弱只保�
 2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 JavBoss 访问地址和 API 令牌，点击“测试连接”确认可用。
 3. 按需开启功能，设置修改后自动保存。
 
-扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.0/javboss-browser-extension-v0.14.0.zip)下载。
+扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-browser-extension-v0.14.1.zip)下载。
 
 
 ## 如何升级版本
