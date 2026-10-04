@@ -4,6 +4,30 @@ import { videoQueryKey } from '@/query/listQueries'
 
 export function createVideoSlice({ set, get, lists }) {
   return {
+    removeVideoLocations: (keys) => {
+      const deletedKeys = new Set(keys.filter(Boolean))
+      if (deletedKeys.size === 0) return
+      // Cancel requests started before deletion and revalidate lists on their next visit.
+      Object.values(lists).forEach((list) => list.invalidate())
+      get().invalidateFavoriteRequests()
+      set((state) => {
+        const selectedVideoIds = new Set(state.selectedVideoIds)
+        const selectedVideoMeta = { ...state.selectedVideoMeta }
+        for (const key of deletedKeys) {
+          selectedVideoIds.delete(key)
+          delete selectedVideoMeta[key]
+        }
+        return {
+          videos: state.videos.filter((video) => !deletedKeys.has(videoSelectionKey(video))),
+          selectedVideoIds,
+          selectedVideoMeta,
+          total: Math.max(0, state.total - deletedKeys.size),
+        }
+      })
+      void get().loadTags({ force: true })
+      void get().loadJavTags({ force: true })
+      void get().loadJavFavoriteGroups('jav', { force: true })
+    },
     page: 1,
     pageSize: VIDEO_PAGE_SIZE,
     setPageSize: (size) => {

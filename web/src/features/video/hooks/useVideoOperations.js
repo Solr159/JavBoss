@@ -1,5 +1,4 @@
 import { useStore, videoSelectionKey } from '@/store'
-import { useShallow } from 'zustand/react/shallow'
 import { useState, useCallback } from 'react'
 import { zh } from '@/utils/i18n'
 import { renameVideoLocation, deleteVideoLocation } from '@/features/video/api'
@@ -13,7 +12,6 @@ import {
 import { JAV_SCRAPE_OVERRIDE_SKIP, applyScrapeOverrideToVideo } from '@/features/video/scrapeModel'
 
 export default function useVideoOperations({ showCenterToast, showToast }) {
-  const { loadVideos } = useStore(useShallow((state) => ({ loadVideos: state.loadVideos })))
   const [scrapeSettingsVideo, setScrapeSettingsVideo] = useState(null)
 
   const [scrapeSettingsSaving, setScrapeSettingsSaving] = useState(false)
@@ -76,31 +74,13 @@ export default function useVideoOperations({ showCenterToast, showToast }) {
       }
       try {
         await deleteVideoLocation(video.id, locationId)
-        const targetKey = videoSelectionKey(video)
-        useStore.setState((state) => {
-          const nextIds = new Set(state.selectedVideoIds || [])
-          const nextMeta = { ...(state.selectedVideoMeta || {}) }
-          if (targetKey) {
-            nextIds.delete(targetKey)
-            delete nextMeta[targetKey]
-          }
-          const nextVideos = Array.isArray(state.videos)
-            ? state.videos.filter((item) => videoSelectionKey(item) !== targetKey)
-            : state.videos
-          return {
-            videos: nextVideos,
-            selectedVideoIds: nextIds,
-            selectedVideoMeta: nextMeta,
-            total: Math.max(0, Number(state.total || 0) - 1),
-          }
-        })
-        await loadVideos({ force: true })
+        useStore.getState().removeVideoLocations([videoSelectionKey(video)])
       } catch (err) {
         console.error(zh('删除视频失败', 'Failed to delete video'), err)
         showCenterToast(getErrorMessage(err))
       }
     },
-    [loadVideos, showCenterToast]
+    [showCenterToast]
   )
 
   const handleOpenScrapeSettings = useCallback((video) => {

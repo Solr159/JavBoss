@@ -19,7 +19,6 @@ export default function useVideoSelection({
     selectedVideoIds,
     videos,
     selectedVideoMeta,
-    loadVideos,
     tags,
     clearSelection,
     loadJavTags,
@@ -35,7 +34,6 @@ export default function useVideoSelection({
       selectedVideoIds: state.selectedVideoIds,
       videos: state.videos,
       selectedVideoMeta: state.selectedVideoMeta,
-      loadVideos: state.loadVideos,
       tags: state.tags,
       clearSelection: state.clearSelection,
       loadJavTags: state.loadJavTags,
@@ -248,25 +246,7 @@ export default function useVideoSelection({
       }
 
       if (deletedKeys.length > 0) {
-        const deletedSet = new Set(deletedKeys)
-        useStore.setState((state) => {
-          const nextIds = new Set(state.selectedVideoIds || [])
-          const nextMeta = { ...(state.selectedVideoMeta || {}) }
-          deletedSet.forEach((key) => {
-            nextIds.delete(key)
-            delete nextMeta[key]
-          })
-          const nextVideos = Array.isArray(state.videos)
-            ? state.videos.filter((item) => !deletedSet.has(videoSelectionKey(item)))
-            : state.videos
-          return {
-            videos: nextVideos,
-            selectedVideoIds: nextIds,
-            selectedVideoMeta: nextMeta,
-            total: Math.max(0, Number(state.total || 0) - deletedKeys.length),
-          }
-        })
-        await loadVideos({ force: true })
+        useStore.getState().removeVideoLocations(deletedKeys)
       }
 
       if (failed.length > 0) {
@@ -286,7 +266,7 @@ export default function useVideoSelection({
     } finally {
       setSelectionDeleting(false)
     }
-  }, [loadVideos, selectedList, selectionDeleting, showCenterToast, showToast])
+  }, [selectedList, selectionDeleting, showCenterToast, showToast])
 
   const handleSelectionTagsClose = () => {
     setSelectionTagsOpen(false)
