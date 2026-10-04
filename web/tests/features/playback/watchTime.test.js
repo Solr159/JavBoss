@@ -12,6 +12,7 @@ function fixture({ create, report } = {}) {
   let cleared = false
   let paused = false
   const events = new Map()
+  const page = new EventTarget()
   const reports = []
   const player = {
     on: (event, handler) => events.set(event, handler),
@@ -34,13 +35,17 @@ function fixture({ create, report } = {}) {
     unschedule: () => {
       cleared = true
     },
-    page: null,
+    page,
     document: null,
   })
   return {
     reports,
     close,
     events,
+    pageEvent: (event, delta = 0) => {
+      time += delta
+      page.dispatchEvent(new Event(event))
+    },
     tick: async (delta) => {
       time += delta
       timer()
@@ -208,8 +213,64 @@ test('close during an in-flight request flushes the newer checkpoint', async () 
   await f.tick(10000)
   await f.emit('pause', 2000)
   f.close()
+  assert.deepEqual(reports, [10000, 12000])
   release()
   await settle()
-  assert.deepEqual(reports, [10000, 12000])
+  assert.equal(reports.at(-1), 12000)
   assert.equal(f.cleared(), true)
+})
+
+test('pagehide sends the latest checkpoint before an outstanding report settles', async () => {
+  let release
+  const reports = []
+  const f = fixture({
+    report: (id, total) => {
+      reports.push([id, total])
+      if (reports.length === 1) return new Promise((resolve) => (release = resolve))
+      return Promise.resolve(true)
+    },
+  })
+  await settle()
+  await f.emit('playing')
+  await f.tick(10000)
+  f.pageEvent('pagehide', 2000)
+  // No response or promise continuation is needed to issue the final request.
+  assert.deepEqual(reports, [
+    ['session', 10000],
+    ['session', 12000],
+  ])
+  await settle()
+  release(true)
+  await settle()
+
+  // Restoring a cached page resumes counting without including its hidden time.
+  f.pageEvent('pageshow', 30000)
+  await f.tick(1000)
+  assert.deepEqual(reports.at(-1), ['session', 13000])
+  f.close()
+  await settle()
+})
+
+test('a failed immediate checkpoint is retried by the regular reporting loop', async () => {
+  let release
+  const reports = []
+  const f = fixture({
+    report: (id, total) => {
+      reports.push(total)
+      if (reports.length === 1) return new Promise((resolve) => (release = resolve))
+      if (reports.length === 2) return Promise.reject(new Error('network failure'))
+      return Promise.resolve(true)
+    },
+  })
+  await settle()
+  await f.emit('playing')
+  await f.tick(10000)
+  f.pageEvent('pagehide', 2000)
+  assert.deepEqual(reports, [10000, 12000])
+  await settle()
+  release(true)
+  await settle()
+  assert.deepEqual(reports, [10000, 12000, 12000])
+  f.close()
+  await settle()
 })

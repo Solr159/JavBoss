@@ -30,10 +30,21 @@ export function startWatchTracking(
     if (active) total += Math.max(0, time - previous)
     previous = time
   }
-  const flush = async () => {
+  const flush = async ({ immediate = false } = {}) => {
     advance()
     if (busy) {
       pending = true
+      const checkpoint = Math.floor(total - baseline)
+      if (immediate && session && checkpoint > acknowledged) {
+        // Teardown cannot wait for the in-flight request's continuation. The
+        // server accepts duplicate/out-of-order totals; leave session state to
+        // the regular loop so late responses cannot affect a replacement session.
+        try {
+          await report(session, checkpoint)
+        } catch {
+          // The regular loop can retry if the page survives or is restored.
+        }
+      }
       return
     }
     busy = true
@@ -86,7 +97,9 @@ export function startWatchTracking(
   }
   const suspend = () => {
     suspended = true
-    stop()
+    advance()
+    active = false
+    void flush({ immediate: true })
   }
   const visibility = () => void flush()
   const resume = () => {
@@ -120,6 +133,6 @@ export function startWatchTracking(
     page?.removeEventListener('pagehide', suspend)
     page?.removeEventListener('pageshow', resume)
     document?.removeEventListener('visibilitychange', visibility)
-    void flush()
+    void flush({ immediate: true })
   }
 }
