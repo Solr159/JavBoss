@@ -16,6 +16,21 @@ export default function useJavSelection({
   showError,
 }) {
   const [selection, setSelection] = useState(() => new Map())
+  useEffect(
+    () =>
+      useStore.subscribe((state, previous) => {
+        if (state.javVideoDeletions === previous.javVideoDeletions) return
+        setSelection(
+          (current) =>
+            new Map(
+              [...current].filter(
+                ([id]) => state.javVideoDeletions[id] === previous.javVideoDeletions[id]
+              )
+            )
+        )
+      }),
+    []
+  )
   const [opsOpen, setOpsOpen] = useState(false)
   const [tagsOpen, setTagsOpen] = useState(false)
   const [tagChoices, setTagChoices] = useState([])

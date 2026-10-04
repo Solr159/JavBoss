@@ -23,6 +23,7 @@ export default function JavDetailRoute({
 }) {
   const [item, setItem] = useState(initialItem)
   const [error, setError] = useState('')
+  const deletedVideoIds = useStore((state) => state.javVideoDeletions[itemId])
   const listedItem = useStore((state) =>
     state.javItems?.find((entry) => Number(entry.id) === itemId)
   )
@@ -33,8 +34,17 @@ export default function JavDetailRoute({
 
   const favoriteCount = useJavFavoriteCount('jav', item)
   const detailItem = useMemo(
-    () => (item ? { ...item, favorite_count: favoriteCount } : null),
-    [item, favoriteCount]
+    () =>
+      item
+        ? {
+            ...item,
+            favorite_count: favoriteCount,
+            videos: (item.videos || []).filter(
+              (video) => !deletedVideoIds?.includes(Number(video.id))
+            ),
+          }
+        : null,
+    [item, favoriteCount, deletedVideoIds]
   )
   const detailItems = useMemo(() => [detailItem], [detailItem])
   const { displayItems, ...presentation } = useJavPresentation(detailItems)

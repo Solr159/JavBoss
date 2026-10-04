@@ -111,6 +111,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/jav/items/:id/sample-images/:index/:variant", getJavSampleImage)
 	router.GET("/jav/items/:id", getJavItem)
 	router.PUT("/jav/items/:id", updateJavItem)
+	router.DELETE("/jav/items/:id/videos", deleteJavVideos)
 	router.POST("/jav/tags", createJavTag)
 	router.POST("/jav/tags/scraped", createJavScrapedTag)
 	router.POST("/jav/tags/organize", organizeJavTags)

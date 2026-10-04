@@ -29,6 +29,7 @@ import {
   createJavScrapedTag,
   createJavTag,
   updateJavItem,
+  deleteJavVideos,
 } from '@/features/jav/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -37,7 +38,14 @@ import { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 
-export function JavEditModal({ open, item, preferChineseName = false, onClose, onSaved }) {
+export function JavEditModal({
+  open,
+  item,
+  preferChineseName = false,
+  onClose,
+  onSaved,
+  onDeleted,
+}) {
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
@@ -70,6 +78,7 @@ export function JavEditModal({ open, item, preferChineseName = false, onClose, o
   const [releaseDate, setReleaseDate] = useState('')
   const [durationMin, setDurationMin] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [creatingUserTag, setCreatingUserTag] = useState(false)
   const [creatingScrapedTag, setCreatingScrapedTag] = useState(false)
   const [creatingIdol, setCreatingIdol] = useState(false)
@@ -395,6 +404,7 @@ export function JavEditModal({ open, item, preferChineseName = false, onClose, o
   }
 
   const handleSave = async () => {
+    if (saving || deleting) return
     if (!item?.id) {
       setError(zh('缺少 JAV ID', 'Missing JAV ID'))
       return
@@ -443,7 +453,30 @@ export function JavEditModal({ open, item, preferChineseName = false, onClose, o
     }
   }
 
-  const creatingOption = creatingIdol || creatingScrapedTag || creatingUserTag
+  const handleDelete = async () => {
+    if (!item?.id || saving || deleting) return
+    if (
+      !window.confirm(
+        zh(
+          `确定删除“${code}”的所有关联视频吗？将删除视频记录、全部视频副本、同名字幕、NFO 和图片，以及视频截图。JAV 资料和封面会保留，无视频后不再展示在列表中。文件删除无法撤回。`,
+          `Delete all videos linked to “${code}”? This removes video records, all video copies, matching subtitles, NFO files and images, and video screenshots. JAV metadata and its cover are kept; the work will leave the list when it has no videos. File deletion cannot be undone.`
+        )
+      )
+    )
+      return
+    setDeleting(true)
+    setError('')
+    try {
+      const result = await deleteJavVideos(item.id)
+      onDeleted?.(item.id, result.video_ids || [])
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const creatingOption = creatingIdol || creatingScrapedTag || creatingUserTag || deleting
 
   return (
     <AppModal
@@ -891,6 +924,14 @@ export function JavEditModal({ open, item, preferChineseName = false, onClose, o
         {error ? <div className="text-sm text-red-600">{error}</div> : null}
       </div>
       <div className="flex justify-end gap-2 border-t border-gray-200 p-5">
+        <button
+          type="button"
+          className="mr-auto rounded-md border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={handleDelete}
+          disabled={!item?.id || saving || creatingOption}
+        >
+          {deleting ? zh('删除中...', 'Deleting...') : zh('删除', 'Delete')}
+        </button>
         <button
           type="button"
           className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"

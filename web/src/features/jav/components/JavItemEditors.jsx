@@ -17,6 +17,7 @@ export function JavItemEditors({
   item,
   setEditorOpen,
   handleEditorSaved,
+  handleEditorDeleted,
   customTagEditorOpen,
   setCustomTagEditorOpen,
   handleCustomTagsSaved,
@@ -49,6 +50,7 @@ export function JavItemEditors({
         preferChineseName={preferChineseName}
         onClose={() => setEditorOpen(false)}
         onSaved={handleEditorSaved}
+        onDeleted={handleEditorDeleted}
       />
       <JavCustomTagModal
         open={customTagEditorOpen}

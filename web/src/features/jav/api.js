@@ -221,6 +221,12 @@ export async function updateJavCover(code, url) {
   return res.json()
 }
 
+export async function deleteJavVideos(id) {
+  const res = await apiFetch(`/jav/items/${encodeURIComponent(id)}/videos`, { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
 export async function updateJavItem(id, payload) {
   const res = await apiFetch(`/jav/items/${encodeURIComponent(id)}`, {
     method: 'PUT',

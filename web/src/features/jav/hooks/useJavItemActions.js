@@ -286,6 +286,21 @@ export default function useJavItemActions({
     setEditorOpen(false)
   }
 
+  const handleEditorDeleted = (id, videoIds) => {
+    setEditorOpen(false)
+    detailView?.onClose?.()
+    const state = useStore.getState()
+    state.removeJavVideos(id, videoIds)
+    void state.loadJavs({ force: true })
+    void state.loadVideos({ force: true })
+    void state.loadJavTags({ force: true })
+    void state.loadJavIdols({ force: true })
+    void state.loadJavStudios({ force: true })
+    void state.loadJavSeries({ force: true })
+    void state.loadTags({ force: true })
+    void state.loadJavFavoriteGroups('jav', { force: true })
+  }
+
   const handleCustomTagsSaved = (updated) => {
     detailView?.onItemUpdated?.(updated)
     if (updated?.id) {
@@ -679,6 +694,7 @@ export default function useJavItemActions({
     setPreviewIdol,
     editorOpen,
     handleEditorSaved,
+    handleEditorDeleted,
     customTagEditorOpen,
     setCustomTagEditorOpen,
     handleCustomTagsSaved,
