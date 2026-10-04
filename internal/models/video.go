@@ -18,6 +18,7 @@ type Video struct {
 	UpdatedAt           time.Time       `json:"updated_at"`
 	JavScrapeOverride   string          `json:"jav_scrape_override"`
 	CoverScreenshotName string          `json:"cover_screenshot_name"`
+	WatchedMS           int64           `json:"watched_ms" gorm:"not null;default:0"`
 	Tags                []Tag           `json:"tags,omitempty" gorm:"many2many:video_tag"`
 	JavID               *int64          `json:"jav_id" gorm:"-"`
 	Jav                 *Jav            `json:"jav,omitempty" gorm:"-"`

@@ -45,6 +45,10 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		orderClause = "COALESCE(video.play_count, 0) DESC, video.created_at DESC, video_location.id DESC"
 	case "play_count_asc":
 		orderClause = "COALESCE(video.play_count, 0) ASC, video.created_at ASC, video_location.id ASC"
+	case "watched", "watched_desc":
+		orderClause = "video.watched_ms DESC, video.created_at DESC, video_location.id DESC"
+	case "watched_asc":
+		orderClause = "video.watched_ms ASC, video.created_at ASC, video_location.id ASC"
 	case "recent_asc":
 		orderClause = "video.created_at ASC, video_location.id ASC"
 	case "random":
@@ -502,7 +506,7 @@ func SaveVideo(ctx context.Context, video *models.Video) error {
 	if video == nil {
 		return errors.New("video is nil")
 	}
-	if err := common.DB.WithContext(ctx).Save(video).Error; err != nil {
+	if err := common.DB.WithContext(ctx).Omit("watched_ms").Save(video).Error; err != nil {
 		return fmt.Errorf("save video %d: %w", video.ID, err)
 	}
 	return nil

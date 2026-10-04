@@ -145,6 +145,8 @@ func main() {
 		logger.Fatalf("database handle: %v", err)
 	}
 	defer sqlDB.Close()
+	// Flush final playback checkpoints while the database is still open.
+	defer mpv.Shutdown()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

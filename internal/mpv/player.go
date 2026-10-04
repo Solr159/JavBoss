@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/playback"
 )
 
 const playbackScreenshotTemplate = "mpv_%wH-%wM-%wS.%wT"
@@ -29,6 +30,7 @@ const (
 )
 
 type PlayOptions struct {
+	NewWatchReporter       func() *playback.Reporter
 	DataDir                string
 	VideoID                int64
 	StartTimeSec           float64
@@ -81,6 +83,9 @@ var (
 
 // PlayVideo launches mpv to play the given file path.
 func PlayVideo(path string, options PlayOptions) error {
+	if options.NewWatchReporter != nil {
+		return PlayPlaylist([]PlaylistItem{{Path: path, Options: options}})
+	}
 	cancelFocusRestoreAttempts()
 	rememberFocusRestoreOwner(0)
 	if !loadConfiguredPlayerReuseWindow() {
@@ -376,14 +381,17 @@ func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
 		return errors.New("playlist changed while loading")
 	}
 	callbacks := make(map[int64]func(), len(items))
+	reporters := make(map[int64]func() *playback.Reporter, len(items))
 	titles := make(map[string]string, len(items))
 	for index, entry := range entries {
 		callbacks[entry.ID] = items[index].OnStarted
+		reporters[entry.ID] = items[index].Options.NewWatchReporter
 		if title := strings.TrimSpace(items[index].Title); title != "" {
 			titles[strconv.FormatInt(entry.ID, 10)] = title
 		}
 	}
 	s.events.setCallbacks(callbacks)
+	s.events.setWatchReporters(reporters)
 	if err := runIPCCommand(s.ipcPath, []any{"set_property", "user-data/javboss/playlist-titles", titles}); err != nil {
 		return err
 	}

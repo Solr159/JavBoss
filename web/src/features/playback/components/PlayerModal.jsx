@@ -14,6 +14,8 @@ import { zh } from '@/utils/i18n'
 import AppModal from '@/shared/ui/AppModal'
 import { getErrorMessage } from '@/utils/errors'
 import { selectPlaybackSource, startBrowserPlayback } from '@/utils/browserPlayback'
+import { startWatchTracking } from '@/features/playback/watchTime'
+import { createPlaybackSession, reportPlaybackSession } from '@/features/playback/api'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 const HOTKEY_HINT_DURATION_MS = 5000
@@ -276,6 +278,10 @@ export default function PlayerModal({
       }
     }
 
+    const stopWatchTracking = startWatchTracking(player, {
+      create: () => createPlaybackSession(video.id, playbackInfo.location_id),
+      report: (session, total) => reportPlaybackSession(video.id, session, total),
+    })
     const stopPlayback = startBrowserPlayback(
       player,
       selectedSource,
@@ -292,6 +298,7 @@ export default function PlayerModal({
     player.on('volumechange', handleVolumeChange)
 
     return () => {
+      stopWatchTracking()
       stopPlayback()
       window.removeEventListener('keydown', handleKeyDown, true)
       player.off('fullscreenchange', focusPlayer)

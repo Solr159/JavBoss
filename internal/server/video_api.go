@@ -107,6 +107,7 @@ type playbackSource struct {
 
 type playbackInfo struct {
 	VideoID       int64            `json:"video_id"`
+	LocationID    int64            `json:"location_id"`
 	PreferredKind string           `json:"preferred_kind"`
 	Sources       []playbackSource `json:"sources"`
 	VideoCodec    string           `json:"video_codec"`
@@ -193,6 +194,7 @@ func getVideoStreams(c *gin.Context) {
 func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.PlaybackProbeResult) playbackInfo {
 	info := playbackInfo{
 		VideoID:       video.ID,
+		LocationID:    locationID,
 		PreferredKind: "hls",
 		Sources:       []playbackSource{},
 		VideoCodec:    probe.VideoCodec,
@@ -493,9 +495,10 @@ func playVideoFile(c *gin.Context) {
 		dataDir = filepath.Dir(common.AppConfig.DatabasePath)
 	}
 	if err := mpv.PlayVideo(fullPath, mpv.PlayOptions{
-		DataDir:      dataDir,
-		VideoID:      videoID,
-		StartTimeSec: req.StartTimeSec,
+		NewWatchReporter: localPlaybackReporter(videoID, 0, dirPath, fullPath),
+		DataDir:          dataDir,
+		VideoID:          videoID,
+		StartTimeSec:     req.StartTimeSec,
 	}); err != nil {
 		logging.Error("play video file error: %v", err)
 		if strings.Contains(err.Error(), "mpv not found") {
@@ -580,8 +583,9 @@ func playVideoPlaylist(c *gin.Context) {
 				}
 			},
 			Options: mpv.PlayOptions{
-				DataDir: dataDir,
-				VideoID: requested.VideoID,
+				NewWatchReporter: localPlaybackReporter(videoID, location.ID, "", ""),
+				DataDir:          dataDir,
+				VideoID:          requested.VideoID,
 			},
 		})
 	}

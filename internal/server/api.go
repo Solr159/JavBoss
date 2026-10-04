@@ -43,6 +43,8 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.PATCH("/videos/:id/locations/:location_id", renameVideoLocation)
 	router.DELETE("/videos/:id/locations/:location_id", deleteVideoLocation)
 	router.POST("/videos/:id/play", incrementVideoPlayCount)
+	router.POST("/videos/:id/playback-sessions", createPlaybackSession)
+	router.PUT("/videos/:id/playback-sessions/:session_id", reportPlaybackSession)
 	router.POST("/videos/play", playVideoFile)
 	router.POST("/videos/playlist", playVideoPlaylist)
 	router.POST("/videos/open", openVideoFile)

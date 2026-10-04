@@ -1,6 +1,7 @@
 import useJavItemActions from '@/features/jav/hooks/useJavItemActions'
 import { JavCoverImage, IdolTagList, JavTagList } from '@/features/jav/components/JavCardTags'
 import { zh } from '@/utils/i18n'
+import { formatWatchTime } from '@/features/playback/formatWatchTime'
 import { Tooltip, Rating, Popper, IconButton } from '@mui/material'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
@@ -358,6 +359,15 @@ export default function JavCard(props) {
             {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
             {codeText ? ' ' : null}
             <span className="font-medium text-gray-800">{mainTitle}</span>
+          </div>
+          <div
+            className="text-xs text-sky-700"
+            title={zh(
+              '历史累计观看时长，删除视频不会扣减',
+              'Historical watched time is retained when videos are deleted'
+            )}
+          >
+            {zh('已观看', 'Watched')} {formatWatchTime(item.watched_ms)}
           </div>
           <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
             <span className="inline-flex shrink-0 items-center gap-1">

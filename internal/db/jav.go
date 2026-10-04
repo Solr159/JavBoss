@@ -226,6 +226,10 @@ func SearchJavWithPrefixFilters(ctx context.Context, idolIDs []int64, tagIDs []i
 		order = "jav.duration_min DESC, jav.created_at DESC, jav.id DESC"
 	case "duration_asc":
 		order = "jav.duration_min ASC, jav.created_at ASC, jav.id ASC"
+	case "watched", "watched_desc":
+		order = "jav.watched_ms DESC, jav.created_at DESC, jav.id DESC"
+	case "watched_asc":
+		order = "jav.watched_ms ASC, jav.created_at ASC, jav.id ASC"
 	case "release", "release_desc":
 		order = "jav.release_unix IS NULL, jav.release_unix DESC, jav.code ASC, jav.id ASC"
 	case "release_asc":
@@ -2961,12 +2965,12 @@ func SaveJavInfo(ctx context.Context, info *metadata.JavInfo) (*models.Jav, erro
 	return javRec, nil
 }
 
-// DeleteOrphanJavs removes JAV records that have no video referencing them.
+// DeleteOrphanJavs removes unreferenced metadata only when it has no watch history.
 func DeleteOrphanJavs(ctx context.Context) error {
 	var orphanIDs []int64
 	sub := common.DB.WithContext(ctx).Model(&models.VideoLocation{}).Select("DISTINCT jav_id").Where("jav_id IS NOT NULL")
 	if err := common.DB.WithContext(ctx).Model(&models.Jav{}).
-		Where("id NOT IN (?)", sub).
+		Where("id NOT IN (?) AND watched_ms = 0", sub).
 		Pluck("id", &orphanIDs).Error; err != nil {
 		return fmt.Errorf("find orphan javs: %w", err)
 	}
@@ -2975,13 +2979,15 @@ func DeleteOrphanJavs(ctx context.Context) error {
 	}
 
 	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("jav_id IN ?", orphanIDs).Delete(&models.JavTagMap{}).Error; err != nil {
+		// Recheck under the transaction's write lock in case a checkpoint arrived.
+		eligible := tx.Model(&models.Jav{}).Select("id").Where("id IN ? AND watched_ms = 0", orphanIDs)
+		if err := tx.Where("jav_id IN (?)", eligible).Delete(&models.JavTagMap{}).Error; err != nil {
 			return fmt.Errorf("delete orphan jav tag maps: %w", err)
 		}
-		if err := tx.Where("jav_id IN ?", orphanIDs).Delete(&models.JavIdolMap{}).Error; err != nil {
+		if err := tx.Where("jav_id IN (?)", eligible).Delete(&models.JavIdolMap{}).Error; err != nil {
 			return fmt.Errorf("delete orphan jav idol maps: %w", err)
 		}
-		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Where("id IN ?", orphanIDs).Delete(&models.Jav{}).Error; err != nil {
+		if err := tx.Where("id IN ? AND watched_ms = 0", orphanIDs).Delete(&models.Jav{}).Error; err != nil {
 			return fmt.Errorf("delete orphan javs: %w", err)
 		}
 		return nil
@@ -3322,7 +3328,7 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	// neither import provider sample images nor overwrite a previously resolved
 	// list. Studio and series are enriched in the background; only explicit
 	// manual input may write them during a scrape.
-	omit := []string{"sample_images"}
+	omit := []string{"sample_images", "watched_ms"}
 	if !manualMetadata {
 		omit = append(omit, "studio_id", "series_id")
 	}

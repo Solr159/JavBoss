@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/playback"
 )
 
 type playlistEvent struct {
-	Event   string `json:"event"`
-	EntryID int64  `json:"playlist_entry_id"`
+	Event   string          `json:"event"`
+	EntryID int64           `json:"playlist_entry_id"`
+	Name    string          `json:"name"`
+	Data    json.RawMessage `json:"data"`
 }
 
 type playlistEvents struct {
@@ -23,7 +26,14 @@ type playlistEvents struct {
 	current   func()
 	loaded    bool
 	counted   bool
+	watch     watchClock
+	reporters map[int64]func() *playback.Reporter
+	reporter  *playback.Reporter
+	finished  []*playback.Reporter
+	done      chan struct{}
 }
+
+var playlistWatchers sync.WaitGroup
 
 func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 	conn, err := dialMPVIPC(endpoint, ipcCommandTimeout)
@@ -54,9 +64,45 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 	if c, ok := conn.(interface{ SetDeadline(time.Time) error }); ok {
 		_ = c.SetDeadline(time.Time{})
 	}
-	events := &playlistEvents{conn: conn}
+	for i, name := range []string{"pause", "core-idle", "seeking"} {
+		if err := json.NewEncoder(conn).Encode(ipcRequest{Command: []any{"observe_property", i + 1, name}, RequestID: int64(i + 2)}); err != nil {
+			conn.Close()
+			return nil, err
+		}
+	}
+	events := &playlistEvents{conn: conn, done: make(chan struct{}), watch: watchClock{idle: true}}
+	playlistWatchers.Add(1)
 	go func() {
+		ticker := time.NewTicker(time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-events.done:
+				return
+			case <-ticker.C:
+				events.mu.Lock()
+				events.watch.advance(time.Now())
+				if events.reporter != nil {
+					events.reporter.Observe(events.watch.total.Milliseconds())
+				}
+				events.mu.Unlock()
+			}
+		}
+	}()
+	go func() {
+		defer playlistWatchers.Done()
+		defer close(events.done)
 		defer conn.Close()
+		defer func() {
+			events.mu.Lock()
+			events.watch.advance(time.Now())
+			events.checkpoint(true)
+			finished := events.finished
+			events.mu.Unlock()
+			for _, reporter := range finished {
+				reporter.Wait()
+			}
+		}()
 		for {
 			line, err := reader.ReadBytes('\n')
 			if err != nil {
@@ -81,7 +127,38 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 	return events, nil
 }
 
-func (e *playlistEvents) close() { _ = e.conn.Close() }
+func (e *playlistEvents) close() {
+	_ = e.conn.Close()
+	if e.done != nil {
+		<-e.done
+	}
+}
+
+func (e *playlistEvents) setWatchReporters(reporters map[int64]func() *playback.Reporter) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.reporters = reporters
+}
+
+// checkpoint is called under mu; Reporter.Update only coalesces in memory.
+func (e *playlistEvents) checkpoint(final bool) {
+	if e.reporter == nil {
+		return
+	}
+	e.reporter.Update(e.watch.total.Milliseconds(), final)
+	if final {
+		// A reusable player can live indefinitely; retain only pending tail writes.
+		pending := make([]*playback.Reporter, 0, len(e.finished)+1)
+		for _, reporter := range e.finished {
+			if !reporter.Finished() {
+				pending = append(pending, reporter)
+			}
+		}
+		e.finished = pending
+		e.finished = append(e.finished, e.reporter)
+		e.reporter = nil
+	}
+}
 
 func (e *playlistEvents) setCallbacks(callbacks map[int64]func()) {
 	e.mu.Lock()
@@ -90,15 +167,28 @@ func (e *playlistEvents) setCallbacks(callbacks map[int64]func()) {
 }
 
 func (e *playlistEvents) handle(event playlistEvent) func() {
+	return e.handleAt(event, time.Now())
+}
+
+func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.watch.advance(now)
+	wasActive := e.watch.active()
 	switch event.Event {
 	case "start-file":
+		e.checkpoint(true)
+		e.watch.total = 0
+		e.watch.ready = false
+		if factory := e.reporters[event.EntryID]; factory != nil {
+			e.reporter = factory()
+		}
 		e.current = e.callbacks[event.EntryID]
 		e.loaded, e.counted = false, false
 	case "file-loaded":
 		e.loaded = true
 	case "playback-restart":
+		e.watch.ready = e.loaded
 		// This event also occurs on seeks and buffering recovery. Only count
 		// the first one after a file has successfully loaded.
 		if e.loaded && !e.counted {
@@ -106,8 +196,30 @@ func (e *playlistEvents) handle(event playlistEvent) func() {
 			return e.current
 		}
 	case "end-file":
+		e.checkpoint(true)
+		e.watch.ready = false
 		e.current = nil
 		e.loaded = false
+	case "seek":
+		e.watch.ready = false
+	case "property-change":
+		var value bool
+		if json.Unmarshal(event.Data, &value) == nil && string(event.Data) != "null" {
+			switch event.Name {
+			case "pause":
+				e.watch.paused = value
+			case "core-idle":
+				e.watch.idle = value
+			case "seeking":
+				e.watch.seeking = value
+				if value {
+					e.watch.ready = false
+				}
+			}
+		}
+	}
+	if wasActive && !e.watch.active() {
+		e.checkpoint(false)
 	}
 	return nil
 }

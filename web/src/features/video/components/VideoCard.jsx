@@ -18,6 +18,7 @@ import {
 import { zh } from '@/utils/i18n'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { MovieEdit } from '@mui/icons-material'
+import { formatWatchTime } from '@/features/playback/formatWatchTime'
 
 export default function VideoCard({
   video,
@@ -186,6 +187,12 @@ export default function VideoCard({
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1">
+          <span
+            className="inline-flex h-4 items-center rounded bg-sky-50 px-1 text-[10px] font-medium text-sky-700"
+            title={zh('累计实际播放时长', 'Cumulative time spent playing')}
+          >
+            {zh('已观看', 'Watched')} {formatWatchTime(video.watched_ms)}
+          </span>
           <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
             {durationMinutes
               ? zh(`${durationMinutes} 分钟`, `${durationMinutes} min`)
