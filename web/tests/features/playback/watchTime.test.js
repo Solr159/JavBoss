@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { startWatchTracking } from '../../../src/features/playback/watchTime.js'
-import { formatWatchTime } from '../../../src/features/playback/formatWatchTime.js'
 
 const settle = async () => {
   for (let i = 0; i < 12; i++) await Promise.resolve()
@@ -213,9 +212,4 @@ test('close during an in-flight request flushes the newer checkpoint', async () 
   await settle()
   assert.deepEqual(reports, [10000, 12000])
   assert.equal(f.cleared(), true)
-})
-
-test('formats cumulative durations beyond the length of a day', () => {
-  assert.equal(formatWatchTime(0), '0:00:00')
-  assert.equal(formatWatchTime(90061000), '25:01:01')
 })

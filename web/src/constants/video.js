@@ -35,15 +35,6 @@ export const VIDEO_SORT_OPTIONS = [
     asc: ['少→多', 'low→high'],
     desc: ['多→少', 'high→low'],
   },
-  {
-    base: 'watched',
-    defaultValue: 'watched',
-    ascValue: 'watched_asc',
-    descValue: 'watched',
-    label: ['观看时长', 'Watched time'],
-    asc: ['短→长', 'short→long'],
-    desc: ['长→短', 'long→short'],
-  },
 ]
 
 const videoSortValues = new Set(
@@ -58,7 +49,6 @@ export function normalizeVideoSort(sort, fallback = 'recent') {
   if (key === 'filename_asc') return 'filename'
   if (key === 'duration_desc') return 'duration'
   if (key === 'play_count_desc') return 'play_count'
-  if (key === 'watched_desc') return 'watched'
   if (videoSortValues.has(key)) return key
   return fallback
 }
