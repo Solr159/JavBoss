@@ -123,3 +123,57 @@ test('an empty append stops repeated requests even when the server reports an ou
   await f.loadMore()
   assert.equal(f.requests.length, 2)
 })
+
+test('invalidation cancels stale append responses while preserving the patched list and next offset', async () => {
+  const f = fixture()
+  f.set({ page: 3 })
+  const first = f.load()
+  f.requests[0].resolve({ items: [{ id: 5 }, { id: 6 }], total: 12 })
+  await first
+  const more = f.loadMore()
+  f.requests[1].resolve({ items: [{ id: 7 }, { id: 8 }], total: 12 })
+  await more
+  const stale = f.loadMore()
+  f.invalidate()
+  f.set({ items: [{ id: 5 }, { id: 7 }, { id: 8 }], total: 11 })
+  assert.equal(f.get().loading, false)
+  assert.equal(f.get().loadingMore, false)
+  assert.equal(f.requests.length, 3, 'invalidation does not refetch')
+  assert.equal(f.requests[2].params.signal.aborted, true)
+  f.requests[2].resolve({ items: [{ id: 9 }, { id: 10 }], total: 12 })
+  await stale
+  assert.deepEqual(f.get().items, [{ id: 5 }, { id: 7 }, { id: 8 }])
+  const next = f.loadMore()
+  assert.equal(f.requests[3].params.offset, 7)
+  assert.equal(f.requests[3].params.limit, 2)
+  f.requests[3].resolve({ items: [{ id: 9 }, { id: 10 }], total: 11 })
+  await next
+  assert.deepEqual(
+    f.get().items.map((item) => item.id),
+    [5, 7, 8, 9, 10]
+  )
+  const revisit = f.load()
+  assert.equal(f.requests.length, 5, 'the next visit revalidates the stale list')
+  f.requests[4].resolve({ items: [{ id: 5 }, { id: 7 }], total: 11 })
+  await revisit
+})
+
+test('invalidation cancels an in-flight reload and does not append old data under new filters', async () => {
+  const f = fixture()
+  const first = f.load()
+  f.requests[0].resolve({ items: [{ id: 1 }, { id: 2 }], total: 4 })
+  await first
+  const refresh = f.load({ force: true })
+  f.invalidate()
+  f.set({ items: [{ id: 2 }], total: 3 })
+  f.requests[1].resolve({ items: [{ id: 1 }, { id: 2 }], total: 4 })
+  await refresh
+  assert.deepEqual(f.get().items, [{ id: 2 }])
+  f.set({ search: 'changed' })
+  await f.loadMore()
+  assert.equal(f.requests.length, 2)
+  const changed = f.load()
+  assert.equal(f.get().loading, true)
+  f.requests[2].resolve({ items: [], total: 0 })
+  await changed
+})

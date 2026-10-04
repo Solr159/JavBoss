@@ -13,7 +13,11 @@ import { normalizeJavSort } from '@/constants/jav'
 export function createJavSlice({ set, get, lists }) {
   return {
     javVideoDeletions: {},
-    removeJavVideos: (id, videoIds) =>
+    removeJavVideos: (id, videoIds) => {
+      // Cancel stale responses and refresh related lists when they are next visited.
+      // Keep the current lists mounted; the deleted rows are removed locally below.
+      Object.values(lists).forEach((list) => list.invalidate())
+      get().invalidateFavoriteRequests()
       set((state) => {
         const removedVideos = new Set(videoIds.map(Number))
         const javItems = state.javItems.filter((item) => Number(item.id) !== Number(id))
@@ -38,7 +42,11 @@ export function createJavSlice({ set, get, lists }) {
           selectedVideoIds,
           selectedVideoMeta,
         }
-      }),
+      })
+      void get().loadJavTags({ force: true })
+      void get().loadTags({ force: true })
+      void get().loadJavFavoriteGroups('jav', { force: true })
+    },
     patchJavItem: (updated) =>
       set((state) => ({ javItems: mergeJavItem(state.javItems, updated) })),
     patchJavIdol: (updated) =>

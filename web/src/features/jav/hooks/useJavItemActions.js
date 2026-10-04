@@ -289,16 +289,7 @@ export default function useJavItemActions({
   const handleEditorDeleted = (id, videoIds) => {
     setEditorOpen(false)
     detailView?.onClose?.()
-    const state = useStore.getState()
-    state.removeJavVideos(id, videoIds)
-    void state.loadJavs({ force: true })
-    void state.loadVideos({ force: true })
-    void state.loadJavTags({ force: true })
-    void state.loadJavIdols({ force: true })
-    void state.loadJavStudios({ force: true })
-    void state.loadJavSeries({ force: true })
-    void state.loadTags({ force: true })
-    void state.loadJavFavoriteGroups('jav', { force: true })
+    useStore.getState().removeJavVideos(id, videoIds)
   }
 
   const handleCustomTagsSaved = (updated) => {

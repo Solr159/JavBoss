@@ -80,3 +80,91 @@ test(
     assert.deepEqual(await evaluate('window.cachedDetail.videos'), [])
   }
 )
+
+for (const fromDetail of [false, true]) {
+  test(
+    `deleting from ${fromDetail ? 'details' : 'a card'} updates the list in place without refetching or losing scroll`,
+    { skip: browserUnavailable, timeout: 60000 },
+    async (t) => {
+      const { origin, command, evaluate, waitFor } = await openBrowser(t)
+      await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
+      await waitFor(`document.querySelector('.jav-card')`)
+      await evaluate(`{
+        window.javListRequests = [];
+        window.javRows = Array.from({length: 80}, (_, i) => ({id: i + 1, code: 'ABC-' + (i + 1), title: 'Work ' + (i + 1), videos: [], tags: [], idols: []}));
+        const originalFetch = window.fetch;
+        window.fetch = (input, init = {}) => {
+          const url = new URL(input, location.origin);
+          if (init.method === 'DELETE' && url.pathname.endsWith('/videos')) {
+            const id = Number(url.pathname.split('/')[3]);
+            window.javRows = window.javRows.filter(item => item.id !== id);
+            return Promise.resolve(Response.json({video_ids: []}));
+          }
+          if (url.pathname === '/jav') {
+            const limit = Number(url.searchParams.get('limit'));
+            const offset = Number(url.searchParams.get('offset'));
+            window.javListRequests.push({limit, offset});
+            return Promise.resolve(Response.json({items: window.javRows.slice(offset, offset + limit), total: window.javRows.length}));
+          }
+          return originalFetch(input, init);
+        };
+        window.confirm = () => true;
+        window.testStore.setState({javGridColumns: 3});
+      }`)
+      await evaluate(
+        `window.listLoad = window.testStore.getState().loadJavs({force: true}); void 0`
+      )
+      await waitFor(
+        `window.testStore.getState().javItems.length === 24 && !window.testStore.getState().javLoading`
+      )
+      await evaluate(`window.moreLoad = window.testStore.getState().loadMoreJavs(); void 0`)
+      await waitFor(`document.querySelectorAll('.jav-card').length === 48`)
+      await evaluate(`window.scrollTo(0, 1800)`)
+      await waitFor(`window.scrollY === 1800`)
+      await evaluate(`{
+        window.beforeDeleteScroll = window.scrollY;
+        const card = [...document.querySelectorAll('.jav-card')].find(card => {
+          const rect = card.getBoundingClientRect();
+          return rect.top >= 0 && rect.bottom < window.innerHeight;
+        });
+        card.querySelector(${fromDetail ? "'button'" : '\'[aria-label="Edit JAV"]\''}).click();
+      }`)
+      if (fromDetail) {
+        const detail = `document.querySelector('[role="dialog"][aria-labelledby^="jav-detail-title-"]')`
+        await waitFor(detail)
+        await evaluate(
+          `[...${detail}.querySelectorAll('button')].find(button => button.textContent === 'Edit').click()`
+        )
+      }
+      const modal = `document.querySelector('[aria-label="Edit JAV info"]')`
+      await waitFor(modal)
+      await evaluate(
+        `[...${modal}.querySelectorAll('button')].find(button => button.textContent === 'Delete').click()`
+      )
+      await waitFor(
+        `window.testStore.getState().javItems.length === 47 && !${modal} && !location.search.includes('jav_detail=')`
+      )
+      assert.equal(await evaluate('window.testStore.getState().javLoading'), false)
+      assert.equal(await evaluate(`document.querySelectorAll('.jav-card').length`), 47)
+      assert.equal(await evaluate('window.javListRequests.length'), 2)
+      assert.ok(Math.abs(await evaluate('window.scrollY - window.beforeDeleteScroll')) <= 2)
+      await waitFor(`window.testStore.getState().javTotal === 79`)
+      assert.equal(await evaluate(`document.querySelectorAll('.jav-card').length`), 47)
+      assert.ok(Math.abs(await evaluate('window.scrollY - window.beforeDeleteScroll')) <= 2)
+      // Continue from the remaining 47 rows, without reloading the first two pages.
+      await evaluate('window.moreLoad = window.testStore.getState().loadMoreJavs(); void 0')
+      await waitFor('window.testStore.getState().javItems.length === 71')
+      assert.deepEqual(await evaluate('window.javListRequests.at(-1)'), { limit: 24, offset: 47 })
+      assert.equal(
+        await evaluate('new Set(window.testStore.getState().javItems.map(item => item.id)).size'),
+        71
+      )
+      assert.ok(Math.abs(await evaluate('window.scrollY - window.beforeDeleteScroll')) <= 2)
+      // A later visit refreshes the invalidated catalog on demand.
+      await evaluate('window.revisitLoad = window.testStore.getState().loadJavs(); void 0')
+      await waitFor('window.testStore.getState().javItems.length === 24')
+      assert.deepEqual(await evaluate('window.javListRequests.at(-1)'), { limit: 24, offset: 0 })
+      assert.deepEqual(await evaluate('window.appErrors'), [])
+    }
+  )
+}

@@ -13,6 +13,8 @@ export function createListResource({
 }) {
   let generation = 0
   let successfulKey = null
+  // Invalidation makes the cache stale without discarding its loaded range.
+  let itemsKey = null
   let pending = null
   let pendingMore = null
   let exhaustedKey = null
@@ -49,6 +51,7 @@ export function createListResource({
         if (hasNextField)
           patch[hasNextField] = !random(state) && params.offset + params.limit < total
         successfulKey = requestKey
+        itemsKey = requestKey
         set(patch)
       } catch (error) {
         if (isCurrent(request) && !request.controller.signal.aborted) {
@@ -71,7 +74,7 @@ export function createListResource({
     if (
       state[fields.loading] ||
       random(state) ||
-      requestKey !== successfulKey ||
+      requestKey !== itemsKey ||
       exhaustedKey === requestKey
     )
       return Promise.resolve()
