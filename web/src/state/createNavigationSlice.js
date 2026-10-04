@@ -1,5 +1,8 @@
 export function createNavigationSlice({ set }) {
   return {
+    waterfallModes: { video: false, jav: false, idol: false, studio: false, series: false },
+    setWaterfallModes: (update) =>
+      set((state) => ({ waterfallModes: update(state.waterfallModes) })),
     viewMode: 'video',
     javTab: 'list',
     clearLegacyDownloadTab: () => set({ javTab: 'list' }),

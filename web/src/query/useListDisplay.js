@@ -1,6 +1,6 @@
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback } from 'react'
 import { configFlag } from '@/utils/config'
 
 export default function useListDisplay({ configLoaded, hydrated }) {
@@ -12,6 +12,8 @@ export default function useListDisplay({ configLoaded, hydrated }) {
     loadJavStudios,
     loadJavSeries,
     loadJavs,
+    waterfallModes,
+    setWaterfallModes,
   } = useStore(
     useShallow((state) => ({
       config: state.config,
@@ -21,15 +23,10 @@ export default function useListDisplay({ configLoaded, hydrated }) {
       loadJavStudios: state.loadJavStudios,
       loadJavSeries: state.loadJavSeries,
       loadJavs: state.loadJavs,
+      waterfallModes: state.waterfallModes,
+      setWaterfallModes: state.setWaterfallModes,
     }))
   )
-  const [waterfallModes, setWaterfallModes] = useState({
-    video: false,
-    jav: false,
-    idol: false,
-    studio: false,
-    series: false,
-  })
 
   useEffect(() => {
     if (!configLoaded) return
@@ -42,6 +39,7 @@ export default function useListDisplay({ configLoaded, hydrated }) {
       series: configFlag(config?.series_waterfall_default),
     }))
   }, [
+    setWaterfallModes,
     configLoaded,
     config?.video_waterfall_default,
     config?.jav_waterfall_default,
@@ -101,7 +99,16 @@ export default function useListDisplay({ configLoaded, hydrated }) {
         loadJavSeries({ force: true })
       }
     },
-    [configLoaded, hydrated, loadJavIdols, loadJavSeries, loadJavStudios, loadJavs, loadVideos]
+    [
+      configLoaded,
+      hydrated,
+      loadJavIdols,
+      loadJavSeries,
+      loadJavStudios,
+      loadJavs,
+      loadVideos,
+      setWaterfallModes,
+    ]
   )
   return { waterfallModes, forceReloadVideos, forceReloadJavByTab, setWaterfallMode }
 }

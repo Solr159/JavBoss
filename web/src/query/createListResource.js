@@ -10,6 +10,8 @@ export function createListResource({
   errorMessage = (error) => error.message,
   hasNextField,
   randomTotal = false,
+  active = () => true,
+  waterfall = () => false,
 }) {
   let generation = 0
   let successfulKey = null
@@ -38,15 +40,36 @@ export function createListResource({
     if (!options.force && successfulKey === requestKey) return Promise.resolve()
     invalidate()
     const params = query(state)
+    const sameQuery = itemsKey === requestKey
+    const background = options.reconcile && (sameQuery || options.background)
+    // Revalidate the remaining loaded range without replacing the grid with a spinner.
+    if (options.reconcile && sameQuery && waterfall(state) && !random(state)) {
+      params.limit = Math.max(1, state[fields.items]?.length || 0)
+    }
     const request = { generation, key: requestKey, controller: new AbortController() }
     pending = request
-    set({ [fields.loading]: true, [fields.error]: null })
+    set({
+      [fields.loading]: !background,
+      [fields.loadingMore]: Boolean(background),
+      [fields.error]: null,
+    })
     request.promise = (async () => {
       try {
         const response = await fetcher({ ...params, signal: request.controller.signal })
         if (!isCurrent(request)) return
         const items = response.items || []
         const total = random(state) && randomTotal ? items.length : (response.total ?? 0)
+        if (
+          options.reconcile &&
+          fields.page &&
+          !random(state) &&
+          params.offset > 0 &&
+          params.offset >= total
+        ) {
+          const lastPage = Math.max(1, Math.ceil(total / query(state).limit))
+          set({ [fields.page]: lastPage, [fields.total]: total })
+          return load({ force: true, reconcile: true, background })
+        }
         const patch = { [fields.items]: items, [fields.total]: total }
         if (hasNextField)
           patch[hasNextField] = !random(state) && params.offset + params.limit < total
@@ -60,7 +83,7 @@ export function createListResource({
       } finally {
         if (pending === request) {
           pending = null
-          set({ [fields.loading]: false })
+          set({ [fields.loading]: false, [fields.loadingMore]: false })
         }
       }
     })()
@@ -70,6 +93,8 @@ export function createListResource({
   const loadMore = () => {
     const state = get()
     const requestKey = key(state)
+    // A background reconciliation must finish before choosing the next offset.
+    if (pending?.key === requestKey) return pending.promise
     if (pendingMore?.key === requestKey) return pendingMore.promise
     if (
       state[fields.loading] ||
@@ -116,5 +141,18 @@ export function createListResource({
     return request.promise
   }
 
-  return { load, loadMore, invalidate }
+  const reconcile = (remove = () => false) => {
+    const state = get()
+    const items = (state[fields.items] || []).filter((item) => !remove(item))
+    const removed = (state[fields.items]?.length || 0) - items.length
+    invalidate()
+    set({
+      [fields.items]: items,
+      // Only loaded rows have known membership. The response supplies the filtered total.
+      [fields.total]: Math.max(0, (state[fields.total] || 0) - removed),
+    })
+    return active(get()) ? load({ force: true, reconcile: true }) : Promise.resolve()
+  }
+
+  return { load, loadMore, invalidate, reconcile }
 }

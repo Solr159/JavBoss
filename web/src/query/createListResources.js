@@ -19,6 +19,7 @@ export function createListResources({ get, set }) {
       random: (state) => state.randomMode,
       hasNextField: 'hasNext',
       fields: {
+        page: 'page',
         items: 'videos',
         total: 'total',
         loading: 'loading',
@@ -44,6 +45,7 @@ export function createListResources({ get, set }) {
         set,
         errorMessage: getErrorMessage,
         fields: {
+          page: `${name}Page`,
           items: `${name}Items`,
           total: `${name}Total`,
           loading: `${name}Loading`,
@@ -51,6 +53,11 @@ export function createListResources({ get, set }) {
           error: `${name}Error`,
         },
         key: (state) => listQueryKey(definition.query, state),
+        active: (state) =>
+          name === 'video'
+            ? state.viewMode === 'video'
+            : state.viewMode === 'jav' && state.javTab === (name === 'jav' ? 'list' : name),
+        waterfall: (state) => Boolean(state.waterfallModes?.[name]),
         ...definition,
       }),
     ])

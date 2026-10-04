@@ -43,6 +43,7 @@ for (const batch of [false, true]) {
       await evaluate(`window.moreLoad = window.testStore.getState().loadMoreVideos(); void 0`)
       await waitFor(`document.querySelectorAll('.video-card').length === 50`)
       await evaluate(`{
+        window.testStore.getState().setWaterfallModes(modes => ({...modes, video: true}));
         const card = document.querySelectorAll('.video-card')[24];
         window.scrollTo(0, card.getBoundingClientRect().top + window.scrollY - 150);
       }`)
@@ -73,7 +74,8 @@ for (const batch of [false, true]) {
           ),
           true
         )
-        assert.equal(await evaluate('window.videoRequests.length'), 2)
+        await waitFor('!window.testStore.getState().videoLoadingMore')
+        assert.equal(await evaluate('window.videoRequests.length'), 3)
         await evaluate(`window.failLocation = null; ${deleteButton}.click()`)
         await waitFor(`!${modal} && window.testStore.getState().videos.length === 48`)
         assert.deepEqual(await evaluate('window.deleteRequests'), [25, 27, 27])
@@ -91,10 +93,15 @@ for (const batch of [false, true]) {
         assert.deepEqual(await evaluate('window.deleteRequests'), [25])
       }
       const remaining = batch ? 48 : 49
+      await waitFor('!window.testStore.getState().videoLoadingMore')
       assert.deepEqual(await evaluate('[...window.testStore.getState().selectedVideoIds]'), [])
       assert.equal(await evaluate('window.testStore.getState().loading'), false)
       assert.equal(await evaluate('window.testStore.getState().total'), batch ? 78 : 79)
-      assert.equal(await evaluate('window.videoRequests.length'), 2)
+      assert.equal(await evaluate('window.videoRequests.length'), batch ? 4 : 3)
+      assert.deepEqual(await evaluate('window.videoRequests.at(-1)'), {
+        offset: 0,
+        limit: remaining,
+      })
       assert.equal(
         await evaluate(
           'window.testStore.getState().videos.some(video => video.location_id === 26)'

@@ -14,14 +14,9 @@ export function createJavSlice({ set, get, lists }) {
   return {
     javVideoDeletions: {},
     removeJavVideos: (id, videoIds) => {
-      // Cancel stale responses and refresh related lists when they are next visited.
-      // Keep the current lists mounted; the deleted rows are removed locally below.
-      Object.values(lists).forEach((list) => list.invalidate())
+      const removedVideos = new Set(videoIds.map(Number))
       get().invalidateFavoriteRequests()
       set((state) => {
-        const removedVideos = new Set(videoIds.map(Number))
-        const javItems = state.javItems.filter((item) => Number(item.id) !== Number(id))
-        const videos = state.videos.filter((video) => !removedVideos.has(Number(video.id)))
         const selectedVideoIds = new Set(state.selectedVideoIds)
         const selectedVideoMeta = { ...state.selectedVideoMeta }
         for (const [key, meta] of Object.entries(selectedVideoMeta)) {
@@ -35,17 +30,23 @@ export function createJavSlice({ set, get, lists }) {
             ...state.javVideoDeletions,
             [id]: [...(state.javVideoDeletions[id] || []), ...removedVideos],
           },
-          javItems,
-          videos,
-          javTotal: Math.max(0, state.javTotal - (state.javItems.length - javItems.length)),
-          total: Math.max(0, state.total - (state.videos.length - videos.length)),
           selectedVideoIds,
           selectedVideoMeta,
         }
       })
+      const refreshed = Object.entries(lists).map(([name, list]) =>
+        list.reconcile(
+          name === 'jav'
+            ? (item) => Number(item.id) === Number(id)
+            : name === 'video'
+              ? (video) => removedVideos.has(Number(video.id))
+              : undefined
+        )
+      )
       void get().loadJavTags({ force: true })
       void get().loadTags({ force: true })
       void get().loadJavFavoriteGroups('jav', { force: true })
+      return Promise.all(refreshed)
     },
     patchJavItem: (updated) =>
       set((state) => ({ javItems: mergeJavItem(state.javItems, updated) })),
