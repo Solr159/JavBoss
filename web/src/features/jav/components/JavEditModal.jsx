@@ -458,8 +458,8 @@ export function JavEditModal({
     if (
       !window.confirm(
         zh(
-          `确定删除“${code}”的所有关联视频吗？将删除视频记录、全部视频副本、同名字幕、NFO 和图片，以及视频截图。JAV 资料和封面会保留，无视频后不再展示在列表中。文件删除无法撤回。`,
-          `Delete all videos linked to “${code}”? This removes video records, all video copies, matching subtitles, NFO files and images, and video screenshots. JAV metadata and its cover are kept; the work will leave the list when it has no videos. File deletion cannot be undone.`
+          `确定删除“${code}”的吗？所有相关文件（包括视频、同名字幕、NFO、视频截图）和记录等会被删除。`,
+          `Delete “${code}”? All related files (including videos, matching subtitles, NFO files and video screenshots) and records will be deleted.`
         )
       )
     )

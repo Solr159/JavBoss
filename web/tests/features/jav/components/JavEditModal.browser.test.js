@@ -47,7 +47,10 @@ test(
     await waitFor(modal)
     await evaluate(`${deleteButton}.click()`)
     assert.equal(await evaluate('window.deleteRequests'), 0)
-    assert.match(await evaluate('window.deleteMessage'), /matching subtitles, NFO files and images/)
+    assert.equal(
+      await evaluate('window.deleteMessage'),
+      'Delete “ABC-001”? All related files (including videos, matching subtitles, NFO files and video screenshots) and records will be deleted.'
+    )
     await evaluate(`window.allowDelete = true; ${deleteButton}.click()`)
     await waitFor(`${modal}.textContent.includes('Deletion failed')`)
     assert.ok(await evaluate(`Boolean(${detail})`))
@@ -73,7 +76,6 @@ test(
     assert.deepEqual(await evaluate('[...window.testStore.getState().selectedVideoIds]'), ['8:11'])
     assert.deepEqual(await evaluate('window.testStore.getState().javVideoDeletions[1]'), [7])
     assert.equal(await evaluate('window.deletePath'), '/jav/items/1/videos')
-    assert.match(await evaluate('window.deleteMessage'), /JAV metadata and its cover are kept/)
     await evaluate('history.forward()')
     await waitFor(detail)
     assert.equal(await evaluate('window.cachedDetail.code'), 'ABC-001')
