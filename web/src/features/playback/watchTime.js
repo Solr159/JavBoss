@@ -17,11 +17,8 @@ export function startWatchTracking(
   let suspended = false
   let previous = now()
   let total = 0
-  let baseline = 0
-  let acknowledged = 0
-  let session = ''
-  let busy = false
-  let pending = false
+  let session = null
+  let creating = null
   let closed = false
   let closedAt = 0
 
@@ -30,52 +27,50 @@ export function startWatchTracking(
     if (active) total += Math.max(0, time - previous)
     previous = time
   }
-  const flush = async ({ immediate = false } = {}) => {
+  const createSession = () => {
+    if (!creating) {
+      const baseline = total
+      creating = create()
+        .then((id) => {
+          session = { id, baseline, acknowledged: 0 }
+          return session
+        })
+        .finally(() => {
+          creating = null
+        })
+    }
+    return creating
+  }
+  const flush = async () => {
     advance()
-    if (busy) {
-      pending = true
-      const checkpoint = Math.floor(total - baseline)
-      if (immediate && session && checkpoint > acknowledged) {
-        // Teardown cannot wait for the in-flight request's continuation. The
-        // server accepts duplicate/out-of-order totals; leave session state to
-        // the regular loop so late responses cannot affect a replacement session.
-        try {
-          await report(session, checkpoint)
-        } catch {
-          // The regular loop can retry if the page survives or is restored.
+    try {
+      // An existing session must reach report() synchronously during pagehide.
+      const current = session || (await createSession())
+      if (current !== session) return
+      advance()
+      const checkpoint = Math.floor(total - current.baseline)
+      if (checkpoint > current.acknowledged) {
+        const accepted = await report(current.id, checkpoint)
+        // Late responses must never change a replacement session's state.
+        if (current !== session) return
+        if (accepted) {
+          current.acknowledged = Math.max(current.acknowledged, checkpoint)
+        } else {
+          // Never replay an expired session's total into a new session.
+          session = null
+          if (closed) unschedule(timer)
+          else void flush()
         }
       }
-      return
-    }
-    busy = true
-    try {
-      do {
-        pending = false
-        if (!session) {
-          baseline = total
-          session = await create()
-          acknowledged = 0
-        }
-        advance()
-        const checkpoint = Math.floor(total - baseline)
-        if (checkpoint > acknowledged) {
-          const accepted = await report(session, checkpoint)
-          if (accepted) {
-            acknowledged = checkpoint
-          } else {
-            // Never replay an expired session's total into a new session.
-            session = ''
-            baseline = total
-            pending = !closed
-          }
-        }
-      } while (pending)
-      if (closed) unschedule(timer)
     } catch {
       // Retain the checkpoint for retry, even when the response was lost after commit.
     } finally {
-      busy = false
-      if (closed && now() - closedAt >= 30000) unschedule(timer)
+      if (
+        closed &&
+        ((session && session.acknowledged >= Math.floor(total - session.baseline)) ||
+          now() - closedAt >= 30000)
+      )
+        unschedule(timer)
     }
   }
   const syncPlayback = () => {
@@ -97,9 +92,7 @@ export function startWatchTracking(
   }
   const suspend = () => {
     suspended = true
-    advance()
-    active = false
-    void flush({ immediate: true })
+    stop()
   }
   const visibility = () => void flush()
   const resume = () => {
@@ -133,6 +126,6 @@ export function startWatchTracking(
     page?.removeEventListener('pagehide', suspend)
     page?.removeEventListener('pageshow', resume)
     document?.removeEventListener('visibilitychange', visibility)
-    void flush({ immediate: true })
+    void flush()
   }
 }

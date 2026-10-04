@@ -251,7 +251,7 @@ test('pagehide sends the latest checkpoint before an outstanding report settles'
   await settle()
 })
 
-test('a failed immediate checkpoint is retried by the regular reporting loop', async () => {
+test('a failed unload checkpoint is retried on the next timer tick', async () => {
   let release
   const reports = []
   const f = fixture({
@@ -270,7 +270,135 @@ test('a failed immediate checkpoint is retried by the regular reporting loop', a
   await settle()
   release(true)
   await settle()
+  await f.tick(10000)
   assert.deepEqual(reports, [10000, 12000, 12000])
   f.close()
   await settle()
+})
+
+test('concurrent flushes share one session creation', async () => {
+  let resolveCreation
+  let created = 0
+  const f = fixture({
+    create: () => {
+      created++
+      return new Promise((resolve) => (resolveCreation = resolve))
+    },
+  })
+  await f.emit('playing')
+  await f.tick(10000)
+  await f.emit('pause', 2000)
+  assert.equal(created, 1)
+  assert.deepEqual(f.reports, [])
+  resolveCreation('session')
+  await settle()
+  assert.ok(f.reports.length > 0)
+  assert.ok(f.reports.every(([id, total]) => id === 'session' && total === 12000))
+  f.close()
+  await settle()
+  assert.equal(created, 1)
+  assert.equal(f.cleared(), true)
+})
+
+test('failed session creation can be retried without parallel creation requests', async () => {
+  let rejectCreation
+  let created = 0
+  const f = fixture({
+    create: () => {
+      created++
+      if (created === 1) return new Promise((resolve, reject) => (rejectCreation = reject))
+      return Promise.resolve('session')
+    },
+  })
+  await f.emit('playing')
+  await f.tick(10000)
+  assert.equal(created, 1)
+  rejectCreation(new Error('network failure'))
+  await settle()
+  await f.tick(10000)
+  assert.equal(created, 2)
+  await f.tick(1000)
+  assert.deepEqual(f.reports, [['session', 1000]])
+  f.close()
+  await settle()
+})
+
+test('ordinary flushes run concurrently and older successes cannot lower the acknowledged total', async () => {
+  const requests = []
+  const f = fixture({
+    report: (id, total) => new Promise((resolve) => requests.push({ total, resolve })),
+  })
+  await settle()
+  await f.emit('playing')
+  await f.tick(10000)
+  await f.emit('pause', 2000)
+  assert.deepEqual(
+    requests.map(({ total }) => total),
+    [10000, 12000]
+  )
+  requests[1].resolve(true)
+  await settle()
+  requests[0].resolve(true)
+  await settle()
+  await f.tick(10000)
+  f.close()
+  await settle()
+  assert.equal(requests.length, 2)
+  assert.equal(f.cleared(), true)
+})
+
+for (const accepted of [true, false]) {
+  test(`a stale ${accepted ? 'success' : 'expiry'} response cannot change the replacement session`, async () => {
+    let created = 0
+    let release
+    const reports = []
+    const f = fixture({
+      create: async () => String(++created),
+      report: (id, total) => {
+        reports.push([id, total])
+        if (reports.length === 1) return new Promise((resolve) => (release = resolve))
+        return Promise.resolve(id !== '1')
+      },
+    })
+    await settle()
+    await f.emit('playing')
+    await f.tick(10000)
+    await f.tick(2000)
+    assert.equal(created, 2)
+    await f.tick(1000)
+    assert.deepEqual(reports.at(-1), ['2', 1000])
+    release(accepted)
+    await settle()
+    await f.tick(1000)
+    assert.equal(created, 2)
+    assert.deepEqual(reports.at(-1), ['2', 2000])
+    f.close()
+    await settle()
+  })
+}
+
+test('an older success after close does not stop retries for the failed final total', async () => {
+  let release
+  const reports = []
+  const f = fixture({
+    report: (id, total) => {
+      reports.push(total)
+      if (reports.length === 1) return new Promise((resolve) => (release = resolve))
+      if (reports.length === 2) return Promise.reject(new Error('network failure'))
+      return Promise.resolve(true)
+    },
+  })
+  await settle()
+  await f.emit('playing')
+  await f.tick(10000)
+  await f.emit('waiting', 2000)
+  f.close()
+  assert.deepEqual(reports, [10000, 12000])
+  await settle()
+  release(true)
+  await settle()
+  assert.equal(f.cleared(), false)
+  await f.tick(10000)
+  assert.deepEqual(reports, [10000, 12000, 12000])
+  assert.equal(f.cleared(), true)
 })
