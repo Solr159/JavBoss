@@ -64,9 +64,8 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 	if c, ok := conn.(interface{ SetDeadline(time.Time) error }); ok {
 		_ = c.SetDeadline(time.Time{})
 	}
-	// core-idle also covers seeking/restarting; only cache waits should stop
-	// counting time spent browsing an already started video.
-	for i, name := range []string{"pause", "paused-for-cache", "eof-reached"} {
+	// Only explicit pauses and EOF stop an already started video's clock.
+	for i, name := range []string{"pause", "eof-reached"} {
 		if err := json.NewEncoder(conn).Encode(ipcRequest{Command: []any{"observe_property", i + 1, name}, RequestID: int64(i + 2)}); err != nil {
 			conn.Close()
 			return nil, err
@@ -208,8 +207,6 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 			switch event.Name {
 			case "pause":
 				e.watch.paused = value
-			case "paused-for-cache":
-				e.watch.buffering = value
 			case "eof-reached":
 				e.watch.ended = value
 			}

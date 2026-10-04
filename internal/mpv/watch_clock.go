@@ -2,15 +2,15 @@ package mpv
 
 import "time"
 
-// The clock includes time browsing with seeks, independent of media position or
-// speed. Initial loading, explicit pauses, cache waits and EOF are excluded.
+// After playback starts, count elapsed time until pause or EOF. Seeking and
+// buffering do not affect the clock; media position and speed are irrelevant.
 type watchClock struct {
-	ready, paused, buffering, ended bool
-	last                            time.Time
-	total                           time.Duration
+	ready, paused, ended bool
+	last                 time.Time
+	total                time.Duration
 }
 
-func (c *watchClock) active() bool { return c.ready && !c.paused && !c.buffering && !c.ended }
+func (c *watchClock) active() bool { return c.ready && !c.paused && !c.ended }
 
 func (c *watchClock) advance(now time.Time) {
 	if !c.last.IsZero() && c.active() && now.After(c.last) {

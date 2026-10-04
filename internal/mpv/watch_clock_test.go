@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func TestWatchEventsIncludeSeeksButExcludePauseBufferAndFileLoading(t *testing.T) {
+func TestWatchEventsCountUnpausedTimeAfterPlaybackStarts(t *testing.T) {
 	e := &playlistEvents{}
 	start := time.Now()
 	property := func(name string, value bool) playlistEvent {
@@ -19,6 +19,8 @@ func TestWatchEventsIncludeSeeksButExcludePauseBufferAndFileLoading(t *testing.T
 		want  int
 	}{
 		{0, playlistEvent{Event: "start-file", EntryID: 1}, 0},
+		{1, property("pause", false), 0},
+		{2, property("paused-for-cache", true), 0},
 		{5, playlistEvent{Event: "file-loaded"}, 0},
 		{5, property("core-idle", false), 0},
 		{5, playlistEvent{Event: "playback-restart"}, 0},
@@ -26,19 +28,19 @@ func TestWatchEventsIncludeSeeksButExcludePauseBufferAndFileLoading(t *testing.T
 		{20, playlistEvent{Event: "seek"}, 10},
 		{25, property("pause", false), 10},
 		{30, property("paused-for-cache", true), 15},
-		{35, playlistEvent{Event: "seek"}, 15},
-		{40, property("paused-for-cache", false), 15},
-		{45, playlistEvent{Event: "seek"}, 20},
-		{46, property("core-idle", true), 21},
-		{47, property("seeking", true), 22},
-		{48, playlistEvent{Event: "seek"}, 23},
-		{49, playlistEvent{Event: "seek"}, 24},
-		{50, property("seeking", false), 25},
-		{51, playlistEvent{Event: "playback-restart"}, 26},
-		{56, property("eof-reached", true), 31},
-		{60, playlistEvent{Event: "seek"}, 31},
-		{65, property("eof-reached", false), 31},
-		{66, playlistEvent{Event: "end-file"}, 32},
+		{35, playlistEvent{Event: "seek"}, 20},
+		{40, property("paused-for-cache", false), 25},
+		{45, playlistEvent{Event: "seek"}, 30},
+		{46, property("core-idle", true), 31},
+		{47, property("seeking", true), 32},
+		{48, playlistEvent{Event: "seek"}, 33},
+		{49, playlistEvent{Event: "seek"}, 34},
+		{50, property("seeking", false), 35},
+		{51, playlistEvent{Event: "playback-restart"}, 36},
+		{56, property("eof-reached", true), 41},
+		{60, playlistEvent{Event: "seek"}, 41},
+		{65, property("eof-reached", false), 41},
+		{66, playlistEvent{Event: "end-file"}, 42},
 		{70, playlistEvent{Event: "start-file", EntryID: 2}, 0},
 		{71, playlistEvent{Event: "seek"}, 0},
 		{72, playlistEvent{Event: "end-file"}, 0},
