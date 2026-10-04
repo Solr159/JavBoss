@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func TestWatchEventsExcludePauseBufferSeekAndFileLoading(t *testing.T) {
-	e := &playlistEvents{watch: watchClock{idle: true}}
+func TestWatchEventsIncludeSeeksButExcludePauseBufferAndFileLoading(t *testing.T) {
+	e := &playlistEvents{}
 	start := time.Now()
 	property := func(name string, value bool) playlistEvent {
 		data, _ := json.Marshal(value)
@@ -23,14 +23,24 @@ func TestWatchEventsExcludePauseBufferSeekAndFileLoading(t *testing.T) {
 		{5, property("core-idle", false), 0},
 		{5, playlistEvent{Event: "playback-restart"}, 0},
 		{15, property("pause", true), 10},
+		{20, playlistEvent{Event: "seek"}, 10},
 		{25, property("pause", false), 10},
-		{30, property("core-idle", true), 15},
-		{40, property("core-idle", false), 15},
+		{30, property("paused-for-cache", true), 15},
+		{35, playlistEvent{Event: "seek"}, 15},
+		{40, property("paused-for-cache", false), 15},
 		{45, playlistEvent{Event: "seek"}, 20},
-		{50, property("seeking", false), 20},
-		{51, playlistEvent{Event: "playback-restart"}, 20},
-		{56, playlistEvent{Event: "end-file"}, 25},
+		{46, property("core-idle", true), 21},
+		{47, property("seeking", true), 22},
+		{48, playlistEvent{Event: "seek"}, 23},
+		{49, playlistEvent{Event: "seek"}, 24},
+		{50, property("seeking", false), 25},
+		{51, playlistEvent{Event: "playback-restart"}, 26},
+		{56, property("eof-reached", true), 31},
+		{60, playlistEvent{Event: "seek"}, 31},
+		{65, property("eof-reached", false), 31},
+		{66, playlistEvent{Event: "end-file"}, 32},
 		{70, playlistEvent{Event: "start-file", EntryID: 2}, 0},
+		{71, playlistEvent{Event: "seek"}, 0},
 		{72, playlistEvent{Event: "end-file"}, 0},
 	} {
 		e.handleAt(step.event, start.Add(time.Duration(step.at)*time.Second))

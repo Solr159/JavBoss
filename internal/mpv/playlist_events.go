@@ -64,13 +64,15 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 	if c, ok := conn.(interface{ SetDeadline(time.Time) error }); ok {
 		_ = c.SetDeadline(time.Time{})
 	}
-	for i, name := range []string{"pause", "core-idle", "seeking"} {
+	// core-idle also covers seeking/restarting; only cache waits should stop
+	// counting time spent browsing an already started video.
+	for i, name := range []string{"pause", "paused-for-cache", "eof-reached"} {
 		if err := json.NewEncoder(conn).Encode(ipcRequest{Command: []any{"observe_property", i + 1, name}, RequestID: int64(i + 2)}); err != nil {
 			conn.Close()
 			return nil, err
 		}
 	}
-	events := &playlistEvents{conn: conn, done: make(chan struct{}), watch: watchClock{idle: true}}
+	events := &playlistEvents{conn: conn, done: make(chan struct{})}
 	playlistWatchers.Add(1)
 	go func() {
 		ticker := time.NewTicker(time.Second)
@@ -200,21 +202,16 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 		e.watch.ready = false
 		e.current = nil
 		e.loaded = false
-	case "seek":
-		e.watch.ready = false
 	case "property-change":
 		var value bool
 		if json.Unmarshal(event.Data, &value) == nil && string(event.Data) != "null" {
 			switch event.Name {
 			case "pause":
 				e.watch.paused = value
-			case "core-idle":
-				e.watch.idle = value
-			case "seeking":
-				e.watch.seeking = value
-				if value {
-					e.watch.ready = false
-				}
+			case "paused-for-cache":
+				e.watch.buffering = value
+			case "eof-reached":
+				e.watch.ended = value
 			}
 		}
 	}

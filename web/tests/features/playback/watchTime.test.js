@@ -13,6 +13,8 @@ function fixture({ create, report } = {}) {
   let cleared = false
   let paused = false
   let seeking = false
+  let readyState = 4
+  let buffered = true
   const events = new Map()
   const reports = []
   const player = {
@@ -20,7 +22,9 @@ function fixture({ create, report } = {}) {
     off: (event) => events.delete(event),
     paused: () => paused,
     seeking: () => seeking,
-    readyState: () => 4,
+    readyState: () => readyState,
+    currentTime: () => 100,
+    buffered: () => ({ length: buffered ? 1 : 0, start: () => 0, end: () => 1000 }),
   }
   const close = startWatchTracking(player, {
     create: create || (async () => 'session'),
@@ -45,6 +49,10 @@ function fixture({ create, report } = {}) {
     reports,
     close,
     events,
+    setMediaState: (state) => {
+      if ('readyState' in state) readyState = state.readyState
+      if ('buffered' in state) buffered = state.buffered
+    },
     tick: async (delta) => {
       time += delta
       timer()
@@ -66,7 +74,7 @@ function fixture({ create, report } = {}) {
   }
 }
 
-test('counts wall time, excludes pauses, buffering and seeks; flushes final tail', async () => {
+test('counts wall time including seeks, excludes pauses and buffering; flushes final tail', async () => {
   const f = fixture()
   await settle()
   await f.emit('playing')
@@ -85,10 +93,60 @@ test('counts wall time, excludes pauses, buffering and seeks; flushes final tail
   await settle()
   assert.deepEqual(
     f.reports.map(([, total]) => total),
-    [10000, 12000, 15000, 19000, 20000, 22000]
+    [10000, 12000, 15000, 25000, 27000]
   )
   assert.equal(f.cleared(), true)
   assert.equal(f.events.size, 0)
+})
+
+test('held seek shortcuts include buffered decoding waits and exclude actual cache waits', async () => {
+  const f = fixture()
+  await settle()
+  await f.emit('playing')
+  await f.emit('seeking', 1000)
+  f.setMediaState({ readyState: 2 })
+  await f.emit('waiting', 1000)
+  await f.emit('seeking', 1000)
+  await f.emit('waiting', 1000)
+  await f.tick(1000)
+  assert.equal(f.reports.at(-1)[1], 5000)
+
+  f.setMediaState({ buffered: false })
+  await f.emit('seeking')
+  await f.emit('waiting')
+  await f.tick(10000)
+  await f.emit('seeked')
+  await f.tick(10000)
+  assert.equal(f.reports.at(-1)[1], 5000)
+  f.setMediaState({ buffered: true, readyState: 4 })
+  await f.emit('playing')
+  await f.tick(1000)
+  assert.equal(f.reports.at(-1)[1], 6000)
+  f.close()
+  await settle()
+})
+
+test('seeking while paused, loading or ended does not start the clock', async () => {
+  const f = fixture()
+  await settle()
+  await f.emit('seeking', 1000)
+  await f.emit('seeked', 1000)
+  await f.tick(1000)
+  assert.deepEqual(f.reports, [])
+  await f.emit('playing')
+  await f.emit('pause', 1000)
+  await f.emit('seeking', 1000)
+  await f.emit('seeked', 1000)
+  await f.tick(1000)
+  assert.equal(f.reports.at(-1)[1], 1000)
+  await f.emit('playing')
+  await f.emit('ended', 1000)
+  await f.emit('seeking', 1000)
+  await f.emit('seeked', 1000)
+  await f.tick(1000)
+  assert.equal(f.reports.at(-1)[1], 2000)
+  f.close()
+  await settle()
 })
 
 test('retries the same cumulative value after a lost response and rebases on expiry', async () => {

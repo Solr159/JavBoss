@@ -119,6 +119,25 @@ func TestWatchTimeWithMPV(t *testing.T) {
 	command("set_property", "pause", false)
 	waitActive(true)
 	time.Sleep(120 * time.Millisecond)
+	// Holding a seek shortcut keeps restarting the decoder. Its wall time
+	// still counts, even if core-idle/seeking briefly toggle on every command.
+	s.events.mu.Lock()
+	s.events.watch.advance(time.Now())
+	beforeSeeks := s.events.watch.total
+	s.events.mu.Unlock()
+	seekStart := time.Now()
+	for i := 0; i < 20; i++ {
+		command("seek", 5+float64(i)/2, "absolute+exact")
+		time.Sleep(20 * time.Millisecond)
+	}
+	seekElapsed := time.Since(seekStart)
+	s.events.mu.Lock()
+	s.events.watch.advance(time.Now())
+	seekCounted := s.events.watch.total - beforeSeeks
+	s.events.mu.Unlock()
+	if seekCounted < seekElapsed-50*time.Millisecond || seekCounted > seekElapsed+50*time.Millisecond {
+		t.Fatalf("continuous seeking counted %v of %v wall time", seekCounted, seekElapsed)
+	}
 	command("playlist-play-index", 1)
 	waitMPVTestProperty(t, s.ipcPath, "playlist-pos", float64(1))
 	waitActive(true)
