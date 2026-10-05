@@ -25,6 +25,7 @@ test(
         {id:2, location_id:13, filename:'third.mp4', path:'third.mp4', directory:{path:'/videos'}}
       ];
       window.playlistRequests = [];
+      window.openRequests = [];
       window.streamRequests = [];
       window.sessionRequests = [];
       window.screenshotRequests = [];
@@ -36,6 +37,10 @@ test(
         if (url.pathname === '/videos/playlist') {
           window.playlistRequests.push(JSON.parse(init.body));
           return Response.json({count:JSON.parse(init.body).items.length});
+        }
+        if (url.pathname === '/videos/open') {
+          window.openRequests.push(JSON.parse(init.body));
+          return Response.json({});
         }
         if (url.pathname.endsWith('/streams')) {
           window.streamRequests.push(url.pathname + url.search);
@@ -270,6 +275,7 @@ test(
 
     // A selection from another page only has saved metadata, including its copy ID.
     await evaluate(`{
+      window.testStore.setState(state => ({config:{...state.config, default_player:'system', desktop_integration_enabled:'false'}}));
       window.testStore.setState({selectedVideoIds:new Set(['loc:99','loc:12']), selectedVideoMeta:{
         'loc:99':{video_id:9, location_id:99, label:'off-page.mp4'},
         'loc:12':{video_id:1, location_id:12, label:'second-copy.mp4'}
@@ -301,13 +307,26 @@ test(
       await evaluate(
         `window.testStore.setState(state => ({config:{...state.config, default_player:'${defaultPlayer}', mpv_enabled:'true', desktop_integration_enabled:'true', runtime_remote_request:'false', runtime_container:'false'}}))`
       )
+      const playlistCount = await evaluate('window.playlistRequests.length')
       await playMenu('Play page')
-      await waitFor(`window.playlistRequests.at(-1)?.player === '${defaultPlayer}'`)
+      await waitFor(`window.playlistRequests.length === ${playlistCount + 1}`)
+      assert.equal(await evaluate('window.playlistRequests.at(-1).player'), 'mpv')
       assert.deepEqual(
         await evaluate('window.playlistRequests.at(-1).items.map(item => item.location_id)'),
         [11, 12, 13]
       )
       assert.equal(await evaluate(`Boolean(${playlist})`), false)
+    }
+    // Remote system defaults use browser playlists even without desktop/MPV support.
+    await evaluate(
+      `window.testStore.setState(state => ({config:{...state.config, default_player:'system', mpv_enabled:'false', desktop_integration_enabled:'false', runtime_remote_request:'true', runtime_container:'true'}}))`
+    )
+    for (const action of ['Play page', 'Play all']) {
+      await playMenu(action)
+      await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
+      assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
+      assert.equal(await evaluate('window.playlistRequests.length'), 2)
+      await close()
     }
     await evaluate(`{
       window.testStore.setState(state => ({config:{...state.config, default_player:'browser', mpv_enabled:'false'}}));
@@ -336,6 +355,32 @@ test(
     await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
     await close()
+
+    // A remote system default also plays all parts of a JAV in the browser.
+    await evaluate(
+      `window.testStore.setState(state => ({config:{...state.config, default_player:'system'}}))`
+    )
+    await evaluate(`document.querySelector('.jav-card button[aria-label="Play"]').click()`)
+    await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
+    assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
+    await close()
+
+    // Locally, a multipart JAV offers a file picker and opens only the chosen part.
+    await evaluate(
+      `window.testStore.setState(state => ({config:{...state.config, desktop_integration_enabled:'true', runtime_remote_request:'false', runtime_container:'false'}}))`
+    )
+    await evaluate(`document.querySelector('.jav-card button[aria-label="Play"]').click()`)
+    const picker = `document.querySelector('[aria-label="Choose a file to play with system player"]')`
+    await waitFor(picker)
+    assert.equal(await evaluate(`${picker}.querySelectorAll('button[title]').length`), 3)
+    assert.equal(await evaluate(`Boolean(${playlist})`), false)
+    assert.deepEqual(await evaluate('window.openRequests'), [])
+    await evaluate(`${picker}.querySelectorAll('button[title]')[1].click()`)
+    await waitFor(`!${picker} && window.openRequests.length === 1`)
+    assert.deepEqual(await evaluate('window.openRequests'), [
+      { path: 'second-copy.mp4', dir_path: '/videos' },
+    ])
+    assert.equal(await evaluate('window.playlistRequests.length'), 2)
     assert.deepEqual(await evaluate('window.appErrors'), [])
   }
 )

@@ -6,8 +6,8 @@ export const confirmLargePlaylist = (count) => {
   if (count <= BULK_PLAY_CONFIRM_THRESHOLD) return true
   return window.confirm(
     zh(
-      `即将使用默认播放器播放 ${count} 个视频。视频数量较多，可能造成播放器加载卡顿，是否继续？`,
-      `You are about to play ${count} videos with the default player. A large playlist may cause the player to load slowly. Continue?`
+      `即将播放 ${count} 个视频。视频数量较多，可能造成播放器加载卡顿，是否继续？`,
+      `You are about to play ${count} videos. A large playlist may cause the player to load slowly. Continue?`
     )
   )
 }

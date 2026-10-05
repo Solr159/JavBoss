@@ -70,12 +70,13 @@ export default function usePlayback({ showCenterToast, showToast }) {
     desktopIntegrationEnabled,
     mpvEnabled,
     bulkPlaybackEnabled,
+    bulkPlayer,
     defaultPlayer,
     alternatePlayer,
     alternatePlayerLabel,
   } = usePlaybackCapabilities()
   const ensurePlaylistAvailable = useCallback(
-    (player = defaultPlayer) => {
+    (player = bulkPlayer) => {
       if (player === 'browser') return true
       if (
         (player === 'mpv' && mpvEnabled && (!containerMode || clientMode)) ||
@@ -92,7 +93,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
       return false
     },
     [
-      defaultPlayer,
+      bulkPlayer,
       mpvEnabled,
       containerMode,
       desktopIntegrationEnabled,
@@ -315,7 +316,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
   }, [])
 
   const playVideos = useCallback(
-    async (items, player = defaultPlayer) => {
+    async (items, player = bulkPlayer) => {
       if (!ensurePlaylistAvailable(player)) return
       const list = Array.isArray(items) ? items : []
       const targets = list
@@ -350,13 +351,19 @@ export default function usePlayback({ showCenterToast, showToast }) {
       showToast(zh(`已将 ${count} 个视频加入播放列表`, `Added ${count} videos to the playlist`))
       return true
     },
-    [defaultPlayer, ensurePlaylistAvailable, openBrowserPlaylist, showCenterToast, showToast]
+    [bulkPlayer, ensurePlaylistAvailable, openBrowserPlaylist, showCenterToast, showToast]
   )
 
   const handleJavPlay = useCallback(
     (video, item) => {
       const videos = item?.videos || []
       if (videos.length > 1) {
+        if (defaultPlayer === 'system' && !remoteAccess) {
+          setJavVideoPickerAction('play')
+          setJavVideoPickerItem(item)
+          setJavVideoPickerOpen(true)
+          return
+        }
         playVideos(videos).catch((err) => {
           showCenterToast(getErrorMessage(err))
         })
@@ -367,7 +374,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
         handleOpenPlayer(target)
       }
     },
-    [playVideos, showCenterToast, handleOpenPlayer]
+    [defaultPlayer, remoteAccess, playVideos, showCenterToast, handleOpenPlayer]
   )
 
   const handleJavOpenFile = useCallback(
