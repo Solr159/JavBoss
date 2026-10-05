@@ -13,7 +13,7 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
     <aside
       id="browser-playlist"
       aria-label={zh('播放列表', 'Playlist')}
-      className="flex h-[75vh] w-[38%] max-w-72 shrink-0 flex-col overflow-hidden rounded bg-zinc-100 sm:w-64"
+      className="flex h-full min-h-0 w-[38%] max-w-64 shrink-0 flex-col overflow-hidden rounded bg-zinc-100"
     >
       <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold">
         {zh('播放列表', 'Playlist')} ({items.length})

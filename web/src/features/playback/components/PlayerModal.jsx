@@ -3,6 +3,7 @@ import QueuePlayNextRoundedIcon from '@mui/icons-material/QueuePlayNextRounded'
 import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded'
 import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded'
 import PlaybackPlaylist from '@/features/playback/components/PlaybackPlaylist'
+import usePlayerWindow from '@/features/playback/hooks/usePlayerWindow'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
@@ -39,6 +40,7 @@ export default function PlayerModal({
   showHotkeyHint = true,
   onPlaybackError,
 }) {
+  const playerWindow = usePlayerWindow(Boolean(video))
   const videoContainerRef = useRef(null)
   const onEndedRef = useRef(null)
   const [playlistVisible, setPlaylistVisible] = useState(true)
@@ -332,13 +334,17 @@ export default function PlayerModal({
     <AppModal
       ariaLabel={displayName || zh('视频播放', 'Video playback')}
       backdropColor="rgba(0, 0, 0, 0.7)"
-      className="px-4"
-      contentClassName="relative w-full max-w-6xl rounded-lg bg-white shadow-lg"
+      contentClassName="player-window rounded-lg bg-white shadow-lg"
+      contentProps={{ style: playerWindow.style, ...playerWindow.pointerProps }}
       onClose={onClose}
       zIndex={1700}
     >
-      <div className="flex flex-col gap-1.5 p-2">
-        <header className="flex min-w-0 items-center gap-2">
+      <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
+        <header
+          className="flex min-w-0 shrink-0 cursor-move touch-none select-none items-center gap-2"
+          onPointerDown={playerWindow.onMoveStart}
+          title={zh('拖动标题栏移动播放器', 'Drag the title bar to move the player')}
+        >
           <h2
             className="min-w-0 flex-1 truncate text-xs font-semibold leading-4"
             title={displayName}
@@ -393,7 +399,7 @@ export default function PlayerModal({
             <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>
         </header>
-        <div className="flex min-w-0 gap-2">
+        <div className="flex min-h-0 min-w-0 flex-1 gap-2">
           <div className="player-shell relative min-w-0 flex-1 bg-black">
             {screenshotNotice || hotkeyHintVisible ? (
               <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
@@ -412,14 +418,17 @@ export default function PlayerModal({
               </div>
             ) : null}
             {loadingPlayback || playbackInfo?.video !== video ? (
-              <div className="flex aspect-video items-center justify-center text-sm text-white">
+              <div className="flex h-full items-center justify-center text-sm text-white">
                 {zh('加载播放信息中…', 'Loading playback info...')}
               </div>
             ) : (
               <>
                 <div ref={videoContainerRef} data-vjs-player className="h-full w-full" />
                 {playbackError ? (
-                  <div role="alert" className="px-6 py-4 text-center text-sm text-red-200">
+                  <div
+                    role="alert"
+                    className="absolute inset-x-0 bottom-8 bg-black/75 px-6 py-4 text-center text-sm text-red-200"
+                  >
                     {playbackError}
                   </div>
                 ) : null}
@@ -435,6 +444,15 @@ export default function PlayerModal({
           ) : null}
         </div>
       </div>
+      {['n', 'e', 's', 'w', 'ne', 'se', 'sw', 'nw'].map((direction) => (
+        <div
+          key={direction}
+          aria-hidden="true"
+          data-player-resize={direction}
+          className="player-window-resize"
+          onPointerDown={(event) => playerWindow.onResizeStart(event, direction)}
+        />
+      ))}
     </AppModal>
   )
 }

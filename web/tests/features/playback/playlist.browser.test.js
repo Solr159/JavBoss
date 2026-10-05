@@ -97,7 +97,7 @@ test(
       deviceScaleFactor: 1,
       mobile: false,
     })
-    assert.equal(await evaluate(`${playlist}.getBoundingClientRect().right <= innerWidth`), true)
+    await waitFor(`${playlist}.getBoundingClientRect().right <= innerWidth`)
     const close = async () => {
       await evaluate(`document.querySelector('[role="dialog"] button[aria-label="Close"]').click()`)
       await waitFor(`!${player} && !${playlist}`)
