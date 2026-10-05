@@ -165,7 +165,7 @@ export default function PlayerModal({
     videoElement.setAttribute('playsinline', '')
     videoContainer.appendChild(videoElement)
     const player = videojs(videoElement, {
-      controls: true,
+      controls: false,
       autoplay: false,
       preload: 'auto',
     })
@@ -454,7 +454,7 @@ export default function PlayerModal({
             {loadingPlayback || playbackInfo?.video !== video ? (
               <div
                 data-player-loading
-                className="absolute inset-0 flex items-center justify-center bg-black/75 text-sm text-white"
+                className="absolute inset-0 z-20 flex items-center justify-center bg-black text-sm text-white"
               >
                 {zh('加载播放信息中…', 'Loading playback info...')}
               </div>

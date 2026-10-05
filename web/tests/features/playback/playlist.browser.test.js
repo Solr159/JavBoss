@@ -28,6 +28,7 @@ test(
       window.streamRequests = [];
       window.sessionRequests = [];
       window.screenshotRequests = [];
+      window.holdInitialStreams = true;
       const originalFetch = window.fetch;
       window.fetch = async (input, init = {}) => {
         const url = new URL(input, location.origin);
@@ -38,6 +39,10 @@ test(
         }
         if (url.pathname.endsWith('/streams')) {
           window.streamRequests.push(url.pathname + url.search);
+          if (window.holdInitialStreams) {
+            window.holdInitialStreams = false;
+            await new Promise(resolve => window.finishInitialStreams = resolve);
+          }
           if (window.failStreams) return Response.json({error_en:'Missing media'}, {status:404});
           return Response.json({location_id:Number(url.searchParams.get('location_id')),
             preferred_kind:'direct', sources:[{kind:'direct',src:window.mediaURL,mime_type:'audio/wav'}]});
@@ -69,6 +74,23 @@ test(
     const ready = `!document.querySelector('[data-player-loading]') && ${player}?.readyState() > 0`
     const activeTitle = `${playlist}?.querySelector('[aria-current="true"]')?.title`
     await playMenu('Play page')
+    await waitFor(
+      `window.finishInitialStreams && ${player} && document.querySelector('[data-player-loading]')`
+    )
+    assert.equal(await evaluate(`${player}.controls()`), false)
+    assert.equal(
+      await evaluate(`getComputedStyle(document.querySelector('.vjs-big-play-button')).display`),
+      'none'
+    )
+    assert.equal(
+      await evaluate(`(() => {
+      const loading = document.querySelector('[data-player-loading]');
+      const rect = loading.getBoundingClientRect();
+      return document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2) === loading;
+    })()`),
+      true
+    )
+    await evaluate('window.finishInitialStreams()')
     await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
     assert.deepEqual(await evaluate('window.playlistRequests'), [])
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
