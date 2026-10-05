@@ -50,15 +50,15 @@ export default function BulkActionsMenu({
         <MenuItem disabled={!pageSelectable || busy} onClick={() => runAction(onSelectPage)}>
           {zh('选中本页', 'Select page')}
         </MenuItem>
-        <MenuItem disabled={!hasItems || busy} onClick={() => runAction(onSelectAll)}>
-          {zh('选中全部', 'Select all')}
-        </MenuItem>
         <MenuItem
           disabled={!pageSelectable || !bulkPlaybackEnabled || busy}
           onClick={() => runAction(onPlayPage)}
         >
           <span className="flex-1">{zh('播放本页', 'Play page')}</span>
           <PlayCircleOutlineRoundedIcon sx={{ ml: 2, fontSize: 22 }} />
+        </MenuItem>
+        <MenuItem disabled={!hasItems || busy} onClick={() => runAction(onSelectAll)}>
+          {zh('选中全部', 'Select all')}
         </MenuItem>
         <MenuItem
           disabled={!hasItems || !bulkPlaybackEnabled || busy}
