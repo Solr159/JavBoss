@@ -516,15 +516,28 @@ func playVideoFile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "ok"})
 }
 
+var openSystemPlaylist = util.OpenPlaylist
+
+// playVideoPlaylist accepts ordered items (video_id, optional location_id) and
+// player: "mpv" (default) or "system" (local access, opens an M3U8 playlist).
 func playVideoPlaylist(c *gin.Context) {
 	if runtimeconfig.ContainerMode() {
-		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用 MPV 播放", "MPV playback is disabled")
+		respondLocalizedError(c, http.StatusNotImplemented, "当前部署模式已禁用外部播放器", "External playback is disabled")
 		return
 	}
 
 	var req videoPlaylistRequest
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.Items) == 0 {
 		respondLocalizedError(c, http.StatusBadRequest, "播放列表请求无效", "Invalid playlist request")
+		return
+	}
+
+	if req.Player != "" && req.Player != "mpv" && req.Player != "system" {
+		respondLocalizedError(c, http.StatusBadRequest, "播放器参数无效", "Invalid player")
+		return
+	}
+	if req.Player == "system" && isRemoteRequest(c.Request.RemoteAddr) {
+		respondLocalizedError(c, http.StatusForbidden, "远程访问不支持系统播放器批量播放", "System playlist playback requires local access")
 		return
 	}
 
@@ -588,6 +601,20 @@ func playVideoPlaylist(c *gin.Context) {
 				VideoID:          requested.VideoID,
 			},
 		})
+	}
+
+	if req.Player == "system" {
+		paths := make([]string, len(items))
+		for i, item := range items {
+			paths[i] = item.Path
+		}
+		if err := openSystemPlaylist(paths); err != nil {
+			logging.Error("open system playlist error: %v", err)
+			respondLocalizedError(c, http.StatusInternalServerError, "使用系统播放器打开播放列表失败，请检查 M3U8 文件关联", "Failed to open playlist with the system player; check the M3U8 file association")
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "count": len(items)})
+		return
 	}
 
 	if err := mpv.PlayPlaylist(items); err != nil {
@@ -1269,7 +1296,8 @@ type videoPlaylistItemRequest struct {
 }
 
 type videoPlaylistRequest struct {
-	Items []videoPlaylistItemRequest `json:"items"`
+	Player string                     `json:"player"`
+	Items  []videoPlaylistItemRequest `json:"items"`
 }
 
 func resolveVideoPathFromBody(c *gin.Context) (string, string, error) {

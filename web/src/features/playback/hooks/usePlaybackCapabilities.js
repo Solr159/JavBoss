@@ -56,6 +56,9 @@ export default function usePlaybackCapabilities() {
     desktopIntegrationEnabled,
     mpvEnabled,
     defaultPlayer,
+    bulkPlaybackEnabled:
+      defaultPlayer === 'browser' ||
+      (defaultPlayer === 'mpv' ? mpvEnabled : desktopIntegrationEnabled && !containerMode),
     alternatePlayer,
     alternatePlayerLabel,
   }

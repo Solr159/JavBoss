@@ -9,7 +9,7 @@ import { collectJavVideos, fetchAllJavItems, javBulkQuery } from '@/utils/javSel
 
 export default function useJavSelection({
   items,
-  mpvEnabled,
+  bulkPlaybackEnabled,
   ensurePlayAvailable,
   playVideos,
   showToast,
@@ -137,8 +137,8 @@ export default function useJavSelection({
       if (skipped > 0) {
         showToast(
           zh(
-            `已将 ${videos.length} 个视频加入 MPV 播放列表，跳过 ${skipped} 部无视频的 JAV`,
-            `Added ${videos.length} videos to MPV; skipped ${skipped} JAV items without videos`
+            `已将 ${videos.length} 个视频加入播放列表，跳过 ${skipped} 部无视频的 JAV`,
+            `Added ${videos.length} videos to the playlist; skipped ${skipped} JAV items without videos`
           )
         )
       }
@@ -146,7 +146,7 @@ export default function useJavSelection({
   }
 
   const play = (getItems) => {
-    if (!mpvEnabled) return
+    if (!bulkPlaybackEnabled) return
     if (!ensurePlayAvailable()) return
     return runAction('play', async () => playItems(await getItems()))
   }

@@ -1,13 +1,13 @@
 import { zh } from '@/utils/i18n'
 
-export const MPV_BULK_PLAY_CONFIRM_THRESHOLD = 500
+export const BULK_PLAY_CONFIRM_THRESHOLD = 500
 
-export const confirmLargeMPVPlaylist = (count) => {
-  if (count <= MPV_BULK_PLAY_CONFIRM_THRESHOLD) return true
+export const confirmLargePlaylist = (count) => {
+  if (count <= BULK_PLAY_CONFIRM_THRESHOLD) return true
   return window.confirm(
     zh(
-      `即将使用 MPV 播放 ${count} 个视频。视频数量较多，可能造成 MPV 加载卡顿，是否继续？`,
-      `You are about to play ${count} videos with MPV. A large playlist may cause MPV to load slowly. Continue?`
+      `即将使用默认播放器播放 ${count} 个视频。视频数量较多，可能造成播放器加载卡顿，是否继续？`,
+      `You are about to play ${count} videos with the default player. A large playlist may cause the player to load slowly. Continue?`
     )
   )
 }

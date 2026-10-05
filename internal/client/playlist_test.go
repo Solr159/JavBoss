@@ -107,6 +107,7 @@ func TestPlaylistRejectsInvalidOrUnavailableFilesBeforeLocalPlayback(t *testing.
 		name, body, cookie, origin, method string
 		status                             int
 	}{
+		{"unsupported player", `{"player":"system","items":[{"video_id":42}]}`, "session=x", "", "POST", 400},
 		{"empty", `{"items":[]}`, "session=x", "", "POST", 400},
 		{"invalid ID", `{"items":[{"video_id":0}]}`, "session=x", "", "POST", 400},
 		{"missing login", `{"items":[{"video_id":42}]}`, "", "", "POST", 401},

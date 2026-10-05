@@ -242,7 +242,7 @@ function JavListRoute({
   onPlayPage,
   onPlayAll,
   bulkActionBusy,
-  mpvEnabled,
+  bulkPlaybackEnabled,
   javLastPage,
   javPage,
   javRandomMode,
@@ -302,7 +302,7 @@ function JavListRoute({
       onPlayPage={onPlayPage}
       onPlayAll={onPlayAll}
       bulkActionBusy={bulkActionBusy}
-      mpvEnabled={mpvEnabled}
+      bulkPlaybackEnabled={bulkPlaybackEnabled}
       javGridColumns={javGridColumns}
       javTitleMaxRows={javTitleMaxRows}
       javIdolTagMaxRows={javIdolTagMaxRows}

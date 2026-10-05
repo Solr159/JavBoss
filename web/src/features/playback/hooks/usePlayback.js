@@ -9,7 +9,7 @@ import {
   playVideoPlaylist,
 } from '@/features/video/api'
 import { getErrorMessage } from '@/utils/errors'
-import { confirmLargeMPVPlaylist } from '@/features/playback/model'
+import { confirmLargePlaylist } from '@/features/playback/model'
 import { useStore } from '@/store'
 
 export default function usePlayback({ showCenterToast, showToast }) {
@@ -27,9 +27,24 @@ export default function usePlayback({ showCenterToast, showToast }) {
 
   const [locationPickerAction, setLocationPickerAction] = useState('play')
 
-  const [playerVideo, setPlayerVideo] = useState(null)
-
+  const [playerPlaylist, setPlayerPlaylist] = useState([])
+  const [playerIndex, setPlayerIndex] = useState(0)
   const [playerStartTime, setPlayerStartTime] = useState(0)
+  const playerVideo = playerPlaylist[playerIndex] || null
+  const openBrowserPlaylist = useCallback((items, startTime = 0) => {
+    setPlayerPlaylist(items)
+    setPlayerIndex(0)
+    setPlayerStartTime(startTime)
+  }, [])
+  const closePlayer = useCallback(() => openBrowserPlaylist([]), [openBrowserPlaylist])
+  const selectPlayerVideo = useCallback(
+    (index) => {
+      if (!Number.isInteger(index) || index < 0 || index >= playerPlaylist.length) return
+      setPlayerIndex(index)
+      setPlayerStartTime(0)
+    },
+    [playerPlaylist.length]
+  )
 
   const [screenshotsVideo, setScreenshotsVideo] = useState(null)
 
@@ -54,20 +69,38 @@ export default function usePlayback({ showCenterToast, showToast }) {
     containerMode,
     desktopIntegrationEnabled,
     mpvEnabled,
+    bulkPlaybackEnabled,
     defaultPlayer,
     alternatePlayer,
     alternatePlayerLabel,
   } = usePlaybackCapabilities()
-  const ensureMPVPlaylistAvailable = useCallback(() => {
-    if (!remoteAccess || clientMode) return true
-    showCenterToast(
-      zh(
-        '非本机访问时无法使用 MPV 批量播放，请使用 client 模式',
-        'MPV batch playback is unavailable for remote access. Please use client mode.'
+  const ensurePlaylistAvailable = useCallback(
+    (player = defaultPlayer) => {
+      if (player === 'browser') return true
+      if (
+        (player === 'mpv' && mpvEnabled && (!containerMode || clientMode)) ||
+        (player === 'system' && desktopIntegrationEnabled && !containerMode)
+      ) {
+        if (!remoteAccess || clientMode) return true
+      }
+      showCenterToast(
+        zh(
+          '当前环境无法使用所选播放器批量播放，请使用浏览器播放器或 client 模式',
+          'Batch playback with this player is unavailable here. Use browser playback or client mode.'
+        )
       )
-    )
-    return false
-  }, [remoteAccess, clientMode, showCenterToast])
+      return false
+    },
+    [
+      defaultPlayer,
+      mpvEnabled,
+      containerMode,
+      desktopIntegrationEnabled,
+      remoteAccess,
+      clientMode,
+      showCenterToast,
+    ]
+  )
 
   const ensureOpenFileAvailable = useCallback(() => {
     if (canOpenAlternatePlayer({ containerMode, clientMode, alternatePlayer })) return true
@@ -157,8 +190,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
     (video, player) => {
       if (!video) return
       if (player === 'browser') {
-        setPlayerStartTime(0)
-        setPlayerVideo(video)
+        openBrowserPlaylist([video])
         return
       }
       const payload = {
@@ -179,7 +211,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
         showCenterToast(getErrorMessage(err))
       })
     },
-    [getVideoDirPath, getVideoRelPath, showCenterToast]
+    [getVideoDirPath, getVideoRelPath, showCenterToast, openBrowserPlaylist]
   )
 
   const revealVideoFile = useCallback(
@@ -198,8 +230,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
     (video, startTime) => {
       if (!video) return
       if (browserPlaybackOnly || defaultPlayer === 'browser') {
-        setPlayerStartTime(startTime || 0)
-        setPlayerVideo(video)
+        openBrowserPlaylist([video], startTime || 0)
         return
       }
       playVideoFile({
@@ -213,7 +244,14 @@ export default function usePlayback({ showCenterToast, showToast }) {
         showCenterToast(getErrorMessage(err))
       })
     },
-    [browserPlaybackOnly, defaultPlayer, getVideoDirPath, getVideoRelPath, showCenterToast]
+    [
+      browserPlaybackOnly,
+      defaultPlayer,
+      getVideoDirPath,
+      getVideoRelPath,
+      showCenterToast,
+      openBrowserPlaylist,
+    ]
   )
 
   const handleOpenPlayer = useCallback(
@@ -276,9 +314,9 @@ export default function usePlayback({ showCenterToast, showToast }) {
     setJavVideoPickerAction('play')
   }, [])
 
-  const playVideosWithMPV = useCallback(
-    async (items) => {
-      if (!ensureMPVPlaylistAvailable()) return
+  const playVideos = useCallback(
+    async (items, player = defaultPlayer) => {
+      if (!ensurePlaylistAvailable(player)) return
       const list = Array.isArray(items) ? items : []
       const targets = list
         .map((video) => {
@@ -301,31 +339,27 @@ export default function usePlayback({ showCenterToast, showToast }) {
         )
         return
       }
-      if (!confirmLargeMPVPlaylist(targets.length)) return
+      if (!confirmLargePlaylist(targets.length)) return
 
-      const result = await playVideoPlaylist(targets)
+      if (player === 'browser') {
+        openBrowserPlaylist(list)
+        return true
+      }
+      const result = await playVideoPlaylist(targets, player)
       const count = Number(result?.count) || targets.length
-      showToast(
-        zh(`已将 ${count} 个视频加入 MPV 播放列表`, `Added ${count} videos to the MPV playlist`)
-      )
+      showToast(zh(`已将 ${count} 个视频加入播放列表`, `Added ${count} videos to the playlist`))
       return true
     },
-    [ensureMPVPlaylistAvailable, showCenterToast, showToast]
+    [defaultPlayer, ensurePlaylistAvailable, openBrowserPlaylist, showCenterToast, showToast]
   )
 
   const handleJavPlay = useCallback(
     (video, item) => {
       const videos = item?.videos || []
       if (videos.length > 1) {
-        if (defaultPlayer === 'mpv') {
-          playVideosWithMPV(videos).catch((err) => {
-            showCenterToast(getErrorMessage(err))
-          })
-          return
-        }
-        setJavVideoPickerAction('play')
-        setJavVideoPickerItem(item)
-        setJavVideoPickerOpen(true)
+        playVideos(videos).catch((err) => {
+          showCenterToast(getErrorMessage(err))
+        })
         return
       }
       const target = video || videos[0]
@@ -333,7 +367,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
         handleOpenPlayer(target)
       }
     },
-    [defaultPlayer, playVideosWithMPV, showCenterToast, handleOpenPlayer]
+    [playVideos, showCenterToast, handleOpenPlayer]
   )
 
   const handleJavOpenFile = useCallback(
@@ -342,7 +376,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
       const videos = item?.videos || (video ? [video] : [])
       if (videos.length > 1) {
         if (alternatePlayer === 'mpv') {
-          playVideosWithMPV(videos).catch((err) => {
+          playVideos(videos, 'mpv').catch((err) => {
             showCenterToast(getErrorMessage(err))
           })
           return
@@ -359,7 +393,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
     [
       ensureOpenFileAvailable,
       alternatePlayer,
-      playVideosWithMPV,
+      playVideos,
       showCenterToast,
       handleOpenAlternatePlayer,
       isVideoOpenable,
@@ -578,9 +612,11 @@ export default function usePlayback({ showCenterToast, showToast }) {
     locationPickerChoices,
     locationPickerAction,
     playerVideo,
-    setPlayerVideo,
+    playerPlaylist,
+    playerIndex,
+    selectPlayerVideo,
+    closePlayer,
     playerStartTime,
-    setPlayerStartTime,
     screenshotsVideo,
     setScreenshotsVideo,
     screenshotsAllowSetCover,
@@ -589,11 +625,11 @@ export default function usePlayback({ showCenterToast, showToast }) {
     browserPlaybackOnly,
     containerMode,
     desktopIntegrationEnabled,
-    mpvEnabled,
+    bulkPlaybackEnabled,
     defaultPlayer,
     alternatePlayer,
     alternatePlayerLabel,
-    ensureMPVPlaylistAvailable,
+    ensurePlaylistAvailable,
     isVideoOpenable,
     closeLocationPicker,
     playVideoFromTime,
@@ -601,7 +637,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
     handleOpenAlternatePlayer,
     handleRevealVideoFile,
     closeJavVideoPicker,
-    playVideosWithMPV,
+    playVideos,
     handleJavPlay,
     handleJavOpenFile,
     handleJavRevealFile,

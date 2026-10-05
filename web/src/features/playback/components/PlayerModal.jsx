@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import QueuePlayNextRoundedIcon from '@mui/icons-material/QueuePlayNextRounded'
+import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded'
+import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded'
+import PlaybackPlaylist from '@/features/playback/components/PlaybackPlaylist'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import videojs from 'video.js'
 import 'video.js/dist/video-js.css'
@@ -26,6 +30,9 @@ function formatSignedAmount(amount) {
 
 export default function PlayerModal({
   video,
+  playlist = [],
+  currentIndex = 0,
+  onSelectVideo,
   startTime = 0,
   onClose,
   hotkeys = null,
@@ -33,7 +40,8 @@ export default function PlayerModal({
   onPlaybackError,
 }) {
   const videoContainerRef = useRef(null)
-  const playerRef = useRef(null)
+  const onEndedRef = useRef(null)
+  const [playlistVisible, setPlaylistVisible] = useState(true)
   const onCloseRef = useRef(onClose)
   const onPlaybackErrorRef = useRef(onPlaybackError)
   const hotkeyMapRef = useRef(new Map())
@@ -68,8 +76,15 @@ export default function PlayerModal({
     return lines
   }, [normalizedHotkeys])
   const selectedSource = useMemo(() => {
+    if (playbackInfo?.video !== video) return null
     return selectPlaybackSource(playbackInfo, document.createElement('video'))
-  }, [playbackInfo])
+  }, [playbackInfo, video])
+
+  useEffect(() => {
+    onEndedRef.current = () => {
+      if (currentIndex + 1 < playlist.length) onSelectVideo?.(currentIndex + 1)
+    }
+  }, [currentIndex, playlist.length, onSelectVideo])
 
   useEffect(() => {
     setHotkeyHintVisible(false)
@@ -116,12 +131,13 @@ export default function PlayerModal({
     fetchPlaybackInfo(video.id, { locationId: video.location_id })
       .then((info) => {
         if (cancelled) return
-        setPlaybackInfo(info)
+        setPlaybackInfo({ ...info, video })
       })
       .catch((err) => {
         if (cancelled) return
         const message = getErrorMessage(err)
         setPlaybackError(message)
+        setPlaybackInfo({ video, sources: [] })
         onPlaybackErrorRef.current?.(message)
       })
       .finally(() => {
@@ -147,8 +163,6 @@ export default function PlayerModal({
       autoplay: true,
       preload: 'auto',
     })
-
-    playerRef.current = player
 
     const playerEl = player.el()
     const savedVolume = (() => {
@@ -296,6 +310,8 @@ export default function PlayerModal({
     player.ready(focusPlayer)
     player.on('fullscreenchange', focusPlayer)
     player.on('volumechange', handleVolumeChange)
+    const handleEnded = () => onEndedRef.current?.()
+    player.on('ended', handleEnded)
 
     return () => {
       stopWatchTracking()
@@ -303,8 +319,8 @@ export default function PlayerModal({
       window.removeEventListener('keydown', handleKeyDown, true)
       player.off('fullscreenchange', focusPlayer)
       player.off('volumechange', handleVolumeChange)
+      player.off('ended', handleEnded)
       player.dispose()
-      playerRef.current = null
     }
   }, [video, startTime, selectedSource, playbackInfo, loadingPlayback])
 
@@ -329,6 +345,44 @@ export default function PlayerModal({
           >
             {displayName}
           </h2>
+          {playlist.length > 1 ? (
+            <>
+              <button
+                type="button"
+                aria-label={zh('上一个视频', 'Previous video')}
+                title={zh('上一个视频', 'Previous video')}
+                disabled={currentIndex === 0}
+                onClick={() => onSelectVideo?.(currentIndex - 1)}
+                className="rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+              >
+                <SkipPreviousRoundedIcon fontSize="small" />
+              </button>
+              <span className="shrink-0 text-xs text-zinc-500">
+                {currentIndex + 1} / {playlist.length}
+              </span>
+              <button
+                type="button"
+                aria-label={zh('下一个视频', 'Next video')}
+                title={zh('下一个视频', 'Next video')}
+                disabled={currentIndex === playlist.length - 1}
+                onClick={() => onSelectVideo?.(currentIndex + 1)}
+                className="rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+              >
+                <SkipNextRoundedIcon fontSize="small" />
+              </button>
+              <button
+                type="button"
+                aria-label={zh('播放列表', 'Playlist')}
+                title={zh('播放列表', 'Playlist')}
+                aria-expanded={playlistVisible}
+                aria-controls="browser-playlist"
+                onClick={() => setPlaylistVisible((visible) => !visible)}
+                className="rounded text-zinc-600 hover:bg-zinc-100"
+              >
+                <QueuePlayNextRoundedIcon fontSize="small" />
+              </button>
+            </>
+          ) : null}
           <button
             type="button"
             aria-label={zh('关闭', 'Close')}
@@ -339,37 +393,46 @@ export default function PlayerModal({
             <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>
         </header>
-        <div className="player-shell relative w-full bg-black">
-          {screenshotNotice || hotkeyHintVisible ? (
-            <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
-              {screenshotNotice ? (
-                <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
-                  {zh('截图成功', 'Screenshot saved')}
-                </div>
-              ) : null}
-              {hotkeyHintVisible ? (
-                <div className="max-h-[calc(100vh-12rem)] overflow-hidden rounded bg-black/75 px-3 py-2 text-xs leading-5 text-white shadow">
-                  {hotkeyHintLines.map((line, index) => (
-                    <div key={`${index}-${line}`}>{line}</div>
-                  ))}
-                </div>
-              ) : null}
-            </div>
+        <div className="flex min-w-0 gap-2">
+          <div className="player-shell relative min-w-0 flex-1 bg-black">
+            {screenshotNotice || hotkeyHintVisible ? (
+              <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
+                {screenshotNotice ? (
+                  <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
+                    {zh('截图成功', 'Screenshot saved')}
+                  </div>
+                ) : null}
+                {hotkeyHintVisible ? (
+                  <div className="max-h-[calc(100vh-12rem)] overflow-hidden rounded bg-black/75 px-3 py-2 text-xs leading-5 text-white shadow">
+                    {hotkeyHintLines.map((line, index) => (
+                      <div key={`${index}-${line}`}>{line}</div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            {loadingPlayback || playbackInfo?.video !== video ? (
+              <div className="flex aspect-video items-center justify-center text-sm text-white">
+                {zh('加载播放信息中…', 'Loading playback info...')}
+              </div>
+            ) : (
+              <>
+                <div ref={videoContainerRef} data-vjs-player className="h-full w-full" />
+                {playbackError ? (
+                  <div role="alert" className="px-6 py-4 text-center text-sm text-red-200">
+                    {playbackError}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+          {playlist.length > 1 && playlistVisible ? (
+            <PlaybackPlaylist
+              items={playlist}
+              currentIndex={currentIndex}
+              onSelect={onSelectVideo}
+            />
           ) : null}
-          {loadingPlayback ? (
-            <div className="flex aspect-video items-center justify-center text-sm text-white">
-              {zh('加载播放信息中…', 'Loading playback info...')}
-            </div>
-          ) : (
-            <>
-              <div ref={videoContainerRef} data-vjs-player className="h-full w-full" />
-              {playbackError ? (
-                <div role="alert" className="px-6 py-4 text-center text-sm text-red-200">
-                  {playbackError}
-                </div>
-              ) : null}
-            </>
-          )}
         </div>
       </div>
     </AppModal>

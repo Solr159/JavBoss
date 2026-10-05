@@ -8,7 +8,7 @@ export default function BulkActionsMenu({
   hasItems,
   pageSelectable,
   busy,
-  mpvEnabled,
+  bulkPlaybackEnabled,
   onSelectAll,
   onSelectPage,
   onPlayPage,
@@ -53,13 +53,16 @@ export default function BulkActionsMenu({
           {zh('全选本页', 'Select page')}
         </MenuItem>
         <MenuItem
-          disabled={!pageSelectable || !mpvEnabled || busy}
+          disabled={!pageSelectable || !bulkPlaybackEnabled || busy}
           onClick={() => runAction(onPlayPage)}
         >
-          {zh('使用 MPV 播放本页', 'Play page with MPV')}
+          {zh('使用默认播放器播放本页', 'Play page with default player')}
         </MenuItem>
-        <MenuItem disabled={!hasItems || !mpvEnabled || busy} onClick={() => runAction(onPlayAll)}>
-          {zh('使用 MPV 播放全部', 'Play all with MPV')}
+        <MenuItem
+          disabled={!hasItems || !bulkPlaybackEnabled || busy}
+          onClick={() => runAction(onPlayAll)}
+        >
+          {zh('使用默认播放器播放全部', 'Play all with default player')}
         </MenuItem>
       </Menu>
     </>

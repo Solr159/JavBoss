@@ -15,7 +15,7 @@ export default function VideoRoute({
   handlePlayAllVideos,
   videoBulkActionBusy,
   selectionPlaying,
-  mpvEnabled,
+  bulkPlaybackEnabled,
   handleOpenPlayer,
   containerMode,
   alternatePlayer,
@@ -112,7 +112,7 @@ export default function VideoRoute({
       onPlayPage={handlePlayVideoPage}
       onPlayAll={handlePlayAllVideos}
       bulkActionBusy={videoBulkActionBusy || selectionPlaying}
-      mpvEnabled={mpvEnabled}
+      bulkPlaybackEnabled={bulkPlaybackEnabled}
       openPlayer={handleOpenPlayer}
       openAlternatePlayer={containerMode || alternatePlayer ? handleOpenAlternatePlayer : null}
       revealFile={containerMode || desktopIntegrationEnabled ? handleRevealVideoFile : null}

@@ -593,3 +593,76 @@ func TestReadVideoScreenshotInfosMissingDirectory(t *testing.T) {
 		t.Fatalf("expected a non-nil empty screenshot list, got %#v", items)
 	}
 }
+
+func TestSystemPlaylistResolvesSelectedLocationsBeforeOpening(t *testing.T) {
+	t.Setenv("JAVBOSS_CONTAINER", "false")
+	dirPath := t.TempDir()
+	database, err := dbpkg.Open(filepath.Join(dirPath, "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousDB, previousOpen := common.DB, openSystemPlaylist
+	common.DB = database
+	t.Cleanup(func() {
+		common.DB, openSystemPlaylist = previousDB, previousOpen
+		if sqlDB, err := database.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	})
+	dir := models.Directory{Path: dirPath}
+	video := models.Video{Fingerprint: "playlist-video"}
+	if err := database.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Create(&video).Error; err != nil {
+		t.Fatal(err)
+	}
+	locations := make([]int64, 0, 2)
+	for _, name := range []string{"first.mp4", "second.mp4"} {
+		if err := os.WriteFile(filepath.Join(dirPath, name), []byte("video"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		location, err := dbpkg.UpsertVideoLocation(context.Background(), video.ID, dir.ID, name, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		locations = append(locations, location.ID)
+	}
+	var opened []string
+	openSystemPlaylist = func(paths []string) error { opened = paths; return nil }
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/videos/playlist", playVideoPlaylist)
+	for _, tc := range []struct {
+		name, player, remote string
+		location             int64
+		status               int
+	}{
+		{"ordered copies", "system", "127.0.0.1:1234", locations[0], 200},
+		{"missing location", "system", "127.0.0.1:1234", 99999, 404},
+		{"unknown player", "browser", "127.0.0.1:1234", locations[0], 400},
+		{"remote system player", "system", "192.168.1.25:1234", locations[0], 403},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opened = nil
+			body, _ := json.Marshal(videoPlaylistRequest{Player: tc.player, Items: []videoPlaylistItemRequest{
+				{VideoID: video.ID, LocationID: locations[1]},
+				{VideoID: video.ID, LocationID: tc.location},
+			}})
+			req := httptest.NewRequest(http.MethodPost, "/videos/playlist", strings.NewReader(string(body)))
+			req.RemoteAddr = tc.remote
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+			if w.Code != tc.status {
+				t.Fatalf("status %d, want %d: %s", w.Code, tc.status, w.Body.String())
+			}
+			if tc.status == 200 {
+				if len(opened) != 2 || opened[0] != filepath.Join(dirPath, "second.mp4") || opened[1] != filepath.Join(dirPath, "first.mp4") {
+					t.Fatalf("wrong locations/order: %v", opened)
+				}
+			} else if opened != nil {
+				t.Fatalf("invalid playlist opened: %v", opened)
+			}
+		})
+	}
+}

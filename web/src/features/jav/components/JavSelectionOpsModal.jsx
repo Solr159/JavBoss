@@ -13,7 +13,7 @@ export default function JavSelectionOpsModal({
   onOpenTags,
   onOpenFavorites,
   onPlaySelected,
-  mpvEnabled = true,
+  bulkPlaybackEnabled = true,
   playing = false,
   busy = false,
 }) {
@@ -90,10 +90,12 @@ export default function JavSelectionOpsModal({
           variant="contained"
           size="small"
           onClick={onPlaySelected}
-          disabled={list.length === 0 || !mpvEnabled || disabled}
+          disabled={list.length === 0 || !bulkPlaybackEnabled || disabled}
           startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
         >
-          {playing ? zh('正在播放…', 'Playing...') : zh('使用 MPV 播放全部', 'Play all with MPV')}
+          {playing
+            ? zh('正在播放…', 'Playing...')
+            : zh('使用默认播放器播放全部', 'Play all with default player')}
         </Button>
       </div>
     </AppModal>

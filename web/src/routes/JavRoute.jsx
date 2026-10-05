@@ -19,7 +19,7 @@ export default function JavRoute({
   handleSelectJavPrefix,
   handleOpenFavoriteModal,
   javSelection,
-  mpvEnabled,
+  bulkPlaybackEnabled,
   javCardActions,
 }) {
   const {
@@ -339,7 +339,7 @@ export default function JavRoute({
         onPlayPage: javSelection.playPage,
         onPlayAll: javSelection.playAll,
         bulkActionBusy: javSelection.busy,
-        mpvEnabled,
+        bulkPlaybackEnabled,
         ...javCardActions,
         waterfallMode: waterfallModes.jav,
         onWaterfallModeChange: (enabled) => setWaterfallMode('jav', enabled),

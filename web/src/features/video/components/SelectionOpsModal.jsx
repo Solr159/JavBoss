@@ -17,7 +17,7 @@ export default function SelectionOpsModal({
   onRemoveSelected,
   onPlaySelected,
   onDeleteSelected,
-  mpvEnabled = true,
+  bulkPlaybackEnabled = true,
   playing = false,
   deleting = false,
 }) {
@@ -109,10 +109,12 @@ export default function SelectionOpsModal({
             variant="contained"
             size="small"
             onClick={onPlaySelected}
-            disabled={count === 0 || !mpvEnabled || busy}
+            disabled={count === 0 || !bulkPlaybackEnabled || busy}
             startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
           >
-            {playing ? zh('正在播放…', 'Playing...') : zh('使用 MPV 播放全部', 'Play all with MPV')}
+            {playing
+              ? zh('正在播放…', 'Playing...')
+              : zh('使用默认播放器播放全部', 'Play all with default player')}
           </Button>
           <Button
             variant="contained"

@@ -21,13 +21,19 @@ func (c *Client) handlePlaylist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var request struct {
-		Items []playRequest `json:"items"`
+		Player string        `json:"player"`
+		Items  []playRequest `json:"items"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxClientRequestBody))
 	if err := decoder.Decode(&request); err != nil || len(request.Items) == 0 {
 		respondJSONError(w, http.StatusBadRequest, "播放列表请求无效", "Invalid playlist request")
 		return
 	}
+	if request.Player != "" && request.Player != "mpv" {
+		respondJSONError(w, http.StatusBadRequest, "Client 模式仅支持 MPV 外部播放列表", "Client mode only supports MPV external playlists")
+		return
+	}
+
 	cookie := r.Header.Get("Cookie")
 	if cookie == "" {
 		respondJSONError(w, http.StatusUnauthorized, "远端登录状态不存在，请重新登录", "Remote authentication is missing; please sign in again")
