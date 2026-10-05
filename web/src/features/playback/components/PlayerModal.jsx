@@ -354,6 +354,15 @@ export default function PlayerModal({
       player.autoplay(false)
       player.pause()
       player.controls(false)
+      // Unload the old source and its handler even if the next info request fails.
+      // reset() keeps the player/fullscreen container but resets audio and rate settings.
+      const volume = player.volume()
+      const muted = player.muted()
+      const playbackRate = player.playbackRate()
+      player.reset()
+      player.volume(volume)
+      player.muted(muted)
+      player.playbackRate(playbackRate)
     }
     stopSourceRef.current = stop
     return stop

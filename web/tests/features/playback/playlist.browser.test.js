@@ -73,11 +73,23 @@ test(
     const player = `document.querySelector('.video-js')?.player`
     const ready = `!document.querySelector('[data-player-loading]') && ${player}?.readyState() > 0`
     const activeTitle = `${playlist}?.querySelector('[aria-current="true"]')?.title`
+    const assertInactivePlayer = async () => {
+      assert.deepEqual(
+        await evaluate(`({
+          source: ${player}.currentSrc(),
+          mediaSource: document.querySelector('.vjs-tech').currentSrc,
+          paused: ${player}.paused(),
+          controls: ${player}.controls(),
+          controlBarDisplay: getComputedStyle(document.querySelector('.vjs-control-bar')).display,
+        })`),
+        { source: '', mediaSource: '', paused: true, controls: false, controlBarDisplay: 'none' }
+      )
+    }
     await playMenu('Play page')
     await waitFor(
       `window.finishInitialStreams && ${player} && document.querySelector('[data-player-loading]')`
     )
-    assert.equal(await evaluate(`${player}.controls()`), false)
+    await assertInactivePlayer()
     assert.equal(
       await evaluate(`getComputedStyle(document.querySelector('.vjs-big-play-button')).display`),
       'none'
@@ -199,7 +211,7 @@ test(
       ${playlist}.querySelectorAll('button')[0].click();
     }`)
     await waitFor('window.finishOldStreams && document.querySelector("[data-player-loading]")')
-    assert.equal(await evaluate(`${player}.paused()`), true)
+    await assertInactivePlayer()
     assert.equal(await evaluate(`${player} === window.previousPlayer`), true)
     const screenshotCount = await evaluate('window.screenshotRequests.length')
     await evaluate(
@@ -217,6 +229,25 @@ test(
     assert.equal(
       await evaluate("window.sessionRequests.filter(request=>request.method === 'POST').length"),
       sessionCount
+    )
+    // A failed switch must unload the previous video, not leave it playable under a new title.
+    await evaluate(`window.failStreams = true; ${playlist}.querySelectorAll('button')[2].click()`)
+    await waitFor(
+      `${activeTitle} === 'third.mp4' && document.querySelector('[role="alert"]')?.textContent === 'Missing media'`
+    )
+    await assertInactivePlayer()
+    await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:' '}))`)
+    assert.equal(await evaluate(`${player}.paused()`), true)
+    assert.equal(
+      await evaluate("window.sessionRequests.filter(request=>request.method === 'POST').length"),
+      sessionCount
+    )
+    await evaluate(`window.failStreams = false; ${playlist}.querySelectorAll('button')[1].click()`)
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
+    assert.equal(await evaluate(`${player} === window.previousPlayer`), true)
+    assert.equal(
+      await evaluate(`getComputedStyle(document.querySelector('.vjs-control-bar')).display`),
+      'flex'
     )
     await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
     await waitFor(`!${playlist}`)

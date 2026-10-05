@@ -1105,7 +1105,7 @@ body.has-page-scroll .sticky-pagination {
   height: 100%;
 }
 
-.player-shell .vjs-control-bar {
+.player-shell .video-js:not(.vjs-controls-disabled) .vjs-control-bar {
   transform: translateY(100%);
   opacity: 1 !important;
   visibility: visible !important;
