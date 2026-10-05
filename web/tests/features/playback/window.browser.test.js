@@ -20,7 +20,10 @@ test(
     const open = async () => {
       await waitFor(`document.querySelector('#root > button')`)
       await evaluate(`document.querySelector('#root > button').click()`)
-      await waitFor(`document.querySelector('.player-window')`)
+      await waitFor(`document.querySelector('.video-js')?.player`)
+      await evaluate(
+        `new Promise(resolve => document.querySelector('.video-js').player.ready(resolve))`
+      )
     }
     const box = () =>
       evaluate(`(() => {

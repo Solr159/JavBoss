@@ -26,6 +26,8 @@ test(
       ];
       window.playlistRequests = [];
       window.streamRequests = [];
+      window.sessionRequests = [];
+      window.screenshotRequests = [];
       const originalFetch = window.fetch;
       window.fetch = async (input, init = {}) => {
         const url = new URL(input, location.origin);
@@ -40,7 +42,15 @@ test(
           return Response.json({location_id:Number(url.searchParams.get('location_id')),
             preferred_kind:'direct', sources:[{kind:'direct',src:window.mediaURL,mime_type:'audio/wav'}]});
         }
-        if (url.pathname.includes('/playback-sessions')) return Response.json({session_id:'test-session'});
+        if (url.pathname.includes('/playback-sessions')) {
+          window.sessionRequests.push({url:url.pathname, method:init.method, body:JSON.parse(init.body)});
+          return Response.json({session_id:'session-' + window.sessionRequests.length});
+        }
+        if (url.pathname.endsWith('/screenshots') && init.method === 'POST') {
+          window.screenshotRequests.push(url.pathname + url.search);
+          if (window.delayScreenshot) return new Promise(resolve => window.finishScreenshot = () => resolve(Response.json({})));
+          return Response.json({});
+        }
         return originalFetch(input, init);
       };
       window.testStore.setState(state => ({config:{...state.config, default_player:'browser', mpv_enabled:'false', runtime_remote_request:'true', runtime_container:'true'}}));
@@ -56,9 +66,10 @@ test(
     }
     const playlist = `document.querySelector('#browser-playlist')`
     const player = `document.querySelector('.video-js')?.player`
+    const ready = `!document.querySelector('[data-player-loading]') && ${player}?.readyState() > 0`
     const activeTitle = `${playlist}?.querySelector('[aria-current="true"]')?.title`
     await playMenu('Play page')
-    await waitFor(`${activeTitle} === 'first.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
     assert.deepEqual(await evaluate('window.playlistRequests'), [])
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
     assert.equal(
@@ -71,14 +82,80 @@ test(
       ),
       true
     )
+    await evaluate(`window.previousPlayer = ${player}; window.previousContainer = document.querySelector('[data-vjs-player]');
+      ${player}.volume(0.6); ${player}.muted(true); ${player}.playbackRate(1.5)`)
+    const fullscreen = await command('Runtime.evaluate', {
+      expression: "document.querySelector('.video-js').requestFullscreen()",
+      userGesture: true,
+      awaitPromise: true,
+      returnByValue: true,
+    })
+    assert.ok(!fullscreen.result?.exceptionDetails, JSON.stringify(fullscreen))
+    await waitFor('document.fullscreenElement')
+    const assertPlayerState = async () => {
+      assert.deepEqual(
+        await evaluate(`({
+        samePlayer: window.previousPlayer === ${player},
+        sameContainer: window.previousContainer === document.querySelector('[data-vjs-player]'),
+        disposed: window.previousPlayer.isDisposed(),
+        fullscreen: document.fullscreenElement === ${player}.el(),
+        muted: ${player}.muted(), volume: ${player}.volume(), rate: ${player}.playbackRate(),
+      })`),
+        {
+          samePlayer: true,
+          sameContainer: true,
+          disposed: false,
+          fullscreen: true,
+          muted: true,
+          volume: 0.6,
+          rate: 1.5,
+        }
+      )
+    }
+    // A screenshot response from the previous item must not show a success notice here.
     await evaluate(
-      `window.previousPlayer = ${player}; ${playlist}.querySelectorAll('button')[1].click()`
+      `window.delayScreenshot = true; window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`
     )
-    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${player}`)
-    assert.equal(await evaluate('window.previousPlayer.isDisposed()'), true)
+    await waitFor('window.finishScreenshot')
+    await evaluate(`${playlist}.querySelectorAll('button')[1].click()`)
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
+    await assertPlayerState()
+    await evaluate(`window.finishScreenshot(); window.delayScreenshot = false`)
+    assert.equal(
+      await evaluate(
+        `document.querySelector('.player-shell').textContent.includes('Screenshot saved')`
+      ),
+      false
+    )
+    assert.deepEqual(await evaluate('window.screenshotRequests'), [
+      '/videos/1/screenshots?location_id=11',
+    ])
     assert.equal(await evaluate('window.streamRequests.at(-1)'), '/videos/1/streams?location_id=12')
-    await evaluate(`${player}.trigger('ended')`)
-    await waitFor(`${activeTitle} === 'third.mp4' && ${player}`)
+    await evaluate(`${player}.currentTime(${player}.duration() - 0.05); ${player}.play(); void 0`)
+    await waitFor(`${activeTitle} === 'third.mp4' && ${ready}`)
+    await assertPlayerState()
+    await evaluate('document.exitFullscreen()')
+    await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`)
+    await waitFor('window.screenshotRequests.length === 2')
+    assert.equal(
+      await evaluate('window.screenshotRequests.at(-1)'),
+      '/videos/2/screenshots?location_id=13'
+    )
+    assert.deepEqual(
+      await evaluate(
+        `window.sessionRequests.filter(request=>request.method === 'POST').map(request=>[request.url,request.body.location_id])`
+      ),
+      [
+        ['/videos/1/playback-sessions', 11],
+        ['/videos/1/playback-sessions', 12],
+        ['/videos/2/playback-sessions', 13],
+      ]
+    )
+    assert.ok(
+      await evaluate(
+        `window.sessionRequests.some(request=>request.method === 'PUT' && request.url.startsWith('/videos/1/playback-sessions/') && request.body.watched_ms > 0)`
+      )
+    )
     assert.equal(
       await evaluate(`document.querySelector('[aria-label="Next video"]').disabled`),
       true
@@ -86,7 +163,39 @@ test(
     await evaluate(`${player}.trigger('ended')`)
     assert.equal(await evaluate(activeTitle), 'third.mp4')
     await evaluate(`document.querySelector('[aria-label="Previous video"]').click()`)
-    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
+    await evaluate(`{
+      const previousFetch = window.fetch;
+      window.holdOldStreams = true;
+      window.fetch = (input, init) => {
+        if (window.holdOldStreams && String(input).includes('/videos/1/streams?location_id=11')) {
+          window.holdOldStreams = false;
+          return new Promise(resolve => window.finishOldStreams = () => previousFetch(input, init).then(resolve));
+        }
+        return previousFetch(input, init);
+      };
+      ${playlist}.querySelectorAll('button')[0].click();
+    }`)
+    await waitFor('window.finishOldStreams && document.querySelector("[data-player-loading]")')
+    assert.equal(await evaluate(`${player}.paused()`), true)
+    assert.equal(await evaluate(`${player} === window.previousPlayer`), true)
+    const screenshotCount = await evaluate('window.screenshotRequests.length')
+    await evaluate(
+      `window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'})); window.dispatchEvent(new KeyboardEvent('keydown', {key:' '}))`
+    )
+    assert.equal(await evaluate('window.screenshotRequests.length'), screenshotCount)
+    assert.equal(await evaluate(`${player}.paused()`), true)
+    await evaluate(`${playlist}.querySelectorAll('button')[1].click()`)
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
+    const sessionCount = await evaluate(
+      "window.sessionRequests.filter(request=>request.method === 'POST').length"
+    )
+    await evaluate('window.finishOldStreams()')
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
+    assert.equal(
+      await evaluate("window.sessionRequests.filter(request=>request.method === 'POST').length"),
+      sessionCount
+    )
     await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
     await waitFor(`!${playlist}`)
     await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
@@ -101,6 +210,7 @@ test(
     const close = async () => {
       await evaluate(`document.querySelector('[role="dialog"] button[aria-label="Close"]').click()`)
       await waitFor(`!${player} && !${playlist}`)
+      assert.equal(await evaluate('window.previousPlayer.isDisposed()'), true)
     }
     await close()
     await command('Emulation.clearDeviceMetricsOverride')
@@ -118,7 +228,7 @@ test(
     await evaluate(
       `[...document.querySelectorAll('[aria-label="Selected Files"] button')].find(el => el.textContent === 'Play all').click()`
     )
-    await waitFor(`${activeTitle} === 'off-page.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'off-page.mp4' && ${ready}`)
     assert.equal(await evaluate('window.streamRequests.at(-1)'), '/videos/9/streams?location_id=99')
     await close()
 
@@ -131,7 +241,7 @@ test(
     await evaluate(
       `window.failStreams = false; document.querySelector('[aria-label="Next video"]').click()`
     )
-    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
     await close()
 
     for (const defaultPlayer of ['mpv', 'system']) {
@@ -164,13 +274,13 @@ test(
     const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all')`
     await waitFor(javPlayAll)
     await evaluate(`${javPlayAll}.click()`)
-    await waitFor(`${activeTitle} === 'first.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
     assert.equal(await evaluate('window.playlistRequests.length'), 2)
     await close()
     // Clicking a multipart JAV now starts the whole browser playlist too.
     await evaluate(`document.querySelector('.jav-card button[aria-label="Play"]').click()`)
-    await waitFor(`${activeTitle} === 'first.mp4' && ${player}`)
+    await waitFor(`${activeTitle} === 'first.mp4' && ${ready}`)
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
     await close()
     assert.deepEqual(await evaluate('window.appErrors'), [])

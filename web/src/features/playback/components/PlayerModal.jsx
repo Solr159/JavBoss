@@ -40,8 +40,12 @@ export default function PlayerModal({
   showHotkeyHint = true,
   onPlaybackError,
 }) {
-  const playerWindow = usePlayerWindow(Boolean(video))
-  const videoContainerRef = useRef(null)
+  const isOpen = Boolean(video)
+  const playerWindow = usePlayerWindow(isOpen)
+  const [player, setPlayer] = useState(null)
+  const activePlaybackRef = useRef(null)
+  const stopSourceRef = useRef(null)
+  const [videoContainer, setVideoContainer] = useState(null)
   const onEndedRef = useRef(null)
   const [playlistVisible, setPlaylistVisible] = useState(true)
   const onCloseRef = useRef(onClose)
@@ -153,19 +157,20 @@ export default function PlayerModal({
   }, [video])
 
   useEffect(() => {
-    if (loadingPlayback || !video || !videoContainerRef.current || !selectedSource?.src) return
+    if (!isOpen || !videoContainer) return
 
     // Video.js removes its element on dispose; let React own only the container.
     const videoElement = document.createElement('video-js')
     videoElement.classList.add('video-js', 'vjs-big-play-centered', 'h-full', 'w-full')
     videoElement.setAttribute('playsinline', '')
-    videoContainerRef.current.appendChild(videoElement)
+    videoContainer.appendChild(videoElement)
     const player = videojs(videoElement, {
       controls: true,
-      autoplay: true,
+      autoplay: false,
       preload: 'auto',
     })
 
+    setPlayer(player)
     const playerEl = player.el()
     const savedVolume = (() => {
       try {
@@ -183,6 +188,7 @@ export default function PlayerModal({
     }
 
     const seekBy = (offsetSeconds) => {
+      if (!activePlaybackRef.current) return
       const current = player.currentTime() || 0
       const duration = player.duration()
       let next = current + offsetSeconds
@@ -201,13 +207,15 @@ export default function PlayerModal({
     }
 
     const captureScreenshot = () => {
-      if (!video?.id || screenshotInFlightRef.current) return
+      const playback = activePlaybackRef.current
+      if (!playback || screenshotInFlightRef.current) return
+      const { video, locationId } = playback
       const second = Math.max(0, Number(player.currentTime()) || 0)
       screenshotInFlightRef.current = true
-      createVideoScreenshot(video.id, { second, locationId: video.location_id })
+      createVideoScreenshot(video.id, { second, locationId })
         .then(() => {
-          // A response from a closed player must not recreate its notice timer.
-          if (player.isDisposed()) return
+          // Ignore screenshot responses from a previous video or a closed player.
+          if (player.isDisposed() || activePlaybackRef.current !== playback) return
           if (screenshotNoticeTimerRef.current) {
             window.clearTimeout(screenshotNoticeTimerRef.current)
           }
@@ -260,6 +268,7 @@ export default function PlayerModal({
         case ' ':
         case 'Spacebar': {
           markHandled()
+          if (!activePlaybackRef.current) return
           if (player.paused()) {
             player.play()
           } else {
@@ -294,8 +303,30 @@ export default function PlayerModal({
       }
     }
 
+    player.ready(focusPlayer)
+    player.on('fullscreenchange', focusPlayer)
+    player.on('volumechange', handleVolumeChange)
+
+    return () => {
+      // Stop per-video work before disposing the shared player, including on unmount.
+      stopSourceRef.current?.()
+      window.removeEventListener('keydown', handleKeyDown, true)
+      player.off('fullscreenchange', focusPlayer)
+      player.off('volumechange', handleVolumeChange)
+      player.dispose()
+      setPlayer((current) => (current === player ? null : current))
+    }
+  }, [isOpen, videoContainer])
+
+  useEffect(() => {
+    if (!player || player.isDisposed() || loadingPlayback || !video || !selectedSource?.src) return
+
+    const playback = { video, locationId: playbackInfo.location_id || video.location_id }
+    activePlaybackRef.current = playback
+    player.controls(true)
+    player.autoplay(true)
     const stopWatchTracking = startWatchTracking(player, {
-      create: () => createPlaybackSession(video.id, playbackInfo.location_id),
+      create: () => createPlaybackSession(video.id, playback.locationId),
       report: (session, total) => reportPlaybackSession(video.id, session, total),
     })
     const stopPlayback = startBrowserPlayback(
@@ -304,27 +335,29 @@ export default function PlayerModal({
       playbackInfo.sources.find((source) => source.kind === 'hls'),
       startTime,
       (error) => {
+        if (activePlaybackRef.current !== playback) return
         const message = error.message || zh('视频播放失败', 'Video playback failed')
         setPlaybackError(message)
         onPlaybackErrorRef.current?.(message)
       }
     )
-    player.ready(focusPlayer)
-    player.on('fullscreenchange', focusPlayer)
-    player.on('volumechange', handleVolumeChange)
     const handleEnded = () => onEndedRef.current?.()
     player.on('ended', handleEnded)
 
-    return () => {
+    const stop = () => {
+      if (activePlaybackRef.current !== playback) return
+      activePlaybackRef.current = null
+      stopSourceRef.current = null
       stopWatchTracking()
       stopPlayback()
-      window.removeEventListener('keydown', handleKeyDown, true)
-      player.off('fullscreenchange', focusPlayer)
-      player.off('volumechange', handleVolumeChange)
       player.off('ended', handleEnded)
-      player.dispose()
+      player.autoplay(false)
+      player.pause()
+      player.controls(false)
     }
-  }, [video, startTime, selectedSource, playbackInfo, loadingPlayback])
+    stopSourceRef.current = stop
+    return stop
+  }, [player, video, startTime, selectedSource, playbackInfo, loadingPlayback])
 
   if (!video) return null
 
@@ -417,23 +450,23 @@ export default function PlayerModal({
                 ) : null}
               </div>
             ) : null}
+            <div ref={setVideoContainer} data-vjs-player className="h-full w-full" />
             {loadingPlayback || playbackInfo?.video !== video ? (
-              <div className="flex h-full items-center justify-center text-sm text-white">
+              <div
+                data-player-loading
+                className="absolute inset-0 flex items-center justify-center bg-black/75 text-sm text-white"
+              >
                 {zh('加载播放信息中…', 'Loading playback info...')}
               </div>
-            ) : (
-              <>
-                <div ref={videoContainerRef} data-vjs-player className="h-full w-full" />
-                {playbackError ? (
-                  <div
-                    role="alert"
-                    className="absolute inset-x-0 bottom-8 bg-black/75 px-6 py-4 text-center text-sm text-red-200"
-                  >
-                    {playbackError}
-                  </div>
-                ) : null}
-              </>
-            )}
+            ) : null}
+            {playbackError ? (
+              <div
+                role="alert"
+                className="absolute inset-x-0 bottom-8 bg-black/75 px-6 py-4 text-center text-sm text-red-200"
+              >
+                {playbackError}
+              </div>
+            ) : null}
           </div>
           {playlist.length > 1 && playlistVisible ? (
             <PlaybackPlaylist
