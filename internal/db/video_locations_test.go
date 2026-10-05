@@ -43,9 +43,6 @@ func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
 	gdb := openTestDB(t)
 	// Reproduce the reported library size, exceeding SQLite's 32766-variable limit.
 	dir, fixtures := createDirectoryLocationFixtures(t, gdb, 41888)
-	if err := gdb.Model(&fixtures[0]).Update("is_delete", true).Error; err != nil {
-		t.Fatal(err)
-	}
 	duplicate := models.VideoLocation{VideoID: fixtures[0].VideoID, DirectoryID: dir.ID, RelativePath: "copy.mp4"}
 	otherDir := models.Directory{Path: "/tmp/other-library"}
 	if err := gdb.Create(&otherDir).Error; err != nil {
@@ -73,9 +70,6 @@ func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
 		if loc.Video.ID != loc.VideoID || loc.Video.Size == 0 || loc.Video.DurationSec != 60 || loc.Video.Fingerprint == "" {
 			t.Fatalf("video metadata not loaded for location %d: %+v", loc.ID, loc.Video)
 		}
-		if loc.ID == fixtures[0].ID && !loc.IsDelete {
-			t.Fatal("hidden location lost its deletion flag")
-		}
 	}
 	for _, loc := range append(fixtures, duplicate) {
 		if !seen[loc.ID] {
@@ -88,7 +82,7 @@ func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
 	}
 }
 
-func TestHideVideoLocationsByIDs(t *testing.T) {
+func TestDeleteVideoLocationsByIDs(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		count    int
@@ -107,31 +101,31 @@ func TestHideVideoLocationsByIDs(t *testing.T) {
 				ids[i] = locations[i].ID
 			}
 			if tc.failLast {
-				trigger := fmt.Sprintf(`CREATE TRIGGER reject_location_hide BEFORE UPDATE OF is_delete ON video_location
-					WHEN OLD.id = %d BEGIN SELECT RAISE(ABORT, 'forced hide failure'); END`, ids[len(ids)-1])
+				trigger := fmt.Sprintf(`CREATE TRIGGER reject_location_delete BEFORE DELETE ON video_location
+					WHEN OLD.id = %d BEGIN SELECT RAISE(ABORT, 'forced delete failure'); END`, ids[len(ids)-1])
 				if err := gdb.Exec(trigger).Error; err != nil {
 					t.Fatal(err)
 				}
 			}
-			err := HideVideoLocationsByIDs(t.Context(), ids)
-			wantHidden := int64(tc.count)
+			err := DeleteVideoLocationsByIDs(t.Context(), ids)
+			wantDeleted := int64(tc.count)
 			if tc.failLast {
-				if err == nil || !strings.Contains(err.Error(), "forced hide failure") {
-					t.Fatalf("expected forced hide failure, got %v", err)
+				if err == nil || !strings.Contains(err.Error(), "forced delete failure") {
+					t.Fatalf("expected forced delete failure, got %v", err)
 				}
-				wantHidden = 0
+				wantDeleted = 0
 			} else if err != nil {
 				t.Fatal(err)
 			}
-			var hidden, videos int64
-			if err := gdb.Model(&models.VideoLocation{}).Where("is_delete = ?", true).Count(&hidden).Error; err != nil {
+			var remaining, videos int64
+			if err := gdb.Model(&models.VideoLocation{}).Count(&remaining).Error; err != nil {
 				t.Fatal(err)
 			}
-			if hidden != wantHidden {
-				t.Fatalf("hidden locations = %d, want %d", hidden, wantHidden)
+			if want := int64(tc.count+1) - wantDeleted; remaining != want {
+				t.Fatalf("remaining locations = %d, want %d", remaining, want)
 			}
 			var untouched models.VideoLocation
-			if err := gdb.First(&untouched, locations[tc.count].ID).Error; err != nil || untouched.IsDelete {
+			if err := gdb.First(&untouched, locations[tc.count].ID).Error; err != nil {
 				t.Fatalf("unselected location changed: %+v, err=%v", untouched, err)
 			}
 			if err := gdb.Model(&models.Video{}).Count(&videos).Error; err != nil || videos != int64(tc.count+1) {
@@ -141,7 +135,7 @@ func TestHideVideoLocationsByIDs(t *testing.T) {
 	}
 }
 
-func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {
+func TestVideoLocationPathExistsAfterDelete(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -154,7 +148,7 @@ func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {
 		DirectoryID: dir.ID,
 		Path:        "deleted.mp4",
 		Filename:    "deleted.mp4",
-		Fingerprint: "hidden-path-exists-fp",
+		Fingerprint: "deleted-path-exists-fp",
 		ModifiedAt:  now,
 		DurationSec: 1,
 	}
@@ -165,8 +159,8 @@ func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {
 	if err != nil {
 		t.Fatalf("upsert location: %v", err)
 	}
-	if err := HideVideoLocationsByIDs(ctx, []int64{loc.ID}); err != nil {
-		t.Fatalf("hide location: %v", err)
+	if err := DeleteVideoLocationsByIDs(ctx, []int64{loc.ID}); err != nil {
+		t.Fatalf("delete location: %v", err)
 	}
 
 	exists, err := VideoLocationPathExists(ctx, dir.ID, "deleted.mp4")
@@ -174,11 +168,11 @@ func TestVideoLocationPathExistsIgnoresHiddenRows(t *testing.T) {
 		t.Fatalf("check path exists: %v", err)
 	}
 	if exists {
-		t.Fatal("hidden location should not reserve its path for rename conflict checks")
+		t.Fatal("deleted location should not reserve its path for rename conflict checks")
 	}
 }
 
-func TestUpdateVideoLocationPathReusesHiddenPath(t *testing.T) {
+func TestUpdateVideoLocationPathReusesDeletedPath(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -187,11 +181,11 @@ func TestUpdateVideoLocationPathReusesHiddenPath(t *testing.T) {
 	if err := gdb.Create(&dir).Error; err != nil {
 		t.Fatalf("create directory: %v", err)
 	}
-	hiddenVideo := models.Video{
+	deletedVideo := models.Video{
 		DirectoryID: dir.ID,
 		Path:        "target.mp4",
 		Filename:    "target.mp4",
-		Fingerprint: "hidden-target-fp",
+		Fingerprint: "deleted-target-fp",
 		ModifiedAt:  now,
 	}
 	activeVideo := models.Video{
@@ -201,22 +195,22 @@ func TestUpdateVideoLocationPathReusesHiddenPath(t *testing.T) {
 		Fingerprint: "active-source-fp",
 		ModifiedAt:  now,
 	}
-	if err := gdb.Create(&hiddenVideo).Error; err != nil {
-		t.Fatalf("create hidden video: %v", err)
+	if err := gdb.Create(&deletedVideo).Error; err != nil {
+		t.Fatalf("create deleted video: %v", err)
 	}
 	if err := gdb.Create(&activeVideo).Error; err != nil {
 		t.Fatalf("create active video: %v", err)
 	}
-	hiddenLoc, err := UpsertVideoLocation(ctx, hiddenVideo.ID, dir.ID, "target.mp4", now)
+	deletedLoc, err := UpsertVideoLocation(ctx, deletedVideo.ID, dir.ID, "target.mp4", now)
 	if err != nil {
-		t.Fatalf("upsert hidden location: %v", err)
+		t.Fatalf("upsert deleted location: %v", err)
 	}
 	activeLoc, err := UpsertVideoLocation(ctx, activeVideo.ID, dir.ID, "source.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert active location: %v", err)
 	}
-	if err := HideVideoLocationsByIDs(ctx, []int64{hiddenLoc.ID}); err != nil {
-		t.Fatalf("hide target location: %v", err)
+	if err := DeleteVideoLocationsByIDs(ctx, []int64{deletedLoc.ID}); err != nil {
+		t.Fatalf("delete target location: %v", err)
 	}
 
 	updated, err := UpdateVideoLocationPath(ctx, activeLoc.ID, "target.mp4", now.Add(time.Minute))
@@ -236,7 +230,7 @@ func TestUpdateVideoLocationPathReusesHiddenPath(t *testing.T) {
 	if len(locations) != 1 {
 		t.Fatalf("target path should have exactly one row after reuse: %#v", locations)
 	}
-	if locations[0].ID != activeLoc.ID || locations[0].IsDelete {
+	if locations[0].ID != activeLoc.ID {
 		t.Fatalf("target path should belong to the active location: %#v", locations[0])
 	}
 }

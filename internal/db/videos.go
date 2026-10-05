@@ -72,7 +72,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Joins("JOIN video ON video.id = video_location.video_id").
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Preload("DirectoryRef").
 		Preload("Video").
 		Preload("Video.Tags").
@@ -141,7 +141,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 		base := common.DB.WithContext(ctx).
 			Model(&models.VideoLocation{}).
 			Joins("JOIN directory ON directory.id = video_location.directory_id").
-			Where(activeLocationWhereSQL("video_location", "directory"))
+			Where(activeDirectoryWhereSQL("directory"))
 		if hideRecognizedJav {
 			base = base.Where("video_location.jav_id IS NULL")
 		}
@@ -160,7 +160,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	sub := common.DB.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Select("video_location.id").
 		Joins("JOIN video_tag ON video_tag.video_id = video_location.video_id").
 		Joins("JOIN tag ON tag.id = video_tag.tag_id").
@@ -196,7 +196,6 @@ func videoFromLocation(loc models.VideoLocation) models.Video {
 		Filename:     loc.Filename,
 		ModifiedAt:   loc.ModifiedAt,
 		JavID:        loc.JavID,
-		IsDelete:     loc.IsDelete,
 		CreatedAt:    loc.CreatedAt,
 		UpdatedAt:    loc.UpdatedAt,
 		DirectoryRef: loc.DirectoryRef,

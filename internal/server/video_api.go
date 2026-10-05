@@ -1224,8 +1224,8 @@ func deleteVideoLocation(c *gin.Context) {
 		return
 	}
 
-	if err := dbpkg.HideVideoLocationsByIDs(c.Request.Context(), []int64{locationID}); err != nil {
-		logging.Error("hide deleted video location error: %v", err)
+	if err := dbpkg.DeleteVideoLocationsByIDs(c.Request.Context(), []int64{locationID}); err != nil {
+		logging.Error("delete video location record error: %v", err)
 		respondLocalizedError(c, http.StatusInternalServerError, "更新视频记录失败", "Failed to update video record")
 		return
 	}

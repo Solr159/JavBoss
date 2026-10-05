@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// ErrVideoLocationPathConflict is returned when an active location already uses the target path.
+// ErrVideoLocationPathConflict is returned when a location already uses the target path.
 var ErrVideoLocationPathConflict = errors.New("video location path already exists")
 
 // AllVideoLocations returns every known video location; used for scan bookkeeping.
@@ -27,7 +27,7 @@ func AllVideoLocations(ctx context.Context) ([]models.VideoLocation, error) {
 	return locations, nil
 }
 
-// VideoLocationsByDirectory returns every known location in a directory, including hidden rows.
+// VideoLocationsByDirectory returns every known location in a directory, without filtering directory visibility.
 func VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models.VideoLocation, error) {
 	if directoryID <= 0 {
 		return nil, errors.New("directory id cannot be zero")
@@ -58,7 +58,6 @@ func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relati
 		RelativePath: relativePath,
 		Filename:     filename,
 		ModifiedAt:   modifiedAt,
-		IsDelete:     false,
 	}
 	tx := common.DB.WithContext(ctx)
 	if err := tx.Clauses(clause.OnConflict{
@@ -67,7 +66,6 @@ func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relati
 			"video_id":    videoID,
 			"filename":    filename,
 			"modified_at": modifiedAt,
-			"is_delete":   false,
 			"updated_at":  gorm.Expr("CURRENT_TIMESTAMP"),
 		}),
 	}).Create(&loc).Error; err != nil {
@@ -83,27 +81,26 @@ func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relati
 	return &saved, nil
 }
 
-// HideVideoLocationsByIDs marks file locations as deleted without deleting video metadata.
-func HideVideoLocationsByIDs(ctx context.Context, ids []int64) error {
+// DeleteVideoLocationsByIDs removes file locations while preserving video metadata and history.
+func DeleteVideoLocationsByIDs(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	// Leave room for update parameters even with SQLite's older 999-variable
-	// limit. Keep all batches atomic, as the original single UPDATE was.
+	// Keep batches below SQLite's older 999-variable limit and delete them atomically.
 	const batchSize = 400
 	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for start := 0; start < len(ids); start += batchSize {
 			batch := ids[start:min(start+batchSize, len(ids))]
 			if err := tx.Model(&models.VideoLocation{}).
 				Where("id IN ?", batch).
-				Update("is_delete", true).Error; err != nil {
+				Delete(&models.VideoLocation{}).Error; err != nil {
 				return err
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("hide video locations: %w", err)
+		return fmt.Errorf("delete video locations: %w", err)
 	}
 	return nil
 }
@@ -122,7 +119,7 @@ func GetVideoIDByPath(ctx context.Context, dirPath, relPath string) (int64, erro
 		Joins("JOIN video ON video.id = video_location.video_id").
 		Where("directory.path = ?", dirPath).
 		Where("video_location.relative_path = ?", cleanRelativePathForDB(relPath)).
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Where("COALESCE(directory.missing, 0) = 0").
 		First(&loc).Error
 	if err != nil {
@@ -145,7 +142,7 @@ func GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoL
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.video_id = ?", videoID).
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Order("video_location.id").
 		Preload("DirectoryRef").
 		First(&loc).Error
@@ -169,7 +166,7 @@ func GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*mo
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.id = ?", locationID).
 		Where("video_location.video_id = ?", videoID).
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Preload("DirectoryRef").
 		First(&loc).Error
 	if err != nil {
@@ -191,7 +188,6 @@ func VideoLocationPathExists(ctx context.Context, directoryID int64, relativePat
 	if err := common.DB.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Where("directory_id = ? AND relative_path = ?", directoryID, relativePath).
-		Where("COALESCE(is_delete, 0) = 0").
 		Count(&count).Error; err != nil {
 		return false, fmt.Errorf("check video location path: %w", err)
 	}
@@ -225,19 +221,11 @@ func UpdateVideoLocationPath(ctx context.Context, locationID int64, relativePath
 		if err := tx.
 			Model(&models.VideoLocation{}).
 			Where("directory_id = ? AND relative_path = ? AND id <> ?", current.DirectoryID, relativePath, locationID).
-			Where("COALESCE(is_delete, 0) = 0").
 			Count(&activeConflicts).Error; err != nil {
 			return fmt.Errorf("check active video location path: %w", err)
 		}
 		if activeConflicts > 0 {
 			return ErrVideoLocationPathConflict
-		}
-
-		if err := tx.
-			Where("directory_id = ? AND relative_path = ? AND id <> ?", current.DirectoryID, relativePath, locationID).
-			Where("COALESCE(is_delete, 0) <> 0").
-			Delete(&models.VideoLocation{}).Error; err != nil {
-			return fmt.Errorf("clear hidden video location path: %w", err)
 		}
 
 		if err := tx.
@@ -270,23 +258,17 @@ func activeVideoLocationSubquery(ctx context.Context) *gorm.DB {
 		Select("1").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.video_id = video.id").
-		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.enabled, 1) <> 0")
 }
 
-func activeLocationWhereSQL(locationAlias, directoryAlias string) string {
-	locationAlias = strings.TrimSpace(locationAlias)
-	if locationAlias == "" {
-		locationAlias = "video_location"
-	}
+func activeDirectoryWhereSQL(directoryAlias string) string {
 	directoryAlias = strings.TrimSpace(directoryAlias)
 	if directoryAlias == "" {
 		directoryAlias = "directory"
 	}
 	return fmt.Sprintf(
-		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.enabled, 1) <> 0",
-		locationAlias,
+		"COALESCE(%s.is_delete, 0) = 0 AND COALESCE(%s.enabled, 1) <> 0",
 		directoryAlias,
 		directoryAlias,
 	)
@@ -346,7 +328,7 @@ func preloadActiveLocationsWhere(extraWhere string) func(*gorm.DB) *gorm.DB {
 			Preload("Locations", func(tx *gorm.DB) *gorm.DB {
 				tx = tx.
 					Joins("JOIN directory ON directory.id = video_location.directory_id").
-					Where(activeLocationWhereSQL("video_location", "directory"))
+					Where(activeDirectoryWhereSQL("directory"))
 				if extraWhere != "" {
 					tx = tx.Where(extraWhere)
 				}

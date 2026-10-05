@@ -297,7 +297,7 @@ func TestListJavCodesForDirectoryOnlyReturnsVisibleDistinctCodes(t *testing.T) {
 	}
 	if err := gdb.Model(&models.VideoLocation{}).
 		Where("id = ?", locations[2].ID).
-		Update("is_delete", true).Error; err != nil {
+		Delete(&models.VideoLocation{}).Error; err != nil {
 		t.Fatalf("hide location: %v", err)
 	}
 
@@ -385,7 +385,7 @@ func TestListJavIdolsOnlyIncludesIdolsWithVisibleSoloWorks(t *testing.T) {
 	createVideoLocationsForVideos(t, db, videos...)
 	if err := db.Model(&models.VideoLocation{}).
 		Where("video_id = ?", videos[2].ID).
-		Update("is_delete", true).Error; err != nil {
+		Delete(&models.VideoLocation{}).Error; err != nil {
 		t.Fatalf("mark unavailable video location deleted: %v", err)
 	}
 

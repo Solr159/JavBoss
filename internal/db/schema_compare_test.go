@@ -86,7 +86,13 @@ type indexSnapshot struct {
 	Unique  int
 	Origin  string
 	Partial int
-	Columns []string
+	Columns []indexColumnSnapshot
+}
+
+type indexColumnSnapshot struct {
+	Name      string
+	Collation string
+	Desc      int
 }
 
 type foreignKeySnapshot struct {
@@ -231,7 +237,7 @@ func loadIndexes(t *testing.T, db *gorm.DB, table string) []indexSnapshot {
 	return indexes
 }
 
-func loadIndexColumns(t *testing.T, db *gorm.DB, index string) []string {
+func loadIndexColumns(t *testing.T, db *gorm.DB, index string) []indexColumnSnapshot {
 	t.Helper()
 	rows, err := db.Raw("PRAGMA index_xinfo(" + index + ")").Rows()
 	if err != nil {
@@ -241,7 +247,7 @@ func loadIndexColumns(t *testing.T, db *gorm.DB, index string) []string {
 
 	type indexedColumn struct {
 		seqno int
-		name  string
+		value indexColumnSnapshot
 	}
 	var columns []indexedColumn
 	for rows.Next() {
@@ -253,16 +259,18 @@ func loadIndexColumns(t *testing.T, db *gorm.DB, index string) []string {
 		if key == 0 || cid < 0 {
 			continue
 		}
-		columns = append(columns, indexedColumn{seqno: seqno, name: fmt.Sprint(name)})
+		columns = append(columns, indexedColumn{seqno: seqno, value: indexColumnSnapshot{
+			Name: fmt.Sprint(name), Collation: fmt.Sprint(coll), Desc: desc,
+		}})
 	}
 	if err := rows.Err(); err != nil {
 		t.Fatalf("iterate %s index columns: %v", index, err)
 	}
 
 	sort.Slice(columns, func(i, j int) bool { return columns[i].seqno < columns[j].seqno })
-	values := make([]string, 0, len(columns))
+	values := make([]indexColumnSnapshot, 0, len(columns))
 	for _, col := range columns {
-		values = append(values, col.name)
+		values = append(values, col.value)
 	}
 	return values
 }

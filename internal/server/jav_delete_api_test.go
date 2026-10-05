@@ -87,7 +87,7 @@ func TestDeleteJavVideos(t *testing.T) {
 				}
 			}
 			loc := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "ABC-123.mp4", JavID: &item.ID}
-			copyLoc := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "copy.mp4", IsDelete: true}
+			copyLoc := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "copy.mp4"}
 			wantStatus := http.StatusOK
 			switch scenario {
 			case "missing file":

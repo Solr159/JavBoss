@@ -12,7 +12,7 @@ import (
 
 var ErrJavVideoShared = errors.New("video is linked to another jav")
 
-// DeleteJavVideos removes all copies of a work's videos, including hidden locations,
+// DeleteJavVideos removes all copies of a work's videos, including locations in disabled or deleted directories,
 // while preserving the JAV and all its metadata associations.
 // cleanup runs under the database write lock before any records are removed. A file
 // failure leaves records available for retry; filesystem changes cannot be rolled back.

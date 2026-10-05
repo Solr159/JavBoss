@@ -235,9 +235,9 @@ func SearchJavWithPrefixFilters(ctx context.Context, idolIDs []int64, tagIDs []i
 	case "release_asc":
 		order = "jav.release_unix IS NULL, jav.release_unix ASC, jav.code ASC, jav.id ASC"
 	case "play_count", "play_count_desc":
-		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs) + "), 0) DESC, jav.created_at DESC, jav.id DESC"
+		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeDirectoryWhereSQL("d") + directoryFilterSQL("vl", directoryIDs) + "), 0) DESC, jav.created_at DESC, jav.id DESC"
 	case "play_count_asc":
-		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs) + "), 0) ASC, jav.created_at ASC, jav.id ASC"
+		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeDirectoryWhereSQL("d") + directoryFilterSQL("vl", directoryIDs) + "), 0) ASC, jav.created_at ASC, jav.id ASC"
 	case "favorite_rating", "favorite_rating_desc":
 		order = "jav.favorite_rating DESC, jav.created_at DESC, jav.id DESC"
 	case "favorite_rating_asc":
@@ -295,7 +295,7 @@ func ListJavPrefixes(ctx context.Context, directoryIDs []int64) ([]JavPrefixSumm
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN jav_studio js ON js.id = j.studio_id").
 		Where(prefixExpr + " <> ''").
-		Where(activeLocationWhereSQL("vl", "d")).
+		Where(activeDirectoryWhereSQL("d")).
 		Group(prefixExpr + ", j.studio_id, js.name, j.is_uncensored").
 		Order("work_count DESC, prefix ASC, studio_name ASC")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
@@ -374,7 +374,7 @@ func attachJavLocationVideos(ctx context.Context, items []models.Jav, directoryI
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.jav_id IN ?", ids).
-		Where(activeLocationWhereSQL("video_location", "directory")).
+		Where(activeDirectoryWhereSQL("directory")).
 		Order("video_location.jav_id, video_location.id").
 		Preload("DirectoryRef").
 		Preload("Video").
@@ -421,7 +421,6 @@ func ListJavsForDirectoryProcessing(ctx context.Context, directoryID int64) ([]m
 			JOIN directory d ON d.id = vl.directory_id
 			WHERE vl.jav_id = jav.id
 				AND vl.directory_id = ?
-				AND COALESCE(vl.is_delete, 0) = 0
 				AND COALESCE(d.is_delete, 0) = 0
 				AND COALESCE(d.missing, 0) = 0
 		)`, directoryID).
@@ -551,7 +550,7 @@ func listJavTagsForProviders(ctx context.Context, directoryIDs []int64, provider
 		return nil, nil
 	}
 	var tags []JavTagCount
-	activeLocationSQL := activeLocationWhereSQL("vl", "d") + directoryFilterSQL("vl", directoryIDs)
+	activeLocationSQL := activeDirectoryWhereSQL("d") + directoryFilterSQL("vl", directoryIDs)
 	isUser := outputProvider == int(metadata.ProviderUser)
 	tagMapJoin := "LEFT JOIN jav_tag_map jtm ON jtm.jav_tag_id = jt.id AND jtm.provider IN ?"
 	query := common.DB.WithContext(ctx).
@@ -1162,7 +1161,7 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 		Select("1").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.jav_id = jav.id").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	validLocation = applyDirectoryFilter(validLocation, "vl", directoryIDs)
 	q = q.Where("EXISTS (?)", validLocation)
 	if search != "" {
@@ -1447,7 +1446,7 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 		Joins("JOIN jav j ON j.studio_id = js.id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
 	countBase = applyJavStudioSearch(countBase, search)
 	if favoriteGroupID > 0 {
@@ -1465,7 +1464,7 @@ func ListJavStudios(ctx context.Context, search string, limit, offset int, direc
 		Joins("JOIN jav j ON j.studio_id = js.id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavStudioSearch(base, search)
 	if favoriteGroupID > 0 {
@@ -1511,7 +1510,7 @@ func GetJavStudioSummary(ctx context.Context, studioID int64, directoryIDs []int
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("js.id = ?", studioID).
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntityStudio)).
@@ -1755,7 +1754,7 @@ func attachJavStudioCodePrefixes(ctx context.Context, items []JavStudioSummary, 
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("j.studio_id IN ?", ids).
 		Where(prefixExpr + " <> ''").
-		Where(activeLocationWhereSQL("vl", "d")).
+		Where(activeDirectoryWhereSQL("d")).
 		Group("j.studio_id, " + prefixExpr).
 		Order("j.studio_id, prefix")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
@@ -1814,7 +1813,7 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
 		Where("j.studio_id IN ?", ids).
-		Where(activeLocationWhereSQL("vl", "d")).
+		Where(activeDirectoryWhereSQL("d")).
 		Group("j.studio_id, js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Order("j.studio_id, work_count DESC, js.name ASC")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
@@ -1851,7 +1850,7 @@ func ListStudioCoverCodes(ctx context.Context, studioID int64, directoryIDs []in
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("j.studio_id = ?", studioID).
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
 		Group("j.code").
@@ -1880,7 +1879,7 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("COALESCE(js.is_english, 0) = 0").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	countBase = applyDirectoryFilter(countBase, "vl", directoryIDs)
 	countBase = applyJavSeriesSearch(countBase, search)
 	if favoriteGroupID > 0 {
@@ -1900,7 +1899,7 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("COALESCE(js.is_english, 0) = 0").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	base = applyDirectoryFilter(base, "vl", directoryIDs)
 	base = applyJavSeriesSearch(base, search)
 	if favoriteGroupID > 0 {
@@ -1939,7 +1938,7 @@ func GetJavSeriesSummary(ctx context.Context, seriesID int64, directoryIDs []int
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("js.id = ?", seriesID).
 		Where("COALESCE(js.is_english, 0) = 0").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
@@ -1968,7 +1967,7 @@ func ListSeriesCoverCodes(ctx context.Context, seriesID int64, directoryIDs []in
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("j.series_id = ?", seriesID).
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
 		Group("j.code").
@@ -2054,7 +2053,7 @@ func buildVisibleSoloIdolCoverQuery(ctx context.Context, directoryIDs []int64) *
 		Joins("JOIN jav j_solo ON j_solo.id = jim_solo.jav_id").
 		Joins("JOIN video_location vl_solo ON vl_solo.jav_id = jim_solo.jav_id").
 		Joins("JOIN directory d_solo ON d_solo.id = vl_solo.directory_id").
-		Where(activeLocationWhereSQL("vl_solo", "d_solo"))
+		Where(activeDirectoryWhereSQL("d_solo"))
 	query = applyDirectoryFilter(query, "vl_solo", directoryIDs)
 	return query.
 		Group("jim_solo.jav_idol_id")
@@ -2066,7 +2065,7 @@ func buildVisibleIdolWorkCountQuery(ctx context.Context, directoryIDs []int64) *
 		Select("jim.jav_idol_id, COUNT(DISTINCT jim.jav_id) AS work_count").
 		Joins("JOIN video_location vl ON vl.jav_id = jim.jav_id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	return query.
 		Group("jim.jav_idol_id")
@@ -2241,7 +2240,7 @@ func ListJavIdols(ctx context.Context, search, sort string, limit, offset int, d
 		Joins("JOIN jav j ON j.id = jim.jav_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	if favoriteGroupID > 0 {
 		base = base.Joins("JOIN jav_favorite_map jifm_filter ON jifm_filter.entity_id = ji.id AND jifm_filter.entity_type = ? AND jifm_filter.jav_favorite_group_id = ?", JavFavoriteEntityIdol, favoriteGroupID)
 	}
@@ -2483,7 +2482,7 @@ func ListIdolCoverCodes(ctx context.Context, idolID int64, directoryIDs []int64)
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN (?) s ON s.jav_id = jim.jav_id", sub).
 		Where("jim.jav_idol_id = ?", idolID).
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	rows, err := query.
 		Group("j.code, solo").
@@ -2533,7 +2532,7 @@ func ListIdolCoverOptions(ctx context.Context, idolID int64, directoryIDs []int6
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("LEFT JOIN (?) s ON s.jav_id = jim.jav_id", sub).
 		Where("jim.jav_idol_id = ?", idolID).
-		Where(activeLocationWhereSQL("vl", "d"))
+		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
 		Group("j.id, j.code, j.title, solo").
@@ -2591,7 +2590,7 @@ func UpdateJavIdolCoverSelection(ctx context.Context, idolID, javID int64, cropL
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("JOIN directory d ON d.id = vl.directory_id").
 			Where("jim.jav_idol_id = ? AND jim.jav_id = ?", idolID, javID).
-			Where(activeLocationWhereSQL("vl", "d"))
+			Where(activeDirectoryWhereSQL("d"))
 		visible = applyDirectoryFilter(visible, "vl", directoryIDs)
 		if err := visible.Count(&count).Error; err != nil {
 			return fmt.Errorf("validate idol cover jav: %w", err)
@@ -2646,7 +2645,7 @@ func FindIdolSoloCode(ctx context.Context, idolID int64) (string, error) {
 		Joins("LEFT JOIN (?) s ON s.jav_id = jim.jav_id", sub).
 		Where("jim.jav_idol_id = ?", idolID).
 		Where("s.c = 1").
-		Where(activeLocationWhereSQL("vl", "d")).
+		Where(activeDirectoryWhereSQL("d")).
 		Group("j.code").
 		Order("RANDOM()").
 		Limit(1).
@@ -2772,7 +2771,6 @@ func videosForJavScanQuery(ctx context.Context) *gorm.DB {
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Joins("JOIN video v ON v.id = vl.video_id").
 		Joins("LEFT JOIN jav j ON j.id = vl.jav_id").
-		Where("COALESCE(vl.is_delete, 0) = 0").
 		Where("COALESCE(d.is_delete, 0) = 0").
 		Where("COALESCE(d.missing, 0) = 0").
 		Select("vl.id AS location_id, vl.video_id, COALESCE(NULLIF(vl.filename, ''), vl.relative_path) AS filename, vl.jav_id, j.code AS jav_code, vl.updated_at, v.duration_sec, v.jav_scrape_override")
@@ -3005,7 +3003,7 @@ func ListJavCodesForDirectory(ctx context.Context, directoryID int64) ([]string,
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.directory_id = ?", directoryID).
-		Where(activeLocationWhereSQL("vl", "d")).
+		Where(activeDirectoryWhereSQL("d")).
 		Where("COALESCE(j.code, '') <> ''").
 		Distinct("j.code").
 		Order("j.code").

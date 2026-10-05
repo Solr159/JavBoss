@@ -46,8 +46,7 @@ func ListDirectories(ctx context.Context) ([]models.Directory, error) {
 			COUNT(video_location.id) AS scanned_video_count,
 			COALESCE(SUM(CASE WHEN video_location.jav_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS scraped_video_count`).
 		Joins(`LEFT JOIN video_location
-			ON video_location.directory_id = directory.id
-			AND COALESCE(video_location.is_delete, 0) = 0`).
+			ON video_location.directory_id = directory.id`).
 		Group("directory.id").
 		Order("directory.id").
 		Find(&dirs).Error; err != nil {
@@ -158,7 +157,7 @@ func UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool
 			}
 			if normalizedPath != nil {
 				dir.Path = *normalizedPath
-				if err := hideVideoLocationsByDirectoryID(tx, dir.ID); err != nil {
+				if err := deleteVideoLocationsByDirectoryID(tx, dir.ID); err != nil {
 					return err
 				}
 			}
@@ -244,16 +243,15 @@ func UpdateDirectoryLastScanSummary(
 	return nil
 }
 
-func hideVideoLocationsByDirectoryID(tx *gorm.DB, directoryID int64) error {
+func deleteVideoLocationsByDirectoryID(tx *gorm.DB, directoryID int64) error {
 	if directoryID <= 0 {
 		return errors.New("directory id cannot be zero")
 	}
 	if err := tx.
 		Model(&models.VideoLocation{}).
 		Where("directory_id = ?", directoryID).
-		Where("COALESCE(is_delete, 0) = 0").
-		Update("is_delete", true).Error; err != nil {
-		return fmt.Errorf("hide video locations for directory: %w", err)
+		Delete(&models.VideoLocation{}).Error; err != nil {
+		return fmt.Errorf("delete video locations for directory: %w", err)
 	}
 	return nil
 }

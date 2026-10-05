@@ -187,9 +187,6 @@ func TestDeleteVideoLocationRejectsMissingDirectory(t *testing.T) {
 	if err := database.First(&saved, loc.ID).Error; err != nil {
 		t.Fatalf("reload video location: %v", err)
 	}
-	if saved.IsDelete {
-		t.Fatal("missing directory location must remain visible after rejected delete")
-	}
 }
 
 func TestRegisterRoutesIncludesVideoScreenshotList(t *testing.T) {

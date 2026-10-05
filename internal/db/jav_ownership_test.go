@@ -47,16 +47,23 @@ func TestLookupJavOwnership(t *testing.T) {
 			if err := database.Create(&video).Error; err != nil {
 				t.Fatal(err)
 			}
-			location := models.VideoLocation{VideoID: video.ID, JavID: &item.ID, DirectoryID: directories[fixture.directory].ID, RelativePath: fixture.stored + ".mp4", IsDelete: fixture.deleted}
+			location := models.VideoLocation{VideoID: video.ID, JavID: &item.ID, DirectoryID: directories[fixture.directory].ID, RelativePath: fixture.stored + ".mp4"}
 			if err := database.Create(&location).Error; err != nil {
 				t.Fatal(err)
 			}
-			// A deleted duplicate must not hide another active file.
+			if fixture.deleted {
+				if err := database.Delete(&location).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			// Deleting a duplicate must not hide another file.
 			if fixture.owned {
 				location.ID = 0
 				location.RelativePath += ".duplicate"
-				location.IsDelete = true
 				if err := database.Create(&location).Error; err != nil {
+					t.Fatal(err)
+				}
+				if err := database.Delete(&location).Error; err != nil {
 					t.Fatal(err)
 				}
 			}

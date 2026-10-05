@@ -468,7 +468,7 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("unexpected video id by second location: got %d want %d", videoID, video.ID)
 	}
 
-	if err := HideVideoLocationsByIDs(ctx, []int64{locA.ID}); err != nil {
+	if err := DeleteVideoLocationsByIDs(ctx, []int64{locA.ID}); err != nil {
 		t.Fatalf("hide loc a: %v", err)
 	}
 	if err := ReconcileAllVideoPaths(ctx); err != nil {
@@ -485,7 +485,7 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("unexpected remaining locations: %#v", visible.Locations)
 	}
 
-	if err := HideVideoLocationsByIDs(ctx, []int64{locB.ID}); err != nil {
+	if err := DeleteVideoLocationsByIDs(ctx, []int64{locB.ID}); err != nil {
 		t.Fatalf("hide loc b: %v", err)
 	}
 	if err := ReconcileAllVideoPaths(ctx); err != nil {
@@ -744,9 +744,7 @@ func assertModelIndexes(t *testing.T, db *gorm.DB) {
 		"idx_video_location_directory_id",
 		"idx_video_location_directory_path",
 		"idx_video_location_filename",
-		"idx_video_location_is_delete",
 		"idx_video_location_jav_id",
-		"idx_video_location_jav_id_is_delete",
 		"idx_video_location_video_id",
 		"idx_video_location_video_id_jav_id",
 		"idx_video_location_visible_filename",
@@ -828,6 +826,9 @@ func createVideoLocationsForVideos(t *testing.T, db *gorm.DB, videos ...models.V
 	t.Helper()
 
 	for _, video := range videos {
+		if video.Hidden {
+			continue
+		}
 		filename := video.Filename
 		if filename == "" {
 			filename = filepath.Base(video.Path)
@@ -839,7 +840,6 @@ func createVideoLocationsForVideos(t *testing.T, db *gorm.DB, videos ...models.V
 			Filename:     filename,
 			ModifiedAt:   video.ModifiedAt,
 			JavID:        video.JavID,
-			IsDelete:     video.Hidden,
 			CreatedAt:    video.CreatedAt,
 			UpdatedAt:    video.UpdatedAt,
 		}

@@ -15,7 +15,7 @@ func GetVideoLocationByPath(ctx context.Context, dirPath, relativePath string) (
 	err := common.DB.WithContext(ctx).Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("directory.path = ? AND video_location.relative_path = ?", dirPath, cleanRelativePathForDB(relativePath)).
-		Where(activeLocationWhereSQL("video_location", "directory")).First(&loc).Error
+		Where(activeDirectoryWhereSQL("directory")).First(&loc).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

@@ -57,7 +57,7 @@ func TestListDirectoriesIncludesCurrentVideoCounts(t *testing.T) {
 	}
 	if err := gdb.Model(&models.VideoLocation{}).
 		Where("id = ?", hidden.ID).
-		Update("is_delete", true).Error; err != nil {
+		Delete(&models.VideoLocation{}).Error; err != nil {
 		t.Fatalf("hide location: %v", err)
 	}
 
@@ -339,7 +339,7 @@ func TestMissingDirectoryContentsRemainVisible(t *testing.T) {
 	}
 }
 
-func TestUpdateDirectoryPathHidesExistingVideoLocations(t *testing.T) {
+func TestUpdateDirectoryPathDeletesExistingVideoLocations(t *testing.T) {
 	gdb := openTestDB(t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
@@ -378,12 +378,9 @@ func TestUpdateDirectoryPathHidesExistingVideoLocations(t *testing.T) {
 		t.Fatalf("unexpected updated path: got %q want %q", updated.Path, filepath.Clean(newRoot))
 	}
 
-	var hidden models.VideoLocation
-	if err := gdb.First(&hidden, loc.ID).Error; err != nil {
-		t.Fatalf("load hidden location: %v", err)
-	}
-	if !hidden.IsDelete {
-		t.Fatal("existing location should be hidden immediately after directory path changes")
+	var remaining int64
+	if err := gdb.Model(&models.VideoLocation{}).Where("id = ?", loc.ID).Count(&remaining).Error; err != nil || remaining != 0 {
+		t.Fatalf("old location must be removed: count=%d, err=%v", remaining, err)
 	}
 
 	items, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{dir.ID})
@@ -398,10 +395,7 @@ func TestUpdateDirectoryPathHidesExistingVideoLocations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("restore video location: %v", err)
 	}
-	if recovered.ID != loc.ID {
-		t.Fatalf("location should be restored in place: got id %d want %d", recovered.ID, loc.ID)
-	}
-	if recovered.IsDelete {
-		t.Fatal("location should be visible after scan upsert")
+	if recovered.ID == loc.ID || recovered.VideoID != video.ID {
+		t.Fatalf("expected new location reusing original video: %+v", recovered)
 	}
 }

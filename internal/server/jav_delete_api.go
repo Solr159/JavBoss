@@ -22,7 +22,7 @@ var errJavDeleteFilesUnavailable = errors.New("jav files are unavailable or unsa
 
 // DELETE /jav/items/:id/videos removes video records, files and screenshots.
 // The JAV record, metadata associations and JAV cover are preserved.
-// No query parameters; applies to all directories, including hidden locations.
+// No query parameters; applies to all directories, including locations in disabled or deleted directories.
 func deleteJavVideos(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

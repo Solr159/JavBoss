@@ -225,14 +225,14 @@ func ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs 
 			Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = jfm.entity_id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs))
 	case JavFavoriteEntityJav:
 		query = query.
-			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeLocationWhereSQL("vl", "d")+directoryFilterSQL("vl", directoryIDs)+" THEN j.id END) AS count").
+			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeDirectoryWhereSQL("d")+directoryFilterSQL("vl", directoryIDs)+" THEN j.id END) AS count").
 			Joins("LEFT JOIN jav_favorite_map jfm ON jfm.jav_favorite_group_id = jfg.id AND jfm.entity_type = ?", entityType).
 			Joins("LEFT JOIN jav j ON j.id = jfm.entity_id").
 			Joins("LEFT JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("LEFT JOIN directory d ON d.id = vl.directory_id")
 	case JavFavoriteEntityStudio:
 		query = query.
-			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN js.id IS NOT NULL AND j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeLocationWhereSQL("vl", "d")+directoryFilterSQL("vl", directoryIDs)+" THEN js.id END) AS count").
+			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN js.id IS NOT NULL AND j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeDirectoryWhereSQL("d")+directoryFilterSQL("vl", directoryIDs)+" THEN js.id END) AS count").
 			Joins("LEFT JOIN jav_favorite_map jfm ON jfm.jav_favorite_group_id = jfg.id AND jfm.entity_type = ?", entityType).
 			Joins("LEFT JOIN jav_studio js ON js.id = jfm.entity_id").
 			Joins("LEFT JOIN jav j ON j.studio_id = js.id").
@@ -240,7 +240,7 @@ func ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs 
 			Joins("LEFT JOIN directory d ON d.id = vl.directory_id")
 	case JavFavoriteEntitySeries:
 		query = query.
-			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN js.id IS NOT NULL AND j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeLocationWhereSQL("vl", "d")+directoryFilterSQL("vl", directoryIDs)+" THEN js.id END) AS count").
+			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN js.id IS NOT NULL AND j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeDirectoryWhereSQL("d")+directoryFilterSQL("vl", directoryIDs)+" THEN js.id END) AS count").
 			Joins("LEFT JOIN jav_favorite_map jfm ON jfm.jav_favorite_group_id = jfg.id AND jfm.entity_type = ?", entityType).
 			Joins("LEFT JOIN jav_series js ON js.id = jfm.entity_id").
 			Joins("LEFT JOIN jav j ON j.series_id = js.id").
@@ -525,7 +525,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 			Joins("JOIN jav j ON j.id = jfm.entity_id").
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("JOIN directory d ON d.id = vl.directory_id").
-			Where(activeLocationWhereSQL("vl", "d")).
+			Where(activeDirectoryWhereSQL("d")).
 			Group("jfm.sort_order, j.id, j.code, j.title")
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	case JavFavoriteEntityIdol:
@@ -538,7 +538,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 			Joins("JOIN jav j ON j.id = jim.jav_id").
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("JOIN directory d ON d.id = vl.directory_id").
-			Where(activeLocationWhereSQL("vl", "d")).
+			Where(activeDirectoryWhereSQL("d")).
 			Group("jfm.sort_order, ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, cover_jav.code, solo_idols.cover_code")
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	case JavFavoriteEntityStudio:
@@ -548,7 +548,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 			Joins("JOIN jav j ON j.studio_id = js.id").
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("JOIN directory d ON d.id = vl.directory_id").
-			Where(activeLocationWhereSQL("vl", "d")).
+			Where(activeDirectoryWhereSQL("d")).
 			Group("jfm.sort_order, js.id, js.name")
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	case JavFavoriteEntitySeries:
@@ -558,7 +558,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 			Joins("JOIN jav j ON j.series_id = js.id").
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").
 			Joins("JOIN directory d ON d.id = vl.directory_id").
-			Where(activeLocationWhereSQL("vl", "d")).
+			Where(activeDirectoryWhereSQL("d")).
 			Group("jfm.sort_order, js.id, js.name")
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	}

@@ -79,7 +79,7 @@ func ListTags(ctx context.Context, directoryIDs []int64, hideJav ...bool) ([]Tag
 	if len(hideJav) > 0 {
 		hideRecognizedJav = hideJav[0]
 	}
-	countWhere := activeLocationWhereSQL("vl", "d")
+	countWhere := activeDirectoryWhereSQL("d")
 	if hideRecognizedJav {
 		countWhere += " AND vl.jav_id IS NULL"
 	}
