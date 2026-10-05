@@ -20,7 +20,7 @@ import (
 
 var errJavDeleteFilesUnavailable = errors.New("jav files are unavailable or unsafe")
 
-// DELETE /jav/items/:id/videos removes video records, files, sidecars and screenshots.
+// DELETE /jav/items/:id/videos removes video records, files and screenshots.
 // The JAV record, metadata associations and JAV cover are preserved.
 // No query parameters; applies to all directories, including hidden locations.
 func deleteJavVideos(c *gin.Context) {
@@ -49,10 +49,6 @@ func deleteJavVideos(c *gin.Context) {
 
 func deleteJavVideoFiles(locations []models.VideoLocation, videoIDs []int64) error {
 	files := make(map[string]struct{})
-	videoPaths := make(map[string]bool, len(locations))
-	for _, loc := range locations {
-		videoPaths[filepath.Join(loc.DirectoryRef.Path, filepath.FromSlash(loc.RelativePath))] = true
-	}
 	var cacheDirs []string
 	// Build and validate the entire plan before removing the first file.
 	for _, loc := range locations {
@@ -66,42 +62,6 @@ func deleteJavVideoFiles(locations []models.VideoLocation, videoIDs []int64) err
 			return err
 		}
 		files[path] = struct{}{}
-		entries, err := os.ReadDir(filepath.Dir(path))
-		if errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		stem := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		var otherStems []string
-		for _, sibling := range entries {
-			siblingPath := filepath.Join(filepath.Dir(path), sibling.Name())
-			if sibling.Type().IsRegular() && !videoPaths[siblingPath] && util.IsVideoCandidate(siblingPath) {
-				otherStems = append(otherStems, strings.TrimSuffix(sibling.Name(), filepath.Ext(sibling.Name())))
-			}
-		}
-		for _, entry := range entries {
-			if entry.IsDir() || !isJavDeleteSidecar(stem, entry.Name()) {
-				continue
-			}
-			// Preserve attachments also owned by a video outside this deletion.
-			shared := false
-			for _, other := range otherStems {
-				if isJavDeleteSidecar(other, entry.Name()) {
-					shared = true
-					break
-				}
-			}
-			if shared {
-				continue
-			}
-			candidate, err := javDeletePath(root, filepath.Join(filepath.Dir(loc.RelativePath), entry.Name()))
-			if err != nil {
-				return err
-			}
-			files[candidate] = struct{}{}
-		}
 	}
 	if cfg := common.AppConfig; cfg != nil {
 		if cfg.DatabasePath != "" {
@@ -138,21 +98,6 @@ func deleteJavVideoFiles(locations []models.VideoLocation, videoIDs []int64) err
 		}
 	}
 	return nil
-}
-
-func isJavDeleteSidecar(stem, name string) bool {
-	ext := strings.ToLower(filepath.Ext(name))
-	base := strings.TrimSuffix(name, filepath.Ext(name))
-	switch ext {
-	case ".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx", ".sup", ".smi":
-		return base == stem || strings.HasPrefix(base, stem+".")
-	case ".nfo":
-		return base == stem
-	case ".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".avif":
-		return base == stem || base == stem+"-poster" || base == stem+"-fanart" || base == stem+"-thumb" || base == stem+"-landscape"
-	default:
-		return false
-	}
 }
 
 // Reject traversal and symlinks, including parent directories. Missing files are

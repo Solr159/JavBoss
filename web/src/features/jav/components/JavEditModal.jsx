@@ -458,8 +458,8 @@ export function JavEditModal({
     if (
       !window.confirm(
         zh(
-          `确定删除“${code}”的吗？所有相关文件（包括视频、同名字幕、NFO、视频截图）和记录都会被删除。`,
-          `Delete “${code}”? All related files (including videos, matching subtitles, NFO files and video screenshots) and records will be deleted.`
+          `确定删除“${code}”的吗？视频文件、视频截图及相关视频记录都会被删除。`,
+          `Delete videos for “${code}”? Video files, video screenshots and related video records will be deleted.`
         )
       )
     )

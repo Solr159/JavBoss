@@ -60,10 +60,31 @@ func TestDeleteJavVideos(t *testing.T) {
 			keep := filepath.Join(dir.Path, "ABC-124.mp4")
 			cover := filepath.Join(common.AppConfig.JavCoverDir, "abc-123.jpg")
 			shot := filepath.Join(root, "data", "video", fmt.Sprint(video.ID), "screenshot", "1.jpg")
-			sidecars := []string{filepath.Join(dir.Path, "ABC-123.srt"), filepath.Join(dir.Path, "ABC-123.nfo"), filepath.Join(dir.Path, "ABC-123-poster.jpg"), filepath.Join(dir.Path, "ABC-123.zh.srt"), filepath.Join(dir.Path, "copy.nfo")}
+			sidecars := []string{
+				filepath.Join(dir.Path, "ABC-123.ass"),
+				filepath.Join(dir.Path, "ABC-123.srt"),
+				filepath.Join(dir.Path, "ABC-123.sub"),
+				filepath.Join(dir.Path, "ABC-123.idx"),
+				filepath.Join(dir.Path, "ABC-123.zh.SUB"),
+				filepath.Join(dir.Path, "ABC-123.zh.IDX"),
+				filepath.Join(dir.Path, "ABC-123.nfo"),
+				filepath.Join(dir.Path, "ABC-123.jpg"),
+				filepath.Join(dir.Path, "ABC-123-poster.jpg"),
+				filepath.Join(dir.Path, "ABC-123.zh.srt"),
+				filepath.Join(dir.Path, "copy.nfo"),
+			}
 			preserved := []string{keep, filepath.Join(dir.Path, "ABC-124.nfo"), filepath.Join(dir.Path, "ABC-1234.srt"), filepath.Join(dir.Path, "ABC-123.part2.mp4"), filepath.Join(dir.Path, "ABC-123.part2.zh.srt"), filepath.Join(dir.Path, "ABC-123.notes.txt")}
-			for _, path := range append(append([]string{first, second, cover, shot}, preserved...), sidecars...) {
+			preserved = append(preserved, sidecars...)
+			for _, path := range append([]string{first, second, cover, shot}, preserved...) {
 				write(path)
+			}
+			// Binary VobSub subtitles must also remain, regardless of their MPEG signature.
+			for _, name := range []string{"ABC-123.sub", "ABC-123.zh.SUB"} {
+				content := make([]byte, 2048)
+				copy(content, []byte{0x00, 0x00, 0x01, 0xba, 0x44, 0x00, 0x04, 0x00})
+				if err := os.WriteFile(filepath.Join(dir.Path, name), content, 0600); err != nil {
+					t.Fatal(err)
+				}
 			}
 			loc := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "ABC-123.mp4", JavID: &item.ID}
 			copyLoc := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "copy.mp4", IsDelete: true}
@@ -142,7 +163,6 @@ func TestDeleteJavVideos(t *testing.T) {
 				var deleted []string
 				if scenario != "no videos" {
 					deleted = append(deleted, first, second, filepath.Dir(filepath.Dir(shot)))
-					deleted = append(deleted, sidecars...)
 				}
 				for _, path := range deleted {
 					if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
@@ -190,7 +210,7 @@ func TestDeleteJavVideos(t *testing.T) {
 					}
 				}
 			} else {
-				for _, path := range append([]string{first, cover, shot}, sidecars...) {
+				for _, path := range []string{first, cover, shot} {
 					if _, err := os.Stat(path); err != nil {
 						t.Errorf("failure removed %s: %v", path, err)
 					}

@@ -50,7 +50,7 @@ test(
     assert.equal(await evaluate('window.deleteRequests'), 0)
     assert.equal(
       await evaluate('window.deleteMessage'),
-      'Delete “ABC-001”? All related files (including videos, matching subtitles, NFO files and video screenshots) and records will be deleted.'
+      'Delete videos for “ABC-001”? Video files, video screenshots and related video records will be deleted.'
     )
     await evaluate(`window.allowDelete = true; ${deleteButton}.click()`)
     await waitFor(`${modal}.textContent.includes('Deletion failed')`)
