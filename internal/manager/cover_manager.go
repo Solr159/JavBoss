@@ -33,7 +33,7 @@ type CoverManager struct {
 	scheduled map[string]struct{}
 }
 
-const minValidCoverSizeBytes int64 = 30 * 1024
+const minValidCoverSizeBytes int64 = 5 * 1024
 
 var errInvalidCover = errors.New("invalid cover")
 var errCoverNotFound = errors.New("cover not found")
@@ -163,14 +163,8 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	if m == nil {
 		return errors.New("cover manager not configured")
 	}
-	providers := m.providers
-	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(code)), "FC2-PPV-") {
-		// FC2 metadata (including the cover URL) comes from JavDB API. The
-		// general cover sources do not resolve these numbers.
-		providers = []jav.Provider{jav.ProviderJavDBAPI, jav.ProviderAvsox}
-	}
 	var lastErr error
-	for _, provider := range providers {
+	for _, provider := range m.providers {
 		info, err := lookupJavByCode(ctx, code, provider)
 		if err != nil {
 			if errors.Is(err, jav.ErrNotFound) {
@@ -256,11 +250,11 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		_ = os.Remove(tmp)
 		return fmt.Errorf("close cover: %w", err)
 	}
-	if written < minValidCoverSizeBytes && !strings.HasPrefix(code, "fc2-ppv-") {
+	if written < minValidCoverSizeBytes {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: size %d below minimum %d", errInvalidCover, written, minValidCoverSizeBytes)
 	}
-	if (encoded || written < minValidCoverSizeBytes) && !isDecodableCoverFile(tmp) {
+	if encoded && !isDecodableCoverFile(tmp) {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: file (%d bytes) is not a decodable image", errInvalidCover, written)
 	}
@@ -338,11 +332,6 @@ func isValidCoverFile(path string) bool {
 	info, err := os.Stat(path)
 	if err != nil || !info.Mode().IsRegular() {
 		return false
-	}
-	// FC2 covers are validated when downloaded. Loading them only checks the
-	// filename and file metadata, avoiding another image decode for small files.
-	if strings.HasPrefix(strings.ToLower(filepath.Base(path)), "fc2-ppv-") {
-		return info.Size() > 0
 	}
 	return info.Size() >= minValidCoverSizeBytes
 }
