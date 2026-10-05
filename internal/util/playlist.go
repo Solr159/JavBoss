@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -26,11 +27,7 @@ func openPlaylist(paths []string, tempDir string, open func(string) error) error
 		if err != nil {
 			return fmt.Errorf("resolve playlist path: %w", err)
 		}
-		filePath := filepath.ToSlash(absolute)
-		if !strings.HasPrefix(filePath, "/") {
-			filePath = "/" + filePath
-		}
-		content.WriteString((&url.URL{Scheme: "file", Path: filePath}).String())
+		content.WriteString(playlistEntryPath(absolute, runtime.GOOS))
 		content.WriteByte('\n')
 	}
 	dir := filepath.Join(tempDir, "javboss-playlists")
@@ -64,4 +61,13 @@ func openPlaylist(paths []string, tempDir string, open func(string) error) error
 		return fmt.Errorf("open playlist: %w", err)
 	}
 	return nil
+}
+
+func playlistEntryPath(absolute, goos string) string {
+	if goos == "windows" {
+		// Use native drive/UNC paths so desktop players do not need to decode
+		// percent-escaped file URLs. M3U8 preserves Unicode names as UTF-8.
+		return absolute
+	}
+	return (&url.URL{Scheme: "file", Path: absolute}).String()
 }

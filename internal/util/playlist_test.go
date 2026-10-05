@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -24,6 +25,12 @@ func TestOpenPlaylistPreservesPathsAndOrder(t *testing.T) {
 			t.Fatalf("invalid playlist: %q", content)
 		}
 		for i, line := range lines[1:] {
+			if runtime.GOOS == "windows" {
+				if line != paths[i] {
+					t.Fatalf("incorrect native path: %q, want %q", line, paths[i])
+				}
+				continue
+			}
 			parsed, err := url.Parse(line)
 			if err != nil || parsed.Scheme != "file" || parsed.Fragment != "" {
 				t.Fatalf("invalid file URL: %q, %v", line, err)
@@ -39,6 +46,39 @@ func TestOpenPlaylistPreservesPathsAndOrder(t *testing.T) {
 	}
 	if _, err := os.Stat(opened); err != nil {
 		t.Fatalf("playlist removed before asynchronous player could read it: %v", err)
+	}
+}
+
+func TestPlaylistEntryPath(t *testing.T) {
+	for _, tc := range []struct {
+		name, goos, path, want string
+	}{
+		{
+			name: "Windows Unicode drive path", goos: "windows",
+			path: `F:\Videos\日本語 中文\part 1.mp4`,
+			want: `F:\Videos\日本語 中文\part 1.mp4`,
+		},
+		{
+			name: "Windows UNC path and literal URL characters", goos: "windows",
+			path: `\\nas\share\中文 #1 & 100% %20.mp4`,
+			want: `\\nas\share\中文 #1 & 100% %20.mp4`,
+		},
+		{
+			name: "Linux special characters remain encoded", goos: "linux",
+			path: "/videos/part #1 & 100%.mp4",
+			want: "file:///videos/part%20%231%20&%20100%25.mp4",
+		},
+		{
+			name: "macOS newline stays inside one entry", goos: "darwin",
+			path: "/videos/part\n1.mp4",
+			want: "file:///videos/part%0A1.mp4",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := playlistEntryPath(tc.path, tc.goos); got != tc.want {
+				t.Fatalf("playlistEntryPath() = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
