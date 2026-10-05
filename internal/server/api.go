@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ThumbnailQueue abstracts the ability to enqueue thumbnail generation tasks.
 // RegisterRoutes wires handlers onto the provided router.
 func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/auth/extension-tokens", listExtensionTokens)

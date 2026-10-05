@@ -18,6 +18,7 @@ import {
 import { zh } from '@/utils/i18n'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { MovieEdit } from '@mui/icons-material'
+import VideoThumbnail from '@/features/video/components/VideoThumbnail'
 
 export default function VideoCard({
   video,
@@ -143,17 +144,11 @@ export default function VideoCard({
         </div>
       ) : null}
       <div className="relative aspect-video w-full overflow-hidden bg-gray-200">
-        <img
+        <VideoThumbnail
           src={thumbnailSrc}
           alt={displayName}
           className="h-full w-full object-cover"
           loading="lazy"
-          onLoad={(e) => {
-            e.currentTarget.style.display = ''
-          }}
-          onError={(e) => {
-            e.currentTarget.style.display = 'none'
-          }}
         />
         {javCode ? (
           <div

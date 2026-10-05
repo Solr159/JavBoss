@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import VideoThumbnail from '@/features/video/components/VideoThumbnail'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -367,7 +368,7 @@ function DefaultCoverPreview({ src }) {
       </div>
       <div className="flex aspect-video items-center justify-center bg-gray-100">
         {src && !imageFailed ? (
-          <img
+          <VideoThumbnail
             src={src}
             alt={zh('默认封面预览', 'Default cover preview')}
             className="h-full w-full object-cover"

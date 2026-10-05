@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
@@ -18,8 +19,8 @@ import (
 	"javboss/internal/util"
 )
 
-// Task represents a request to capture a screenshot for a specific video.
-type Task struct {
+// screenshotTask represents a request to capture a screenshot for a specific video.
+type screenshotTask struct {
 	VideoID    int64
 	Second     int
 	ModifiedAt time.Time
@@ -31,12 +32,33 @@ type VideoFetcher func(ctx context.Context, id int64) (*models.Video, error)
 
 const maxScreenshotWorkers = 8
 
+var ErrScreenshotUnavailable = errors.New("screenshot manager is unavailable")
+var ErrScreenshotQueueFull = errors.New("screenshot queue is full")
+var ErrNoThumbnail = errors.New("video has no thumbnail timestamp")
+var errScreenshotStale = errors.New("screenshot task metadata is stale")
+
+type screenshotKey struct {
+	videoID int64
+	second  int
+}
+
+type screenshotJob struct {
+	task screenshotTask
+	done chan struct{}
+	err  error
+}
+
 // ScreenshotManager coordinates asynchronous screenshot generation using the worker.
 type ScreenshotManager struct {
-	tasks      chan Task
+	tasks      chan *screenshotJob
 	workers    int
 	dataDir    string
 	fetchVideo VideoFetcher
+	mu         sync.Mutex
+	pending    map[screenshotKey]*screenshotJob
+	startOnce  sync.Once
+	stopped    bool
+	stoppedCh  chan struct{}
 }
 
 // NewScreenshotManager creates a manager when dataDir and fetchVideo are provided.
@@ -55,10 +77,12 @@ func NewScreenshotManager(dataDir string, fetchVideo VideoFetcher) *ScreenshotMa
 	}
 	logging.Info("screenshot manager initialized with %d workers", workers)
 	return &ScreenshotManager{
-		tasks:      make(chan Task, 5000),
+		tasks:      make(chan *screenshotJob, 5000),
 		workers:    workers,
 		dataDir:    dataDir,
 		fetchVideo: fetchVideo,
+		pending:    make(map[screenshotKey]*screenshotJob),
+		stoppedCh:  make(chan struct{}),
 	}
 }
 
@@ -76,41 +100,129 @@ func (m *ScreenshotManager) Start(ctx context.Context) {
 			m.workers = maxScreenshotWorkers
 		}
 	}
-	for i := 0; i < m.workers; i++ {
-		go m.startWorker(ctx)
+	m.startOnce.Do(func() {
+		for i := 0; i < m.workers; i++ {
+			go m.startWorker(ctx)
+		}
+		go func() {
+			<-ctx.Done()
+			m.mu.Lock()
+			defer m.mu.Unlock()
+			m.stopped = true
+			close(m.stoppedCh)
+			for key, job := range m.pending {
+				job.err = ErrScreenshotUnavailable
+				close(job.done)
+				delete(m.pending, key)
+			}
+		}()
+	})
+}
+
+// schedule deduplicates queued and running tasks. Scans retain their blocking
+// queue admission; HTTP requests get a retryable error when the queue is full.
+func (m *ScreenshotManager) schedule(task screenshotTask, block bool) (*screenshotJob, error) {
+	if m == nil {
+		return nil, ErrScreenshotUnavailable
+	}
+	m.mu.Lock()
+	if m.stopped {
+		m.mu.Unlock()
+		return nil, ErrScreenshotUnavailable
+	}
+	key := screenshotKey{task.VideoID, task.Second}
+	if job := m.pending[key]; job != nil {
+		m.mu.Unlock()
+		return job, nil
+	}
+	job := &screenshotJob{task: task, done: make(chan struct{})}
+	m.pending[key] = job
+	m.mu.Unlock()
+	if block {
+		select {
+		case m.tasks <- job:
+			return job, nil
+		case <-m.stoppedCh:
+			return nil, ErrScreenshotUnavailable
+		}
+	}
+	select {
+	case m.tasks <- job:
+		return job, nil
+	default:
+		m.finish(job, ErrScreenshotQueueFull)
+		return nil, ErrScreenshotQueueFull
 	}
 }
 
-// Enqueue schedules a single screenshot task. Invalid or empty tasks are ignored.
-func (m *ScreenshotManager) Enqueue(task Task) {
-	if m == nil {
-		return
+func (m *ScreenshotManager) finish(job *screenshotJob, err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := screenshotKey{job.task.VideoID, job.task.Second}
+	if m.pending[key] != job {
+		return // Shutdown already released the waiters.
 	}
-	if task.VideoID <= 0 || task.Second <= 0 || task.ModifiedAt.IsZero() {
-		return
-	}
-	// Block until the worker takes it to ensure screenshots are always generated.
-	m.tasks <- task
+	job.err = err
+	delete(m.pending, key)
+	close(job.done)
 }
 
-// EnqueueForVideo schedules a screenshot task using the standard second selection logic.
-func (m *ScreenshotManager) EnqueueForVideo(video *models.Video) {
+// GetThumbnail returns an existing default thumbnail or generates it through the
+// shared worker queue. Cancelling ctx stops only this caller's wait.
+func (m *ScreenshotManager) GetThumbnail(ctx context.Context, video *models.Video) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	if m == nil {
+		return "", ErrScreenshotUnavailable
+	}
+	if video == nil || video.ID <= 0 {
+		return "", ErrNoThumbnail
+	}
+	second, ok := pickScreenshotSecond(video.DurationSec)
+	if !ok {
+		return "", ErrNoThumbnail
+	}
+	path := m.screenshotPath(video.ID, second)
+	if _, err := os.Stat(path); err == nil {
+		return path, nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return "", fmt.Errorf("stat screenshot: %w", err)
+	}
+	task, ok := screenshotTaskForVideo(video)
+	if !ok {
+		return "", errors.New("video has no valid screenshot task")
+	}
+	job, err := m.schedule(task, false)
+	if err != nil {
+		return "", err
+	}
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-job.done:
+		if job.err != nil {
+			return "", job.err
+		}
+		if _, err := os.Stat(path); err != nil {
+			return "", fmt.Errorf("stat generated screenshot: %w", err)
+		}
+		return path, nil
+	}
+}
+
+// EnqueueThumbnail schedules default thumbnail generation for a video.
+func (m *ScreenshotManager) EnqueueThumbnail(video *models.Video) {
 	if m == nil {
 		return
 	}
-	task, ok := TaskForVideo(video)
+	task, ok := screenshotTaskForVideo(video)
 	if !ok {
 		return
 	}
-	m.Enqueue(task)
-}
-
-// ScreenshotPath builds the on-disk screenshot path for a video ID and second.
-func (m *ScreenshotManager) ScreenshotPath(videoID int64, second int) string {
-	if m == nil {
-		return ""
+	if _, err := m.schedule(task, true); err != nil {
+		logging.Error("enqueue screenshot (video_id=%d): %v", task.VideoID, err)
 	}
-	return ScreenshotPath(m.dataDir, videoID, second)
 }
 
 // CaptureFile captures a screenshot for videoPath at second into outputPath.
@@ -121,9 +233,12 @@ func (m *ScreenshotManager) CaptureFile(ctx context.Context, videoPath string, s
 	return m.capture(ctx, videoPath, second, outputPath)
 }
 
-// ScreenshotPath builds the on-disk screenshot path for a video ID and second.
-func ScreenshotPath(dataDir string, videoID int64, second int) string {
-	dataDir = strings.TrimSpace(dataDir)
+// screenshotPath builds the on-disk screenshot path for a video ID and second.
+func (m *ScreenshotManager) screenshotPath(videoID int64, second int) string {
+	if m == nil {
+		return ""
+	}
+	dataDir := m.dataDir
 	if dataDir == "" || videoID <= 0 || second <= 0 {
 		return ""
 	}
@@ -133,8 +248,8 @@ func ScreenshotPath(dataDir string, videoID int64, second int) string {
 
 var screenshotSeconds = []int{128, 63, 32, 16, 8, 4, 2, 1}
 
-// PickScreenshotSecond picks the closest configured second that does not exceed durationSec.
-func PickScreenshotSecond(durationSec int64) (int, bool) {
+// pickScreenshotSecond picks the closest configured second that does not exceed durationSec.
+func pickScreenshotSecond(durationSec int64) (int, bool) {
 	if durationSec <= 0 {
 		return 0, false
 	}
@@ -146,20 +261,20 @@ func PickScreenshotSecond(durationSec int64) (int, bool) {
 	return 0, false
 }
 
-// TaskForVideo builds a screenshot task for the given video using standard selection logic.
-func TaskForVideo(video *models.Video) (Task, bool) {
+// screenshotTaskForVideo builds a screenshot task for the given video using standard selection logic.
+func screenshotTaskForVideo(video *models.Video) (screenshotTask, bool) {
 	if video == nil {
-		return Task{}, false
+		return screenshotTask{}, false
 	}
 	modifiedAt, size, ok := videoTaskMeta(video)
 	if video.ID <= 0 || !ok || modifiedAt.IsZero() {
-		return Task{}, false
+		return screenshotTask{}, false
 	}
-	second, ok := PickScreenshotSecond(video.DurationSec)
+	second, ok := pickScreenshotSecond(video.DurationSec)
 	if !ok {
-		return Task{}, false
+		return screenshotTask{}, false
 	}
-	return Task{
+	return screenshotTask{
 		VideoID:    video.ID,
 		Second:     second,
 		ModifiedAt: modifiedAt,
@@ -191,23 +306,28 @@ func (m *ScreenshotManager) startWorker(ctx context.Context) {
 		case <-ctx.Done():
 			logging.Info("screenshot worker exiting: context cancelled")
 			return
-		case task, ok := <-m.tasks:
+		case job, ok := <-m.tasks:
 			if !ok {
 				logging.Info("screenshot worker exiting: task channel closed")
 				return
 			}
-			if err := m.processTask(ctx, task); err != nil {
-				logging.Error("screenshot task failed (video_id=%d, second=%d): %v", task.VideoID, task.Second, err)
+			err := m.processTask(ctx, job.task)
+			m.finish(job, err)
+			if err != nil {
+				logging.Error("screenshot task failed (video_id=%d, second=%d): %v", job.task.VideoID, job.task.Second, err)
 			}
 		}
 	}
 }
 
-func (m *ScreenshotManager) processTask(parent context.Context, task Task) error {
+func (m *ScreenshotManager) processTask(parent context.Context, task screenshotTask) error {
+	if err := parent.Err(); err != nil {
+		return err
+	}
 	if task.VideoID <= 0 || task.Second <= 0 || task.ModifiedAt.IsZero() {
 		return errors.New("invalid screenshot task: missing video id, second, or modified_at")
 	}
-	screenshotPath := m.ScreenshotPath(task.VideoID, task.Second)
+	screenshotPath := m.screenshotPath(task.VideoID, task.Second)
 	if screenshotPath == "" {
 		return errors.New("invalid screenshot task: missing screenshot path")
 	}
@@ -222,11 +342,11 @@ func (m *ScreenshotManager) processTask(parent context.Context, task Task) error
 		return err
 	}
 	if video == nil {
-		return nil
+		return os.ErrNotExist
 	}
 	modifiedAt, size, ok := videoTaskMeta(video)
 	if !ok || !sameVideoMeta(modifiedAt, size, task) {
-		return nil
+		return errScreenshotStale
 	}
 
 	videoPath, err := resolveVideoPath(video)
@@ -239,7 +359,7 @@ func (m *ScreenshotManager) processTask(parent context.Context, task Task) error
 		return err
 	}
 	if !sameVideoMeta(info.ModTime(), info.Size(), task) {
-		return nil
+		return errScreenshotStale
 	}
 
 	// Bound mpv execution time to avoid stuck processes.
@@ -399,7 +519,7 @@ func resolveVideoPath(video *models.Video) (string, error) {
 	return "", errors.New("video location missing")
 }
 
-func sameVideoMeta(modifiedAt time.Time, size int64, task Task) bool {
+func sameVideoMeta(modifiedAt time.Time, size int64, task screenshotTask) bool {
 	if task.ModifiedAt.IsZero() {
 		return false
 	}

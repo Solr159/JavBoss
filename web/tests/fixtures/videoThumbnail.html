@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+  <body>
+    <div id="root"></div>
+    <script type="module">
+      import React from 'react'
+      import { createRoot } from 'react-dom/client'
+      import VideoThumbnail from '/src/features/video/components/VideoThumbnail.jsx'
+
+      const originalTimeout = window.setTimeout
+      window.setTimeout = (callback, delay, ...args) =>
+        originalTimeout(callback, [3000, 10000, 30000].includes(delay) ? 100 : delay, ...args)
+      const root = createRoot(document.getElementById('root'))
+      window.loads = 0
+      window.failures = 0
+      window.showThumbnail = (src) =>
+        root.render(
+          React.createElement(VideoThumbnail, {
+            src,
+            alt: 'test thumbnail',
+            loading: 'lazy',
+            style: { width: 100, height: 100 },
+            onLoad: () => window.loads++,
+            onError: () => window.failures++,
+          })
+        )
+      document.addEventListener(
+        'error',
+        () => {
+          if (window.unmountOnError) requestAnimationFrame(() => root.unmount())
+        },
+        true
+      )
+      window.ready = true
+    </script>
+  </body>
+</html>

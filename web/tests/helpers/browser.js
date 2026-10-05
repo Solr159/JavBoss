@@ -8,11 +8,15 @@ const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export const browserUnavailable = !existsSync(chromePath) || typeof WebSocket === 'undefined'
 
-export async function openBrowser(t, { cacheDir = 'node_modules/.vite-app-test' } = {}) {
+export async function openBrowser(
+  t,
+  { cacheDir = 'node_modules/.vite-app-test', plugins = [] } = {}
+) {
   const root = fileURLToPath(new URL('../../', import.meta.url))
   const server = await createServer({
     root,
     cacheDir,
+    plugins,
     server: { port: 0, host: '127.0.0.1' },
   })
   await server.listen()

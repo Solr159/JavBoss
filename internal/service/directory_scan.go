@@ -371,7 +371,7 @@ func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summar
 		return nil
 	}
 	video.ModifiedAt = entry.ModifiedAt
-	common.ScreenshotManager.EnqueueForVideo(video)
+	common.ScreenshotManager.EnqueueThumbnail(video)
 	return nil
 }
 

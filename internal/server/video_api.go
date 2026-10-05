@@ -1383,6 +1383,8 @@ func sameCleanPath(a, b string) bool {
 	return filepath.Clean(a) == filepath.Clean(b)
 }
 
+const thumbnailWaitTimeout = 20 * time.Second
+
 func getThumbnail(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -1414,30 +1416,27 @@ func getThumbnail(c *gin.Context) {
 		}
 	}
 
-	second, ok := manager.PickScreenshotSecond(video.DurationSec)
-	if !ok {
+	serveThumbnail(c, video, common.ScreenshotManager.GetThumbnail)
+}
+
+func serveThumbnail(c *gin.Context, video *models.Video, wait func(context.Context, *models.Video) (string, error)) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), thumbnailWaitTimeout)
+	defer cancel()
+	path, err := wait(ctx, video)
+	if err == nil {
+		c.File(path)
+		return
+	}
+	if c.Request.Context().Err() != nil {
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	if errors.Is(err, manager.ErrNoThumbnail) {
 		respondLocalizedError(c, http.StatusNotFound, "视频没有可用的缩略图时间点", "No thumbnail timestamp is available for this video")
 		return
 	}
-
-	screenshotPath := manager.ScreenshotPath(dataDir, video.ID, second)
-	if screenshotPath == "" {
-		respondLocalizedError(c, http.StatusInternalServerError, "生成缩略图路径失败", "Failed to build the thumbnail path")
-		return
-	}
-
-	if _, err := os.Stat(screenshotPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			common.ScreenshotManager.EnqueueForVideo(video)
-			respondLocalizedError(c, http.StatusNotFound, "视频缩略图尚未生成", "Video thumbnail has not been generated yet")
-			return
-		}
-		logging.Error("stat screenshot error: %v", err)
-		respondLocalizedError(c, http.StatusInternalServerError, "读取视频缩略图失败", "Failed to inspect the video thumbnail")
-		return
-	}
-
-	c.File(screenshotPath)
+	c.Header("Retry-After", "3")
+	respondLocalizedError(c, http.StatusServiceUnavailable, "视频缩略图暂不可用，请稍后重试", "Video thumbnail is temporarily unavailable; retry shortly")
 }
 
 func defaultVideoThumbnailRequested(c *gin.Context) bool {
