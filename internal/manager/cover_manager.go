@@ -33,7 +33,10 @@ type CoverManager struct {
 	scheduled map[string]struct{}
 }
 
-const minValidCoverSizeBytes int64 = 5 * 1024
+const (
+	minValidCoverSizeBytes int64 = 5 * 1024
+	coverProviderTimeout         = 8 * time.Second
+)
 
 var errInvalidCover = errors.New("invalid cover")
 var errCoverNotFound = errors.New("cover not found")
@@ -143,7 +146,7 @@ func (m *CoverManager) clearScheduled(code string) {
 	m.mu.Unlock()
 }
 
-func (m *CoverManager) handleTask(parent context.Context, code string) error {
+func (m *CoverManager) handleTask(ctx context.Context, code string) error {
 	code = normalizeCode(code)
 	if code == "" {
 		return errors.New("empty code")
@@ -151,9 +154,6 @@ func (m *CoverManager) handleTask(parent context.Context, code string) error {
 	if m.Exists(code) {
 		return nil
 	}
-
-	ctx, cancel := context.WithTimeout(parent, 45*time.Second)
-	defer cancel()
 
 	if err := m.downloadCoverFromProviders(ctx, code); err != nil {
 		if errors.Is(err, errCoverNotFound) {
@@ -170,8 +170,14 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 	}
 	var lastErr error
 	for _, provider := range m.providers {
-		info, err := lookupJavByCode(ctx, code, provider)
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		// Each provider gets its own budget for both metadata and image download.
+		providerCtx, cancel := context.WithTimeout(ctx, coverProviderTimeout)
+		info, err := lookupJavByCode(providerCtx, code, provider)
 		if err != nil {
+			cancel()
 			if errors.Is(err, jav.ErrNotFound) {
 				continue
 			}
@@ -185,9 +191,12 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 			coverURL = strings.TrimSpace(info.CoverURL)
 		}
 		if coverURL == "" {
+			cancel()
 			continue
 		}
-		if err := m.downloadCover(ctx, code, coverURL); err != nil {
+		err = m.downloadCover(providerCtx, code, coverURL)
+		cancel()
+		if err != nil {
 			if errors.Is(err, errCoverNotFound) || errors.Is(err, errInvalidCover) {
 				lastErr = err
 				continue
@@ -197,6 +206,9 @@ func (m *CoverManager) downloadCoverFromProviders(ctx context.Context, code stri
 			continue
 		}
 		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if lastErr != nil {
 		return fmt.Errorf("download cover from providers: %w", lastErr)

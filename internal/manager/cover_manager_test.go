@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"javboss/internal/jav"
 )
@@ -326,5 +327,78 @@ func TestHandleTaskFC2UsesBuiltInCoverProviders(t *testing.T) {
 				t.Fatal("downloaded FC2 cover was not found")
 			}
 		})
+	}
+}
+
+func TestCoverProviderTimeoutContinuesWithFreshBudget(t *testing.T) {
+	for _, stage := range []string{"metadata", "image download"} {
+		t.Run(stage, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/slow.jpg" {
+					<-r.Context().Done()
+					return
+				}
+				_, _ = w.Write(bytes.Repeat([]byte{'x'}, int(minValidCoverSizeBytes)))
+			}))
+			defer server.Close()
+			originalLookup := lookupJavByCode
+			t.Cleanup(func() { lookupJavByCode = originalLookup })
+			var calls []jav.Provider
+			var firstCtx context.Context
+			lookupJavByCode = func(ctx context.Context, code string, provider jav.Provider) (*jav.JavInfo, error) {
+				calls = append(calls, provider)
+				deadline, ok := ctx.Deadline()
+				if remaining := time.Until(deadline); !ok || remaining < 7*time.Second || remaining > 8*time.Second {
+					t.Fatalf("provider %s budget = %s, has deadline = %t", provider, remaining, ok)
+				}
+				if provider == jav.ProviderJavBus {
+					firstCtx = ctx
+					if stage == "metadata" {
+						<-ctx.Done()
+						return nil, ctx.Err()
+					}
+					// Metadata consumes part of the same budget used by the image request.
+					time.Sleep(2 * time.Second)
+					return &jav.JavInfo{CoverURL: server.URL + "/slow.jpg"}, nil
+				}
+				if !errors.Is(firstCtx.Err(), context.DeadlineExceeded) {
+					t.Fatalf("first provider did not time out: %v", firstCtx.Err())
+				}
+				return &jav.JavInfo{CoverURL: server.URL + "/cover.jpg"}, nil
+			}
+			manager := NewCoverManager(t.TempDir())
+			manager.providers = []jav.Provider{jav.ProviderJavBus, jav.ProviderJavDBAPI}
+			started := time.Now()
+			if err := manager.handleTask(t.Context(), "FC2-PPV-1234567"); err != nil {
+				t.Fatal(err)
+			}
+			if elapsed := time.Since(started); elapsed > 10*time.Second {
+				t.Fatalf("provider lookup and download did not share an 8 second budget: %s", elapsed)
+			}
+			if !slices.Equal(calls, manager.providers) || !manager.Exists("FC2-PPV-1234567") {
+				t.Fatalf("fallback did not download a cover: providers=%v", calls)
+			}
+		})
+	}
+}
+
+func TestCoverProviderStopsWhenParentCanceled(t *testing.T) {
+	originalLookup := lookupJavByCode
+	t.Cleanup(func() { lookupJavByCode = originalLookup })
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	calls := 0
+	lookupJavByCode = func(providerCtx context.Context, code string, provider jav.Provider) (*jav.JavInfo, error) {
+		calls++
+		cancel()
+		<-providerCtx.Done()
+		return nil, providerCtx.Err()
+	}
+	manager := NewCoverManager(t.TempDir())
+	if err := manager.handleTask(ctx, "ABC-001"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("handleTask error = %v, want context canceled", err)
+	}
+	if calls != 1 {
+		t.Fatalf("provider calls = %d, want 1", calls)
 	}
 }
