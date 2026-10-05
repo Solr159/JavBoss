@@ -19,18 +19,6 @@ import (
 	"javboss/internal/jav"
 )
 
-func TestCompactCoverProvidersExcludesNonLookupProviders(t *testing.T) {
-	got := compactCoverProviders([]jav.Provider{
-		jav.ProviderUnknown,
-		jav.ProviderUser,
-		jav.ProviderManualScrape,
-		jav.ProviderJavBus,
-	})
-	if len(got) != 1 || got[0] != jav.ProviderJavBus {
-		t.Fatalf("compact cover providers = %#v, want only JavBus", got)
-	}
-}
-
 func TestSetCoverDownloadHeadersForJavBus(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "https://www.javbus.com/pics/cover/c85j_b.jpg", nil)
 	if err != nil {
@@ -265,7 +253,7 @@ func TestHandleTaskRetriesAfterSmallCover(t *testing.T) {
 	}
 }
 
-func TestHandleTaskFC2UsesConfiguredCoverProviders(t *testing.T) {
+func TestHandleTaskFC2UsesBuiltInCoverProviders(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/missing.jpg" {
 			http.NotFound(w, r)
@@ -303,7 +291,9 @@ func TestHandleTaskFC2UsesConfiguredCoverProviders(t *testing.T) {
 					t.Fatalf("lookup code = %q", code)
 				}
 				switch provider {
-				case jav.ProviderJavBus:
+				case jav.ProviderJavBus, jav.ProviderJavDatabase, jav.ProviderThePornDB:
+					return nil, jav.ErrNotFound
+				case jav.ProviderJavDBAPI:
 					if tc.apiErr != nil {
 						return nil, tc.apiErr
 					}
@@ -319,13 +309,13 @@ func TestHandleTaskFC2UsesConfiguredCoverProviders(t *testing.T) {
 					return nil, jav.ErrNotFound
 				}
 			}
-			manager := NewCoverManager(t.TempDir(), []jav.Provider{
-				jav.ProviderJavBus, jav.ProviderAvsox,
-			})
+			manager := NewCoverManager(t.TempDir())
 			if err := manager.handleTask(context.Background(), " FC2-PPV-1234567 "); err != nil {
 				t.Fatal(err)
 			}
-			wantCalls := []jav.Provider{jav.ProviderJavBus}
+			wantCalls := []jav.Provider{
+				jav.ProviderJavBus, jav.ProviderJavDatabase, jav.ProviderThePornDB, jav.ProviderJavDBAPI,
+			}
 			if tc.fallback {
 				wantCalls = append(wantCalls, jav.ProviderAvsox)
 			}

@@ -174,12 +174,7 @@ func main() {
 	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
 	streamManager := manager.NewStreamManager(filepath.Join(dataDir, "cache", "streams"))
 	ffmpegToolManager := manager.NewFFmpegToolManager(ctx, baseDir)
-	coverManager := manager.NewCoverManager(cfg.JavCoverDir, []jav.Provider{
-		jav.ProviderJavBus,
-		jav.ProviderJavDatabase,
-		jav.ProviderThePornDB,
-		jav.ProviderAvsox,
-	})
+	coverManager := manager.NewCoverManager(cfg.JavCoverDir)
 
 	common.AppConfig = cfg
 	common.ScreenshotManager = screenshotManager

@@ -40,18 +40,23 @@ var errCoverNotFound = errors.New("cover not found")
 
 var lookupJavByCode = jav.LookupJavByCode
 
-// NewCoverManager creates a manager when coverDir and providers are provided.
-func NewCoverManager(coverDir string, providers []jav.Provider) *CoverManager {
+// NewCoverManager creates a manager with the built-in cover providers.
+func NewCoverManager(coverDir string) *CoverManager {
 	coverDir = strings.TrimSpace(coverDir)
-	providers = compactCoverProviders(providers)
-	if coverDir == "" || len(providers) == 0 {
+	if coverDir == "" {
 		return nil
 	}
 	return &CoverManager{
-		tasks:     make(chan string, 5000), // larger buffer to reduce producer blocking
-		coverDir:  coverDir,
-		workers:   8,
-		providers: providers,
+		tasks:    make(chan string, 5000), // larger buffer to reduce producer blocking
+		coverDir: coverDir,
+		workers:  8,
+		providers: []jav.Provider{
+			jav.ProviderJavBus,
+			jav.ProviderJavDatabase,
+			jav.ProviderThePornDB,
+			jav.ProviderJavDBAPI,
+			jav.ProviderAvsox,
+		},
 		scheduled: make(map[string]struct{}),
 	}
 }
@@ -254,6 +259,15 @@ func (m *CoverManager) downloadCover(ctx context.Context, code, coverURL string)
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: size %d below minimum %d", errInvalidCover, written, minValidCoverSizeBytes)
 	}
+	blacklisted, err := isBlacklistedCoverFile(tmp, written)
+	if err != nil {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("check cover blacklist: %w", err)
+	}
+	if blacklisted {
+		_ = os.Remove(tmp)
+		return fmt.Errorf("%w: known placeholder image", errInvalidCover)
+	}
 	if encoded && !isDecodableCoverFile(tmp) {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("%w: file (%d bytes) is not a decodable image", errInvalidCover, written)
@@ -333,7 +347,11 @@ func isValidCoverFile(path string) bool {
 	if err != nil || !info.Mode().IsRegular() {
 		return false
 	}
-	return info.Size() >= minValidCoverSizeBytes
+	if info.Size() < minValidCoverSizeBytes {
+		return false
+	}
+	blacklisted, err := isBlacklistedCoverFile(path, info.Size())
+	return err == nil && !blacklisted
 }
 
 func isDecodableCoverFile(path string) bool {
@@ -358,18 +376,4 @@ func guessExt(ct string) string {
 	default:
 		return ""
 	}
-}
-
-func compactCoverProviders(providers []jav.Provider) []jav.Provider {
-	if len(providers) == 0 {
-		return nil
-	}
-	compact := make([]jav.Provider, 0, len(providers))
-	for _, provider := range providers {
-		provider = jav.ParseProvider(int(provider))
-		if provider != jav.ProviderUnknown && provider != jav.ProviderUser && provider != jav.ProviderManualScrape {
-			compact = append(compact, provider)
-		}
-	}
-	return compact
 }
