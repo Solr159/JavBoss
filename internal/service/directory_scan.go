@@ -41,6 +41,7 @@ type Summary struct {
 	Removed     int
 	Duration    time.Duration
 	Directories int
+	ReadErrors  int
 }
 
 // makePathKey 生成目录内相对路径的唯一索引键。
@@ -152,7 +153,7 @@ func runDirectoryScanWithSession(scanCtx context.Context, directory models.Direc
 		}
 	}
 	logging.Info(
-		"sync directory summary: id=%d path=%s scanned=%t files_seen=%d inserted=%d updated=%d removed=%d duration=%s",
+		"sync directory summary: id=%d path=%s scanned=%t files_seen=%d inserted=%d updated=%d removed=%d read_errors=%d duration=%s",
 		directory.ID,
 		directory.Path,
 		scanned,
@@ -160,6 +161,7 @@ func runDirectoryScanWithSession(scanCtx context.Context, directory models.Direc
 		summary.Inserted,
 		summary.Updated,
 		summary.Removed,
+		summary.ReadErrors,
 		summary.Duration,
 	)
 	return summary, nil
@@ -238,12 +240,19 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 	normalizedRoot := filepath.Clean(directory.Path)
 	progress, _ := ctx.Value(directoryScanProgressKey{}).(*directoryScanProgress)
 	return filepath.WalkDir(normalizedRoot, func(candidatePath string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return fmt.Errorf("walk directory entry %s: %w", candidatePath, walkErr)
-		}
-
 		if err := ctx.Err(); err != nil {
 			return err
+		}
+		if walkErr != nil {
+			if candidatePath == normalizedRoot {
+				return fmt.Errorf("walk directory entry %s: %w", candidatePath, walkErr)
+			}
+			summary.ReadErrors++
+			logging.Error("skip unreadable directory entry: path=%s err=%v", candidatePath, walkErr)
+			if entry != nil && entry.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 
 		if entry.IsDir() {
@@ -257,7 +266,9 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 
 		info, err := entry.Info()
 		if err != nil {
-			return err
+			summary.ReadErrors++
+			logging.Error("skip unreadable video file: path=%s err=%v", candidatePath, err)
+			return nil
 		}
 
 		// 计算相对路径，确保只处理目录内的文件（防止符号链接等越界）
@@ -392,6 +403,15 @@ func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *Fil
 
 // deleteUnprocessedVideoLocations removes old locations only after confirming the paths are absent.
 func deleteUnprocessedVideoLocations(ctx context.Context, processedLocationIDs map[int64]struct{}, summary *Summary, directory models.Directory) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// An incomplete traversal cannot establish which old locations disappeared.
+	// Keep all of them until a later scan can read the entire directory.
+	if summary.ReadErrors > 0 {
+		logging.Error("skip stale video location cleanup after incomplete scan: id=%d path=%s read_errors=%d", directory.ID, directory.Path, summary.ReadErrors)
+		return nil
+	}
 	locations, err := db.VideoLocationsByDirectory(ctx, directory.ID)
 	if err != nil {
 		return err
