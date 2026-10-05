@@ -56,13 +56,13 @@ export default function BulkActionsMenu({
           disabled={!pageSelectable || !bulkPlaybackEnabled || busy}
           onClick={() => runAction(onPlayPage)}
         >
-          {zh('使用默认播放器播放本页', 'Play page with default player')}
+          {zh('播放本页', 'Play page')}
         </MenuItem>
         <MenuItem
           disabled={!hasItems || !bulkPlaybackEnabled || busy}
           onClick={() => runAction(onPlayAll)}
         >
-          {zh('使用默认播放器播放全部', 'Play all with default player')}
+          {zh('播放全部', 'Play all')}
         </MenuItem>
       </Menu>
     </>

@@ -93,9 +93,7 @@ export default function JavSelectionOpsModal({
           disabled={list.length === 0 || !bulkPlaybackEnabled || disabled}
           startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
         >
-          {playing
-            ? zh('正在播放…', 'Playing...')
-            : zh('使用默认播放器播放全部', 'Play all with default player')}
+          {playing ? zh('正在播放…', 'Playing...') : zh('播放全部', 'Play all')}
         </Button>
       </div>
     </AppModal>

@@ -112,9 +112,7 @@ export default function SelectionOpsModal({
             disabled={count === 0 || !bulkPlaybackEnabled || busy}
             startIcon={<PlaylistPlayRoundedIcon fontSize="inherit" />}
           >
-            {playing
-              ? zh('正在播放…', 'Playing...')
-              : zh('使用默认播放器播放全部', 'Play all with default player')}
+            {playing ? zh('正在播放…', 'Playing...') : zh('播放全部', 'Play all')}
           </Button>
           <Button
             variant="contained"

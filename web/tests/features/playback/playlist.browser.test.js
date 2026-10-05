@@ -57,7 +57,7 @@ test(
     const playlist = `document.querySelector('#browser-playlist')`
     const player = `document.querySelector('.video-js')?.player`
     const activeTitle = `${playlist}?.querySelector('[aria-current="true"]')?.title`
-    await playMenu('Play page with default player')
+    await playMenu('Play page')
     await waitFor(`${activeTitle} === 'first.mp4' && ${player}`)
     assert.deepEqual(await evaluate('window.playlistRequests'), [])
     assert.equal(await evaluate(`${playlist}.querySelectorAll('li').length`), 3)
@@ -116,7 +116,7 @@ test(
     await evaluate(`document.querySelector('button.topbar-selection-action').click()`)
     await waitFor(`document.querySelector('[aria-label="Selected Files"]')`)
     await evaluate(
-      `[...document.querySelectorAll('[aria-label="Selected Files"] button')].find(el => el.textContent === 'Play all with default player').click()`
+      `[...document.querySelectorAll('[aria-label="Selected Files"] button')].find(el => el.textContent === 'Play all').click()`
     )
     await waitFor(`${activeTitle} === 'off-page.mp4' && ${player}`)
     assert.equal(await evaluate('window.streamRequests.at(-1)'), '/videos/9/streams?location_id=99')
@@ -124,7 +124,7 @@ test(
 
     // Loading errors retain the list so the user can move to another entry.
     await evaluate('window.failStreams = true')
-    await playMenu('Play all with default player')
+    await playMenu('Play all')
     await waitFor(
       `${playlist} && document.querySelector('[role="alert"]')?.textContent === 'Missing media'`
     )
@@ -138,7 +138,7 @@ test(
       await evaluate(
         `window.testStore.setState(state => ({config:{...state.config, default_player:'${defaultPlayer}', mpv_enabled:'true', desktop_integration_enabled:'true', runtime_remote_request:'false', runtime_container:'false'}}))`
       )
-      await playMenu('Play page with default player')
+      await playMenu('Play page')
       await waitFor(`window.playlistRequests.at(-1)?.player === '${defaultPlayer}'`)
       assert.deepEqual(
         await evaluate('window.playlistRequests.at(-1).items.map(item => item.location_id)'),
@@ -161,7 +161,7 @@ test(
     }`)
     await waitFor(`document.querySelectorAll('.jav-card').length === 2`)
     await evaluate(`document.querySelector('button[aria-label="JAV bulk actions"]').click()`)
-    const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all with default player')`
+    const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all')`
     await waitFor(javPlayAll)
     await evaluate(`${javPlayAll}.click()`)
     await waitFor(`${activeTitle} === 'first.mp4' && ${player}`)
