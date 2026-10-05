@@ -21,8 +21,6 @@ export default function usePlaybackCapabilities() {
     ? 'browser'
     : normalizeDefaultPlayer(config?.default_player)
 
-  const bulkPlayer = defaultPlayer === 'system' ? (remoteAccess ? 'browser' : 'mpv') : defaultPlayer
-
   const alternatePlayer = browserPlaybackOnly
     ? ''
     : defaultPlayer === 'system'
@@ -58,8 +56,9 @@ export default function usePlaybackCapabilities() {
     desktopIntegrationEnabled,
     mpvEnabled,
     defaultPlayer,
-    bulkPlayer,
-    bulkPlaybackEnabled: bulkPlayer === 'browser' || mpvEnabled,
+    bulkPlaybackEnabled:
+      defaultPlayer === 'browser' ||
+      (defaultPlayer === 'mpv' ? mpvEnabled : desktopIntegrationEnabled && !containerMode),
     alternatePlayer,
     alternatePlayerLabel,
   }
