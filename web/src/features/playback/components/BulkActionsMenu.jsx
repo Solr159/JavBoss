@@ -1,5 +1,5 @@
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
-import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
+import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded'
 import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
 import { useState } from 'react'
 import { zh } from '@/utils/i18n'
@@ -58,14 +58,14 @@ export default function BulkActionsMenu({
           onClick={() => runAction(onPlayPage)}
         >
           <span className="flex-1">{zh('播放本页', 'Play page')}</span>
-          <PlayArrowRoundedIcon fontSize="small" sx={{ ml: 2 }} />
+          <PlayCircleOutlineRoundedIcon sx={{ ml: 2, fontSize: 22 }} />
         </MenuItem>
         <MenuItem
           disabled={!hasItems || !bulkPlaybackEnabled || busy}
           onClick={() => runAction(onPlayAll)}
         >
           <span className="flex-1">{zh('播放全部', 'Play all')}</span>
-          <PlayArrowRoundedIcon fontSize="small" sx={{ ml: 2 }} />
+          <PlayCircleOutlineRoundedIcon sx={{ ml: 2, fontSize: 22 }} />
         </MenuItem>
       </Menu>
     </>
