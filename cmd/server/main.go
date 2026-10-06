@@ -228,6 +228,7 @@ func main() {
 		logger.Fatalf("listen on %s: %v", listenAddr, err)
 	}
 	defer listener.Close()
+	server.BindTitleTranslationContext(ctx)
 	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
 
 	srv := &http.Server{
