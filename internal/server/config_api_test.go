@@ -182,6 +182,36 @@ func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	}
 }
 
+func TestUpdateConfigPersistsJavPortraitMode(t *testing.T) {
+	testAuthService(t)
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	router.GET("/config", getConfig)
+	for _, enabled := range []bool{true, false} {
+		body, _ := json.Marshal(map[string]bool{"jav_portrait_mode": enabled})
+		req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != http.StatusOK {
+			t.Fatalf("update status=%d body=%s", response.Code, response.Body)
+		}
+		response = httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/config", nil))
+		var config map[string]string
+		if err := json.Unmarshal(response.Body.Bytes(), &config); err != nil {
+			t.Fatal(err)
+		}
+		want := "false"
+		if enabled {
+			want = "true"
+		}
+		if config["jav_portrait_mode"] != want {
+			t.Fatalf("stored portrait mode=%q, want %q", config["jav_portrait_mode"], want)
+		}
+	}
+}
+
 func TestUpdateConfigPersistsJavSortRules(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))

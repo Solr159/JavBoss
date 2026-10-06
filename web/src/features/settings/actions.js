@@ -46,6 +46,7 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
 export async function saveJavSettings(draft, onWaterfallChange) {
   const {
     javPageSizeInput,
+    javPortraitModeInput,
     javGridColumnsInput,
     javTitleMaxRowsInput,
     javIdolTagMaxRowsInput,
@@ -114,6 +115,7 @@ export async function saveJavSettings(draft, onWaterfallChange) {
 
   const cfg = await updateConfig({
     jav_page_size: javSize,
+    jav_portrait_mode: Boolean(javPortraitModeInput),
     jav_grid_columns: javColumns,
     jav_title_max_rows: javTitleRows,
     jav_idol_tag_max_rows: javIdolTagRows,

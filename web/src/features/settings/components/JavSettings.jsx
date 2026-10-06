@@ -25,6 +25,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       open={true}
       initialTab={initialTab}
       onClose={() => onClose()}
+      javPortraitModeInput={draft.javPortraitModeInput}
+      onJavPortraitModeChange={(value) =>
+        setDraft((current) => ({ ...current, javPortraitModeInput: value }))
+      }
       javPageSizeInput={draft.javPageSizeInput}
       onJavPageSizeChange={(value) =>
         setDraft((current) => ({ ...current, javPageSizeInput: value }))

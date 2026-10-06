@@ -10,10 +10,29 @@ import {
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { zh } from '@/utils/i18n'
 import { isUserJavTag } from '@/constants/jav'
+import { getJavPortraitImageStyle } from '@/features/jav/coverLayout'
 
-export function JavCoverImage({ src, alt }) {
+export function JavCoverImage({ src, alt, portraitMode = false }) {
+  const [loadedImage, setLoadedImage] = useState(null)
+  const portraitStyle = portraitMode && loadedImage?.src === src ? loadedImage.style : undefined
   return (
-    <img src={src} alt={alt} className="h-full w-full object-contain object-top" loading="lazy" />
+    <img
+      src={src}
+      alt={alt}
+      className={
+        portraitStyle
+          ? 'absolute top-0 h-full w-auto max-w-none'
+          : 'h-full w-full object-contain object-top'
+      }
+      style={portraitStyle}
+      loading="lazy"
+      onLoad={({ currentTarget: image }) =>
+        setLoadedImage({
+          src,
+          style: getJavPortraitImageStyle(image.naturalWidth, image.naturalHeight),
+        })
+      }
+    />
   )
 }
 

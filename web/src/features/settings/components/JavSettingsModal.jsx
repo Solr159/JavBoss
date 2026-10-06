@@ -322,6 +322,8 @@ export default function JavSettingsModal({
   javTagMaxRowsInput,
   onJavTagMaxRowsChange,
   javHideSeriesInput = false,
+  javPortraitModeInput = false,
+  onJavPortraitModeChange,
   onJavHideSeriesChange,
   javHideIdolsInput = false,
   onJavHideIdolsChange,
@@ -390,6 +392,7 @@ export default function JavSettingsModal({
         onJavTagShowSimplifiedChange?.(false)
         break
       default:
+        onJavPortraitModeChange?.(false)
         onJavPageSizeChange?.(24)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
@@ -458,6 +461,13 @@ export default function JavSettingsModal({
           <div className="space-y-3">
             <SettingsSection title={zh('布局设置', 'Layout')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('竖图模式', 'Portrait cover mode')}>
+                  <SettingsSwitch
+                    label={zh('竖图模式', 'Portrait cover mode')}
+                    checked={javPortraitModeInput}
+                    onChange={onJavPortraitModeChange}
+                  />
+                </SettingsRow>
                 <SettingsRow label={zh('每页 JAV 数量', 'JAVs per page')}>
                   <input
                     type="number"

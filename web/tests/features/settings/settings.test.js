@@ -19,6 +19,28 @@ test('settings drafts stay local and a reopened dialog reads persisted values', 
   })
   assert.equal(javDraft.javHideTagsInput, false)
   assert.equal(javDraft.javHideSeriesInput, true)
+  assert.equal(javDraft.javPortraitModeInput, false)
+  assert.equal(
+    model.createJavSettingsDraft({ ...state, config: { jav_portrait_mode: 'true' } })
+      .javPortraitModeInput,
+    true
+  )
+})
+
+test('saving portrait mode persists it and reopening reads the saved choice', async (t) => {
+  const [model, actions, { useStore }] = await loadModules(t, [
+    'features/settings/model.js',
+    'features/settings/actions.js',
+    'store.js',
+  ])
+  t.mock.method(globalThis, 'fetch', async (_url, init) => Response.json(JSON.parse(init.body)))
+  for (const enabled of [true, false]) {
+    const draft = model.createJavSettingsDraft(useStore.getState())
+    draft.javPortraitModeInput = enabled
+    await actions.saveJavSettings(draft, () => {})
+    assert.equal(useStore.getState().config.jav_portrait_mode, enabled)
+    assert.equal(model.createJavSettingsDraft(useStore.getState()).javPortraitModeInput, enabled)
+  }
 })
 
 test('saving video settings persists normalized values and clamps the current page', async (t) => {
