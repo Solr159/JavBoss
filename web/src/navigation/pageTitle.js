@@ -29,9 +29,9 @@ export function buildLibraryPageTitle({
   return formatPageTitle(context, section)
 }
 
-export function buildJavDetailPageTitle(item) {
+export function buildJavDetailPageTitle(item, translateTitle = false) {
   const code = String(item?.code || '').trim()
-  const title = String(item?.title || '').trim()
+  const title = String((translateTitle && item?.zh_title?.trim()) || item?.title || '').trim()
   return formatPageTitle(
     [...new Set([code, title].filter(Boolean))].join(' ') || zh('JAV 详情', 'JAV details')
   )

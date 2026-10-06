@@ -1,5 +1,17 @@
 import { configFlag } from '@/utils/config'
 
+export function createTitleTranslationDraft(config) {
+  return {
+    enabled: configFlag(config?.jav_title_translation_enabled),
+    apiKey: '',
+    hasApiKey: configFlag(config?.jav_title_translation_api_key_set),
+    clearApiKey: false,
+    model: config?.jav_title_translation_model || '',
+    thinking: configFlag(config?.jav_title_translation_thinking),
+    prompt: config?.jav_title_translation_prompt || '',
+  }
+}
+
 export function createVideoSettingsDraft(state) {
   const { pageSize, sortOrder, videoHideJav, config } = state
   return {
@@ -29,6 +41,7 @@ export function createJavSettingsDraft(state) {
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
     javTitleMaxRowsInput: javTitleMaxRows,
+    titleTranslationEnabled: configFlag(config?.jav_title_translation_enabled),
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,
     javHideSeriesInput: configFlag(config?.jav_hide_series),

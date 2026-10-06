@@ -311,6 +311,8 @@ export default function JavSettingsModal({
   open,
   initialTab = 'jav',
   onClose,
+  titleTranslationEnabled,
+  onTitleTranslationChange,
   javPageSizeInput,
   onJavPageSizeChange,
   javGridColumnsInput,
@@ -390,6 +392,7 @@ export default function JavSettingsModal({
         onJavTagShowSimplifiedChange?.(false)
         break
       default:
+        onTitleTranslationChange?.(false)
         onJavPageSizeChange?.(24)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
@@ -493,6 +496,13 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('标题翻译', 'Title translation')}>
+                  <SettingsSwitch
+                    label={zh('标题翻译', 'Title translation')}
+                    checked={titleTranslationEnabled}
+                    onChange={onTitleTranslationChange}
+                  />
+                </SettingsRow>
                 <SettingsRow label={zh('标题最多行数', 'Title max rows')}>
                   <select
                     value={String(javTitleMaxRowsInput ?? 2)}

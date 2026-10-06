@@ -1,9 +1,11 @@
 .gocache/
 data/
+/cache/
 docker-data/
 *.db
 .DS_Store
 web/node_modules/
+/web/tests/
 node_modules/
 scripts/cli/node_modules/
 scripts/cli/build/
