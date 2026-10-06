@@ -8,6 +8,7 @@ export default function useJavPresentation(items) {
     configFlag(state.config?.jav_idol_prefer_chinese_name)
   )
   const hideSeries = useStore((state) => configFlag(state.config?.jav_hide_series))
+  const portraitMode = useStore((state) => configFlag(state.config?.jav_portrait_mode))
   const hideIdols = useStore((state) => configFlag(state.config?.jav_hide_idols))
   const hideTags = useStore((state) => configFlag(state.config?.jav_hide_tags))
   const hideActions = useStore((state) => configFlag(state.config?.jav_hide_actions))
@@ -26,6 +27,7 @@ export default function useJavPresentation(items) {
   }, [items, showSimplifiedTags])
   return {
     preferChineseName,
+    portraitMode,
     hideSeries,
     hideIdols,
     hideTags,

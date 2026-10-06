@@ -89,6 +89,7 @@ func updateConfig(c *gin.Context) {
 		VideoWaterfallDefault  *bool                 `json:"video_waterfall_default"`
 		JavPageSize            *int                  `json:"jav_page_size"`
 		JavGridColumns         *int                  `json:"jav_grid_columns"`
+		JavPortraitMode        *bool                 `json:"jav_portrait_mode"`
 		JavTitleMaxRows        *int                  `json:"jav_title_max_rows"`
 		JavIdolTagMaxRows      *int                  `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows          *int                  `json:"jav_tag_max_rows"`
@@ -167,6 +168,9 @@ func updateConfig(c *gin.Context) {
 			columns = 12
 		}
 		entries["jav_grid_columns"] = strconv.Itoa(columns)
+	}
+	if req.JavPortraitMode != nil {
+		entries["jav_portrait_mode"] = strconv.FormatBool(*req.JavPortraitMode)
 	}
 	if req.JavTitleMaxRows != nil {
 		rows := *req.JavTitleMaxRows
