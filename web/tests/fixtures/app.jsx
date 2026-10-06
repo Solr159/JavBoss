@@ -10,6 +10,21 @@ window.testStore = useStore
 window.appErrors = []
 window.addEventListener('error', (event) => window.appErrors.push(event.message))
 window.requests = []
+window.watchTimeSources = []
+window.EventSource = class extends EventTarget {
+  constructor(url) {
+    super()
+    this.url = url
+    this.closed = false
+    window.watchTimeSources.push(this)
+    queueMicrotask(() => {
+      if (!this.closed) this.dispatchEvent(new Event('open'))
+    })
+  }
+  close() {
+    this.closed = true
+  }
+}
 const config = { video_page_size: '25', jav_page_size: '24', initial_view_mode: 'video' }
 const jav = { id: 1, code: 'ABC-001', title: 'Test JAV', videos: [], tags: [], idols: [] }
 window.fetch = async (input, init = {}) => {
@@ -23,6 +38,7 @@ window.fetch = async (input, init = {}) => {
   if (url.pathname === '/directories')
     return Response.json([{ id: 1, path: '/videos', enabled: true }])
   if (url.pathname === '/videos') return Response.json({ items: [], total: 0 })
+  if (url.pathname === '/videos/watched-time') return Response.json({ videos: [], javs: [] })
   if (url.pathname === '/downloads')
     return Response.json({ items: [], total: 0, counts: { active: 0, completed: 0, failed: 0 } })
   if (url.pathname === '/jav') return Response.json({ items: [jav], total: 1 })

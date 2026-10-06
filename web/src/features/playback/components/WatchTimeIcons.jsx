@@ -1,10 +1,12 @@
 import { Fade, Tooltip } from '@mui/material'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { zh } from '@/utils/i18n'
+import { useStore } from '@/store'
 
-export default function WatchTimeIcons({ watchedMs }) {
+export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
+  const latest = useStore((state) => state.watchedTimes?.[entityType]?.[entityId] || 0)
   const value = Number(watchedMs)
-  const totalMs = Number.isFinite(value) && value > 0 ? value : 0
+  const totalMs = Math.max(latest, Number.isFinite(value) && value > 0 ? value : 0)
   if (totalMs === 0) return null
   const totalSeconds = Math.floor(totalMs / 1000)
   const hours = Math.floor(totalSeconds / 3600)

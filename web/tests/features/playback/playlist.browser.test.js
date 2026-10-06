@@ -49,6 +49,15 @@ test(
         }
         if (url.pathname.includes('/playback-sessions')) {
           window.sessionRequests.push({url:url.pathname, method:init.method, body:JSON.parse(init.body)});
+          if (init.method === 'PUT') {
+            const total = JSON.parse(init.body).watched_ms;
+            const videoId = Number(url.pathname.split('/')[2]);
+            setTimeout(() => window.watchTimeSources.filter(source => !source.closed).forEach(source =>
+              source.dispatchEvent(new MessageEvent('watched-time', {data:JSON.stringify({
+                videos:[{id:videoId,watched_ms:total}],javs:[]
+              })}))
+            ), 100);
+          }
           return Response.json({session_id:'session-' + window.sessionRequests.length});
         }
         if (url.pathname.endsWith('/screenshots') && init.method === 'POST') {
@@ -266,6 +275,8 @@ test(
       assert.equal(await evaluate('window.previousPlayer.isDisposed()'), true)
     }
     await close()
+    await waitFor(`document.querySelector('.video-card .watch-time-icons')`)
+    assert.ok(await evaluate('window.testStore.getState().videos[0].watched_ms > 0'))
     await command('Emulation.clearDeviceMetricsOverride')
 
     // A selection from another page only has saved metadata, including its copy ID.

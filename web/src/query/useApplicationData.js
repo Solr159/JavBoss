@@ -1,8 +1,10 @@
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
 import { useState, useMemo, useEffect } from 'react'
+import useWatchedTimeSync from '@/query/useWatchedTimeSync'
 
 export default function useApplicationData() {
+  useWatchedTimeSync()
   const { directories, loadConfig, loadDirectories, loadTags, loadJavTags, videoHideJav } =
     useStore(
       useShallow((state) => ({

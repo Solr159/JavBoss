@@ -406,7 +406,7 @@ export default function JavCard(props) {
                 </span>
               ) : null}
             </div>
-            <WatchTimeIcons watchedMs={item?.watched_ms} />
+            <WatchTimeIcons watchedMs={item?.watched_ms} entityType="javs" entityId={item?.id} />
           </div>
           {!hideSeries && seriesText ? (
             <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">

@@ -199,7 +199,7 @@ export default function VideoCard({
               </span>
             ) : null}
           </div>
-          <WatchTimeIcons watchedMs={video?.watched_ms} />
+          <WatchTimeIcons watchedMs={video?.watched_ms} entityType="videos" entityId={video.id} />
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1">
           {video.tags?.length

@@ -13,7 +13,7 @@ import (
 	"javboss/internal/playback"
 )
 
-var playbackSessions = playback.NewSessions(dbpkg.AddWatchedTime)
+var playbackSessions = playback.NewSessions(saveWatchedTime)
 
 // POST /videos/:id/playback-sessions accepts {location_id}; zero selects the
 // primary location. Legacy callers may supply {path, dir_path} instead.

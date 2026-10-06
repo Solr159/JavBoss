@@ -21,7 +21,9 @@ func TestPlaybackSessionAttributesActualLocationAndRetainsHistory(t *testing.T) 
 		t.Fatal(err)
 	}
 	oldDB, oldSessions := common.DB, playbackSessions
-	common.DB, playbackSessions = database, playback.NewSessions(dbpkg.AddWatchedTime)
+	common.DB, playbackSessions = database, playback.NewSessions(saveWatchedTime)
+	updates, unsubscribe := watchedTimeEvents.subscribe()
+	defer unsubscribe()
 	t.Cleanup(func() { common.DB, playbackSessions = oldDB, oldSessions; sqlDB, _ := database.DB(); _ = sqlDB.Close() })
 	video := models.Video{Fingerprint: "same-content"}
 	dir := models.Directory{Path: "/media"}
@@ -75,6 +77,22 @@ func TestPlaybackSessionAttributesActualLocationAndRetainsHistory(t *testing.T) 
 	}
 	if video.WatchedMS != 2000 || a.WatchedMS != 0 || b.WatchedMS != 2000 {
 		t.Fatalf("totals video=%d A=%d B=%d", video.WatchedMS, a.WatchedMS, b.WatchedMS)
+	}
+	for _, expected := range []int64{1000, 2000} {
+		select {
+		case update := <-updates:
+			if len(update.Videos) != 1 || update.Videos[0].ID != video.ID || update.Videos[0].WatchedMS != expected ||
+				len(update.Javs) != 1 || update.Javs[0].ID != b.ID || update.Javs[0].WatchedMS != expected {
+				t.Fatalf("unexpected committed totals: %+v", update)
+			}
+		default:
+			t.Fatal("missing committed update")
+		}
+	}
+	select {
+	case update := <-updates:
+		t.Fatalf("duplicate checkpoint emitted update: %+v", update)
+	default:
 	}
 	call("PUT", base+"/"+session.ID, `{"watched_ms":-1}`, 400)
 	call("PUT", base+"/"+session.ID, `{}`, 400)
