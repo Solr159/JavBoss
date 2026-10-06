@@ -27,6 +27,7 @@ export function createJavSettingsDraft(state) {
   } = state
   return {
     javPageSizeInput: javPageSize,
+    javPortraitModeInput: configFlag(config?.jav_portrait_mode),
     javGridColumnsInput: javGridColumns,
     javTitleMaxRowsInput: javTitleMaxRows,
     javIdolTagMaxRowsInput: javIdolTagMaxRows,

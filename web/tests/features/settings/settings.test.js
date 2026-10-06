@@ -15,10 +15,36 @@ test('settings drafts stay local and a reopened dialog reads persisted values', 
   )
   const javDraft = model.createJavSettingsDraft({
     ...state,
-    config: { jav_hide_tags: 'false', jav_hide_series: '1' },
+    config: { jav_hide_tags: 'false', jav_hide_series: '1', jav_portrait_mode: 'true' },
   })
   assert.equal(javDraft.javHideTagsInput, false)
   assert.equal(javDraft.javHideSeriesInput, true)
+  assert.equal(javDraft.javPortraitModeInput, true)
+  assert.equal(model.createJavSettingsDraft(state).javPortraitModeInput, false)
+})
+
+test('JAV portrait mode persists and is restored when configuration reloads', async (t) => {
+  const [model, actions, { useStore }] = await loadModules(t, [
+    'features/settings/model.js',
+    'features/settings/actions.js',
+    'store.js',
+  ])
+  let savedConfig = {}
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    if (init?.method === 'PATCH') {
+      savedConfig = { ...savedConfig, ...JSON.parse(init.body) }
+    }
+    return Response.json(savedConfig)
+  })
+  for (const enabled of [true, false]) {
+    const draft = model.createJavSettingsDraft(useStore.getState())
+    draft.javPortraitModeInput = enabled
+    await actions.saveJavSettings(draft, () => {})
+    assert.equal(savedConfig.jav_portrait_mode, enabled)
+    useStore.setState({ config: {} })
+    await useStore.getState().loadConfig()
+    assert.equal(model.createJavSettingsDraft(useStore.getState()).javPortraitModeInput, enabled)
+  }
 })
 
 test('saving video settings persists normalized values and clamps the current page', async (t) => {
@@ -52,11 +78,13 @@ test('a failed settings save leaves configuration and list state unchanged', asy
     'store.js',
   ])
   const before = useStore.getState()
+  const draft = model.createJavSettingsDraft(before)
+  draft.javPortraitModeInput = !draft.javPortraitModeInput
   t.mock.method(globalThis, 'fetch', async () =>
     Response.json({ error_en: 'Save failed' }, { status: 500 })
   )
   await assert.rejects(
-    actions.saveJavSettings(model.createJavSettingsDraft(before), () => {
+    actions.saveJavSettings(draft, () => {
       assert.fail('failed saves must not change the display mode')
     })
   )

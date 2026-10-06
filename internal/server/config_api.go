@@ -88,6 +88,7 @@ func updateConfig(c *gin.Context) {
 		VideoPageSize          *int                  `json:"video_page_size"`
 		VideoWaterfallDefault  *bool                 `json:"video_waterfall_default"`
 		JavPageSize            *int                  `json:"jav_page_size"`
+		JavPortraitMode        *bool                 `json:"jav_portrait_mode"`
 		JavGridColumns         *int                  `json:"jav_grid_columns"`
 		JavTitleMaxRows        *int                  `json:"jav_title_max_rows"`
 		JavIdolTagMaxRows      *int                  `json:"jav_idol_tag_max_rows"`
@@ -157,6 +158,9 @@ func updateConfig(c *gin.Context) {
 		if v, ok := clampSize(*req.JavPageSize); ok {
 			entries["jav_page_size"] = v
 		}
+	}
+	if req.JavPortraitMode != nil {
+		entries["jav_portrait_mode"] = strconv.FormatBool(*req.JavPortraitMode)
 	}
 	if req.JavGridColumns != nil {
 		columns := *req.JavGridColumns

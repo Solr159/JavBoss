@@ -42,6 +42,7 @@ export default function JavGrid({
   onManageVideoTagClick,
 }) {
   const {
+    portraitMode,
     preferChineseName,
     hideSeries,
     hideIdols,
@@ -124,6 +125,7 @@ export default function JavGrid({
             loadSeriesPreview={loadSeriesPreview}
             onIdolPreviewUpdated={handleIdolPreviewUpdated}
             onOpenCoverPreview={setCoverPreview}
+            portraitMode={portraitMode}
             preferChineseName={preferChineseName}
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}

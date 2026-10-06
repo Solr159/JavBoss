@@ -1,5 +1,6 @@
 import useJavItemActions from '@/features/jav/hooks/useJavItemActions'
-import { JavCoverImage, IdolTagList, JavTagList } from '@/features/jav/components/JavCardTags'
+import { IdolTagList, JavTagList } from '@/features/jav/components/JavCardTags'
+import JavCoverImage from '@/features/jav/components/JavCoverImage'
 import { zh } from '@/utils/i18n'
 import { Tooltip, Rating, Popper, IconButton } from '@mui/material'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
@@ -24,6 +25,7 @@ import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
 
 export default function JavCard(props) {
+  const { portraitMode = false } = props
   const model = useJavItemActions(props)
   const {
     checked,
@@ -114,9 +116,15 @@ export default function JavCard(props) {
       <div
         className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg ${checked ? 'border-sky-400 ring-2 ring-sky-200' : ''}`}
       >
-        <div className="card-hover-scope group relative aspect-[800/538] overflow-hidden bg-white">
+        <div
+          className={`card-hover-scope group relative overflow-hidden bg-white ${portraitMode ? 'aspect-[0.7]' : 'aspect-[800/538]'}`}
+        >
           {cover ? (
-            <JavCoverImage src={cover} alt={item?.code || zh('JAV 封面', 'JAV cover')} />
+            <JavCoverImage
+              src={cover}
+              alt={item?.code || zh('JAV 封面', 'JAV cover')}
+              portraitMode={portraitMode}
+            />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
               {item?.code || zh('未知番号', 'Unknown code')}

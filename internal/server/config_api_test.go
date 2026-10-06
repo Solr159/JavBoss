@@ -182,6 +182,40 @@ func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	}
 }
 
+func TestUpdateConfigPersistsJavPortraitMode(t *testing.T) {
+	testAuthService(t)
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	router.GET("/config", getConfig)
+	request := func(method, body string) map[string]string {
+		t.Helper()
+		req := httptest.NewRequest(method, "/config", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != http.StatusOK {
+			t.Fatalf("config status=%d body=%s", response.Code, response.Body)
+		}
+		var cfg map[string]string
+		if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil {
+			t.Fatal(err)
+		}
+		return cfg
+	}
+	for _, value := range []string{"true", "false"} {
+		request(http.MethodPatch, `{"jav_portrait_mode":`+value+`}`)
+		// An unrelated partial update must leave the saved mode intact.
+		request(http.MethodPatch, `{"jav_page_size":24}`)
+		if cfg := request(http.MethodGet, ""); cfg["jav_portrait_mode"] != value {
+			t.Fatalf("reloaded portrait mode=%q, want %q", cfg["jav_portrait_mode"], value)
+		}
+		stored, err := dbpkg.ListConfig(context.Background())
+		if err != nil || stored["jav_portrait_mode"] != value {
+			t.Fatalf("persisted portrait mode=%q err=%v", stored["jav_portrait_mode"], err)
+		}
+	}
+}
+
 func TestUpdateConfigPersistsJavSortRules(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
