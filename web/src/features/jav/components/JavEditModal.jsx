@@ -29,6 +29,7 @@ import {
   createJavScrapedTag,
   createJavTag,
   updateJavItem,
+  translateJavTitle,
   deleteJavVideos,
 } from '@/features/jav/api'
 import { getErrorMessage } from '@/utils/errors'
@@ -37,6 +38,7 @@ import AppModal from '@/shared/ui/AppModal'
 import { getIdolDisplayName, getIdolDisplayNames } from '@/utils/javIdol'
 import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined'
 
 export function JavEditModal({
   open,
@@ -50,6 +52,8 @@ export function JavEditModal({
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
   const [title, setTitle] = useState('')
+  const [zhTitle, setZhTitle] = useState('')
+  const [refreshedTitle, setRefreshedTitle] = useState(null)
   const [coverUrl, setCoverUrl] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState([])
   const [selectedIdolIds, setSelectedIdolIds] = useState([])
@@ -78,6 +82,8 @@ export function JavEditModal({
   const [releaseDate, setReleaseDate] = useState('')
   const [durationMin, setDurationMin] = useState('')
   const [saving, setSaving] = useState(false)
+  const [translationMode, setTranslationMode] = useState('')
+  const translating = translationMode !== ''
   const [deleting, setDeleting] = useState(false)
   const [creatingUserTag, setCreatingUserTag] = useState(false)
   const [creatingScrapedTag, setCreatingScrapedTag] = useState(false)
@@ -222,6 +228,8 @@ export function JavEditModal({
     if (!open) return undefined
     let cancelled = false
     setTitle(editableJavTitle(item))
+    setZhTitle(item?.zh_title || '')
+    setRefreshedTitle(null)
     setCoverUrl('')
     setSelectedTagIds(
       Array.isArray(item?.tags)
@@ -403,8 +411,28 @@ export function JavEditModal({
     }
   }
 
+  const handleRefreshTitle = async (thinking) => {
+    if (!item?.id || !title.trim() || saving || deleting || translating) return
+    setTranslationMode(thinking ? 'thinking' : 'default')
+    setError('')
+    const sourceTitle = title.trim()
+    try {
+      const result = await translateJavTitle(item.id, {
+        refresh: true,
+        title: sourceTitle,
+        thinking,
+      })
+      setZhTitle(result.zh_title)
+      setRefreshedTitle(sourceTitle)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setTranslationMode('')
+    }
+  }
+
   const handleSave = async () => {
-    if (saving || deleting) return
+    if (saving || deleting || translating) return
     if (!item?.id) {
       setError(zh('缺少 JAV ID', 'Missing JAV ID'))
       return
@@ -420,6 +448,9 @@ export function JavEditModal({
     try {
       const payload = {
         title: title.trim(),
+        ...(zhTitle.trim() !== (item?.zh_title || '').trim() || refreshedTitle === title.trim()
+          ? { zh_title: zhTitle.trim() }
+          : {}),
         ...(trimmedCoverUrl ? { cover_url: trimmedCoverUrl } : {}),
         tag_ids: selectedTagIds.map((id) => Number(id)).filter(Boolean),
         idol_ids: selectedIdolIds.map((id) => Number(id)).filter(Boolean),
@@ -454,7 +485,7 @@ export function JavEditModal({
   }
 
   const handleDelete = async () => {
-    if (!item?.id || saving || deleting) return
+    if (!item?.id || saving || deleting || translating) return
     if (
       !window.confirm(
         zh(
@@ -476,7 +507,16 @@ export function JavEditModal({
     }
   }
 
-  const creatingOption = creatingIdol || creatingScrapedTag || creatingUserTag || deleting
+  const creatingOption =
+    creatingIdol || creatingScrapedTag || creatingUserTag || deleting || translating
+  const translationActions = [
+    { mode: 'default', label: zh('重新翻译', 'Retranslate') },
+    {
+      mode: 'thinking',
+      label: zh('使用推理重新翻译', 'Retranslate with reasoning'),
+      thinking: true,
+    },
+  ]
 
   return (
     <AppModal
@@ -521,8 +561,55 @@ export function JavEditModal({
               if (error) setError('')
             }}
             className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            disabled={saving}
+            disabled={saving || translating}
           />
+        </div>
+        <div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label
+              className="block text-[13px] font-semibold text-black"
+              htmlFor={`jav-zh-title-${item?.id || 'new'}`}
+            >
+              {zh('中文标题', 'Chinese title')}
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              {translationActions.map(({ mode, label, thinking }) => {
+                const active = translationMode === mode
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => void handleRefreshTitle(thinking)}
+                    disabled={!item?.id || !title.trim() || saving || creatingOption}
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    <RefreshOutlinedIcon
+                      className={active ? 'animate-spin' : ''}
+                      sx={{ fontSize: 15 }}
+                    />
+                    {active ? zh('翻译中…', 'Translating…') : label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <textarea
+            id={`jav-zh-title-${item?.id || 'new'}`}
+            rows={2}
+            value={zhTitle}
+            onChange={(event) => {
+              setZhTitle(event.target.value)
+              if (error) setError('')
+            }}
+            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            disabled={saving || translating}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            {zh(
+              '使用当前原标题重新翻译，保存后生效。',
+              'Translate the current original title again; save to apply.'
+            )}
+          </p>
         </div>
         <div>
           <label

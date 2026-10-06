@@ -17,6 +17,7 @@ import (
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
+	"javboss/internal/jav/translation"
 	"javboss/internal/mpv"
 	"javboss/internal/runtimeconfig"
 	"javboss/internal/util"
@@ -132,6 +133,11 @@ func updateConfig(c *gin.Context) {
 		BrowserShowHotkeyHint     *bool                 `json:"browser_player_show_hotkey_hint"`
 		PlayerHotkeys             []playerHotkeyPayload `json:"player_hotkeys"`
 		WebHotkeys                []webHotkeyPayload    `json:"web_hotkeys"`
+		TitleTranslateEnabled     *bool                 `json:"jav_title_translation_enabled"`
+		TitleTranslateThinking    *bool                 `json:"jav_title_translation_thinking"`
+		TitleTranslateAPIKey      *string               `json:"jav_title_translation_api_key"`
+		TitleTranslateModel       *string               `json:"jav_title_translation_model"`
+		TitleTranslatePrompt      *string               `json:"jav_title_translation_prompt"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "配置请求无效", "Invalid configuration request")
@@ -184,6 +190,34 @@ func updateConfig(c *gin.Context) {
 			columns = 12
 		}
 		entries["jav_grid_columns"] = strconv.Itoa(columns)
+	}
+	if req.TitleTranslateEnabled != nil {
+		entries["jav_title_translation_enabled"] = strconv.FormatBool(*req.TitleTranslateEnabled)
+	}
+	if req.TitleTranslateThinking != nil {
+		entries["jav_title_translation_thinking"] = strconv.FormatBool(*req.TitleTranslateThinking)
+	}
+	for key, input := range map[string]*string{
+		"jav_title_translation_api_key": req.TitleTranslateAPIKey,
+		"jav_title_translation_model":   req.TitleTranslateModel,
+		"jav_title_translation_prompt":  req.TitleTranslatePrompt,
+	} {
+		if input == nil {
+			continue
+		}
+		value := strings.TrimSpace(*input)
+		limit := 8192
+		if key == "jav_title_translation_api_key" {
+			limit = 512
+		}
+		if key == "jav_title_translation_model" {
+			limit = 200
+		}
+		if utf8.RuneCountInString(value) > limit || !utf8.ValidString(value) || (key == "jav_title_translation_api_key" && strings.ContainsAny(value, "\r\n")) {
+			respondLocalizedError(c, http.StatusBadRequest, "翻译配置无效或过长", "Translation settings are invalid or too long")
+			return
+		}
+		entries[key] = value
 	}
 	if req.JavTitleMaxRows != nil {
 		rows := *req.JavTitleMaxRows
@@ -597,6 +631,14 @@ func updateConfig(c *gin.Context) {
 
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["app_version"] = common.Version
+	cfg["jav_title_translation_api_key_set"] = strconv.FormatBool(strings.TrimSpace(cfg["jav_title_translation_api_key"]) != "")
+	delete(cfg, "jav_title_translation_api_key")
+	if cfg["jav_title_translation_thinking"] == "" {
+		cfg["jav_title_translation_thinking"] = "false"
+	}
+	if strings.TrimSpace(cfg["jav_title_translation_prompt"]) == "" {
+		cfg["jav_title_translation_prompt"] = translation.DefaultPrompt
+	}
 	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
 	remoteRequest := isRemoteRequest(remoteAddr)
 	containerMode := runtimeconfig.ContainerMode()

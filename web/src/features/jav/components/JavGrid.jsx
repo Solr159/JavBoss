@@ -1,5 +1,6 @@
 import useJavPresentation from '@/features/jav/hooks/useJavPresentation'
 import useJavPreviews from '@/features/jav/hooks/useJavPreviews'
+import useJavTitleTranslation from '@/features/jav/hooks/useJavTitleTranslation'
 import { useState, useMemo } from 'react'
 import { zh } from '@/utils/i18n'
 import JavCard from '@/features/jav/components/JavCard'
@@ -41,6 +42,7 @@ export default function JavGrid({
   onManageVideoDelete,
   onManageVideoTagClick,
 }) {
+  const translation = useJavTitleTranslation(items)
   const {
     preferChineseName,
     hideSeries,
@@ -85,6 +87,14 @@ export default function JavGrid({
 
   return (
     <>
+      {translation.error && (
+        <div role="alert" className="mb-3 flex items-center gap-3 text-sm text-red-600">
+          <span>{translation.error}</span>
+          <button type="button" className="shrink-0 underline" onClick={translation.retry}>
+            {zh('重试翻译', 'Retry translation')}
+          </button>
+        </div>
+      )}
       <div className={gridClassName} style={gridStyle}>
         {displayItems.map((item) => (
           <JavCard
