@@ -42,13 +42,13 @@ export const JAV_SORT_OPTIONS = [
     desc: ['近→远', 'new→old'],
   },
   {
-    base: 'play_count',
-    defaultValue: 'play_count',
-    ascValue: 'play_count_asc',
-    descValue: 'play_count',
-    label: ['播放次数', 'Play count'],
-    asc: ['少→多', 'low→high'],
-    desc: ['多→少', 'high→low'],
+    base: 'watched',
+    defaultValue: 'watched',
+    ascValue: 'watched_asc',
+    descValue: 'watched',
+    label: ['播放时长', 'Watch time'],
+    asc: ['短→长', 'short→long'],
+    desc: ['长→短', 'long→short'],
   },
   {
     base: 'favorite_rating',
@@ -235,7 +235,10 @@ export function normalizeJavSort(sort, fallback = 'recent') {
     code_asc: 'code',
     duration_desc: 'duration',
     release_desc: 'release',
-    play_count_desc: 'play_count',
+    watched_desc: 'watched',
+    play_count: 'watched',
+    play_count_desc: 'watched',
+    play_count_asc: 'watched_asc',
     favorite_rating_desc: 'favorite_rating',
   })
 }

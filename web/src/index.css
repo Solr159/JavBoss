@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Keyboard shortcuts retain focus without drawing a focus outline or pulse. */
+:focus-visible {
+  outline: none;
+}
+
+.MuiTouchRipple-ripplePulsate {
+  display: none;
+}
+
+:root .MuiRating-root.Mui-focusVisible .MuiRating-iconActive {
+  outline: none;
+}
+
+.MuiSlider-thumb.Mui-focusVisible:not(:hover):not(.Mui-active) {
+  box-shadow: none;
+}
+
 :root {
   --topbar-height: 72px; /* fallback, real height measured in TopBar */
   --side-tabs-width: 112px;
@@ -316,11 +333,6 @@ body.has-page-scroll .sticky-pagination {
   border-color: #fbbf24;
   background: #fef3c7;
   color: #92400e;
-}
-
-.favorite-menu-trigger:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 3px;
 }
 
 .favorite-menu-trigger[aria-expanded='true'] .favorite-menu-trigger__chevron {
@@ -725,14 +737,6 @@ body.has-page-scroll .sticky-pagination {
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.07);
 }
 
-.pagination-button:focus-visible {
-  border-color: #60a5fa;
-  outline: none;
-  box-shadow:
-    0 0 0 2px rgba(59, 130, 246, 0.18),
-    0 1px 2px rgba(15, 23, 42, 0.06);
-}
-
 .pagination-button[aria-current='page'] {
   border-color: #2563eb;
   background: #2563eb;
@@ -817,12 +821,6 @@ body.has-page-scroll .sticky-pagination {
   background: #2563eb;
   color: #fff;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.16);
-}
-
-.pagination-jump-button:focus-visible {
-  border-color: #60a5fa;
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.18);
 }
 
 .pagination-sort-group {
@@ -995,7 +993,8 @@ body.has-page-scroll .sticky-pagination {
     transform 160ms ease;
 }
 
-.card-hover-scope:has(:focus-visible) .card-hover-focus-visible {
+/* Restored detail-trigger focus must not keep cover actions visible on mouse leave. */
+.card-hover-scope:has(:focus-visible:not(.card-detail-trigger)) .card-hover-focus-visible {
   opacity: 1;
 }
 

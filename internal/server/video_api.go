@@ -26,6 +26,8 @@ import (
 	"javboss/internal/util"
 )
 
+// listVideos accepts sort=watched (longest first) or watched_asc (shortest first)
+// for cumulative watch time; legacy play_count sort values are aliases.
 func listVideos(c *gin.Context) {
 	limit := queryInt(c, "limit", 100)
 	offset := queryInt(c, "offset", 0)

@@ -18,6 +18,7 @@ import {
 import { zh } from '@/utils/i18n'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { MovieEdit } from '@mui/icons-material'
+import WatchTimeIcons from '@/features/playback/components/WatchTimeIcons'
 import VideoThumbnail from '@/features/video/components/VideoThumbnail'
 
 export default function VideoCard({
@@ -123,7 +124,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`card-hover-scope video-card group relative overflow-hidden rounded-xl border bg-white shadow transition-all ${
+      className={`card-hover-scope video-card group relative flex flex-col overflow-hidden rounded-xl border bg-white shadow transition-all ${
         checked ? 'border-sky-400 ring-2 ring-sky-200' : 'border-gray-200 hover:border-gray-300'
       }`}
     >
@@ -143,7 +144,7 @@ export default function VideoCard({
           />
         </div>
       ) : null}
-      <div className="relative aspect-video w-full overflow-hidden bg-gray-200">
+      <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200">
         <VideoThumbnail
           src={thumbnailSrc}
           alt={displayName}
@@ -180,22 +181,25 @@ export default function VideoCard({
             {displayName}
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
-            {durationMinutes
-              ? zh(`${durationMinutes} 分钟`, `${durationMinutes} min`)
-              : zh('时长未知', 'Unknown duration')}
-          </span>
-          {resolution ? (
+        <div className="mt-2 flex min-w-0 items-start gap-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
-              {resolution}
+              {durationMinutes
+                ? zh(`${durationMinutes} 分钟`, `${durationMinutes} min`)
+                : zh('时长未知', 'Unknown duration')}
             </span>
-          ) : null}
-          {sizeText ? (
-            <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
-              {sizeText}
-            </span>
-          ) : null}
+            {resolution ? (
+              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
+                {resolution}
+              </span>
+            ) : null}
+            {sizeText ? (
+              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
+                {sizeText}
+              </span>
+            ) : null}
+          </div>
+          <WatchTimeIcons watchedMs={video?.watched_ms} />
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1">
           {video.tags?.length

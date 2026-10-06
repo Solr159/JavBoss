@@ -59,7 +59,7 @@ var javSortRuleFilterOrder = map[string]int{
 var validJavSortValues = map[string]struct{}{
 	"recent": {}, "recent_asc": {}, "code": {}, "code_desc": {},
 	"duration": {}, "duration_asc": {}, "release": {}, "release_asc": {},
-	"play_count": {}, "play_count_asc": {}, "favorite_rating": {}, "favorite_rating_asc": {},
+	"watched": {}, "watched_asc": {}, "favorite_rating": {}, "favorite_rating_asc": {},
 }
 
 func getConfig(c *gin.Context) {
@@ -245,13 +245,17 @@ func updateConfig(c *gin.Context) {
 	}
 	if s := strings.ToLower(strings.TrimSpace(req.VideoSort)); s != "" {
 		switch s {
-		case "recent", "recent_asc", "filename", "filename_desc", "duration", "duration_asc", "play_count", "play_count_asc":
+		case "recent", "recent_asc", "filename", "filename_desc", "duration", "duration_asc", "watched", "watched_asc":
 			entries["video_sort"] = s
+		case "watched_desc", "play_count", "play_count_desc":
+			entries["video_sort"] = "watched"
+		case "play_count_asc":
+			entries["video_sort"] = "watched_asc"
 		default:
 			// ignore invalid values
 		}
 	}
-	if s := strings.ToLower(strings.TrimSpace(req.JavSort)); s != "" {
+	if s := normalizeJavSortValue(req.JavSort); s != "" {
 		if _, ok := validJavSortValues[s]; ok {
 			entries["jav_sort"] = s
 		} else {
@@ -625,6 +629,17 @@ func normalizedPlayerHotkeyAmount(action string, amount float64) float64 {
 	return amount
 }
 
+func normalizeJavSortValue(value string) string {
+	switch s := strings.ToLower(strings.TrimSpace(value)); s {
+	case "watched_desc", "play_count", "play_count_desc":
+		return "watched"
+	case "play_count_asc":
+		return "watched_asc"
+	default:
+		return s
+	}
+}
+
 func normalizeJavSortRulesConfig(config javSortRulesConfig) (javSortRulesConfig, bool) {
 	if config.Version != 1 || len(config.Rules) > maxJavSortRules {
 		return javSortRulesConfig{}, false
@@ -634,7 +649,7 @@ func normalizeJavSortRulesConfig(config javSortRulesConfig) (javSortRulesConfig,
 	for _, rule := range config.Rules {
 		id := strings.TrimSpace(rule.ID)
 		mode := strings.ToLower(strings.TrimSpace(rule.Mode))
-		sortValue := strings.ToLower(strings.TrimSpace(rule.Sort))
+		sortValue := normalizeJavSortValue(rule.Sort)
 		if !validJavSortRuleID(id) {
 			return javSortRulesConfig{}, false
 		}

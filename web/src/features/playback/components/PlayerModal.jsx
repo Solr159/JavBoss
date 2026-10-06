@@ -401,7 +401,7 @@ export default function PlayerModal({
                 title={zh('上一个视频', 'Previous video')}
                 disabled={currentIndex === 0}
                 onClick={() => onSelectVideo?.(currentIndex - 1)}
-                className="rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
               >
                 <SkipPreviousRoundedIcon fontSize="small" />
               </button>
@@ -414,7 +414,7 @@ export default function PlayerModal({
                 title={zh('下一个视频', 'Next video')}
                 disabled={currentIndex === playlist.length - 1}
                 onClick={() => onSelectVideo?.(currentIndex + 1)}
-                className="rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
               >
                 <SkipNextRoundedIcon fontSize="small" />
               </button>
@@ -425,9 +425,9 @@ export default function PlayerModal({
                 aria-expanded={playlistVisible}
                 aria-controls="browser-playlist"
                 onClick={() => setPlaylistVisible((visible) => !visible)}
-                className="rounded text-zinc-600 hover:bg-zinc-100"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100"
               >
-                <QueuePlayNextRoundedIcon fontSize="small" />
+                <QueuePlayNextRoundedIcon sx={{ fontSize: 18 }} />
               </button>
             </>
           ) : null}
@@ -436,7 +436,7 @@ export default function PlayerModal({
             aria-label={zh('关闭', 'Close')}
             title={zh('关闭', 'Close')}
             onClick={onClose}
-            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none"
           >
             <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>

@@ -41,13 +41,10 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		orderClause = "video.duration_sec DESC, video.created_at DESC, video_location.id DESC"
 	case "duration_asc":
 		orderClause = "video.duration_sec ASC, video.created_at ASC, video_location.id ASC"
-	case "play_count", "play_count_desc":
-		orderClause = "COALESCE(video.play_count, 0) DESC, video.created_at DESC, video_location.id DESC"
-	case "play_count_asc":
-		orderClause = "COALESCE(video.play_count, 0) ASC, video.created_at ASC, video_location.id ASC"
-	case "watched", "watched_desc":
+	case "watched", "watched_desc", "play_count", "play_count_desc":
+		// Legacy play-count sort values now use watch time.
 		orderClause = "video.watched_ms DESC, video.created_at DESC, video_location.id DESC"
-	case "watched_asc":
+	case "watched_asc", "play_count_asc":
 		orderClause = "video.watched_ms ASC, video.created_at ASC, video_location.id ASC"
 	case "recent_asc":
 		orderClause = "video.created_at ASC, video_location.id ASC"

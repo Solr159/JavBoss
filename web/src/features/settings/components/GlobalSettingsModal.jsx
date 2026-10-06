@@ -415,7 +415,7 @@ export default function GlobalSettingsModal({
                   value={defaultPlayerInput}
                   onChange={(event) => handleChangeDefaultPlayer(event.target.value)}
                   disabled={savingDefaultPlayer || !onSaveDefaultPlayer}
-                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
+                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0"
                 >
                   <option value="mpv">MPV</option>
                   <option value="browser">{zh('网页播放器', 'Web Player')}</option>
@@ -652,7 +652,7 @@ export default function GlobalSettingsModal({
                   value={initialViewModeInput}
                   onChange={(event) => handleChangeInitialViewMode(event.target.value)}
                   disabled={savingInitialViewMode || !onSaveInitialViewMode}
-                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 focus-visible:outline-none"
+                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0"
                 >
                   <option value="video">{zh('视频', 'Video')}</option>
                   <option value="jav">JAV</option>
@@ -1420,7 +1420,7 @@ export default function GlobalSettingsModal({
           onClick={onClose}
           aria-label={zh('关闭全局设置', 'Close global settings')}
           title={zh('关闭', 'Close')}
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none"
         >
           <CloseRoundedIcon sx={{ fontSize: 20 }} />
         </button>

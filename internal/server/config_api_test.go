@@ -182,6 +182,54 @@ func TestUpdateConfigPersistsWaterfallDefaults(t *testing.T) {
 	}
 }
 
+func TestUpdateConfigPersistsWatchTimeSort(t *testing.T) {
+	testAuthService(t)
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	for _, tc := range []struct{ input, want string }{
+		{"watched", "watched"},
+		{"watched_asc", "watched_asc"},
+		{"watched_desc", "watched"},
+		{"play_count", "watched"},
+		{"play_count_asc", "watched_asc"},
+		{"play_count_desc", "watched"},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			body, err := json.Marshal(map[string]any{
+				"video_sort": tc.input,
+				"jav_sort":   tc.input,
+				"jav_sort_rules": javSortRulesConfig{Version: 1, Rules: []javSortRule{
+					{ID: "watch-time", Enabled: true, Mode: "all", Active: []string{"idol"}, Sort: tc.input},
+				}},
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			req := httptest.NewRequest(http.MethodPatch, "/config", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != http.StatusOK {
+				t.Fatalf("update config status=%d body=%s", response.Code, response.Body)
+			}
+			cfg, err := dbpkg.ListConfig(context.Background())
+			if err != nil || cfg["video_sort"] != tc.want {
+				t.Fatalf("video_sort=%q, want %q; err=%v", cfg["video_sort"], tc.want, err)
+			}
+			if cfg["jav_sort"] != tc.want {
+				t.Fatalf("jav_sort=%q, want %q", cfg["jav_sort"], tc.want)
+			}
+			var rules javSortRulesConfig
+			if err := json.Unmarshal([]byte(cfg["jav_sort_rules"]), &rules); err != nil {
+				t.Fatal(err)
+			}
+			if len(rules.Rules) != 1 || rules.Rules[0].Sort != tc.want {
+				t.Fatalf("jav_sort_rules=%+v, want sort %q", rules, tc.want)
+			}
+		})
+	}
+}
+
 func TestUpdateConfigPersistsJavSortRules(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))

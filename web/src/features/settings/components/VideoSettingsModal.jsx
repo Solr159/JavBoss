@@ -59,7 +59,7 @@ function SettingsSwitch({ label, checked, onChange }) {
       aria-label={label}
       aria-checked={Boolean(checked)}
       onClick={() => onChange?.(!checked)}
-      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none ${
         checked ? 'bg-blue-600' : 'bg-slate-200'
       }`}
     >

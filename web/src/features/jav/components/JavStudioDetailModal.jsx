@@ -263,7 +263,7 @@ function StudioDetailSectionHeader({ title, count, sort, onSortChange }) {
           `${title}排序：${sort === 'name_asc' ? '名称升序，点击切换为作品数降序' : '作品数降序，点击切换为名称升序'}`,
           `Sort ${title.toLowerCase()}: ${sort === 'name_asc' ? 'name ascending; click for most works first' : 'most works first; click for name ascending'}`
         )}
-        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-blue-700 ring-1 ring-inset ring-blue-100 hover:bg-blue-100 focus-visible:outline-none focus-visible:ring-blue-500"
+        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-blue-700 ring-1 ring-inset ring-blue-100 hover:bg-blue-100"
       >
         <SortRoundedIcon sx={{ fontSize: 13 }} />
         {sort === 'name_asc' ? zh('名称', 'Name') : zh('作品数', 'Works')}

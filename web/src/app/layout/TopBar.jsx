@@ -697,7 +697,7 @@ function FavoriteGroupMenu({
 function FavoriteGroupTile({ active, href, group = null, label, count, onClick, onEdit }) {
   return (
     <div
-      className={`group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+      className={`group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none ${
         active ? 'border-amber-300 shadow-md' : 'border-blue-200/80 shadow-sm'
       }`}
     >

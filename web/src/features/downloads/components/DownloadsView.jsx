@@ -376,7 +376,7 @@ export default function DownloadsView({ onToast }) {
                                 <button
                                   type="button"
                                   aria-label={zh('查看错误详情', 'View error details')}
-                                  className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-current focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-1"
+                                  className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-current"
                                 >
                                   <InfoOutlinedIcon sx={{ fontSize: 14 }} />
                                 </button>

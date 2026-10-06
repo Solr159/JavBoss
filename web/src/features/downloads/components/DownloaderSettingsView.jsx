@@ -457,7 +457,7 @@ export default function DownloaderSettingsView() {
                     <button
                       type="button"
                       aria-label={zh('API 令牌所需权限', 'Required API token permissions')}
-                      className="inline-flex rounded-full text-gray-400 hover:text-gray-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                      className="inline-flex rounded-full text-gray-400 hover:text-gray-600"
                     >
                       <HelpOutlineRoundedIcon sx={{ fontSize: 14 }} />
                     </button>

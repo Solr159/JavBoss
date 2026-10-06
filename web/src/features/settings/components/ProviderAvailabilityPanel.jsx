@@ -248,7 +248,6 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                         borderRadius: '8px',
                         color: '#71717a',
                         '&:hover': { color: '#2563eb', backgroundColor: '#eff6ff' },
-                        '&.Mui-focusVisible': { outline: '2px solid #3b82f6', outlineOffset: 2 },
                       }}
                     >
                       <RefreshRoundedIcon

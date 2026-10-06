@@ -22,6 +22,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { MovieEdit } from '@mui/icons-material'
 import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
+import WatchTimeIcons from '@/features/playback/components/WatchTimeIcons'
 
 export default function JavCard(props) {
   const model = useJavItemActions(props)
@@ -124,7 +125,7 @@ export default function JavCard(props) {
           )}
           <button
             type="button"
-            className="absolute inset-0 z-[1] cursor-pointer"
+            className="card-detail-trigger absolute inset-0 z-[1] cursor-pointer"
             onClick={handleOpenDetail}
             aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
           />
@@ -359,47 +360,53 @@ export default function JavCard(props) {
             {codeText ? ' ' : null}
             <span className="font-medium text-gray-800">{mainTitle}</span>
           </div>
-          <div className="flex min-w-0 flex-nowrap items-center gap-x-3 overflow-hidden text-xs text-gray-600">
-            <span className="inline-flex shrink-0 items-center gap-1">
-              <Tooltip title={zh('发行日期', 'Release date')} arrow>
-                <span className="inline-flex">
-                  <ReleaseIcon />
-                </span>
-              </Tooltip>
-              <span>{releaseText}</span>
-            </span>
-            <span className="inline-flex shrink-0 items-center gap-1">
-              <Tooltip title={zh('时长', 'Duration')} arrow>
-                <span className="inline-flex">
-                  <DurationIcon />
-                </span>
-              </Tooltip>
-              <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
-            </span>
-            {studioText ? (
-              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
-                <Tooltip title={zh('片商', 'Studio')} arrow>
+          <div className="flex min-w-0 items-center gap-2 text-xs text-gray-600">
+            <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-x-3 overflow-hidden">
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Tooltip title={zh('发行日期', 'Release date')} arrow>
                   <span className="inline-flex">
-                    <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
+                    <ReleaseIcon />
                   </span>
                 </Tooltip>
-                <a
-                  href={buildStudioFilterHref(item.studio)}
-                  className={`block min-w-0 truncate text-left ${
-                    canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
-                  }`}
-                  onClick={(event) =>
-                    handleFilterLinkClick(event, () => {
-                      if (canFilterStudio) onStudioClick(item.studio)
-                    })
-                  }
-                  onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
-                  onMouseLeave={scheduleHoverClose}
-                >
-                  {studioText}
-                </a>
+                <span>{releaseText}</span>
               </span>
-            ) : null}
+              <span className="inline-flex shrink-0 items-center gap-1">
+                <Tooltip title={zh('时长', 'Duration')} arrow>
+                  <span className="inline-flex">
+                    <DurationIcon />
+                  </span>
+                </Tooltip>
+                <span>{durationText || zh('时长未知', 'Unknown duration')}</span>
+              </span>
+              {studioText ? (
+                <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+                  <Tooltip title={zh('片商', 'Studio')} arrow>
+                    <span className="inline-flex">
+                      <VideocamOutlinedIcon
+                        sx={{ fontSize: 16 }}
+                        className="shrink-0 text-sky-600"
+                      />
+                    </span>
+                  </Tooltip>
+                  <a
+                    href={buildStudioFilterHref(item.studio)}
+                    className={`block min-w-0 truncate text-left ${
+                      canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                    }`}
+                    onClick={(event) =>
+                      handleFilterLinkClick(event, () => {
+                        if (canFilterStudio) onStudioClick(item.studio)
+                      })
+                    }
+                    onMouseEnter={(event) => handleStudioHoverStart(item.studio, event)}
+                    onMouseLeave={scheduleHoverClose}
+                  >
+                    {studioText}
+                  </a>
+                </span>
+              ) : null}
+            </div>
+            <WatchTimeIcons watchedMs={item?.watched_ms} />
           </div>
           {!hideSeries && seriesText ? (
             <div className="flex min-w-0 items-center gap-1 text-xs text-gray-600">

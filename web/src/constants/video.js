@@ -27,13 +27,13 @@ export const VIDEO_SORT_OPTIONS = [
     desc: ['长→短', 'long→short'],
   },
   {
-    base: 'play_count',
-    defaultValue: 'play_count',
-    ascValue: 'play_count_asc',
-    descValue: 'play_count',
-    label: ['播放次数', 'Play count'],
-    asc: ['少→多', 'low→high'],
-    desc: ['多→少', 'high→low'],
+    base: 'watched',
+    defaultValue: 'watched',
+    ascValue: 'watched_asc',
+    descValue: 'watched',
+    label: ['观看时长', 'Watch time'],
+    asc: ['短→长', 'short→long'],
+    desc: ['长→短', 'long→short'],
   },
 ]
 
@@ -48,7 +48,9 @@ export function normalizeVideoSort(sort, fallback = 'recent') {
   if (key === 'recent_desc') return 'recent'
   if (key === 'filename_asc') return 'filename'
   if (key === 'duration_desc') return 'duration'
-  if (key === 'play_count_desc') return 'play_count'
+  // Preserve the direction of saved preferences and links using the old sort.
+  if (key === 'watched_desc' || key === 'play_count' || key === 'play_count_desc') return 'watched'
+  if (key === 'play_count_asc') return 'watched_asc'
   if (videoSortValues.has(key)) return key
   return fallback
 }

@@ -134,7 +134,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                       onClick={() => copy(item)}
                       title={zh('复制', 'Copy')}
                       aria-label={zh('复制', 'Copy')}
-                      className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400"
+                      className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
                     >
                       <ContentCopyOutlinedIcon sx={{ fontSize: 16 }} />
                     </button>

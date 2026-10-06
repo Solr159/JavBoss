@@ -226,18 +226,15 @@ func SearchJavWithPrefixFilters(ctx context.Context, idolIDs []int64, tagIDs []i
 		order = "jav.duration_min DESC, jav.created_at DESC, jav.id DESC"
 	case "duration_asc":
 		order = "jav.duration_min ASC, jav.created_at ASC, jav.id ASC"
-	case "watched", "watched_desc":
+	case "watched", "watched_desc", "play_count", "play_count_desc":
+		// Legacy play-count sort values now use the JAV's cumulative watch time.
 		order = "jav.watched_ms DESC, jav.created_at DESC, jav.id DESC"
-	case "watched_asc":
+	case "watched_asc", "play_count_asc":
 		order = "jav.watched_ms ASC, jav.created_at ASC, jav.id ASC"
 	case "release", "release_desc":
 		order = "jav.release_unix IS NULL, jav.release_unix DESC, jav.code ASC, jav.id ASC"
 	case "release_asc":
 		order = "jav.release_unix IS NULL, jav.release_unix ASC, jav.code ASC, jav.id ASC"
-	case "play_count", "play_count_desc":
-		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeDirectoryWhereSQL("d") + directoryFilterSQL("vl", directoryIDs) + "), 0) DESC, jav.created_at DESC, jav.id DESC"
-	case "play_count_asc":
-		order = "COALESCE((SELECT SUM(COALESCE(v.play_count, 0)) FROM video_location vl JOIN directory d ON d.id = vl.directory_id JOIN video v ON v.id = vl.video_id WHERE vl.jav_id = jav.id AND " + activeDirectoryWhereSQL("d") + directoryFilterSQL("vl", directoryIDs) + "), 0) ASC, jav.created_at ASC, jav.id ASC"
 	case "favorite_rating", "favorite_rating_desc":
 		order = "jav.favorite_rating DESC, jav.created_at DESC, jav.id DESC"
 	case "favorite_rating_asc":

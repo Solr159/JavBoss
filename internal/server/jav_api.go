@@ -90,6 +90,8 @@ func parseJavFilterQuery(c *gin.Context) (javFilterQuery, bool) {
 	return query, true
 }
 
+// searchJav accepts sort=watched (longest first) or watched_asc (shortest first)
+// for cumulative watch time; legacy play_count sort values are aliases.
 func searchJav(c *gin.Context) {
 	limit := queryInt(c, "limit", 100)
 	offset := queryInt(c, "offset", 0)

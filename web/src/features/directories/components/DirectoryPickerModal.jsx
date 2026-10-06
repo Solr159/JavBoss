@@ -198,7 +198,7 @@ export default function DirectoryPickerModal({ initialPath = '', onSelect, onClo
                 <button
                   type="button"
                   onClick={() => navigate(entry.path)}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50 focus-visible:bg-blue-50"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-blue-50"
                   title={displayHostPath(entry.path, useHostPaths)}
                 >
                   <FolderOpenOutlinedIcon className="shrink-0 text-blue-500" fontSize="small" />
