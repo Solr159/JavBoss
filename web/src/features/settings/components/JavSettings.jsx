@@ -25,6 +25,13 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       open={true}
       initialTab={initialTab}
       onClose={() => onClose()}
+      titleTranslationEnabled={draft.titleTranslationEnabled}
+      onTitleTranslationChange={(enabled) =>
+        setDraft((current) => ({
+          ...current,
+          titleTranslationEnabled: enabled,
+        }))
+      }
       javPageSizeInput={draft.javPageSizeInput}
       onJavPageSizeChange={(value) =>
         setDraft((current) => ({ ...current, javPageSizeInput: value }))

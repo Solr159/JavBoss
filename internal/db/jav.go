@@ -94,6 +94,7 @@ type JavScanVideo struct {
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
 	Title          *string
+	ZhTitle        *string
 	StudioID       *int64
 	SeriesID       *int64
 	IdolIDs        *[]int64
@@ -441,13 +442,19 @@ func UpdateJav(ctx context.Context, javID int64, input JavUpdateInput, directory
 	}
 	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var javRec models.Jav
-		if err := tx.Select("id", "studio_id").Where("id = ?", javID).First(&javRec).Error; err != nil {
+		if err := tx.Select("id", "studio_id", "title").Where("id = ?", javID).First(&javRec).Error; err != nil {
 			return fmt.Errorf("find jav: %w", err)
 		}
 
 		updates := map[string]any{}
 		if input.Title != nil {
 			updates["title"] = strings.TrimSpace(*input.Title)
+			if updates["title"] != javRec.Title {
+				updates["zh_title"] = ""
+			}
+		}
+		if input.ZhTitle != nil {
+			updates["zh_title"] = strings.TrimSpace(*input.ZhTitle)
 		}
 		if input.ReleaseUnix != nil {
 			releaseUnix := *input.ReleaseUnix
