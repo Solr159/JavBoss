@@ -19,6 +19,9 @@ test(
   window.snapshot={videos:[],javs:[]};
   window.fetch=(input,init)=>{
    const url=new URL(input,location.origin);
+   if(url.pathname==='/videos' && window.holdVideoList) return new Promise(resolve=>{
+    window.finishVideoList=()=>resolve(Response.json({items:[{...window.videoRows[0],watched_ms:16000},window.videoRows[1]],total:2}));
+   });
    if(url.pathname==='/videos') {window.requests.push({url:'/videos'});return Promise.resolve(Response.json({items:window.videoRows,total:2}));}
    if(url.pathname==='/videos/watched-time') return Promise.resolve(Response.json(window.snapshot));
    return original(input,init);
@@ -46,6 +49,20 @@ test(
       true
     )
     assert.equal(await evaluate('window.watchTimeSources.filter(source=>!source.closed).length'), 1)
+    // A list request overlaps a live update and then returns an older snapshot.
+    await evaluate(
+      `window.holdVideoList=true; void window.testStore.getState().loadVideos({force:true})`
+    )
+    await waitFor('window.finishVideoList')
+    await evaluate(`{
+      window.sendTotals({videos:[{id:1,watched_ms:25000}],javs:[]});
+      window.finishVideoList();
+      window.holdVideoList=false;
+    }`)
+    await waitFor(
+      `document.querySelector('.video-card .watch-time-icons')?.getAttribute('aria-label') === 'Watched: 25 s'`
+    )
+    assert.equal(await evaluate('window.testStore.getState().videos[0].watched_ms'), 16000)
     await evaluate(
       `window.snapshot={videos:[{id:1,watched_ms:31000}],javs:[{id:1,watched_ms:62000}]}; window.dispatchEvent(new Event('focus'))`
     )

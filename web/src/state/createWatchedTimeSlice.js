@@ -7,7 +7,9 @@ export function createWatchedTimeSlice({ set }) {
       set((state) => {
         const watchedTimes = mergeWatchedTimeTotals(state.watchedTimes, snapshot)
         if (watchedTimes === state.watchedTimes) return state
-        return { watchedTimes, videos: state.videos, javItems: state.javItems }
+        // Live totals are independent of list snapshots; subscribers read them
+        // without rewriting list objects or intercepting unrelated state updates.
+        return { watchedTimes }
       }),
   }
 }

@@ -276,7 +276,7 @@ test(
     }
     await close()
     await waitFor(`document.querySelector('.video-card .watch-time-icons')`)
-    assert.ok(await evaluate('window.testStore.getState().videos[0].watched_ms > 0'))
+    assert.ok(await evaluate('window.testStore.getState().watchedTimes.videos[1] > 0'))
     await command('Emulation.clearDeviceMetricsOverride')
 
     // A selection from another page only has saved metadata, including its copy ID.

@@ -17,44 +17,6 @@ export function mergeWatchedTimeTotals(current, snapshot) {
   return next
 }
 
-function mapUnchanged(items, update) {
-  if (!Array.isArray(items)) return items
-  const next = items.map(update)
-  return next.some((item, index) => item !== items[index]) ? next : items
-}
-
-// Preserve list order, pagination, selection and references for unaffected rows.
-export function applyWatchedTimeTotals(patch, totals) {
-  if (!totals) return patch
-  const counter = (item, kind) => {
-    if (!item) return item
-    const value = totals[kind][item.id]
-    return value > (Number(item.watched_ms) || 0) ? { ...item, watched_ms: value } : item
-  }
-  const jav = (item) => {
-    if (!item) return item
-    const next = counter(item, 'javs')
-    const videos = mapUnchanged(item.videos, video)
-    return videos === item.videos ? next : { ...next, videos }
-  }
-  const location = (item) => {
-    const nextJav = jav(item.jav)
-    return nextJav === item.jav ? item : { ...item, jav: nextJav }
-  }
-  const video = (item) => {
-    const next = counter(item, 'videos')
-    const nextJav = jav(item.jav)
-    const locations = mapUnchanged(item.locations, location)
-    return nextJav === item.jav && locations === item.locations
-      ? next
-      : { ...next, jav: nextJav, locations }
-  }
-  const next = { ...patch }
-  if (patch.videos) next.videos = mapUnchanged(patch.videos, video)
-  if (patch.javItems) next.javItems = mapUnchanged(patch.javItems, jav)
-  return next
-}
-
 export function collectWatchedTimeIDs(state) {
   const videos = new Set()
   const javs = new Set()
