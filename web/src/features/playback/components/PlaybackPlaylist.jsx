@@ -32,7 +32,10 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
                 onClick={() => onSelect?.(index)}
                 className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-xs ${active ? 'bg-blue-100 font-semibold text-blue-700' : 'text-zinc-700 hover:bg-zinc-200'}`}
               >
-                <span className="w-5 shrink-0 text-center">
+                <span
+                  className="min-w-5 shrink-0 whitespace-nowrap text-center tabular-nums"
+                  style={{ width: `${String(items.length).length}ch` }}
+                >
                   {active ? <PlayArrowRoundedIcon sx={{ fontSize: 18 }} /> : index + 1}
                 </span>
                 <span className="min-w-0 truncate">{title}</span>
