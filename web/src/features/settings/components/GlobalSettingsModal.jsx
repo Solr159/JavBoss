@@ -87,6 +87,7 @@ export default function GlobalSettingsModal({
   desktopIntegrationEnabled = true,
   containerMode = false,
   serverOS = '',
+  appVersion = '',
   mpvEnabled = true,
   onCreateDirectory,
   onUpdateDirectory,
@@ -1478,8 +1479,8 @@ export default function GlobalSettingsModal({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="min-h-0 shrink-0 border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:overflow-y-auto md:border-b-0 md:border-r">
-          <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
+        <aside className="flex min-h-0 shrink-0 flex-col border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:border-b-0 md:border-r">
+          <div className="flex min-h-0 gap-2 overflow-x-auto md:flex-1 md:flex-col md:overflow-y-auto">
             {visibleSections.map((section) => {
               const selected = currentSection === section.id
               const badgeText = section.id === 'directories' ? String(directories.length) : ''
@@ -1489,7 +1490,7 @@ export default function GlobalSettingsModal({
                   key={section.id}
                   type="button"
                   onClick={() => setActiveSection(section.id)}
-                  className={`min-w-[220px] rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
+                  className={`min-w-[220px] shrink-0 rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
                     selected
                       ? 'border-zinc-200 bg-white shadow-sm'
                       : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80'
@@ -1510,6 +1511,10 @@ export default function GlobalSettingsModal({
                 </button>
               )
             })}
+          </div>
+          <div className="hidden shrink-0 px-4 pb-1 pt-4 text-xs text-zinc-500 md:block">
+            {zh('当前版本', 'Version')}：
+            {appVersion === 'dev' ? zh('开发版', 'Development') : appVersion || '—'}
           </div>
         </aside>
 
@@ -1537,6 +1542,10 @@ export default function GlobalSettingsModal({
             </div>
           )}
         </section>
+      </div>
+      <div className="shrink-0 border-t border-zinc-200 bg-white/60 px-6 py-3 text-xs text-zinc-500 md:hidden">
+        {zh('当前版本', 'Version')}：
+        {appVersion === 'dev' ? zh('开发版', 'Development') : appVersion || '—'}
       </div>
     </AppModal>
   )

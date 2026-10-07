@@ -36,7 +36,10 @@ function releaseContext(t, goos) {
     isBundledFfmpegReady = async () => { calls.push('check-ffmpeg'); return true; };
     buildWeb = async () => {};
     copyDir = async () => {};
-    buildBackendRelease = async (_, dir) => fsp.writeFile(path.join(dir, 'javboss'), 'server');
+    buildBackendRelease = async (_, dir, version) => {
+      globalThis.builtVersion = version;
+      await fsp.writeFile(path.join(dir, 'javboss'), 'server');
+    };
     copyBundledFfprobe = async () => {};
     copyBundledFfmpeg = async (_, dir) => {
       calls.push('bundle-ffmpeg');
@@ -61,12 +64,13 @@ for (const goos of ["windows", "linux", "darwin"]) {
       commandExists = async () => true;
       runCommand = async (command, args, options) => calls.push({ command, args, options });
     `, ctx);
-    await ctx.originalBuildBackendRelease(ctx.choice, ctx.outDir);
+    await ctx.originalBuildBackendRelease(ctx.choice, ctx.outDir, "v1.2.3-rc.1");
     const { command, args, options } = ctx.calls[0];
     assert.equal(command, "go");
     assert.equal(args[0], "build");
     const ldflags = args[args.indexOf("-ldflags") + 1];
     assert.match(ldflags, /-X main\.buildMode=release/);
+    assert.match(ldflags, /-X javboss\/internal\/common\.Version=v1\.2\.3-rc\.1(?:\s|$)/);
     assert.equal(ldflags.includes("-H windowsgui"), goos === "windows");
     assert.equal(options.env.GOOS, goos);
     assert.equal(options.env.CGO_ENABLED, "1");
@@ -83,6 +87,7 @@ for (const goos of ["windows", "linux"]) {
     await fsp.writeFile(oldBinary, "old ffmpeg");
     await ctx.cli.createZip(ctx.outDir, ctx.zipPath);
     await ctx.cli.handleRelease("test", `${goos}/amd64`);
+    assert.equal(ctx.builtVersion, "test");
     assert.equal(ctx.process.exitCode, 0);
     assert.equal(ctx.calls.length, 0, "must neither check nor bundle FFmpeg");
     const result = spawnSync("unzip", ["-Z1", ctx.zipPath], { encoding: "utf8" });

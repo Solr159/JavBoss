@@ -79,6 +79,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             BUILD_MODE=release
+            APP_VERSION=${{ inputs.version }}
             GOPROXY=https://goproxy.cn,direct
             GOSUMDB=sum.golang.org
             NPM_CONFIG_REGISTRY=https://registry.npmmirror.com

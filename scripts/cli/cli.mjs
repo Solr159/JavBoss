@@ -450,7 +450,7 @@ async function syncBundledMpvToInternal(choice) {
   return true;
 }
 
-async function buildBackendRelease(choice, outDir) {
+async function buildBackendRelease(choice, outDir, version) {
   if (choice.goos === "windows" && !process.env.CC) {
     const hasMingw = await commandExists("x86_64-w64-mingw32-gcc");
     if (hasMingw) {
@@ -471,7 +471,7 @@ async function buildBackendRelease(choice, outDir) {
     CGO_ENABLED: "1",
   };
   console.log(`[release] 构建后端 (${choice.goos}/${choice.goarch})`);
-  const ldflags = "-s -w -X main.buildMode=release" +
+  const ldflags = `-s -w -X main.buildMode=release -X javboss/internal/common.Version=${version}` +
     (choice.goos === "windows" ? " -H windowsgui" : "");
   await runCommand(
     "go",
@@ -617,7 +617,7 @@ async function runRelease(choice, version) {
   await buildWeb();
   console.log("[release] 复制前端资源");
   await copyDir(path.join(WEB_DIR, "dist"), path.join(outDir, "web", "dist"));
-  await buildBackendRelease(choice, outDir);
+  await buildBackendRelease(choice, outDir, version);
   console.log("[release] 复制 ffprobe");
   await copyBundledFfprobe(choice, outDir);
   if (choice.goos === "darwin") {

@@ -16,6 +16,7 @@ FROM golang:1.25-bookworm AS go-build
 ARG GOPROXY=https://goproxy.cn,direct
 ARG GOSUMDB=sum.golang.org
 ARG BUILD_MODE=release
+ARG APP_VERSION=dev
 ENV GOPROXY=${GOPROXY} \
   GOSUMDB=${GOSUMDB}
 
@@ -25,7 +26,7 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
-  go build -trimpath -ldflags="-s -w -X main.buildMode=${BUILD_MODE}" -o /out/javboss ./cmd/server
+  go build -trimpath -ldflags="-s -w -X main.buildMode=${BUILD_MODE} -X javboss/internal/common.Version=${APP_VERSION}" -o /out/javboss ./cmd/server
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS ffmpeg-build
 

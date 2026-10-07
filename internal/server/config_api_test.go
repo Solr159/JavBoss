@@ -94,6 +94,12 @@ func TestProxyModesPersistAndValidate(t *testing.T) {
 	if cfg := request(http.MethodGet, "", http.StatusOK); cfg["proxy_mode"] != "auto" {
 		t.Fatalf("default mode=%q", cfg["proxy_mode"])
 	}
+	for _, method := range []string{http.MethodGet, http.MethodPatch} {
+		cfg := request(method, `{"app_version":"override"}`, http.StatusOK)
+		if cfg["app_version"] != common.Version {
+			t.Fatalf("%s app_version=%q, want build version %q", method, cfg["app_version"], common.Version)
+		}
+	}
 	request(http.MethodPatch, `{"proxy_mode":"manual"}`, http.StatusBadRequest)
 	for _, tt := range []struct{ body, mode, port string }{
 		{`{"proxy_mode":"manual","proxy_host":"127.0.0.1","proxy_port":7890}`, "manual", "7890"},

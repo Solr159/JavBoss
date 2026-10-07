@@ -47,6 +47,7 @@ export default function GlobalSettings({ onToast, open, onClose }) {
       desktopIntegrationEnabled={desktopIntegrationEnabled}
       containerMode={containerMode}
       serverOS={config?.runtime_os}
+      appVersion={config?.app_version}
       mpvEnabled={mpvEnabled}
       onCreateDirectory={async (payload) => {
         const created = await createDirectory(payload)

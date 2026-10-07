@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"javboss/internal/common"
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav"
@@ -595,6 +596,7 @@ func updateConfig(c *gin.Context) {
 }
 
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
+	cfg["app_version"] = common.Version
 	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
 	remoteRequest := isRemoteRequest(remoteAddr)
 	containerMode := runtimeconfig.ContainerMode()
