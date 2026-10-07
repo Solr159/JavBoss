@@ -234,8 +234,8 @@ export default function VideoScreenshotsModal({
         ) : items.length === 0 ? (
           <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 px-4 text-center text-sm text-gray-500">
             {zh(
-              `暂无截图。使用 MPV播放器 播放时按 ${screenshotKey} 键截图，会显示在此处。`,
-              `No screenshots yet. Press ${screenshotKey} while playing with the MPV player to capture one, and it will appear here.`
+              `暂无截图。使用 MPV播放器 或 网页播放器 播放时按 ${screenshotKey} 键截图，会显示在此处。`,
+              `No screenshots yet. Press ${screenshotKey} while playing with the MPV player or browser player to capture one, and it will appear here.`
             )}
           </div>
         ) : (
