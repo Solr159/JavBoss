@@ -90,7 +90,7 @@ export default function Pagination({
   return (
     <div className="pagination-root relative flex w-full flex-col items-center">
       {onWaterfallModeChange ? (
-        <label className="pagination-waterfall fixed z-30 inline-flex shrink-0 -translate-y-1/2 items-center text-gray-600">
+        <div className="pagination-waterfall fixed z-30 inline-flex shrink-0 -translate-y-1/2 items-center text-gray-600">
           <span>{zh('瀑布流', 'Waterfall')}</span>
           <Switch
             className="pagination-waterfall-switch"
@@ -107,7 +107,7 @@ export default function Pagination({
           {totalItemsAction ? (
             <span className="pagination-waterfall-action inline-flex">{totalItemsAction}</span>
           ) : null}
-        </label>
+        </div>
       ) : null}
       <div className="pagination-controls flex flex-wrap items-center justify-center">
         {!waterfallMode ? (
