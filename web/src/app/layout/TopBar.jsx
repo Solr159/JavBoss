@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
@@ -9,7 +10,7 @@ import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
-import { Button, IconButton, Popper, Slider } from '@mui/material'
+import { Button, IconButton, Menu, MenuItem, Popper, Slider, Tooltip } from '@mui/material'
 import {
   formatIdolProfileFilterRange,
   IDOL_PROFILE_FILTER_DEFINITIONS,
@@ -299,6 +300,67 @@ function IdolProfileFilters({ filters, onChange, showClear, onClear }) {
   )
 }
 
+function SelectionMenu({
+  onSelectPage,
+  onDeselectPage,
+  onSelectAll,
+  onDeselectAll,
+  pageAvailable,
+  allAvailable,
+  busy,
+}) {
+  const [anchorEl, setAnchorEl] = useState(null)
+  const label = zh('多选菜单', 'Selection menu')
+  const actions = [
+    { label: zh('选中本页', 'Select page'), action: onSelectPage, disabled: !pageAvailable },
+    { label: zh('取消本页', 'Deselect page'), action: onDeselectPage, disabled: !pageAvailable },
+    { label: zh('选中全部', 'Select all'), action: onSelectAll, disabled: !allAvailable },
+    { label: zh('取消全部', 'Deselect all'), action: onDeselectAll, disabled: !allAvailable },
+  ]
+  return (
+    <>
+      <Tooltip title={label} arrow>
+        <span className="inline-flex">
+          <IconButton
+            size="small"
+            color="primary"
+            onClick={(event) => setAnchorEl(event.currentTarget)}
+            disabled={busy}
+            aria-label={label}
+            aria-haspopup="menu"
+            aria-expanded={Boolean(anchorEl)}
+            sx={{ width: 24, height: 24 }}
+          >
+            <LibraryAddCheckOutlinedIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Menu
+        open={Boolean(anchorEl)}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        disableScrollLock
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        MenuListProps={{ dense: true, 'aria-label': label }}
+      >
+        {actions.map(({ label: text, action, disabled }) => (
+          <MenuItem
+            key={text}
+            disabled={busy || disabled}
+            onClick={() => {
+              setAnchorEl(null)
+              action?.()
+            }}
+          >
+            {text}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
+  )
+}
+
 export default function TopBar({
   favoriteEntityType = 'idol',
   favoriteGroups = [],
@@ -330,6 +392,13 @@ export default function TopBar({
   onSubmitSearch,
   onOpenSelectionOps,
   onClearSelection,
+  onSelectPage,
+  onDeselectPage,
+  onSelectAll,
+  onDeselectAll,
+  selectionPageAvailable = false,
+  selectionAllAvailable = false,
+  selectionBusy = false,
   searchHref,
   searchInput,
   selectedCount = 0,
@@ -574,7 +643,20 @@ export default function TopBar({
 
           <div className="filter-topbar__actions">
             {hasSelection ? (
-              <div className="inline-flex items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-1.5 py-1">
+              <div
+                role="group"
+                aria-label={zh('多选', 'Multiple selection')}
+                className="inline-flex flex-wrap items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-1.5 py-1"
+              >
+                <SelectionMenu
+                  onSelectPage={onSelectPage}
+                  onDeselectPage={onDeselectPage}
+                  onSelectAll={onSelectAll}
+                  onDeselectAll={onDeselectAll}
+                  pageAvailable={selectionPageAvailable}
+                  allAvailable={selectionAllAvailable}
+                  busy={selectionBusy}
+                />
                 <span className="whitespace-nowrap px-1.5 text-xs font-medium text-sky-700">
                   {zh(`已选 ${activeSelectedCount} 项`, `${activeSelectedCount} selected`)}
                 </span>
@@ -582,6 +664,7 @@ export default function TopBar({
                   variant="outlined"
                   size="small"
                   onClick={onOpenSelectionOps}
+                  aria-label={zh('多选操作', 'Selection actions')}
                   className="topbar-selection-action"
                 >
                   {zh('操作', 'Actions')}

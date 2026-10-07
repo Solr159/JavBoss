@@ -437,6 +437,35 @@ export default function useVideoSelection({
     }
   }, [addVideosToSelection, showToast, videos])
 
+  const removeVideosFromSelection = useCallback((items) => {
+    const keys = items.map(videoSelectionKey).filter(Boolean)
+    useStore.setState((state) => {
+      const selectedVideoIds = new Set(state.selectedVideoIds)
+      const selectedVideoMeta = { ...state.selectedVideoMeta }
+      for (const key of keys) {
+        selectedVideoIds.delete(key)
+        delete selectedVideoMeta[key]
+      }
+      return { selectedVideoIds, selectedVideoMeta }
+    })
+  }, [])
+
+  const handleDeselectVideoPage = useCallback(() => {
+    removeVideosFromSelection(videos)
+  }, [removeVideosFromSelection, videos])
+
+  const handleDeselectAllVideos = useCallback(async () => {
+    if (videoBulkActionBusy) return
+    setVideoBulkActionBusy(true)
+    try {
+      removeVideosFromSelection(await fetchAllMatchingVideos())
+    } catch (err) {
+      showCenterToast(getErrorMessage(err))
+    } finally {
+      setVideoBulkActionBusy(false)
+    }
+  }, [fetchAllMatchingVideos, removeVideosFromSelection, showCenterToast, videoBulkActionBusy])
+
   const handleSelectAllVideos = useCallback(async () => {
     if (videoBulkActionBusy) return
     setVideoBulkActionBusy(true)
@@ -531,6 +560,8 @@ export default function useVideoSelection({
     handleSelectionJavTagChoiceToggle,
     handleApplySelectionJavTags,
     handleSelectVideoPage,
+    handleDeselectVideoPage,
+    handleDeselectAllVideos,
     handleSelectAllVideos,
     handlePlayVideoPage,
     handlePlayAllVideos,

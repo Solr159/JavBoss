@@ -71,6 +71,106 @@ test(
       window.testStore.getState().loadVideos({force:true});
     }`)
     await waitFor(`document.querySelectorAll('.video-card').length === 3`)
+    const selection = `document.querySelector('[role="group"][aria-label="Multiple selection"]')`
+    const selectionMenu = `document.querySelector('[role="menu"][aria-label="Selection menu"]')`
+    const runSelectionAction = async (text) => {
+      const trigger = `${selection}.querySelector('button[aria-label="Selection menu"]')`
+      await waitFor(`${trigger} && !${trigger}.disabled`)
+      await evaluate(`${trigger}.click()`)
+      await waitFor(selectionMenu)
+      assert.deepEqual(
+        await evaluate(
+          `[...${selectionMenu}.querySelectorAll('[role="menuitem"]')].map(item => item.textContent)`
+        ),
+        ['Select page', 'Deselect page', 'Select all', 'Deselect all']
+      )
+      const item = `[...${selectionMenu}.querySelectorAll('[role="menuitem"]')].find(item => item.textContent === '${text}')`
+      assert.notEqual(await evaluate(`${item}.getAttribute('aria-disabled')`), 'true')
+      await evaluate(`${item}.click()`)
+      await waitFor(`!${selectionMenu}`)
+    }
+    const checkSelectionButtons = async (selectFirst, count, listKey) => {
+      await waitFor(`!${selection}`)
+      assert.equal(
+        await evaluate(`Boolean(document.querySelector('button[aria-label$="bulk actions"]'))`),
+        false
+      )
+      for (const action of ['Select page', 'Select all']) {
+        await evaluate(selectFirst)
+        await waitFor(`${selection}?.textContent.includes('1 selected')`)
+        await runSelectionAction(action)
+        await waitFor(`${selection}.textContent.includes('${count} selected')`)
+        if (action === 'Select page') {
+          await runSelectionAction('Deselect page')
+        } else {
+          // Deselecting the current page must retain selections from other pages.
+          await evaluate(`{
+            window.selectionTestItems = window.testStore.getState().${listKey};
+            window.testStore.setState({${listKey}: window.selectionTestItems.slice(0, 1)});
+          }`)
+          await runSelectionAction('Deselect page')
+          await waitFor(`${selection}.textContent.includes('${count - 1} selected')`)
+          await evaluate(`window.testStore.setState({${listKey}: window.selectionTestItems})`)
+          await runSelectionAction('Deselect all')
+        }
+        await waitFor(`!${selection}`)
+      }
+      // A narrower filter must not clear selections outside its results, including
+      // when matching results span multiple pages.
+      await evaluate(selectFirst)
+      await waitFor(selection)
+      await runSelectionAction('Select all')
+      await waitFor(`${selection}.textContent.includes('${count} selected')`)
+      const searchKey = listKey === 'videos' ? 'searchTerm' : 'javSearchTerm'
+      const pageSizeKey = listKey === 'videos' ? 'pageSize' : 'javPageSize'
+      const endpoint = listKey === 'videos' ? '/videos' : '/jav'
+      await evaluate(`{
+        const state = window.testStore.getState();
+        const matches = state.${listKey}.slice(0, -1);
+        window.selectionFilterTest = {
+          fetch: window.fetch,
+          previous: {${searchKey}: state.${searchKey}, ${pageSizeKey}: state.${pageSizeKey}},
+          requests: []
+        };
+        window.fetch = (input, init = {}) => {
+          const url = new URL(input, location.origin);
+          if (url.pathname === '${endpoint}' && url.searchParams.get('search') === 'selection-test-filter') {
+            window.selectionFilterTest.requests.push(url.search);
+            const offset = Number(url.searchParams.get('offset')) || 0;
+            const limit = Number(url.searchParams.get('limit')) || matches.length;
+            return Promise.resolve(Response.json({items: matches.slice(offset, offset + limit), total: matches.length}));
+          }
+          return window.selectionFilterTest.fetch(input, init);
+        };
+        window.testStore.setState({${searchKey}: 'selection-test-filter', ${pageSizeKey}: 1});
+      }`)
+      await waitFor(
+        `window.testStore.getState().${listKey}.length === 1 && !${selection}.querySelector('button[aria-label="Selection menu"]').disabled`
+      )
+      await runSelectionAction('Deselect all')
+      await waitFor(`${selection}.textContent.includes('1 selected')`)
+      assert.ok(await evaluate(`window.selectionFilterTest.requests.length >= 2`))
+      if (listKey === 'videos') {
+        assert.deepEqual(await evaluate('[...window.testStore.getState().selectedVideoIds]'), [
+          'loc:13',
+        ])
+        assert.deepEqual(
+          await evaluate('Object.keys(window.testStore.getState().selectedVideoMeta)'),
+          ['loc:13']
+        )
+      }
+      await evaluate(`{
+        window.fetch = window.selectionFilterTest.fetch;
+        window.testStore.setState(window.selectionFilterTest.previous);
+        [...${selection}.querySelectorAll('button')].find(button => button.textContent === 'Clear').click();
+      }`)
+      await waitFor(`!${selection} && window.testStore.getState().${listKey}.length === ${count}`)
+    }
+    await checkSelectionButtons(
+      'window.testStore.getState().toggleSelectVideo(window.testStore.getState().videos[0])',
+      3,
+      'videos'
+    )
     const playMenu = async (text) => {
       await evaluate(`document.querySelector('button[aria-label="Video playback"]').click()`)
       const action = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === ${JSON.stringify(text)})`
@@ -286,8 +386,8 @@ test(
         'loc:12':{video_id:1, location_id:12, label:'second-copy.mp4'}
       }});
     }`)
-    await waitFor(`document.querySelector('button.topbar-selection-action')`)
-    await evaluate(`document.querySelector('button.topbar-selection-action').click()`)
+    await waitFor(`document.querySelector('button[aria-label="Selection actions"]')`)
+    await evaluate(`document.querySelector('button[aria-label="Selection actions"]').click()`)
     await waitFor(`document.querySelector('[aria-label="Selected Files"]')`)
     await evaluate(
       `[...document.querySelectorAll('[aria-label="Selected Files"] button')].find(el => el.textContent === 'Play all').click()`
@@ -334,6 +434,11 @@ test(
       document.querySelector('aside button[aria-label="JAV"]').click();
     }`)
     await waitFor(`document.querySelectorAll('.jav-card').length === 2`)
+    await checkSelectionButtons(
+      `document.querySelector('.jav-card [role="checkbox"]').click()`,
+      2,
+      'javItems'
+    )
     await evaluate(`document.querySelector('button[aria-label="JAV playback"]').click()`)
     const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all')`
     await waitFor(javPlayAll)

@@ -237,8 +237,6 @@ function JavListRoute({
   javItems,
   selectedJavIds,
   onToggleSelect,
-  onSelectAll,
-  onSelectPage,
   onPlayPage,
   onPlayAll,
   bulkActionBusy,
@@ -297,8 +295,6 @@ function JavListRoute({
       javItems={javItems}
       selectedJavIds={selectedJavIds}
       onToggleSelect={onToggleSelect}
-      onSelectAll={onSelectAll}
-      onSelectPage={onSelectPage}
       onPlayPage={onPlayPage}
       onPlayAll={onPlayAll}
       bulkActionBusy={bulkActionBusy}

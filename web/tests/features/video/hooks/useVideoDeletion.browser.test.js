@@ -56,8 +56,8 @@ for (const batch of [false, true]) {
           state.toggleSelectVideo(state.videos[26]);
           window.failLocation = 27;
         }`)
-        await waitFor(`document.querySelector('button.topbar-selection-action')`)
-        await evaluate(`document.querySelector('button.topbar-selection-action').click()`)
+        await waitFor(`document.querySelector('button[aria-label="Selection actions"]')`)
+        await evaluate(`document.querySelector('button[aria-label="Selection actions"]').click()`)
         const modal = `document.querySelector('[aria-label="Selected Files"]')`
         await waitFor(modal)
         const deleteButton = `[...${modal}.querySelectorAll('button')].find(button => button.textContent === 'Delete Selected Videos')`

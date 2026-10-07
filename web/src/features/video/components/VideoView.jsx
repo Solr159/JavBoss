@@ -1,7 +1,6 @@
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import { Popover } from '@mui/material'
 import { useState } from 'react'
-import BulkActionsMenu from '@/features/playback/components/BulkActionsMenu'
 import BulkPlaybackMenu from '@/features/playback/components/BulkPlaybackMenu'
 import Pagination from '@/shared/ui/Pagination'
 import VideoGrid from '@/features/video/components/VideoGrid'
@@ -44,8 +43,6 @@ export default function VideoView({
   videos,
   selectedVideoIds,
   toggleSelectVideo,
-  onSelectAll,
-  onSelectPage,
   onPlayPage,
   onPlayAll,
   bulkActionBusy,
@@ -91,26 +88,16 @@ export default function VideoView({
     setSortAnchorEl(null)
   }
 
-  const bulkActionMenu = (
-    <>
-      <BulkActionsMenu
-        label={zh('视频批量操作', 'Video bulk actions')}
-        hasItems={hasVideos}
-        pageSelectable={pageSelectable}
-        busy={bulkActionBusy}
-        onSelectAll={onSelectAll}
-        onSelectPage={onSelectPage}
-      />
-      <BulkPlaybackMenu
-        label={zh('视频播放', 'Video playback')}
-        hasItems={hasVideos}
-        pageSelectable={pageSelectable}
-        busy={bulkActionBusy}
-        bulkPlaybackEnabled={bulkPlaybackEnabled}
-        onPlayPage={onPlayPage}
-        onPlayAll={onPlayAll}
-      />
-    </>
+  const playbackMenu = (
+    <BulkPlaybackMenu
+      label={zh('视频播放', 'Video playback')}
+      hasItems={hasVideos}
+      pageSelectable={pageSelectable}
+      busy={bulkActionBusy}
+      bulkPlaybackEnabled={bulkPlaybackEnabled}
+      onPlayPage={onPlayPage}
+      onPlayAll={onPlayAll}
+    />
   )
 
   return (
@@ -142,7 +129,7 @@ export default function VideoView({
               }}
               waterfallMode={waterfallMode}
               onWaterfallModeChange={onWaterfallModeChange}
-              totalItemsAction={bulkActionMenu}
+              totalItemsAction={playbackMenu}
             />
           </div>
           <div className="flex justify-end">

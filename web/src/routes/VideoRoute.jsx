@@ -9,8 +9,6 @@ export default function VideoRoute({
   configLoaded,
 
   buildVideoUrl,
-  handleSelectAllVideos,
-  handleSelectVideoPage,
   handlePlayVideoPage,
   handlePlayAllVideos,
   videoBulkActionBusy,
@@ -107,8 +105,6 @@ export default function VideoRoute({
       videos={videos}
       selectedVideoIds={selectedVideoIds}
       toggleSelectVideo={toggleSelectVideo}
-      onSelectAll={handleSelectAllVideos}
-      onSelectPage={handleSelectVideoPage}
       onPlayPage={handlePlayVideoPage}
       onPlayAll={handlePlayAllVideos}
       bulkActionBusy={videoBulkActionBusy || selectionPlaying}

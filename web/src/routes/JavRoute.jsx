@@ -334,8 +334,6 @@ export default function JavRoute({
         javTagMaxRows,
         selectedJavIds: javSelection.selectedIds,
         onToggleSelect: javSelection.toggle,
-        onSelectAll: javSelection.selectAll,
-        onSelectPage: javSelection.selectPage,
         onPlayPage: javSelection.playPage,
         onPlayAll: javSelection.playAll,
         bulkActionBusy: javSelection.busy,

@@ -1,5 +1,5 @@
 import { useShallow } from 'zustand/react/shallow'
-import { useStore } from '@/store'
+import { useStore, videoSelectionKey } from '@/store'
 import { useState, useEffect, useCallback } from 'react'
 import useApplicationData from '@/query/useApplicationData'
 import useLibraryRoute from '@/navigation/useLibraryRoute'
@@ -59,6 +59,9 @@ import Toast from '@/shared/ui/Toast'
 export default function App() {
   const {
     config,
+    selectionPageAvailable,
+    selectionAllAvailable,
+    selectionLoading,
     tags,
     selectedVideoIds,
     loadTags,
@@ -89,6 +92,21 @@ export default function App() {
   } = useStore(
     useShallow((s) => ({
       config: s.config,
+      selectionPageAvailable:
+        s.viewMode === 'jav'
+          ? s.javItems.some((item) => Number(item?.id) > 0)
+          : s.videos.some((item) => videoSelectionKey(item)),
+      selectionAllAvailable:
+        Number(
+          s.viewMode === 'jav'
+            ? s.javRandomMode
+              ? s.javItems.length
+              : s.javTotal
+            : s.randomMode
+              ? s.videos.length
+              : s.total
+        ) > 0,
+      selectionLoading: s.viewMode === 'jav' ? s.javLoading : s.loading,
       tags: s.tags,
       selectedVideoIds: s.selectedVideoIds,
       loadTags: s.loadTags,
@@ -313,6 +331,8 @@ export default function App() {
     handleSelectionJavTagChoiceToggle,
     handleApplySelectionJavTags,
     handleSelectVideoPage,
+    handleDeselectVideoPage,
+    handleDeselectAllVideos,
     handleSelectAllVideos,
     handlePlayVideoPage,
     handlePlayAllVideos,
@@ -602,6 +622,18 @@ export default function App() {
         }
         onOpenSelectionOps={isJavMode ? javSelection.openOps : () => setSelectionOpsOpen(true)}
         onClearSelection={isJavMode ? javSelection.clear : clearSelection}
+        onSelectPage={isJavMode ? javSelection.selectPage : handleSelectVideoPage}
+        onDeselectPage={isJavMode ? javSelection.deselectPage : handleDeselectVideoPage}
+        onSelectAll={isJavMode ? javSelection.selectAll : handleSelectAllVideos}
+        onDeselectAll={isJavMode ? javSelection.deselectAll : handleDeselectAllVideos}
+        selectionPageAvailable={selectionPageAvailable}
+        selectionAllAvailable={selectionAllAvailable}
+        selectionBusy={
+          selectionLoading ||
+          (isJavMode
+            ? javSelection.busy
+            : videoBulkActionBusy || selectionPlaying || selectionDeleting)
+        }
         onRandomClick={
           !isJavMode ? handleVideoRandomClick : javTab === 'list' ? handleJavRandomClick : null
         }
@@ -647,8 +679,6 @@ export default function App() {
                 hydrated={hydrated}
                 configLoaded={configLoaded}
                 buildVideoUrl={buildVideoUrl}
-                handleSelectAllVideos={handleSelectAllVideos}
-                handleSelectVideoPage={handleSelectVideoPage}
                 handlePlayVideoPage={handlePlayVideoPage}
                 handlePlayAllVideos={handlePlayAllVideos}
                 videoBulkActionBusy={videoBulkActionBusy}

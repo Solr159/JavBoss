@@ -116,6 +116,14 @@ export default function useJavSelection({
     return entries.size
   }
 
+  const deselectItems = (list) => {
+    setSelection((current) => {
+      const next = new Map(current)
+      for (const item of list) next.delete(Number(item?.id))
+      return next
+    })
+  }
+
   const fetchAll = () => {
     const state = useStore.getState()
     return fetchAllJavItems(fetchJavs, {
@@ -285,6 +293,10 @@ export default function useJavSelection({
           showToast(zh(`已选择本页 ${count} 部 JAV`, `Selected ${count} JAV items on this page`))
         }
       }),
+    deselectPage: () => {
+      if (actionRef.current) return
+      deselectItems(items)
+    },
     selectAll: () =>
       runAction('select', async () => {
         const count = selectItems(await fetchAll())
@@ -292,6 +304,7 @@ export default function useJavSelection({
           showToast(zh(`已选择全部 ${count} 部 JAV`, `Selected all ${count} JAV items`))
         }
       }),
+    deselectAll: () => runAction('select', async () => deselectItems(await fetchAll())),
     playPage: () => play(() => items),
     playAll: () => play(fetchAll),
     playSelected: () => play(() => selectedItems),
