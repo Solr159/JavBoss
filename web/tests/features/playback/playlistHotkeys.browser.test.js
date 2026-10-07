@@ -65,6 +65,10 @@ test(
       button: 'left',
       clickCount: 1,
     })
+    // CDP acknowledges input before React necessarily commits the resize.
+    await waitFor(
+      `document.querySelector('#browser-playlist').getBoundingClientRect().width === ${initialWidth + 32}`
+    )
     assert.equal(await width(), initialWidth + 32)
     assert.equal(await evaluate(`document.activeElement === ${divider}`), false)
 
