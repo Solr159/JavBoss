@@ -242,9 +242,7 @@ export default function PlayerModal({
       if (
         target instanceof Element &&
         (target.isContentEditable ||
-          target.closest(
-            'input, textarea, select, [contenteditable="true"], [data-playlist-resize]'
-          ))
+          target.closest('input, textarea, select, [contenteditable="true"]'))
       ) {
         return
       }

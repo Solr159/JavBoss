@@ -18,15 +18,13 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         aria-orientation="vertical"
         aria-label={zh('调整播放列表宽度', 'Resize playlist')}
         aria-controls="browser-playlist"
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- Resizable separators support keyboard adjustment.
-        tabIndex={0}
         data-playlist-resize
         title={zh('左右拖动调整播放列表宽度', 'Drag left or right to resize the playlist')}
-        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center outline-none hover:bg-blue-50 focus-visible:bg-blue-50 ${resize.dragging ? 'bg-blue-50' : ''}`}
+        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center hover:bg-blue-50 ${resize.dragging ? 'bg-blue-50' : ''}`}
         {...resize.separatorProps}
       >
         <span
-          className={`h-8 w-0.5 rounded-full group-hover:bg-blue-400 group-focus-visible:bg-blue-400 ${resize.dragging ? 'bg-blue-400' : 'bg-zinc-300'}`}
+          className={`h-8 w-0.5 rounded-full group-hover:bg-blue-400 ${resize.dragging ? 'bg-blue-400' : 'bg-zinc-300'}`}
         />
       </div>
       <aside

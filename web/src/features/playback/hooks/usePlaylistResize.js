@@ -93,12 +93,6 @@ export default function usePlaylistResize() {
     }
   }, [move, finishPointer])
 
-  const changeWidth = (value) => {
-    const next = clampWidth(value)
-    latestWidthRef.current = next
-    setPreferredWidth(next)
-  }
-
   return {
     panelRef,
     width,
@@ -111,7 +105,6 @@ export default function usePlaylistResize() {
         if (event.button !== 0 || !event.isPrimary || dragRef.current) return
         event.preventDefault()
         event.stopPropagation()
-        event.currentTarget.focus()
         dragRef.current = {
           x: event.clientX,
           width,
@@ -122,16 +115,6 @@ export default function usePlaylistResize() {
         setDragging(true)
       },
       onLostPointerCapture: finishPointer,
-      onKeyDown: (event) => {
-        const next = { ArrowLeft: width + 16, ArrowRight: width - 16, Home: min, End: max }[
-          event.key
-        ]
-        if (next == null) return
-        event.preventDefault()
-        event.stopPropagation()
-        changeWidth(next)
-        persist()
-      },
     },
   }
 }

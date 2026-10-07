@@ -95,38 +95,6 @@ test(
       await evaluate(`Number(localStorage.getItem('javboss.player.playlistWidth'))`),
       savedPlaylistWidth
     )
-    // Keyboard resizing must not be consumed by the player's seek shortcuts.
-    await evaluate(`document.querySelector('[data-playlist-resize]').focus()`)
-    await command('Input.dispatchKeyEvent', {
-      type: 'keyDown',
-      key: 'ArrowLeft',
-      code: 'ArrowLeft',
-      windowsVirtualKeyCode: 37,
-    })
-    await command('Input.dispatchKeyEvent', {
-      type: 'keyUp',
-      key: 'ArrowLeft',
-      code: 'ArrowLeft',
-      windowsVirtualKeyCode: 37,
-    })
-    await waitFor(
-      `document.querySelector('#browser-playlist').getBoundingClientRect().width === ${savedPlaylistWidth + 16}`
-    )
-    await command('Input.dispatchKeyEvent', {
-      type: 'keyDown',
-      key: 'ArrowRight',
-      code: 'ArrowRight',
-      windowsVirtualKeyCode: 39,
-    })
-    await command('Input.dispatchKeyEvent', {
-      type: 'keyUp',
-      key: 'ArrowRight',
-      code: 'ArrowRight',
-      windowsVirtualKeyCode: 39,
-    })
-    await waitFor(
-      `document.querySelector('#browser-playlist').getBoundingClientRect().width === ${savedPlaylistWidth}`
-    )
     await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
     await waitFor(`!document.querySelector('[data-playlist-resize]')`)
     await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
