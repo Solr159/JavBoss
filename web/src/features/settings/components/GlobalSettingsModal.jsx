@@ -1459,7 +1459,7 @@ export default function GlobalSettingsModal({
       contentClassName="flex h-[min(86vh,820px)] w-full max-w-6xl flex-col overflow-hidden rounded-[28px] border border-zinc-200 bg-[#f5f5f7] shadow-2xl"
       onClose={onClose}
     >
-      <div className="flex items-center justify-between border-b border-zinc-200 bg-white/70 px-6 py-4 backdrop-blur">
+      <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 bg-white/70 px-6 py-4 backdrop-blur">
         <div>
           <h2 id="global-settings-title" className="text-lg font-semibold text-zinc-900">
             {zh('全局设置', 'Global Settings')}
@@ -1478,8 +1478,8 @@ export default function GlobalSettingsModal({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <aside className="border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:border-b-0 md:border-r">
-          <div className="flex gap-2 overflow-x-auto md:flex-col">
+        <aside className="min-h-0 shrink-0 border-b border-zinc-200 bg-white/60 p-3 backdrop-blur md:w-[280px] md:overflow-y-auto md:border-b-0 md:border-r">
+          <div className="flex gap-2 overflow-x-auto md:flex-col md:overflow-visible">
             {visibleSections.map((section) => {
               const selected = currentSection === section.id
               const badgeText = section.id === 'directories' ? String(directories.length) : ''
