@@ -429,7 +429,28 @@ export default function GlobalSettingsModal({
                 />
               </span>
             </div>
-            {defaultPlayerInput === 'browser' ? (
+            {defaultPlayerInput === 'mpv' ? (
+              <p className="mt-1 text-sm text-zinc-500">
+                {zh(
+                  '使用 JavBoss 自带的 MPV 播放器进行播放。',
+                  'Play with the MPV player bundled with JavBoss.'
+                )}
+              </p>
+            ) : defaultPlayerInput === 'system' ? (
+              <p className="mt-1 text-sm text-zinc-500">
+                {zh(
+                  '使用系统关联的默认程序播放视频，',
+                  'Open videos with the system’s default app. '
+                )}
+                <strong className="font-semibold text-amber-700">
+                  {zh('此方式无法统计观看时长。', 'Watch time cannot be tracked. ')}
+                </strong>
+                {zh(
+                  '批量播放需将 M3U8 文件关联到支持播放列表的播放器。',
+                  'For bulk playback, associate M3U8 files with a player that supports playlists.'
+                )}
+              </p>
+            ) : defaultPlayerInput === 'browser' ? (
               <p className="mt-1 text-sm text-zinc-500">
                 {zh(
                   '优先使用浏览器直接播放，格式或编码不支持时自动转码。请前往“工具”确认 FFmpeg 已安装。',
