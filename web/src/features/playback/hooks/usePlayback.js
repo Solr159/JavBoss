@@ -85,8 +85,8 @@ export default function usePlayback({ showCenterToast, showToast }) {
       }
       showCenterToast(
         zh(
-          '当前环境无法使用所选播放器批量播放，请使用浏览器播放器或 client 模式',
-          'Batch playback with this player is unavailable here. Use browser playback or client mode.'
+          '当前环境无法使用所选播放器批量播放，请使用网页播放器或 client 模式',
+          'Batch playback with this player is unavailable here. Use the web player or client mode.'
         )
       )
       return false
@@ -106,8 +106,8 @@ export default function usePlayback({ showCenterToast, showToast }) {
     if (canOpenAlternatePlayer({ containerMode, clientMode, alternatePlayer })) return true
     showCenterToast(
       zh(
-        'Docker 模式不支持用默认程序打开文件，请使用浏览器播放。',
-        'Opening files with the default app is unavailable in Docker mode. Use browser playback.'
+        'Docker 模式不支持用默认程序打开文件，请使用网页播放器播放。',
+        'Opening files with the default app is unavailable in Docker mode. Use the web player.'
       )
     )
     return false
@@ -587,7 +587,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
         ? zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
         : alternatePlayer === 'system'
           ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
-          : zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
+          : zh('选择使用网页播放器播放的文件', 'Choose a file to play in the web player')
       : javVideoPickerAction === 'screenshots'
         ? zh('选择查看截图的文件', 'Choose a file to view screenshots')
         : javVideoPickerAction === 'reveal'
@@ -595,7 +595,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
           : defaultPlayer === 'system'
             ? zh('选择使用系统播放器播放的文件', 'Choose a file to play with system player')
             : defaultPlayer === 'browser'
-              ? zh('选择使用浏览器播放的文件', 'Choose a file to play in the browser')
+              ? zh('选择使用网页播放器播放的文件', 'Choose a file to play in the web player')
               : zh('选择使用MPV播放器播放的文件', 'Choose a file to play with MPV player')
 
   const javVideoPickerEmptyText =

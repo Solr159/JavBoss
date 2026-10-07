@@ -250,7 +250,7 @@ func streamHLSManifest(c *gin.Context) {
 		return
 	}
 	if common.StreamManager == nil {
-		respondLocalizedError(c, http.StatusServiceUnavailable, "浏览器播放服务不可用", "Browser playback service is unavailable")
+		respondLocalizedError(c, http.StatusServiceUnavailable, "网页播放服务不可用", "Web playback service is unavailable")
 		return
 	}
 
@@ -266,7 +266,7 @@ func streamHLSSegment(c *gin.Context) {
 		return
 	}
 	if common.StreamManager == nil {
-		respondLocalizedError(c, http.StatusServiceUnavailable, "浏览器播放服务不可用", "Browser playback service is unavailable")
+		respondLocalizedError(c, http.StatusServiceUnavailable, "网页播放服务不可用", "Web playback service is unavailable")
 		return
 	}
 
@@ -369,9 +369,9 @@ func respondPlaybackError(c *gin.Context, err error) {
 	case errors.Is(err, context.Canceled):
 		c.Status(499)
 	case strings.Contains(err.Error(), "ffmpeg not found"), strings.Contains(err.Error(), "ffprobe not found"):
-		respondLocalizedError(c, http.StatusServiceUnavailable, "缺少浏览器播放所需组件", err.Error())
+		respondLocalizedError(c, http.StatusServiceUnavailable, "缺少网页播放器所需组件", err.Error())
 	case strings.Contains(err.Error(), "browser playback is not supported"):
-		respondLocalizedError(c, http.StatusUnprocessableEntity, "当前视频不支持浏览器播放", err.Error())
+		respondLocalizedError(c, http.StatusUnprocessableEntity, "当前视频不支持网页播放器播放", "This video cannot be played in the web player")
 	case strings.Contains(err.Error(), "invalid segment"), strings.Contains(err.Error(), "invalid id"), strings.Contains(err.Error(), "invalid location_id"), strings.Contains(err.Error(), "invalid path"):
 		respondLocalizedError(c, http.StatusBadRequest, "播放请求参数无效", "Invalid playback request")
 	default:

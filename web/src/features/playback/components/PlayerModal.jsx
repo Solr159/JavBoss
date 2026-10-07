@@ -77,8 +77,8 @@ export default function PlayerModal({
     lines.push(zh('ESC：退出播放器', 'ESC: Close player'))
     lines.push(
       zh(
-        '你可在「设置 → 播放器 → 浏览器播放器」里关闭此信息显示',
-        'You can hide this message under Settings → Player → Browser Player.'
+        '你可在「设置 → 播放器 → 网页播放器」里关闭此信息显示',
+        'You can hide this message under Settings → Player → Web Player.'
       )
     )
     return lines

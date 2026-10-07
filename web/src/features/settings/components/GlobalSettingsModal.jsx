@@ -461,8 +461,8 @@ export default function GlobalSettingsModal({
             ) : defaultPlayerInput === 'browser' ? (
               <p className="mt-1 text-sm text-zinc-500">
                 {zh(
-                  '优先使用浏览器直接播放，格式或编码不支持时自动转码。请前往“工具”确认 FFmpeg 已安装。',
-                  'Videos play directly when supported by your browser, with automatic transcoding as a fallback. Go to Tools to check that FFmpeg is installed.'
+                  '网页播放器优先直接播放，格式或编码不支持时自动转码。请前往“工具”确认 FFmpeg 已安装。',
+                  'The web player plays supported videos directly, with automatic transcoding as a fallback. Go to Tools to check that FFmpeg is installed.'
                 )}
               </p>
             ) : null}
@@ -1185,8 +1185,8 @@ export default function GlobalSettingsModal({
                 </div>
                 <p className="mt-2 max-w-2xl text-sm text-zinc-500">
                   {zh(
-                    '浏览器无法直接播放某些视频编码时，JavBoss 使用 FFmpeg 转码后播放。',
-                    'When a browser cannot play a video codec directly, JavBoss uses FFmpeg to transcode it for playback.'
+                    '网页播放器无法直接播放某些视频编码时，JavBoss 使用 FFmpeg 转码后播放。',
+                    'When the web player cannot play a video codec directly, JavBoss uses FFmpeg to transcode it for playback.'
                   )}
                 </p>
               </div>
