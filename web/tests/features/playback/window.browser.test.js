@@ -75,6 +75,64 @@ test(
     assert.equal(heights[0], heights[1])
     assert.ok(heights[0] < saved.height)
 
+    // The divider resizes only the playlist, keeping the player and source intact.
+    const playlistWidth = () =>
+      evaluate(`document.querySelector('#browser-playlist').getBoundingClientRect().width`)
+    const beforeWidth = await playlistWidth()
+    await evaluate(`window.playerBeforeResize = document.querySelector('.video-js').player; void 0`)
+    await drag('[data-playlist-resize]', -100, 0)
+    assert.equal(await playlistWidth(), beforeWidth + 100)
+    await drag('[data-playlist-resize]', 40, 0)
+    const savedPlaylistWidth = beforeWidth + 60
+    assert.equal(await playlistWidth(), savedPlaylistWidth)
+    assert.deepEqual(await box(), saved)
+    assert.equal(await evaluate('window.streamRequests.length'), requests)
+    assert.equal(
+      await evaluate(`window.playerBeforeResize === document.querySelector('.video-js').player`),
+      true
+    )
+    assert.equal(
+      await evaluate(`Number(localStorage.getItem('javboss.player.playlistWidth'))`),
+      savedPlaylistWidth
+    )
+    // Keyboard resizing must not be consumed by the player's seek shortcuts.
+    await evaluate(`document.querySelector('[data-playlist-resize]').focus()`)
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'ArrowLeft',
+      code: 'ArrowLeft',
+      windowsVirtualKeyCode: 37,
+    })
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: 'ArrowLeft',
+      code: 'ArrowLeft',
+      windowsVirtualKeyCode: 37,
+    })
+    await waitFor(
+      `document.querySelector('#browser-playlist').getBoundingClientRect().width === ${savedPlaylistWidth + 16}`
+    )
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'ArrowRight',
+      code: 'ArrowRight',
+      windowsVirtualKeyCode: 39,
+    })
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: 'ArrowRight',
+      code: 'ArrowRight',
+      windowsVirtualKeyCode: 39,
+    })
+    await waitFor(
+      `document.querySelector('#browser-playlist').getBoundingClientRect().width === ${savedPlaylistWidth}`
+    )
+    await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
+    await waitFor(`!document.querySelector('[data-playlist-resize]')`)
+    await evaluate(`document.querySelector('button[aria-label="Playlist"]').click()`)
+    await waitFor(`document.querySelector('#browser-playlist')`)
+    assert.equal(await playlistWidth(), savedPlaylistWidth)
+
     // Toolbar buttons must retain their click action without moving the window.
     await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
     await waitFor(`document.querySelector('.player-window h2').textContent === 'Second video'`)
@@ -88,13 +146,36 @@ test(
     await open()
     assert.deepEqual(await box(), saved)
 
+    assert.equal(await playlistWidth(), savedPlaylistWidth)
     await resizeViewport(390, 320)
     await waitFor(`document.querySelector('.player-window').getBoundingClientRect().right <= 382`)
     const smaller = await box()
+    assert.ok((await playlistWidth()) < savedPlaylistWidth)
+    const mediaWidth = await evaluate(
+      `document.querySelector('.player-shell').getBoundingClientRect().width`
+    )
+    assert.ok(mediaWidth > 100)
+    assert.ok(
+      await evaluate(
+        `document.querySelector('#browser-playlist').getBoundingClientRect().right <= document.querySelector('.player-window').getBoundingClientRect().right`
+      )
+    )
     assert.ok(smaller.x >= 8 && smaller.y >= 8 && smaller.y + smaller.height <= 312)
     await resizeViewport(1280, 900)
     await waitFor(`document.querySelector('.player-window').getBoundingClientRect().width === 800`)
     assert.deepEqual(await box(), saved)
+
+    assert.equal(await playlistWidth(), savedPlaylistWidth)
+    // Dragging beyond either limit still leaves both panels usable.
+    await drag('[data-playlist-resize]', -2000, 0)
+    assert.equal(
+      await playlistWidth(),
+      await evaluate(
+        `Number(document.querySelector('[data-playlist-resize]').getAttribute('aria-valuemax'))`
+      )
+    )
+    await drag('[data-playlist-resize]', 700, 0)
+    assert.equal(await playlistWidth(), 128)
 
     // Top-left resize moves the origin and preserves the opposite corner.
     await drag('[data-player-resize="nw"]', 40, 30)

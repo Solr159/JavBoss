@@ -240,7 +240,9 @@ export default function PlayerModal({
       if (
         target instanceof Element &&
         (target.isContentEditable ||
-          target.closest('input, textarea, select, [contenteditable="true"]'))
+          target.closest(
+            'input, textarea, select, [contenteditable="true"], [data-playlist-resize]'
+          ))
       ) {
         return
       }
@@ -453,7 +455,7 @@ export default function PlayerModal({
             <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 gap-2">
+        <div className="flex min-h-0 min-w-0 flex-1">
           <div className="player-shell relative min-w-0 flex-1 bg-black">
             {screenshotNotice || hotkeyHintVisible ? (
               <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
