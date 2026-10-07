@@ -62,7 +62,9 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     env:
-      CGO_ENABLED: "0"
+      # Player and server tests import the CGO-backed SQLite driver.
+      CGO_ENABLED: "1"
+      CC: gcc
       GOCACHE: ${{ github.workspace }}/.gocache
     steps:
       - name: Checkout
