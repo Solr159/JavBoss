@@ -9,6 +9,10 @@ on:
       version:
         description: "Release version"
         required: true
+      publish_browser_extension:
+        description: "Include the browser extension in the draft release"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -75,6 +79,7 @@ jobs:
           path: release/javboss-${{ inputs.version }}-${{ matrix.platform }}.zip
 
   build-browser-extension:
+    if: ${{ inputs.publish_browser_extension }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -119,6 +124,10 @@ jobs:
 
   publish:
     needs: [build, build-browser-extension]
+    if: >-
+      ${{ !cancelled() && needs.build.result == 'success' &&
+          (needs.build-browser-extension.result == 'success' ||
+           (!inputs.publish_browser_extension && needs.build-browser-extension.result == 'skipped')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Download release assets
@@ -130,6 +139,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          PUBLISH_BROWSER_EXTENSION: ${{ inputs.publish_browser_extension }}
         run: |
           if gh release view "${{ inputs.tag }}" --repo "$GH_REPO" >/dev/null 2>&1; then
             echo "release for tag '${{ inputs.tag }}' already exists" >&2
@@ -137,8 +147,12 @@ jobs:
           fi
 
           mapfile -t assets < <(find release-artifacts -type f -name "*.zip" | sort)
-          if [[ "${#assets[@]}" -ne 5 ]]; then
-            echo "expected five release assets, found ${#assets[@]}" >&2
+          expected_assets=4
+          if [[ "$PUBLISH_BROWSER_EXTENSION" == "true" ]]; then
+            expected_assets=5
+          fi
+          if [[ "${#assets[@]}" -ne "$expected_assets" ]]; then
+            echo "expected $expected_assets release assets, found ${#assets[@]}" >&2
             exit 1
           fi
 
