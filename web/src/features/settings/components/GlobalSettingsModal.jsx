@@ -785,8 +785,8 @@ export default function GlobalSettingsModal({
                 </label>
                 <p className="text-xs text-zinc-500">
                   {zh(
-                    '在当前浏览器中记住每个视频文件的播放位置，下次打开时继续播放。完整播完后，下次从头播放。',
-                    'Remember each video file’s position in this browser and resume it next time. Completed videos start from the beginning.'
+                    '在当前浏览器中记住每个视频文件的播放位置，下次打开时继续播放。',
+                    'Remember each video file’s position in this browser and resume it next time.'
                   )}
                 </p>
               </section>
