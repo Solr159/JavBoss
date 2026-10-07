@@ -29,9 +29,9 @@ export default function usePlayback({ showCenterToast, showToast }) {
 
   const [playerPlaylist, setPlayerPlaylist] = useState([])
   const [playerIndex, setPlayerIndex] = useState(0)
-  const [playerStartTime, setPlayerStartTime] = useState(0)
+  const [playerStartTime, setPlayerStartTime] = useState(null)
   const playerVideo = playerPlaylist[playerIndex] || null
-  const openBrowserPlaylist = useCallback((items, startTime = 0) => {
+  const openBrowserPlaylist = useCallback((items, startTime = null) => {
     setPlayerPlaylist(items)
     setPlayerIndex(0)
     setPlayerStartTime(startTime)
@@ -41,7 +41,7 @@ export default function usePlayback({ showCenterToast, showToast }) {
     (index) => {
       if (!Number.isInteger(index) || index < 0 || index >= playerPlaylist.length) return
       setPlayerIndex(index)
-      setPlayerStartTime(0)
+      setPlayerStartTime(null)
     },
     [playerPlaylist.length]
   )

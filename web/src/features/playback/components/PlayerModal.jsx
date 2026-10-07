@@ -20,6 +20,7 @@ import AppModal from '@/shared/ui/AppModal'
 import { getErrorMessage } from '@/utils/errors'
 import { selectPlaybackSource, startBrowserPlayback } from '@/utils/browserPlayback'
 import { startWatchTracking } from '@/features/playback/watchTime'
+import { createBrowserResume } from '@/features/playback/browserResume'
 import { createPlaybackSession, reportPlaybackSession } from '@/features/playback/api'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
@@ -34,7 +35,8 @@ export default function PlayerModal({
   playlist = [],
   currentIndex = 0,
   onSelectVideo,
-  startTime = 0,
+  startTime = null,
+  resumePlayback = true,
   onClose,
   hotkeys = null,
   showHotkeyHint = true,
@@ -329,18 +331,26 @@ export default function PlayerModal({
       create: () => createPlaybackSession(video.id, playback.locationId),
       report: (session, total) => reportPlaybackSession(video.id, session, total),
     })
+    const resume = createBrowserResume({
+      videoId: video.id,
+      locationId: playback.locationId,
+      enabled: resumePlayback,
+    })
+    const hasExplicitStart = startTime != null && Number.isFinite(Number(startTime))
     const stopPlayback = startBrowserPlayback(
       player,
       selectedSource,
       playbackInfo.sources.find((source) => source.kind === 'hls'),
-      startTime,
+      hasExplicitStart ? startTime : resume.position,
       (error) => {
         if (activePlaybackRef.current !== playback) return
         const message = error.message || zh('视频播放失败', 'Video playback failed')
         setPlaybackError(message)
         onPlaybackErrorRef.current?.(message)
-      }
+      },
+      { resume: !hasExplicitStart, onPosition: resume.record, onEnded: resume.complete }
     )
+    window.addEventListener('pagehide', resume.flush)
     const handleEnded = () => onEndedRef.current?.()
     player.on('ended', handleEnded)
 
@@ -350,6 +360,8 @@ export default function PlayerModal({
       stopSourceRef.current = null
       stopWatchTracking()
       stopPlayback()
+      resume.flush()
+      window.removeEventListener('pagehide', resume.flush)
       player.off('ended', handleEnded)
       player.autoplay(false)
       player.pause()
@@ -366,7 +378,7 @@ export default function PlayerModal({
     }
     stopSourceRef.current = stop
     return stop
-  }, [player, video, startTime, selectedSource, playbackInfo, loadingPlayback])
+  }, [player, video, startTime, resumePlayback, selectedSource, playbackInfo, loadingPlayback])
 
   if (!video) return null
 

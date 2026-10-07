@@ -252,3 +252,43 @@ test('cleanup removes pending source restoration when the player closes', () => 
   player.emit('loadedmetadata')
   assert.equal(player.playCount, 0)
 })
+
+test('resume checkpoints survive source fallback and cleanup never overwrites a completed video', () => {
+  const player = new FakePlayer()
+  const positions = []
+  let completed = false
+  const cleanup = startBrowserPlayback(player, direct, hls, 45, assert.fail, {
+    resume: true,
+    onPosition: (time) => positions.push(time),
+    onEnded: () => {
+      completed = true
+    },
+  })
+  assert.deepEqual(positions, [])
+  player.emit('loadedmetadata')
+  player.time = 67
+  player.emit('timeupdate')
+  player.fail(3)
+  assert.deepEqual(positions, [67])
+  player.emit('loadedmetadata')
+  assert.equal(player.time, 67)
+  player.emit('ended')
+  cleanup()
+  assert.equal(completed, true)
+  assert.deepEqual(positions, [67])
+})
+
+test('outdated resume positions restart at zero while explicit seek positions keep their meaning', () => {
+  for (const [resume, expected] of [
+    [true, 0],
+    [false, 300],
+  ]) {
+    const player = new FakePlayer()
+    startBrowserPlayback(player, direct, hls, 400, assert.fail, { resume })
+    player.emit('loadedmetadata')
+    assert.equal(player.time, expected)
+    player.fail(3)
+    player.emit('loadedmetadata')
+    assert.equal(player.time, expected)
+  }
+})

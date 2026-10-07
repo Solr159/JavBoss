@@ -16,6 +16,7 @@ window.fetch = async (url) => {
 }
 
 function Fixture() {
+  const params = new URLSearchParams(window.location.search)
   const [open, setOpen] = useState(false)
   const [index, setIndex] = useState(0)
   return (
@@ -28,6 +29,8 @@ function Fixture() {
         onSelectVideo={setIndex}
         onClose={() => setOpen(false)}
         showHotkeyHint={false}
+        resumePlayback={params.get('resume') !== 'false'}
+        startTime={params.has('start') ? Number(params.get('start')) : null}
       />
     </>
   )

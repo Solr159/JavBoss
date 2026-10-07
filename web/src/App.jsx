@@ -795,6 +795,7 @@ export default function App() {
         currentIndex={playerIndex}
         onSelectVideo={selectPlayerVideo}
         startTime={playerStartTime}
+        resumePlayback={configFlag(config?.browser_player_resume_playback, true)}
         hotkeys={config?.player_hotkeys}
         showHotkeyHint={configFlag(config?.browser_player_show_hotkey_hint, true)}
         onPlaybackError={showCenterToast}

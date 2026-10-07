@@ -151,6 +151,7 @@ export default function GlobalSettings({ onToast, open, onClose }) {
         const cfg = await updateConfig(payload)
         useStore.setState({ config: cfg })
       }}
+      browserPlayerResumePlayback={configFlag(config?.browser_player_resume_playback, true)}
       browserPlayerShowHotkeyHint={configFlag(config?.browser_player_show_hotkey_hint, true)}
       onSaveBrowserPlayerSettings={async (payload) => {
         const cfg = await updateConfig(payload)

@@ -552,3 +552,30 @@ func TestWatchTimeIconMinutesPersistIndependently(t *testing.T) {
 		})
 	}
 }
+
+func TestBrowserResumePlaybackSettingPersists(t *testing.T) {
+	testAuthService(t)
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	router.GET("/config", getConfig)
+	for _, value := range []string{"false", "true"} {
+		t.Run(value, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(`{"browser_player_resume_playback":`+value+`}`))
+			req.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != http.StatusOK {
+				t.Fatalf("save status=%d body=%s", response.Code, response.Body)
+			}
+			response = httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/config", nil))
+			var config map[string]string
+			if err := json.Unmarshal(response.Body.Bytes(), &config); err != nil {
+				t.Fatal(err)
+			}
+			if config["browser_player_resume_playback"] != value {
+				t.Fatalf("resume=%q, want %q", config["browser_player_resume_playback"], value)
+			}
+		})
+	}
+}

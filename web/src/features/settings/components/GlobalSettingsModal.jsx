@@ -71,6 +71,7 @@ const PLAYER_BASIC_DEFAULTS = {
 }
 
 const BROWSER_PLAYER_DEFAULTS = {
+  resumePlayback: true,
   showHotkeyHint: true,
 }
 
@@ -111,6 +112,7 @@ export default function GlobalSettingsModal({
   playerVolume,
   playerShowHotkeyHint,
   onSavePlayerBasicSettings,
+  browserPlayerResumePlayback,
   browserPlayerShowHotkeyHint,
   onSaveBrowserPlayerSettings,
   playerHotkeys,
@@ -152,6 +154,7 @@ export default function GlobalSettingsModal({
   const [playerResumePlaybackInput, setPlayerResumePlaybackInput] = useState(true)
   const [playerVolumeInput, setPlayerVolumeInput] = useState('')
   const [playerShowHotkeyHintInput, setPlayerShowHotkeyHintInput] = useState(true)
+  const [browserPlayerResumePlaybackInput, setBrowserPlayerResumePlaybackInput] = useState(true)
   const [browserPlayerShowHotkeyHintInput, setBrowserPlayerShowHotkeyHintInput] = useState(true)
   const [browserPlayerError, setBrowserPlayerError] = useState('')
   const [browserPlayerSuccess, setBrowserPlayerSuccess] = useState('')
@@ -225,6 +228,9 @@ export default function GlobalSettingsModal({
       setPlayerResumePlaybackInput(playerResumePlayback ?? PLAYER_BASIC_DEFAULTS.resumePlayback)
       setPlayerVolumeInput(String(playerVolume ?? PLAYER_BASIC_DEFAULTS.volume))
       setPlayerShowHotkeyHintInput(playerShowHotkeyHint ?? PLAYER_BASIC_DEFAULTS.showHotkeyHint)
+      setBrowserPlayerResumePlaybackInput(
+        browserPlayerResumePlayback ?? BROWSER_PLAYER_DEFAULTS.resumePlayback
+      )
       setBrowserPlayerShowHotkeyHintInput(
         browserPlayerShowHotkeyHint ?? BROWSER_PLAYER_DEFAULTS.showHotkeyHint
       )
@@ -250,6 +256,7 @@ export default function GlobalSettingsModal({
     playerResumePlayback,
     playerVolume,
     playerShowHotkeyHint,
+    browserPlayerResumePlayback,
     browserPlayerShowHotkeyHint,
     mpvEnabled,
     browserPlaybackOnly,
@@ -762,6 +769,27 @@ export default function GlobalSettingsModal({
             renderDefaultPlayerSettings()
           ) : currentPlayerTab === 'browser' ? (
             <div>
+              <section className="mb-5 space-y-3">
+                <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
+                  <input
+                    type="checkbox"
+                    checked={browserPlayerResumePlaybackInput}
+                    onChange={(e) => {
+                      setBrowserPlayerResumePlaybackInput(e.target.checked)
+                      setBrowserPlayerError('')
+                      setBrowserPlayerSuccess('')
+                    }}
+                    className="h-4 w-4 rounded"
+                  />
+                  <span>{zh('从上次结束位置播放', 'Resume From Last Position')}</span>
+                </label>
+                <p className="text-xs text-zinc-500">
+                  {zh(
+                    '在当前浏览器中记住每个视频文件的播放位置，下次打开时继续播放。完整播完后，下次从头播放。',
+                    'Remember each video file’s position in this browser and resume it next time. Completed videos start from the beginning.'
+                  )}
+                </p>
+              </section>
               <section className="space-y-3">
                 <label className="flex items-center gap-3 text-sm font-semibold text-zinc-800">
                   <input
@@ -795,6 +823,7 @@ export default function GlobalSettingsModal({
                 <button
                   type="button"
                   onClick={() => {
+                    setBrowserPlayerResumePlaybackInput(BROWSER_PLAYER_DEFAULTS.resumePlayback)
                     setBrowserPlayerShowHotkeyHintInput(BROWSER_PLAYER_DEFAULTS.showHotkeyHint)
                     setBrowserPlayerError('')
                     setBrowserPlayerSuccess('')
@@ -812,6 +841,7 @@ export default function GlobalSettingsModal({
                     setSavingBrowserPlayer(true)
                     try {
                       await onSaveBrowserPlayerSettings?.({
+                        browser_player_resume_playback: browserPlayerResumePlaybackInput,
                         browser_player_show_hotkey_hint: browserPlayerShowHotkeyHintInput,
                       })
                       setBrowserPlayerSuccess(
