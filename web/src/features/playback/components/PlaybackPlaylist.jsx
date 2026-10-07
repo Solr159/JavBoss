@@ -55,9 +55,9 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
                 >
                   <span
                     className="min-w-5 shrink-0 whitespace-nowrap text-center tabular-nums"
-                    style={{ width: `${String(items.length).length}ch` }}
+                    style={{ width: `${String(items.length).length + 1}ch` }}
                   >
-                    {active ? <PlayArrowRoundedIcon sx={{ fontSize: 18 }} /> : index + 1}
+                    {active ? <PlayArrowRoundedIcon sx={{ fontSize: 18 }} /> : `${index + 1}.`}
                   </span>
                   <span className="min-w-0 truncate">{title}</span>
                 </button>
