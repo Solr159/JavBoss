@@ -461,8 +461,8 @@ export default function GlobalSettingsModal({
             ) : defaultPlayerInput === 'browser' ? (
               <p className="mt-1 text-sm text-zinc-500">
                 {zh(
-                  '网页播放器优先直接播放，格式或编码不支持时自动转码。请前往“工具”确认 FFmpeg 已安装。',
-                  'The web player plays supported videos directly, with automatic transcoding as a fallback. Go to Tools to check that FFmpeg is installed.'
+                  '网页播放器默认支持的编码格式有限，不支持的格式依赖服务端转码播放，请前往“工具”确认 FFmpeg 已安装。',
+                  'The web player supports a limited range of codecs by default. Unsupported formats rely on server-side transcoding for playback. Go to Tools to check that FFmpeg is installed.'
                 )}
               </p>
             ) : null}
