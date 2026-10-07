@@ -2,6 +2,8 @@ import JavIdolView from '@/features/jav/components/JavIdolView'
 import JavSeriesView from '@/features/jav/components/JavSeriesView'
 import JavStudioView from '@/features/jav/components/JavStudioView'
 import JavView from '@/features/jav/components/JavView'
+import useJavSeriesNameTranslation from '@/features/jav/hooks/useJavSeriesNameTranslation'
+import { zh } from '@/utils/i18n'
 
 function JavIdolRoute({
   buildJavUrl,
@@ -160,6 +162,7 @@ function JavStudioRoute({
 
 function JavSeriesRoute({
   buildJavUrl,
+  config,
   hasMore,
   hasNext,
   hasPrev,
@@ -181,45 +184,58 @@ function JavSeriesRoute({
   totalItems,
   waterfallMode,
 }) {
+  const translation = useJavSeriesNameTranslation(items)
+  const translateTitle = configFlag(config?.jav_title_translation_enabled)
   return (
-    <JavSeriesView
-      page={page}
-      lastPage={lastPage}
-      totalItems={totalItems}
-      hasPrev={hasPrev}
-      hasNext={hasNext}
-      loading={loading}
-      buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'series' })}
-      buildSeriesUrl={(series) =>
-        buildJavUrl({
-          page: 1,
-          search: '',
-          tab: 'list',
-          idolIds: [],
-          tagIds: [],
-          studioId: null,
-          seriesId: series.id,
-          seriesName: series.name,
-          prefix: '',
-          favoriteRatingEnabled: false,
-          tempSort: '',
-        })
-      }
-      onFirst={onFirst}
-      onPrev={onPrev}
-      onGoToPage={onGoToPage}
-      onNext={onNext}
-      onLast={onLast}
-      items={items}
-      onSelectSeries={onSelectSeries}
-      onSelectStudio={onSelectStudio}
-      onOpenFavorites={onOpenFavorites}
-      waterfallMode={waterfallMode}
-      onWaterfallModeChange={onWaterfallModeChange}
-      onLoadMore={onLoadMore}
-      loadingMore={loadingMore}
-      hasMore={hasMore}
-    />
+    <>
+      {translation.error ? (
+        <div role="alert" className="mb-3 flex items-center gap-3 text-sm text-red-600">
+          <span>{translation.error}</span>
+          <button type="button" className="shrink-0 underline" onClick={translation.retry}>
+            {zh('重试翻译', 'Retry translation')}
+          </button>
+        </div>
+      ) : null}
+      <JavSeriesView
+        page={page}
+        lastPage={lastPage}
+        totalItems={totalItems}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        loading={loading}
+        translateTitle={translateTitle}
+        buildPageUrl={({ page: targetPage }) => buildJavUrl({ page: targetPage, tab: 'series' })}
+        buildSeriesUrl={(series) =>
+          buildJavUrl({
+            page: 1,
+            search: '',
+            tab: 'list',
+            idolIds: [],
+            tagIds: [],
+            studioId: null,
+            seriesId: series.id,
+            seriesName: series.name,
+            prefix: '',
+            favoriteRatingEnabled: false,
+            tempSort: '',
+          })
+        }
+        onFirst={onFirst}
+        onPrev={onPrev}
+        onGoToPage={onGoToPage}
+        onNext={onNext}
+        onLast={onLast}
+        items={items}
+        onSelectSeries={onSelectSeries}
+        onSelectStudio={onSelectStudio}
+        onOpenFavorites={onOpenFavorites}
+        waterfallMode={waterfallMode}
+        onWaterfallModeChange={onWaterfallModeChange}
+        onLoadMore={onLoadMore}
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+      />
+    </>
   )
 }
 

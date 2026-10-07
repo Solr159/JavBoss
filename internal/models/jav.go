@@ -130,6 +130,8 @@ type JavSeries struct {
 	Studio    *JavStudio `json:"studio,omitempty" gorm:"foreignKey:StudioID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
+	// ZhName is appended last so the AutoMigrate column order matches the migrations.
+	ZhName string `json:"zh_name" gorm:"not null;default:''"`
 }
 
 type JavTag struct {

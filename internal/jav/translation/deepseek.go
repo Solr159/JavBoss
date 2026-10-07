@@ -25,6 +25,14 @@ const DefaultPrompt = `你是一个日本成人色情影片的翻译，将影片
 7. 注意情景里的主被动关系，例如寝取、NTR、オナニー等行为时的关系。
 8. 注意日文长句在中文语境下应该如何恰当断句。`
 
+// DefaultSeriesNamePrompt translates a series name, which is short and usually built from a theme plus a sequence label.
+const DefaultSeriesNamePrompt = `你是一个日本成人影片系列名称的翻译，将系列名称翻译成通顺的简体中文。
+## 翻译规则
+1. 只输出翻译后的系列名称，不要添加解释、引号或原文。
+2. 不要翻译人名，不要翻译人名中的平假名/片假名。
+3. 保留系列名称中的编号、序号和英文缩写，例如 NO.1STYLE、Vol.3、DX。
+4. 使用成人影片语境下常见的简体中文表达，保持简洁。`
+
 type Model struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

@@ -97,6 +97,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/jav/series", listJavSeries)
 	router.GET("/jav/series/javdb-url", getJavSeriesJavDBURL)
 	router.GET("/jav/series/:id", getJavSeries)
+	router.POST("/jav/series/:id/name-translation", translateJavSeriesName)
 	router.GET("/downloader/settings", getDownloaderSettings)
 	router.PUT("/downloader/settings", updateDownloaderSettings)
 	router.PUT("/downloader/clouddrive2", updateCloudDrive2Settings)

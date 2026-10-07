@@ -300,6 +300,7 @@ export default function JavRoute({
         hasPrev: seriesHasPrev,
         hasNext: seriesHasNext,
         loading: seriesLoading,
+        config,
         onFirst: () => setSeriesPage(1),
         onPrev: () => seriesHasPrev && setSeriesPage(seriesPage - 1),
         onGoToPage: (p) => setSeriesPage(p),

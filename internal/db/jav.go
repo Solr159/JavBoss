@@ -1403,6 +1403,7 @@ type JavStudioSummary struct {
 type JavSeriesSummary struct {
 	ID            int64  `json:"id"`
 	Name          string `json:"name"`
+	ZhName        string `json:"zh_name"`
 	StudioID      *int64 `json:"studio_id"`
 	StudioName    string `json:"studio_name"`
 	WorkCount     int64  `json:"work_count"`
@@ -1429,7 +1430,7 @@ func applyJavSeriesSearch(q *gorm.DB, search string) *gorm.DB {
 		return q
 	}
 	like := fmt.Sprintf("%%%s%%", search)
-	return q.Where("js.name LIKE ?", like)
+	return q.Where("js.name LIKE ? OR js.zh_name LIKE ?", like, like)
 }
 
 // ListJavStudios returns studios ordered by visible work count descending.
@@ -1801,6 +1802,7 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		ParentStudioID int64  `gorm:"column:parent_studio_id"`
 		ID             int64  `gorm:"column:id"`
 		Name           string `gorm:"column:name"`
+		ZhName         string `gorm:"column:zh_name"`
 		StudioID       *int64 `gorm:"column:studio_id"`
 		StudioName     string `gorm:"column:studio_name"`
 		WorkCount      int64  `gorm:"column:work_count"`
@@ -1810,7 +1812,7 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 	var rows []row
 	query := common.DB.WithContext(ctx).
 		Table("jav j").
-		Select("j.studio_id AS parent_studio_id, js.id, js.name, js.studio_id, COALESCE(jst.name, '') AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Select("j.studio_id AS parent_studio_id, js.id, js.name, js.zh_name, js.studio_id, COALESCE(jst.name, '') AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
 		Joins("JOIN jav_series js ON j.series_id = js.id").
 		Joins("LEFT JOIN jav_studio jst ON jst.id = js.studio_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
@@ -1818,7 +1820,7 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
 		Where("j.studio_id IN ?", ids).
 		Where(activeDirectoryWhereSQL("d")).
-		Group("j.studio_id, js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Group("j.studio_id, js.id, js.name, js.zh_name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Order("j.studio_id, work_count DESC, js.name ASC")
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.Scan(&rows).Error; err != nil {
@@ -1832,6 +1834,7 @@ func attachJavStudioSeries(ctx context.Context, items []JavStudioSummary, direct
 		items[i].Series = append(items[i].Series, JavSeriesSummary{
 			ID:            r.ID,
 			Name:          strings.TrimSpace(r.Name),
+			ZhName:        strings.TrimSpace(r.ZhName),
 			StudioID:      r.StudioID,
 			StudioName:    strings.TrimSpace(r.StudioName),
 			WorkCount:     r.WorkCount,
@@ -1915,8 +1918,8 @@ func ListJavSeries(ctx context.Context, search string, limit, offset int, direct
 	}
 	if err := base.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
-		Select("js.id, js.name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Select("js.id, js.name, js.zh_name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.zh_name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Order(order).
 		Limit(limit).
 		Offset(offset).
@@ -1946,8 +1949,8 @@ func GetJavSeriesSummary(ctx context.Context, seriesID int64, directoryIDs []int
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	tx := query.
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.entity_id = js.id", buildFavoriteCountQuery(ctx, JavFavoriteEntitySeries)).
-		Select("js.id, js.name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
-		Group("js.id, js.name, js.studio_id, jst.name, favorite_counts.favorite_count").
+		Select("js.id, js.name, js.zh_name, js.studio_id, jst.name AS studio_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code, COALESCE(favorite_counts.favorite_count, 0) AS favorite_count").
+		Group("js.id, js.name, js.zh_name, js.studio_id, jst.name, favorite_counts.favorite_count").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {

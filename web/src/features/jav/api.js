@@ -21,6 +21,14 @@ export async function translateJavTitle(id, { refresh = false, title, thinking }
   return res.json()
 }
 
+export async function translateJavSeriesName(id) {
+  const res = await apiFetch(`/jav/series/${encodeURIComponent(id)}/name-translation`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
 export async function startTitleTranslationBatch() {
   const res = await apiFetch('/jav/title-translation/batch', { method: 'POST' })
   if (!res.ok) throw await apiError(res)

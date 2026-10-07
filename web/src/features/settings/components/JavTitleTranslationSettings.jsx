@@ -127,8 +127,8 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
       </label>
       <p className="text-xs leading-5 text-slate-500">
         {zh(
-          '配置后自动翻译当前页缺少中文标题的影片，译文保存到“中文标题”。开启时显示中文标题，关闭时显示原标题。',
-          'Once configured, missing Chinese titles on the current page are translated and saved separately. Enable to show Chinese titles; disable to show original titles.'
+          '配置后自动翻译当前页缺少中文标题的影片和系列名称。译文单独保存，开启时显示中文标题，关闭时显示原标题。',
+          'Once configured, missing Chinese titles and series names on the current page are translated and saved separately. Enable to show Chinese titles; disable to show original titles.'
         )}
       </p>
     </div>

@@ -5,6 +5,13 @@ export function mergeJavItem(items, updated) {
   )
 }
 
+export function mergeJavSeriesSummary(items, updated) {
+  if (!updated?.id || !Array.isArray(items)) return items
+  return items.map((item) =>
+    Number(item.id) === Number(updated.id) ? { ...item, ...updated } : item
+  )
+}
+
 export function mergeJavIdol(items, updated) {
   if (!updated?.id || !Array.isArray(items)) return items
   return items.map((item) => {
