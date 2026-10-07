@@ -501,8 +501,8 @@ export default function DirectoryManager({
             const autoScanDisplay =
               d.auto_scan_enabled !== false
                 ? zh(
-                    `自动扫描：每 ${autoScanIntervalMinutes} 分钟`,
-                    `Automatic scan: Every ${autoScanIntervalMinutes} min`
+                    `自动扫描间隔：${autoScanIntervalMinutes} 分钟`,
+                    `Automatic scan interval: ${autoScanIntervalMinutes} min`
                   )
                 : zh('自动扫描：已关闭', 'Automatic scan: Off')
             const working =
