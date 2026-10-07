@@ -3,7 +3,7 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
-  'batch actions use the default player; browser playlists switch copies, advance and reset',
+  'playback menu uses the default player; browser playlists switch copies, advance and reset',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -72,7 +72,7 @@ test(
     }`)
     await waitFor(`document.querySelectorAll('.video-card').length === 3`)
     const playMenu = async (text) => {
-      await evaluate(`document.querySelector('button[aria-label="Video bulk actions"]').click()`)
+      await evaluate(`document.querySelector('button[aria-label="Video playback"]').click()`)
       const action = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === ${JSON.stringify(text)})`
       await waitFor(action)
       assert.notEqual(await evaluate(`${action}.getAttribute('aria-disabled')`), 'true')
@@ -334,7 +334,7 @@ test(
       document.querySelector('aside button[aria-label="JAV"]').click();
     }`)
     await waitFor(`document.querySelectorAll('.jav-card').length === 2`)
-    await evaluate(`document.querySelector('button[aria-label="JAV bulk actions"]').click()`)
+    await evaluate(`document.querySelector('button[aria-label="JAV playback"]').click()`)
     const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all')`
     await waitFor(javPlayAll)
     await evaluate(`${javPlayAll}.click()`)
