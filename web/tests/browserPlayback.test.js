@@ -164,7 +164,11 @@ class FakePlayer {
     this.time = 0
     this.emit('timeupdate')
   }
-  error() {
+  error(value) {
+    if (value !== undefined) {
+      this.mediaError = value
+      this.emit('error')
+    }
     return this.mediaError
   }
   currentTime(value) {
@@ -185,6 +189,9 @@ class FakePlayer {
     this.playCount++
     this.emit('play')
     return Promise.resolve()
+  }
+  pause() {
+    this.emit('pause')
   }
   fail(code) {
     this.mediaError = { code, message: 'media failed' }
@@ -251,6 +258,72 @@ test('cleanup removes pending source restoration when the player closes', () => 
   cleanup()
   player.emit('loadedmetadata')
   assert.equal(player.playCount, 0)
+})
+
+test('missing transcoding tools stop both initial HLS and fallback before loading a manifest', async () => {
+  for (const source of [hls, direct]) {
+    const player = new FakePlayer()
+    const errors = []
+    const missing = new Error('Download FFmpeg in Settings → Tools')
+    const cleanup = startBrowserPlayback(player, source, hls, 0, (error) => errors.push(error), {
+      beforeTranscode: () => Promise.reject(missing),
+    })
+    if (source === direct) player.fail(3)
+    await new Promise(setImmediate)
+    assert.equal(
+      player.sources.some((loaded) => loaded.src === hls.src),
+      false
+    )
+    assert.equal(player.auto, false)
+    assert.equal(player.error().message, missing.message)
+    assert.deepEqual(errors, [missing])
+    player.emit('loadedmetadata')
+    assert.equal(player.playCount, 0)
+    cleanup()
+  }
+})
+
+test('transcoding waits for the tool check while direct playback needs no check', async () => {
+  const player = new FakePlayer()
+  let checks = 0
+  let finishCheck
+  const cleanup = startBrowserPlayback(player, direct, hls, 45, assert.fail, {
+    beforeTranscode: () => {
+      checks++
+      return new Promise((resolve) => (finishCheck = resolve))
+    },
+  })
+  await new Promise(setImmediate)
+  assert.equal(checks, 0)
+  player.fail(4)
+  await new Promise(setImmediate)
+  assert.equal(checks, 1)
+  assert.equal(player.sources.length, 1)
+  finishCheck()
+  await new Promise(setImmediate)
+  assert.equal(player.sources[1].src, hls.src)
+  player.emit('loadedmetadata')
+  assert.equal(player.time, 45)
+  cleanup()
+})
+
+test('closing playback ignores pending transcoding checks and their errors', async () => {
+  for (const reject of [false, true]) {
+    const player = new FakePlayer()
+    let finishCheck
+    const cleanup = startBrowserPlayback(player, hls, hls, 0, assert.fail, {
+      beforeTranscode: () =>
+        new Promise((resolve, fail) => {
+          finishCheck = () => (reject ? fail(new Error('missing FFmpeg')) : resolve())
+        }),
+    })
+    await new Promise(setImmediate)
+    cleanup()
+    finishCheck()
+    await new Promise(setImmediate)
+    assert.deepEqual(player.sources, [])
+    assert.equal(player.error(), null)
+  }
 })
 
 test('resume checkpoints survive source fallback and cleanup never overwrites a completed video', () => {

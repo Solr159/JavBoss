@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import QueuePlayNextRoundedIcon from '@mui/icons-material/QueuePlayNextRounded'
 import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded'
 import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded'
@@ -22,6 +23,7 @@ import { selectPlaybackSource, startBrowserPlayback } from '@/utils/browserPlayb
 import { startWatchTracking } from '@/features/playback/watchTime'
 import { createBrowserResume } from '@/features/playback/browserResume'
 import { createPlaybackSession, reportPlaybackSession } from '@/features/playback/api'
+import { fetchTools } from '@/features/settings/api'
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 const HOTKEY_HINT_DURATION_MS = 5000
@@ -40,7 +42,6 @@ export default function PlayerModal({
   onClose,
   hotkeys = null,
   showHotkeyHint = true,
-  onPlaybackError,
 }) {
   const isOpen = Boolean(video)
   const playerWindow = usePlayerWindow(isOpen)
@@ -51,7 +52,6 @@ export default function PlayerModal({
   const onEndedRef = useRef(null)
   const [playlistVisible, setPlaylistVisible] = useState(true)
   const onCloseRef = useRef(onClose)
-  const onPlaybackErrorRef = useRef(onPlaybackError)
   const hotkeyMapRef = useRef(new Map())
   const screenshotInFlightRef = useRef(false)
   const screenshotNoticeTimerRef = useRef(null)
@@ -109,8 +109,7 @@ export default function PlayerModal({
 
   useEffect(() => {
     onCloseRef.current = onClose
-    onPlaybackErrorRef.current = onPlaybackError
-  }, [onClose, onPlaybackError])
+  }, [onClose])
 
   useEffect(() => {
     return () => {
@@ -146,7 +145,6 @@ export default function PlayerModal({
         const message = getErrorMessage(err)
         setPlaybackError(message)
         setPlaybackInfo({ video, sources: [] })
-        onPlaybackErrorRef.current?.(message)
       })
       .finally(() => {
         if (cancelled) return
@@ -170,6 +168,7 @@ export default function PlayerModal({
       controls: false,
       autoplay: false,
       preload: 'auto',
+      errorDisplay: false,
     })
 
     setPlayer(player)
@@ -348,9 +347,23 @@ export default function PlayerModal({
         if (activePlaybackRef.current !== playback) return
         const message = error.message || zh('视频播放失败', 'Video playback failed')
         setPlaybackError(message)
-        onPlaybackErrorRef.current?.(message)
       },
-      { resume: !hasExplicitStart, onPosition: resume.record, onEnded: resume.complete }
+      {
+        resume: !hasExplicitStart,
+        onPosition: resume.record,
+        onEnded: resume.complete,
+        beforeTranscode: async () => {
+          const tools = await fetchTools()
+          if (!tools.ffmpeg?.installed && !tools.ffmpeg?.upgrade_available) {
+            throw new Error(
+              zh(
+                '此视频需要转码播放，但尚未安装 FFmpeg。请前往「设置 → 工具」下载 FFmpeg，安装完成后重新打开视频。',
+                'This video requires transcoding, but FFmpeg is not installed. Download FFmpeg in Settings → Tools, then reopen the video after installation.'
+              )
+            )
+          }
+        },
+      }
     )
     window.addEventListener('pagehide', resume.flush)
     const handleEnded = () => onEndedRef.current?.()
@@ -457,7 +470,7 @@ export default function PlayerModal({
         </header>
         <div className="flex min-h-0 min-w-0 flex-1">
           <div className="player-shell relative min-w-0 flex-1 bg-black">
-            {screenshotNotice || hotkeyHintVisible ? (
+            {!playbackError && (screenshotNotice || hotkeyHintVisible) ? (
               <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
                 {screenshotNotice ? (
                   <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
@@ -482,14 +495,19 @@ export default function PlayerModal({
                 {zh('加载播放信息中…', 'Loading playback info...')}
               </div>
             ) : null}
-            {playbackError ? (
-              <div
-                role="alert"
-                className="absolute inset-x-0 bottom-8 bg-black/75 px-6 py-4 text-center text-sm text-red-200"
-              >
-                {playbackError}
-              </div>
-            ) : null}
+            {playbackError && player && !player.isDisposed()
+              ? createPortal(
+                  <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-6">
+                    <div
+                      role="alert"
+                      className="max-w-lg text-center text-sm leading-6 text-red-200"
+                    >
+                      {playbackError}
+                    </div>
+                  </div>,
+                  player.el()
+                )
+              : null}
           </div>
           {playlist.length > 1 && playlistVisible ? (
             <PlaybackPlaylist

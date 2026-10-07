@@ -65,7 +65,7 @@ export function startBrowserPlayback(
   fallback,
   startTime,
   onError,
-  { resume = false, onPosition, onEnded } = {}
+  { resume = false, onPosition, onEnded, beforeTranscode } = {}
 ) {
   let activeSource = source
   let position = Math.max(0, Number(startTime) || 0)
@@ -74,6 +74,8 @@ export function startBrowserPlayback(
   let restorePosition = null
   let metadataLoaded = false
   let ended = false
+  let stopped = false
+  let failed = false
 
   const rememberPosition = () => {
     if (!restorePosition && metadataLoaded && !ended) {
@@ -99,10 +101,11 @@ export function startBrowserPlayback(
     ended = true
     onEnded?.()
   }
-  const load = (nextSource) => {
+  const loadSource = (nextSource) => {
     if (restorePosition) player.off('loadedmetadata', restorePosition)
     restorePosition = () => {
       restorePosition = null
+      if (stopped || failed) return
       const duration = player.duration()
       const target = Number.isFinite(duration)
         ? resume && !metadataLoaded && position >= duration
@@ -121,7 +124,31 @@ export function startBrowserPlayback(
     player.one('loadedmetadata', restorePosition)
     player.src({ src: nextSource.src, type: nextSource.mime_type })
   }
+  const load = (nextSource) => {
+    if (nextSource.kind !== 'hls' || !beforeTranscode) {
+      loadSource(nextSource)
+      return
+    }
+    // Check before handing HLS to Video.js, which otherwise retries failed
+    // segment requests without exposing the server's missing-tool message.
+    Promise.resolve()
+      .then(() => {
+        if (!stopped) return beforeTranscode()
+      })
+      .then(() => {
+        if (!stopped) loadSource(nextSource)
+      })
+      .catch((error) => {
+        if (stopped) return
+        failed = true
+        player.autoplay(false)
+        player.pause()
+        player.error({ code: 4, message: error.message })
+        onError(error)
+      })
+  }
   const handleError = () => {
+    if (stopped || failed) return
     const error = player.error()
     if (!error) return
     if (activeSource.kind === 'direct' && fallback && [3, 4].includes(error.code)) {
@@ -144,6 +171,7 @@ export function startBrowserPlayback(
   load(source)
 
   return () => {
+    stopped = true
     rememberPosition()
     player.off('ended', handleEnded)
     player.off('error', handleError)
