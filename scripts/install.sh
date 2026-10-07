@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="Solr159/JavBoss"
-VERSION="v2.1.1"
+VERSION="v2.1.2"
 INSTALL_DIR=""
 TMP_DIR=""
 
