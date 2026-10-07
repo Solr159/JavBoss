@@ -58,7 +58,7 @@ export default function PlayerModal({
   const [playbackInfo, setPlaybackInfo] = useState(null)
   const [playbackError, setPlaybackError] = useState('')
   const [loadingPlayback, setLoadingPlayback] = useState(false)
-  const [screenshotNotice, setScreenshotNotice] = useState(false)
+  const [screenshotNotice, setScreenshotNotice] = useState('')
   const [hotkeyHintVisible, setHotkeyHintVisible] = useState(false)
   const normalizedHotkeys = useMemo(() => parsePlayerHotkeys(hotkeys), [hotkeys])
   const hotkeyHintLines = useMemo(() => {
@@ -126,7 +126,7 @@ export default function PlayerModal({
       setPlaybackInfo(null)
       setPlaybackError('')
       setLoadingPlayback(false)
-      setScreenshotNotice(false)
+      setScreenshotNotice('')
       return
     }
 
@@ -134,7 +134,7 @@ export default function PlayerModal({
     setLoadingPlayback(true)
     setPlaybackError('')
     setPlaybackInfo(null)
-    setScreenshotNotice(false)
+    setScreenshotNotice('')
 
     fetchPlaybackInfo(video.id, { locationId: video.location_id })
       .then((info) => {
@@ -213,22 +213,24 @@ export default function PlayerModal({
       if (!playback || screenshotInFlightRef.current) return
       const { video, locationId } = playback
       const second = Math.max(0, Number(player.currentTime()) || 0)
+      const showNotice = (message, duration = 1600) => {
+        // Ignore failures from a previous video or a closed player.
+        if (player.isDisposed() || activePlaybackRef.current !== playback) return
+        if (screenshotNoticeTimerRef.current !== null) {
+          window.clearTimeout(screenshotNoticeTimerRef.current)
+        }
+        setScreenshotNotice(message)
+        screenshotNoticeTimerRef.current = window.setTimeout(() => {
+          setScreenshotNotice('')
+          screenshotNoticeTimerRef.current = null
+        }, duration)
+      }
       screenshotInFlightRef.current = true
+      showNotice(zh('已截图', 'Screenshot taken'))
       createVideoScreenshot(video.id, { second, locationId })
-        .then(() => {
-          // Ignore screenshot responses from a previous video or a closed player.
-          if (player.isDisposed() || activePlaybackRef.current !== playback) return
-          if (screenshotNoticeTimerRef.current) {
-            window.clearTimeout(screenshotNoticeTimerRef.current)
-          }
-          setScreenshotNotice(true)
-          screenshotNoticeTimerRef.current = window.setTimeout(() => {
-            setScreenshotNotice(false)
-            screenshotNoticeTimerRef.current = null
-          }, 1600)
-        })
         .catch((err) => {
           console.error(zh('截图失败', 'Failed to capture screenshot'), err)
+          showNotice(zh('截图失败', 'Screenshot failed'), 3000)
         })
         .finally(() => {
           screenshotInFlightRef.current = false
@@ -461,7 +463,7 @@ export default function PlayerModal({
               <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
                 {screenshotNotice ? (
                   <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
-                    {zh('截图成功', 'Screenshot saved')}
+                    {screenshotNotice}
                   </div>
                 ) : null}
                 {hotkeyHintVisible ? (

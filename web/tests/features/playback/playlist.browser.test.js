@@ -62,7 +62,7 @@ test(
         }
         if (url.pathname.endsWith('/screenshots') && init.method === 'POST') {
           window.screenshotRequests.push(url.pathname + url.search);
-          if (window.delayScreenshot) return new Promise(resolve => window.finishScreenshot = () => resolve(Response.json({})));
+          if (window.delayScreenshot) return new Promise(resolve => window.finishScreenshot = (fail = false) => resolve(fail ? Response.json({error_en:'Capture failed'}, {status:500}) : Response.json({})));
           return Response.json({});
         }
         return originalFetch(input, init);
@@ -255,21 +255,22 @@ test(
         }
       )
     }
-    // A screenshot response from the previous item must not show a success notice here.
+    // Screenshot feedback is immediate, even while saving is pending.
     await evaluate(
       `window.delayScreenshot = true; window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`
     )
     await waitFor('window.finishScreenshot')
+    const screenshotNotice = `document.querySelector('.player-shell').textContent`
+    await waitFor(`${screenshotNotice}.includes('Screenshot taken')`)
+    // Repeated hotkeys while saving must not create duplicate requests.
+    await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`)
+    assert.equal(await evaluate('window.screenshotRequests.length'), 1)
     await evaluate(`${playlist}.querySelectorAll('button')[1].click()`)
     await waitFor(`${activeTitle} === 'second-copy.mp4' && ${ready}`)
     await assertPlayerState()
-    await evaluate(`window.finishScreenshot(); window.delayScreenshot = false`)
-    assert.equal(
-      await evaluate(
-        `document.querySelector('.player-shell').textContent.includes('Screenshot saved')`
-      ),
-      false
-    )
+    await evaluate(`window.finishScreenshot(true); window.delayScreenshot = false`)
+    // A failed request from the previous item must not affect the new item.
+    assert.equal(await evaluate(`/Screenshot (taken|failed)/.test(${screenshotNotice})`), false)
     assert.deepEqual(await evaluate('window.screenshotRequests'), [
       '/videos/1/screenshots?location_id=11',
     ])
@@ -278,8 +279,19 @@ test(
     await waitFor(`${activeTitle} === 'third.mp4' && ${ready}`)
     await assertPlayerState()
     await evaluate('document.exitFullscreen()')
-    await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`)
+    await evaluate(
+      `window.delayScreenshot = true; window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`
+    )
     await waitFor('window.screenshotRequests.length === 2')
+    await waitFor(`${screenshotNotice}.includes('Screenshot taken')`)
+    await waitFor(`!${screenshotNotice}.includes('Screenshot taken')`)
+    await evaluate('window.finishScreenshot(true)')
+    await waitFor(`${screenshotNotice}.includes('Screenshot failed')`)
+    // A later attempt replaces the error immediately and can finish successfully.
+    await evaluate(`window.dispatchEvent(new KeyboardEvent('keydown', {key:'e'}))`)
+    await waitFor('window.screenshotRequests.length === 3')
+    await waitFor(`${screenshotNotice}.includes('Screenshot taken')`)
+    await evaluate('window.finishScreenshot(); window.delayScreenshot = false')
     assert.equal(
       await evaluate('window.screenshotRequests.at(-1)'),
       '/videos/2/screenshots?location_id=13'
