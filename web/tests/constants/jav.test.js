@@ -16,7 +16,7 @@ test('JAV watch time sorting replaces play count and supports both directions', 
   )
   const option = findSortOption(JAV_SORT_OPTIONS, 'watched')
   assert.ok(option)
-  assert.equal(option.label[0], '播放时长')
+  assert.equal(option.label[0], '观看时长')
   assert.equal(findSortOption(JAV_SORT_OPTIONS, 'watched_asc'), option)
   assert.equal(reverseSortValue(JAV_SORT_OPTIONS, 'watched'), 'watched_asc')
   assert.equal(reverseSortValue(JAV_SORT_OPTIONS, 'watched_asc'), 'watched')

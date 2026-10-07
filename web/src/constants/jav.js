@@ -46,7 +46,7 @@ export const JAV_SORT_OPTIONS = [
     defaultValue: 'watched',
     ascValue: 'watched_asc',
     descValue: 'watched',
-    label: ['播放时长', 'Watch time'],
+    label: ['观看时长', 'Watch time'],
     asc: ['短→长', 'short→long'],
     desc: ['长→短', 'long→short'],
   },
