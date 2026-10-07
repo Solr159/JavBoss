@@ -120,7 +120,7 @@ export default function JavView({
             onWaterfallModeChange={onWaterfallModeChange}
             totalItemsAction={
               <BulkPlaybackMenu
-                label={zh('JAV 播放', 'JAV playback')}
+                label={zh('批量播放', 'Bulk playback')}
                 hasItems={Number(javRandomMode ? javItems.length : javTotal) > 0}
                 pageSelectable={javItems.some((item) => Number(item?.id) > 0)}
                 busy={bulkActionBusy || javLoading}

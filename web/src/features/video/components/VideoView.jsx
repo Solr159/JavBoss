@@ -90,7 +90,7 @@ export default function VideoView({
 
   const playbackMenu = (
     <BulkPlaybackMenu
-      label={zh('视频播放', 'Video playback')}
+      label={zh('批量播放', 'Bulk playback')}
       hasItems={hasVideos}
       pageSelectable={pageSelectable}
       busy={bulkActionBusy}

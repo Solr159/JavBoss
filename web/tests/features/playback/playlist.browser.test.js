@@ -172,7 +172,7 @@ test(
       'videos'
     )
     const playMenu = async (text) => {
-      await evaluate(`document.querySelector('button[aria-label="Video playback"]').click()`)
+      await evaluate(`document.querySelector('button[aria-label="Bulk playback"]').click()`)
       const action = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === ${JSON.stringify(text)})`
       await waitFor(action)
       assert.notEqual(await evaluate(`${action}.getAttribute('aria-disabled')`), 'true')
@@ -439,7 +439,7 @@ test(
       2,
       'javItems'
     )
-    await evaluate(`document.querySelector('button[aria-label="JAV playback"]').click()`)
+    await evaluate(`document.querySelector('button[aria-label="Bulk playback"]').click()`)
     const javPlayAll = `[...document.querySelectorAll('.MuiMenuItem-root')].find(el => el.textContent === 'Play all')`
     await waitFor(javPlayAll)
     await evaluate(`${javPlayAll}.click()`)
