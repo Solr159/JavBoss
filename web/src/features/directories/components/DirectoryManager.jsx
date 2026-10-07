@@ -983,8 +983,8 @@ export default function DirectoryManager({
                 <span className="mt-0.5 block text-xs text-zinc-500">
                   {scanSettingsEnabled
                     ? zh(
-                        '按指定间隔进行目录扫描和 JAV 刮削',
-                        'Scan the directory and scrape JAV metadata at the specified interval'
+                        '按固定间隔时间定期进行目录扫描和 JAV 刮削',
+                        'Scan the directory and scrape JAV metadata at fixed intervals'
                       )
                     : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
                 </span>
