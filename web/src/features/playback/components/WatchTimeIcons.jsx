@@ -2,9 +2,17 @@ import { Fade, Tooltip } from '@mui/material'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { zh } from '@/utils/i18n'
 import { useStore } from '@/store'
+import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
 export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
   const latest = useStore((state) => state.watchedTimes?.[entityType]?.[entityId] || 0)
+  const minutesPerIcon = useStore((state) =>
+    normalizeWatchTimeIconMinutes(
+      state.config?.[
+        entityType === 'javs' ? 'jav_watch_time_icon_minutes' : 'video_watch_time_icon_minutes'
+      ]
+    )
+  )
   const value = Number(watchedMs)
   const totalMs = Math.max(latest, Number.isFinite(value) && value > 0 ? value : 0)
   if (totalMs === 0) return null
@@ -23,28 +31,14 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
   const label = zh(`已观看：${timeText}`, `Watched: ${timeText}`)
 
   return (
-    <Tooltip
-      title={
-        <>
-          {label}
-          <br />
-          {zh(
-            '每个图标代表 30 分钟，深色填充表示已观看进度',
-            'Each icon represents 30 minutes; the dark fill shows time watched'
-          )}
-        </>
-      }
-      placement="top"
-      arrow
-      slots={{ transition: Fade }}
-    >
+    <Tooltip title={label} placement="top" arrow slots={{ transition: Fade }}>
       <span
         role="img"
         aria-label={label}
         className="watch-time-icons inline-flex shrink-0 items-center gap-0.5 text-teal-600"
       >
         {[0, 1, 2].map((index) => {
-          const progress = Math.min(1, Math.max(0, totalMs / 1800000 - index))
+          const progress = Math.min(1, Math.max(0, totalMs / (minutesPerIcon * 60000) - index))
           return (
             <span
               key={index}

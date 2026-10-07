@@ -36,6 +36,10 @@ export default function VideoSettings({ onClose, onError, onWaterfallChange }) {
       onWaterfallDefaultChange={(value) =>
         setDraft((current) => ({ ...current, videoWaterfallDefaultInput: value }))
       }
+      watchTimeIconMinutesInput={draft.videoWatchTimeIconMinutesInput}
+      onWatchTimeIconMinutesChange={(value) =>
+        setDraft((current) => ({ ...current, videoWatchTimeIconMinutesInput: value }))
+      }
       onSave={handleSave}
       saving={saving}
     />

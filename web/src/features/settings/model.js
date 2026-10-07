@@ -1,8 +1,12 @@
 import { configFlag } from '@/utils/config'
+import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
 export function createVideoSettingsDraft(state) {
   const { pageSize, sortOrder, videoHideJav, config } = state
   return {
+    videoWatchTimeIconMinutesInput: normalizeWatchTimeIconMinutes(
+      config?.video_watch_time_icon_minutes
+    ),
     videoPageSizeInput: pageSize,
     videoSortInput: sortOrder,
     videoHideJavInput: videoHideJav,
@@ -26,6 +30,9 @@ export function createJavSettingsDraft(state) {
     idolSort,
   } = state
   return {
+    javWatchTimeIconMinutesInput: normalizeWatchTimeIconMinutes(
+      config?.jav_watch_time_icon_minutes
+    ),
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
     javTitleMaxRowsInput: javTitleMaxRows,

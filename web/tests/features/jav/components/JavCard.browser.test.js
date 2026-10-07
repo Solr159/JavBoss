@@ -69,14 +69,20 @@ test(
     })()`)
     await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
     await waitFor('document.querySelector(".MuiTooltip-tooltip")')
-    assert.ok(
-      await evaluate(
-        `document.querySelector('.MuiTooltip-tooltip').textContent.includes(${indicator}.getAttribute('aria-label'))`
-      )
+    assert.equal(
+      await evaluate(`document.querySelector('.MuiTooltip-tooltip').textContent`),
+      await evaluate(`${indicator}.getAttribute('aria-label')`)
     )
     assert.equal(
       await evaluate('getComputedStyle(document.querySelector(".MuiTooltip-tooltip")).transform'),
       'none'
+    )
+    await evaluate(`window.testStore.setState(state => ({
+      config: {...state.config, jav_watch_time_icon_minutes: 60},
+      javItems: state.javItems.map(item => ({...item, watched_ms: 2700000}))
+    }))`)
+    await waitFor(
+      `getComputedStyle(${indicator}.querySelector('svg:last-child')).clipPath === 'inset(0px 25% 0px 0px)'`
     )
     await evaluate(`window.testStore.setState(state => ({
       javItems: state.javItems.map(item => ({...item, watched_ms: 0}))

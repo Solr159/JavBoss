@@ -355,6 +355,8 @@ export default function JavSettingsModal({
   onJavIdolPreferChineseNameChange,
   javTagShowSimplifiedInput = false,
   onJavTagShowSimplifiedChange,
+  javWatchTimeIconMinutesInput = 30,
+  onJavWatchTimeIconMinutesChange,
   onSave,
   saving = false,
 }) {
@@ -391,6 +393,7 @@ export default function JavSettingsModal({
         break
       default:
         onJavPageSizeChange?.(24)
+        onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
         onJavTitleMaxRowsChange?.(2)
@@ -493,6 +496,17 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    aria-label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}
+                    value={javWatchTimeIconMinutesInput}
+                    onChange={(event) => onJavWatchTimeIconMinutesChange?.(event.target.value)}
+                    className={controlClassName}
+                  />
+                </SettingsRow>
                 <SettingsRow label={zh('标题最多行数', 'Title max rows')}>
                   <select
                     value={String(javTitleMaxRowsInput ?? 2)}

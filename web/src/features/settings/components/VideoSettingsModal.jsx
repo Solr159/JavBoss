@@ -83,6 +83,8 @@ export default function VideoSettingsModal({
   onHideJavChange,
   waterfallDefaultInput = false,
   onWaterfallDefaultChange,
+  watchTimeIconMinutesInput = 30,
+  onWatchTimeIconMinutesChange,
   onSave,
   saving = false,
 }) {
@@ -122,6 +124,17 @@ export default function VideoSettingsModal({
             min="1"
             value={pageSizeInput}
             onChange={(e) => onPageSizeChange?.(e.target.value)}
+            className="w-24 rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </label>
+        <label className="flex items-center justify-between gap-3 text-sm font-medium text-gray-700">
+          <span>{zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}</span>
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={watchTimeIconMinutesInput}
+            onChange={(event) => onWatchTimeIconMinutesChange?.(event.target.value)}
             className="w-24 rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </label>

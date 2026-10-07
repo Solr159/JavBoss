@@ -512,3 +512,43 @@ func TestNormalizeProxyHost(t *testing.T) {
 		})
 	}
 }
+
+func TestWatchTimeIconMinutesPersistIndependently(t *testing.T) {
+	testAuthService(t)
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	router.GET("/config", getConfig)
+	for _, tc := range []struct{ body, video, jav string }{
+		{`{"video_watch_time_icon_minutes":10,"jav_watch_time_icon_minutes":45}`, "10", "45"},
+		{`{"jav_watch_time_icon_minutes":15}`, "10", "15"},
+		{`{"video_watch_time_icon_minutes":0,"jav_watch_time_icon_minutes":-1}`, "30", "30"},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, req)
+			if response.Code != http.StatusOK {
+				t.Fatalf("update status=%d body=%s", response.Code, response.Body)
+			}
+			stored, err := dbpkg.ListConfig(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			response = httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/config", nil))
+			var loaded map[string]string
+			if err := json.Unmarshal(response.Body.Bytes(), &loaded); err != nil {
+				t.Fatal(err)
+			}
+			for key, want := range map[string]string{
+				"video_watch_time_icon_minutes": tc.video,
+				"jav_watch_time_icon_minutes":   tc.jav,
+			} {
+				if stored[key] != want || loaded[key] != want {
+					t.Errorf("%s: stored=%q loaded=%q want=%q", key, stored[key], loaded[key], want)
+				}
+			}
+		})
+	}
+}

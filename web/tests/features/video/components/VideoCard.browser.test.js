@@ -47,6 +47,13 @@ test(
     assert.match(layout.text, /45 (分钟|min)/)
     assert.match(await evaluate(`${indicator}.getAttribute('aria-label')`), /45 (分钟|min)/)
     await evaluate(`window.testStore.setState(state => ({
+      config: {...state.config, video_watch_time_icon_minutes: 60},
+      videos: state.videos.map(video => ({...video, watched_ms: 2700000}))
+    }))`)
+    await waitFor(
+      `getComputedStyle(${indicator}.querySelector('svg:last-child')).clipPath === 'inset(0px 25% 0px 0px)'`
+    )
+    await evaluate(`window.testStore.setState(state => ({
       videos: state.videos.map(video => ({...video, watched_ms: 0}))
     }))`)
     await waitFor(`!${indicator}`)

@@ -109,6 +109,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       onJavTagShowSimplifiedChange={(value) =>
         setDraft((current) => ({ ...current, javTagShowSimplifiedInput: value }))
       }
+      javWatchTimeIconMinutesInput={draft.javWatchTimeIconMinutesInput}
+      onJavWatchTimeIconMinutesChange={(value) =>
+        setDraft((current) => ({ ...current, javWatchTimeIconMinutesInput: value }))
+      }
       onSave={handleSave}
       saving={saving}
     />

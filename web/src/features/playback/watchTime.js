@@ -129,3 +129,10 @@ export function startWatchTracking(
     void flush()
   }
 }
+
+export const DEFAULT_WATCH_TIME_ICON_MINUTES = 30
+
+export function normalizeWatchTimeIconMinutes(value) {
+  const minutes = Number(value)
+  return Number.isSafeInteger(minutes) && minutes > 0 ? minutes : DEFAULT_WATCH_TIME_ICON_MINUTES
+}
