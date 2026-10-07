@@ -50,6 +50,11 @@ const (
 )
 
 func main() {
+	os.Exit(run())
+}
+
+// Return the exit status only after deferred player, database and log cleanup.
+func run() int {
 	serverURLFlag := flag.String("server-url", "", "Remote JavBoss Server URL (enables Client mode)")
 	serverPortFlag := flag.Int("port", 0, "Listening port (overrides config.toml)")
 	flag.Parse()
@@ -63,13 +68,15 @@ func main() {
 	baseDir, err := resolveBaseDir()
 	if err != nil {
 		fallback := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
-		fallback.Fatalf("resolve base dir: %v", err)
+		fallback.Printf("resolve base dir: %v", err)
+		return 1
 	}
 
 	logger, closeLogs, err := buildLogger(baseDir)
 	if err != nil {
 		fallback := log.New(os.Stderr, "", log.LstdFlags|log.Lmicroseconds)
-		fallback.Fatalf("init logger: %v", err)
+		fallback.Printf("init logger: %v", err)
+		return 1
 	}
 	defer closeLogs()
 	logging.SetLogger(logger)
@@ -77,19 +84,22 @@ func main() {
 
 	background, err := startReleaseInBackground(baseDir)
 	if err != nil {
-		log.Fatalf("start background process: %v", err)
+		logger.Printf("start background process: %v", err)
+		return 1
 	}
 	if background {
-		return
+		return 0
 	}
 
 	bootstrapCfg, err := clientpkg.LoadBootstrapConfig(baseDir)
 	if err != nil {
-		logger.Fatalf("load bootstrap config: %v", err)
+		logger.Printf("load bootstrap config: %v", err)
+		return 1
 	}
 	portOverride, err := normalizePortOverride(*serverPortFlag)
 	if err != nil {
-		logger.Fatalf("resolve listening port: %v", err)
+		logger.Printf("resolve listening port: %v", err)
+		return 1
 	}
 	serverURL := resolveClientServerURL(*serverURLFlag, bootstrapCfg.ServerURL)
 	if shouldRunClientMode(serverURL) {
@@ -98,14 +108,16 @@ func main() {
 		defer stop()
 		clientPort := configuredPortWithOverride(bootstrapCfg.Port, portOverride)
 		if err := runClientMode(ctx, stop, baseDir, serverURL, clientPort, logger); err != nil {
-			logger.Fatalf("run client mode: %v", err)
+			logger.Printf("run client mode: %v", err)
+			return 1
 		}
-		return
+		return 0
 	}
 
 	cfg, err := common.LoadWithBaseDir(baseDir)
 	if err != nil {
-		logger.Fatalf("load config: %v", err)
+		logger.Printf("load config: %v", err)
+		return 1
 	}
 
 	// Desktop releases own a single-instance lock; containers are managed by
@@ -115,7 +127,7 @@ func main() {
 		lockPath := filepath.Join(dataDir, "javboss.lock")
 		lock, ok := acquireSingleInstanceLock(lockPath, logger)
 		if !ok {
-			return
+			return 0
 		}
 		defer releaseFileLock(lock, lockPath, false, logger)
 
@@ -124,7 +136,7 @@ func main() {
 		legacyLockPath := filepath.Join(dataDir, "pornboss.lock")
 		legacyLock, ok := acquireExistingSingleInstanceLock(legacyLockPath, logger)
 		if !ok {
-			return
+			return 0
 		}
 		if legacyLock != nil {
 			defer releaseFileLock(legacyLock, legacyLockPath, true, logger)
@@ -132,16 +144,19 @@ func main() {
 	}
 
 	if err := common.MigrateLegacyDatabase(cfg); err != nil {
-		logger.Fatalf("migrate legacy database: %v", err)
+		logger.Printf("migrate legacy database: %v", err)
+		return 1
 	}
 
 	database, err := db.Open(cfg.DatabasePath)
 	if err != nil {
-		logger.Fatalf("open database: %v", err)
+		logger.Printf("open database: %v", err)
+		return 1
 	}
 	sqlDB, err := database.DB()
 	if err != nil {
-		logger.Fatalf("database handle: %v", err)
+		logger.Printf("database handle: %v", err)
+		return 1
 	}
 	defer sqlDB.Close()
 	// Flush final playback checkpoints while the database is still open.
@@ -154,7 +169,8 @@ func main() {
 	passwordResetPath := filepath.Join(filepath.Dir(cfg.DatabasePath), server.PasswordResetFilename)
 	passwordResetApplied, err := server.ApplyPasswordResetFile(ctx, passwordResetPath)
 	if err != nil {
-		logger.Fatalf("apply password reset file: %v", err)
+		logger.Printf("apply password reset file: %v", err)
+		return 1
 	}
 	if passwordResetApplied {
 		logger.Printf("password reset applied; all existing sessions were revoked")
@@ -216,16 +232,19 @@ func main() {
 
 	authService, err := server.NewAuthServiceForInstance(ctx, baseDir)
 	if err != nil {
-		logger.Fatalf("initialize authentication: %v", err)
+		logger.Printf("initialize authentication: %v", err)
+		return 1
 	}
 
 	listenAddr, err := serverListenAddr(baseDir, allowLANAccess, portOverride)
 	if err != nil {
-		logger.Fatalf("resolve listen address: %v", err)
+		logger.Printf("resolve listen address: %v", err)
+		return 1
 	}
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		logger.Fatalf("listen on %s: %v", listenAddr, err)
+		logger.Printf("listen on %s: %v", listenAddr, err)
+		return 1
 	}
 	defer listener.Close()
 	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
@@ -244,8 +263,10 @@ func main() {
 	if err := serveWithReleaseControls(ctx, stop, displayURL, "", logger, func() error {
 		return server.ServeHTTP(ctx, srv, listener, allowLANAccess, !runtimeconfig.ContainerMode())
 	}); err != nil {
-		logger.Fatalf("server error: %v", err)
+		logger.Printf("server error: %v", err)
+		return 1
 	}
+	return 0
 }
 
 func shouldRunClientMode(serverURL string) bool {

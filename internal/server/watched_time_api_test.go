@@ -4,8 +4,12 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
 	"reflect"
 	"strings"
 	"testing"
@@ -16,6 +20,87 @@ import (
 	dbpkg "javboss/internal/db"
 	"javboss/internal/models"
 )
+
+func TestHTTPShutdownEndsWatchedTimeStreams(t *testing.T) {
+	for _, proxy := range []bool{false, true} {
+		for _, listenerFailure := range []bool{false, true} {
+			name := "server"
+			if proxy {
+				name = "client-proxy"
+			}
+			if listenerFailure {
+				name += "/listener-failure"
+			} else {
+				name += "/exit"
+			}
+			t.Run(name, func(t *testing.T) {
+				previousUpdate := updateLANAccess
+				t.Cleanup(func() { updateLANAccess = previousUpdate })
+				streamDone := make(chan struct{})
+				router := gin.New()
+				router.GET("/events", func(c *gin.Context) {
+					defer close(streamDone)
+					streamWatchedTime(c)
+				})
+				var handler http.Handler = router
+				if proxy {
+					upstream := httptest.NewServer(router)
+					defer upstream.Close()
+					target, err := url.Parse(upstream.URL)
+					if err != nil {
+						t.Fatal(err)
+					}
+					handler = httputil.NewSingleHostReverseProxy(target)
+				}
+				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				if err != nil {
+					t.Fatal(err)
+				}
+				srv := &http.Server{Handler: handler}
+				defer srv.Close()
+				ctx, cancel := context.WithCancel(context.Background())
+				defer cancel()
+				done := make(chan error, 1)
+				go func() { done <- ServeHTTP(ctx, srv, listener, false, false) }()
+				client := &http.Client{Timeout: 5 * time.Second}
+				defer client.CloseIdleConnections()
+				response, err := client.Get("http://" + listener.Addr().String() + "/events")
+				if err != nil {
+					t.Fatal(err)
+				}
+				defer response.Body.Close()
+				if response.StatusCode != http.StatusOK || response.Header.Get("Content-Type") != "text/event-stream" {
+					t.Fatalf("stream response: %s %v", response.Status, response.Header)
+				}
+				// Keep the browser's stream open while the application exits.
+				if listenerFailure {
+					if err := listener.Close(); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					cancel()
+				}
+				select {
+				case err := <-done:
+					if listenerFailure {
+						if !errors.Is(err, net.ErrClosed) || errors.Is(err, context.DeadlineExceeded) {
+							t.Fatalf("listener failure returned %v", err)
+						}
+					} else if err != nil {
+						t.Fatalf("shutdown: %v", err)
+					}
+				case <-time.After(3 * time.Second):
+					t.Fatal("shutdown waited for the browser to disconnect")
+				}
+				select {
+				case <-streamDone:
+				case <-time.After(time.Second):
+					t.Fatal("watched-time stream survived shutdown")
+				}
+			})
+		}
+	}
+}
 
 func TestWatchedTimeSnapshotAndRollback(t *testing.T) {
 	testAuthService(t)

@@ -75,11 +75,14 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Test background tools from a console process
-        run: go test -count=1 -timeout=2m ./internal/util -run Background
+      - name: Test background tools and player cleanup from a console process
+        run: go test -count=1 -timeout=2m ./internal/util ./internal/mpv -run 'Background|PlayerProcessHelper|PlayerManager|WindowsPlayerJob'
 
-      - name: Test background tools from a GUI process
-        run: go test -count=1 -timeout=2m -ldflags="-H windowsgui" ./internal/util -run Background
+      - name: Test background tools and player cleanup from a GUI process
+        run: go test -count=1 -timeout=2m -ldflags="-H windowsgui" ./internal/util ./internal/mpv -run 'Background|PlayerProcessHelper|PlayerManager|WindowsPlayerJob'
+
+      - name: Test HTTP shutdown and error cleanup from a GUI process
+        run: go test -count=1 -timeout=2m -ldflags="-H windowsgui" ./internal/server ./cmd/server -run '^Test(HTTPShutdownEndsWatchedTimeStreams|RunClientErrorCleansUpPlayers)$'
 
   frontend:
     name: Frontend checks

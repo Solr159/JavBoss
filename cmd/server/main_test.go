@@ -1,13 +1,57 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"javboss/internal/mpv"
 )
+
+func TestRunClientErrorCleansUpPlayers(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if os.Getenv("JAVBOSS_TEST_RUN_CLIENT_ERROR") == "" {
+		// run changes process-wide flags and permanently closes the MPV manager.
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, executable, "-test.run=^TestRunClientErrorCleansUpPlayers$")
+		cmd.Env = append(os.Environ(), "JAVBOSS_TEST_RUN_CLIENT_ERROR=1")
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("client error skipped cleanup: %v\n%s", err, output)
+		}
+		return
+	}
+	assets, err := filepath.Abs("../../modernz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("JAVBOSS_MODERNZ_DIR", assets)
+	t.Setenv("MPV_PATH", executable)
+	t.Chdir(t.TempDir())
+	flag.CommandLine = flag.NewFlagSet("javboss", flag.ContinueOnError)
+	os.Args = []string{executable, "-server-url=invalid"}
+	if code := run(); code != 1 {
+		t.Fatalf("exit code = %d, want 1", code)
+	}
+	// Verify the real cleanup ran before returning the failure status. A closed
+	// manager rejects this command before it can launch the test executable.
+	mpv.SetPlayerConfigProvider(func() (map[string]string, error) {
+		return map[string]string{"player_reuse_window": "false"}, nil
+	})
+	t.Cleanup(mpv.Shutdown)
+	if err := mpv.PlayVideo("unused.mp4", mpv.PlayOptions{}); err == nil || !strings.Contains(err.Error(), "player manager is shutting down") {
+		t.Fatalf("player manager remained open after client failure: %v", err)
+	}
+}
 
 func TestServerListenAddrRuntimeModes(t *testing.T) {
 	previousMode := buildMode

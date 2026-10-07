@@ -20,6 +20,12 @@ func ServeHTTP(ctx context.Context, srv *http.Server, listener net.Listener, ena
 }
 
 func serveHTTP(ctx context.Context, srv *http.Server, listener net.Listener, enabled, allowUpdates bool, listen func(string, string) (net.Listener, error)) error {
+	// Long-lived requests (including proxied SSE in client mode) must stop before
+	// Shutdown waits for them. Replacing a listener must keep this context alive.
+	requestCtx, cancelRequests := context.WithCancel(ctx)
+	defer cancelRequests()
+	srv.BaseContext = func(net.Listener) context.Context { return requestCtx }
+
 	var mu sync.Mutex
 	stopped := false
 	serveErrors := make(chan error, 1)
@@ -89,6 +95,8 @@ func serveHTTP(ctx context.Context, srv *http.Server, listener net.Listener, ena
 	case <-ctx.Done():
 	case serveErr = <-serveErrors:
 	}
+	// A listener failure must end active streams even if ctx is still live.
+	cancelRequests()
 	mu.Lock()
 	stopped = true
 	_ = listener.Close()
