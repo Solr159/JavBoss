@@ -125,7 +125,7 @@ docker compose up -d
 
 添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
-Docker 部署下默认只能使用网页播放器（维护力度较弱只保证基本可用性），可参考[Client 模式](#client-模式)以使用 MPV 播放器获得更好的播放体验。
+Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[Client 模式](#client-模式)。
 
 
 </dd>
