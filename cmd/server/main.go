@@ -247,6 +247,7 @@ func run() int {
 		return 1
 	}
 	defer listener.Close()
+	server.BindTitleTranslationContext(ctx)
 	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
 
 	srv := &http.Server{

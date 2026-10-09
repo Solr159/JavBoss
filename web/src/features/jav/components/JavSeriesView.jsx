@@ -7,6 +7,7 @@ import Pagination from '@/shared/ui/Pagination'
 import WaterfallLoader from '@/shared/ui/WaterfallLoader'
 import useJavFavoriteCount from '@/features/favorites/hooks/useJavFavoriteCount'
 import { zh } from '@/utils/i18n'
+import { getJavSeriesDisplayName } from '@/utils/jav'
 import { openJavDBWithAssist } from '@/utils/javdb'
 
 export default function JavSeriesView({
@@ -32,6 +33,7 @@ export default function JavSeriesView({
   onLoadMore,
   loadingMore,
   hasMore,
+  translateTitle,
 }) {
   return (
     <>
@@ -64,6 +66,7 @@ export default function JavSeriesView({
           onSelectStudio={onSelectStudio}
           onOpenFavorites={onOpenFavorites}
           buildSeriesUrl={buildSeriesUrl}
+          translateTitle={translateTitle}
         />
       )}
       <WaterfallLoader
@@ -76,7 +79,14 @@ export default function JavSeriesView({
   )
 }
 
-function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites, buildSeriesUrl }) {
+function JavSeriesGrid({
+  items,
+  onSelectSeries,
+  onSelectStudio,
+  onOpenFavorites,
+  buildSeriesUrl,
+  translateTitle,
+}) {
   const hasItems = Array.isArray(items) && items.length > 0
   if (!hasItems) {
     return (
@@ -99,16 +109,24 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites,
           onSelectSeries={onSelectSeries}
           onSelectStudio={onSelectStudio}
           onOpenFavorites={onOpenFavorites}
+          translateTitle={translateTitle}
         />
       ))}
     </div>
   )
 }
 
-export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenFavorites }) {
+export function SeriesCard({
+  item,
+  href,
+  onSelectSeries,
+  onSelectStudio,
+  onOpenFavorites,
+  translateTitle = false,
+}) {
   const sampleCode = String(item?.sample_code || '').trim()
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
-  const name = item?.name || zh('未知系列', 'Unknown series')
+  const name = getJavSeriesDisplayName(item, translateTitle)
   const studioName = String(item?.studio_name || '').trim()
   const studioId = Number(item?.studio_id)
   const canFilterStudio =

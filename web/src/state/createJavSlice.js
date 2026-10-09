@@ -1,4 +1,4 @@
-import { mergeJavItem, mergeJavIdol } from '@/features/jav/entityUpdates'
+import { mergeJavItem, mergeJavIdol, mergeJavSeriesSummary } from '@/features/jav/entityUpdates'
 import {
   JAV_PAGE_SIZE,
   JAV_GRID_COLUMNS_AUTO,
@@ -50,6 +50,10 @@ export function createJavSlice({ set, get, lists }) {
     },
     patchJavItem: (updated) =>
       set((state) => ({ javItems: mergeJavItem(state.javItems, updated) })),
+    patchJavSeries: (updated) =>
+      set((state) => ({
+        seriesItems: mergeJavSeriesSummary(state.seriesItems, updated),
+      })),
     patchJavIdol: (updated) =>
       set((state) => ({ javItems: mergeJavIdol(state.javItems, updated) })),
     setJavError: (message) => set({ javError: message }),

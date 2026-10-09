@@ -1,5 +1,46 @@
 import { apiFetch, jsonHeaders, apiError } from '@/api/client'
 
+export async function fetchTitleTranslationModels(apiKey, { signal } = {}) {
+  const res = await apiFetch('/jav/title-translation/models', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ api_key: apiKey }),
+    signal,
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function translateJavTitle(id, { refresh = false, title, thinking } = {}) {
+  const res = await apiFetch(`/jav/items/${encodeURIComponent(id)}/title-translation`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ refresh, title, thinking }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function translateJavSeriesName(id) {
+  const res = await apiFetch(`/jav/series/${encodeURIComponent(id)}/name-translation`, {
+    method: 'POST',
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function startTitleTranslationBatch() {
+  const res = await apiFetch('/jav/title-translation/batch', { method: 'POST' })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function fetchTitleTranslationBatch({ signal } = {}) {
+  const res = await apiFetch('/jav/title-translation/batch', { signal, cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
 export const javIdolResolveInFlight = new Map()
 
 export const javSampleImagesResolveInFlight = new Map()
