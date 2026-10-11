@@ -30,7 +30,8 @@ export default function useJavTitleTranslation(items) {
     if (
       error ||
       !configFlag(config?.jav_title_translation_enabled) ||
-      !configFlag(config?.jav_title_translation_api_key_set) ||
+      (!configFlag(config?.jav_title_translation_api_key_set) &&
+        config?.jav_title_translation_provider !== 'custom') ||
       !config?.jav_title_translation_model
     )
       return undefined
@@ -41,7 +42,16 @@ export default function useJavTitleTranslation(items) {
     const run = async () => {
       for (const item of items || []) {
         if (cancelled) break
-        const key = JSON.stringify([item.id, item.title, item.zh_title, model, prompt, thinking])
+        const key = JSON.stringify([
+          item.id,
+          item.title,
+          item.zh_title,
+          model,
+          prompt,
+          thinking,
+          config.jav_title_translation_provider,
+          config.jav_title_translation_profiles,
+        ])
         if (!needsTitleTranslation(item) || attempted.current.has(key)) continue
         try {
           const updated = await requestTranslation(item, key)

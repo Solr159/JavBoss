@@ -23,12 +23,12 @@ func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine 
 	testAuthService(t)
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
-	previous := deepSeekClient
+	previous := titleTranslationClient
 	previousBatch := allTitleTranslations
 	ctx, cancel := context.WithCancel(context.Background())
 	allTitleTranslations = &titleTranslationBatch{ctx: ctx}
-	deepSeekClient = &translation.Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
-	t.Cleanup(func() { deepSeekClient = previous })
+	titleTranslationClient = &translation.Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
+	t.Cleanup(func() { titleTranslationClient = previous })
 	t.Cleanup(func() {
 		cancel()
 		waitTitleTranslationBatch(t)

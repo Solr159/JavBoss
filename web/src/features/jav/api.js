@@ -1,10 +1,16 @@
 import { apiFetch, jsonHeaders, apiError } from '@/api/client'
 
-export async function fetchTitleTranslationModels(apiKey, { signal } = {}) {
+export async function fetchTitleTranslationModels({
+  apiKey,
+  signal,
+  provider,
+  profile,
+  discover,
+} = {}) {
   const res = await apiFetch('/jav/title-translation/models', {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ api_key: apiKey }),
+    body: JSON.stringify({ api_key: apiKey, provider, profile, discover }),
     signal,
   })
   if (!res.ok) throw await apiError(res)

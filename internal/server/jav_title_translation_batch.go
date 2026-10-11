@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/jav/translation"
 	"javboss/internal/models"
 )
 
@@ -58,7 +59,9 @@ func startTitleTranslationBatch(c *gin.Context) {
 		return
 	}
 	enabled, _ := strconv.ParseBool(cfg["jav_title_translation_enabled"])
-	if !enabled || cfg["jav_title_translation_api_key"] == "" || cfg["jav_title_translation_model"] == "" {
+	profile := translation.ActiveProfile(cfg)
+	provider := translation.ActiveProvider(cfg)
+	if !enabled || profile.Model == "" || (profile.Endpoint(provider) == "" && provider != "custom") || (profile.APIKey == "" && provider != "custom") {
 		respondLocalizedError(c, http.StatusBadRequest, "请开启标题翻译并配置 API Key 和模型", "Enable title translation and configure an API key and model")
 		return
 	}
@@ -80,6 +83,8 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 		job.status.Running = false
 		job.mu.Unlock()
 	}()
+	provider := translation.ActiveProvider(cfg)
+	profile := translation.ActiveProfile(cfg)
 	for _, item := range items {
 		if job.ctx.Err() != nil {
 			return
@@ -98,7 +103,7 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 			job.record(false)
 			continue
 		}
-		title, err := deepSeekClient.Translate(job.ctx, cfg["jav_title_translation_api_key"], cfg["jav_title_translation_model"], cfg["jav_title_translation_prompt"], item.Title, cfg["jav_title_translation_thinking"] == "true")
+		title, err := titleTranslationClient.Translate(job.ctx, provider, profile, cfg["jav_title_translation_prompt"], item.Title, nil)
 		var saved bool
 		if err == nil {
 			saved, err = dbpkg.SaveJavTitleTranslation(job.ctx, &item, title)

@@ -40,16 +40,16 @@ func TestDeepSeekModelDiscoveryAndTranslation(t *testing.T) {
 	}))
 	defer upstream.Close()
 	client := &Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
-	models, err := client.Models(context.Background(), "test-secret")
+	models, err := client.Models(context.Background(), "deepseek", Profile{APIKey: "test-secret"})
 	if err != nil || len(models) != 2 || models[0].Name != "New official model" || models[1].Name != "other-model" {
 		t.Fatalf("models=%v err=%v", models, err)
 	}
-	title, err := client.Translate(context.Background(), "test-secret", "new-model", "Custom prompt", "雨の日の出会い", true)
+	title, err := client.Translate(context.Background(), "deepseek", Profile{APIKey: "test-secret", Model: "new-model", Thinking: true}, "Custom prompt", "雨の日の出会い", nil)
 	if err != nil || title != "雨天相遇" {
 		t.Fatalf("title=%q err=%v", title, err)
 	}
 	expectedThinking, expectedMaxTokens = "disabled", 1024
-	title, err = client.Translate(context.Background(), "test-secret", "new-model", "Custom prompt", "雨の日の出会い", false)
+	title, err = client.Translate(context.Background(), "deepseek", Profile{APIKey: "test-secret", Model: "new-model"}, "Custom prompt", "雨の日の出会い", nil)
 	if err != nil || title != "雨天相遇" {
 		t.Fatalf("title=%q err=%v", title, err)
 	}
@@ -72,7 +72,7 @@ func TestDeepSeekRejectsInvalidOrIncompleteResponses(t *testing.T) {
 			}))
 			defer upstream.Close()
 			client := &Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
-			_, err := client.Translate(context.Background(), "test-secret", "model", "", "source", true)
+			_, err := client.Translate(context.Background(), "deepseek", Profile{APIKey: "test-secret", Model: "model", Thinking: true}, "", "source", nil)
 			if err == nil || strings.Contains(err.Error(), "test-secret") {
 				t.Fatalf("error=%v", err)
 			}

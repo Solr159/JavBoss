@@ -1,18 +1,6 @@
 import { configFlag } from '@/utils/config'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
-export function createTitleTranslationDraft(config) {
-  return {
-    enabled: configFlag(config?.jav_title_translation_enabled),
-    apiKey: '',
-    hasApiKey: configFlag(config?.jav_title_translation_api_key_set),
-    clearApiKey: false,
-    model: config?.jav_title_translation_model || '',
-    thinking: configFlag(config?.jav_title_translation_thinking),
-    prompt: config?.jav_title_translation_prompt || '',
-  }
-}
-
 export function createVideoSettingsDraft(state) {
   const { pageSize, sortOrder, videoHideJav, config } = state
   return {

@@ -1,3 +1,4 @@
+import { translationProfiles } from '@/features/settings/titleTranslation'
 import { useStore } from '@/store'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 import { normalizeVideoSort } from '@/constants/video'
@@ -178,13 +179,11 @@ export async function saveJavSettings(draft, onWaterfallChange) {
 }
 
 export async function saveTitleTranslationSettings(draft) {
-  const apiKey = draft.apiKey.trim()
   const cfg = await updateConfig({
     jav_title_translation_enabled: Boolean(draft.enabled),
-    jav_title_translation_model: draft.model,
-    jav_title_translation_thinking: Boolean(draft.thinking),
+    jav_title_translation_provider: draft.provider,
+    jav_title_translation_profiles: translationProfiles(draft),
     jav_title_translation_prompt: draft.prompt,
-    jav_title_translation_api_key: apiKey || (draft.clearApiKey ? '' : undefined),
   })
   useStore.setState({ config: cfg })
 }

@@ -108,7 +108,7 @@ test('JAV watch icon settings persist independently and invalid values use 30 mi
 
 test('translation settings keep saved keys private and omit untouched credentials', async (t) => {
   const [model, actions, { useStore }] = await loadModules(t, [
-    'features/settings/model.js',
+    'features/settings/titleTranslation.js',
     'features/settings/actions.js',
     'store.js',
   ])
@@ -123,26 +123,28 @@ test('translation settings keep saved keys private and omit untouched credential
   let payload
   t.mock.method(globalThis, 'fetch', async (_url, init) => {
     payload = JSON.parse(init.body)
+    const profile = payload.jav_title_translation_profiles.deepseek
     return Response.json({
       ...payload,
-      jav_title_translation_api_key: undefined,
-      jav_title_translation_api_key_set:
-        payload.jav_title_translation_api_key === '' ? 'false' : 'true',
+      jav_title_translation_enabled: String(payload.jav_title_translation_enabled),
+      jav_title_translation_profiles: JSON.stringify({
+        deepseek: { ...profile, api_key: undefined, api_key_set: profile.api_key !== '' },
+      }),
     })
   })
   const draft = model.createTitleTranslationDraft(useStore.getState().config)
   assert.equal(draft.apiKey, '')
   assert.equal(draft.thinking, false)
   await actions.saveTitleTranslationSettings(draft)
-  assert.equal(payload.jav_title_translation_thinking, false)
-  assert.equal(Object.hasOwn(payload, 'jav_title_translation_api_key'), false)
+  assert.equal(payload.jav_title_translation_profiles.deepseek.thinking, false)
+  assert.equal(Object.hasOwn(payload.jav_title_translation_profiles.deepseek, 'api_key'), false)
   assert.equal(payload.jav_title_translation_prompt, 'Custom prompt')
   draft.apiKey = 'replacement-key'
   draft.thinking = true
   await actions.saveTitleTranslationSettings(draft)
-  assert.equal(payload.jav_title_translation_thinking, true)
+  assert.equal(payload.jav_title_translation_profiles.deepseek.thinking, true)
   assert.equal(model.createTitleTranslationDraft(useStore.getState().config).thinking, true)
-  assert.equal(payload.jav_title_translation_api_key, 'replacement-key')
+  assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, 'replacement-key')
   assert.equal(useStore.getState().config.jav_title_translation_api_key, undefined)
   Object.assign(draft, {
     enabled: false,
@@ -151,7 +153,7 @@ test('translation settings keep saved keys private and omit untouched credential
     hasApiKey: false,
   })
   await actions.saveTitleTranslationSettings(draft)
-  assert.equal(payload.jav_title_translation_api_key, '')
+  assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, '')
 })
 
 test('display settings only change the shared toggle and leave tool configuration untouched', async (t) => {
@@ -173,4 +175,52 @@ test('display settings only change the shared toggle and leave tool configuratio
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_model'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_prompt'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_thinking'), false)
+})
+
+test('provider switching preserves independent unsaved profiles and request templates', async (t) => {
+  const [settings] = await loadModules(t, ['features/settings/titleTranslation.js'])
+  let draft = settings.createTitleTranslationDraft({
+    jav_title_translation_profiles: JSON.stringify({
+      deepseek: { api_key_set: true, model: 'deepseek-flash' },
+      kimi: { api_key_set: true, model: 'kimi-k2.5' },
+    }),
+  })
+  draft.apiKey = 'new-deepseek-key'
+  draft = settings.changeTranslationDraft(draft, { provider: 'kimi' })
+  assert.equal(draft.apiKey, '')
+  assert.equal(draft.model, 'kimi-k2.5')
+  draft.model = 'kimi-k2.6'
+  draft = settings.changeTranslationDraft(draft, { provider: 'custom' })
+  draft.baseUrl = 'http://localhost:1234/v1'
+  draft.model = 'local'
+  draft.request = JSON.stringify({
+    url: '{{base_url}}/translate',
+    body: { text: '{{title}}' },
+    response_path: '/translation',
+  })
+  const profiles = settings.translationProfiles(draft)
+  assert.equal(profiles.deepseek.api_key, 'new-deepseek-key')
+  assert.equal(profiles.kimi.api_key, undefined)
+  assert.equal(profiles.kimi.model, 'kimi-k2.6')
+  assert.equal(profiles.custom.request.body.text, '{{title}}')
+  draft = settings.changeTranslationDraft(draft, { provider: 'deepseek' })
+  assert.equal(draft.apiKey, 'new-deepseek-key')
+  assert.equal(draft.model, 'deepseek-flash')
+})
+
+test('provider picker has defaults before catalog loads and fills each API endpoint', async (t) => {
+  const [settings] = await loadModules(t, ['features/settings/titleTranslation.js'])
+  for (const catalog of [undefined, '', '[]', '{}']) {
+    const draft = settings.createTitleTranslationDraft({ jav_title_translation_catalog: catalog })
+    assert.equal(draft.catalog.length, 9)
+    assert.equal(draft.baseUrl, 'https://api.deepseek.com')
+    assert.equal(draft.manualModel, false)
+    const openai = settings.changeTranslationDraft(draft, { provider: 'openai' })
+    assert.equal(openai.baseUrl, 'https://api.openai.com/v1')
+    assert.equal(openai.protocol, 'responses')
+    const kimi = settings.changeTranslationDraft(openai, { provider: 'kimi' })
+    assert.equal(kimi.baseUrl, 'https://api.moonshot.cn/v1')
+    const custom = settings.changeTranslationDraft(kimi, { provider: 'custom' })
+    assert.equal(custom.baseUrl, '')
+  }
 })

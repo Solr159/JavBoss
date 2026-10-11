@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -16,40 +17,62 @@ import (
 	"javboss/internal/jav/translation"
 )
 
-var deepSeekClient = translation.NewClient()
+var titleTranslationClient = translation.NewClient()
 
 // Serialize paid requests and recheck the stored title after waiting, including requests from other tabs.
 var titleTranslationMu sync.Mutex
 
-// POST /jav/title-translation/models accepts an optional api_key for an unsaved settings draft.
+// POST /jav/title-translation/models discovers models or checks an unsaved model's capabilities.
 func listTitleTranslationModels(c *gin.Context) {
 	var req struct {
-		APIKey *string `json:"api_key"`
+		Provider string          `json:"provider"`
+		Profile  json.RawMessage `json:"profile"`
+		APIKey   *string         `json:"api_key"`
+		Discover *bool           `json:"discover"`
 	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 65536)
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondLocalizedError(c, http.StatusBadRequest, "模型列表请求无效", "Invalid model list request")
+		respondLocalizedError(c, 400, "模型列表请求无效", "Invalid model list request")
 		return
 	}
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
+		respondLocalizedError(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	key := cfg["jav_title_translation_api_key"]
+	provider := req.Provider
+	if provider == "" {
+		provider = translation.ActiveProvider(cfg)
+	}
+	profile := translation.LoadProfiles(cfg)[provider]
+	if len(req.Profile) > 0 {
+		if err := json.Unmarshal(req.Profile, &profile); err != nil {
+			respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")
+			return
+		}
+	}
 	if req.APIKey != nil {
-		key = strings.TrimSpace(*req.APIKey)
+		profile.APIKey = strings.TrimSpace(*req.APIKey)
 	}
-	if key == "" || len(key) > 512 {
-		respondLocalizedError(c, http.StatusBadRequest, "请填写 DeepSeek API Key", "Enter a DeepSeek API key")
+	if err := profile.Validate(provider); err != nil {
+		respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")
 		return
 	}
-	models, err := deepSeekClient.Models(c.Request.Context(), key)
+	caps := translation.ModelCapabilities(provider, profile)
+	if req.Discover != nil && !*req.Discover {
+		c.JSON(200, gin.H{"capabilities": caps})
+		return
+	}
+	if profile.APIKey == "" && provider != "custom" {
+		respondLocalizedError(c, 400, "请填写 API Key", "Enter an API key")
+		return
+	}
+	models, err := titleTranslationClient.Models(c.Request.Context(), provider, profile)
 	if err != nil {
 		respondTitleTranslationError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"models": models})
+	c.JSON(200, gin.H{"models": models, "capabilities": caps})
 }
 
 // POST /jav/items/:id/title-translation saves a Chinese title while preserving the original.
@@ -107,16 +130,15 @@ func translateJavTitle(c *gin.Context) {
 	if req.Title != nil {
 		sourceTitle = strings.TrimSpace(*req.Title)
 	}
-	key, model := cfg["jav_title_translation_api_key"], cfg["jav_title_translation_model"]
-	if key == "" || model == "" || strings.TrimSpace(sourceTitle) == "" {
-		respondLocalizedError(c, http.StatusBadRequest, "请先填写 API Key 并选择模型，影片标题不能为空", "Configure an API key and model; the title must not be empty")
+	if strings.TrimSpace(sourceTitle) == "" {
+		respondLocalizedError(c, 400, "影片标题不能为空", "The title must not be empty")
 		return
 	}
-	thinking := cfg["jav_title_translation_thinking"] == "true"
-	if req.Thinking != nil {
-		thinking = *req.Thinking
+	if req.Refresh && req.Thinking == nil {
+		fast := false
+		req.Thinking = &fast
 	}
-	title, err := deepSeekClient.Translate(c.Request.Context(), key, model, cfg["jav_title_translation_prompt"], sourceTitle, thinking)
+	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], sourceTitle, req.Thinking)
 	if err != nil {
 		respondTitleTranslationError(c, err)
 		return
@@ -138,19 +160,29 @@ func translateJavTitle(c *gin.Context) {
 }
 
 func respondTitleTranslationError(c *gin.Context, err error) {
+	var configError *translation.ConfigError
+	if errors.As(err, &configError) {
+		parts := strings.SplitN(configError.Message, " / ", 2)
+		en := parts[0]
+		if len(parts) > 1 {
+			en = parts[1]
+		}
+		respondLocalizedError(c, http.StatusBadRequest, parts[0], en)
+		return
+	}
 	var apiError *translation.APIError
 	if errors.As(err, &apiError) {
 		switch apiError.StatusCode {
-		case http.StatusUnauthorized:
-			respondLocalizedError(c, http.StatusBadRequest, "DeepSeek API Key 无效", "The DeepSeek API key is invalid")
+		case http.StatusUnauthorized, http.StatusForbidden:
+			respondLocalizedError(c, http.StatusBadRequest, "API Key 无效或无访问权限", "The API key is invalid or lacks permission")
 			return
 		case http.StatusPaymentRequired:
-			respondLocalizedError(c, http.StatusBadRequest, "DeepSeek 账户余额不足", "The DeepSeek account balance is insufficient")
+			respondLocalizedError(c, http.StatusBadRequest, "服务商账户余额不足", "The provider account balance is insufficient")
 			return
 		case http.StatusTooManyRequests:
-			respondLocalizedError(c, http.StatusTooManyRequests, "DeepSeek 请求过于频繁，请稍后重试", "DeepSeek rate limit reached; retry later")
+			respondLocalizedError(c, http.StatusTooManyRequests, "服务商请求过于频繁，请稍后重试", "Provider rate limit reached; retry later")
 			return
 		}
 	}
-	respondLocalizedError(c, http.StatusBadGateway, "DeepSeek 请求失败或未返回完整译文，请稍后重试", "DeepSeek failed or returned an incomplete translation; retry later")
+	respondLocalizedError(c, http.StatusBadGateway, "服务商请求失败或未返回完整译文，请稍后重试", "The provider failed or returned an incomplete translation; retry later")
 }

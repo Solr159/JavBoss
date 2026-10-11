@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Switch } from '@mui/material'
 import { useStore } from '@/store'
-import { createTitleTranslationDraft } from '@/features/settings/model'
+import {
+  createTitleTranslationDraft,
+  changeTranslationDraft,
+} from '@/features/settings/titleTranslation'
 import {
   saveTitleTranslationSettings,
   setTitleTranslationEnabled,
@@ -53,7 +56,7 @@ export default function TitleTranslationToolSettings() {
   }, [batchRunning])
 
   const onChange = (patch) => {
-    setDraft((current) => ({ ...current, ...patch }))
+    setDraft((current) => changeTranslationDraft(current, patch))
     setError('')
     setSaved(false)
   }
@@ -104,8 +107,8 @@ export default function TitleTranslationToolSettings() {
           </div>
           <p className="text-sm text-zinc-500">
             {zh(
-              '与“显示 → JAV → 卡片设置”中的标题翻译开关同步。',
-              'Synced with Display → JAV → Card settings.'
+              '自动翻译当前页缺少中文标题的影片。开启时显示中文标题，关闭时显示原标题。',
+              'Automatically translates missing Chinese titles on the current page. Enable to show Chinese titles; disable to show originals.'
             )}
           </p>
           {draft.enabled && (
@@ -119,38 +122,30 @@ export default function TitleTranslationToolSettings() {
             </p>
           )}
           {draft.enabled && (
-            <>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={batchRunning}
-                  className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
-                >
-                  {saving ? zh('保存中…', 'Saving…') : zh('保存', 'Save')}
-                </button>
-                <button
-                  type="button"
-                  disabled={batchRunning}
-                  onClick={(event) => void handleSave(event, true)}
-                  className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-                >
-                  {batchRunning
-                    ? zh('重新翻译中…', 'Retranslating…')
-                    : zh('重新翻译所有影片', 'Retranslate all titles')}
-                </button>
-                {saved && (
-                  <span role="status" className="text-sm text-emerald-700">
-                    {zh('已保存', 'Saved')}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-zinc-500">
-                {zh(
-                  '重新翻译会先保存当前配置，覆盖已有中文标题并消耗 API 额度。',
-                  'Retranslation saves these settings first, replaces existing Chinese titles and uses API credits.'
-                )}
-              </p>
-            </>
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="submit"
+                disabled={batchRunning}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {saving ? zh('保存中…', 'Saving…') : zh('保存', 'Save')}
+              </button>
+              <button
+                type="button"
+                disabled={batchRunning}
+                onClick={(event) => void handleSave(event, true)}
+                className="rounded-xl border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              >
+                {batchRunning
+                  ? zh('重新翻译中…', 'Retranslating…')
+                  : zh('重新翻译所有影片', 'Retranslate all titles')}
+              </button>
+              {saved && (
+                <span role="status" className="text-sm text-emerald-700">
+                  {zh('已保存', 'Saved')}
+                </span>
+              )}
+            </div>
           )}
           {batch?.total > 0 && (
             <p role="status" className="text-sm text-zinc-600">

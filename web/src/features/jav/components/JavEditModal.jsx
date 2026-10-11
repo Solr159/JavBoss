@@ -1,3 +1,4 @@
+import { parseTranslationConfig } from '@/features/jav/titleTranslation'
 import { useCloseOnOutsidePointer } from '@/shared/hooks/useCloseOnOutsidePointer'
 import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
@@ -48,6 +49,8 @@ export function JavEditModal({
   onSaved,
   onDeleted,
 }) {
+  const translationCaps = useStore((state) => state.config?.jav_title_translation_capabilities)
+  const reasoning = parseTranslationConfig(translationCaps).reasoning
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
@@ -510,10 +513,10 @@ export function JavEditModal({
   const creatingOption =
     creatingIdol || creatingScrapedTag || creatingUserTag || deleting || translating
   const translationActions = [
-    { mode: 'default', label: zh('重新翻译', 'Retranslate') },
+    { mode: 'default', label: zh('快速重新翻译', 'Quick retranslation'), thinking: false },
     {
       mode: 'thinking',
-      label: zh('使用推理重新翻译', 'Retranslate with reasoning'),
+      label: zh('重新推理翻译', 'Retranslate with reasoning'),
       thinking: true,
     },
   ]
@@ -580,7 +583,24 @@ export function JavEditModal({
                     key={mode}
                     type="button"
                     onClick={() => void handleRefreshTitle(thinking)}
-                    disabled={!item?.id || !title.trim() || saving || creatingOption}
+                    disabled={
+                      !item?.id ||
+                      !title.trim() ||
+                      saving ||
+                      creatingOption ||
+                      reasoning === 'unknown' ||
+                      (!thinking && reasoning === 'always')
+                    }
+                    title={
+                      !thinking && reasoning === 'always'
+                        ? zh('此模型无法关闭推理', 'This model cannot disable reasoning')
+                        : thinking && reasoning === 'none'
+                          ? zh(
+                              '此模型不支持推理，将使用快速翻译',
+                              'This model does not reason; using quick translation'
+                            )
+                          : undefined
+                    }
                     className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                   >
                     <RefreshOutlinedIcon
