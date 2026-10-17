@@ -116,6 +116,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.POST("/jav/title-translation/batch", startTitleTranslationBatch)
 	router.GET("/jav/title-translation/batch", getTitleTranslationBatch)
 	router.POST("/jav/items/:id/title-translation", translateJavTitle)
+	router.POST("/jav/title-translation/items", translateJavTitles)
 	router.GET("/jav/items/:id/sample-images/:index/:variant", getJavSampleImage)
 	router.GET("/jav/items/:id", getJavItem)
 	router.PUT("/jav/items/:id", updateJavItem)

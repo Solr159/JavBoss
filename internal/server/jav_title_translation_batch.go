@@ -158,24 +158,26 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 		if job.ctx.Err() != nil {
 			return
 		}
-		// Share the paid-request lock with automatic and manual single-title translation.
-		titleTranslationMu.Lock()
+		release, err := acquireTitleTranslation(job.ctx, item.ID)
+		if err != nil {
+			return
+		}
 		job.mu.Lock()
 		stopping := job.status.Stopping
 		job.mu.Unlock()
 		if stopping {
-			titleTranslationMu.Unlock()
+			release()
 			return
 		}
 		// Skip titles changed since the batch started, before spending a request.
 		current, err := dbpkg.GetJavTitleTranslationItem(job.ctx, item.ID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			titleTranslationMu.Unlock()
+			release()
 			job.fail("读取待翻译标题失败，任务已停止", "Failed to load a title; translation stopped")
 			return
 		}
 		if err != nil || current.Title != item.Title || current.ZhTitle != item.ZhTitle {
-			titleTranslationMu.Unlock()
+			release()
 			job.record(false)
 			continue
 		}
@@ -184,7 +186,7 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 		if err == nil {
 			saved, err = dbpkg.SaveJavTitleTranslation(job.ctx, &item, title)
 		}
-		titleTranslationMu.Unlock()
+		release()
 		if err != nil {
 			_, zh, en := titleTranslationErrorDetails(err)
 			job.fail("重新翻译失败，未完成的影片保留原译文。"+zh, "Retranslation failed; unfinished titles are unchanged. "+en)

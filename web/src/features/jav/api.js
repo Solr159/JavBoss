@@ -1,4 +1,65 @@
 import { apiFetch, jsonHeaders, apiError } from '@/api/client'
+import { zh } from '@/utils/i18n'
+
+export async function translateJavTitles(ids, { onItem = () => {} } = {}) {
+  const res = await apiFetch('/jav/title-translation/items', {
+    method: 'POST',
+    headers: { ...jsonHeaders, Accept: 'application/x-ndjson' },
+    body: JSON.stringify({ ids }),
+  })
+  if (!res.ok) throw await apiError(res)
+  const result = { items: [], error: null }
+  const accept = (event) => {
+    if (event.item) {
+      result.items.push(event.item)
+      onItem(event.item)
+    }
+    if (event.error_zh || event.error_en) {
+      result.error ||= new Error(zh(event.error_zh, event.error_en))
+    }
+    return event.done === true
+  }
+  // Accept the previous JSON response when a server or test fixture has not switched to streaming.
+  if (!res.headers.get('Content-Type')?.includes('application/x-ndjson')) {
+    const payload = await res.json()
+    for (const item of payload.items) accept({ item })
+    accept(payload)
+    return result
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  const incomplete = () =>
+    new Error(
+      zh(
+        '翻译连接中断，请重试未完成的影片。',
+        'Translation connection interrupted; retry unfinished titles.'
+      )
+    )
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+      let end
+      while ((end = buffer.indexOf('\n')) !== -1) {
+        const line = buffer.slice(0, end).trim()
+        buffer = buffer.slice(end + 1)
+        if (!line) continue
+        let event
+        try {
+          event = JSON.parse(line)
+        } catch {
+          throw incomplete()
+        }
+        if (accept(event)) return result
+      }
+      if (done || buffer.length > 131072) throw result.error || incomplete()
+    }
+  } finally {
+    await reader.cancel().catch(() => {})
+    reader.releaseLock()
+  }
+}
 
 export async function fetchTitleTranslationModels({
   apiKey,

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +17,6 @@ import (
 )
 
 var titleTranslationClient = translation.NewClient()
-
-// Serialize paid requests and recheck the stored title after waiting, including requests from other tabs.
-var titleTranslationMu sync.Mutex
 
 // POST /jav/title-translation/models discovers models or checks an unsaved model's capabilities.
 func listTitleTranslationModels(c *gin.Context) {
@@ -108,8 +104,11 @@ func testTitleTranslation(c *gin.Context) {
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		logging.Error("disable test translation write deadline: %v", err)
 	}
-	titleTranslationMu.Lock()
-	defer titleTranslationMu.Unlock()
+	release, err := acquireTitleTranslation(c.Request.Context(), 0)
+	if err != nil {
+		return
+	}
+	defer release()
 	title, err := titleTranslationClient.Translate(c.Request.Context(), provider, profile, req.Prompt, strings.TrimSpace(req.Title), nil)
 	if err != nil {
 		respondTitleTranslationError(c, err)
@@ -144,8 +143,11 @@ func translateJavTitle(c *gin.Context) {
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		logging.Error("disable title translation write deadline: %v", err)
 	}
-	titleTranslationMu.Lock()
-	defer titleTranslationMu.Unlock()
+	release, err := acquireTitleTranslation(c.Request.Context(), id)
+	if err != nil {
+		return
+	}
+	defer release()
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")

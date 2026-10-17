@@ -238,7 +238,7 @@ func TestTitleTranslationManualEditInvalidatesCachedTitle(t *testing.T) {
 
 func TestTitleTranslationRoutesRequireAuthentication(t *testing.T) {
 	router := NewRouter("", testAuthService(t))
-	for _, path := range []string{"/jav/title-translation/models", "/jav/title-translation/test", "/jav/items/1/title-translation", "/jav/title-translation/batch"} {
+	for _, path := range []string{"/jav/title-translation/models", "/jav/title-translation/test", "/jav/items/1/title-translation", "/jav/title-translation/batch", "/jav/title-translation/items"} {
 		response := translationAPIRequest(router, "POST", path, `{}`)
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("path=%s status=%d", path, response.Code)
