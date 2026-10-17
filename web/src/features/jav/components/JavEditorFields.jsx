@@ -127,6 +127,7 @@ export function JavEditDropdown({
   label,
   selectedId,
   options,
+  getOptionLabel = (option) => option?.name,
   search,
   onSearchChange,
   onSelect,
@@ -151,7 +152,7 @@ export function JavEditDropdown({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="min-w-0 truncate">{selected?.name || emptyLabel}</span>
+        <span className="min-w-0 truncate">{getOptionLabel(selected) || emptyLabel}</span>
         <span
           aria-hidden="true"
           className={`ml-2 h-1.5 w-1.5 shrink-0 rotate-45 border-b border-r border-gray-400 transition-transform ${
@@ -197,7 +198,7 @@ export function JavEditDropdown({
                   role="option"
                   aria-selected={active}
                 >
-                  {option.name}
+                  {getOptionLabel(option)}
                 </button>
               )
             })}

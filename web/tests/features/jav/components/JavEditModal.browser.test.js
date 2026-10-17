@@ -178,3 +178,91 @@ for (const fromDetail of [false, true]) {
     }
   )
 }
+
+test(
+  'JAV series picker follows the series translation switch and searches both names',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
+    })
+    await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+    await evaluate(`{
+      window.testStore.setState({
+        config: {jav_series_translation_enabled:'true', jav_title_translation_enabled:'false'},
+        loadJavTags: () => Promise.resolve(),
+      });
+      const originalFetch = window.fetch;
+      window.fetch = (input, init = {}) => {
+        const path = new URL(input, location.origin).pathname;
+        if (path === '/jav/series') return Promise.resolve(Response.json({items:[
+          {id:3,name:'Test series',zh_name:'当前系列'},
+          {id:4,name:'Untranslated series',zh_name:''},
+          {id:5,name:'Rainy day',zh_name:'雨天系列'},
+        ],total:3}));
+        if (['/jav/studios','/jav/idols/options'].includes(path)) return Promise.resolve(Response.json({items:[],total:0}));
+        if (path === '/jav/tags') return Promise.resolve(Response.json([]));
+        if (path === '/jav/items/1' && init.method === 'PUT') {
+          window.savedPayload = JSON.parse(init.body);
+          return Promise.resolve(Response.json({id:1,...window.savedPayload}));
+        }
+        return originalFetch(input, init);
+      };
+      document.querySelector('[aria-label="Edit JAV"]').click();
+    }`)
+    const modal = `document.querySelector('[aria-label="Edit JAV info"]')`
+    const picker = `${modal}.querySelectorAll('[aria-haspopup="listbox"]')[1]`
+    await waitFor(`${modal} && ${picker}?.textContent.includes('当前系列') && !${picker}.disabled`)
+    await evaluate(`${picker}.click()`)
+    await waitFor(`document.querySelectorAll('[role="option"]').length === 3`)
+    assert.deepEqual(
+      await evaluate(
+        `[...document.querySelectorAll('[role="option"]')].map(node => node.textContent)`
+      ),
+      ['当前系列', 'Untranslated series', '雨天系列']
+    )
+    await evaluate(`window.searchSeries = value => {
+      const input = document.querySelector('input[placeholder="Search existing series"]');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+      input.dispatchEvent(new Event('input', {bubbles:true}));
+    }`)
+    for (const search of ['雨天', 'Rainy']) {
+      await evaluate(`window.searchSeries(${JSON.stringify(search)})`)
+      await waitFor(`document.querySelectorAll('[role="option"]').length === 2`)
+      assert.equal(
+        await evaluate(
+          `[...document.querySelectorAll('[role="option"]')].some(node => node.textContent === '雨天系列')`
+        ),
+        true
+      )
+    }
+    await evaluate(
+      `window.testStore.setState({config:{...window.testStore.getState().config,jav_series_translation_enabled:'false'}})`
+    )
+    await waitFor(`${picker}.textContent.includes('Test series')`)
+    assert.equal(
+      await evaluate(
+        `[...document.querySelectorAll('[role="option"]')].some(node => node.textContent === 'Rainy day')`
+      ),
+      true
+    )
+    await evaluate(
+      `window.testStore.setState({config:{...window.testStore.getState().config,jav_series_translation_enabled:'true'}})`
+    )
+    await waitFor(
+      `[...document.querySelectorAll('[role="option"]')].some(node => node.textContent === '雨天系列')`
+    )
+    await evaluate(
+      `[...document.querySelectorAll('[role="option"]')].find(node => node.textContent === '雨天系列').click()`
+    )
+    await waitFor(
+      `${picker}.textContent.includes('雨天系列') && !document.querySelector('[role="listbox"]')`
+    )
+    await evaluate(
+      `[...${modal}.querySelectorAll('button')].find(button => button.textContent === 'Save').click()`
+    )
+    await waitFor('window.savedPayload')
+    assert.equal(await evaluate('window.savedPayload.series_id'), 5)
+  }
+)

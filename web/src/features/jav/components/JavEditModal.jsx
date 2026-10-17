@@ -1,4 +1,9 @@
-import { preferChineseTitle, parseTranslationConfig } from '@/features/jav/titleTranslation'
+import {
+  preferChineseTitle,
+  preferChineseSeries,
+  getSeriesDisplayName,
+  parseTranslationConfig,
+} from '@/features/jav/titleTranslation'
 import { useCloseOnOutsidePointer } from '@/shared/hooks/useCloseOnOutsidePointer'
 import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
@@ -56,6 +61,7 @@ function JavEditForm({
   const [item] = useState(initialItem)
   const translationCaps = useStore((state) => state.config?.jav_title_translation_capabilities)
   const reasoning = parseTranslationConfig(translationCaps).reasoning
+  const translateSeries = useStore((state) => preferChineseSeries(state.config))
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
@@ -154,7 +160,9 @@ function JavEditForm({
   const visibleSeriesOptions = useMemo(
     () =>
       includeSelectedOptions(
-        filterOptionsByName(mergedSeriesOptions, seriesSearch),
+        filterOptionsByName(mergedSeriesOptions, seriesSearch, (series) =>
+          [series.name, series.zh_name].filter(Boolean).join(' ')
+        ),
         mergedSeriesOptions,
         [selectedSeriesId]
       ),
@@ -708,6 +716,7 @@ function JavEditForm({
             label={zh('系列', 'Series')}
             selectedId={selectedSeriesId}
             options={visibleSeriesOptions}
+            getOptionLabel={(series) => getSeriesDisplayName(series, translateSeries)}
             search={seriesSearch}
             onSearchChange={setSeriesSearch}
             onSelect={setSelectedSeriesId}
