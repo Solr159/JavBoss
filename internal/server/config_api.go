@@ -655,6 +655,9 @@ func updateConfig(c *gin.Context) {
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["app_version"] = common.Version
 	translation.PublicConfig(cfg)
+	// Title display follows automatic translation; ignore the retired display preference.
+	delete(cfg, "jav_title_prefer_chinese")
+	cfg["jav_title_translation_default_prompt"] = translation.DefaultPrompt
 	if strings.TrimSpace(cfg["jav_title_translation_prompt"]) == "" {
 		cfg["jav_title_translation_prompt"] = translation.DefaultPrompt
 	}

@@ -39,14 +39,13 @@ for (const scenario of ['unchanged source', 'changed source', 'manual correction
       }`)
       await waitFor(`document.querySelector('#jav-title-1')`)
       await evaluate(
-        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
+        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Retranslate').click()`
       )
       await waitFor(`document.querySelector('#jav-zh-title-1').value === '雨天相遇'`)
       assert.equal(await evaluate('window.savedPayload'), undefined)
       assert.deepEqual(await evaluate('window.translationPayload'), {
         refresh: true,
         title: 'Test JAV',
-        thinking: false,
       })
       if (scenario === 'manual correction') {
         await evaluate(`window.setText('#jav-zh-title-1', '人工校对译名')`)
@@ -112,7 +111,7 @@ test(
       input.dispatchEvent(new Event('input',{bubbles:true}));
     }`)
     await evaluate(
-      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Retranslate').click()`
     )
     await waitFor(`document.body.textContent.includes('credit_balance_exhausted')`)
     const text = await evaluate('document.body.textContent')
@@ -121,5 +120,61 @@ test(
     assert.ok(text.includes('Add credits.'))
     assert.equal(await evaluate(`document.querySelector('#jav-zh-title-1').value`), '人工校对译名')
     assert.equal(await evaluate('window.authExpired'), false)
+  }
+)
+
+test(
+  'retranslation inherits saved settings and only offers supported mode overrides',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
+    })
+    await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+    await evaluate(`{
+    const originalFetch=window.fetch;
+    window.translationCalls=[];
+    window.fetch=(input,init)=>{
+      const path=new URL(input,location.origin).pathname;
+      if(path.endsWith('/title-translation')) {
+        window.translationCalls.push(JSON.parse(init.body));
+        return Promise.resolve(Response.json({id:1,title:'Test JAV',zh_title:'测试译文'}));
+      }
+      if(['/jav/studios','/jav/series','/jav/idols/options'].includes(path)) return Promise.resolve(Response.json({items:[],total:0}));
+      if(path==='/jav/tags') return Promise.resolve(Response.json([]));
+      return originalFetch(input,init);
+    };
+    window.testStore.setState({loadJavTags:()=>Promise.resolve()});
+    document.querySelector('[aria-label="Edit JAV"]').click();
+  }`)
+    await waitFor(`document.querySelector('#jav-title-1')`)
+    for (const mode of ['none', 'always', 'toggle']) {
+      await evaluate(
+        `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_thinking:'true',jav_title_translation_capabilities:JSON.stringify({reasoning:'${mode}'})}})`
+      )
+      assert.equal(
+        await evaluate(
+          `Boolean(document.querySelector('[aria-label="Use another translation mode"]'))`
+        ),
+        mode === 'toggle'
+      )
+      await evaluate(
+        `[...document.querySelectorAll('button')].find(b=>b.textContent==='Retranslate').click()`
+      )
+      await waitFor(
+        `[...document.querySelectorAll('button')].some(b=>b.textContent==='Retranslate' && !b.disabled)`
+      )
+      assert.equal(
+        Object.hasOwn(await evaluate('window.translationCalls.at(-1)'), 'thinking'),
+        false
+      )
+    }
+    await evaluate(`{
+    const select=document.querySelector('[aria-label="Use another translation mode"]');
+    select.value='fast';select.dispatchEvent(new Event('change',{bubbles:true}));
+  }`)
+    await waitFor('window.translationCalls.length===4')
+    assert.equal(await evaluate('window.translationCalls.at(-1).thinking'), false)
   }
 )

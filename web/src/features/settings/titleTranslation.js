@@ -35,7 +35,7 @@ const defaultProviders = [
   { id: 'custom', name: '自定义 / Custom', base_url: '', protocol: 'chat' },
 ]
 
-const defaultRequest = {
+export const defaultRequest = {
   url: '{{base_url}}/chat/completions',
   method: 'POST',
   headers: { Authorization: 'Bearer {{api_key}}', 'Content-Type': 'application/json' },
@@ -58,7 +58,10 @@ function profileDraft(profile = {}, provider = {}) {
     baseUrl: profile.base_url || provider.base_url || '',
     protocol: profile.protocol || provider.protocol || 'chat',
     model: profile.model || '',
-    manualModel: false,
+    customAddress: Boolean(
+      profile.base_url &&
+        profile.base_url.replace(/\/$/, '') !== provider.base_url?.replace(/\/$/, '')
+    ),
     temperature: profile.temperature ?? '',
     thinking: Boolean(profile.thinking),
     effort: profile.effort || '',
@@ -92,6 +95,7 @@ export function createTitleTranslationDraft(config) {
   )
   return {
     enabled: configFlag(config?.jav_title_translation_enabled),
+    defaultPrompt: config?.jav_title_translation_default_prompt || '',
     prompt: config?.jav_title_translation_prompt || '',
     catalog,
     provider,
@@ -107,12 +111,13 @@ export function createTitleTranslationDraft(config) {
 // Keep unfinished edits when switching providers; never reuse another provider's key.
 export function changeTranslationDraft(current, patch) {
   if (!patch.provider || patch.provider === current.provider) return { ...current, ...patch }
-  const { profiles, catalog, enabled, prompt, provider, ...profile } = current
+  const { profiles, catalog, enabled, defaultPrompt, prompt, provider, ...profile } = current
   const nextProfiles = { ...profiles, [provider]: profile }
   return {
     profiles: nextProfiles,
     catalog,
     enabled,
+    defaultPrompt,
     prompt,
     provider: patch.provider,
     ...(nextProfiles[patch.provider] ||

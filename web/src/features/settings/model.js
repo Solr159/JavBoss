@@ -36,7 +36,6 @@ export function createJavSettingsDraft(state) {
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
     javTitleMaxRowsInput: javTitleMaxRows,
-    titleTranslationEnabled: configFlag(config?.jav_title_translation_enabled),
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,
     javHideSeriesInput: configFlag(config?.jav_hide_series),

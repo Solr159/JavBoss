@@ -75,6 +75,49 @@ func listTitleTranslationModels(c *gin.Context) {
 	c.JSON(200, gin.H{"models": models, "capabilities": caps})
 }
 
+// POST /jav/title-translation/test translates a sample with draft settings; nothing is saved.
+func testTitleTranslation(c *gin.Context) {
+	var req struct {
+		Provider string          `json:"provider"`
+		Profile  json.RawMessage `json:"profile"`
+		Prompt   string          `json:"prompt"`
+		Title    string          `json:"title"`
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 65536)
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.Prompt) > 8192 || len(req.Title) > 8192 || strings.TrimSpace(req.Title) == "" {
+		respondLocalizedError(c, 400, "测试标题或配置无效", "Invalid sample title or settings")
+		return
+	}
+	cfg, err := dbpkg.ListConfig(c.Request.Context())
+	if err != nil {
+		respondLocalizedError(c, 500, "读取翻译配置失败", "Failed to load translation settings")
+		return
+	}
+	provider := req.Provider
+	if provider == "" {
+		provider = translation.ActiveProvider(cfg)
+	}
+	// Merge exactly as saving does, retaining an omitted API key and replacing request objects.
+	profiles, err := translation.MergeProfiles(cfg, map[string]json.RawMessage{provider: req.Profile})
+	if err != nil {
+		respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")
+		return
+	}
+	cfg[translation.ProfilesKey] = profiles
+	profile := translation.LoadProfiles(cfg)[provider]
+	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		logging.Error("disable test translation write deadline: %v", err)
+	}
+	titleTranslationMu.Lock()
+	defer titleTranslationMu.Unlock()
+	title, err := titleTranslationClient.Translate(c.Request.Context(), provider, profile, req.Prompt, strings.TrimSpace(req.Title), nil)
+	if err != nil {
+		respondTitleTranslationError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"zh_title": title})
+}
+
 // POST /jav/items/:id/title-translation saves a Chinese title while preserving the original.
 // With refresh=true, optional title and thinking override this preview only; nothing is saved.
 func translateJavTitle(c *gin.Context) {
@@ -133,10 +176,6 @@ func translateJavTitle(c *gin.Context) {
 	if strings.TrimSpace(sourceTitle) == "" {
 		respondLocalizedError(c, 400, "影片标题不能为空", "The title must not be empty")
 		return
-	}
-	if req.Refresh && req.Thinking == nil {
-		fast := false
-		req.Thinking = &fast
 	}
 	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], sourceTitle, req.Thinking)
 	if err != nil {

@@ -27,8 +27,37 @@ export async function translateJavTitle(id, { refresh = false, title, thinking }
   return res.json()
 }
 
-export async function startTitleTranslationBatch() {
-  const res = await apiFetch('/jav/title-translation/batch', { method: 'POST' })
+export async function testTitleTranslation({ provider, profile, prompt, title }) {
+  const res = await apiFetch('/jav/title-translation/test', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ provider, profile, prompt, title }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function previewTitleTranslationBatch(scope = 'missing') {
+  const res = await apiFetch(
+    `/jav/title-translation/batch/preview?scope=${encodeURIComponent(scope)}`,
+    { cache: 'no-store' }
+  )
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function stopTitleTranslationBatch() {
+  const res = await apiFetch('/jav/title-translation/batch', { method: 'DELETE' })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function startTitleTranslationBatch(scope = 'missing', confirmOverwrite = false) {
+  const res = await apiFetch('/jav/title-translation/batch', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ scope, confirm_overwrite: confirmOverwrite }),
+  })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }

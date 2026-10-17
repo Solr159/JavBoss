@@ -2,18 +2,22 @@ package server
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/jav/translation"
 	"javboss/internal/models"
 )
 
 type titleTranslationBatchStatus struct {
+	Stopping   bool   `json:"stopping"`
+	Scope      string `json:"scope"`
 	Running    bool   `json:"running"`
 	Total      int    `json:"total"`
 	Processed  int    `json:"processed"`
@@ -44,8 +48,69 @@ func getTitleTranslationBatch(c *gin.Context) {
 	c.JSON(http.StatusOK, allTitleTranslations.status)
 }
 
-// POST /jav/title-translation/batch snapshots every title and starts one background job.
+// GET /jav/title-translation/batch/preview?scope=missing|all counts the selected library titles.
+func previewTitleTranslationBatch(c *gin.Context) {
+	scope := c.DefaultQuery("scope", "missing")
+	if scope != "missing" && scope != "all" {
+		respondLocalizedError(c, 400, "翻译范围无效", "Invalid translation scope")
+		return
+	}
+	items, err := dbpkg.ListJavTitleTranslationItems(c.Request.Context())
+	if err != nil {
+		respondLocalizedError(c, 500, "读取影片标题失败", "Failed to load JAV titles")
+		return
+	}
+	selected := selectTitleTranslationItems(items, scope)
+	existing := 0
+	for _, item := range selected {
+		if strings.TrimSpace(item.ZhTitle) != "" {
+			existing++
+		}
+	}
+	c.JSON(200, gin.H{"scope": scope, "total": len(selected), "existing": existing})
+}
+
+func selectTitleTranslationItems(items []models.Jav, scope string) []models.Jav {
+	selected := make([]models.Jav, 0, len(items))
+	for _, item := range items {
+		if strings.TrimSpace(item.Title) == "" || (scope == "missing" && strings.TrimSpace(item.ZhTitle) != "") {
+			continue
+		}
+		selected = append(selected, item)
+	}
+	return selected
+}
+
+// DELETE /jav/title-translation/batch stops after the current provider request completes.
+func stopTitleTranslationBatch(c *gin.Context) {
+	job := allTitleTranslations
+	job.mu.Lock()
+	defer job.mu.Unlock()
+	if job.status.Running {
+		job.status.Stopping = true
+	}
+	c.JSON(200, job.status)
+}
+
+// POST /jav/title-translation/batch uses saved settings. Scope defaults to missing;
+// scope=all requires confirm_overwrite=true because it can replace manual corrections.
 func startTitleTranslationBatch(c *gin.Context) {
+	var req struct {
+		Scope            string `json:"scope"`
+		ConfirmOverwrite bool   `json:"confirm_overwrite"`
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		respondLocalizedError(c, 400, "批量翻译请求无效", "Invalid batch translation request")
+		return
+	}
+	if req.Scope == "" {
+		req.Scope = "missing"
+	}
+	if (req.Scope != "missing" && req.Scope != "all") || (req.Scope == "all" && !req.ConfirmOverwrite) {
+		respondLocalizedError(c, 400, "覆盖已有译名需要明确确认", "Confirm before overwriting existing translations")
+		return
+	}
 	job := allTitleTranslations
 	job.mu.Lock()
 	defer job.mu.Unlock()
@@ -55,22 +120,26 @@ func startTitleTranslationBatch(c *gin.Context) {
 	}
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
+		respondLocalizedError(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	enabled, _ := strconv.ParseBool(cfg["jav_title_translation_enabled"])
 	profile := translation.ActiveProfile(cfg)
 	provider := translation.ActiveProvider(cfg)
-	if !enabled || profile.Model == "" || (profile.Endpoint(provider) == "" && provider != "custom") || (profile.APIKey == "" && provider != "custom") {
-		respondLocalizedError(c, http.StatusBadRequest, "请开启标题翻译并配置 API Key 和模型", "Enable title translation and configure an API key and model")
+	if profile.Model == "" || (profile.Endpoint(provider) == "" && provider != "custom") || (profile.APIKey == "" && provider != "custom") {
+		respondLocalizedError(c, 400, "请先保存 API Key 和模型配置", "Save an API key and model first")
+		return
+	}
+	if err := profile.Validate(provider); err != nil {
+		respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")
 		return
 	}
 	items, err := dbpkg.ListJavTitleTranslationItems(c.Request.Context())
 	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取影片标题失败", "Failed to load JAV titles")
+		respondLocalizedError(c, 500, "读取影片标题失败", "Failed to load JAV titles")
 		return
 	}
-	job.status = titleTranslationBatchStatus{Running: len(items) > 0, Total: len(items)}
+	items = selectTitleTranslationItems(items, req.Scope)
+	job.status = titleTranslationBatchStatus{Running: len(items) > 0, Total: len(items), Scope: req.Scope}
 	if job.status.Running {
 		go job.run(items, cfg)
 	}
@@ -91,14 +160,21 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 		}
 		// Share the paid-request lock with automatic and manual single-title translation.
 		titleTranslationMu.Lock()
-		current, err := dbpkg.ListConfig(job.ctx)
-		enabled, _ := strconv.ParseBool(current["jav_title_translation_enabled"])
-		if err != nil || !enabled {
+		job.mu.Lock()
+		stopping := job.status.Stopping
+		job.mu.Unlock()
+		if stopping {
 			titleTranslationMu.Unlock()
-			job.fail("重新翻译已停止，请检查标题翻译开关", "Retranslation stopped; check the title translation switch")
 			return
 		}
-		if strings.TrimSpace(item.Title) == "" {
+		// Skip titles changed since the batch started, before spending a request.
+		current, err := dbpkg.GetJavTitleTranslationItem(job.ctx, item.ID)
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			titleTranslationMu.Unlock()
+			job.fail("读取待翻译标题失败，任务已停止", "Failed to load a title; translation stopped")
+			return
+		}
+		if err != nil || current.Title != item.Title || current.ZhTitle != item.ZhTitle {
 			titleTranslationMu.Unlock()
 			job.record(false)
 			continue

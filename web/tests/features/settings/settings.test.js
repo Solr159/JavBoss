@@ -156,7 +156,7 @@ test('translation settings keep saved keys private and omit untouched credential
   assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, '')
 })
 
-test('display settings only change the shared toggle and leave tool configuration untouched', async (t) => {
+test('display settings leave all translation configuration untouched', async (t) => {
   const [model, actions, { useStore }] = await loadModules(t, [
     'features/settings/model.js',
     'features/settings/actions.js',
@@ -168,9 +168,9 @@ test('display settings only change the shared toggle and leave tool configuratio
     return Response.json(payload)
   })
   const draft = model.createJavSettingsDraft(useStore.getState())
-  draft.titleTranslationEnabled = true
   await actions.saveJavSettings(draft, () => {})
-  assert.equal(payload.jav_title_translation_enabled, true)
+  assert.equal(Object.hasOwn(payload, 'jav_title_prefer_chinese'), false)
+  assert.equal(Object.hasOwn(payload, 'jav_title_translation_enabled'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_api_key'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_model'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_prompt'), false)
@@ -214,7 +214,7 @@ test('provider picker has defaults before catalog loads and fills each API endpo
     const draft = settings.createTitleTranslationDraft({ jav_title_translation_catalog: catalog })
     assert.equal(draft.catalog.length, 9)
     assert.equal(draft.baseUrl, 'https://api.deepseek.com')
-    assert.equal(draft.manualModel, false)
+    assert.equal(draft.customAddress, false)
     const openai = settings.changeTranslationDraft(draft, { provider: 'openai' })
     assert.equal(openai.baseUrl, 'https://api.openai.com/v1')
     assert.equal(openai.protocol, 'responses')
@@ -223,4 +223,32 @@ test('provider picker has defaults before catalog loads and fills each API endpo
     const custom = settings.changeTranslationDraft(kimi, { provider: 'custom' })
     assert.equal(custom.baseUrl, '')
   }
+})
+
+test('Chinese title display follows automatic translation and ignores the retired preference', async (t) => {
+  const [{ preferChineseTitle }, settings] = await loadModules(t, [
+    'features/jav/titleTranslation.js',
+    'features/settings/titleTranslation.js',
+  ])
+  assert.equal(preferChineseTitle({}), false)
+  for (const enabled of ['true', 'false']) {
+    for (const retired of [undefined, 'true', 'false']) {
+      assert.equal(
+        preferChineseTitle({
+          jav_title_translation_enabled: enabled,
+          jav_title_prefer_chinese: retired,
+        }),
+        enabled === 'true'
+      )
+    }
+  }
+  const draft = settings.createTitleTranslationDraft({
+    jav_title_translation_enabled: 'true',
+    jav_title_prefer_chinese: 'false',
+    jav_title_translation_default_prompt: 'Default',
+  })
+  const next = settings.changeTranslationDraft(draft, { provider: 'openai' })
+  assert.equal(next.enabled, true)
+  assert.equal(Object.hasOwn(next, 'preferChinese'), false)
+  assert.equal(next.defaultPrompt, 'Default')
 })

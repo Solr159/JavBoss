@@ -120,7 +120,6 @@ export async function saveJavSettings(draft, onWaterfallChange) {
   const cfg = await updateConfig({
     jav_watch_time_icon_minutes: normalizeWatchTimeIconMinutes(draft.javWatchTimeIconMinutesInput),
     jav_page_size: javSize,
-    jav_title_translation_enabled: Boolean(draft.titleTranslationEnabled),
     jav_grid_columns: javColumns,
     jav_title_max_rows: javTitleRows,
     jav_idol_tag_max_rows: javIdolTagRows,
@@ -185,10 +184,5 @@ export async function saveTitleTranslationSettings(draft) {
     jav_title_translation_profiles: translationProfiles(draft),
     jav_title_translation_prompt: draft.prompt,
   })
-  useStore.setState({ config: cfg })
-}
-
-export async function setTitleTranslationEnabled(enabled) {
-  const cfg = await updateConfig({ jav_title_translation_enabled: enabled })
   useStore.setState({ config: cfg })
 }

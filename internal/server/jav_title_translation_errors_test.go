@@ -66,7 +66,7 @@ func TestTitleTranslationQuotaErrorReachesSingleAndBatchClients(t *testing.T) {
 		}
 	}
 	check(response.Body.String())
-	response = translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("batch=%d %s", response.Code, response.Body)
 	}

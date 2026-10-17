@@ -311,8 +311,6 @@ export default function JavSettingsModal({
   open,
   initialTab = 'jav',
   onClose,
-  titleTranslationEnabled,
-  onTitleTranslationChange,
   javPageSizeInput,
   onJavPageSizeChange,
   javGridColumnsInput,
@@ -394,7 +392,6 @@ export default function JavSettingsModal({
         onJavTagShowSimplifiedChange?.(false)
         break
       default:
-        onTitleTranslationChange?.(false)
         onJavPageSizeChange?.(24)
         onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
@@ -508,13 +505,6 @@ export default function JavSettingsModal({
                     value={javWatchTimeIconMinutesInput}
                     onChange={(event) => onJavWatchTimeIconMinutesChange?.(event.target.value)}
                     className={controlClassName}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('标题翻译', 'Title translation')}>
-                  <SettingsSwitch
-                    label={zh('标题翻译', 'Title translation')}
-                    checked={titleTranslationEnabled}
-                    onChange={onTitleTranslationChange}
                   />
                 </SettingsRow>
                 <SettingsRow label={zh('标题最多行数', 'Title max rows')}>

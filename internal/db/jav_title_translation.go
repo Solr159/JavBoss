@@ -27,3 +27,12 @@ func ListJavTitleTranslationItems(ctx context.Context) ([]models.Jav, error) {
 	}
 	return items, nil
 }
+
+// GetJavTitleTranslationItem rechecks a queued title without loading its related metadata.
+func GetJavTitleTranslationItem(ctx context.Context, id int64) (*models.Jav, error) {
+	var item models.Jav
+	if err := common.DB.WithContext(ctx).Select("id", "title", "zh_title").First(&item, id).Error; err != nil {
+		return nil, fmt.Errorf("get jav title for translation: %w", err)
+	}
+	return &item, nil
+}

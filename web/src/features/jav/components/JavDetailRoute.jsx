@@ -1,3 +1,4 @@
+import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import useJavFavoriteCount from '@/features/favorites/hooks/useJavFavoriteCount'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchJavItem } from '@/features/jav/api'
@@ -10,7 +11,6 @@ import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import useDocumentTitle from '@/shared/hooks/useDocumentTitle'
 import { buildJavDetailPageTitle } from '@/navigation/pageTitle'
-import { configFlag } from '@/utils/config'
 
 // Reuse the card's actions and editors while mounting details independently of the list.
 export default function JavDetailRoute({
@@ -49,9 +49,7 @@ export default function JavDetailRoute({
   )
   const detailItems = useMemo(() => [detailItem], [detailItem])
   const { displayItems, ...presentation } = useJavPresentation(detailItems)
-  const translateTitle = useStore((state) =>
-    configFlag(state.config?.jav_title_translation_enabled)
-  )
+  const translateTitle = useStore((state) => preferChineseTitle(state.config))
   useDocumentTitle(buildJavDetailPageTitle(displayItems[0], translateTitle), { priority: 10 })
   const previews = useJavPreviews()
   useEffect(() => {

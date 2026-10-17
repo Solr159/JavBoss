@@ -1,5 +1,7 @@
+import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined'
 import { useEffect, useState } from 'react'
 import { fetchTitleTranslationModels } from '@/features/jav/api'
+import { translationPresets, protocolNames } from '@/features/settings/translationPresets'
 import { translationProfile } from '@/features/settings/titleTranslation'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -13,6 +15,7 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [caps, setCaps] = useState(emptyCaps)
+  const [checkingCaps, setCheckingCaps] = useState(true)
   const [revision, setRevision] = useState(0)
   const { provider: providerID, baseUrl, protocol, model, reasoning } = value
   const provider = value.catalog.find((item) => item.id === providerID)
@@ -22,6 +25,7 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
   useEffect(() => {
     const controller = new AbortController()
     setCaps(emptyCaps)
+    setCheckingCaps(true)
     const timer = setTimeout(async () => {
       try {
         const result = await fetchTitleTranslationModels({
@@ -38,6 +42,8 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
         if (!controller.signal.aborted) setCaps(result.capabilities || emptyCaps)
       } catch {
         // Unknown capability stays explicit; discovery errors are shown separately.
+      } finally {
+        if (!controller.signal.aborted) setCheckingCaps(false)
       }
     }, 250)
     return () => {
@@ -95,271 +101,343 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
     }
   }
 
+  const applyPreset = (protocol) => {
+    if (!protocol) return
+    onChange({
+      protocol,
+      request: JSON.stringify(translationPresets[protocol], null, 2),
+      reasoning: 'none',
+      thinking: false,
+      effort: '',
+      fastParams: '{}',
+      thinkingParams: '{}',
+    })
+  }
+  const effortNames = {
+    low: zh('低', 'Low'),
+    medium: zh('中', 'Medium'),
+    high: zh('高', 'High'),
+    xhigh: zh('很高', 'Very high'),
+    max: zh('最高', 'Maximum'),
+    minimal: zh('最低', 'Minimal'),
+  }
+  const endpointField = field(
+    zh('API 地址', 'API base URL'),
+    <input
+      className={inputClass}
+      value={value.baseUrl}
+      placeholder={provider?.base_url || 'https://example.com/v1'}
+      onChange={(e) => onChange({ baseUrl: e.target.value })}
+    />
+  )
   return (
-    <div className="space-y-3 rounded-lg bg-slate-50 p-3 text-sm">
-      {field(
-        zh('模型提供商', 'Model provider'),
-        <select
-          className={inputClass}
-          value={value.provider}
-          onChange={(e) => onChange({ provider: e.target.value })}
-        >
-          {value.catalog.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      )}
-      {field(
-        zh('API 地址', 'API base URL'),
-        <input
-          className={inputClass}
-          value={value.baseUrl}
-          placeholder={provider?.base_url || 'https://example.com/v1'}
-          onChange={(e) => onChange({ baseUrl: e.target.value })}
-        />
-      )}
-      {custom &&
-        field(
-          zh('模型列表接口协议（可选）', 'Model discovery protocol (optional)'),
+    <div className="space-y-4 text-sm">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {field(
+          zh('服务商', 'Provider'),
           <select
             className={inputClass}
-            value={value.protocol}
-            onChange={(e) => onChange({ protocol: e.target.value })}
+            value={value.provider}
+            onChange={(e) => onChange({ provider: e.target.value })}
           >
-            <option value="chat">OpenAI Chat Completions</option>
-            <option value="responses">OpenAI Responses</option>
-            <option value="anthropic">Anthropic Messages</option>
-            <option value="gemini">Gemini GenerateContent</option>
-          </select>
-        )}
-      {field(
-        'API Key',
-        <input
-          type="password"
-          autoComplete="new-password"
-          className={inputClass}
-          value={value.apiKey}
-          placeholder={
-            value.hasApiKey
-              ? zh('已保存，留空沿用', 'Saved; leave blank to keep')
-              : custom
-                ? zh('本地服务可留空', 'Optional for local services')
-                : 'sk-…'
-          }
-          onChange={(e) => onChange({ apiKey: e.target.value, clearApiKey: false })}
-        />
-      )}
-      {value.hasApiKey && (
-        <button
-          type="button"
-          className="text-xs text-slate-500 underline"
-          onClick={() => onChange({ apiKey: '', hasApiKey: false, clearApiKey: true })}
-        >
-          {zh('清除已保存的 API Key', 'Clear saved API key')}
-        </button>
-      )}
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
-          {field(
-            zh('模型名称', 'Model name'),
-            value.manualModel ? (
-              <input
-                className={inputClass}
-                value={value.model}
-                placeholder={zh('输入模型名称', 'Enter a model ID')}
-                onChange={(e) => changeModel(e.target.value)}
-              />
-            ) : (
-              <select
-                aria-label={zh('服务商模型列表', 'Provider models')}
-                className={inputClass}
-                value={value.model}
-                onChange={(e) => changeModel(e.target.value)}
-              >
-                <option value="">
-                  {loading ? zh('同步中…', 'Syncing…') : zh('请选择模型', 'Select a model')}
-                </option>
-                {value.model && !models.some((model) => model.id === value.model) && (
-                  <option value={value.model}>{value.model}</option>
-                )}
-                {models.map((model) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name === model.id ? model.id : model.name + ' (' + model.id + ')'}
-                  </option>
-                ))}
-              </select>
-            )
-          )}
-        </div>
-        <button
-          type="button"
-          disabled={loading || (!apiKey && !value.hasApiKey && !custom)}
-          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-50"
-          onClick={() => setRevision((current) => current + 1)}
-        >
-          {loading ? zh('同步中…', 'Syncing…') : zh('同步模型', 'Sync models')}
-        </button>
-      </div>
-      <label className="flex items-center gap-2 text-slate-700">
-        <input
-          type="checkbox"
-          name="title-translation-manual-model"
-          checked={value.manualModel}
-          onChange={(e) => onChange({ manualModel: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-        />
-        {zh('允许手动填写模型名称', 'Allow manual model name')}
-      </label>
-      {error && (
-        <p role="alert" className="text-xs text-amber-700">
-          {error}{' '}
-          {zh(
-            '模型列表不可用时，可勾选“允许手动填写模型名称”。',
-            'If discovery is unavailable, enable manual model entry.'
-          )}
-        </p>
-      )}
-      {custom &&
-        field(
-          zh('模型推理能力', 'Model reasoning capability'),
-          <select
-            className={inputClass}
-            value={value.reasoning}
-            onChange={(e) => onChange({ reasoning: e.target.value })}
-          >
-            <option value="none">{zh('不支持推理', 'No reasoning')}</option>
-            <option value="toggle">{zh('可开启或关闭', 'Can enable or disable')}</option>
-            <option value="always">{zh('强制推理', 'Always reasons')}</option>
-          </select>
-        )}
-      <label className="flex items-center gap-2 text-slate-700">
-        <input
-          type="checkbox"
-          name="title-translation-thinking"
-          checked={thinking}
-          disabled={caps.reasoning !== 'toggle'}
-          onChange={(e) => onChange({ thinking: e.target.checked })}
-          className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-        />
-        {zh('启用推理', 'Enable reasoning')}
-      </label>
-      {caps.reasoning === 'always' && (
-        <p className="text-xs text-slate-500">
-          {zh(
-            '此模型无法关闭推理，JAV 编辑中的快速重新翻译将不可用。',
-            'This model always reasons; quick retranslation will be unavailable in the JAV editor.'
-          )}
-        </p>
-      )}
-      {caps.reasoning === 'none' && (
-        <p className="text-xs text-slate-500">
-          {zh(
-            '此模型不支持推理，推理翻译会使用快速翻译。',
-            'This model does not reason; reasoning translation falls back to quick translation.'
-          )}
-        </p>
-      )}
-      {caps.reasoning === 'unknown' && value.model && (
-        <p className="text-xs text-amber-700">
-          {zh(
-            '尚未识别此模型的参数能力，请改用自定义服务商配置。',
-            'Unrecognized model capabilities; configure it using the custom provider.'
-          )}
-        </p>
-      )}
-      {temperatureSupported &&
-        field(
-          zh('温度', 'Temperature'),
-          <input
-            type="number"
-            min="0"
-            max={caps.temperature_max}
-            step="0.1"
-            value={value.temperature}
-            placeholder={zh('留空使用服务商默认值', 'Leave blank for provider default')}
-            className={inputClass}
-            onChange={(e) => onChange({ temperature: e.target.value })}
-          />
-        )}
-      {thinking &&
-        caps.efforts?.length > 0 &&
-        field(
-          zh('推理强度', 'Reasoning effort'),
-          <select
-            className={inputClass}
-            value={value.effort}
-            onChange={(e) => onChange({ effort: e.target.value })}
-          >
-            <option value="">{zh('默认', 'Default')}</option>
-            {caps.efforts.map((effort) => (
-              <option key={effort} value={effort}>
-                {effort}
+            {value.catalog.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
               </option>
             ))}
           </select>
         )}
-      {custom && (
-        <>
-          {value.reasoning !== 'none' &&
-            field(
-              zh('自定义推理强度值', 'Custom reasoning effort value'),
+        <div className="flex min-w-0 items-end gap-2">
+          <div className="min-w-0 flex-1">
+            {field(
+              zh('模型', 'Model'),
               <input
+                className={inputClass}
+                list="title-translation-models"
+                value={value.model}
+                placeholder={zh(
+                  '选择、搜索或直接输入模型名称',
+                  'Choose, search or enter a model ID'
+                )}
+                onChange={(e) => changeModel(e.target.value)}
+              />
+            )}
+            <datalist id="title-translation-models">
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </datalist>
+          </div>
+          <button
+            type="button"
+            disabled={loading || (!apiKey && !value.hasApiKey && !custom)}
+            aria-label={zh('刷新模型列表', 'Refresh model list')}
+            title={zh('刷新模型列表', 'Refresh model list')}
+            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+            onClick={() => setRevision((current) => current + 1)}
+          >
+            <RefreshOutlinedIcon className={loading ? 'animate-spin' : ''} sx={{ fontSize: 18 }} />
+          </button>
+        </div>
+      </div>
+      <div className="relative">
+        {field(
+          'API Key',
+          <input
+            type="password"
+            autoComplete="new-password"
+            className={inputClass}
+            value={value.apiKey}
+            placeholder={
+              value.hasApiKey
+                ? zh('已保存，留空沿用', 'Saved; leave blank to keep')
+                : custom
+                  ? zh('本地服务可留空', 'Optional for local services')
+                  : zh('填写服务商提供的密钥', 'Enter your provider API key')
+            }
+            onChange={(e) => onChange({ apiKey: e.target.value, clearApiKey: false })}
+          />
+        )}
+        {value.hasApiKey && (
+          <button
+            type="button"
+            aria-label={zh('清除密钥', 'Clear key')}
+            className="absolute right-0 top-0 text-xs text-zinc-500 hover:text-red-600"
+            onClick={() => onChange({ apiKey: '', hasApiKey: false, clearApiKey: true })}
+          >
+            {zh('清除密钥', 'Clear key')}
+          </button>
+        )}
+      </div>
+      {custom && endpointField}
+      {error && (
+        <p role="alert" className="break-words text-xs text-amber-700">
+          {error}{' '}
+          {zh(
+            '也可以直接输入模型名称，再测试翻译。',
+            'You can also enter a model ID and test translation.'
+          )}
+        </p>
+      )}
+      {!checkingCaps && caps.reasoning === 'unknown' && value.model && (
+        <p className="text-xs text-amber-700">
+          {zh(
+            '尚未识别此模型的能力。可使用自定义服务商的接口预设，再测试翻译。',
+            'Model capabilities are unknown. Try a custom provider preset, then test translation.'
+          )}
+        </p>
+      )}
+      {custom && (
+        <div className="space-y-2 rounded-lg bg-slate-50 p-3">
+          {field(
+            zh('应用接口预设', 'Apply an API preset'),
+            <select className={inputClass} value="" onChange={(e) => applyPreset(e.target.value)}>
+              <option value="">
+                {zh('选择预设以替换当前请求配置', 'Choose a preset to replace request settings')}
+              </option>
+              {Object.entries(protocolNames).map(([key, name]) => (
+                <option key={key} value={key}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          )}
+          <p className="text-xs text-slate-500">
+            {zh(
+              '新配置默认使用 OpenAI Chat Completions。预设不发送模型专用推理参数；特殊接口可在下方高级设置中调整。',
+              'New configurations use OpenAI Chat Completions. Presets omit model-specific reasoning parameters; adjust special APIs in advanced settings below.'
+            )}
+          </p>
+        </div>
+      )}
+      <details data-translation-advanced className="group border-t border-zinc-100 pt-4">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
+          <span>{zh('高级设置', 'Advanced settings')}</span>
+          <span
+            className="text-zinc-400 transition-transform group-open:rotate-180"
+            aria-hidden="true"
+          >
+            ⌄
+          </span>
+        </summary>
+        <div className="mt-4 space-y-4 rounded-xl bg-zinc-50 p-4">
+          {!custom && (
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={value.customAddress}
+                  onChange={(e) =>
+                    onChange({
+                      customAddress: e.target.checked,
+                      ...(!e.target.checked ? { baseUrl: provider?.base_url || '' } : {}),
+                    })
+                  }
+                />
+                {zh('使用自定义地址', 'Use a custom address')}
+              </label>
+              {value.customAddress && endpointField}
+            </div>
+          )}
+          {custom &&
+            field(
+              zh('模型推理能力', 'Model reasoning capability'),
+              <select
+                className={inputClass}
+                value={value.reasoning}
+                onChange={(e) => onChange({ reasoning: e.target.value })}
+              >
+                <option value="none">{zh('不设置推理模式', 'Do not configure reasoning')}</option>
+                <option value="toggle">{zh('支持开启和关闭', 'Can enable or disable')}</option>
+                <option value="always">{zh('始终开启', 'Always on')}</option>
+              </select>
+            )}
+          {caps.reasoning === 'toggle' && (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                name="title-translation-thinking"
+                checked={thinking}
+                onChange={(e) => onChange({ thinking: e.target.checked })}
+              />
+              {zh(
+                '启用推理（可能增加等待时间和费用）',
+                'Enable reasoning (may increase time and cost)'
+              )}
+            </label>
+          )}
+          {caps.reasoning === 'always' && (
+            <p className="text-xs text-slate-500">
+              {zh('此模型始终开启推理。', 'This model always uses reasoning.')}
+            </p>
+          )}
+          {thinking &&
+            caps.efforts?.length > 0 &&
+            field(
+              zh('推理强度', 'Reasoning effort'),
+              <select
                 className={inputClass}
                 value={value.effort}
                 onChange={(e) => onChange({ effort: e.target.value })}
-                placeholder="high"
+              >
+                <option value="">{zh('默认', 'Default')}</option>
+                {caps.efforts.map((effort) => (
+                  <option key={effort} value={effort}>
+                    {effortNames[effort] || effort}
+                  </option>
+                ))}
+              </select>
+            )}
+          {temperatureSupported &&
+            field(
+              zh('温度', 'Temperature'),
+              <input
+                type="number"
+                min="0"
+                max={caps.temperature_max}
+                step="0.1"
+                className={inputClass}
+                value={value.temperature}
+                placeholder={zh('留空使用服务商默认值', 'Leave blank for provider default')}
+                onChange={(e) => onChange({ temperature: e.target.value })}
               />
             )}
-          {[
-            [zh('完整请求模板（JSON）', 'Full request template (JSON)'), 'request'],
-            [zh('快速翻译请求覆盖（JSON）', 'Quick request overrides (JSON)'), 'fastParams'],
-            [
-              zh('推理翻译请求覆盖（JSON）', 'Reasoning request overrides (JSON)'),
-              'thinkingParams',
-            ],
-          ].map(([label, key]) => (
-            <div key={key}>
-              {field(
-                label,
-                <textarea
-                  className={inputClass + ' font-mono'}
-                  rows={key === 'request' ? 12 : 3}
-                  value={value[key]}
-                  onChange={(e) => onChange({ [key]: e.target.value })}
-                />
-              )}
-            </div>
-          ))}
-          <p className="text-xs leading-5 text-slate-500">
-            {zh(
-              '模板包含 url、method（GET/POST）、headers、body 和 response_path（JSON Pointer，如 /choices/0/message/content）。支持 JSON 响应。占位符：{{base_url}}、{{api_key}}、{{model}}、{{prompt}}、{{title}}、{{temperature}}、{{thinking}}、{{effort}}。整值占位符保留数值或布尔类型；密钥请使用占位符。模式覆盖可替换上述任意字段，null 删除字段。可切换推理时，必须分别配置快速和推理请求覆盖，例如快速覆盖 {"body":{"thinking":{"type":"disabled"}}}。',
-              'Template fields: url, method (GET/POST), headers, body, response_path (JSON Pointer, e.g. /choices/0/message/content). JSON responses only. Placeholders: {{base_url}}, {{api_key}}, {{model}}, {{prompt}}, {{title}}, {{temperature}}, {{thinking}}, {{effort}}. Exact placeholders preserve number/boolean types. Use the API key placeholder instead of a literal secret. Mode overrides may replace any field; null removes it. Toggleable models require both quick and reasoning overrides, e.g. {"body":{"thinking":{"type":"disabled"}}} for quick mode.'
-            )}
-          </p>
-          <p className="text-xs leading-5 text-slate-500">
-            {zh(
-              '常见模型响应会自动检查是否完整。其他 JSON 格式需指定 completion_path 和 completion_value，例如 "completion_path":"/done","completion_value":true；状态缺失或不匹配时不会保存译文。',
-              'Standard model responses are checked for completion automatically. Other JSON formats require completion_path and completion_value, e.g. "completion_path":"/done","completion_value":true. Missing or mismatched status prevents saving.'
-            )}
-          </p>
-          {paramsError && (
-            <p role="alert" className="text-xs text-red-600">
-              {paramsError}
-            </p>
+          {custom && (
+            <details className="rounded-lg bg-slate-50 p-3">
+              <summary className="cursor-pointer font-medium">
+                {zh('高级自定义接口', 'Advanced custom API')}
+              </summary>
+              <div className="mt-3 space-y-3">
+                {field(
+                  zh('模型列表接口协议', 'Model discovery protocol'),
+                  <select
+                    className={inputClass}
+                    value={value.protocol}
+                    onChange={(e) => onChange({ protocol: e.target.value })}
+                  >
+                    {Object.entries(protocolNames).map(([key, name]) => (
+                      <option key={key} value={key}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {value.reasoning !== 'none' &&
+                  field(
+                    zh('自定义推理强度值', 'Custom reasoning effort'),
+                    <input
+                      className={inputClass}
+                      value={value.effort}
+                      onChange={(e) => onChange({ effort: e.target.value })}
+                      placeholder="high"
+                    />
+                  )}
+                {[
+                  [zh('完整请求模板（JSON）', 'Full request template (JSON)'), 'request'],
+                  [
+                    zh(
+                      '关闭推理时的请求覆盖（JSON）',
+                      'Request overrides without reasoning (JSON)'
+                    ),
+                    'fastParams',
+                  ],
+                  [
+                    zh('开启推理时的请求覆盖（JSON）', 'Request overrides with reasoning (JSON)'),
+                    'thinkingParams',
+                  ],
+                ].map(([label, key]) => (
+                  <div key={key}>
+                    {field(
+                      label,
+                      <textarea
+                        className={inputClass + ' font-mono'}
+                        rows={key === 'request' ? 12 : 3}
+                        value={value[key]}
+                        onChange={(e) => onChange({ [key]: e.target.value })}
+                      />
+                    )}
+                  </div>
+                ))}
+                <p className="text-xs leading-5 text-slate-500">
+                  {zh(
+                    '模板字段：url、method、headers、body、response_path（JSON Pointer）。占位符：{{base_url}}、{{api_key}}、{{model}}、{{prompt}}、{{title}}、{{temperature}}、{{thinking}}、{{effort}}。密钥请使用占位符。请求覆盖中的 null 删除字段。可切换推理时需分别填写两种模式的覆盖参数。',
+                    'Template fields: url, method, headers, body, response_path (JSON Pointer). Placeholders: {{base_url}}, {{api_key}}, {{model}}, {{prompt}}, {{title}}, {{temperature}}, {{thinking}}, {{effort}}. Use placeholders for keys. null deletes a field in overrides. Toggleable reasoning requires overrides for both modes.'
+                  )}
+                </p>
+                <p className="text-xs leading-5 text-slate-500">
+                  {zh(
+                    '标准响应会自动检查完整性。其他 JSON 格式需填写 completion_path 和 completion_value，例如 /done 和 true。',
+                    'Standard responses are checked for completion. Other JSON formats require completion_path and completion_value, such as /done and true.'
+                  )}
+                </p>
+              </div>
+            </details>
           )}
-        </>
-      )}
-      {field(
-        zh('翻译提示词', 'Translation prompt'),
-        <textarea
-          className={inputClass}
-          rows={4}
-          maxLength={8192}
-          value={value.prompt}
-          onChange={(e) => onChange({ prompt: e.target.value })}
-        />
+          {field(
+            zh('翻译提示词', 'Translation prompt'),
+            <textarea
+              className={inputClass}
+              rows={5}
+              maxLength={8192}
+              value={value.prompt}
+              onChange={(e) => onChange({ prompt: e.target.value })}
+            />
+          )}
+          <button
+            type="button"
+            className="text-xs text-blue-600 underline"
+            onClick={() => onChange({ prompt: value.defaultPrompt })}
+          >
+            {zh('恢复默认提示词', 'Restore default prompt')}
+          </button>
+        </div>
+      </details>
+      {paramsError && (
+        <p role="alert" className="text-xs text-red-600">
+          {paramsError}
+        </p>
       )}
     </div>
   )

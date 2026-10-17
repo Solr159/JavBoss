@@ -512,14 +512,6 @@ export function JavEditModal({
 
   const creatingOption =
     creatingIdol || creatingScrapedTag || creatingUserTag || deleting || translating
-  const translationActions = [
-    { mode: 'default', label: zh('快速重新翻译', 'Quick retranslation'), thinking: false },
-    {
-      mode: 'thinking',
-      label: zh('重新推理翻译', 'Retranslate with reasoning'),
-      thinking: true,
-    },
-  ]
 
   return (
     <AppModal
@@ -581,41 +573,39 @@ export function JavEditModal({
               {zh('中文标题', 'Chinese title')}
             </label>
             <div className="flex flex-wrap items-center gap-2">
-              {translationActions.map(({ mode, label, thinking }) => {
-                const active = translationMode === mode
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => void handleRefreshTitle(thinking)}
-                    disabled={
-                      !item?.id ||
-                      !title.trim() ||
-                      saving ||
-                      creatingOption ||
-                      reasoning === 'unknown' ||
-                      (!thinking && reasoning === 'always')
-                    }
-                    title={
-                      !thinking && reasoning === 'always'
-                        ? zh('此模型无法关闭推理', 'This model cannot disable reasoning')
-                        : thinking && reasoning === 'none'
-                          ? zh(
-                              '此模型不支持推理，将使用快速翻译',
-                              'This model does not reason; using quick translation'
-                            )
-                          : undefined
-                    }
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    <RefreshOutlinedIcon
-                      className={active ? 'animate-spin' : ''}
-                      sx={{ fontSize: 15 }}
-                    />
-                    {active ? zh('翻译中…', 'Translating…') : label}
-                  </button>
-                )
-              })}
+              <button
+                type="button"
+                onClick={() => void handleRefreshTitle(undefined)}
+                disabled={
+                  !item?.id || !title.trim() || saving || creatingOption || reasoning === 'unknown'
+                }
+                className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                <RefreshOutlinedIcon
+                  className={translating ? 'animate-spin' : ''}
+                  sx={{ fontSize: 15 }}
+                />
+                {translating ? zh('翻译中…', 'Translating…') : zh('重新翻译', 'Retranslate')}
+              </button>
+              {reasoning === 'toggle' && (
+                <select
+                  aria-label={zh('临时切换翻译模式', 'Use another translation mode')}
+                  value=""
+                  disabled={!item?.id || !title.trim() || saving || creatingOption}
+                  onChange={(e) => {
+                    if (e.target.value) void handleRefreshTitle(e.target.value === 'thinking')
+                  }}
+                  className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 disabled:opacity-50"
+                >
+                  <option value="">{zh('其他模式…', 'Other modes…')}</option>
+                  <option value="fast">
+                    {zh('不启用推理重新翻译', 'Retranslate without reasoning')}
+                  </option>
+                  <option value="thinking">
+                    {zh('启用推理重新翻译', 'Retranslate with reasoning')}
+                  </option>
+                </select>
+              )}
             </div>
           </div>
           <textarea
@@ -632,8 +622,8 @@ export function JavEditModal({
           />
           <p className="mt-1 text-xs text-gray-500">
             {zh(
-              '使用当前原标题重新翻译，保存后生效。',
-              'Translate the current original title again; save to apply.'
+              '使用当前原标题和已保存的翻译设置，保存后生效。',
+              'Uses the current original title and saved translation settings; save to apply.'
             )}
           </p>
         </div>

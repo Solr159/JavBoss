@@ -238,13 +238,13 @@ func TestTitleTranslationManualEditInvalidatesCachedTitle(t *testing.T) {
 
 func TestTitleTranslationRoutesRequireAuthentication(t *testing.T) {
 	router := NewRouter("", testAuthService(t))
-	for _, path := range []string{"/jav/title-translation/models", "/jav/items/1/title-translation", "/jav/title-translation/batch"} {
+	for _, path := range []string{"/jav/title-translation/models", "/jav/title-translation/test", "/jav/items/1/title-translation", "/jav/title-translation/batch"} {
 		response := translationAPIRequest(router, "POST", path, `{}`)
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("path=%s status=%d", path, response.Code)
 		}
 	}
-	response := translationAPIRequest(router, "GET", "/jav/title-translation/batch", "")
+	response := translationAPIRequest(router, "GET", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusUnauthorized {
 		t.Fatalf("batch status was not protected: %d", response.Code)
 	}
@@ -300,7 +300,7 @@ func TestTitleTranslationBatchRetranslatesAllAndProtectsConcurrentEdits(t *testi
 	if err := common.DB.Create(&items).Error; err != nil {
 		t.Fatal(err)
 	}
-	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("start=%d %s", response.Code, response.Body)
 	}
@@ -309,7 +309,7 @@ func TestTitleTranslationBatchRetranslatesAllAndProtectsConcurrentEdits(t *testi
 	case <-time.After(3 * time.Second):
 		t.Fatal("batch did not start")
 	}
-	duplicate := translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	duplicate := translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if duplicate.Code != http.StatusAccepted || !strings.Contains(duplicate.Body.String(), `"running":true`) {
 		t.Fatalf("duplicate=%d %s", duplicate.Code, duplicate.Body)
 	}
@@ -318,7 +318,7 @@ func TestTitleTranslationBatchRetranslatesAllAndProtectsConcurrentEdits(t *testi
 	}
 	close(release)
 	status := waitTitleTranslationBatch(t)
-	if status.Total != 3 || status.Processed != 3 || status.Translated != 1 || status.Skipped != 2 || calls != 2 {
+	if status.Total != 2 || status.Processed != 2 || status.Translated != 1 || status.Skipped != 1 || calls != 1 {
 		t.Fatalf("status=%+v calls=%d", status, calls)
 	}
 	var stored models.Jav
@@ -331,8 +331,8 @@ func TestTitleTranslationBatchRetranslatesAllAndProtectsConcurrentEdits(t *testi
 	if edited.Title != "User edited source" || edited.ZhTitle != items[1].ZhTitle {
 		t.Fatal("batch overwrote a concurrent edit")
 	}
-	response = translationAPIRequest(router, "GET", "/jav/title-translation/batch", "")
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"processed":3`) {
+	response = translationAPIRequest(router, "GET", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"processed":2`) {
 		t.Fatalf("status response=%d %s", response.Code, response.Body)
 	}
 }
@@ -342,7 +342,7 @@ func TestTitleTranslationBatchFailureKeepsOldTitleAndRequiresConfiguration(t *te
 		w.WriteHeader(http.StatusUnauthorized)
 		_, _ = w.Write([]byte(`{"error":"secret-key"}`))
 	})
-	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusBadRequest {
 		t.Fatal("batch started without configuration")
 	}
@@ -351,7 +351,7 @@ func TestTitleTranslationBatchFailureKeepsOldTitleAndRequiresConfiguration(t *te
 	})
 	item := models.Jav{Code: "BATCH-FAIL", Title: "Original", ZhTitle: "旧译文"}
 	common.DB.Create(&item)
-	response = translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusAccepted {
 		t.Fatal("batch did not start")
 	}
@@ -366,7 +366,7 @@ func TestTitleTranslationBatchFailureKeepsOldTitleAndRequiresConfiguration(t *te
 	}
 }
 
-func TestTitleTranslationBatchStopsWhenSwitchIsDisabled(t *testing.T) {
+func TestTitleTranslationBatchStopsAfterCurrentRequest(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	calls := 0
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
@@ -388,7 +388,7 @@ func TestTitleTranslationBatchStopsWhenSwitchIsDisabled(t *testing.T) {
 	if err := common.DB.Create(&items).Error; err != nil {
 		t.Fatal(err)
 	}
-	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", "")
+	response := translationAPIRequest(router, "POST", "/jav/title-translation/batch", `{"scope":"all","confirm_overwrite":true}`)
 	if response.Code != http.StatusAccepted {
 		t.Fatalf("start=%d %s", response.Code, response.Body)
 	}
@@ -397,13 +397,13 @@ func TestTitleTranslationBatchStopsWhenSwitchIsDisabled(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("batch did not start")
 	}
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":false}`)
+	response = translationAPIRequest(router, "DELETE", "/jav/title-translation/batch", "")
 	if response.Code != http.StatusOK {
 		t.Fatal("could not turn off translation")
 	}
 	close(release)
 	status := waitTitleTranslationBatch(t)
-	if calls != 1 || status.Processed != 1 || status.ErrorZH == "" {
+	if calls != 1 || status.Processed != 1 || !status.Stopping {
 		t.Fatalf("disabled batch=%+v calls=%d", status, calls)
 	}
 	var stored models.Jav

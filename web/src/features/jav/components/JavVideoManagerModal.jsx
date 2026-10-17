@@ -1,7 +1,7 @@
+import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import { useState, useEffect } from 'react'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { useStore, videoSelectionKey } from '@/store'
-import { configFlag } from '@/utils/config'
 import AppModal from '@/shared/ui/AppModal'
 import { zh } from '@/utils/i18n'
 import VideoGrid from '@/features/video/components/VideoGrid'
@@ -22,9 +22,7 @@ export function JavVideoManagerModal({
   onTagClick,
 }) {
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  const translateTitle = useStore((state) =>
-    configFlag(state.config?.jav_title_translation_enabled)
-  )
+  const translateTitle = useStore((state) => preferChineseTitle(state.config))
 
   useEffect(() => {
     if (open) setSelectedIds(new Set())

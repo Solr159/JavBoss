@@ -1,8 +1,8 @@
+import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import AppModal from '@/shared/ui/AppModal'
 import { zh } from '@/utils/i18n'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { useStore } from '@/store'
-import { configFlag } from '@/utils/config'
 
 export default function JavVideoPickerModal({
   open,
@@ -16,9 +16,7 @@ export default function JavVideoPickerModal({
   isVideoOpenable,
   onSelectVideo,
 }) {
-  const translateTitle = useStore((state) =>
-    configFlag(state.config?.jav_title_translation_enabled)
-  )
+  const translateTitle = useStore((state) => preferChineseTitle(state.config))
   if (!open) return null
 
   const list = Array.isArray(choices) ? choices : []

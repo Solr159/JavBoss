@@ -40,6 +40,14 @@ const SETTINGS_SECTIONS = [
     summary: { zh: '数据源域名与可用性检测', en: 'Provider domains and availability checks' },
   },
   {
+    id: 'ai-translation',
+    title: { zh: 'AI 翻译', en: 'AI Translation' },
+    summary: {
+      zh: '标题显示、翻译服务与批量任务',
+      en: 'Title display, translation service and batch tasks',
+    },
+  },
+  {
     id: 'tools',
     title: { zh: '工具', en: 'Tools' },
     summary: { zh: '下载与管理运行工具', en: 'Download and manage runtime tools' },
@@ -1172,7 +1180,6 @@ export default function GlobalSettingsModal({
 
     return (
       <div className="space-y-5">
-        <TitleTranslationToolSettings />
         <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1534,6 +1541,7 @@ export default function GlobalSettingsModal({
               disabled={proxyEditing || savingProxy}
             />
           )}
+          {currentSection === 'ai-translation' && <TitleTranslationToolSettings />}
           {currentSection === 'tools' && renderToolsPanel()}
           {currentSection === 'player' && renderPlayerPanel()}
           {currentSection === 'directories' && renderDirectoriesPanel()}
