@@ -128,71 +128,62 @@ export default function TitleTranslationToolSettings() {
         aria-labelledby="translation-behavior-heading"
         className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
       >
-        <header className="flex items-center justify-between gap-6 px-5 pb-1 pt-4">
+        <header className="border-b border-zinc-100 px-5 py-4">
           <h4 id="translation-behavior-heading" className="text-sm font-semibold text-zinc-900">
-            <label htmlFor="translation-auto-enabled" className="cursor-pointer">
-              {zh('自动翻译缺失标题', 'Automatically translate missing titles')}
-            </label>
+            {zh('自动翻译', 'Automatic translation')}
           </h4>
-          <Switch
-            size="small"
-            className="shrink-0"
-            checked={configFlag(config?.jav_title_translation_enabled)}
-            disabled={busy}
-            onChange={(_, checked) => void handleAutoChange(checked)}
-            slotProps={{
-              input: {
-                id: 'translation-auto-enabled',
-                'aria-label': zh('自动翻译缺失标题', 'Automatically translate missing titles'),
-              },
-            }}
-          />
+          <p className="mt-1 text-xs leading-5 text-zinc-500">
+            {zh(
+              '自动补齐当前页缺失的中文译名。',
+              'Automatically fill missing Chinese translations on the current page.'
+            )}
+          </p>
         </header>
-        <p className="px-5 pb-4 text-xs leading-5 text-zinc-500">
-          {zh(
-            '开启后自动翻译当前页缺失的中文标题。',
-            'Automatically translate missing Chinese titles on the current page.'
-          )}
-        </p>
-      </section>
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-6 px-5 pb-1 pt-4">
-          <label
-            htmlFor="series-translation-auto-enabled"
-            className="cursor-pointer text-sm font-semibold text-zinc-900"
-          >
-            {zh('自动翻译缺失系列名称', 'Automatically translate missing series names')}
-          </label>
-          <Switch
-            size="small"
-            checked={configFlag(config?.jav_series_translation_enabled)}
-            disabled={busy}
-            onChange={(_, checked) => void handleAutoChange(checked, 'series')}
-            slotProps={{
-              input: {
-                id: 'series-translation-auto-enabled',
-                'aria-label': zh(
-                  '自动翻译缺失系列名称',
-                  'Automatically translate missing series names'
-                ),
-              },
-            }}
-          />
+        <div className="divide-y divide-zinc-100 px-5">
+          {[
+            {
+              target: 'title',
+              id: 'translation-auto-enabled',
+              label: zh('自动翻译 JAV 标题', 'Automatically translate JAV titles'),
+              enabled: config?.jav_title_translation_enabled,
+            },
+            {
+              target: 'series',
+              id: 'series-translation-auto-enabled',
+              label: zh('自动翻译 JAV 系列', 'Automatically translate JAV series'),
+              enabled: config?.jav_series_translation_enabled,
+            },
+          ].map(({ target, id, label, enabled }) => (
+            <div key={target} className="flex items-center justify-between gap-6 py-3">
+              <label htmlFor={id} className="cursor-pointer text-sm text-zinc-700">
+                {label}
+              </label>
+              <Switch
+                size="small"
+                className="shrink-0"
+                checked={configFlag(enabled)}
+                disabled={busy}
+                onChange={(_, checked) => void handleAutoChange(checked, target)}
+                slotProps={{ input: { id, 'aria-label': label } }}
+              />
+            </div>
+          ))}
         </div>
-        <p className="px-5 pb-4 text-xs leading-5 text-zinc-500">
-          {zh(
-            '开启后自动翻译当前页缺失的中文系列名称，与标题翻译共用下方服务商和模型配置。',
-            'Translate missing Chinese series names on the current page using the provider and model below.'
-          )}
-        </p>
+        {autoError && (
+          <p role="alert" className="px-5 pb-4 text-sm text-red-600">
+            {autoError}
+          </p>
+        )}
       </section>
-      {autoError && (
-        <p role="alert" className="text-sm text-red-600">
-          {autoError}
-        </p>
-      )}
-      <TitleTranslationBatchSettings dirty={dirty} />
-      <TitleTranslationBatchSettings dirty={dirty} target="series" />
+      <section
+        aria-label={zh('批量翻译', 'Batch translation')}
+        className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+      >
+        <div className="divide-y divide-zinc-100">
+          <TitleTranslationBatchSettings dirty={dirty} />
+          <TitleTranslationBatchSettings dirty={dirty} target="series" />
+        </div>
+      </section>
       <form onSubmit={handleSave}>
         <section
           aria-labelledby="translation-service-heading"

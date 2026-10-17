@@ -11,6 +11,24 @@ test(
       url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
     })
     await waitFor(`document.querySelector('#series-translation-auto-enabled')`)
+    assert.equal(
+      await evaluate(
+        `document.querySelector('#translation-auto-enabled').closest('section') === document.querySelector('#series-translation-auto-enabled').closest('section')`
+      ),
+      true
+    )
+    assert.equal(
+      await evaluate(
+        `document.querySelector('[data-translation-batch="title"]').closest('section') === document.querySelector('[data-translation-batch="series"]').closest('section')`
+      ),
+      true
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#translation-behavior-heading').textContent`),
+      'Automatic translation'
+    )
+    assert.equal(await evaluate(`document.querySelector('#translation-batch-heading')`), null)
+
     await evaluate(`document.querySelector('#series-translation-auto-enabled').click()`)
     await waitFor(`window.testStore.getState().config.jav_series_translation_enabled === true`)
     assert.deepEqual(
@@ -119,10 +137,10 @@ test(
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }`)
     await evaluate(
-      `document.querySelector('[aria-label="Automatically translate missing titles"]').click()`
+      `document.querySelector('[aria-label="Automatically translate JAV titles"]').click()`
     )
     await waitFor(
-      `!document.querySelector('[aria-label="Automatically translate missing titles"]').disabled`
+      `!document.querySelector('[aria-label="Automatically translate JAV titles"]').disabled`
     )
     assert.deepEqual(await evaluate(`${requests}.at(-1).payload`), {
       jav_title_translation_enabled: true,
@@ -140,7 +158,7 @@ test(
     assert.equal(await evaluate(`${requests}.length`), 1)
     assert.equal(
       await evaluate(
-        `document.querySelector('[aria-label="Automatically translate missing titles"]').checked`
+        `document.querySelector('[aria-label="Automatically translate JAV titles"]').checked`
       ),
       true
     )
@@ -157,7 +175,7 @@ test(
     )
     assert.equal(
       await evaluate(
-        `document.querySelector('[aria-label="Automatically translate missing titles"]').checked`
+        `document.querySelector('[aria-label="Automatically translate JAV titles"]').checked`
       ),
       true
     )

@@ -89,14 +89,14 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
       data-translation-batch={target}
       open={expanded}
       onToggle={(e) => setExpanded(e.currentTarget.open)}
-      className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+      className="group"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-sm font-semibold text-zinc-900">
             {series
-              ? zh('系列批量翻译', 'Batch series translation')
-              : zh('批量翻译', 'Batch translation')}
+              ? zh('批量翻译 JAV 系列', 'Batch translate JAV series')
+              : zh('批量翻译 JAV 标题', 'Batch translate JAV titles')}
           </span>
           <span className="mt-1 block text-xs leading-5 text-zinc-500">
             {running
