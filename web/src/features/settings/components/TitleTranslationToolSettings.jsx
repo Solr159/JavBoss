@@ -28,7 +28,9 @@ export default function TitleTranslationToolSettings() {
   const [error, setError] = useState('')
   const [testError, setTestError] = useState('')
   const [result, setResult] = useState('')
-  const [sample, setSample] = useState('雨の日、駅で再会した二人')
+  const [sample, setSample] = useState(
+    '彼女へのプロポーズ前夜、「明日からはW不倫になっちゃうね…」と妖艶に笑う幼馴染と中出しセックスに溺れた僕。 明里つむぎ'
+  )
   const [saved, setSaved] = useState(false)
   const [dirty, setDirty] = useState(false)
 
