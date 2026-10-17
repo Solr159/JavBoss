@@ -10,35 +10,46 @@ test(
     await command('Page.navigate', {
       url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
     })
+    await waitFor(`document.querySelector('#series-translation-enabled')`)
+    assert.equal(await evaluate(`document.querySelector('#series-translation-auto-enabled')`), null)
+    assert.equal(
+      await evaluate(`document.querySelector('[data-translation-batch="series"]')`),
+      null
+    )
+    await evaluate(`document.querySelector('#series-translation-enabled').click()`)
     await waitFor(`document.querySelector('#series-translation-auto-enabled')`)
+    for (const target of ['title', 'series']) {
+      assert.equal(
+        await evaluate(
+          `document.querySelector('#${target}-translation-enabled').closest('section') === document.querySelector('[data-translation-batch="${target}"]').closest('section')`
+        ),
+        true
+      )
+    }
     assert.equal(
       await evaluate(
-        `document.querySelector('#translation-auto-enabled').closest('section') === document.querySelector('#series-translation-auto-enabled').closest('section')`
+        `document.querySelector('#title-translation-enabled').closest('section') === document.querySelector('#series-translation-enabled').closest('section')`
       ),
-      true
+      false
     )
-    assert.equal(
-      await evaluate(
-        `document.querySelector('[data-translation-batch="title"]').closest('section') === document.querySelector('[data-translation-batch="series"]').closest('section')`
-      ),
-      true
-    )
-    assert.equal(
-      await evaluate(`document.querySelector('#translation-behavior-heading').textContent`),
-      'Automatic translation'
-    )
-    assert.equal(await evaluate(`document.querySelector('#translation-batch-heading')`), null)
-
     await evaluate(`document.querySelector('#series-translation-auto-enabled').click()`)
-    await waitFor(`window.testStore.getState().config.jav_series_translation_enabled === true`)
+    await waitFor(`window.testStore.getState().config.jav_series_translation_auto_enabled === true`)
     assert.deepEqual(
       await evaluate(`window.translationRequests.filter(r => r.path === '/config').at(-1).payload`),
-      { jav_series_translation_enabled: true }
+      { jav_series_translation_auto_enabled: true }
     )
     assert.equal(
-      await evaluate(`window.testStore.getState().config.jav_title_translation_enabled`),
-      'false'
+      await evaluate(`window.testStore.getState().config.jav_title_translation_auto_enabled`),
+      undefined
     )
+    await evaluate(`document.querySelector('#series-translation-enabled').click()`)
+    await waitFor(`!document.querySelector('#series-translation-auto-enabled')`)
+    assert.equal(
+      await evaluate(`document.querySelector('[data-translation-batch="series"]')`),
+      null
+    )
+    await evaluate(`document.querySelector('#series-translation-enabled').click()`)
+    await waitFor(`document.querySelector('#series-translation-auto-enabled')?.checked`)
     const batch = `document.querySelector('[data-translation-batch="series"]')`
     await evaluate(`${batch}.querySelector('summary').click()`)
     await waitFor(`${batch}.textContent.includes('Translate 3 series names')`)
@@ -136,14 +147,10 @@ test(
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'unsaved-model');
       input.dispatchEvent(new Event('input', { bubbles: true }));
     }`)
-    await evaluate(
-      `document.querySelector('[aria-label="Automatically translate JAV titles"]').click()`
-    )
-    await waitFor(
-      `!document.querySelector('[aria-label="Automatically translate JAV titles"]').disabled`
-    )
+    await evaluate(`document.querySelector('#title-translation-auto-enabled').click()`)
+    await waitFor(`!document.querySelector('#title-translation-auto-enabled').disabled`)
     assert.deepEqual(await evaluate(`${requests}.at(-1).payload`), {
-      jav_title_translation_enabled: true,
+      jav_title_translation_auto_enabled: true,
     })
     assert.equal(
       await evaluate(`document.querySelector('#title-translation-model').value`),
@@ -157,9 +164,7 @@ test(
     )
     assert.equal(await evaluate(`${requests}.length`), 1)
     assert.equal(
-      await evaluate(
-        `document.querySelector('[aria-label="Automatically translate JAV titles"]').checked`
-      ),
+      await evaluate(`document.querySelector('#title-translation-auto-enabled').checked`),
       true
     )
     await evaluate(`${button('Edit')}.click()`)
@@ -174,16 +179,14 @@ test(
       false
     )
     assert.equal(
-      await evaluate(
-        `document.querySelector('[aria-label="Automatically translate JAV titles"]').checked`
-      ),
+      await evaluate(`document.querySelector('#title-translation-auto-enabled').checked`),
       true
     )
   }
 )
 
 test(
-  'display preference can be saved independently and restores to enabled',
+  'display settings no longer expose Chinese title preference',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -191,37 +194,23 @@ test(
       url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
     })
     await waitFor(`document.querySelector('#title-translation-model')`)
-    const click = (text) =>
-      evaluate(
-        `[...document.querySelectorAll('button')].find(b => b.textContent === '${text}').click()`
-      )
-    const toggle = `document.querySelector('[role="switch"][aria-label="Prefer Chinese titles"]')`
-    await click('Display settings')
-    await waitFor(toggle)
-    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
-    await evaluate(`${toggle}.click()`)
-    await click('Save')
-    await waitFor(`!${toggle}`)
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Display settings').click()`
+    )
+    await waitFor(`document.querySelector('[role="dialog"]')`)
+    assert.equal(
+      await evaluate(`document.body.textContent.includes('Prefer Chinese titles')`),
+      false
+    )
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
+    )
+    await waitFor(`!document.querySelector('[role="dialog"]')`)
     const saved = await evaluate(
       `window.translationRequests.filter(r => r.path === '/config').at(-1).payload`
     )
-    assert.equal(saved.jav_title_prefer_chinese, false)
+    assert.equal(Object.hasOwn(saved, 'jav_title_prefer_chinese'), false)
     assert.equal(Object.hasOwn(saved, 'jav_title_translation_enabled'), false)
-    assert.equal(
-      await evaluate(`window.testStore.getState().config.jav_title_translation_enabled`),
-      'false'
-    )
-    await click('Display settings')
-    await waitFor(toggle)
-    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
-    await click('Restore defaults')
-    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
-    await click('Save')
-    await waitFor(`!${toggle}`)
-    assert.equal(
-      await evaluate(`window.testStore.getState().config.jav_title_prefer_chinese`),
-      true
-    )
   }
 )
 

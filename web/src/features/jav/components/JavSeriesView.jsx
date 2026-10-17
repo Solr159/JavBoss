@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import { useStore } from '@/store'
-import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
+import { preferChineseSeries, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useJavSeriesTranslation } from '@/features/jav/hooks/useJavTitleTranslation'
 import JavSeriesTranslationModal from '@/features/jav/components/JavSeriesTranslationModal'
 import { Tooltip } from '@mui/material'
@@ -127,7 +127,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
   const [savedTranslation, setSavedTranslation] = useState(null)
   const displayItem =
     savedTranslation?.item === item ? { ...item, ...savedTranslation.updated } : item
-  const preferChinese = useStore((state) => preferChineseTitle(state.config))
+  const preferChinese = useStore((state) => preferChineseSeries(state.config))
   const sampleCode = String(item?.sample_code || '').trim()
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = getSeriesDisplayName(displayItem, preferChinese) || zh('未知系列', 'Unknown series')

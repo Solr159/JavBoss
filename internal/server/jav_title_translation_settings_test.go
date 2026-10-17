@@ -6,7 +6,10 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
@@ -61,28 +64,39 @@ func TestTitleTranslationDraftTestDoesNotSaveSettingsOrTitles(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationConfigDisplayPreferenceIsIndependentAndDefaultsOn(t *testing.T) {
-	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) { t.Error("configuration should not request translation") })
+func TestTranslationConfigMasterAndAutomaticSwitchesAreIndependent(t *testing.T) {
+	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) { t.Error("configuration should not translate") })
 	response := translationAPIRequest(router, "GET", "/config", "")
 	var cfg map[string]string
-	if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != 200 || cfg["jav_title_prefer_chinese"] != "true" {
-		t.Fatalf("default config: %d %s", response.Code, response.Body)
+	if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
 	}
-	for _, preference := range []bool{false, true} {
-		body, _ := json.Marshal(map[string]bool{"jav_title_prefer_chinese": preference})
-		response = translationAPIRequest(router, "PATCH", "/config", string(body))
-		if response.Code != 200 {
-			t.Fatalf("preference: %d %s", response.Code, response.Body)
+	if _, exists := cfg["jav_title_prefer_chinese"]; exists {
+		t.Fatal("obsolete display preference exposed")
+	}
+	keys := []string{"jav_title_translation_enabled", "jav_series_translation_enabled", "jav_title_translation_auto_enabled", "jav_series_translation_auto_enabled"}
+	for _, key := range keys {
+		if cfg[key] == "true" {
+			t.Fatalf("%s should default off", key)
 		}
-		for _, enabled := range []bool{true, false} {
-			body, _ := json.Marshal(map[string]bool{"jav_title_translation_enabled": enabled})
+	}
+	want := map[string]string{}
+	for _, enabled := range []bool{true, false} {
+		for _, key := range keys {
+			body, _ := json.Marshal(map[string]bool{key: enabled})
 			response = translationAPIRequest(router, "PATCH", "/config", string(body))
-			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != 200 || cfg["jav_title_translation_enabled"] != strconv.FormatBool(enabled) || cfg["jav_title_prefer_chinese"] != strconv.FormatBool(preference) || cfg["jav_title_translation_default_prompt"] != translation.DefaultPrompt {
-				t.Fatalf("config: %d %s", response.Code, response.Body)
+			if response.Code != 200 {
+				t.Fatalf("save: %s", response.Body)
 			}
+			want[key] = strconv.FormatBool(enabled)
 			response = translationAPIRequest(router, "GET", "/config", "")
-			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || cfg["jav_title_prefer_chinese"] != strconv.FormatBool(preference) {
-				t.Fatalf("persisted preference: %s", response.Body)
+			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil {
+				t.Fatal(err)
+			}
+			for k, value := range want {
+				if cfg[k] != value {
+					t.Fatalf("%s = %q, want %q", k, cfg[k], value)
+				}
 			}
 		}
 	}
@@ -94,7 +108,7 @@ func TestTitleTranslationBatchDefaultsToMissingAndRequiresOverwriteConfirmation(
 		calls++
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新译文"}}]}`))
 	})
-	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`})
+	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`})
 	items := []models.Jav{{Code: "MISSING-001", Title: "Missing"}, {Code: "MANUAL-002", Title: "Manual", ZhTitle: "人工校对"}, {Code: "EMPTY-003", Title: " "}}
 	if err := common.DB.Create(&items).Error; err != nil {
 		t.Fatal(err)
@@ -137,7 +151,7 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 		modes = append(modes, payload.Thinking.Type)
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"示例译文"}}]}`))
 	})
-	dbpkg.UpsertConfig(context.Background(), map[string]string{translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":true}}`})
+	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":true}}`})
 	item := models.Jav{Code: "INHERIT-001", Title: "Original", ZhTitle: "Existing"}
 	common.DB.Create(&item)
 	for _, body := range []string{`{}`, `{"thinking":false}`} {
@@ -250,5 +264,96 @@ func TestTitleTranslationConfigPromptAndDraftCapabilities(t *testing.T) {
 		} else if response.Code != http.StatusBadRequest {
 			t.Fatalf("oversized prompt=%d %s", response.Code, response.Body)
 		}
+	}
+}
+
+func TestTranslationMasterSwitchBlocksEveryTranslationEntry(t *testing.T) {
+	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) { t.Error("disabled translation called provider") })
+	configureGroupedTranslation(t)
+	item := models.Jav{Code: "DISABLED-001", Title: "Original"}
+	series := models.JavSeries{Name: "Original series"}
+	if err := common.DB.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := common.DB.Create(&series).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []string{"title", "series"} {
+		t.Run(target, func(t *testing.T) {
+			key := "jav_" + target + "_translation_enabled"
+			if err := dbpkg.UpsertConfig(context.Background(), map[string]string{key: "false", "jav_" + target + "_translation_auto_enabled": "true"}); err != nil {
+				t.Fatal(err)
+			}
+			manual := "/jav/items/" + strconv.FormatInt(item.ID, 10) + "/title-translation"
+			id := item.ID
+			if target == "series" {
+				manual = "/jav/series/" + strconv.FormatInt(series.ID, 10) + "/name-translation"
+				id = series.ID
+			}
+			for _, entry := range []struct{ path, body string }{
+				{manual, `{}`},
+				{"/jav/" + target + "-translation/items", `{"ids":[` + strconv.FormatInt(id, 10) + `]}`},
+				{"/jav/" + target + "-translation/batch", `{"scope":"missing"}`},
+			} {
+				response := translationAPIRequest(router, "POST", entry.path, entry.body)
+				if response.Code != http.StatusBadRequest {
+					t.Fatalf("%s: %d %s", entry.path, response.Code, response.Body)
+				}
+			}
+		})
+	}
+}
+
+func TestDisablingTranslationMasterStopsQueuedBatchWork(t *testing.T) {
+	for _, target := range []string{"title", "series"} {
+		t.Run(target, func(t *testing.T) {
+			entered, finish := make(chan struct{}), make(chan struct{})
+			var calls atomic.Int32
+			router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
+				if calls.Add(1) == 1 {
+					close(entered)
+					<-finish
+				}
+				_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"译文"}}]}`))
+			})
+			var release sync.Once
+			defer release.Do(func() { close(finish) })
+			configureGroupedTranslation(t)
+			key := "jav_" + target + "_translation_enabled"
+			if err := dbpkg.UpsertConfig(context.Background(), map[string]string{key: "true"}); err != nil {
+				t.Fatal(err)
+			}
+			var err error
+			if target == "title" {
+				err = common.DB.Create(&[]models.Jav{{Code: "STOP-001", Title: "One"}, {Code: "STOP-002", Title: "Two"}}).Error
+			} else {
+				err = common.DB.Create(&[]models.JavSeries{{Name: "One"}, {Name: "Two"}}).Error
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := translationAPIRequest(router, "POST", "/jav/"+target+"-translation/batch", `{}`)
+			if response.Code != http.StatusAccepted {
+				t.Fatalf("start: %d %s", response.Code, response.Body)
+			}
+			select {
+			case <-entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("batch did not start")
+			}
+			response = translationAPIRequest(router, "PATCH", "/config", `{"`+key+`":false}`)
+			if response.Code != 200 {
+				t.Fatalf("disable: %s", response.Body)
+			}
+			release.Do(func() { close(finish) })
+			job := allTitleTranslations
+			if target == "series" {
+				job = allSeriesTranslations
+			}
+			waitTextTranslationBatch(t, job)
+			if calls.Load() != 1 {
+				t.Fatalf("provider calls after disabling = %d", calls.Load())
+			}
+		})
 	}
 }

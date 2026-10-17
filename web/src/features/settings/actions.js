@@ -122,7 +122,6 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     jav_page_size: javSize,
     jav_grid_columns: javColumns,
     jav_title_max_rows: javTitleRows,
-    jav_title_prefer_chinese: draft.javTitlePreferChineseInput ?? true,
     jav_idol_tag_max_rows: javIdolTagRows,
     jav_tag_max_rows: javTagRows,
     jav_hide_series: Boolean(javHideSeriesInput),
@@ -187,10 +186,9 @@ export async function saveTitleTranslationSettings(draft) {
   useStore.setState({ config: cfg })
 }
 
-export async function saveTitleTranslationEnabled(enabled, target = 'title') {
+export async function saveTitleTranslationEnabled(enabled, target = 'title', automatic = false) {
   const cfg = await updateConfig({
-    [target === 'series' ? 'jav_series_translation_enabled' : 'jav_title_translation_enabled']:
-      Boolean(enabled),
+    [`jav_${target}_translation_${automatic ? 'auto_' : ''}enabled`]: Boolean(enabled),
   })
   useStore.setState({ config: cfg })
 }

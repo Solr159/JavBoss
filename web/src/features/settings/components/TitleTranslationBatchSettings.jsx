@@ -93,10 +93,8 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <span>
-          <span className="block text-sm font-semibold text-zinc-900">
-            {series
-              ? zh('批量翻译 JAV 系列', 'Batch translate JAV series')
-              : zh('批量翻译 JAV 标题', 'Batch translate JAV titles')}
+          <span className="block text-sm font-medium text-zinc-700">
+            {zh('批量翻译', 'Batch translation')}
           </span>
           <span className="mt-1 block text-xs leading-5 text-zinc-500">
             {running

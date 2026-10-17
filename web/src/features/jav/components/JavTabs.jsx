@@ -1,3 +1,5 @@
+import { useStore } from '@/store'
+import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
 import JavIdolView from '@/features/jav/components/JavIdolView'
 import JavSeriesView from '@/features/jav/components/JavSeriesView'
 import JavStudioView from '@/features/jav/components/JavStudioView'
@@ -131,7 +133,7 @@ function JavStudioRoute({
           tagIds: [],
           studioId: null,
           seriesId: series.id,
-          seriesName: series.name,
+          seriesName: getSeriesDisplayName(series, preferChineseSeries(useStore.getState().config)),
           prefix: '',
           favoriteRatingEnabled: false,
           tempSort: '',
@@ -199,7 +201,7 @@ function JavSeriesRoute({
           tagIds: [],
           studioId: null,
           seriesId: series.id,
-          seriesName: series.name,
+          seriesName: getSeriesDisplayName(series, preferChineseSeries(useStore.getState().config)),
           prefix: '',
           favoriteRatingEnabled: false,
           tempSort: '',

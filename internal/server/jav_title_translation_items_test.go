@@ -40,7 +40,7 @@ func TestTitleTranslationItemsKeepCachedTitlesAndConcurrentCorrections(t *testin
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
+		"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestTitleTranslationItemsReturnPartialSuccessAndStopOnProviderError(t *test
 func configureGroupedTranslation(t *testing.T) {
 	t.Helper()
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
+		"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -297,7 +297,7 @@ func TestTitleTranslationItemsDiscardTranslationAfterConcurrentSourceEdit(t *tes
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天相遇"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
+		"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -324,7 +324,7 @@ func TestTitleTranslationItemsCanShowExistingChineseTitleWithoutAPIKey(t *testin
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Error("an existing Chinese title must not call DeepSeek")
 	})
-	response := translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":true}`)
+	response := translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":true,"jav_title_translation_auto_enabled":true}`)
 	if response.Code != 200 {
 		t.Fatalf("enable display=%d %s", response.Code, response.Body)
 	}

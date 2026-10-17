@@ -92,11 +92,12 @@ func updateConfig(c *gin.Context) {
 		JavPageSize               *int                       `json:"jav_page_size"`
 		JavGridColumns            *int                       `json:"jav_grid_columns"`
 		JavTitleMaxRows           *int                       `json:"jav_title_max_rows"`
-		JavTitlePreferChinese     *bool                      `json:"jav_title_prefer_chinese"`
 		TitleTranslateProvider    *string                    `json:"jav_title_translation_provider"`
 		TitleTranslateProfiles    map[string]json.RawMessage `json:"jav_title_translation_profiles"`
 		SeriesTranslateEnabled    *bool                      `json:"jav_series_translation_enabled"`
 		TitleTranslateEnabled     *bool                      `json:"jav_title_translation_enabled"`
+		TitleTranslateAutomatic   *bool                      `json:"jav_title_translation_auto_enabled"`
+		SeriesTranslateAutomatic  *bool                      `json:"jav_series_translation_auto_enabled"`
 		TitleTranslatePrompt      *string                    `json:"jav_title_translation_prompt"`
 		JavIdolTagMaxRows         *int                       `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows             *int                       `json:"jav_tag_max_rows"`
@@ -219,8 +220,11 @@ func updateConfig(c *gin.Context) {
 	if req.TitleTranslateEnabled != nil {
 		entries["jav_title_translation_enabled"] = strconv.FormatBool(*req.TitleTranslateEnabled)
 	}
-	if req.JavTitlePreferChinese != nil {
-		entries["jav_title_prefer_chinese"] = strconv.FormatBool(*req.JavTitlePreferChinese)
+	if req.TitleTranslateAutomatic != nil {
+		entries["jav_title_translation_auto_enabled"] = strconv.FormatBool(*req.TitleTranslateAutomatic)
+	}
+	if req.SeriesTranslateAutomatic != nil {
+		entries["jav_series_translation_auto_enabled"] = strconv.FormatBool(*req.SeriesTranslateAutomatic)
 	}
 	if req.TitleTranslatePrompt != nil {
 		value := strings.TrimSpace(*req.TitleTranslatePrompt)
@@ -596,6 +600,15 @@ func updateConfig(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "保存或应用配置失败", "Failed to save or apply configuration")
 		return
 	}
+	for _, job := range []*titleTranslationBatch{allTitleTranslations, allSeriesTranslations} {
+		if entries[job.domain.enabledKey()] == "false" {
+			job.mu.Lock()
+			if job.status.Running {
+				job.status.Stopping = true
+			}
+			job.mu.Unlock()
+		}
+	}
 	playerSessionResetNeeded := false
 	if req.PlayerHotkeys != nil {
 		mpv.InvalidateHotkeysCache()
@@ -643,9 +656,6 @@ func updateConfig(c *gin.Context) {
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["app_version"] = common.Version
 	translation.PublicConfig(cfg)
-	if strings.TrimSpace(cfg["jav_title_prefer_chinese"]) == "" {
-		cfg["jav_title_prefer_chinese"] = "true"
-	}
 	cfg["jav_title_translation_default_prompt"] = translation.DefaultPrompt
 	if strings.TrimSpace(cfg["jav_title_translation_prompt"]) == "" {
 		cfg["jav_title_translation_prompt"] = translation.DefaultPrompt

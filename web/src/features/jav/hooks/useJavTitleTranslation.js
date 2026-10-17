@@ -103,6 +103,7 @@ function useJavTextTranslation(items, target) {
     if (
       stopped.current ||
       !configFlag(config?.[domain.enabled]) ||
+      !configFlag(config?.[`jav_${target}_translation_auto_enabled`]) ||
       (!profile?.api_key_set && provider !== 'custom') ||
       !profile?.model
     )

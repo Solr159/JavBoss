@@ -157,7 +157,7 @@ test('translation settings keep saved keys private and omit untouched credential
   assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, '')
 })
 
-test('display settings save the title preference independently of translation configuration', async (t) => {
+test('display settings omit translation configuration', async (t) => {
   const [model, actions, { useStore }] = await loadModules(t, [
     'features/settings/model.js',
     'features/settings/actions.js',
@@ -169,13 +169,9 @@ test('display settings save the title preference independently of translation co
     return Response.json(payload)
   })
   const draft = model.createJavSettingsDraft(useStore.getState())
-  assert.equal(draft.javTitlePreferChineseInput, true)
+  assert.equal(Object.hasOwn(draft, 'javTitlePreferChineseInput'), false)
   await actions.saveJavSettings(draft, () => {})
-  assert.equal(payload.jav_title_prefer_chinese, true)
-  draft.javTitlePreferChineseInput = false
-  await actions.saveJavSettings(draft, () => {})
-  assert.equal(payload.jav_title_prefer_chinese, false)
-  assert.equal(model.createJavSettingsDraft(useStore.getState()).javTitlePreferChineseInput, false)
+  assert.equal(Object.hasOwn(payload, 'jav_title_prefer_chinese'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_enabled'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_prompt'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_profiles'), false)
@@ -236,30 +232,24 @@ test('provider picker uses only the backend catalog and its endpoint defaults', 
   assert.equal(custom.baseUrl, '')
 })
 
-test('Chinese title display defaults on and is independent of automatic translation', async (t) => {
-  const [{ preferChineseTitle }, settings] = await loadModules(t, [
+test('Chinese display follows independent master switches regardless of automatic translation', async (t) => {
+  const [{ preferChineseTitle, preferChineseSeries }] = await loadModules(t, [
     'features/jav/titleTranslation.js',
-    'features/settings/titleTranslation.js',
   ])
-  assert.equal(preferChineseTitle({}), true)
-  for (const enabled of ['true', 'false']) {
-    for (const preference of [undefined, '', 'true', 'false']) {
-      assert.equal(
-        preferChineseTitle({
-          jav_title_translation_enabled: enabled,
-          jav_title_prefer_chinese: preference,
-        }),
-        preference !== 'false'
-      )
+  assert.equal(preferChineseTitle({}), false)
+  assert.equal(preferChineseSeries({}), false)
+  for (const title of [true, false]) {
+    for (const series of [true, false]) {
+      for (const automatic of [true, false]) {
+        const config = {
+          jav_title_translation_enabled: String(title),
+          jav_series_translation_enabled: String(series),
+          jav_title_translation_auto_enabled: String(automatic),
+          jav_series_translation_auto_enabled: String(automatic),
+        }
+        assert.equal(preferChineseTitle(config), title)
+        assert.equal(preferChineseSeries(config), series)
+      }
     }
   }
-  const draft = settings.createTitleTranslationDraft({
-    jav_title_translation_enabled: 'true',
-    jav_title_prefer_chinese: 'false',
-    jav_title_translation_default_prompt: 'Default',
-  })
-  const next = settings.changeTranslationDraft(draft, { provider: 'openai' })
-  assert.equal(Object.hasOwn(next, 'enabled'), false)
-  assert.equal(Object.hasOwn(next, 'preferChinese'), false)
-  assert.equal(next.defaultPrompt, 'Default')
 })

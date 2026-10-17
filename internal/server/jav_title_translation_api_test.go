@@ -419,7 +419,7 @@ func TestTitleTranslationPreviewUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新中文译文"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":false}}`,
+		"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":false}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +446,7 @@ func TestTitleTranslationPreviewUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 		t.Fatalf("reasoning modes=%v", reasoningModes)
 	}
 	cfg, err := dbpkg.ListConfig(context.Background())
-	if err != nil || translation.ActiveProfile(cfg).Thinking || cfg["jav_title_translation_enabled"] != "false" {
+	if err != nil || translation.ActiveProfile(cfg).Thinking || cfg["jav_title_translation_auto_enabled"] != "false" {
 		t.Fatalf("preview modified global settings: %v err=%v", cfg, err)
 	}
 	var stored models.Jav
@@ -480,7 +480,7 @@ func TestTitleTranslationPreviewUsesStoredSourceWithoutCachingOrSaving(t *testin
 		t.Fatal(err)
 	}
 	for _, enabled := range []string{"false", "true"} {
-		if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": enabled}); err != nil {
+		if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "true", "jav_title_translation_auto_enabled": enabled}); err != nil {
 			t.Fatal(err)
 		}
 		for i, savedTitle := range []string{"", "人工校对"} {

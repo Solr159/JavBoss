@@ -1,3 +1,4 @@
+import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
 import { mergeJavItem, mergeJavIdol } from '@/features/jav/entityUpdates'
 import {
   JAV_PAGE_SIZE,
@@ -203,7 +204,7 @@ export function createJavSlice({ set, get, lists }) {
       }
       set({
         javSeriesId: id,
-        javSeriesName: String(series?.name || '').trim(),
+        javSeriesName: getSeriesDisplayName(series, preferChineseSeries(get().config)),
         javSoloOnly: false,
         javStudioId: null,
         javStudioName: '',

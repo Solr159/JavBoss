@@ -43,6 +43,13 @@ func TestSeriesTranslationPreviewSaveAndAutomaticTranslation(t *testing.T) {
 	if response.Code != http.StatusBadRequest || calls.Load() != 0 {
 		t.Fatalf("title switch enabled series translation: %d %s", response.Code, response.Body)
 	}
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_series_translation_enabled": "true", "jav_series_translation_auto_enabled": "false"}); err != nil {
+		t.Fatal(err)
+	}
+	response = translationAPIRequest(router, "POST", "/jav/series-translation/items", body)
+	if response.Code != 400 || calls.Load() != 0 {
+		t.Fatalf("automatic disabled: %d %s", response.Code, response.Body)
+	}
 	response = translationAPIRequest(router, "POST", path+"/name-translation", `{}`)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"zh_name":"雨天系列"`) {
 		t.Fatalf("preview: %d %s", response.Code, response.Body)
@@ -68,7 +75,7 @@ func TestSeriesTranslationPreviewSaveAndAutomaticTranslation(t *testing.T) {
 		t.Fatalf("stale save: %d %s", response.Code, response.Body)
 	}
 	assertStoredSeries("人工校对")
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_series_translation_enabled":true,"jav_title_translation_enabled":false,"jav_title_translation_prompt":"共用自定义翻译提示词"}`)
+	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_series_translation_enabled":true,"jav_series_translation_auto_enabled":true,"jav_title_translation_enabled":false,"jav_title_translation_prompt":"共用自定义翻译提示词"}`)
 	if response.Code != 200 {
 		t.Fatalf("configure series: %d %s", response.Code, response.Body)
 	}
@@ -111,7 +118,7 @@ func TestSeriesTranslationBatchScopesAndConcurrentEdits(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新系列译名"}}]}`))
 	})
 	configureGroupedTranslation(t)
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_prompt": "批量共用提示词"}); err != nil {
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_series_translation_enabled": "true", "jav_title_translation_prompt": "批量共用提示词"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := common.DB.Create(&items).Error; err != nil {
@@ -161,7 +168,7 @@ func TestSeriesTranslationRejectsStaleAutomaticResultsAndInvalidRequests(t *test
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"过期译名"}}]}`))
 	})
 	configureGroupedTranslation(t)
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_series_translation_enabled": "true"}); err != nil {
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_series_translation_enabled": "true", "jav_series_translation_auto_enabled": "true"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := common.DB.Create(&series).Error; err != nil {

@@ -86,12 +86,12 @@ export default function TitleTranslationToolSettings() {
     }
   }
 
-  const handleAutoChange = async (enabled, target = 'title') => {
+  const handleAutoChange = async (enabled, target, automatic = false) => {
     if (toggling || saving || testing) return
     setToggling(true)
     setAutoError('')
     try {
-      await saveTitleTranslationEnabled(enabled, target)
+      await saveTitleTranslationEnabled(enabled, target, automatic)
     } catch (err) {
       setAutoError(getErrorMessage(err))
     } finally {
@@ -114,76 +114,82 @@ export default function TitleTranslationToolSettings() {
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
-      <p
-        data-translation-display-hint
-        className="rounded-xl bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800"
-      >
-        {zh(
-          '要展示翻译生成的中文标题和系列名称，请在「显示设置 → JAV → 卡片设置」中确保「优先展示中文标题」已开启（默认开启）。',
-          'To display translated Chinese titles and series names, enable “Prefer Chinese titles” in Display settings → JAV → Card settings (enabled by default).'
-        )}
-      </p>
-
-      <section
-        aria-labelledby="translation-behavior-heading"
-        className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
-      >
-        <header className="border-b border-zinc-100 px-5 py-4">
-          <h4 id="translation-behavior-heading" className="text-sm font-semibold text-zinc-900">
-            {zh('自动翻译', 'Automatic translation')}
-          </h4>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">
-            {zh(
-              '自动补齐当前页缺失的中文译名。',
-              'Automatically fill missing Chinese translations on the current page.'
-            )}
-          </p>
-        </header>
-        <div className="divide-y divide-zinc-100 px-5">
-          {[
-            {
-              target: 'title',
-              id: 'translation-auto-enabled',
-              label: zh('自动翻译 JAV 标题', 'Automatically translate JAV titles'),
-              enabled: config?.jav_title_translation_enabled,
-            },
-            {
-              target: 'series',
-              id: 'series-translation-auto-enabled',
-              label: zh('自动翻译 JAV 系列', 'Automatically translate JAV series'),
-              enabled: config?.jav_series_translation_enabled,
-            },
-          ].map(({ target, id, label, enabled }) => (
-            <div key={target} className="flex items-center justify-between gap-6 py-3">
-              <label htmlFor={id} className="cursor-pointer text-sm text-zinc-700">
-                {label}
-              </label>
+      {['title', 'series'].map((target) => {
+        const label =
+          target === 'title'
+            ? zh('JAV 标题翻译', 'JAV title translation')
+            : zh('JAV 系列翻译', 'JAV series translation')
+        const enabled = configFlag(config?.[`jav_${target}_translation_enabled`])
+        return (
+          <section
+            key={target}
+            aria-label={label}
+            className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+          >
+            <header className="flex items-center justify-between gap-6 px-5 py-4">
+              <div>
+                <label
+                  htmlFor={`${target}-translation-enabled`}
+                  className="cursor-pointer text-sm font-semibold text-zinc-900"
+                >
+                  {label}
+                </label>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                  {zh(
+                    '开启后优先展示已有中文译文，没有译文时显示原文。',
+                    'Show Chinese translations when enabled, falling back to the original text.'
+                  )}
+                </p>
+              </div>
               <Switch
                 size="small"
-                className="shrink-0"
-                checked={configFlag(enabled)}
+                checked={enabled}
                 disabled={busy}
                 onChange={(_, checked) => void handleAutoChange(checked, target)}
-                slotProps={{ input: { id, 'aria-label': label } }}
+                slotProps={{ input: { id: `${target}-translation-enabled`, 'aria-label': label } }}
               />
-            </div>
-          ))}
-        </div>
-        {autoError && (
-          <p role="alert" className="px-5 pb-4 text-sm text-red-600">
-            {autoError}
-          </p>
-        )}
-      </section>
-      <section
-        aria-label={zh('批量翻译', 'Batch translation')}
-        className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
-      >
-        <div className="divide-y divide-zinc-100">
-          <TitleTranslationBatchSettings dirty={dirty} />
-          <TitleTranslationBatchSettings dirty={dirty} target="series" />
-        </div>
-      </section>
+            </header>
+            {enabled && (
+              <div className="divide-y divide-zinc-100 border-t border-zinc-100">
+                <div className="flex items-center justify-between gap-6 px-5 py-4">
+                  <div>
+                    <label
+                      htmlFor={`${target}-translation-auto-enabled`}
+                      className="cursor-pointer text-sm font-medium text-zinc-700"
+                    >
+                      {zh('自动翻译', 'Automatic translation')}
+                    </label>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">
+                      {zh(
+                        '自动补齐当前页缺失的中文译文。',
+                        'Automatically fill missing Chinese translations on the current page.'
+                      )}
+                    </p>
+                  </div>
+                  <Switch
+                    size="small"
+                    checked={configFlag(config?.[`jav_${target}_translation_auto_enabled`])}
+                    disabled={busy}
+                    onChange={(_, checked) => void handleAutoChange(checked, target, true)}
+                    slotProps={{
+                      input: {
+                        id: `${target}-translation-auto-enabled`,
+                        'aria-label': zh('自动翻译', 'Automatic translation'),
+                      },
+                    }}
+                  />
+                </div>
+                <TitleTranslationBatchSettings dirty={dirty} target={target} />
+              </div>
+            )}
+          </section>
+        )
+      })}
+      {autoError && (
+        <p role="alert" className="text-sm text-red-600">
+          {autoError}
+        </p>
+      )}
       <form onSubmit={handleSave}>
         <section
           aria-labelledby="translation-service-heading"

@@ -15,7 +15,7 @@ test(
     assert.equal(await evaluate('window.testStore.getState().seriesItems[0].name'), '雨の日')
     assert.equal(await evaluate('window.testStore.getState().seriesItems[1].zh_name'), '人工译名')
     await evaluate(
-      `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_prefer_chinese:'false'}})`
+      `window.testStore.setState({config:{...window.testStore.getState().config,jav_series_translation_enabled:'false'}})`
     )
     await waitFor(
       `!document.body.textContent.includes('自动系列译名') && document.body.textContent.includes('雨の日')`

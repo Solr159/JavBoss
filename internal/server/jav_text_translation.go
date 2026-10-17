@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,15 @@ func (d textTranslationDomain) enabledKey() string {
 		return "jav_series_translation_enabled"
 	}
 	return "jav_title_translation_enabled"
+}
+
+func (d textTranslationDomain) enabled(cfg map[string]string) bool {
+	enabled, _ := strconv.ParseBool(cfg[d.enabledKey()])
+	return enabled
+}
+
+func (d textTranslationDomain) autoKey() string {
+	return strings.TrimSuffix(d.enabledKey(), "enabled") + "auto_enabled"
 }
 
 func (d textTranslationDomain) acquire(ctx context.Context, id int64) (func(), error) {

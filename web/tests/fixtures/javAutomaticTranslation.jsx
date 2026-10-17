@@ -64,6 +64,7 @@ window.fetch = (input, init) => {
 useStore.setState({
   config: {
     jav_title_translation_enabled: 'true',
+    jav_title_translation_auto_enabled: 'true',
     jav_title_translation_provider: 'deepseek',
     jav_title_translation_profiles: JSON.stringify(
       new URLSearchParams(location.search).has('unconfigured')

@@ -156,6 +156,10 @@ func translateText(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
+	if !domain.enabled(cfg) {
+		domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
+		return
+	}
 	item, err := domain.Get(c.Request.Context(), id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		domain.error(c, http.StatusNotFound, "影片不存在", "JAV item was not found")

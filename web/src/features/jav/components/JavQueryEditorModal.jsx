@@ -1,5 +1,5 @@
 import { useStore } from '@/store'
-import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
+import { preferChineseSeries, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -100,7 +100,7 @@ export default function JavQueryEditorModal({
   favoriteRatingMin = 0.5,
   favoriteRatingMax = 5,
 }) {
-  const preferChinese = useStore((state) => preferChineseTitle(state.config))
+  const preferChinese = useStore((state) => preferChineseSeries(state.config))
   const prefixInputRef = useRef(null)
   const idolInputRef = useRef(null)
   const tagInputRef = useRef(null)
@@ -443,7 +443,9 @@ export default function JavQueryEditorModal({
     return [...(filterOptions.series || [])]
       .filter((series) => {
         if (!query) return true
-        return String(series?.name || '')
+        return [series?.name, series?.zh_name]
+          .filter(Boolean)
+          .join(' ')
           .toLowerCase()
           .includes(query)
       })
@@ -1043,7 +1045,9 @@ export default function JavQueryEditorModal({
             <div className="text-sm font-semibold text-slate-800">{zh('系列', 'Series')}</div>
             {selectedSeries ? (
               <div className="flex items-center justify-between gap-2 rounded border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
-                <span className="min-w-0 truncate font-medium">{selectedSeries.name}</span>
+                <span className="min-w-0 truncate font-medium">
+                  {getSeriesDisplayName(selectedSeries, preferChinese)}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -1091,7 +1095,11 @@ export default function JavQueryEditorModal({
                           aria-checked={checked}
                           onMouseDown={(event) => event.preventDefault()}
                           onClick={() => {
-                            setSelectedSeries({ id: series.id, name: series.name })
+                            setSelectedSeries({
+                              id: series.id,
+                              name: series.name,
+                              zh_name: series.zh_name,
+                            })
                             setSeriesSearch('')
                             setSeriesPickerOpen(false)
                             seriesInputRef.current?.blur()

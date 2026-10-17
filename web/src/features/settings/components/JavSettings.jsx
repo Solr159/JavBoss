@@ -34,10 +34,6 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
         setDraft((current) => ({ ...current, javGridColumnsInput: value }))
       }
       javTitleMaxRowsInput={draft.javTitleMaxRowsInput}
-      javTitlePreferChineseInput={draft.javTitlePreferChineseInput}
-      onJavTitlePreferChineseChange={(value) =>
-        setDraft((current) => ({ ...current, javTitlePreferChineseInput: value }))
-      }
       onJavTitleMaxRowsChange={(value) =>
         setDraft((current) => ({ ...current, javTitleMaxRowsInput: value }))
       }

@@ -45,8 +45,8 @@ func translateTexts(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	enabled, _ := strconv.ParseBool(cfg[domain.enabledKey()])
-	if !enabled {
+	automatic, _ := strconv.ParseBool(cfg[domain.autoKey()])
+	if !domain.enabled(cfg) || !automatic {
 		domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
 		return
 	}

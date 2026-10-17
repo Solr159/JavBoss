@@ -12,6 +12,9 @@ for (const scenario of ['unchanged source', 'changed source', 'manual correction
         url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
       })
       await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+      await evaluate(
+        `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_enabled:'true'}})`
+      )
       await evaluate(`{
         const originalFetch = window.fetch;
         window.fetch = (input, init) => {
@@ -84,6 +87,9 @@ test(
       url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
     })
     await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+    await evaluate(
+      `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_enabled:'true'}})`
+    )
     await evaluate(`{
       const originalFetch = window.fetch;
       window.authExpired = false;
@@ -132,6 +138,9 @@ test(
       url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
     })
     await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+    await evaluate(
+      `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_enabled:'true'}})`
+    )
     await evaluate(`{
     const originalFetch=window.fetch;
     window.translationCalls=[];

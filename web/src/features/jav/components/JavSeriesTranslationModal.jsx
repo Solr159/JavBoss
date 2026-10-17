@@ -2,7 +2,7 @@ import { useState } from 'react'
 import AppModal from '@/shared/ui/AppModal'
 import { useStore } from '@/store'
 import { translateJavSeriesName, updateJavSeriesTranslation } from '@/features/jav/api'
-import { parseTranslationConfig } from '@/features/jav/titleTranslation'
+import { parseTranslationConfig, preferChineseSeries } from '@/features/jav/titleTranslation'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
@@ -13,6 +13,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
   const [error, setError] = useState('')
   const patchSeries = useStore((state) => state.patchJavSeries)
   const capabilities = useStore((state) => state.config?.jav_title_translation_capabilities)
+  const enabled = useStore((state) => preferChineseSeries(state.config))
   const reasoning = parseTranslationConfig(capabilities).reasoning
   const translate = async (thinking) => {
     setBusy(true)
@@ -68,19 +69,20 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
           />
         </label>
         <div className="flex flex-wrap gap-2">
-          {[false, true].map((thinking) => (
-            <button
-              key={String(thinking)}
-              type="button"
-              disabled={busy || !item.name?.trim() || (!thinking && reasoning === 'always')}
-              onClick={() => void translate(thinking)}
-              className="rounded border px-3 py-2 text-sm disabled:opacity-50"
-            >
-              {thinking
-                ? zh('深度重新翻译', 'Reasoned retranslation')
-                : zh('快速重新翻译', 'Quick retranslation')}
-            </button>
-          ))}
+          {enabled &&
+            [false, true].map((thinking) => (
+              <button
+                key={String(thinking)}
+                type="button"
+                disabled={busy || !item.name?.trim() || (!thinking && reasoning === 'always')}
+                onClick={() => void translate(thinking)}
+                className="rounded border px-3 py-2 text-sm disabled:opacity-50"
+              >
+                {thinking
+                  ? zh('深度重新翻译', 'Reasoned retranslation')
+                  : zh('快速重新翻译', 'Quick retranslation')}
+              </button>
+            ))}
         </div>
         <p className="text-xs text-gray-500">
           {zh(

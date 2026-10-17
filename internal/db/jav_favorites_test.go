@@ -144,3 +144,36 @@ func TestAddJavsToFavoriteGroupsHandlesLargeSelection(t *testing.T) {
 		}
 	}
 }
+
+func TestJavFavoriteItemsIncludeChineseTitle(t *testing.T) {
+	gdb := openTestDB(t)
+	item := models.Jav{Code: "ZH-001", Title: "Original title", ZhTitle: "中文标题"}
+	group := models.JavFavoriteGroup{Name: "Titles", EntityType: JavFavoriteEntityJav}
+	if err := gdb.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&group).Error; err != nil {
+		t.Fatal(err)
+	}
+	if _, err := AddJavsToFavoriteGroups(context.Background(), []int64{item.ID}, []int64{group.ID}); err != nil {
+		t.Fatal(err)
+	}
+	directory := models.Directory{Path: t.TempDir()}
+	video := models.Video{Fingerprint: "favorite-translation"}
+	if err := gdb.Create(&directory).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&models.VideoLocation{VideoID: video.ID, DirectoryID: directory.ID, RelativePath: "favorite.mp4", Filename: "favorite.mp4", JavID: &item.ID}).Error; err != nil {
+		t.Fatal(err)
+	}
+	items, err := ListJavFavoriteGroupItems(context.Background(), JavFavoriteEntityJav, group.ID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Title != item.Title || items[0].ZhTitle != item.ZhTitle {
+		t.Fatalf("favorite items: %+v", items)
+	}
+}

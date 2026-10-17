@@ -132,6 +132,10 @@ func (job *titleTranslationBatch) start(c *gin.Context) {
 		job.domain.error(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
+	if !job.domain.enabled(cfg) {
+		job.domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
+		return
+	}
 	profile := translation.ActiveProfile(cfg)
 	provider := translation.ActiveProvider(cfg)
 	if profile.Model == "" || (profile.Endpoint(provider) == "" && provider != "custom") || (profile.APIKey == "" && provider != "custom") {

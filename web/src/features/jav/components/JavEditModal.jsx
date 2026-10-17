@@ -1,4 +1,4 @@
-import { parseTranslationConfig } from '@/features/jav/titleTranslation'
+import { preferChineseTitle, parseTranslationConfig } from '@/features/jav/titleTranslation'
 import { useCloseOnOutsidePointer } from '@/shared/hooks/useCloseOnOutsidePointer'
 import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
@@ -512,14 +512,17 @@ function JavEditForm({
 
   const creatingOption =
     creatingIdol || creatingScrapedTag || creatingUserTag || deleting || translating
-  const translationActions = [
-    { mode: 'default', label: zh('快速重新翻译', 'Quick retranslation'), thinking: false },
-    {
-      mode: 'thinking',
-      label: zh('重新推理翻译', 'Retranslate with reasoning'),
-      thinking: true,
-    },
-  ]
+  const translationEnabled = useStore((state) => preferChineseTitle(state.config))
+  const translationActions = !translationEnabled
+    ? []
+    : [
+        { mode: 'default', label: zh('快速重新翻译', 'Quick retranslation'), thinking: false },
+        {
+          mode: 'thinking',
+          label: zh('重新推理翻译', 'Retranslate with reasoning'),
+          thinking: true,
+        },
+      ]
 
   return (
     <AppModal

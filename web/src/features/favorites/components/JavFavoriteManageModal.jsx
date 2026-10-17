@@ -1,5 +1,10 @@
+import { getJavDisplayTitle } from '@/utils/jav'
 import { useStore } from '@/store'
-import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
+import {
+  preferChineseTitle,
+  preferChineseSeries,
+  getSeriesDisplayName,
+} from '@/features/jav/titleTranslation'
 import { useEffect, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -514,7 +519,8 @@ function IdolOrderList({
   labels = favoriteManageLabels('idol'),
   preferChineseName = false,
 }) {
-  const preferChinese = useStore((state) => preferChineseTitle(state.config))
+  const preferChinese = useStore((state) => preferChineseSeries(state.config))
+  const translateTitle = useStore((state) => preferChineseTitle(state.config))
   if (!idols.length) {
     return (
       <div className="rounded border border-dashed border-gray-200 px-3 py-8 text-center text-sm text-gray-500">
@@ -528,7 +534,7 @@ function IdolOrderList({
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
       getLabel={(idol) =>
-        favoriteItemLabel(labels.entityType, idol, preferChineseName, preferChinese)
+        favoriteItemLabel(labels.entityType, idol, preferChineseName, preferChinese, translateTitle)
       }
       getMeta={(idol) => labels.itemMeta(idol)}
       renderLeading={(idol) => (
@@ -606,17 +612,18 @@ function favoriteManageLabels(entityType) {
   }
 }
 
-function favoriteItemLabel(entityType, item, preferChineseName, preferChinese) {
+function favoriteItemLabel(entityType, item, preferChineseName, preferChinese, translateTitle) {
   if (entityType === 'series')
     return getSeriesDisplayName(item, preferChinese) || zh('未知系列', 'Unknown series')
   if (entityType === 'idol') {
     return getIdolDisplayName(item, preferChineseName)
   }
+  if (entityType === 'jav') {
+    const title = getJavDisplayTitle(item, translateTitle)
+    return [...new Set([item?.code, title])].filter(Boolean).join(' ')
+  }
   const name = String(item?.name || '').trim()
   if (name) return name
-  if (entityType === 'jav') {
-    return [item?.code, item?.title].filter(Boolean).join(' ') || zh('未知作品', 'Unknown JAV')
-  }
   if (entityType === 'studio') return zh('未知片商', 'Unknown studio')
   if (entityType === 'series') return zh('未知系列', 'Unknown series')
   return zh('未知女优', 'Unknown idol')

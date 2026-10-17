@@ -1,4 +1,8 @@
-import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
+import {
+  preferChineseTitle,
+  preferChineseSeries,
+  getSeriesDisplayName,
+} from '@/features/jav/titleTranslation'
 import { useMemo, useState, useContext, useEffect, useRef } from 'react'
 import { getIdolCardLayoutProps } from '@/features/jav/components/JavIdolGrid'
 import { JavDetailNavigationContext } from '@/navigation/javDetailNavigation'
@@ -81,7 +85,8 @@ export default function useJavItemActions({
   const preferredSeries = item?.series
   const codeText = code
   const translateTitle = useStore((state) => preferChineseTitle(state.config))
-  const seriesText = getSeriesDisplayName(preferredSeries, translateTitle)
+  const translateSeries = useStore((state) => preferChineseSeries(state.config))
+  const seriesText = getSeriesDisplayName(preferredSeries, translateSeries)
   const canFilterSeries = seriesText && typeof onSeriesClick === 'function'
   const mainTitle = getJavDisplayTitle(item, translateTitle)
   const titleText = [codeText, mainTitle].filter(Boolean).join(' ')
@@ -394,7 +399,7 @@ export default function useJavItemActions({
         studioId: null,
         studioName: '',
         seriesId: id,
-        seriesName: series?.name || '',
+        seriesName: getSeriesDisplayName(series, translateSeries),
         prefix: '',
         favoriteRatingEnabled: false,
         random: false,

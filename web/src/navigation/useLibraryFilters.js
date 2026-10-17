@@ -1,3 +1,4 @@
+import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
 import { useState, useCallback, useEffect, useMemo } from 'react'
@@ -33,6 +34,7 @@ export default function useLibraryFilters({
     javTagOptions,
     config,
     idolItems,
+    seriesItems,
     javItems,
     javTab,
     javIdolIds,
@@ -59,6 +61,7 @@ export default function useLibraryFilters({
       javTagOptions: state.javTagOptions,
       config: state.config,
       idolItems: state.idolItems,
+      seriesItems: state.seriesItems,
       javItems: state.javItems,
       javTab: state.javTab,
       javIdolIds: state.javIdolIds,
@@ -386,7 +389,13 @@ export default function useLibraryFilters({
       })
     }
     if (javSeriesId) {
-      const name = javSeriesName || `#${javSeriesId}`
+      const series =
+        seriesItems.find((item) => Number(item.id) === Number(javSeriesId)) ||
+        javItems.find((item) => Number(item.series?.id) === Number(javSeriesId))?.series
+      const name =
+        getSeriesDisplayName(series, preferChineseSeries(config)) ||
+        javSeriesName ||
+        `#${javSeriesId}`
       items.push({
         key: 'jav-series',
         label: zh(`系列: ${name}`, `Series: ${name}`),
@@ -428,7 +437,9 @@ export default function useLibraryFilters({
     }
     return items
   }, [
-    config?.jav_idol_prefer_chinese_name,
+    config,
+    seriesItems,
+    javItems,
     isJavMode,
     javFavoriteRatingEnabled,
     javFavoriteRatingMax,
@@ -545,7 +556,9 @@ export default function useLibraryFilters({
       const nextStudioName = hasStudio ? String(query?.studio?.name || '').trim() : ''
       const nextSeriesId = Number(query?.series?.id)
       const hasSeries = Number.isFinite(nextSeriesId) && nextSeriesId > 0
-      const nextSeriesName = hasSeries ? String(query?.series?.name || '').trim() : ''
+      const nextSeriesName = hasSeries
+        ? getSeriesDisplayName(query?.series, preferChineseSeries(useStore.getState().config))
+        : ''
       const nextPrefix = String(query?.prefix || '')
         .trim()
         .toUpperCase()

@@ -1,3 +1,5 @@
+import { useStore } from '@/store'
+import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import SortRoundedIcon from '@mui/icons-material/SortRounded'
@@ -93,7 +95,7 @@ export default function JavStudioDetailModal({
       ...searchOptions,
       studioId: null,
       seriesId: series.id,
-      seriesName: series.name,
+      seriesName: getSeriesDisplayName(series, preferChineseSeries(useStore.getState().config)),
     })
   const handleStudioClick = (event) => {
     event.stopPropagation()

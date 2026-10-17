@@ -15,8 +15,8 @@ const capabilities = {
   efforts: ['low', 'medium', 'high'],
 }
 let config = {
-  jav_title_prefer_chinese: 'true',
-  jav_title_translation_enabled: 'false',
+  jav_title_translation_enabled: 'true',
+  jav_series_translation_enabled: 'false',
   jav_title_translation_provider: 'deepseek',
   jav_title_translation_catalog: JSON.stringify([
     { id: 'deepseek', name: 'DeepSeek', base_url: 'https://api.deepseek.com', protocol: 'chat' },

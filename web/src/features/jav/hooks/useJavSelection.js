@@ -1,3 +1,5 @@
+import { getJavDisplayTitle } from '@/utils/jav'
+import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { addJavTagToJavs, fetchJavs } from '@/features/jav/api'
 import { addJavsToFavoriteGroups } from '@/features/favorites/api'
@@ -53,11 +55,12 @@ export default function useJavSelection({
     const currentItems = new Map((items || []).map((item) => [Number(item.id), item]))
     return Array.from(selection, ([id, item]) => currentItems.get(id) || item)
   }, [items, selection])
+  const translateTitle = useStore((state) => preferChineseTitle(state.config))
   const selectedList = selectedItems.map((item) => ({
     id: Number(item.id),
     jav_id: Number(item.id),
     jav_code: item.code,
-    label: item.title || item.code || `#${item.id}`,
+    label: getJavDisplayTitle(item, translateTitle),
   }))
 
   const runAction = async (name, callback) => {

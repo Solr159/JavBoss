@@ -1,3 +1,4 @@
+import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
 import { useStore } from '@/store'
 import { useShallow } from 'zustand/react/shallow'
 import { createDefaultIdolProfileFilters } from '@/constants/jav'
@@ -241,7 +242,7 @@ export default function useSectionNavigation({
       javStudioId: null,
       javStudioName: '',
       javSeriesId: id,
-      javSeriesName: String(series?.name || '').trim(),
+      javSeriesName: getSeriesDisplayName(series, preferChineseSeries(useStore.getState().config)),
       javPrefix: '',
       javSoloOnly: false,
       javFavoriteRatingEnabled: false,

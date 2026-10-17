@@ -11,8 +11,8 @@ const automatic = new URLSearchParams(location.search).has('automatic')
 useStore.setState({
   config: {
     jav_title_translation_enabled: 'false',
-    jav_series_translation_enabled: String(automatic),
-    jav_title_prefer_chinese: 'true',
+    jav_series_translation_enabled: 'true',
+    jav_series_translation_auto_enabled: String(automatic),
     jav_title_translation_provider: 'custom',
     jav_title_translation_profiles: JSON.stringify({ custom: { model: 'local' } }),
   },
