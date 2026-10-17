@@ -79,11 +79,11 @@ export default function useJavTitleTranslation(items) {
   return useJavTextTranslation(items, 'title')
 }
 
-export function useJavSeriesTranslation(items) {
-  return useJavTextTranslation(items, 'series')
+export function useJavSeriesTranslation(items, onTranslated) {
+  return useJavTextTranslation(items, 'series', onTranslated)
 }
 
-function useJavTextTranslation(items, target) {
+function useJavTextTranslation(items, target, onTranslated) {
   const domain = domains[target]
   const config = useStore((state) => state.config)
   const patchItem = useStore((state) => state[domain.patch])
@@ -147,6 +147,7 @@ function useJavTextTranslation(items, target) {
               setError(getErrorMessage(result.error))
             } else if (result.value) {
               patchItem(result.value)
+              onTranslated?.(result.value)
             }
           },
           domain
@@ -157,7 +158,7 @@ function useJavTextTranslation(items, target) {
     return () => {
       cancelled = true
     }
-  }, [items, config, revision, patchItem, domain, target])
+  }, [items, config, revision, patchItem, domain, target, onTranslated])
 
   return {
     error,

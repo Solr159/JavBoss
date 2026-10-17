@@ -1,6 +1,7 @@
+import { useJavSeriesTranslation } from '@/features/jav/hooks/useJavTitleTranslation'
 import { useStore } from '@/store'
 import { getSeriesDisplayName, preferChineseSeries } from '@/features/jav/titleTranslation'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import SortRoundedIcon from '@mui/icons-material/SortRounded'
 import { fetchJavStudioPreview } from '@/features/jav/api'
@@ -27,7 +28,7 @@ export default function JavStudioDetailModal({
 }) {
   const seedItem = Number(initialItem?.id) === studioId ? initialItem : null
   const [item, setItem] = useState(seedItem)
-  const [loading, setLoading] = useState(!seedItem)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [prefixSort, setPrefixSort] = useState(initialState.prefixSort)
   const [seriesSort, setSeriesSort] = useState(initialState.seriesSort)
@@ -40,7 +41,6 @@ export default function JavStudioDetailModal({
       .then((loaded) => {
         if (!cancelled) {
           setItem(loaded)
-          onLoaded?.(loaded)
         }
       })
       .catch((err) => {
@@ -52,17 +52,38 @@ export default function JavStudioDetailModal({
     return () => {
       cancelled = true
     }
-  }, [onLoaded, studioId])
+  }, [studioId])
+
+  useEffect(() => {
+    if (item) onLoaded?.(item)
+  }, [item, onLoaded])
+
+  const applySeriesTranslation = useCallback((translated) => {
+    setItem((current) =>
+      current
+        ? {
+            ...current,
+            series: (current.series || []).map((series) =>
+              Number(series.id) === Number(translated.id) &&
+              series.name === translated.name &&
+              !series.zh_name?.trim()
+                ? { ...series, ...translated }
+                : series
+            ),
+          }
+        : current
+    )
+  }, [])
 
   const restoreScroll = useCallback(
     (node) => {
       // The modal portal may attach after the parent's layout effects have run.
-      if (node && item && !loading && !scrollRestoredRef.current) {
+      if (node && item && !scrollRestoredRef.current) {
         node.scrollTop = initialScrollRef.current
         scrollRestoredRef.current = true
       }
     },
-    [item, loading]
+    [item]
   )
 
   const name = item?.name || zh('片商详情', 'Studio details')
@@ -71,7 +92,11 @@ export default function JavStudioDetailModal({
   const workCount = Number(item?.work_count) || 0
   const showWorkCount = workCount > 0
   const codePrefixes = getStudioCodePrefixes(item)
-  const seriesItems = getStudioSeries(item)
+  const seriesItems = useMemo(() => getStudioSeries(item), [item])
+  const translation = useJavSeriesTranslation(
+    loading ? undefined : seriesItems,
+    applySeriesTranslation
+  )
   const searchOptions = {
     page: 1,
     search: '',
@@ -167,7 +192,7 @@ export default function JavStudioDetailModal({
         onScroll={(event) => onStateChange({ scrollTop: event.currentTarget.scrollTop })}
         className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
       >
-        {loading ? (
+        {loading && !item ? (
           <p className="py-8 text-center text-sm text-gray-500">{zh('加载中…', 'Loading...')}</p>
         ) : error && !item ? (
           <div role="alert" className="py-8 text-center text-sm text-red-600">
@@ -219,6 +244,14 @@ export default function JavStudioDetailModal({
                   onStateChange({ seriesSort: sort })
                 }}
               />
+              {translation.error && (
+                <div role="alert" className="mb-3 text-sm text-amber-700">
+                  {translation.error}{' '}
+                  <button type="button" className="underline" onClick={translation.retry}>
+                    {zh('重试', 'Retry')}
+                  </button>
+                </div>
+              )}
               {seriesItems.length > 0 ? (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
                   {sortStudioDetailItems(seriesItems, seriesSort, 'name').map((series) => (
