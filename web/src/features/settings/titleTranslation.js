@@ -1,39 +1,5 @@
 import { parseTranslationConfig } from '@/features/jav/titleTranslation'
-import { configFlag } from '@/utils/config'
 import { zh } from '@/utils/i18n'
-
-// Keep the picker usable before config loads or when an older backend omits the catalog.
-const defaultProviders = [
-  { id: 'deepseek', name: 'DeepSeek', base_url: 'https://api.deepseek.com', protocol: 'chat' },
-  { id: 'openai', name: 'OpenAI', base_url: 'https://api.openai.com/v1', protocol: 'responses' },
-  {
-    id: 'anthropic',
-    name: 'Claude',
-    base_url: 'https://api.anthropic.com/v1',
-    protocol: 'anthropic',
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    base_url: 'https://generativelanguage.googleapis.com/v1beta',
-    protocol: 'gemini',
-  },
-  {
-    id: 'zhipu',
-    name: '智谱 / GLM',
-    base_url: 'https://open.bigmodel.cn/api/paas/v4',
-    protocol: 'chat',
-  },
-  { id: 'kimi', name: 'Kimi', base_url: 'https://api.moonshot.cn/v1', protocol: 'chat' },
-  {
-    id: 'qwen',
-    name: '千问 / Qwen',
-    base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-    protocol: 'chat',
-  },
-  { id: 'grok', name: 'Grok', base_url: 'https://api.x.ai/v1', protocol: 'chat' },
-  { id: 'custom', name: '自定义 / Custom', base_url: '', protocol: 'chat' },
-]
 
 export const defaultRequest = {
   url: '{{base_url}}/chat/completions',
@@ -74,16 +40,9 @@ function profileDraft(profile = {}, provider = {}) {
 
 export function createTitleTranslationDraft(config) {
   const suppliedCatalog = parseTranslationConfig(config?.jav_title_translation_catalog, [])
-  const catalog =
-    Array.isArray(suppliedCatalog) && suppliedCatalog.length ? suppliedCatalog : defaultProviders
+  const catalog = Array.isArray(suppliedCatalog) ? suppliedCatalog : []
   const provider = config?.jav_title_translation_provider || 'deepseek'
   const stored = parseTranslationConfig(config?.jav_title_translation_profiles)
-  if (!stored.deepseek)
-    stored.deepseek = {
-      api_key_set: configFlag(config?.jav_title_translation_api_key_set),
-      model: config?.jav_title_translation_model || '',
-      thinking: configFlag(config?.jav_title_translation_thinking),
-    }
   const profiles = Object.fromEntries(
     Object.entries(stored).map(([id, p]) => [
       id,
@@ -94,7 +53,6 @@ export function createTitleTranslationDraft(config) {
     ])
   )
   return {
-    enabled: configFlag(config?.jav_title_translation_enabled),
     defaultPrompt: config?.jav_title_translation_default_prompt || '',
     prompt: config?.jav_title_translation_prompt || '',
     catalog,
@@ -111,12 +69,11 @@ export function createTitleTranslationDraft(config) {
 // Keep unfinished edits when switching providers; never reuse another provider's key.
 export function changeTranslationDraft(current, patch) {
   if (!patch.provider || patch.provider === current.provider) return { ...current, ...patch }
-  const { profiles, catalog, enabled, defaultPrompt, prompt, provider, ...profile } = current
+  const { profiles, catalog, defaultPrompt, prompt, provider, ...profile } = current
   const nextProfiles = { ...profiles, [provider]: profile }
   return {
     profiles: nextProfiles,
     catalog,
-    enabled,
     defaultPrompt,
     prompt,
     provider: patch.provider,

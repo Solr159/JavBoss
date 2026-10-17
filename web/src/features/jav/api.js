@@ -19,13 +19,6 @@ export async function translateJavTitles(ids, { onItem = () => {} } = {}) {
     }
     return event.done === true
   }
-  // Accept the previous JSON response when a server or test fixture has not switched to streaming.
-  if (!res.headers.get('Content-Type')?.includes('application/x-ndjson')) {
-    const payload = await res.json()
-    for (const item of payload.items) accept({ item })
-    accept(payload)
-    return result
-  }
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
@@ -78,11 +71,11 @@ export async function fetchTitleTranslationModels({
   return res.json()
 }
 
-export async function translateJavTitle(id, { refresh = false, title, thinking } = {}) {
+export async function translateJavTitle(id, { title, thinking } = {}) {
   const res = await apiFetch(`/jav/items/${encodeURIComponent(id)}/title-translation`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ refresh, title, thinking }),
+    body: JSON.stringify({ title, thinking }),
   })
   if (!res.ok) throw await apiError(res)
   return res.json()

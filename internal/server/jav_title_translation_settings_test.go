@@ -140,7 +140,7 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_api_key": "key", "jav_title_translation_model": "model", "jav_title_translation_thinking": "true"})
 	item := models.Jav{Code: "INHERIT-001", Title: "Original", ZhTitle: "Existing"}
 	common.DB.Create(&item)
-	for _, body := range []string{`{"refresh":true}`, `{"refresh":true,"thinking":false}`} {
+	for _, body := range []string{`{}`, `{"thinking":false}`} {
 		response := translationAPIRequest(router, "POST", "/jav/items/"+strconv.FormatInt(item.ID, 10)+"/title-translation", body)
 		if response.Code != 200 {
 			t.Fatalf("preview=%d %s", response.Code, response.Body)
@@ -148,5 +148,83 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 	}
 	if strings.Join(modes, ",") != "enabled,disabled" {
 		t.Fatalf("modes=%v", modes)
+	}
+}
+
+func TestTitleTranslationConfigReadsLegacySettingsButOnlyWritesProfiles(t *testing.T) {
+	router := titleTranslationRouter(t, func(http.ResponseWriter, *http.Request) { t.Error("unexpected provider request") })
+	legacy := map[string]string{
+		"jav_title_translation_api_key":  "legacy-secret",
+		"jav_title_translation_model":    "legacy-model",
+		"jav_title_translation_thinking": "true",
+	}
+	if err := dbpkg.UpsertConfig(context.Background(), legacy); err != nil {
+		t.Fatal(err)
+	}
+	checkPublic := func(body []byte, model string, thinking bool) {
+		t.Helper()
+		var cfg map[string]string
+		if err := json.Unmarshal(body, &cfg); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(body), "secret") || cfg["jav_title_translation_api_key_set"] != "true" || cfg["jav_title_translation_model"] != model || cfg["jav_title_translation_thinking"] != strconv.FormatBool(thinking) || cfg["jav_title_translation_catalog"] == "" || cfg["jav_title_translation_capabilities"] == "" {
+			t.Fatalf("public config=%s", body)
+		}
+		var profiles map[string]translation.Profile
+		if err := json.Unmarshal([]byte(cfg[translation.ProfilesKey]), &profiles); err != nil {
+			t.Fatal(err)
+		}
+		p := profiles["deepseek"]
+		if p.Model != model || p.Thinking != thinking || !p.APIKeySet || p.APIKey != "" {
+			t.Fatalf("public profile=%+v", p)
+		}
+	}
+	response := translationAPIRequest(router, "GET", "/config", "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("legacy config=%d %s", response.Code, response.Body)
+	}
+	checkPublic(response.Body.Bytes(), "legacy-model", true)
+	// Like other unknown configuration keys, obsolete write fields are ignored.
+	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_api_key":"ignored-secret","jav_title_translation_model":"ignored-model","jav_title_translation_thinking":false}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("obsolete fields=%d %s", response.Code, response.Body)
+	}
+	checkPublic(response.Body.Bytes(), "legacy-model", true)
+	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_profiles":{"deepseek":{"model":"profile-model","thinking":false}},"jav_title_translation_prompt":" Custom prompt "}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("profile fields=%d %s", response.Code, response.Body)
+	}
+	checkPublic(response.Body.Bytes(), "profile-model", false)
+	stored, err := dbpkg.ListConfig(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, value := range legacy {
+		if stored[key] != value {
+			t.Fatalf("legacy field %s changed", key)
+		}
+	}
+	p := translation.ActiveProfile(stored)
+	if p.APIKey != "legacy-secret" || p.Model != "profile-model" || p.Thinking || stored["jav_title_translation_prompt"] != "Custom prompt" {
+		t.Fatal("profile or prompt was not saved correctly")
+	}
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"provider":"deepseek","profile":{"model":"deepseek-flash","reasoning":""},"discover":false}`)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"reasoning":"toggle"`) {
+		t.Fatalf("draft capabilities=%d %s", response.Code, response.Body)
+	}
+	for _, prompt := range []string{"", strings.Repeat("x", 8193)} {
+		body, err := json.Marshal(map[string]string{"jav_title_translation_prompt": prompt})
+		if err != nil {
+			t.Fatal(err)
+		}
+		response = translationAPIRequest(router, "PATCH", "/config", string(body))
+		if prompt == "" {
+			var cfg map[string]string
+			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != http.StatusOK || cfg["jav_title_translation_prompt"] != translation.DefaultPrompt {
+				t.Fatalf("default prompt=%d %s", response.Code, response.Body)
+			}
+		} else if response.Code != http.StatusBadRequest {
+			t.Fatalf("oversized prompt=%d %s", response.Code, response.Body)
+		}
 	}
 }

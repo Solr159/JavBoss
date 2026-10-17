@@ -50,7 +50,7 @@ func TestTitleTranslationQuotaErrorReachesSingleAndBatchClients(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/jav/items/" + strconv.FormatInt(item.ID, 10) + "/title-translation"
-	response := translationAPIRequest(router, "POST", path, `{"refresh":true}`)
+	response := translationAPIRequest(router, "POST", path, `{}`)
 	if response.Code != 429 {
 		t.Fatalf("single=%d %s", response.Code, response.Body)
 	}

@@ -44,7 +44,6 @@ for (const scenario of ['unchanged source', 'changed source', 'manual correction
       await waitFor(`document.querySelector('#jav-zh-title-1').value === '雨天相遇'`)
       assert.equal(await evaluate('window.savedPayload'), undefined)
       assert.deepEqual(await evaluate('window.translationPayload'), {
-        refresh: true,
         title: 'Test JAV',
         thinking: false,
       })

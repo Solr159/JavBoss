@@ -96,9 +96,6 @@ func updateConfig(c *gin.Context) {
 		TitleTranslateProvider    *string                    `json:"jav_title_translation_provider"`
 		TitleTranslateProfiles    map[string]json.RawMessage `json:"jav_title_translation_profiles"`
 		TitleTranslateEnabled     *bool                      `json:"jav_title_translation_enabled"`
-		TitleTranslateThinking    *bool                      `json:"jav_title_translation_thinking"`
-		TitleTranslateAPIKey      *string                    `json:"jav_title_translation_api_key"`
-		TitleTranslateModel       *string                    `json:"jav_title_translation_model"`
 		TitleTranslatePrompt      *string                    `json:"jav_title_translation_prompt"`
 		JavIdolTagMaxRows         *int                       `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows             *int                       `json:"jav_tag_max_rows"`
@@ -221,30 +218,13 @@ func updateConfig(c *gin.Context) {
 	if req.JavTitlePreferChinese != nil {
 		entries["jav_title_prefer_chinese"] = strconv.FormatBool(*req.JavTitlePreferChinese)
 	}
-	if req.TitleTranslateThinking != nil {
-		entries["jav_title_translation_thinking"] = strconv.FormatBool(*req.TitleTranslateThinking)
-	}
-	for key, input := range map[string]*string{
-		"jav_title_translation_api_key": req.TitleTranslateAPIKey,
-		"jav_title_translation_model":   req.TitleTranslateModel,
-		"jav_title_translation_prompt":  req.TitleTranslatePrompt,
-	} {
-		if input == nil {
-			continue
-		}
-		value := strings.TrimSpace(*input)
-		limit := 8192
-		if key == "jav_title_translation_api_key" {
-			limit = 512
-		}
-		if key == "jav_title_translation_model" {
-			limit = 200
-		}
-		if utf8.RuneCountInString(value) > limit || !utf8.ValidString(value) || (key == "jav_title_translation_api_key" && strings.ContainsAny(value, "\r\n")) {
+	if req.TitleTranslatePrompt != nil {
+		value := strings.TrimSpace(*req.TitleTranslatePrompt)
+		if utf8.RuneCountInString(value) > 8192 || !utf8.ValidString(value) {
 			respondLocalizedError(c, http.StatusBadRequest, "翻译配置无效或过长", "Translation settings are invalid or too long")
 			return
 		}
-		entries[key] = value
+		entries["jav_title_translation_prompt"] = value
 	}
 	if req.JavTitleMaxRows != nil {
 		rows := *req.JavTitleMaxRows

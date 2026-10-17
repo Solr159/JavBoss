@@ -3,6 +3,7 @@ import Popper from '@mui/material/Popper'
 import useAutocomplete from '@mui/material/useAutocomplete'
 import { useEffect, useState } from 'react'
 import { fetchTitleTranslationModels } from '@/features/jav/api'
+import { parseTranslationConfig } from '@/features/jav/titleTranslation'
 import { translationPresets, protocolNames } from '@/features/settings/translationPresets'
 import { translationProfile } from '@/features/settings/titleTranslation'
 import { getErrorMessage } from '@/utils/errors'
@@ -12,11 +13,18 @@ const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
 const emptyCaps = { reasoning: 'unknown', efforts: [] }
 
-export default function JavTitleTranslationSettings({ value, onChange, disabled = false }) {
+export default function JavTitleTranslationSettings({
+  value,
+  onChange,
+  disabled = false,
+  readOnly = false,
+  savedCapabilities,
+}) {
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [caps, setCaps] = useState(emptyCaps)
+  const [draftCaps, setCaps] = useState(emptyCaps)
+  const caps = readOnly ? parseTranslationConfig(savedCapabilities, emptyCaps) : draftCaps
   const [checkingCaps, setCheckingCaps] = useState(true)
   const [revision, setRevision] = useState(0)
   const [modelFilter, setModelFilter] = useState('')
@@ -26,6 +34,7 @@ export default function JavTitleTranslationSettings({ value, onChange, disabled 
   const apiKey = value.apiKey.trim()
 
   useEffect(() => {
+    if (readOnly) return undefined
     const controller = new AbortController()
     setCaps(emptyCaps)
     setCheckingCaps(true)
@@ -34,8 +43,6 @@ export default function JavTitleTranslationSettings({ value, onChange, disabled 
         const result = await fetchTitleTranslationModels({
           provider: providerID,
           profile: {
-            base_url: baseUrl,
-            protocol,
             model,
             reasoning: providerID === 'custom' ? reasoning : undefined,
           },
@@ -53,7 +60,7 @@ export default function JavTitleTranslationSettings({ value, onChange, disabled 
       clearTimeout(timer)
       controller.abort()
     }
-  }, [providerID, baseUrl, protocol, model, reasoning])
+  }, [readOnly, providerID, model, reasoning])
 
   useEffect(() => {
     setModels([])
@@ -309,7 +316,7 @@ export default function JavTitleTranslationSettings({ value, onChange, disabled 
           )}
         </p>
       )}
-      {!checkingCaps && caps.reasoning === 'unknown' && value.model && (
+      {(readOnly || !checkingCaps) && caps.reasoning === 'unknown' && value.model && (
         <p className="text-xs text-amber-700">
           {zh(
             '尚未识别此模型的能力。可使用自定义服务商的接口预设，再测试翻译。',

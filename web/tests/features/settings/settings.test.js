@@ -117,6 +117,9 @@ test('translation settings keep saved keys private and omit untouched credential
       jav_title_translation_enabled: 'true',
       jav_title_translation_api_key_set: 'true',
       jav_title_translation_model: 'official-model',
+      jav_title_translation_profiles: JSON.stringify({
+        deepseek: { api_key_set: true, model: 'official-model' },
+      }),
       jav_title_translation_prompt: 'Custom prompt',
     },
   })
@@ -148,7 +151,6 @@ test('translation settings keep saved keys private and omit untouched credential
   assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, 'replacement-key')
   assert.equal(useStore.getState().config.jav_title_translation_api_key, undefined)
   Object.assign(draft, {
-    enabled: false,
     apiKey: '',
     clearApiKey: true,
     hasApiKey: false,
@@ -214,21 +216,28 @@ test('provider switching preserves independent unsaved profiles and request temp
   assert.equal(draft.model, 'deepseek-flash')
 })
 
-test('provider picker has defaults before catalog loads and fills each API endpoint', async (t) => {
+test('provider picker uses only the backend catalog and its endpoint defaults', async (t) => {
   const [settings] = await loadModules(t, ['features/settings/titleTranslation.js'])
   for (const catalog of [undefined, '', '[]', '{}']) {
     const draft = settings.createTitleTranslationDraft({ jav_title_translation_catalog: catalog })
-    assert.equal(draft.catalog.length, 9)
-    assert.equal(draft.baseUrl, 'https://api.deepseek.com')
-    assert.equal(draft.customAddress, false)
-    const openai = settings.changeTranslationDraft(draft, { provider: 'openai' })
-    assert.equal(openai.baseUrl, 'https://api.openai.com/v1')
-    assert.equal(openai.protocol, 'responses')
-    const kimi = settings.changeTranslationDraft(openai, { provider: 'kimi' })
-    assert.equal(kimi.baseUrl, 'https://api.moonshot.cn/v1')
-    const custom = settings.changeTranslationDraft(kimi, { provider: 'custom' })
-    assert.equal(custom.baseUrl, '')
+    assert.deepEqual(draft.catalog, [])
   }
+  const catalog = [
+    { id: 'deepseek', name: 'DeepSeek', base_url: 'https://deepseek.test', protocol: 'chat' },
+    { id: 'openai', name: 'OpenAI', base_url: 'https://openai.test/v1', protocol: 'responses' },
+    { id: 'custom', name: 'Custom', base_url: '', protocol: 'chat' },
+  ]
+  const draft = settings.createTitleTranslationDraft({
+    jav_title_translation_catalog: JSON.stringify(catalog),
+  })
+  assert.deepEqual(draft.catalog, catalog)
+  assert.equal(draft.baseUrl, catalog[0].base_url)
+  assert.equal(draft.customAddress, false)
+  const openai = settings.changeTranslationDraft(draft, { provider: 'openai' })
+  assert.equal(openai.baseUrl, catalog[1].base_url)
+  assert.equal(openai.protocol, 'responses')
+  const custom = settings.changeTranslationDraft(openai, { provider: 'custom' })
+  assert.equal(custom.baseUrl, '')
 })
 
 test('Chinese title display defaults on and is independent of automatic translation', async (t) => {
@@ -254,7 +263,7 @@ test('Chinese title display defaults on and is independent of automatic translat
     jav_title_translation_default_prompt: 'Default',
   })
   const next = settings.changeTranslationDraft(draft, { provider: 'openai' })
-  assert.equal(next.enabled, true)
+  assert.equal(Object.hasOwn(next, 'enabled'), false)
   assert.equal(Object.hasOwn(next, 'preferChinese'), false)
   assert.equal(next.defaultPrompt, 'Default')
 })

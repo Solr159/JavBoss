@@ -19,8 +19,8 @@ import (
 
 // POST /jav/title-translation/items accepts 1–20 IDs from the current page.
 // Only missing titles are translated, with at most three provider requests globally.
-// Accept: application/x-ndjson streams {item}, {error_zh,error_en} and {done:true}.
-// Other clients receive a JSON summary. On error, queued work stops; in-flight work finishes.
+// Always streams NDJSON {item}, {error_zh,error_en}, {heartbeat:true} and {done:true}.
+// On error, queued work stops; in-flight work finishes.
 func translateJavTitles(c *gin.Context) {
 	var req struct {
 		IDs []int64 `json:"ids"`
@@ -88,25 +88,19 @@ func translateJavTitles(c *gin.Context) {
 	}
 	go func() { workers.Wait(); close(results) }()
 
-	stream := strings.Contains(c.GetHeader("Accept"), "application/x-ndjson")
-	if stream {
-		c.Header("Content-Type", "application/x-ndjson; charset=utf-8")
-		c.Header("Cache-Control", "no-cache, no-transform")
-		c.Header("X-Accel-Buffering", "no")
-		c.Writer.Flush()
-	}
+	c.Header("Content-Type", "application/x-ndjson; charset=utf-8")
+	c.Header("Cache-Control", "no-cache, no-transform")
+	c.Header("X-Accel-Buffering", "no")
+	c.Writer.Flush()
+	encoder := json.NewEncoder(c.Writer)
 	send := func(event gin.H) bool {
-		if !stream {
-			return true
-		}
-		if err := json.NewEncoder(c.Writer).Encode(event); err != nil {
+		if err := encoder.Encode(event); err != nil {
 			return false
 		}
 		c.Writer.Flush()
 		return true
 	}
-	completed := make(map[int64]gin.H)
-	summary := gin.H{}
+	errorSent := false
 	heartbeat := time.NewTicker(15 * time.Second)
 	defer heartbeat.Stop()
 	for {
@@ -119,29 +113,17 @@ func translateJavTitles(c *gin.Context) {
 			}
 		case result, ok := <-results:
 			if !ok {
-				if stream {
-					send(gin.H{"done": true})
-				} else {
-					items := make([]gin.H, 0, len(completed))
-					for _, id := range req.IDs {
-						if item := completed[id]; item != nil {
-							items = append(items, item)
-							delete(completed, id)
-						}
-					}
-					summary["items"] = items
-					c.JSON(http.StatusOK, summary)
-				}
+				send(gin.H{"done": true})
 				return
 			}
-			if result.err != nil && summary["error_en"] == nil {
-				_, summary["error_zh"], summary["error_en"] = titleTranslationErrorDetails(result.err)
-				if !send(summary) {
+			if result.err != nil && !errorSent {
+				_, zh, en := titleTranslationErrorDetails(result.err)
+				if !send(gin.H{"error_zh": zh, "error_en": en}) {
 					return
 				}
+				errorSent = true
 			}
 			if result.item != nil {
-				completed[result.item["id"].(int64)] = result.item
 				if !send(gin.H{"item": result.item}) {
 					return
 				}

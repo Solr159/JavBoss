@@ -52,8 +52,8 @@ func TestProviderRequests(t *testing.T) {
 				w.Write([]byte(tc.response))
 			}))
 			defer upstream.Close()
-			client := &Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
-			p := Profile{APIKey: "secret", Model: tc.model, Thinking: tc.thinking, Temperature: &temp, Effort: tc.effort}
+			client := &Client{HTTP: upstream.Client()}
+			p := Profile{BaseURL: upstream.URL, APIKey: "secret", Model: tc.model, Thinking: tc.thinking, Temperature: &temp, Effort: tc.effort}
 			title, err := client.Translate(context.Background(), tc.provider, p, "Translate", "雨の日", tc.override)
 			if err != nil || title != "雨天" {
 				t.Fatalf("title=%q err=%v", title, err)
@@ -90,7 +90,7 @@ func TestQwenStreamExtractsOnlyFinalAnswer(t *testing.T) {
 		w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"hidden\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"雨天\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n"))
 	}))
 	defer upstream.Close()
-	title, err := (&Client{BaseURL: upstream.URL, HTTP: upstream.Client()}).Translate(context.Background(), "qwen", Profile{APIKey: "key", Model: "qwen-plus", Thinking: true}, "Translate", "title", nil)
+	title, err := (&Client{HTTP: upstream.Client()}).Translate(context.Background(), "qwen", Profile{BaseURL: upstream.URL, APIKey: "key", Model: "qwen-plus", Thinking: true}, "Translate", "title", nil)
 	if err != nil || title != "雨天" {
 		t.Fatalf("title=%q err=%v", title, err)
 	}

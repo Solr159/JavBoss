@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -49,12 +50,9 @@ func TestTitleTranslationItemsKeepCachedTitlesAndConcurrentCorrections(t *testin
 	body, _ := json.Marshal(map[string]any{"ids": ids})
 	for i := 0; i < 2; i++ {
 		response := translationAPIRequest(router, "POST", "/jav/title-translation/items", string(body))
-		var result struct{ Items []models.Jav }
-		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &result) != nil || len(result.Items) != 4 {
-			t.Fatalf("response=%d %s", response.Code, response.Body)
-		}
-		if result.Items[0].ZhTitle != "雨天" || result.Items[1].ZhTitle != "人工校对" || result.Items[2].ZhTitle != "翻译期间的人工校对" || result.Items[3].ZhTitle != "" {
-			t.Fatalf("titles=%+v", result.Items)
+		result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
+		if len(result) != 4 || result[items[0].ID].ZhTitle != "雨天" || result[items[1].ID].ZhTitle != "人工校对" || result[items[2].ID].ZhTitle != "翻译期间的人工校对" || result[items[3].ID].ZhTitle != "" {
+			t.Fatalf("titles=%+v", result)
 		}
 	}
 	if calls.Load() != 2 {
@@ -99,7 +97,7 @@ func TestTitleTranslationItemsReturnPartialSuccessAndStopOnProviderError(t *test
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, "POST", srv.URL+"/jav/title-translation/items", strings.NewReader(string(body)))
-	req.Header.Set("Accept", "application/x-ndjson")
+	req.Header.Set("Accept", "application/json")
 	response, err := srv.Client().Do(req)
 	if err != nil {
 		t.Fatal(err)
@@ -248,12 +246,9 @@ func TestTitleTranslationItemsStreamBeforeBatchFinishesAndDeduplicateAcrossReque
 		t.Fatal("duplicate request failed")
 	}
 	defer other.Body.Close()
-	var summary struct{ Items []models.Jav }
-	if err := json.NewDecoder(other.Body).Decode(&summary); err != nil {
-		t.Fatal(err)
-	}
-	if count != 6 || len(summary.Items) != 6 || calls.Load() != 6 || maximum.Load() != 3 {
-		t.Fatalf("streamed=%d duplicate=%d calls=%d concurrent=%d", count, len(summary.Items), calls.Load(), maximum.Load())
+	otherItems := readTitleTranslationItems(t, other.StatusCode, other.Header, other.Body)
+	if count != 6 || len(otherItems) != 6 || calls.Load() != 6 || maximum.Load() != 3 {
+		t.Fatalf("streamed=%d duplicate=%d calls=%d concurrent=%d", count, len(otherItems), calls.Load(), maximum.Load())
 	}
 }
 
@@ -275,5 +270,124 @@ func TestTitleTranslationItemsValidateBeforeSpendingRequests(t *testing.T) {
 	response := translationAPIRequest(router, "POST", "/jav/title-translation/items", `{"ids":[`+strconv.FormatInt(item.ID, 10)+`]}`)
 	if response.Code != 400 || !strings.Contains(response.Body.String(), "disabled") {
 		t.Fatalf("disabled response=%d %s", response.Code, response.Body)
+	}
+}
+
+func TestTitleTranslationItemsPreserveOriginalAndCacheChineseWithoutOverwritingConcurrentEdits(t *testing.T) {
+	calls := 0
+	var editDuringTranslation func()
+	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
+		var payload struct {
+			Thinking struct{ Type string } `json:"thinking"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.Thinking.Type != "disabled" {
+			t.Errorf("reasoning should be disabled: %+v err=%v", payload, err)
+		}
+		calls++
+		if editDuringTranslation != nil {
+			editDuringTranslation()
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天相遇"}}]}`))
+	})
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	item := models.Jav{Code: "TRANS-001", Title: "雨の日の出会い"}
+	if err := common.DB.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	path := "/jav/title-translation/items"
+	body := `{"ids":[` + strconv.FormatInt(item.ID, 10) + `]}`
+	for i := 0; i < 2; i++ {
+		response := translationAPIRequest(router, "POST", path, body)
+		result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
+		if len(result) != 1 || result[item.ID].Title != item.Title || result[item.ID].ZhTitle != "雨天相遇" {
+			t.Fatalf("translation=%+v", result)
+		}
+	}
+	var stored models.Jav
+	if err := common.DB.First(&stored, item.ID).Error; err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || stored.Title != item.Title || stored.ZhTitle != "雨天相遇" {
+		t.Fatalf("calls=%d item=%+v", calls, stored)
+	}
+	common.DB.Model(&stored).Updates(map[string]any{"title": "New source", "zh_title": ""})
+	editDuringTranslation = func() { common.DB.Model(&stored).Update("title", "User edit") }
+	response := translationAPIRequest(router, "POST", path, body)
+	result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
+	if len(result) != 1 || result[item.ID].Title != "User edit" || result[item.ID].ZhTitle != "" {
+		t.Fatalf("concurrent edit=%+v", result)
+	}
+	common.DB.First(&stored, item.ID)
+	if stored.ZhTitle != "" {
+		t.Fatal("stale translation was saved after the source changed")
+	}
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false"}); err != nil {
+		t.Fatal(err)
+	}
+	response = translationAPIRequest(router, "POST", path, body)
+	if response.Code != 400 || calls != 2 {
+		t.Fatal("disabled translation called provider")
+	}
+}
+
+func TestTitleTranslationItemsCanShowExistingChineseTitleWithoutAPIKey(t *testing.T) {
+	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Error("an existing Chinese title must not call DeepSeek")
+	})
+	response := translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":true}`)
+	if response.Code != 200 {
+		t.Fatalf("enable display=%d %s", response.Code, response.Body)
+	}
+	item := models.Jav{Code: "TRANS-EXISTING", Title: "Existing original", ZhTitle: "已有中文标题"}
+	if err := common.DB.Create(&item).Error; err != nil {
+		t.Fatal(err)
+	}
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/items", `{"ids":[`+strconv.FormatInt(item.ID, 10)+`]}`)
+	result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
+	if len(result) != 1 || result[item.ID].Title != item.Title || result[item.ID].ZhTitle != item.ZhTitle {
+		t.Fatalf("cached title=%+v", result)
+	}
+}
+
+// Collect successful streams by ID: completion order is deliberately unspecified.
+func readTitleTranslationItems(t *testing.T, status int, header http.Header, body io.Reader) map[int64]models.Jav {
+	t.Helper()
+	if status != http.StatusOK || header.Get("Content-Type") != "application/x-ndjson; charset=utf-8" {
+		t.Fatalf("status=%d content-type=%s", status, header.Get("Content-Type"))
+	}
+	items := make(map[int64]models.Jav)
+	decoder := json.NewDecoder(body)
+	for {
+		var event struct {
+			Item      *models.Jav
+			Done      bool
+			Heartbeat bool
+			Error     string `json:"error_en"`
+		}
+		if err := decoder.Decode(&event); err != nil {
+			t.Fatalf("stream ended before done: %v", err)
+		}
+		if event.Error != "" {
+			t.Fatalf("unexpected stream error: %s", event.Error)
+		}
+		if event.Done {
+			var extra any
+			if err := decoder.Decode(&extra); err != io.EOF {
+				t.Fatalf("expected EOF after done, got %v (%v)", extra, err)
+			}
+			return items
+		}
+		if event.Item != nil {
+			if _, exists := items[event.Item.ID]; exists {
+				t.Fatalf("duplicate streamed ID: %d", event.Item.ID)
+			}
+			items[event.Item.ID] = *event.Item
+		} else if !event.Heartbeat {
+			t.Fatalf("unexpected stream event: %+v", event)
+		}
 	}
 }

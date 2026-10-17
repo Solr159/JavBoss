@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"testing"
@@ -18,6 +19,12 @@ import (
 	"javboss/internal/models"
 )
 
+type translationTestTransport func(*http.Request) (*http.Response, error)
+
+func (f translationTestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine {
 	t.Helper()
 	testAuthService(t)
@@ -27,7 +34,21 @@ func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine 
 	previousBatch := allTitleTranslations
 	ctx, cancel := context.WithCancel(context.Background())
 	allTitleTranslations = &titleTranslationBatch{ctx: ctx}
-	titleTranslationClient = &translation.Client{BaseURL: upstream.URL, HTTP: upstream.Client()}
+	target, err := url.Parse(upstream.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := upstream.Client()
+	transport := client.Transport
+	// Keep saved profiles (including legacy reads) intact while routing every request locally.
+	client.Transport = translationTestTransport(func(req *http.Request) (*http.Response, error) {
+		local := req.Clone(req.Context())
+		local.URL.Scheme, local.URL.Host = target.Scheme, target.Host
+		local.Host = target.Host
+		return transport.RoundTrip(local)
+	})
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	titleTranslationClient = &translation.Client{HTTP: client}
 	t.Cleanup(func() { titleTranslationClient = previous })
 	t.Cleanup(func() {
 		cancel()
@@ -100,7 +121,7 @@ func TestTitleTranslationConfigAndModelDiscoveryKeepKeyPrivate(t *testing.T) {
 	if defaults.Code != http.StatusOK || defaultConfig["jav_title_translation_thinking"] != "false" || defaultConfig["jav_title_translation_prompt"] != translation.DefaultPrompt {
 		t.Fatalf("default settings=%d %+v", defaults.Code, defaultConfig)
 	}
-	body := `{"jav_title_translation_enabled":true,"jav_title_translation_thinking":false,"jav_title_translation_api_key":"private-key","jav_title_translation_model":"official-new-model","jav_title_translation_prompt":"自定义提示词"}`
+	body := `{"jav_title_translation_enabled":true,"jav_title_translation_profiles":{"deepseek":{"thinking":false,"api_key":"private-key","model":"official-new-model"}},"jav_title_translation_prompt":"自定义提示词"}`
 	response := translationAPIRequest(router, "PATCH", "/config", body)
 	if response.Code != 200 || bytes.Contains(response.Body.Bytes(), []byte("private-key")) {
 		t.Fatalf("config response: %d %s", response.Code, response.Body)
@@ -125,70 +146,12 @@ func TestTitleTranslationConfigAndModelDiscoveryKeepKeyPrivate(t *testing.T) {
 		t.Fatal("did not reuse saved key")
 	}
 	stored, _ := dbpkg.ListConfig(context.Background())
-	if stored["jav_title_translation_api_key"] != "private-key" || stored["jav_title_translation_thinking"] != "false" {
+	if p := translation.ActiveProfile(stored); p.APIKey != "private-key" || p.Thinking || p.Model != "official-new-model" {
 		t.Fatal("model discovery saved draft key")
 	}
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":false,"jav_title_translation_api_key":""}`)
+	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":false,"jav_title_translation_profiles":{"deepseek":{"api_key":""}}}`)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"jav_title_translation_api_key_set":"false"`) {
 		t.Fatal("clear key failed")
-	}
-}
-
-func TestTitleTranslationPreservesOriginalAndCachesChineseWithoutOverwritingConcurrentEdits(t *testing.T) {
-	calls := 0
-	var editDuringTranslation func()
-	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
-		var payload struct {
-			Thinking struct{ Type string } `json:"thinking"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.Thinking.Type != "disabled" {
-			t.Errorf("reasoning should be disabled: %+v err=%v", payload, err)
-		}
-		calls++
-		if editDuringTranslation != nil {
-			editDuringTranslation()
-		}
-		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天相遇"}}]}`))
-	})
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
-	}); err != nil {
-		t.Fatal(err)
-	}
-	item := models.Jav{Code: "TRANS-001", Title: "雨の日の出会い"}
-	if err := common.DB.Create(&item).Error; err != nil {
-		t.Fatal(err)
-	}
-	path := "/jav/items/" + strconv.FormatInt(item.ID, 10) + "/title-translation"
-	for i := 0; i < 2; i++ {
-		response := translationAPIRequest(router, "POST", path, "")
-		if response.Code != 200 {
-			t.Fatalf("translation=%d %s", response.Code, response.Body)
-		}
-	}
-	var stored models.Jav
-	if err := common.DB.First(&stored, item.ID).Error; err != nil {
-		t.Fatal(err)
-	}
-	if calls != 1 || stored.Title != item.Title || stored.ZhTitle != "雨天相遇" {
-		t.Fatalf("calls=%d item=%+v", calls, stored)
-	}
-	common.DB.Model(&stored).Updates(map[string]any{"title": "New source", "zh_title": ""})
-	editDuringTranslation = func() { common.DB.Model(&stored).Update("title", "User edit") }
-	response := translationAPIRequest(router, "POST", path, "")
-	if response.Code != 200 || !strings.Contains(response.Body.String(), "User edit") {
-		t.Fatalf("concurrent edit=%d %s", response.Code, response.Body)
-	}
-	common.DB.First(&stored, item.ID)
-	if stored.ZhTitle != "" {
-		t.Fatal("stale translation was saved after the source changed")
-	}
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false"}); err != nil {
-		t.Fatal(err)
-	}
-	response = translationAPIRequest(router, "POST", path, "")
-	if response.Code != 400 || calls != 2 {
-		t.Fatal("disabled translation called provider")
 	}
 }
 
@@ -413,25 +376,7 @@ func TestTitleTranslationBatchStopsAfterCurrentRequest(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationCanShowExistingChineseTitleWithoutAPIKey(t *testing.T) {
-	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
-		t.Error("an existing Chinese title must not call DeepSeek")
-	})
-	response := translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":true}`)
-	if response.Code != 200 {
-		t.Fatalf("enable display=%d %s", response.Code, response.Body)
-	}
-	item := models.Jav{Code: "TRANS-EXISTING", Title: "Existing original", ZhTitle: "已有中文标题"}
-	if err := common.DB.Create(&item).Error; err != nil {
-		t.Fatal(err)
-	}
-	response = translationAPIRequest(router, "POST", "/jav/items/"+strconv.FormatInt(item.ID, 10)+"/title-translation", "")
-	if response.Code != 200 || !strings.Contains(response.Body.String(), item.Title) || !strings.Contains(response.Body.String(), item.ZhTitle) {
-		t.Fatalf("cached title=%d %s", response.Code, response.Body)
-	}
-}
-
-func TestTitleTranslationRefreshUsesDraftAndDoesNotPersistUntilSave(t *testing.T) {
+func TestTitleTranslationPreviewUsesDraftAndDoesNotPersistUntilSave(t *testing.T) {
 	calls := 0
 	fail := false
 	var reasoningModes []string
@@ -447,7 +392,7 @@ func TestTitleTranslationRefreshUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 			return
 		}
 		if len(payload.Messages) != 2 || payload.Messages[1].Content != "Draft original" {
-			t.Errorf("refresh did not translate editor source: %+v", payload)
+			t.Errorf("preview did not translate editor source: %+v", payload)
 		}
 		reasoningModes = append(reasoningModes, payload.Thinking.Type)
 		if fail {
@@ -461,43 +406,95 @@ func TestTitleTranslationRefreshUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 	}); err != nil {
 		t.Fatal(err)
 	}
-	item := models.Jav{Code: "TRANS-REFRESH", Title: "Stored original", ZhTitle: "已有中文译文"}
+	item := models.Jav{Code: "TRANS-PREVIEW", Title: "Stored original", ZhTitle: "已有中文译文"}
 	if err := common.DB.Create(&item).Error; err != nil {
 		t.Fatal(err)
 	}
 	path := "/jav/items/" + strconv.FormatInt(item.ID, 10) + "/title-translation"
-	for _, body := range []string{`{"refresh":true,"title":"Draft original"}`, `{"refresh":true,"title":"Draft original","thinking":true}`} {
+	for _, body := range []string{`{"title":"Draft original"}`, `{"title":"Draft original","thinking":true}`} {
 		response := translationAPIRequest(router, "POST", path, body)
 		if response.Code != 200 || !strings.Contains(response.Body.String(), "新中文译文") {
-			t.Fatalf("refresh=%d %s", response.Code, response.Body)
+			t.Fatalf("preview=%d %s", response.Code, response.Body)
 		}
 	}
 	if calls != 2 {
-		t.Fatal("refresh reused the cached Chinese title")
+		t.Fatal("preview reused the cached Chinese title")
 	}
 	fail = true
-	response := translationAPIRequest(router, "POST", path, `{"refresh":true,"title":"Draft original"}`)
+	response := translationAPIRequest(router, "POST", path, `{"title":"Draft original"}`)
 	if response.Code != http.StatusBadRequest {
-		t.Fatalf("failed refresh=%d %s", response.Code, response.Body)
+		t.Fatalf("failed preview=%d %s", response.Code, response.Body)
 	}
 	if strings.Join(reasoningModes, ",") != "disabled,enabled,disabled" {
 		t.Fatalf("reasoning modes=%v", reasoningModes)
 	}
 	cfg, err := dbpkg.ListConfig(context.Background())
 	if err != nil || cfg["jav_title_translation_thinking"] != "false" || cfg["jav_title_translation_enabled"] != "false" {
-		t.Fatalf("refresh modified global settings: %v err=%v", cfg, err)
+		t.Fatalf("preview modified global settings: %v err=%v", cfg, err)
 	}
 	var stored models.Jav
 	if err := common.DB.First(&stored, item.ID).Error; err != nil {
 		t.Fatal(err)
 	}
 	if stored.Title != item.Title || stored.ZhTitle != item.ZhTitle {
-		t.Fatal("refresh changed saved titles before the editor was saved")
+		t.Fatal("preview changed saved titles before the editor was saved")
 	}
-	for _, body := range []string{`{"refresh":true,"title":""}`, `{"title":"Draft original"}`, `{"refresh":"invalid"}`, `{"thinking":true}`, `{"refresh":true,"thinking":"invalid"}`} {
+	for _, body := range []string{`{"title":""}`, `{"title":"  "}`, `{"title":42}`, `{"thinking":"invalid"}`, `{"title":"` + strings.Repeat("x", 8193) + `"}`} {
 		response = translationAPIRequest(router, "POST", path, body)
 		if response.Code != http.StatusBadRequest || calls != 3 {
-			t.Fatalf("invalid refresh=%d %s calls=%d", response.Code, response.Body, calls)
+			t.Fatalf("invalid preview=%d %s calls=%d", response.Code, response.Body, calls)
+		}
+	}
+}
+
+func TestTitleTranslationPreviewUsesStoredSourceWithoutCachingOrSaving(t *testing.T) {
+	var calls int
+	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var payload struct{ Messages []struct{ Content string } }
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || len(payload.Messages) != 2 || payload.Messages[1].Content != "Stored original" {
+			t.Errorf("preview source=%+v err=%v", payload, err)
+		}
+		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"预览译文"}}]}`))
+	})
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+		translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, enabled := range []string{"false", "true"} {
+		if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": enabled}); err != nil {
+			t.Fatal(err)
+		}
+		for i, savedTitle := range []string{"", "人工校对"} {
+			item := models.Jav{Code: "PREVIEW-" + enabled + strconv.Itoa(i), Title: "Stored original", ZhTitle: savedTitle}
+			if err := common.DB.Create(&item).Error; err != nil {
+				t.Fatal(err)
+			}
+			for _, body := range []string{"", `{}`, `{"thinking":false}`} {
+				response := translationAPIRequest(router, "POST", "/jav/items/"+strconv.FormatInt(item.ID, 10)+"/title-translation", body)
+				var preview models.Jav
+				if err := json.Unmarshal(response.Body.Bytes(), &preview); err != nil || response.Code != 200 || preview.ID != item.ID || preview.Title != item.Title || preview.ZhTitle != "预览译文" {
+					t.Fatalf("preview=%d %s err=%v", response.Code, response.Body, err)
+				}
+				stored, err := dbpkg.GetJavTitleTranslationItem(context.Background(), item.ID)
+				if err != nil || stored.Title != item.Title || stored.ZhTitle != savedTitle {
+					t.Fatalf("preview saved titles: %+v err=%v", stored, err)
+				}
+			}
+		}
+	}
+	if calls != 12 {
+		t.Fatalf("previews reused a cached title: calls=%d", calls)
+	}
+	for _, id := range []string{"invalid", "0", "-1", "999999"} {
+		response := translationAPIRequest(router, "POST", "/jav/items/"+id+"/title-translation", `{}`)
+		want := http.StatusBadRequest
+		if id == "999999" {
+			want = http.StatusNotFound
+		}
+		if response.Code != want || calls != 12 {
+			t.Fatalf("invalid/missing item=%d %s calls=%d", response.Code, response.Body, calls)
 		}
 	}
 }

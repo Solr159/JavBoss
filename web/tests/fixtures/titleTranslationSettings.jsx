@@ -8,17 +8,35 @@ import '@/index.css'
 window.testStore = useStore
 window.translationRequests = []
 window.testFailure = false
+const capabilities = {
+  reasoning: 'toggle',
+  temperature: true,
+  temperature_max: 2,
+  efforts: ['low', 'medium', 'high'],
+}
 let config = {
   jav_title_prefer_chinese: 'true',
   jav_title_translation_enabled: 'false',
   jav_title_translation_provider: 'deepseek',
+  jav_title_translation_catalog: JSON.stringify([
+    { id: 'deepseek', name: 'DeepSeek', base_url: 'https://api.deepseek.com', protocol: 'chat' },
+    { id: 'custom', name: 'Custom', base_url: '', protocol: 'chat' },
+  ]),
+  jav_title_translation_profiles: JSON.stringify({
+    deepseek: { model: 'saved-model', api_key_set: true },
+  }),
+  jav_title_translation_capabilities: JSON.stringify(capabilities),
   jav_title_translation_model: 'saved-model',
   jav_title_translation_api_key_set: 'true',
   jav_title_translation_prompt: 'Saved prompt',
   jav_title_translation_default_prompt: 'Default prompt',
 }
 let batch = { running: false, total: 0 }
-useStore.setState({ config, loadJavs: async () => {} })
+window.loadTranslationConfig = () => useStore.setState({ config })
+useStore.setState({
+  config: new URLSearchParams(location.search).has('deferConfig') ? {} : config,
+  loadJavs: async () => {},
+})
 window.fetch = async (input, init = {}) => {
   const url = new URL(input, location.origin)
   const payload = init.body ? JSON.parse(init.body) : null
@@ -44,12 +62,7 @@ window.fetch = async (input, init = {}) => {
         { id: 'saved-model', name: 'Saved model' },
         { id: 'another-model', name: 'Another model' },
       ],
-      capabilities: {
-        reasoning: 'toggle',
-        temperature: true,
-        temperature_max: 2,
-        efforts: ['low', 'medium', 'high'],
-      },
+      capabilities,
     })
   if (url.pathname.endsWith('/test')) {
     if (window.testFailure)

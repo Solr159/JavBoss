@@ -3,6 +3,56 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
+  'translation settings await the backend catalog and query capabilities only for model edits',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html?deferConfig`,
+    })
+    await waitFor(`document.body?.textContent.includes('Loading translation settings')`)
+    assert.equal(await evaluate(`document.querySelector('#title-translation-model')`), null)
+    await evaluate('window.loadTranslationConfig()')
+    await waitFor(`document.querySelector('#title-translation-model')`)
+    await evaluate('new Promise(resolve => setTimeout(resolve, 600))')
+    const modelRequests = `window.translationRequests.filter(r => r.path.endsWith('/models'))`
+    const capabilityRequests = `${modelRequests}.filter(r => r.payload.discover === false)`
+    assert.equal(await evaluate(`${modelRequests}.length`), 0)
+    // Saved capabilities still render in read-only mode without querying the server.
+    assert.ok(
+      await evaluate(`Boolean(document.querySelector('[name="title-translation-thinking"]'))`)
+    )
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Edit').click()`
+    )
+    await waitFor(`${modelRequests}.length === 2`)
+    assert.equal(await evaluate(`${capabilityRequests}.length`), 1)
+    await evaluate(`{
+      document.querySelector('[data-translation-advanced] > summary').click();
+      const customAddress = [...document.querySelectorAll('label')].find(l => l.textContent.includes('Use a custom address'));
+      customAddress.querySelector('input').click();
+    }`)
+    await waitFor(`document.querySelector('input[placeholder="https://api.deepseek.com"]')`)
+    await evaluate(`{
+      const input = document.querySelector('input[placeholder="https://api.deepseek.com"]');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'https://proxy.test');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }`)
+    await waitFor(`${modelRequests}.length === 3`)
+    assert.equal(await evaluate(`${capabilityRequests}.length`), 1)
+    await evaluate(`{
+      const input = document.querySelector('#title-translation-model');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'another-model');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }`)
+    await waitFor(`${capabilityRequests}.length === 2`)
+    assert.deepEqual(await evaluate(`${capabilityRequests}.at(-1).payload.profile`), {
+      model: 'another-model',
+    })
+  }
+)
+
+test(
   'provider settings require editing, cancel discards drafts and automatic translation saves independently',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

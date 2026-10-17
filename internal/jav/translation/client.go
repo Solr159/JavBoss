@@ -25,8 +25,7 @@ type ConfigError struct{ Message string }
 func (e *ConfigError) Error() string { return e.Message }
 
 type Client struct {
-	BaseURL string // Test server override; production endpoints come from the selected profile.
-	HTTP    *http.Client
+	HTTP *http.Client
 }
 
 func NewClient() *Client {
@@ -36,9 +35,6 @@ func NewClient() *Client {
 }
 func (c *Client) request(ctx context.Context, provider string, p Profile, method, path string, payload any) (*http.Response, error) {
 	base := p.Endpoint(provider)
-	if c.BaseURL != "" {
-		base = c.BaseURL
-	}
 	var reader io.Reader
 	if payload != nil {
 		body, err := json.Marshal(payload)

@@ -117,8 +117,8 @@ func testTitleTranslation(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"zh_title": title})
 }
 
-// POST /jav/items/:id/title-translation saves a Chinese title while preserving the original.
-// With refresh=true, optional title and thinking override this preview only; nothing is saved.
+// POST /jav/items/:id/title-translation previews a Chinese title; nothing is saved.
+// Optional title and thinking fields override the saved source and reasoning setting.
 func translateJavTitle(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -126,7 +126,6 @@ func translateJavTitle(c *gin.Context) {
 		return
 	}
 	var req struct {
-		Refresh  bool    `json:"refresh"`
 		Title    *string `json:"title"`
 		Thinking *bool   `json:"thinking"`
 	}
@@ -135,7 +134,7 @@ func translateJavTitle(c *gin.Context) {
 		respondLocalizedError(c, http.StatusBadRequest, "标题翻译请求无效", "Invalid title translation request")
 		return
 	}
-	if (req.Title != nil && (!req.Refresh || len(*req.Title) > 8192)) || (req.Thinking != nil && !req.Refresh) {
+	if req.Title != nil && len(*req.Title) > 8192 {
 		respondLocalizedError(c, http.StatusBadRequest, "标题翻译请求无效或标题过长", "Invalid title translation request or title too long")
 		return
 	}
@@ -153,22 +152,13 @@ func translateJavTitle(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	enabled, _ := strconv.ParseBool(cfg["jav_title_translation_enabled"])
-	if !enabled && !req.Refresh {
-		respondLocalizedError(c, http.StatusBadRequest, "标题翻译未开启", "Title translation is disabled")
-		return
-	}
-	item, err := dbpkg.GetJav(c.Request.Context(), id, nil)
+	item, err := dbpkg.GetJavTitleTranslationItem(c.Request.Context(), id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		respondLocalizedError(c, http.StatusNotFound, "影片不存在", "JAV item was not found")
 		return
 	}
 	if err != nil {
 		respondLocalizedError(c, http.StatusInternalServerError, "读取影片失败", "Failed to load JAV item")
-		return
-	}
-	if !req.Refresh && strings.TrimSpace(item.ZhTitle) != "" {
-		c.JSON(http.StatusOK, gin.H{"id": item.ID, "title": item.Title, "zh_title": item.ZhTitle})
 		return
 	}
 	sourceTitle := item.Title
@@ -184,20 +174,7 @@ func translateJavTitle(c *gin.Context) {
 		respondTitleTranslationError(c, err)
 		return
 	}
-	if req.Refresh {
-		c.JSON(http.StatusOK, gin.H{"id": item.ID, "title": sourceTitle, "zh_title": title})
-		return
-	}
-	if _, err := dbpkg.SaveJavTitleTranslation(c.Request.Context(), item, title); err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "保存翻译标题失败", "Failed to save translated title")
-		return
-	}
-	item, err = dbpkg.GetJav(c.Request.Context(), id, nil)
-	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译标题失败", "Failed to load translated title")
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"id": item.ID, "title": item.Title, "zh_title": item.ZhTitle})
+	c.JSON(http.StatusOK, gin.H{"id": item.ID, "title": sourceTitle, "zh_title": title})
 }
 
 func respondTitleTranslationError(c *gin.Context, err error) {

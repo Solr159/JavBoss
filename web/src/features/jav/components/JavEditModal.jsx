@@ -421,7 +421,6 @@ export function JavEditModal({
     const sourceTitle = title.trim()
     try {
       const result = await translateJavTitle(item.id, {
-        refresh: true,
         title: sourceTitle,
         thinking,
       })

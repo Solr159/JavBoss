@@ -106,6 +106,10 @@ export default function TitleTranslationToolSettings() {
   }
   const busy = saving || testing || toggling
 
+  if (!draft.catalog.length) {
+    return <p role="status">{zh('正在加载翻译配置…', 'Loading translation settings…')}</p>
+  }
+
   return (
     <div className="mx-auto w-full max-w-4xl space-y-4">
       <p
@@ -223,6 +227,8 @@ export default function TitleTranslationToolSettings() {
               value={draft}
               onChange={onChange}
               disabled={!editing || busy}
+              readOnly={!editing}
+              savedCapabilities={config?.jav_title_translation_capabilities}
             />
             <details data-translation-test className="group border-t border-zinc-100 pt-4">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
