@@ -45,3 +45,26 @@ func TestTitleTranslationLimitCancelsQueuedRequestsWithoutLeakingSlotsOrKeys(t *
 	}
 	release()
 }
+
+func TestTranslationLocksSeparateTitlesAndSeriesWithSameID(t *testing.T) {
+	titleRelease, err := javTitleDomain.acquire(context.Background(), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer titleRelease()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	seriesRelease, err := javSeriesDomain.acquire(ctx, 1)
+	if err != nil {
+		t.Fatalf("series blocked by unrelated title: %v", err)
+	}
+	defer seriesRelease()
+	ctx, cancelDuplicate := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancelDuplicate()
+	if release, err := javSeriesDomain.acquire(ctx, 1); release != nil || !errors.Is(err, context.DeadlineExceeded) {
+		if release != nil {
+			release()
+		}
+		t.Fatalf("duplicate series did not serialize: %v", err)
+	}
+}

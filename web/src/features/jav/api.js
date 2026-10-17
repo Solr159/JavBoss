@@ -1,8 +1,16 @@
 import { apiFetch, jsonHeaders, apiError } from '@/api/client'
 import { zh } from '@/utils/i18n'
 
-export async function translateJavTitles(ids, { onItem = () => {} } = {}) {
-  const res = await apiFetch('/jav/title-translation/items', {
+export function translateJavTitles(ids, options) {
+  return translateTexts('/jav/title-translation/items', ids, options)
+}
+
+export function translateJavSeriesNames(ids, options) {
+  return translateTexts('/jav/series-translation/items', ids, options)
+}
+
+async function translateTexts(path, ids, { onItem = () => {} } = {}) {
+  const res = await apiFetch(path, {
     method: 'POST',
     headers: { ...jsonHeaders, Accept: 'application/x-ndjson' },
     body: JSON.stringify({ ids }),
@@ -25,8 +33,8 @@ export async function translateJavTitles(ids, { onItem = () => {} } = {}) {
   const incomplete = () =>
     new Error(
       zh(
-        '翻译连接中断，请重试未完成的影片。',
-        'Translation connection interrupted; retry unfinished titles.'
+        '翻译连接中断，请重试未完成的内容。',
+        'Translation connection interrupted; retry unfinished items.'
       )
     )
   try {
@@ -85,23 +93,32 @@ export async function testTitleTranslation({ provider, profile, prompt, title })
   return res.json()
 }
 
-export async function previewTitleTranslationBatch(scope = 'missing', { signal } = {}) {
+export async function previewTitleTranslationBatch(
+  scope = 'missing',
+  { signal, target = 'title' } = {}
+) {
   const res = await apiFetch(
-    `/jav/title-translation/batch/preview?scope=${encodeURIComponent(scope)}`,
+    `/jav/${target === 'series' ? 'series' : 'title'}-translation/batch/preview?scope=${encodeURIComponent(scope)}`,
     { cache: 'no-store', signal }
   )
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
-export async function stopTitleTranslationBatch() {
-  const res = await apiFetch('/jav/title-translation/batch', { method: 'DELETE' })
+export async function stopTitleTranslationBatch(target = 'title') {
+  const res = await apiFetch(`/jav/${target === 'series' ? 'series' : 'title'}-translation/batch`, {
+    method: 'DELETE',
+  })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
 
-export async function startTitleTranslationBatch(scope = 'missing', confirmOverwrite = false) {
-  const res = await apiFetch('/jav/title-translation/batch', {
+export async function startTitleTranslationBatch(
+  scope = 'missing',
+  confirmOverwrite = false,
+  target = 'title'
+) {
+  const res = await apiFetch(`/jav/${target === 'series' ? 'series' : 'title'}-translation/batch`, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ scope, confirm_overwrite: confirmOverwrite }),
@@ -110,8 +127,11 @@ export async function startTitleTranslationBatch(scope = 'missing', confirmOverw
   return res.json()
 }
 
-export async function fetchTitleTranslationBatch({ signal } = {}) {
-  const res = await apiFetch('/jav/title-translation/batch', { signal, cache: 'no-store' })
+export async function fetchTitleTranslationBatch({ signal, target = 'title' } = {}) {
+  const res = await apiFetch(`/jav/${target === 'series' ? 'series' : 'title'}-translation/batch`, {
+    signal,
+    cache: 'no-store',
+  })
   if (!res.ok) throw await apiError(res)
   return res.json()
 }
@@ -775,4 +795,24 @@ export async function resolveJavIdols(ids = []) {
     })
   javIdolResolveInFlight.set(key, request)
   return request
+}
+
+export async function translateJavSeriesName(id, { name, thinking } = {}) {
+  const res = await apiFetch(`/jav/series/${encodeURIComponent(id)}/name-translation`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name, thinking }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function updateJavSeriesTranslation(id, { name, zh_name }) {
+  const res = await apiFetch(`/jav/series/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: jsonHeaders,
+    body: JSON.stringify({ name, zh_name }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
 }

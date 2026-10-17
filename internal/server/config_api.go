@@ -95,6 +95,7 @@ func updateConfig(c *gin.Context) {
 		JavTitlePreferChinese     *bool                      `json:"jav_title_prefer_chinese"`
 		TitleTranslateProvider    *string                    `json:"jav_title_translation_provider"`
 		TitleTranslateProfiles    map[string]json.RawMessage `json:"jav_title_translation_profiles"`
+		SeriesTranslateEnabled    *bool                      `json:"jav_series_translation_enabled"`
 		TitleTranslateEnabled     *bool                      `json:"jav_title_translation_enabled"`
 		TitleTranslatePrompt      *string                    `json:"jav_title_translation_prompt"`
 		JavIdolTagMaxRows         *int                       `json:"jav_idol_tag_max_rows"`
@@ -212,6 +213,9 @@ func updateConfig(c *gin.Context) {
 		entries[translation.ProfilesKey] = profiles
 	}
 
+	if req.SeriesTranslateEnabled != nil {
+		entries["jav_series_translation_enabled"] = strconv.FormatBool(*req.SeriesTranslateEnabled)
+	}
 	if req.TitleTranslateEnabled != nil {
 		entries["jav_title_translation_enabled"] = strconv.FormatBool(*req.TitleTranslateEnabled)
 	}

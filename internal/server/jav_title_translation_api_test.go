@@ -32,8 +32,10 @@ func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine 
 	t.Cleanup(upstream.Close)
 	previous := titleTranslationClient
 	previousBatch := allTitleTranslations
+	previousSeriesBatch := allSeriesTranslations
 	ctx, cancel := context.WithCancel(context.Background())
 	allTitleTranslations = &titleTranslationBatch{ctx: ctx}
+	allSeriesTranslations = &titleTranslationBatch{ctx: ctx, domain: javSeriesDomain}
 	target, err := url.Parse(upstream.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +55,9 @@ func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine 
 	t.Cleanup(func() {
 		cancel()
 		waitTitleTranslationBatch(t)
+		waitTextTranslationBatch(t, allSeriesTranslations)
 		allTitleTranslations = previousBatch
+		allSeriesTranslations = previousSeriesBatch
 	})
 	router := gin.New()
 	RegisterRoutes(router)
@@ -210,7 +214,7 @@ func TestTitleTranslationManualEditInvalidatesCachedTitle(t *testing.T) {
 
 func TestTitleTranslationRoutesRequireAuthentication(t *testing.T) {
 	router := NewRouter("", testAuthService(t))
-	for _, path := range []string{"/jav/title-translation/models", "/jav/title-translation/test", "/jav/items/1/title-translation", "/jav/title-translation/batch", "/jav/title-translation/items"} {
+	for _, path := range []string{"/jav/title-translation/models", "/jav/title-translation/test", "/jav/items/1/title-translation", "/jav/title-translation/batch", "/jav/title-translation/items", "/jav/series/1/name-translation", "/jav/series-translation/items", "/jav/series-translation/batch"} {
 		response := translationAPIRequest(router, "POST", path, `{}`)
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("path=%s status=%d", path, response.Code)
@@ -223,12 +227,16 @@ func TestTitleTranslationRoutesRequireAuthentication(t *testing.T) {
 }
 
 func waitTitleTranslationBatch(t *testing.T) titleTranslationBatchStatus {
+	return waitTextTranslationBatch(t, allTitleTranslations)
+}
+
+func waitTextTranslationBatch(t *testing.T, job *titleTranslationBatch) titleTranslationBatchStatus {
 	t.Helper()
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		allTitleTranslations.mu.Lock()
-		status := allTitleTranslations.status
-		allTitleTranslations.mu.Unlock()
+		job.mu.Lock()
+		status := job.status
+		job.mu.Unlock()
 		if !status.Running {
 			return status
 		}

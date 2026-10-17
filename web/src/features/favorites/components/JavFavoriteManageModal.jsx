@@ -1,3 +1,5 @@
+import { useStore } from '@/store'
+import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useEffect, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -512,6 +514,7 @@ function IdolOrderList({
   labels = favoriteManageLabels('idol'),
   preferChineseName = false,
 }) {
+  const preferChinese = useStore((state) => preferChineseTitle(state.config))
   if (!idols.length) {
     return (
       <div className="rounded border border-dashed border-gray-200 px-3 py-8 text-center text-sm text-gray-500">
@@ -524,7 +527,9 @@ function IdolOrderList({
       items={idols}
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
-      getLabel={(idol) => favoriteItemLabel(labels.entityType, idol, preferChineseName)}
+      getLabel={(idol) =>
+        favoriteItemLabel(labels.entityType, idol, preferChineseName, preferChinese)
+      }
       getMeta={(idol) => labels.itemMeta(idol)}
       renderLeading={(idol) => (
         <input
@@ -601,7 +606,9 @@ function favoriteManageLabels(entityType) {
   }
 }
 
-function favoriteItemLabel(entityType, item, preferChineseName) {
+function favoriteItemLabel(entityType, item, preferChineseName, preferChinese) {
+  if (entityType === 'series')
+    return getSeriesDisplayName(item, preferChinese) || zh('未知系列', 'Unknown series')
   if (entityType === 'idol') {
     return getIdolDisplayName(item, preferChineseName)
   }

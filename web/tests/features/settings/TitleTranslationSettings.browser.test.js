@@ -3,6 +3,49 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
+  'series translation switch and batch use series endpoints with the shared provider',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
+    })
+    await waitFor(`document.querySelector('#series-translation-auto-enabled')`)
+    await evaluate(`document.querySelector('#series-translation-auto-enabled').click()`)
+    await waitFor(`window.testStore.getState().config.jav_series_translation_enabled === true`)
+    assert.deepEqual(
+      await evaluate(`window.translationRequests.filter(r => r.path === '/config').at(-1).payload`),
+      { jav_series_translation_enabled: true }
+    )
+    assert.equal(
+      await evaluate(`window.testStore.getState().config.jav_title_translation_enabled`),
+      'false'
+    )
+    const batch = `document.querySelector('[data-translation-batch="series"]')`
+    await evaluate(`${batch}.querySelector('summary').click()`)
+    await waitFor(`${batch}.textContent.includes('Translate 3 series names')`)
+    await evaluate(
+      `[...${batch}.querySelectorAll('button')].find(b => b.textContent === 'Start translation').click()`
+    )
+    await waitFor(
+      `window.translationRequests.some(r => r.path === '/jav/series-translation/batch' && r.method === 'POST')`
+    )
+    assert.deepEqual(
+      await evaluate(
+        `window.translationRequests.find(r => r.path === '/jav/series-translation/batch' && r.method === 'POST').payload`
+      ),
+      { scope: 'missing', confirm_overwrite: false }
+    )
+    assert.equal(
+      await evaluate(
+        `window.translationRequests.some(r => r.path === '/jav/title-translation/batch' && r.method === 'POST')`
+      ),
+      false
+    )
+  }
+)
+
+test(
   'translation settings await the backend catalog and query capabilities only for model edits',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

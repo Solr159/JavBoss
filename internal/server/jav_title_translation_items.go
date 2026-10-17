@@ -22,28 +22,32 @@ import (
 // Always streams NDJSON {item}, {error_zh,error_en}, {heartbeat:true} and {done:true}.
 // On error, queued work stops; in-flight work finishes.
 func translateJavTitles(c *gin.Context) {
+	translateTexts(c, javTitleDomain)
+}
+
+func translateTexts(c *gin.Context, domain textTranslationDomain) {
 	var req struct {
 		IDs []int64 `json:"ids"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 4096)
 	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 || len(req.IDs) > 20 {
-		respondLocalizedError(c, 400, "每批需提供 1–20 个影片 ID", "Provide 1–20 JAV IDs per request")
+		domain.error(c, 400, "每批需提供 1–20 个影片 ID", "Provide 1–20 JAV IDs per request")
 		return
 	}
 	for _, id := range req.IDs {
 		if id <= 0 {
-			respondLocalizedError(c, 400, "影片 ID 无效", "Invalid JAV ID")
+			domain.error(c, 400, "影片 ID 无效", "Invalid JAV ID")
 			return
 		}
 	}
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
-		respondLocalizedError(c, 500, "读取翻译配置失败", "Failed to load translation settings")
+		domain.error(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	enabled, _ := strconv.ParseBool(cfg["jav_title_translation_enabled"])
+	enabled, _ := strconv.ParseBool(cfg[domain.enabledKey()])
 	if !enabled {
-		respondLocalizedError(c, 400, "标题翻译未开启", "Title translation is disabled")
+		domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
 		return
 	}
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
@@ -73,11 +77,11 @@ func translateJavTitles(c *gin.Context) {
 		go func() {
 			defer workers.Done()
 			for id := range jobs {
-				release, err := acquireTitleTranslation(waitCtx, id)
+				release, err := domain.acquire(waitCtx, id)
 				if err != nil {
 					return
 				}
-				item, err := translateMissingJavTitle(ctx, cfg, id)
+				item, err := translateMissingText(ctx, cfg, id, domain)
 				if err != nil {
 					stopQueue()
 				}
@@ -133,23 +137,23 @@ func translateJavTitles(c *gin.Context) {
 }
 
 // The caller holds the per-title lock and a global provider slot.
-func translateMissingJavTitle(ctx context.Context, cfg map[string]string, id int64) (gin.H, error) {
-	item, err := dbpkg.GetJavTitleTranslationItem(ctx, id)
+func translateMissingText(ctx context.Context, cfg map[string]string, id int64, domain textTranslationDomain) (gin.H, error) {
+	item, err := domain.Get(ctx, id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	if strings.TrimSpace(item.ZhTitle) == "" && strings.TrimSpace(item.Title) != "" {
-		title, err := titleTranslationClient.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], item.Title, nil)
+	if strings.TrimSpace(item.Translation) == "" && strings.TrimSpace(item.Source) != "" {
+		title, err := titleTranslationClient.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), domain.prompt(cfg), item.Source, nil)
 		if err != nil {
 			return nil, err
 		}
-		if _, err = dbpkg.SaveJavTitleTranslation(ctx, item, title); err != nil {
+		if _, err = domain.Save(ctx, item, title); err != nil {
 			return nil, err
 		}
-		item, err = dbpkg.GetJavTitleTranslationItem(ctx, id)
+		item, err = domain.Get(ctx, id)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -157,5 +161,5 @@ func translateMissingJavTitle(ctx context.Context, cfg map[string]string, id int
 			return nil, err
 		}
 	}
-	return gin.H{"id": item.ID, "title": item.Title, "zh_title": item.ZhTitle}, nil
+	return domain.response(item), nil
 }

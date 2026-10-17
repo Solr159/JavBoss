@@ -1,3 +1,4 @@
+import { mergeJavItem } from '@/features/jav/entityUpdates'
 import { JAV_PAGE_SIZE, JAV_STUDIO_PAGE_SIZE, JAV_SERIES_PAGE_SIZE } from '@/state/model'
 import {
   createDefaultIdolProfileFilters,
@@ -24,6 +25,19 @@ export function createCatalogSlice({ set, lists }) {
     studioLoading: false,
     studioLoadingMore: false,
     studioError: null,
+    patchJavSeries: (updated) =>
+      set((state) => ({
+        seriesItems: mergeJavItem(state.seriesItems, updated),
+        javItems: state.javItems.map((item) =>
+          Number(item.series?.id) === Number(updated.id)
+            ? { ...item, series: { ...item.series, ...updated } }
+            : item
+        ),
+        studioItems: state.studioItems.map((item) => ({
+          ...item,
+          series: mergeJavItem(item.series, updated),
+        })),
+      })),
     seriesPage: 1,
     seriesPageSize: JAV_SERIES_PAGE_SIZE,
     seriesItems: [],

@@ -1,3 +1,5 @@
+import { useStore } from '@/store'
+import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { restoreDetailScroll } from '@/utils/restoreDetailScroll'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
@@ -528,7 +530,8 @@ export default function JavDetailModal({
   const idols = useMemo(() => (Array.isArray(item?.idols) ? item.idols : []), [item?.idols])
   const videos = useMemo(() => (Array.isArray(item?.videos) ? item.videos : []), [item?.videos])
   const studioName = String(studio?.name || '').trim()
-  const seriesName = String(series?.name || '').trim()
+  const preferChinese = useStore((state) => preferChineseTitle(state.config))
+  const seriesName = getSeriesDisplayName(series, preferChinese)
   const favoriteCount = Number(item?.favorite_count) || 0
   const emptyVideoSelection = useMemo(() => new Set(), [])
   const { coverAspectPercent } = useMemo(() => getIdolCardLayoutProps(), [])

@@ -1,3 +1,4 @@
+import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { Popper } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
@@ -185,6 +186,7 @@ export function StudioCard({
   buildSeriesUrl,
   previewZIndex = 1499,
 }) {
+  const preferChinese = useStore((state) => preferChineseTitle(state.config))
   const directoryVisibilityKey = useStore((state) =>
     (state.directories || [])
       .map((directory) => `${directory.id}:${directory.enabled !== false ? '1' : '0'}`)
@@ -472,7 +474,7 @@ export function StudioCard({
                 <button
                   type="button"
                   key={series.id}
-                  title={series.name}
+                  title={getSeriesDisplayName(series, preferChinese)}
                   className="mr-0.5 inline-block max-w-[5rem] truncate rounded border border-emerald-100 bg-emerald-50 px-1 py-0.5 align-middle text-[9px] font-medium leading-3 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100"
                   onClick={(event) => handleSeriesClick(series, event)}
                   onMouseEnter={(event) => handleSeriesHoverStart(series, event)}
@@ -480,7 +482,7 @@ export function StudioCard({
                   onFocus={(event) => handleSeriesHoverStart(series, event)}
                   onBlur={scheduleSeriesPreviewClose}
                 >
-                  {series.name}
+                  {getSeriesDisplayName(series, preferChinese)}
                 </button>
               ))}
             </div>

@@ -22,7 +22,7 @@ type titleTranslationKey struct {
 // across pages, tabs, manual requests and the library job before rechecking the DB.
 func acquireTitleTranslation(ctx context.Context, id int64) (func(), error) {
 	releaseKey := func() {}
-	if id > 0 {
+	if id != 0 {
 		titleTranslationKeys.Lock()
 		key := titleTranslationKeys.items[id]
 		if key == nil {

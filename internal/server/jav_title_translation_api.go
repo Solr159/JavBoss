@@ -116,61 +116,70 @@ func testTitleTranslation(c *gin.Context) {
 // POST /jav/items/:id/title-translation previews a Chinese title; nothing is saved.
 // Optional title and thinking fields override the saved source and reasoning setting.
 func translateJavTitle(c *gin.Context) {
+	translateText(c, javTitleDomain)
+}
+
+func translateText(c *gin.Context, domain textTranslationDomain) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		respondLocalizedError(c, http.StatusBadRequest, "影片 ID 无效", "Invalid JAV ID")
+		domain.error(c, http.StatusBadRequest, "影片 ID 无效", "Invalid JAV ID")
 		return
 	}
 	var req struct {
 		Title    *string `json:"title"`
+		Name     *string `json:"name"`
 		Thinking *bool   `json:"thinking"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 65536)
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
-		respondLocalizedError(c, http.StatusBadRequest, "标题翻译请求无效", "Invalid title translation request")
+		domain.error(c, http.StatusBadRequest, "标题翻译请求无效", "Invalid title translation request")
 		return
 	}
+	if domain.Series {
+		req.Title = req.Name
+	}
 	if req.Title != nil && len(*req.Title) > 8192 {
-		respondLocalizedError(c, http.StatusBadRequest, "标题翻译请求无效或标题过长", "Invalid title translation request or title too long")
+		domain.error(c, http.StatusBadRequest, "标题翻译请求无效或标题过长", "Invalid title translation request or title too long")
 		return
 	}
 	// Reasoning and queued translations can outlast the server's default write timeout.
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		logging.Error("disable title translation write deadline: %v", err)
 	}
-	release, err := acquireTitleTranslation(c.Request.Context(), id)
+	release, err := domain.acquire(c.Request.Context(), id)
 	if err != nil {
 		return
 	}
 	defer release()
 	cfg, err := dbpkg.ListConfig(c.Request.Context())
 	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
+		domain.error(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
-	item, err := dbpkg.GetJavTitleTranslationItem(c.Request.Context(), id)
+	item, err := domain.Get(c.Request.Context(), id)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		respondLocalizedError(c, http.StatusNotFound, "影片不存在", "JAV item was not found")
+		domain.error(c, http.StatusNotFound, "影片不存在", "JAV item was not found")
 		return
 	}
 	if err != nil {
-		respondLocalizedError(c, http.StatusInternalServerError, "读取影片失败", "Failed to load JAV item")
+		domain.error(c, http.StatusInternalServerError, "读取影片失败", "Failed to load JAV item")
 		return
 	}
-	sourceTitle := item.Title
+	sourceTitle := item.Source
 	if req.Title != nil {
 		sourceTitle = strings.TrimSpace(*req.Title)
 	}
 	if strings.TrimSpace(sourceTitle) == "" {
-		respondLocalizedError(c, 400, "影片标题不能为空", "The title must not be empty")
+		domain.error(c, 400, "影片标题不能为空", "The title must not be empty")
 		return
 	}
-	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], sourceTitle, req.Thinking)
+	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), domain.prompt(cfg), sourceTitle, req.Thinking)
 	if err != nil {
 		respondTitleTranslationError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"id": item.ID, "title": sourceTitle, "zh_title": title})
+	item.Source, item.Translation = sourceTitle, title
+	c.JSON(http.StatusOK, domain.response(item))
 }
 
 func respondTitleTranslationError(c *gin.Context, err error) {

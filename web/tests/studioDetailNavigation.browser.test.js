@@ -77,7 +77,9 @@ test(
     await reloadPage()
     await waitFor(loaded)
     assert.equal(await evaluate(`${scroll}.scrollTop`), 350)
-    await evaluate(`${modal}.querySelector('section:nth-child(2) a button').click()`)
+    await evaluate(
+      `${modal}.querySelector('[aria-label="加入系列收藏夹"], [aria-label="Add to series favorite groups"]').click()`
+    )
     await waitFor(`document.querySelectorAll('[role="dialog"]').length === 2`)
     await evaluate(
       `document.querySelector('[aria-label="关闭收藏夹选择"], [aria-label="Close favorite group picker"]').click()`

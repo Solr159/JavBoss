@@ -16,3 +16,7 @@ export function parseTranslationConfig(value, fallback = {}) {
     return fallback
   }
 }
+
+export function getSeriesDisplayName(item, preferChinese = true) {
+  return (preferChinese && String(item?.zh_name || '').trim()) || String(item?.name || '').trim()
+}

@@ -86,12 +86,12 @@ export default function TitleTranslationToolSettings() {
     }
   }
 
-  const handleAutoChange = async (enabled) => {
+  const handleAutoChange = async (enabled, target = 'title') => {
     if (toggling || saving || testing) return
     setToggling(true)
     setAutoError('')
     try {
-      await saveTitleTranslationEnabled(enabled)
+      await saveTitleTranslationEnabled(enabled, target)
     } catch (err) {
       setAutoError(getErrorMessage(err))
     } finally {
@@ -119,8 +119,8 @@ export default function TitleTranslationToolSettings() {
         className="rounded-xl bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800"
       >
         {zh(
-          '要展示自动翻译或批量翻译生成的中文标题，请在「显示设置 → JAV → 卡片设置」中确保「优先展示中文标题」已开启（默认开启）。',
-          'To display Chinese titles from automatic or batch translation, enable “Prefer Chinese titles” in Display settings → JAV → Card settings (enabled by default).'
+          '要展示翻译生成的中文标题和系列名称，请在「显示设置 → JAV → 卡片设置」中确保「优先展示中文标题」已开启（默认开启）。',
+          'To display translated Chinese titles and series names, enable “Prefer Chinese titles” in Display settings → JAV → Card settings (enabled by default).'
         )}
       </p>
 
@@ -155,12 +155,44 @@ export default function TitleTranslationToolSettings() {
           )}
         </p>
       </section>
+      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-6 px-5 pb-1 pt-4">
+          <label
+            htmlFor="series-translation-auto-enabled"
+            className="cursor-pointer text-sm font-semibold text-zinc-900"
+          >
+            {zh('自动翻译缺失系列名称', 'Automatically translate missing series names')}
+          </label>
+          <Switch
+            size="small"
+            checked={configFlag(config?.jav_series_translation_enabled)}
+            disabled={busy}
+            onChange={(_, checked) => void handleAutoChange(checked, 'series')}
+            slotProps={{
+              input: {
+                id: 'series-translation-auto-enabled',
+                'aria-label': zh(
+                  '自动翻译缺失系列名称',
+                  'Automatically translate missing series names'
+                ),
+              },
+            }}
+          />
+        </div>
+        <p className="px-5 pb-4 text-xs leading-5 text-zinc-500">
+          {zh(
+            '开启后自动翻译当前页缺失的中文系列名称，与标题翻译共用下方服务商和模型配置。',
+            'Translate missing Chinese series names on the current page using the provider and model below.'
+          )}
+        </p>
+      </section>
       {autoError && (
         <p role="alert" className="text-sm text-red-600">
           {autoError}
         </p>
       )}
       <TitleTranslationBatchSettings dirty={dirty} />
+      <TitleTranslationBatchSettings dirty={dirty} target="series" />
       <form onSubmit={handleSave}>
         <section
           aria-labelledby="translation-service-heading"

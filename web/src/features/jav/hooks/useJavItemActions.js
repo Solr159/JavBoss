@@ -1,4 +1,4 @@
-import { preferChineseTitle } from '@/features/jav/titleTranslation'
+import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useMemo, useState, useContext, useEffect, useRef } from 'react'
 import { getIdolCardLayoutProps } from '@/features/jav/components/JavIdolGrid'
 import { JavDetailNavigationContext } from '@/navigation/javDetailNavigation'
@@ -79,10 +79,10 @@ export default function useJavItemActions({
   const studioText = String(item?.studio?.name || '').trim()
   const canFilterStudio = studioText && typeof onStudioClick === 'function'
   const preferredSeries = item?.series
-  const seriesText = String(preferredSeries?.name || '').trim()
-  const canFilterSeries = seriesText && typeof onSeriesClick === 'function'
   const codeText = code
   const translateTitle = useStore((state) => preferChineseTitle(state.config))
+  const seriesText = getSeriesDisplayName(preferredSeries, translateTitle)
+  const canFilterSeries = seriesText && typeof onSeriesClick === 'function'
   const mainTitle = getJavDisplayTitle(item, translateTitle)
   const titleText = [codeText, mainTitle].filter(Boolean).join(' ')
   const normalizedTitleMaxRows = normalizeJavTitleMaxRows(titleMaxRows)

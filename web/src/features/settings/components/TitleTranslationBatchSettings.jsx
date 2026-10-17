@@ -9,7 +9,8 @@ import {
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
-export default function TitleTranslationBatchSettings({ dirty }) {
+export default function TitleTranslationBatchSettings({ dirty, target = 'title' }) {
+  const series = target === 'series'
   const [expanded, setExpanded] = useState(false)
   const [batch, setBatch] = useState(null)
   const [scope, setScope] = useState('missing')
@@ -29,12 +30,15 @@ export default function TitleTranslationBatchSettings({ dirty }) {
     let timer
     const poll = async () => {
       try {
-        const status = await fetchTitleTranslationBatch({ signal: controller.signal })
+        const status = await fetchTitleTranslationBatch({ signal: controller.signal, target })
         if (controller.signal.aborted) return
         setBatch(status)
         if (status.running) timer = setTimeout(poll, 1000)
-        else if (running)
-          await useStore.getState().loadJavs({ force: true, reconcile: true, background: true })
+        else if (running) {
+          const state = useStore.getState()
+          const reload = series ? state.loadJavSeries : state.loadJavs
+          await reload({ force: true, reconcile: true, background: true })
+        }
       } catch (err) {
         if (!controller.signal.aborted) {
           setError(getErrorMessage(err))
@@ -47,7 +51,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
       controller.abort()
       clearTimeout(timer)
     }
-  }, [running])
+  }, [running, target, series])
   useEffect(() => {
     if (!expanded || running) return undefined
     const controller = new AbortController()
@@ -55,7 +59,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
     setPreview(null)
     setConfirmed(false)
     setPreviewError('')
-    previewTitleTranslationBatch(scope, { signal: controller.signal })
+    previewTitleTranslationBatch(scope, { signal: controller.signal, target })
       .then((result) => {
         if (!controller.signal.aborted) setPreview(result)
       })
@@ -66,7 +70,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
         if (!controller.signal.aborted) setPreviewLoading(false)
       })
     return () => controller.abort()
-  }, [expanded, scope, running, previewRevision])
+  }, [expanded, scope, running, previewRevision, target])
   const runAction = async (action) => {
     setBusy(true)
     setError('')
@@ -82,7 +86,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
     'shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50'
   return (
     <details
-      data-translation-batch
+      data-translation-batch={target}
       open={expanded}
       onToggle={(e) => setExpanded(e.currentTarget.open)}
       className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
@@ -90,7 +94,9 @@ export default function TitleTranslationBatchSettings({ dirty }) {
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <span>
           <span className="block text-sm font-semibold text-zinc-900">
-            {zh('批量翻译', 'Batch translation')}
+            {series
+              ? zh('系列批量翻译', 'Batch series translation')
+              : zh('批量翻译', 'Batch translation')}
           </span>
           <span className="mt-1 block text-xs leading-5 text-zinc-500">
             {running
@@ -99,8 +105,10 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                   `Translating · ${batch.processed}/${batch.total}`
                 )
               : zh(
-                  '按需补齐或重新翻译整个影片库。',
-                  'Fill missing titles or retranslate your library when needed.'
+                  series ? '按需补齐或重新翻译全部系列名称。' : '按需补齐或重新翻译整个影片库。',
+                  series
+                    ? 'Fill missing series names or retranslate all series.'
+                    : 'Fill missing titles or retranslate your library when needed.'
                 )}
           </span>
         </span>
@@ -136,14 +144,22 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                 >
                   <option value="missing">
                     {zh(
-                      '仅翻译缺失标题（保留已有译名）',
-                      'Missing titles only (keep existing translations)'
+                      series
+                        ? '仅翻译缺失系列名称（保留已有译名）'
+                        : '仅翻译缺失标题（保留已有译名）',
+                      series
+                        ? 'Missing series names only (keep existing translations)'
+                        : 'Missing titles only (keep existing translations)'
                     )}
                   </option>
                   <option value="all">
                     {zh(
-                      '重新翻译全部标题（覆盖已有译名）',
-                      'All titles (overwrite existing translations)'
+                      series
+                        ? '重新翻译全部系列名称（覆盖已有译名）'
+                        : '重新翻译全部标题（覆盖已有译名）',
+                      series
+                        ? 'All series names (overwrite existing translations)'
+                        : 'All titles (overwrite existing translations)'
                     )}
                   </option>
                 </select>
@@ -172,8 +188,10 @@ export default function TitleTranslationBatchSettings({ dirty }) {
               <div className="space-y-3 rounded-lg bg-slate-50 p-3">
                 <p role="status" className="text-sm">
                   {zh(
-                    `将翻译 ${preview.total} 部影片，其中 ${preview.existing} 部已有中文标题。`,
-                    `Translate ${preview.total} titles; ${preview.existing} already have Chinese titles.`
+                    series
+                      ? `将翻译 ${preview.total} 个系列，其中 ${preview.existing} 个已有中文名称。`
+                      : `将翻译 ${preview.total} 部影片，其中 ${preview.existing} 部已有中文标题。`,
+                    `Translate ${preview.total} ${series ? 'series names' : 'titles'}; ${preview.existing} already have translations.`
                   )}
                 </p>
                 <p className="text-xs text-zinc-500">
@@ -191,8 +209,10 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                       onChange={(e) => setConfirmed(e.target.checked)}
                     />
                     {zh(
-                      '我确认覆盖已有中文标题，包括人工校对的译名。',
-                      'I confirm overwriting existing Chinese titles, including manual corrections.'
+                      series
+                        ? '我确认覆盖已有中文系列名称，包括人工校对的译名。'
+                        : '我确认覆盖已有中文标题，包括人工校对的译名。',
+                      'I confirm overwriting existing Chinese translations, including manual corrections.'
                     )}
                   </label>
                 )}
@@ -202,7 +222,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                   disabled={!preview.total || (scope === 'all' && !confirmed)}
                   onClick={() =>
                     void runAction(async () => {
-                      setBatch(await startTitleTranslationBatch(scope, confirmed))
+                      setBatch(await startTitleTranslationBatch(scope, confirmed, target))
                       setPreview(null)
                       setPreviewRevision((revision) => revision + 1)
                       setConfirmed(false)
@@ -228,10 +248,12 @@ export default function TitleTranslationBatchSettings({ dirty }) {
             type="button"
             className={buttonClass}
             disabled={busy || batch.stopping}
-            onClick={() => void runAction(async () => setBatch(await stopTitleTranslationBatch()))}
+            onClick={() =>
+              void runAction(async () => setBatch(await stopTitleTranslationBatch(target)))
+            }
           >
             {batch.stopping
-              ? zh('当前影片完成后停止', 'Stopping after the current title')
+              ? zh('当前翻译完成后停止', 'Stopping after the current translation')
               : zh('停止任务', 'Stop batch')}
           </button>
         )}

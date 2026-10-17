@@ -124,6 +124,7 @@ func AddJavsToFavoriteGroups(ctx context.Context, javIDs, groupIDs []int64) ([]J
 }
 
 type JavFavoriteItemSummary struct {
+	ZhName       string `json:"zh_name"`
 	ID           int64  `json:"id"`
 	EntityType   string `json:"entity_type"`
 	Name         string `json:"name"`
@@ -553,7 +554,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 		query = applyDirectoryFilter(query, "vl", directoryIDs)
 	case JavFavoriteEntitySeries:
 		query = query.
-			Select("'series' AS entity_type, js.id, js.name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
+			Select("'series' AS entity_type, js.id, js.name, js.zh_name, COUNT(DISTINCT j.id) AS work_count, MIN(j.code) AS sample_code").
 			Joins("JOIN jav_series js ON js.id = jfm.entity_id").
 			Joins("JOIN jav j ON j.series_id = js.id").
 			Joins("JOIN video_location vl ON vl.jav_id = j.id").

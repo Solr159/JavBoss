@@ -1,3 +1,5 @@
+import { useStore } from '@/store'
+import { preferChineseTitle, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
@@ -98,6 +100,7 @@ export default function JavQueryEditorModal({
   favoriteRatingMin = 0.5,
   favoriteRatingMax = 5,
 }) {
+  const preferChinese = useStore((state) => preferChineseTitle(state.config))
   const prefixInputRef = useRef(null)
   const idolInputRef = useRef(null)
   const tagInputRef = useRef(null)
@@ -1104,7 +1107,7 @@ export default function JavQueryEditorModal({
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800">
-                            {series.name}
+                            {getSeriesDisplayName(series, preferChinese)}
                           </span>
                           <span className="shrink-0 text-xs text-slate-400">
                             {zh(`${series.work_count || 0} 部`, `${series.work_count || 0} works`)}

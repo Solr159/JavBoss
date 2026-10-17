@@ -187,7 +187,10 @@ export async function saveTitleTranslationSettings(draft) {
   useStore.setState({ config: cfg })
 }
 
-export async function saveTitleTranslationEnabled(enabled) {
-  const cfg = await updateConfig({ jav_title_translation_enabled: Boolean(enabled) })
+export async function saveTitleTranslationEnabled(enabled, target = 'title') {
+  const cfg = await updateConfig({
+    [target === 'series' ? 'jav_series_translation_enabled' : 'jav_title_translation_enabled']:
+      Boolean(enabled),
+  })
   useStore.setState({ config: cfg })
 }
