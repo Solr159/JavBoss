@@ -2792,7 +2792,7 @@ func TestUpdateJavIdolCoverSelection(t *testing.T) {
 		t.Fatalf("reload other idol: %v", err)
 	}
 
-	soloJav := models.Jav{Code: "COV-001", Title: "Solo Cover", FetchedAt: now}
+	soloJav := models.Jav{Code: "COV-001", Title: "Solo Cover", ZhTitle: " 单人封面 ", FetchedAt: now}
 	groupJav := models.Jav{Code: "COV-002", Title: "Group Cover", FetchedAt: now}
 	otherJav := models.Jav{Code: "COV-003", Title: "Other Cover", FetchedAt: now}
 	if err := db.Create(&[]models.Jav{soloJav, groupJav, otherJav}).Error; err != nil {
@@ -2841,6 +2841,12 @@ func TestUpdateJavIdolCoverSelection(t *testing.T) {
 	}
 	if options[1].Code != groupJav.Code || options[1].Solo {
 		t.Fatalf("unexpected second option: %#v", options[1])
+	}
+	if options[0].Title != soloJav.Title || options[0].ZhTitle != "单人封面" {
+		t.Fatalf("translated cover option should include both titles: %#v", options[0])
+	}
+	if options[1].Title != groupJav.Title || options[1].ZhTitle != "" {
+		t.Fatalf("untranslated cover option should retain its original title: %#v", options[1])
 	}
 
 	item, err := UpdateJavIdolCoverSelection(ctx, idol.ID, groupJav.ID, 0.25, nil)
