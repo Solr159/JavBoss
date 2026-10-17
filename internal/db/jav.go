@@ -2076,7 +2076,8 @@ func buildVisibleIdolWorkCountQuery(ctx context.Context, directoryIDs []int64) *
 		Group("jim.jav_idol_id")
 }
 
-// GetJavIdolSummary returns one idol summary for hover preview usage.
+// GetJavIdolSummary returns an existing idol for previews and edit responses,
+// regardless of whether the idol has visible solo works.
 func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) (*JavIdolSummary, error) {
 	if idolID <= 0 {
 		return nil, errors.New("idol id must be positive")
@@ -2091,7 +2092,6 @@ func GetJavIdolSummary(ctx context.Context, idolID int64, directoryIDs []int64) 
 		Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 		Joins("LEFT JOIN (?) favorite_counts ON favorite_counts.jav_idol_id = ji.id", buildIdolFavoriteCountQuery(ctx)).
 		Where("ji.id = ?", idolID).
-		Where("solo_idols.cover_code IS NOT NULL").
 		Limit(1).
 		Scan(&item)
 	if tx.Error != nil {

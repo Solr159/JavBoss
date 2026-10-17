@@ -1,12 +1,130 @@
 package server
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
+
+	"javboss/internal/common"
+	dbpkg "javboss/internal/db"
+	"javboss/internal/models"
 
 	"github.com/gin-gonic/gin"
 )
+
+func TestJavIdolEditingWithoutSoloWorks(t *testing.T) {
+	for _, workType := range []string{"group", "none", "solo"} {
+		t.Run(workType, func(t *testing.T) {
+			database, err := dbpkg.Open(filepath.Join(t.TempDir(), "test.db"))
+			if err != nil {
+				t.Fatalf("open test database: %v", err)
+			}
+			previousDB, previousConfig := common.DB, common.AppConfig
+			common.DB, common.AppConfig = database, nil
+			t.Cleanup(func() {
+				common.DB, common.AppConfig = previousDB, previousConfig
+				if sqlDB, err := database.DB(); err == nil {
+					_ = sqlDB.Close()
+				}
+			})
+			create := func(value any) {
+				t.Helper()
+				if err := database.Create(value).Error; err != nil {
+					t.Fatalf("create %T: %v", value, err)
+				}
+			}
+			idol := models.JavIdol{Name: "Editable Idol"}
+			create(&idol)
+			var work models.Jav
+			var wantWorkCount int64
+			if workType != "none" {
+				work = models.Jav{Code: "EDIT-001"}
+				create(&work)
+				create(&models.JavIdolMap{JavID: work.ID, JavIdolID: idol.ID})
+				if workType == "group" {
+					coIdol := models.JavIdol{Name: "Co Idol"}
+					create(&coIdol)
+					create(&models.JavIdolMap{JavID: work.ID, JavIdolID: coIdol.ID})
+				}
+				directory := models.Directory{Path: t.TempDir()}
+				create(&directory)
+				video := models.Video{Fingerprint: "idol-edit"}
+				create(&video)
+				create(&models.VideoLocation{
+					VideoID: video.ID, DirectoryID: directory.ID,
+					RelativePath: "edit.mp4", Filename: "edit.mp4", JavID: &work.ID,
+				})
+				wantWorkCount = 1
+			}
+
+			gin.SetMode(gin.TestMode)
+			router := gin.New()
+			router.GET("/jav/idols/:id", getJavIdol)
+			router.PATCH("/jav/idols/:id", updateJavIdol)
+			router.PUT("/jav/idols/:id/cover", updateJavIdolCover)
+			path := fmt.Sprintf("/jav/idols/%d", idol.ID)
+			request := func(method, path, body string, wantStatus int) dbpkg.JavIdolSummary {
+				t.Helper()
+				recorder := httptest.NewRecorder()
+				req := httptest.NewRequest(method, path, strings.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				router.ServeHTTP(recorder, req)
+				if recorder.Code != wantStatus {
+					t.Fatalf("%s %s: status = %d, want %d; body=%s", method, path, recorder.Code, wantStatus, recorder.Body.String())
+				}
+				var item dbpkg.JavIdolSummary
+				if wantStatus == http.StatusOK {
+					if err := json.Unmarshal(recorder.Body.Bytes(), &item); err != nil {
+						t.Fatalf("decode idol: %v", err)
+					}
+					if item.ID != idol.ID || item.WorkCount != wantWorkCount {
+						t.Fatalf("unexpected idol summary: %#v", item)
+					}
+				}
+				return item
+			}
+
+			request(http.MethodGet, path, "", http.StatusOK)
+			updated := request(http.MethodPatch, path,
+				`{"name":"Updated Idol","chinese_name":"新名字","height_cm":165,"aliases":["Alias"]}`, http.StatusOK)
+			if updated.Name != "Updated Idol" || updated.ChineseName != "新名字" ||
+				updated.HeightCM == nil || *updated.HeightCM != 165 || !reflect.DeepEqual(updated.Aliases, []string{"Alias"}) {
+				t.Fatalf("unexpected updated profile: %#v", updated)
+			}
+			if loaded := request(http.MethodGet, path, "", http.StatusOK); !reflect.DeepEqual(loaded, updated) {
+				t.Fatalf("profile was not persisted: got %#v, want %#v", loaded, updated)
+			}
+
+			if workType != "none" {
+				updated = request(http.MethodPut, path+"/cover",
+					fmt.Sprintf(`{"jav_id":%d,"crop_left":0.25}`, work.ID), http.StatusOK)
+				if updated.CoverJavID == nil || *updated.CoverJavID != work.ID ||
+					updated.CoverCode != work.Code || updated.CoverCropLeft != 0.25 {
+					t.Fatalf("unexpected selected cover: %#v", updated)
+				}
+				if loaded := request(http.MethodGet, path, "", http.StatusOK); !reflect.DeepEqual(loaded, updated) {
+					t.Fatalf("cover was not persisted: got %#v, want %#v", loaded, updated)
+				}
+			}
+			updated = request(http.MethodPut, path+"/cover", `{"jav_id":0,"crop_left":0}`, http.StatusOK)
+			if updated.CoverJavID != nil || updated.CoverCropLeft != 0.53 {
+				t.Fatalf("unexpected reset cover: %#v", updated)
+			}
+			if loaded := request(http.MethodGet, path, "", http.StatusOK); !reflect.DeepEqual(loaded, updated) {
+				t.Fatalf("cover reset was not persisted: got %#v, want %#v", loaded, updated)
+			}
+
+			request(http.MethodGet, "/jav/idols/999999", "", http.StatusNotFound)
+			request(http.MethodPatch, "/jav/idols/999999", `{"name":"Missing Idol"}`, http.StatusNotFound)
+			request(http.MethodPut, "/jav/idols/999999/cover", `{"jav_id":0}`, http.StatusNotFound)
+		})
+	}
+}
 
 func TestParseJavIdolFilters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
