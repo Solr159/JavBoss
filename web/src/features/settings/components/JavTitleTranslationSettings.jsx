@@ -506,8 +506,8 @@ export default function JavTitleTranslationSettings({
                 </p>
                 <p className="text-xs leading-5 text-slate-500">
                   {zh(
-                    '标准响应会自动检查完整性。其他 JSON 格式需填写 completion_path 和 completion_value，例如 /done 和 true。',
-                    'Standard responses are checked for completion. Other JSON formats require completion_path and completion_value, such as /done and true.'
+                    '标准响应可省略 response_path，自动提取译文并检查完整性。其他 JSON 格式需填写 response_path、completion_path 和 completion_value。',
+                    'Omit response_path for standard responses to extract the translation and check completion automatically. Other JSON formats require response_path, completion_path and completion_value.'
                   )}
                 </p>
               </div>

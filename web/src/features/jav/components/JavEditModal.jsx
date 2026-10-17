@@ -41,14 +41,19 @@ import AddIcon from '@mui/icons-material/Add'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined'
 
-export function JavEditModal({
-  open,
-  item,
+export function JavEditModal({ open, item, ...props }) {
+  return open ? <JavEditForm key={item?.id ?? 'new'} item={item} {...props} /> : null
+}
+
+function JavEditForm({
+  item: initialItem,
   preferChineseName = false,
   onClose,
   onSaved,
   onDeleted,
 }) {
+  // Keep the opening values as the draft baseline across background item updates.
+  const [item] = useState(initialItem)
   const translationCaps = useStore((state) => state.config?.jav_title_translation_capabilities)
   const reasoning = parseTranslationConfig(translationCaps).reasoning
   const tagOptions = useStore((state) => state.javTagOptions || [])
@@ -228,7 +233,6 @@ export function JavEditModal({
   )
 
   useEffect(() => {
-    if (!open) return undefined
     let cancelled = false
     setTitle(editableJavTitle(item))
     setZhTitle(item?.zh_title || '')
@@ -278,10 +282,9 @@ export function JavEditModal({
     return () => {
       cancelled = true
     }
-  }, [currentScrapedTags, currentSeries?.id, item, loadJavTags, open])
+  }, [currentScrapedTags, currentSeries?.id, item, loadJavTags])
 
   useEffect(() => {
-    if (!open) return undefined
     let cancelled = false
     setOptionsLoading(true)
     setOptionsError('')
@@ -309,9 +312,7 @@ export function JavEditModal({
     return () => {
       cancelled = true
     }
-  }, [open])
-
-  if (!open) return null
+  }, [])
 
   const toggleTag = (tagId, checked) => {
     const id = String(tagId)

@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import useJavTitleTranslation from '@/features/jav/hooks/useJavTitleTranslation'
+import { JavEditModal } from '@/features/jav/components/JavEditModal'
 import { useStore } from '@/store'
 
 window.testStore = useStore
@@ -34,6 +35,20 @@ window.completeTranslation = (index, fail = false) => {
   request.controller.close()
 }
 window.fetch = (input, init) => {
+  const path = new URL(input, location.origin).pathname
+  if (['/jav/studios', '/jav/series', '/jav/idols/options'].includes(path))
+    return Promise.resolve(Response.json({ items: [], total: 0 }))
+  if (path === '/jav/tags') return Promise.resolve(Response.json([]))
+  if (init?.method === 'PUT' && path.startsWith('/jav/items/')) {
+    const id = Number(path.split('/').at(-1))
+    window.savedEditorPayload = JSON.parse(init.body)
+    return Promise.resolve(
+      Response.json({
+        ...useStore.getState().javItems.find((item) => item.id === id),
+        ...window.savedEditorPayload,
+      })
+    )
+  }
   if (input !== '/jav/title-translation/items') throw new Error(`Unexpected request: ${input}`)
   const request = { ...JSON.parse(init.body), completed: new Set() }
   const stream = new ReadableStream({
@@ -76,10 +91,22 @@ function Translation() {
 }
 function Fixture() {
   const [revision, setRevision] = useState(0)
+  const [editingId, setEditingId] = useState(null)
+  const item = useStore((state) => state.javItems.find((item) => item.id === editingId))
+  window.editTranslationItem = setEditingId
   return (
     <>
       <button onClick={() => setRevision((value) => value + 1)}>Remount</button>
       <Translation key={revision} />
+      <JavEditModal
+        open={editingId !== null}
+        item={item}
+        onClose={() => setEditingId(null)}
+        onSaved={(updated) => {
+          useStore.getState().patchJavItem(updated)
+          setEditingId(null)
+        }}
+      />
     </>
   )
 }

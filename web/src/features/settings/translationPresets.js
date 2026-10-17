@@ -13,7 +13,6 @@ export const translationPresets = {
       max_output_tokens: 1024,
       store: false,
     },
-    response_path: '/output/0/content/0/text',
   },
   anthropic: {
     url: '{{base_url}}/messages',

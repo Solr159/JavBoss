@@ -4,8 +4,56 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
+
+func TestCustomTranslationResponseExtraction(t *testing.T) {
+	const multipleOutput = `{"status":"completed","output":[{"type":"reasoning","content":[{"type":"output_text","text":"hidden reasoning"}]},{"type":"message","content":[{"type":"output_text","text":" 雨"},{"type":"other","text":"ignored"},{"type":"output_text","text":"天"}]},{"type":"message","content":[{"type":"output_text","text":"晴 "}]}],"custom":{"a/b":["自定义"]}}`
+	for _, tc := range []struct {
+		name, response, want string
+		fields               map[string]any
+		wantErr              bool
+	}{
+		{name: "responses reasoning first omitted path", response: responsesResponse, want: "雨天"},
+		{name: "responses reasoning first empty path", response: responsesResponse, fields: map[string]any{"response_path": ""}, want: "雨天"},
+		{name: "responses all output text", response: multipleOutput, want: "雨天晴"},
+		{name: "chat default", response: chatResponse, want: "雨天"},
+		{name: "anthropic default", response: claudeResponse, want: "雨天"},
+		{name: "gemini default", response: geminiResponse, want: "雨天"},
+		{name: "responses incomplete", response: strings.Replace(multipleOutput, `"completed"`, `"incomplete"`, 1), wantErr: true},
+		{name: "responses missing status", response: `{"output":[{"type":"message","content":[{"type":"output_text","text":"partial"}]}]}`, wantErr: true},
+		{name: "responses reasoning only", response: `{"status":"completed","output":[{"type":"reasoning","content":[{"type":"output_text","text":"hidden"}]}]}`, wantErr: true},
+		{name: "responses no output text", response: `{"status":"completed","output":[{"type":"message","content":[{"type":"refusal","refusal":"refused"}]}]}`, wantErr: true},
+		{name: "responses blank text", response: strings.Replace(responsesResponse, "雨天", " ", 1), wantErr: true},
+		{name: "responses oversized text", response: strings.Replace(responsesResponse, "雨天", strings.Repeat("x", 8193), 1), wantErr: true},
+		{name: "explicit pointer selects one part", response: multipleOutput, fields: map[string]any{"response_path": "/output/1/content/2/text"}, want: "天"},
+		{name: "explicit arbitrary pointer in standard envelope", response: multipleOutput, fields: map[string]any{"response_path": "/custom/a~1b/0"}, want: "自定义"},
+		{name: "explicit pointer not rewritten", response: responsesResponse, fields: map[string]any{"response_path": "/output/0/content/0/text"}, wantErr: true},
+		{name: "explicit pointer must return text", response: multipleOutput, fields: map[string]any{"response_path": "/output"}, wantErr: true},
+		{name: "standard completion check passes", response: multipleOutput, fields: map[string]any{"completion_path": "/status", "completion_value": "completed"}, want: "雨天晴"},
+		{name: "standard completion check fails", response: multipleOutput, fields: map[string]any{"completion_path": "/status", "completion_value": "finished"}, wantErr: true},
+		{name: "standard completion check missing value", response: multipleOutput, fields: map[string]any{"completion_path": "/status"}, wantErr: true},
+		{name: "explicit pointer completion check fails", response: multipleOutput, fields: map[string]any{"response_path": "/custom/a~1b/0", "completion_path": "/status", "completion_value": "finished"}, wantErr: true},
+		{name: "custom object needs explicit pointer", response: `{"done":true,"text":"雨天"}`, fields: map[string]any{"completion_path": "/done", "completion_value": true}, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = w.Write([]byte(tc.response))
+			}))
+			defer upstream.Close()
+			request := map[string]any{"url": upstream.URL, "body": map[string]any{"title": "{{title}}"}}
+			for key, value := range tc.fields {
+				request[key] = value
+			}
+			profile := Profile{Model: "custom-model", Request: request}
+			title, err := (&Client{HTTP: upstream.Client()}).Translate(context.Background(), "custom", profile, "Translate", "Rainy day", nil)
+			if (err != nil) != tc.wantErr || title != tc.want {
+				t.Fatalf("title=%q err=%v; want title=%q error=%v", title, err, tc.want, tc.wantErr)
+			}
+		})
+	}
+}
 
 func TestCustomTranslationRequiresCompleteResponse(t *testing.T) {
 	for _, tc := range []struct {

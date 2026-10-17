@@ -180,3 +180,77 @@ test(
     assert.equal(await evaluate('window.translationCalls.length'), 5)
   }
 )
+
+test(
+  'automatic translation preserves open editor fields and selection until saved',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/javAutomaticTranslation.html` })
+    await waitFor('window.translationRequests?.length === 1')
+    await evaluate(`{
+      window.testStore.getState().patchJavItem({id: 1, idols: [{id: 9, name: 'Original idol'}]});
+      window.editTranslationItem(1);
+    }`)
+    await waitFor(`document.querySelector('#jav-title-1')`)
+    await evaluate(`{
+      window.setEditorValue = (selector, value) => {
+        const input = document.querySelector(selector);
+        const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, 'value').set.call(input, value);
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+      };
+      window.setEditorValue('#jav-title-1', 'Edited original');
+      window.setEditorValue('#jav-zh-title-1', '人工校对');
+      window.setEditorValue('input[type="number"]', '123');
+      document.querySelector('[aria-label="Remove Original idol"]').click();
+    }`)
+    await evaluate('window.emitTranslation(0, [1])')
+    await waitFor(`window.testStore.getState().javItems[0].zh_title === '译文 1'`)
+    assert.equal(await evaluate(`document.querySelector('#jav-title-1').value`), 'Edited original')
+    assert.equal(await evaluate(`document.querySelector('#jav-zh-title-1').value`), '人工校对')
+    assert.equal(await evaluate(`document.querySelector('input[type="number"]').value`), '123')
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('[aria-label="Remove Original idol"]'))`),
+      false
+    )
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
+    )
+    await waitFor('window.savedEditorPayload')
+    const payload = await evaluate('window.savedEditorPayload')
+    assert.equal(payload.title, 'Edited original')
+    assert.equal(payload.zh_title, '人工校对')
+    assert.equal(payload.duration_min, 123)
+    assert.deepEqual(payload.idol_ids, [])
+  }
+)
+
+test(
+  'editor keeps its opening baseline for saving and resets on reopening or switching items',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/javAutomaticTranslation.html` })
+    await waitFor('window.translationRequests?.length === 1')
+    await evaluate('window.editTranslationItem(1)')
+    await waitFor(`document.querySelector('#jav-zh-title-1')`)
+    await evaluate('window.emitTranslation(0, [1])')
+    await waitFor(`window.testStore.getState().javItems[0].zh_title === '译文 1'`)
+    assert.equal(await evaluate(`document.querySelector('#jav-zh-title-1').value`), '')
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
+    )
+    await waitFor('window.savedEditorPayload')
+    assert.equal(await evaluate(`Object.hasOwn(window.savedEditorPayload, 'zh_title')`), false)
+    assert.equal(await evaluate(`window.testStore.getState().javItems[0].zh_title`), '译文 1')
+    await evaluate('window.editTranslationItem(1)')
+    await waitFor(`document.querySelector('#jav-zh-title-1')?.value === '译文 1'`)
+    await evaluate('window.editTranslationItem(2)')
+    await waitFor(`document.querySelector('#jav-title-2')?.value === 'Source 2'`)
+    assert.equal(await evaluate(`document.querySelector('#jav-zh-title-2').value`), '')
+    await evaluate('window.emitTranslation(0, [2])')
+    await waitFor(`window.testStore.getState().javItems[1].zh_title === '译文 2'`)
+    assert.equal(await evaluate(`document.querySelector('#jav-zh-title-2').value`), '')
+  }
+)
