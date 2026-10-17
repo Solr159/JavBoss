@@ -25,7 +25,8 @@ func TestJavIdolEditingWithoutSoloWorks(t *testing.T) {
 				t.Fatalf("open test database: %v", err)
 			}
 			previousDB, previousConfig := common.DB, common.AppConfig
-			common.DB, common.AppConfig = database, nil
+			common.DB = database
+			common.AppConfig = &common.Config{JavCoverDir: t.TempDir()}
 			t.Cleanup(func() {
 				common.DB, common.AppConfig = previousDB, previousConfig
 				if sqlDB, err := database.DB(); err == nil {
@@ -42,6 +43,7 @@ func TestJavIdolEditingWithoutSoloWorks(t *testing.T) {
 			create(&idol)
 			var work models.Jav
 			var wantWorkCount int64
+			var wantDefaultCover string
 			if workType != "none" {
 				work = models.Jav{Code: "EDIT-001"}
 				create(&work)
@@ -60,6 +62,9 @@ func TestJavIdolEditingWithoutSoloWorks(t *testing.T) {
 					RelativePath: "edit.mp4", Filename: "edit.mp4", JavID: &work.ID,
 				})
 				wantWorkCount = 1
+				if workType == "solo" {
+					wantDefaultCover = work.Code
+				}
 			}
 
 			gin.SetMode(gin.TestMode)
@@ -84,6 +89,9 @@ func TestJavIdolEditingWithoutSoloWorks(t *testing.T) {
 					}
 					if item.ID != idol.ID || item.WorkCount != wantWorkCount {
 						t.Fatalf("unexpected idol summary: %#v", item)
+					}
+					if item.CoverJavID == nil && item.CoverCode != wantDefaultCover {
+						t.Fatalf("default cover = %q, want %q", item.CoverCode, wantDefaultCover)
 					}
 				}
 				return item

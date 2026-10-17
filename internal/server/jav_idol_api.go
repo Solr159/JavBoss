@@ -389,7 +389,9 @@ func enrichJavIdolSummary(ctx context.Context, item *dbpkg.JavIdolSummary, cover
 	item.ChineseName = strings.TrimSpace(item.ChineseName)
 	item.CoverCode = strings.TrimSpace(item.CoverCode)
 
-	if coverDir == "" {
+	// The summary only supplies a cover for a manual selection or a solo work.
+	// Keep it empty when neither is available instead of falling back to group works.
+	if coverDir == "" || item.CoverCode == "" {
 		return
 	}
 	if item.CoverJavID != nil && item.CoverCode != "" {
