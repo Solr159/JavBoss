@@ -21,7 +21,8 @@ export default function TitleTranslationToolSettings() {
   const config = useStore((state) => state.config)
   const [draft, setDraft] = useState(() => createTitleTranslationDraft(config))
   const [editing, setEditing] = useState(false)
-  const [toggling, setToggling] = useState(false)
+  const [pendingSwitches, setPendingSwitches] = useState({})
+  const toggling = Object.values(pendingSwitches).some(Boolean)
   const [autoError, setAutoError] = useState('')
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -42,7 +43,7 @@ export default function TitleTranslationToolSettings() {
   }, [config, editing])
 
   const onChange = (patch) => {
-    if (!editing || saving || testing || toggling) return
+    if (!editing || saving || testing) return
     setDraft((current) => changeTranslationDraft(current, patch))
     setError('')
     setTestError('')
@@ -67,7 +68,7 @@ export default function TitleTranslationToolSettings() {
     }
   }
   const handleTest = async () => {
-    if (!editing || saving || testing || toggling || !sample.trim()) return
+    if (!editing || saving || testing || !sample.trim()) return
     setTesting(true)
     setResult('')
     setTestError('')
@@ -87,15 +88,16 @@ export default function TitleTranslationToolSettings() {
   }
 
   const handleAutoChange = async (enabled, target, automatic = false) => {
-    if (toggling || saving || testing) return
-    setToggling(true)
+    const key = `${target}-${automatic ? 'auto' : 'enabled'}`
+    if (pendingSwitches[key] || saving || testing) return
+    setPendingSwitches((current) => ({ ...current, [key]: true }))
     setAutoError('')
     try {
       await saveTitleTranslationEnabled(enabled, target, automatic)
     } catch (err) {
       setAutoError(getErrorMessage(err))
     } finally {
-      setToggling(false)
+      setPendingSwitches((current) => ({ ...current, [key]: false }))
     }
   }
   const resetEditor = () => {
@@ -106,7 +108,7 @@ export default function TitleTranslationToolSettings() {
     setResult('')
     setSaved(false)
   }
-  const busy = saving || testing || toggling
+  const busy = saving || testing
 
   if (!draft.catalog.length) {
     return <p role="status">{zh('正在加载翻译配置…', 'Loading translation settings…')}</p>
@@ -144,7 +146,7 @@ export default function TitleTranslationToolSettings() {
               <Switch
                 size="small"
                 checked={enabled}
-                disabled={busy}
+                disabled={saving || testing || Boolean(pendingSwitches[`${target}-enabled`])}
                 onChange={(_, checked) => void handleAutoChange(checked, target)}
                 slotProps={{ input: { id: `${target}-translation-enabled`, 'aria-label': label } }}
               />
@@ -169,7 +171,7 @@ export default function TitleTranslationToolSettings() {
                   <Switch
                     size="small"
                     checked={configFlag(config?.[`jav_${target}_translation_auto_enabled`])}
-                    disabled={busy}
+                    disabled={saving || testing || Boolean(pendingSwitches[`${target}-auto`])}
                     onChange={(_, checked) => void handleAutoChange(checked, target, true)}
                     slotProps={{
                       input: {
@@ -229,7 +231,7 @@ export default function TitleTranslationToolSettings() {
                   {zh('取消', 'Cancel')}
                 </button>
                 <button
-                  disabled={busy}
+                  disabled={busy || toggling}
                   type="submit"
                   className="ml-auto shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                 >

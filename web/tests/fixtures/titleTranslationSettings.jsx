@@ -8,6 +8,7 @@ import '@/index.css'
 window.testStore = useStore
 window.translationRequests = []
 window.testFailure = false
+window.pendingConfigResponses = []
 const capabilities = {
   reasoning: 'toggle',
   temperature: true,
@@ -52,7 +53,11 @@ window.fetch = async (input, init = {}) => {
         )
       )
     }
-    return Response.json(config)
+    const response = Response.json(config)
+    if (window.holdConfigResponses) {
+      return new Promise((resolve) => window.pendingConfigResponses.push(() => resolve(response)))
+    }
+    return response
   }
   if (url.pathname.endsWith('/models'))
     return Response.json({

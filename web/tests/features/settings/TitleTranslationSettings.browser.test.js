@@ -372,3 +372,75 @@ test(
     assert.equal(await evaluate(`${requests('/config')}.length`), 1)
   }
 )
+
+test(
+  'translation switches save independently without flashing or reverting other switches',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
+    })
+    await waitFor(`document.querySelector('#series-translation-enabled')`)
+    await evaluate(`document.querySelector('#series-translation-enabled').click()`)
+    await waitFor(`document.querySelector('#series-translation-auto-enabled')`)
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(button => button.textContent === 'Edit').click()`
+    )
+    await evaluate(
+      `window.holdConfigResponses = true; document.querySelector('#title-translation-auto-enabled').click()`
+    )
+    await waitFor(`window.pendingConfigResponses.length === 1`)
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-auto-enabled').disabled`),
+      true
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-model').matches(':disabled')`),
+      false
+    )
+    for (const id of [
+      'title-translation-enabled',
+      'series-translation-enabled',
+      'series-translation-auto-enabled',
+    ]) {
+      assert.equal(await evaluate(`document.querySelector('#${id}').disabled`), false)
+    }
+    await evaluate(`document.querySelector('#series-translation-auto-enabled').click()`)
+    await waitFor(`window.pendingConfigResponses.length === 2`)
+    // The second response arrives first; the older snapshot must not reset its switch.
+    await evaluate(`window.pendingConfigResponses[1]()`)
+    await waitFor(
+      `document.querySelector('#series-translation-auto-enabled').checked && !document.querySelector('#series-translation-auto-enabled').disabled`
+    )
+    await evaluate(`window.pendingConfigResponses[0]()`)
+    await waitFor(
+      `document.querySelector('#title-translation-auto-enabled').checked && !document.querySelector('#title-translation-auto-enabled').disabled`
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#series-translation-auto-enabled').checked`),
+      true
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#series-translation-auto-enabled').disabled`),
+      false
+    )
+    // Failed saves retain the persisted value and release only the affected switch.
+    await evaluate(
+      `window.holdConfigResponses = false; window.configFailure = true; document.querySelector('#title-translation-auto-enabled').click()`
+    )
+    await waitFor(`document.querySelector('[role="alert"]')?.textContent.includes('Save failed')`)
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-auto-enabled').checked`),
+      true
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-auto-enabled').disabled`),
+      false
+    )
+    assert.equal(
+      await evaluate(`document.querySelector('#series-translation-auto-enabled').checked`),
+      true
+    )
+  }
+)
