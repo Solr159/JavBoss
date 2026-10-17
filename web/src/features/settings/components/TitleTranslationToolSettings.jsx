@@ -144,8 +144,8 @@ export default function TitleTranslationToolSettings() {
         </header>
         <p className="px-5 pb-4 text-xs leading-5 text-zinc-500">
           {zh(
-            '开启后自动翻译当前页缺失的中文标题；此开关仅控制翻译行为。',
-            'Automatically translate missing Chinese titles on the current page. This switch only controls translation.'
+            '开启后自动翻译当前页缺失的中文标题。',
+            'Automatically translate missing Chinese titles on the current page.'
           )}
         </p>
       </section>

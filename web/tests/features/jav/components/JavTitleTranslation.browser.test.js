@@ -39,13 +39,14 @@ for (const scenario of ['unchanged source', 'changed source', 'manual correction
       }`)
       await waitFor(`document.querySelector('#jav-title-1')`)
       await evaluate(
-        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Retranslate').click()`
+        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
       )
       await waitFor(`document.querySelector('#jav-zh-title-1').value === '雨天相遇'`)
       assert.equal(await evaluate('window.savedPayload'), undefined)
       assert.deepEqual(await evaluate('window.translationPayload'), {
         refresh: true,
         title: 'Test JAV',
+        thinking: false,
       })
       if (scenario === 'manual correction') {
         await evaluate(`window.setText('#jav-zh-title-1', '人工校对译名')`)
@@ -111,7 +112,7 @@ test(
       input.dispatchEvent(new Event('input',{bubbles:true}));
     }`)
     await evaluate(
-      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Retranslate').click()`
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
     )
     await waitFor(`document.body.textContent.includes('credit_balance_exhausted')`)
     const text = await evaluate('document.body.textContent')
@@ -124,7 +125,7 @@ test(
 )
 
 test(
-  'retranslation inherits saved settings and only offers supported mode overrides',
+  'retranslation restores separate quick and reasoning buttons with model capability limits',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -149,7 +150,9 @@ test(
     document.querySelector('[aria-label="Edit JAV"]').click();
   }`)
     await waitFor(`document.querySelector('#jav-title-1')`)
-    for (const mode of ['none', 'always', 'toggle']) {
+    const button = (label) =>
+      `[...document.querySelectorAll('button')].find(b => b.textContent === '${label}')`
+    for (const mode of ['none', 'always', 'toggle', 'unknown']) {
       await evaluate(
         `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_thinking:'true',jav_title_translation_capabilities:JSON.stringify({reasoning:'${mode}'})}})`
       )
@@ -157,24 +160,30 @@ test(
         await evaluate(
           `Boolean(document.querySelector('[aria-label="Use another translation mode"]'))`
         ),
-        mode === 'toggle'
-      )
-      await evaluate(
-        `[...document.querySelectorAll('button')].find(b=>b.textContent==='Retranslate').click()`
-      )
-      await waitFor(
-        `[...document.querySelectorAll('button')].some(b=>b.textContent==='Retranslate' && !b.disabled)`
-      )
-      assert.equal(
-        Object.hasOwn(await evaluate('window.translationCalls.at(-1)'), 'thinking'),
         false
       )
+      assert.equal(
+        await evaluate(`${button('Quick retranslation')}.disabled`),
+        mode === 'always' || mode === 'unknown'
+      )
+      assert.equal(
+        await evaluate(`${button('Retranslate with reasoning')}.disabled`),
+        mode === 'unknown'
+      )
+      if (mode === 'unknown') continue
+      if (mode !== 'always') {
+        await evaluate(`${button('Quick retranslation')}.click()`)
+        await waitFor(
+          `Boolean(${button('Quick retranslation')}) && !${button('Quick retranslation')}.disabled`
+        )
+        assert.equal(await evaluate('window.translationCalls.at(-1).thinking'), false)
+      }
+      await evaluate(`${button('Retranslate with reasoning')}.click()`)
+      await waitFor(
+        `Boolean(${button('Retranslate with reasoning')}) && !${button('Retranslate with reasoning')}.disabled`
+      )
+      assert.equal(await evaluate('window.translationCalls.at(-1).thinking'), true)
     }
-    await evaluate(`{
-    const select=document.querySelector('[aria-label="Use another translation mode"]');
-    select.value='fast';select.dispatchEvent(new Event('change',{bubbles:true}));
-  }`)
-    await waitFor('window.translationCalls.length===4')
-    assert.equal(await evaluate('window.translationCalls.at(-1).thinking'), false)
+    assert.equal(await evaluate('window.translationCalls.length'), 5)
   }
 )
