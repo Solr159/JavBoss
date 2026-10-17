@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/url"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -73,9 +72,6 @@ func LoadProfiles(cfg map[string]string) map[string]Profile {
 	_ = json.Unmarshal([]byte(cfg[ProfilesKey]), &profiles)
 	if profiles == nil {
 		profiles = map[string]Profile{}
-	}
-	if _, ok := profiles["deepseek"]; !ok {
-		profiles["deepseek"] = Profile{APIKey: cfg["jav_title_translation_api_key"], Model: cfg["jav_title_translation_model"], Thinking: cfg["jav_title_translation_thinking"] == "true"}
 	}
 	return profiles
 }
@@ -178,10 +174,11 @@ func PublicConfig(cfg map[string]string) {
 	cfg["jav_title_translation_catalog"] = string(catalog)
 	caps, _ := json.Marshal(ModelCapabilities(provider, p))
 	cfg["jav_title_translation_capabilities"] = string(caps)
-	cfg["jav_title_translation_api_key_set"] = strconv.FormatBool(p.APIKey != "")
-	cfg["jav_title_translation_model"] = p.Model
-	cfg["jav_title_translation_thinking"] = strconv.FormatBool(p.Thinking)
+	// Filter obsolete persisted fields, especially credentials, from public responses.
 	delete(cfg, "jav_title_translation_api_key")
+	delete(cfg, "jav_title_translation_api_key_set")
+	delete(cfg, "jav_title_translation_model")
+	delete(cfg, "jav_title_translation_thinking")
 }
 
 // Model discovery rarely includes complete parameter support. Unknown families remain explicit.

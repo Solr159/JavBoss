@@ -3,7 +3,7 @@ import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
 import { getErrorMessage } from '@/utils/errors'
 import { translateJavTitles } from '@/features/jav/api'
-import { needsTitleTranslation } from '@/features/jav/titleTranslation'
+import { needsTitleTranslation, parseTranslationConfig } from '@/features/jav/titleTranslation'
 
 // Paid requests finish once started; share them across rerenders, StrictMode and list remounts.
 const inFlight = new Map()
@@ -72,17 +72,16 @@ export default function useJavTitleTranslation(items) {
   }, [config])
 
   useEffect(() => {
+    const provider = config?.jav_title_translation_provider
+    const profile = parseTranslationConfig(config?.jav_title_translation_profiles)[provider]
     if (
       stopped.current ||
       !configFlag(config?.jav_title_translation_enabled) ||
-      (!configFlag(config?.jav_title_translation_api_key_set) &&
-        config?.jav_title_translation_provider !== 'custom') ||
-      !config?.jav_title_translation_model
+      (!profile?.api_key_set && provider !== 'custom') ||
+      !profile?.model
     )
       return undefined
-    const model = config.jav_title_translation_model
     const prompt = config.jav_title_translation_prompt
-    const thinking = configFlag(config.jav_title_translation_thinking)
     let cancelled = false
     const run = async () => {
       while (!cancelled && !stopped.current) {
@@ -94,11 +93,9 @@ export default function useJavTitleTranslation(items) {
             item.id,
             item.title,
             item.zh_title,
-            model,
+            provider,
+            profile,
             prompt,
-            thinking,
-            config.jav_title_translation_provider,
-            config.jav_title_translation_profiles,
           ])
           return attempted.current.has(key) ? [] : [{ item, key }]
         })

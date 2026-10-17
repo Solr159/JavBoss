@@ -49,8 +49,12 @@ window.fetch = (input, init) => {
 useStore.setState({
   config: {
     jav_title_translation_enabled: 'true',
-    jav_title_translation_api_key_set: 'true',
-    jav_title_translation_model: 'model',
+    jav_title_translation_provider: 'deepseek',
+    jav_title_translation_profiles: JSON.stringify(
+      new URLSearchParams(location.search).has('unconfigured')
+        ? {}
+        : { deepseek: { api_key_set: true, model: 'model' } }
+    ),
   },
   javItems: [
     ...Array.from({ length: 25 }, (_, i) => ({ id: i + 1, title: `Source ${i + 1}` })),

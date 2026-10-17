@@ -153,7 +153,7 @@ test(
       `[...document.querySelectorAll('button')].find(b => b.textContent === '${label}')`
     for (const mode of ['none', 'always', 'toggle', 'unknown']) {
       await evaluate(
-        `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_thinking:'true',jav_title_translation_capabilities:JSON.stringify({reasoning:'${mode}'})}})`
+        `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_profiles:JSON.stringify({deepseek:{thinking:true}}),jav_title_translation_capabilities:JSON.stringify({reasoning:'${mode}'})}})`
       )
       assert.equal(
         await evaluate(

@@ -40,7 +40,7 @@ func titleTranslationRouter(t *testing.T, handler http.HandlerFunc) *gin.Engine 
 	}
 	client := upstream.Client()
 	transport := client.Transport
-	// Keep saved profiles (including legacy reads) intact while routing every request locally.
+	// Keep saved profiles intact while routing every request locally.
 	client.Transport = translationTestTransport(func(req *http.Request) (*http.Response, error) {
 		local := req.Clone(req.Context())
 		local.URL.Scheme, local.URL.Host = target.Scheme, target.Host
@@ -80,7 +80,7 @@ func TestTitleTranslationWaitsForReasoningBeyondServerWriteTimeout(t *testing.T)
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"reasoning_content":"internal reasoning","content":"雨天相遇"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model", "jav_title_translation_thinking": "true",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":true}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestTitleTranslationConfigAndModelDiscoveryKeepKeyPrivate(t *testing.T) {
 	if err := json.Unmarshal(defaults.Body.Bytes(), &defaultConfig); err != nil {
 		t.Fatal(err)
 	}
-	if defaults.Code != http.StatusOK || defaultConfig["jav_title_translation_thinking"] != "false" || defaultConfig["jav_title_translation_prompt"] != translation.DefaultPrompt {
+	if defaults.Code != http.StatusOK || defaultConfig[translation.ProviderKey] != "deepseek" || defaultConfig[translation.ProfilesKey] != "{}" || defaultConfig["jav_title_translation_prompt"] != translation.DefaultPrompt {
 		t.Fatalf("default settings=%d %+v", defaults.Code, defaultConfig)
 	}
 	body := `{"jav_title_translation_enabled":true,"jav_title_translation_profiles":{"deepseek":{"thinking":false,"api_key":"private-key","model":"official-new-model"}},"jav_title_translation_prompt":"自定义提示词"}`
@@ -130,28 +130,39 @@ func TestTitleTranslationConfigAndModelDiscoveryKeepKeyPrivate(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil {
 		t.Fatal(err)
 	}
-	if cfg["jav_title_translation_api_key_set"] != "true" || cfg["jav_title_translation_enabled"] != "true" || cfg["jav_title_translation_thinking"] != "false" {
+	if p := translation.ActiveProfile(cfg); !p.APIKeySet || p.APIKey != "" || p.Thinking || p.Model != "official-new-model" || cfg["jav_title_translation_enabled"] != "true" {
 		t.Fatalf("config=%v", cfg)
 	}
 	response = translationAPIRequest(router, "GET", "/config", "")
 	if response.Code != 200 || bytes.Contains(response.Body.Bytes(), []byte("private-key")) {
 		t.Fatal("GET leaked key")
 	}
-	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"api_key":"draft-key"}`)
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"profile":{"api_key":"draft-key"}}`)
 	if response.Code != 200 || receivedKey != "Bearer draft-key" || !strings.Contains(response.Body.String(), "official-new-model") {
 		t.Fatalf("model discovery=%d %s", response.Code, response.Body)
 	}
-	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{}`)
-	if response.Code != 200 || receivedKey != "Bearer private-key" {
-		t.Fatal("did not reuse saved key")
+	for _, body := range []string{`{}`, `{"api_key":"ignored-key"}`} {
+		response = translationAPIRequest(router, "POST", "/jav/title-translation/models", body)
+		if response.Code != 200 || receivedKey != "Bearer private-key" {
+			t.Fatal("did not reuse saved profile key")
+		}
+	}
+	receivedKey = ""
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"profile":{"api_key":""}}`)
+	if response.Code != http.StatusBadRequest || receivedKey != "" {
+		t.Fatal("model discovery reused an explicitly cleared draft key")
 	}
 	stored, _ := dbpkg.ListConfig(context.Background())
 	if p := translation.ActiveProfile(stored); p.APIKey != "private-key" || p.Thinking || p.Model != "official-new-model" {
 		t.Fatal("model discovery saved draft key")
 	}
 	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_enabled":false,"jav_title_translation_profiles":{"deepseek":{"api_key":""}}}`)
-	if response.Code != 200 || !strings.Contains(response.Body.String(), `"jav_title_translation_api_key_set":"false"`) {
+	if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != 200 || translation.ActiveProfile(cfg).APIKeySet {
 		t.Fatal("clear key failed")
+	}
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{}`)
+	if response.Code != http.StatusBadRequest {
+		t.Fatal("model discovery reused cleared key")
 	}
 }
 
@@ -160,7 +171,7 @@ func TestTitleTranslationProviderFailureDoesNotReplaceTitleOrExpireSession(t *te
 		w.WriteHeader(401)
 		_, _ = w.Write([]byte(`{"error":"secret-key"}`))
 	})
-	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "secret-key", "jav_title_translation_model": "model"})
+	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"secret-key","model":"model"}}`})
 	item := models.Jav{Code: "TRANS-FAIL", Title: "Existing title"}
 	common.DB.Create(&item)
 	response := translationAPIRequest(router, "POST", "/jav/items/"+strconv.FormatInt(item.ID, 10)+"/title-translation", "")
@@ -251,7 +262,7 @@ func TestTitleTranslationBatchRetranslatesAllAndProtectsConcurrentEdits(t *testi
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新的中文标题"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model", "jav_title_translation_thinking": "false",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":false}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +321,7 @@ func TestTitleTranslationBatchFailureKeepsOldTitleAndRequiresConfiguration(t *te
 		t.Fatal("batch started without configuration")
 	}
 	dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "secret-key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"secret-key","model":"model"}}`,
 	})
 	item := models.Jav{Code: "BATCH-FAIL", Title: "Original", ZhTitle: "旧译文"}
 	common.DB.Create(&item)
@@ -345,7 +356,7 @@ func TestTitleTranslationBatchStopsAfterCurrentRequest(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新译文"}}]}`))
 	})
 	dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	})
 	items := []models.Jav{{Code: "STOP-001", Title: "First"}, {Code: "STOP-002", Title: "Second", ZhTitle: "旧译文"}}
 	if err := common.DB.Create(&items).Error; err != nil {
@@ -402,7 +413,7 @@ func TestTitleTranslationPreviewUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新中文译文"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "false", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model", "jav_title_translation_thinking": "false",
+		"jav_title_translation_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":false}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +440,7 @@ func TestTitleTranslationPreviewUsesDraftAndDoesNotPersistUntilSave(t *testing.T
 		t.Fatalf("reasoning modes=%v", reasoningModes)
 	}
 	cfg, err := dbpkg.ListConfig(context.Background())
-	if err != nil || cfg["jav_title_translation_thinking"] != "false" || cfg["jav_title_translation_enabled"] != "false" {
+	if err != nil || translation.ActiveProfile(cfg).Thinking || cfg["jav_title_translation_enabled"] != "false" {
 		t.Fatalf("preview modified global settings: %v err=%v", cfg, err)
 	}
 	var stored models.Jav

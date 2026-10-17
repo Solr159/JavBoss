@@ -41,7 +41,7 @@ func TestTitleTranslationQuotaErrorReachesSingleAndBatchClients(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"error": map[string]string{"code": "credit_balance_exhausted", "type": "insufficient_quota", "message": "Add credits for secret-key."}})
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "secret-key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"secret-key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}

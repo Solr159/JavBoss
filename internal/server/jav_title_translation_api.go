@@ -23,7 +23,6 @@ func listTitleTranslationModels(c *gin.Context) {
 	var req struct {
 		Provider string          `json:"provider"`
 		Profile  json.RawMessage `json:"profile"`
-		APIKey   *string         `json:"api_key"`
 		Discover *bool           `json:"discover"`
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 65536)
@@ -46,9 +45,6 @@ func listTitleTranslationModels(c *gin.Context) {
 			respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")
 			return
 		}
-	}
-	if req.APIKey != nil {
-		profile.APIKey = strings.TrimSpace(*req.APIKey)
 	}
 	if err := profile.Validate(provider); err != nil {
 		respondLocalizedError(c, 400, "翻译配置无效", "Invalid translation settings")

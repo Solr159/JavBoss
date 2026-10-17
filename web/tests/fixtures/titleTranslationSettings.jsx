@@ -26,8 +26,6 @@ let config = {
     deepseek: { model: 'saved-model', api_key_set: true },
   }),
   jav_title_translation_capabilities: JSON.stringify(capabilities),
-  jav_title_translation_model: 'saved-model',
-  jav_title_translation_api_key_set: 'true',
   jav_title_translation_prompt: 'Saved prompt',
   jav_title_translation_default_prompt: 'Default prompt',
 }

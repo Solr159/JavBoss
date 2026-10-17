@@ -73,9 +73,12 @@ export default function JavTitleTranslationSettings({
     const timer = setTimeout(async () => {
       try {
         const result = await fetchTitleTranslationModels({
-          apiKey: value.clearApiKey ? '' : apiKey || undefined,
           provider: providerID,
-          profile: { base_url: baseUrl, protocol },
+          profile: {
+            api_key: value.clearApiKey ? '' : apiKey || undefined,
+            base_url: baseUrl,
+            protocol,
+          },
           signal: controller.signal,
         })
         if (!controller.signal.aborted) setModels(result.models)

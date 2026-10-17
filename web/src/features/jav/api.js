@@ -54,17 +54,11 @@ export async function translateJavTitles(ids, { onItem = () => {} } = {}) {
   }
 }
 
-export async function fetchTitleTranslationModels({
-  apiKey,
-  signal,
-  provider,
-  profile,
-  discover,
-} = {}) {
+export async function fetchTitleTranslationModels({ signal, provider, profile, discover } = {}) {
   const res = await apiFetch('/jav/title-translation/models', {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ api_key: apiKey, provider, profile, discover }),
+    body: JSON.stringify({ provider, profile, discover }),
     signal,
   })
   if (!res.ok) throw await apiError(res)

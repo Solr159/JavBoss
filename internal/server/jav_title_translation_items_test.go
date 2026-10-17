@@ -14,6 +14,7 @@ import (
 
 	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
+	"javboss/internal/jav/translation"
 	"javboss/internal/models"
 )
 
@@ -39,7 +40,7 @@ func TestTitleTranslationItemsKeepCachedTitlesAndConcurrentCorrections(t *testin
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +146,7 @@ func TestTitleTranslationItemsReturnPartialSuccessAndStopOnProviderError(t *test
 func configureGroupedTranslation(t *testing.T) {
 	t.Helper()
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +291,7 @@ func TestTitleTranslationItemsPreserveOriginalAndCacheChineseWithoutOverwritingC
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天相遇"}}]}`))
 	})
 	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
-		"jav_title_translation_enabled": "true", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model",
+		"jav_title_translation_enabled": "true", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`,
 	}); err != nil {
 		t.Fatal(err)
 	}

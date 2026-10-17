@@ -115,8 +115,6 @@ test('translation settings keep saved keys private and omit untouched credential
   useStore.setState({
     config: {
       jav_title_translation_enabled: 'true',
-      jav_title_translation_api_key_set: 'true',
-      jav_title_translation_model: 'official-model',
       jav_title_translation_profiles: JSON.stringify({
         deepseek: { api_key_set: true, model: 'official-model' },
       }),

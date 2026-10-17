@@ -34,7 +34,7 @@ func TestTitleTranslationDraftTestDoesNotSaveSettingsOrTitles(t *testing.T) {
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"示例译文"}}]}`))
 	})
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_api_key": "saved-key", "jav_title_translation_model": "saved-model", "jav_title_translation_enabled": "false"}); err != nil {
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{translation.ProfilesKey: `{"deepseek":{"api_key":"saved-key","model":"saved-model"}}`, "jav_title_translation_enabled": "false"}); err != nil {
 		t.Fatal(err)
 	}
 	item := models.Jav{Code: "SAMPLE-001", Title: "Original", ZhTitle: "人工译名"}
@@ -94,7 +94,7 @@ func TestTitleTranslationBatchDefaultsToMissingAndRequiresOverwriteConfirmation(
 		calls++
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新译文"}}]}`))
 	})
-	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false", "jav_title_translation_api_key": "key", "jav_title_translation_model": "model"})
+	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false", translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model"}}`})
 	items := []models.Jav{{Code: "MISSING-001", Title: "Missing"}, {Code: "MANUAL-002", Title: "Manual", ZhTitle: "人工校对"}, {Code: "EMPTY-003", Title: " "}}
 	if err := common.DB.Create(&items).Error; err != nil {
 		t.Fatal(err)
@@ -137,7 +137,7 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 		modes = append(modes, payload.Thinking.Type)
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"示例译文"}}]}`))
 	})
-	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_api_key": "key", "jav_title_translation_model": "model", "jav_title_translation_thinking": "true"})
+	dbpkg.UpsertConfig(context.Background(), map[string]string{translation.ProfilesKey: `{"deepseek":{"api_key":"key","model":"model","thinking":true}}`})
 	item := models.Jav{Code: "INHERIT-001", Title: "Original", ZhTitle: "Existing"}
 	common.DB.Create(&item)
 	for _, body := range []string{`{}`, `{"thinking":false}`} {
@@ -151,62 +151,92 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationConfigReadsLegacySettingsButOnlyWritesProfiles(t *testing.T) {
+func TestTitleTranslationConfigIgnoresAndFiltersLegacySettings(t *testing.T) {
 	router := titleTranslationRouter(t, func(http.ResponseWriter, *http.Request) { t.Error("unexpected provider request") })
 	legacy := map[string]string{
-		"jav_title_translation_api_key":  "legacy-secret",
-		"jav_title_translation_model":    "legacy-model",
-		"jav_title_translation_thinking": "true",
+		"jav_title_translation_api_key":     "legacy-secret",
+		"jav_title_translation_api_key_set": "true",
+		"jav_title_translation_model":       "legacy-model",
+		"jav_title_translation_thinking":    "true",
 	}
 	if err := dbpkg.UpsertConfig(context.Background(), legacy); err != nil {
 		t.Fatal(err)
 	}
-	checkPublic := func(body []byte, model string, thinking bool) {
+	checkPublic := func(t *testing.T, body []byte, model string, thinking, keySet bool) {
 		t.Helper()
 		var cfg map[string]string
 		if err := json.Unmarshal(body, &cfg); err != nil {
 			t.Fatal(err)
 		}
-		if strings.Contains(string(body), "secret") || cfg["jav_title_translation_api_key_set"] != "true" || cfg["jav_title_translation_model"] != model || cfg["jav_title_translation_thinking"] != strconv.FormatBool(thinking) || cfg["jav_title_translation_catalog"] == "" || cfg["jav_title_translation_capabilities"] == "" {
+		for key := range legacy {
+			if _, exists := cfg[key]; exists {
+				t.Fatalf("public config contains obsolete field %s", key)
+			}
+		}
+		if strings.Contains(string(body), "secret") || cfg[translation.ProviderKey] != "deepseek" || cfg["jav_title_translation_catalog"] == "" || cfg["jav_title_translation_capabilities"] == "" {
 			t.Fatalf("public config=%s", body)
 		}
 		var profiles map[string]translation.Profile
 		if err := json.Unmarshal([]byte(cfg[translation.ProfilesKey]), &profiles); err != nil {
 			t.Fatal(err)
 		}
-		p := profiles["deepseek"]
-		if p.Model != model || p.Thinking != thinking || !p.APIKeySet || p.APIKey != "" {
+		if model == "" && (profiles == nil || len(profiles) != 0) {
+			t.Fatalf("legacy fields created a profile: %+v", profiles)
+		}
+		p := profiles[cfg[translation.ProviderKey]]
+		if p.Model != model || p.Thinking != thinking || p.APIKeySet != keySet || p.APIKey != "" {
 			t.Fatalf("public profile=%+v", p)
 		}
 	}
 	response := translationAPIRequest(router, "GET", "/config", "")
 	if response.Code != http.StatusOK {
-		t.Fatalf("legacy config=%d %s", response.Code, response.Body)
+		t.Fatalf("config=%d %s", response.Code, response.Body)
 	}
-	checkPublic(response.Body.Bytes(), "legacy-model", true)
-	// Like other unknown configuration keys, obsolete write fields are ignored.
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_api_key":"ignored-secret","jav_title_translation_model":"ignored-model","jav_title_translation_thinking":false}`)
-	if response.Code != http.StatusOK {
-		t.Fatalf("obsolete fields=%d %s", response.Code, response.Body)
+	checkPublic(t, response.Body.Bytes(), "", false, false)
+	for _, tt := range []struct {
+		name, patch, key, model string
+		thinking                bool
+	}{
+		{"obsolete fields ignored", `{"jav_title_translation_api_key":"ignored-secret","jav_title_translation_api_key_set":true,"jav_title_translation_model":"ignored-model","jav_title_translation_thinking":true}`, "", "", false},
+		{"profile without key", `{"jav_title_translation_profiles":{"deepseek":{"model":"profile-model","thinking":false}}}`, "", "profile-model", false},
+		{"save key", `{"jav_title_translation_profiles":{"deepseek":{"api_key":"profile-secret","thinking":true}}}`, "profile-secret", "profile-model", true},
+		{"retain omitted key", `{"jav_title_translation_profiles":{"deepseek":{"model":"updated-model"}}}`, "profile-secret", "updated-model", true},
+		{"clear key", `{"jav_title_translation_profiles":{"deepseek":{"api_key":"","thinking":false}}}`, "", "updated-model", false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			response := translationAPIRequest(router, "PATCH", "/config", tt.patch)
+			if response.Code != http.StatusOK {
+				t.Fatalf("save=%d %s", response.Code, response.Body)
+			}
+			checkPublic(t, response.Body.Bytes(), tt.model, tt.thinking, tt.key != "")
+			response = translationAPIRequest(router, "GET", "/config", "")
+			if response.Code != http.StatusOK {
+				t.Fatalf("config=%d %s", response.Code, response.Body)
+			}
+			checkPublic(t, response.Body.Bytes(), tt.model, tt.thinking, tt.key != "")
+			stored, err := dbpkg.ListConfig(context.Background())
+			if err != nil {
+				t.Fatal(err)
+			}
+			for key, value := range legacy {
+				if stored[key] != value {
+					t.Fatalf("legacy field %s changed", key)
+				}
+			}
+			p := translation.ActiveProfile(stored)
+			if p.APIKey != tt.key || p.Model != tt.model || p.Thinking != tt.thinking {
+				t.Fatalf("stored profile=%+v", p)
+			}
+		})
 	}
-	checkPublic(response.Body.Bytes(), "legacy-model", true)
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_profiles":{"deepseek":{"model":"profile-model","thinking":false}},"jav_title_translation_prompt":" Custom prompt "}`)
-	if response.Code != http.StatusOK {
-		t.Fatalf("profile fields=%d %s", response.Code, response.Body)
-	}
-	checkPublic(response.Body.Bytes(), "profile-model", false)
+}
+
+func TestTitleTranslationConfigPromptAndDraftCapabilities(t *testing.T) {
+	router := titleTranslationRouter(t, func(http.ResponseWriter, *http.Request) { t.Error("unexpected provider request") })
+	response := translationAPIRequest(router, "PATCH", "/config", `{"jav_title_translation_prompt":" Custom prompt "}`)
 	stored, err := dbpkg.ListConfig(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	for key, value := range legacy {
-		if stored[key] != value {
-			t.Fatalf("legacy field %s changed", key)
-		}
-	}
-	p := translation.ActiveProfile(stored)
-	if p.APIKey != "legacy-secret" || p.Model != "profile-model" || p.Thinking || stored["jav_title_translation_prompt"] != "Custom prompt" {
-		t.Fatal("profile or prompt was not saved correctly")
+	if err != nil || response.Code != http.StatusOK || stored["jav_title_translation_prompt"] != "Custom prompt" {
+		t.Fatalf("custom prompt=%d %s err=%v", response.Code, response.Body, err)
 	}
 	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"provider":"deepseek","profile":{"model":"deepseek-flash","reasoning":""},"discover":false}`)
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"reasoning":"toggle"`) {

@@ -3,6 +3,54 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'automatic translation uses only the selected profile and allows custom services without a key',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javAutomaticTranslation.html?unconfigured`,
+    })
+    await waitFor('window.testStore && document.querySelector("output")')
+    await evaluate(`{
+      window.updateTranslationConfig = patch => window.testStore.setState({
+        config: { ...window.testStore.getState().config, ...patch }
+      });
+      window.testStore.setState({ javItems: [{ id: 1, title: 'Source 1' }] });
+      window.updateTranslationConfig({
+        jav_title_translation_api_key_set: 'true',
+        jav_title_translation_model: 'obsolete-model',
+        jav_title_translation_thinking: 'true'
+      });
+    }`)
+    await evaluate('new Promise(resolve => setTimeout(resolve, 100))')
+    assert.equal(await evaluate('window.translationRequests.length'), 0)
+    await evaluate(`window.updateTranslationConfig({
+      jav_title_translation_profiles: JSON.stringify({
+        deepseek: { model: 'no-key' },
+        kimi: { model: 'configured-model', api_key_set: true }
+      })
+    })`)
+    await evaluate('new Promise(resolve => setTimeout(resolve, 100))')
+    assert.equal(await evaluate('window.translationRequests.length'), 0)
+    await evaluate(`window.updateTranslationConfig({ jav_title_translation_provider: 'kimi' })`)
+    await waitFor('window.translationRequests.length === 1')
+    await evaluate('window.completeTranslation(0)')
+    await waitFor(`document.querySelector('output').textContent === '1'`)
+    await evaluate(`{
+      window.updateTranslationConfig({
+        jav_title_translation_provider: 'custom',
+        jav_title_translation_profiles: JSON.stringify({ custom: { model: 'local-model' } })
+      });
+      window.testStore.setState({ javItems: [{ id: 2, title: 'Source 2' }] });
+    }`)
+    await waitFor('window.translationRequests.length === 2')
+    assert.deepEqual(await evaluate('window.translationRequests[1].ids'), [2])
+    await evaluate('window.completeTranslation(1)')
+    await waitFor(`document.querySelector('output').textContent === '1'`)
+  }
+)
+
+test(
   'streamed titles display out of order before the group finishes without starting extra groups',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
