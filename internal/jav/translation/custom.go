@@ -103,7 +103,7 @@ func (c *Client) translateCustom(ctx context.Context, p Profile, prompt, title s
 	for key, value := range request.Headers {
 		req.Header.Set(key, value)
 	}
-	resp, err := c.do(req)
+	resp, err := c.do(req, p.APIKey)
 	if err != nil {
 		return "", err
 	}

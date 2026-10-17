@@ -20,12 +20,6 @@ type Model struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
-type APIError struct{ StatusCode int }
-
-func (e *APIError) Error() string {
-	return fmt.Sprintf("translation provider returned HTTP %d", e.StatusCode)
-}
-
 type ConfigError struct{ Message string }
 
 func (e *ConfigError) Error() string { return e.Message }
@@ -69,18 +63,17 @@ func (c *Client) request(ctx context.Context, provider string, p Profile, method
 		}
 	}
 	req.Header.Set("Content-Type", "application/json")
-	return c.do(req)
+	return c.do(req, p.APIKey)
 }
 
 // Keep network errors generic so credentials in custom URLs or headers never reach the UI.
-func (c *Client) do(req *http.Request) (*http.Response, error) {
+func (c *Client) do(req *http.Request, secrets ...string) (*http.Response, error) {
 	resp, err := c.HTTP.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("translation request failed")
 	}
 	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, &APIError{StatusCode: resp.StatusCode}
+		return nil, readAPIError(resp, req, secrets)
 	}
 	return resp, nil
 }

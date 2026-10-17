@@ -75,3 +75,51 @@ for (const scenario of ['unchanged source', 'changed source', 'manual correction
     }
   )
 }
+
+test(
+  'JAV quick retranslation displays provider details and preserves the draft on failure',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
+    })
+    await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+    await evaluate(`{
+      const originalFetch = window.fetch;
+      window.authExpired = false;
+      window.addEventListener('javboss:auth-expired', () => { window.authExpired = true; });
+      window.fetch = (input, init) => {
+        const path = new URL(input, location.origin).pathname;
+        if (path.endsWith('/title-translation')) {
+          return Promise.resolve(Response.json({
+            error_zh: '服务商账户余额已耗尽，请充值后重试 (HTTP 429 / credit_balance_exhausted): Add credits.',
+            error_en: 'The provider account credit balance is exhausted; add credits and retry (HTTP 429 / credit_balance_exhausted): Add credits.',
+          }, {status:429}));
+        }
+        if (['/jav/studios','/jav/series','/jav/idols/options'].includes(path))
+          return Promise.resolve(Response.json({items:[],total:0}));
+        if (path === '/jav/tags') return Promise.resolve(Response.json([]));
+        return originalFetch(input, init);
+      };
+      window.testStore.setState({loadJavTags:()=>Promise.resolve()});
+      document.querySelector('[aria-label="Edit JAV"]').click();
+    }`)
+    await waitFor(`document.querySelector('#jav-zh-title-1')`)
+    await evaluate(`{
+      const input = document.querySelector('#jav-zh-title-1');
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'人工校对译名');
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+    }`)
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
+    )
+    await waitFor(`document.body.textContent.includes('credit_balance_exhausted')`)
+    const text = await evaluate('document.body.textContent')
+    assert.ok(text.includes('credit balance is exhausted'))
+    assert.ok(text.includes('HTTP 429'))
+    assert.ok(text.includes('Add credits.'))
+    assert.equal(await evaluate(`document.querySelector('#jav-zh-title-1').value`), '人工校对译名')
+    assert.equal(await evaluate('window.authExpired'), false)
+  }
+)

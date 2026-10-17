@@ -110,7 +110,8 @@ func (job *titleTranslationBatch) run(items []models.Jav, cfg map[string]string)
 		}
 		titleTranslationMu.Unlock()
 		if err != nil {
-			job.fail("重新翻译失败，未完成的影片保留原译文，请检查配置后重试", "Retranslation failed; unfinished titles are unchanged. Check settings and retry.")
+			_, zh, en := titleTranslationErrorDetails(err)
+			job.fail("重新翻译失败，未完成的影片保留原译文。"+zh, "Retranslation failed; unfinished titles are unchanged. "+en)
 			return
 		}
 		job.record(saved)
