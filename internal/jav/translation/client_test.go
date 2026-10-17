@@ -138,7 +138,7 @@ func TestCustomTemplatePreservesTypesAndUserText(t *testing.T) {
 	}
 }
 
-func TestLoadProfilesUsesOnlyProfiles(t *testing.T) {
+func TestLoadProfiles(t *testing.T) {
 	for _, tt := range []struct {
 		name, raw string
 		want      map[string]Profile
@@ -149,17 +149,9 @@ func TestLoadProfilesUsesOnlyProfiles(t *testing.T) {
 		{"other provider", `{"kimi":{"model":"kimi-k2.6"}}`, map[string]Profile{"kimi": {Model: "kimi-k2.6"}}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := map[string]string{
-				ProfilesKey:                      tt.raw,
-				"jav_title_translation_api_key":  "legacy-secret",
-				"jav_title_translation_model":    "legacy-model",
-				"jav_title_translation_thinking": "true",
-			}
+			cfg := map[string]string{ProfilesKey: tt.raw}
 			if got := LoadProfiles(cfg); !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("profiles=%+v want=%+v", got, tt.want)
-			}
-			if ActiveProvider(cfg) != "deepseek" {
-				t.Fatal("missing provider must default to deepseek")
 			}
 		})
 	}

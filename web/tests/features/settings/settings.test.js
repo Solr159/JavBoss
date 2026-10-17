@@ -177,10 +177,8 @@ test('display settings save the title preference independently of translation co
   assert.equal(payload.jav_title_prefer_chinese, false)
   assert.equal(model.createJavSettingsDraft(useStore.getState()).javTitlePreferChineseInput, false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_enabled'), false)
-  assert.equal(Object.hasOwn(payload, 'jav_title_translation_api_key'), false)
-  assert.equal(Object.hasOwn(payload, 'jav_title_translation_model'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_prompt'), false)
-  assert.equal(Object.hasOwn(payload, 'jav_title_translation_thinking'), false)
+  assert.equal(Object.hasOwn(payload, 'jav_title_translation_profiles'), false)
 })
 
 test('provider switching preserves independent unsaved profiles and request templates', async (t) => {

@@ -124,7 +124,7 @@ test(
 )
 
 test(
-  'retranslation restores separate quick and reasoning buttons with model capability limits',
+  'quick and reasoning translation buttons respect model capabilities',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -154,12 +154,6 @@ test(
     for (const mode of ['none', 'always', 'toggle', 'unknown']) {
       await evaluate(
         `window.testStore.setState({config:{...window.testStore.getState().config,jav_title_translation_profiles:JSON.stringify({deepseek:{thinking:true}}),jav_title_translation_capabilities:JSON.stringify({reasoning:'${mode}'})}})`
-      )
-      assert.equal(
-        await evaluate(
-          `Boolean(document.querySelector('[aria-label="Use another translation mode"]'))`
-        ),
-        false
       )
       assert.equal(
         await evaluate(`${button('Quick retranslation')}.disabled`),

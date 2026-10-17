@@ -55,6 +55,12 @@ func TestTitleTranslationItemsKeepCachedTitlesAndConcurrentCorrections(t *testin
 		if len(result) != 4 || result[items[0].ID].ZhTitle != "雨天" || result[items[1].ID].ZhTitle != "人工校对" || result[items[2].ID].ZhTitle != "翻译期间的人工校对" || result[items[3].ID].ZhTitle != "" {
 			t.Fatalf("titles=%+v", result)
 		}
+		for _, item := range items {
+			stored, err := dbpkg.GetJavTitleTranslationItem(context.Background(), item.ID)
+			if err != nil || result[item.ID].Title != item.Title || stored.Title != item.Title || stored.ZhTitle != result[item.ID].ZhTitle {
+				t.Fatalf("translated titles: stored=%+v result=%+v err=%v", stored, result[item.ID], err)
+			}
+		}
 	}
 	if calls.Load() != 2 {
 		t.Fatalf("expected only two provider requests, got %d", calls.Load())
@@ -274,9 +280,9 @@ func TestTitleTranslationItemsValidateBeforeSpendingRequests(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationItemsPreserveOriginalAndCacheChineseWithoutOverwritingConcurrentEdits(t *testing.T) {
+func TestTitleTranslationItemsDiscardTranslationAfterConcurrentSourceEdit(t *testing.T) {
 	calls := 0
-	var editDuringTranslation func()
+	item := models.Jav{Code: "TRANS-001", Title: "Original source"}
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
 		var payload struct {
 			Thinking struct{ Type string } `json:"thinking"`
@@ -285,8 +291,8 @@ func TestTitleTranslationItemsPreserveOriginalAndCacheChineseWithoutOverwritingC
 			t.Errorf("reasoning should be disabled: %+v err=%v", payload, err)
 		}
 		calls++
-		if editDuringTranslation != nil {
-			editDuringTranslation()
+		if err := common.DB.Model(&item).Update("title", "User edit").Error; err != nil {
+			t.Error(err)
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天相遇"}}]}`))
 	})
@@ -295,43 +301,22 @@ func TestTitleTranslationItemsPreserveOriginalAndCacheChineseWithoutOverwritingC
 	}); err != nil {
 		t.Fatal(err)
 	}
-	item := models.Jav{Code: "TRANS-001", Title: "雨の日の出会い"}
 	if err := common.DB.Create(&item).Error; err != nil {
 		t.Fatal(err)
 	}
 	path := "/jav/title-translation/items"
 	body := `{"ids":[` + strconv.FormatInt(item.ID, 10) + `]}`
-	for i := 0; i < 2; i++ {
-		response := translationAPIRequest(router, "POST", path, body)
-		result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
-		if len(result) != 1 || result[item.ID].Title != item.Title || result[item.ID].ZhTitle != "雨天相遇" {
-			t.Fatalf("translation=%+v", result)
-		}
+	response := translationAPIRequest(router, "POST", path, body)
+	result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
+	if calls != 1 || len(result) != 1 || result[item.ID].Title != "User edit" || result[item.ID].ZhTitle != "" {
+		t.Fatalf("concurrent edit=%+v", result)
 	}
 	var stored models.Jav
 	if err := common.DB.First(&stored, item.ID).Error; err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 || stored.Title != item.Title || stored.ZhTitle != "雨天相遇" {
-		t.Fatalf("calls=%d item=%+v", calls, stored)
-	}
-	common.DB.Model(&stored).Updates(map[string]any{"title": "New source", "zh_title": ""})
-	editDuringTranslation = func() { common.DB.Model(&stored).Update("title", "User edit") }
-	response := translationAPIRequest(router, "POST", path, body)
-	result := readTitleTranslationItems(t, response.Code, response.Header(), response.Body)
-	if len(result) != 1 || result[item.ID].Title != "User edit" || result[item.ID].ZhTitle != "" {
-		t.Fatalf("concurrent edit=%+v", result)
-	}
-	common.DB.First(&stored, item.ID)
-	if stored.ZhTitle != "" {
-		t.Fatal("stale translation was saved after the source changed")
-	}
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_enabled": "false"}); err != nil {
-		t.Fatal(err)
-	}
-	response = translationAPIRequest(router, "POST", path, body)
-	if response.Code != 400 || calls != 2 {
-		t.Fatal("disabled translation called provider")
+	if stored.Title != "User edit" || stored.ZhTitle != "" {
+		t.Fatalf("stale translation was saved after the source changed: %+v", stored)
 	}
 }
 

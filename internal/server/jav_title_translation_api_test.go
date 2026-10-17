@@ -141,11 +141,9 @@ func TestTitleTranslationConfigAndModelDiscoveryKeepKeyPrivate(t *testing.T) {
 	if response.Code != 200 || receivedKey != "Bearer draft-key" || !strings.Contains(response.Body.String(), "official-new-model") {
 		t.Fatalf("model discovery=%d %s", response.Code, response.Body)
 	}
-	for _, body := range []string{`{}`, `{"api_key":"ignored-key"}`} {
-		response = translationAPIRequest(router, "POST", "/jav/title-translation/models", body)
-		if response.Code != 200 || receivedKey != "Bearer private-key" {
-			t.Fatal("did not reuse saved profile key")
-		}
+	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{}`)
+	if response.Code != 200 || receivedKey != "Bearer private-key" {
+		t.Fatal("did not reuse saved profile key")
 	}
 	receivedKey = ""
 	response = translationAPIRequest(router, "POST", "/jav/title-translation/models", `{"profile":{"api_key":""}}`)

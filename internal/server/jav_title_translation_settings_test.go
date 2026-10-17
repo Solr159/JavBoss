@@ -151,7 +151,7 @@ func TestTitleTranslationManualPreviewInheritsSavedReasoning(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationConfigIgnoresAndFiltersLegacySettings(t *testing.T) {
+func TestTitleTranslationConfigKeepsProfileKeysPrivate(t *testing.T) {
 	router := titleTranslationRouter(t, func(http.ResponseWriter, *http.Request) { t.Error("unexpected provider request") })
 	legacy := map[string]string{
 		"jav_title_translation_api_key":     "legacy-secret",
@@ -197,7 +197,6 @@ func TestTitleTranslationConfigIgnoresAndFiltersLegacySettings(t *testing.T) {
 		name, patch, key, model string
 		thinking                bool
 	}{
-		{"obsolete fields ignored", `{"jav_title_translation_api_key":"ignored-secret","jav_title_translation_api_key_set":true,"jav_title_translation_model":"ignored-model","jav_title_translation_thinking":true}`, "", "", false},
 		{"profile without key", `{"jav_title_translation_profiles":{"deepseek":{"model":"profile-model","thinking":false}}}`, "", "profile-model", false},
 		{"save key", `{"jav_title_translation_profiles":{"deepseek":{"api_key":"profile-secret","thinking":true}}}`, "profile-secret", "profile-model", true},
 		{"retain omitted key", `{"jav_title_translation_profiles":{"deepseek":{"model":"updated-model"}}}`, "profile-secret", "updated-model", true},
@@ -217,11 +216,6 @@ func TestTitleTranslationConfigIgnoresAndFiltersLegacySettings(t *testing.T) {
 			stored, err := dbpkg.ListConfig(context.Background())
 			if err != nil {
 				t.Fatal(err)
-			}
-			for key, value := range legacy {
-				if stored[key] != value {
-					t.Fatalf("legacy field %s changed", key)
-				}
 			}
 			p := translation.ActiveProfile(stored)
 			if p.APIKey != tt.key || p.Model != tt.model || p.Thinking != tt.thinking {

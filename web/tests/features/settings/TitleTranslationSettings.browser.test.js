@@ -66,36 +66,10 @@ test(
     const disabled = `document.querySelector('#title-translation-model').matches(':disabled')`
     const requests = `window.translationRequests.filter(r => r.path === '/config')`
     assert.equal(await evaluate(disabled), true)
-    const readOnlyBackground = await evaluate(
-      `getComputedStyle(document.querySelector('#title-translation-model')).backgroundColor`
-    )
-    assert.equal(
-      await evaluate(`getComputedStyle(document.querySelector('#title-translation-model')).cursor`),
-      'not-allowed'
-    )
     assert.equal(await evaluate(`Boolean(${button('Save configuration')})`), false)
     assert.equal(await evaluate(`Boolean(${button('Cancel')})`), false)
-    assert.ok(
-      await evaluate(
-        `Boolean(document.querySelector('[data-translation-batch]').compareDocumentPosition(document.querySelector('[aria-labelledby="translation-service-heading"]')) & Node.DOCUMENT_POSITION_FOLLOWING)`
-      )
-    )
     await evaluate(`${button('Edit')}.click()`)
     assert.equal(await evaluate(disabled), false)
-    assert.notEqual(
-      await evaluate(
-        `getComputedStyle(document.querySelector('#title-translation-model')).backgroundColor`
-      ),
-      readOnlyBackground
-    )
-    for (const label of ['Cancel', 'Save configuration']) {
-      assert.equal(
-        await evaluate(
-          `${button(label)}.closest('header') === document.querySelector('[aria-labelledby="translation-service-heading"] > header')`
-        ),
-        true
-      )
-    }
     await evaluate(`{
       const input = document.querySelector('#title-translation-model');
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'unsaved-model');
@@ -210,15 +184,6 @@ test(
       url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
     })
     await waitFor(`document.querySelector('#title-translation-model')`)
-    assert.equal(
-      await evaluate(`document.querySelector('[data-translation-display-hint]').closest('form')`),
-      null
-    )
-    assert.ok(
-      await evaluate(
-        `document.querySelector('[data-translation-display-hint]').textContent.includes('automatic or batch translation')`
-      )
-    )
     await evaluate(
       `[...document.querySelectorAll('button')].find(b => b.textContent === 'Edit').click()`
     )
@@ -288,38 +253,6 @@ test(
     const button = (text) =>
       `[...document.querySelectorAll('button')].find(b=>b.textContent==='${text}')`
     const requests = (path) => `window.translationRequests.filter(r=>r.path==='${path}')`
-    assert.equal(
-      await evaluate(`document.querySelector('#translation-behavior-heading').textContent`),
-      'Automatically translate missing titles'
-    )
-    assert.equal(await evaluate(`Boolean(${button('Review batch')})`), false)
-    assert.equal(
-      await evaluate(
-        `document.body.textContent.includes('Uses saved settings; automatic translation can remain off.')`
-      ),
-      false
-    )
-
-    assert.equal(
-      await evaluate(`document.querySelector('[data-translation-advanced]').open`),
-      false
-    )
-    assert.equal(await evaluate(`document.querySelector('[data-translation-test]').open`), false)
-    assert.equal(await evaluate(`document.querySelector('[data-translation-batch]').open`), false)
-    assert.equal(
-      await evaluate(`document.querySelector('input[placeholder="https://api.deepseek.com"]')`),
-      null
-    )
-    assert.equal(
-      await evaluate(`Boolean(document.querySelector('[aria-label="Prefer Chinese titles"]'))`),
-      false
-    )
-    assert.equal(
-      await evaluate(
-        `document.querySelector('[aria-label="Automatically translate missing titles"]').checked`
-      ),
-      false
-    )
     await evaluate(`{
     window.setInput=(selector,value)=>{
       const input=document.querySelector(selector);

@@ -16,11 +16,6 @@ test(
         config: { ...window.testStore.getState().config, ...patch }
       });
       window.testStore.setState({ javItems: [{ id: 1, title: 'Source 1' }] });
-      window.updateTranslationConfig({
-        jav_title_translation_api_key_set: 'true',
-        jav_title_translation_model: 'obsolete-model',
-        jav_title_translation_thinking: 'true'
-      });
     }`)
     await evaluate('new Promise(resolve => setTimeout(resolve, 100))')
     assert.equal(await evaluate('window.translationRequests.length'), 0)
@@ -51,12 +46,19 @@ test(
 )
 
 test(
-  'streamed titles display out of order before the group finishes without starting extra groups',
+  'streamed batches share requests across rerenders and remounts and display completed titles immediately',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
     await command('Page.navigate', { url: `${origin}/tests/fixtures/javAutomaticTranslation.html` })
     await waitFor('window.translationRequests?.length === 1')
+    assert.deepEqual(
+      await evaluate('window.translationRequests[0].ids'),
+      Array.from({ length: 20 }, (_, i) => i + 1)
+    )
+    await evaluate(
+      `window.testStore.setState({javItems: [...window.testStore.getState().javItems]})`
+    )
     await evaluate('window.emitTranslation(0, [3])')
     await waitFor(`document.querySelector('output').textContent === '2'`)
     assert.equal(await evaluate('window.testStore.getState().javItems[2].zh_title'), '译文 3')
@@ -72,6 +74,11 @@ test(
     assert.deepEqual(await evaluate('window.translationRequests[1].ids'), [21, 22, 23, 24, 25])
     await evaluate('window.completeTranslation(1)')
     await waitFor(`document.querySelector('output').textContent === '26'`)
+    assert.equal(await evaluate('window.translationRequests.length'), 2)
+    assert.equal(
+      await evaluate('window.testStore.getState().javItems.find(i => i.id === 26).zh_title'),
+      '人工校对'
+    )
   }
 )
 
@@ -95,36 +102,6 @@ test(
     )
     await waitFor('window.translationRequests.length === 2')
     assert.equal(await evaluate('window.translationRequests[1].ids.includes(2)'), false)
-  }
-)
-
-test(
-  'automatic translation groups pages and shares requests across rerenders and remounts',
-  { skip: browserUnavailable, timeout: 60000 },
-  async (t) => {
-    const { origin, command, evaluate, waitFor } = await openBrowser(t)
-    await command('Page.navigate', { url: `${origin}/tests/fixtures/javAutomaticTranslation.html` })
-    await waitFor('window.translationRequests?.length === 1')
-    assert.deepEqual(
-      await evaluate('window.translationRequests[0].ids'),
-      Array.from({ length: 20 }, (_, i) => i + 1)
-    )
-    await evaluate(`{
-      window.testStore.setState({javItems: [...window.testStore.getState().javItems]});
-      [...document.querySelectorAll('button')].find(b => b.textContent === 'Remount').click();
-    }`)
-    await evaluate('new Promise(resolve => setTimeout(resolve, 100))')
-    assert.equal(await evaluate('window.translationRequests.length'), 1)
-    await evaluate('window.completeTranslation(0)')
-    await waitFor('window.translationRequests.length === 2')
-    assert.deepEqual(await evaluate('window.translationRequests[1].ids'), [21, 22, 23, 24, 25])
-    await evaluate('window.completeTranslation(1)')
-    await waitFor(`document.querySelector('output').textContent === '26'`)
-    assert.equal(await evaluate('window.translationRequests.length'), 2)
-    assert.equal(
-      await evaluate('window.testStore.getState().javItems.find(i => i.id === 26).zh_title'),
-      '人工校对'
-    )
   }
 )
 
