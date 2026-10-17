@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -72,11 +73,13 @@ func (c *Client) translateCustom(ctx context.Context, p Profile, prompt, title s
 		return "", &ConfigError{"自定义请求模板无效 / Invalid custom request template"}
 	}
 	var request struct {
-		URL          string
-		Method       string
-		Headers      map[string]string
-		Body         json.RawMessage
-		ResponsePath string `json:"response_path"`
+		URL             string
+		Method          string
+		Headers         map[string]string
+		Body            json.RawMessage
+		ResponsePath    string `json:"response_path"`
+		CompletionPath  string `json:"completion_path"`
+		CompletionValue any    `json:"completion_value"`
 	}
 	if json.Unmarshal(data, &request) != nil {
 		return "", &ConfigError{"自定义请求模板字段类型无效 / Invalid custom request template fields"}
@@ -108,6 +111,9 @@ func (c *Client) translateCustom(ctx context.Context, p Profile, prompt, title s
 	if err = readJSON(resp, &result); err != nil {
 		return "", err
 	}
+	if err = validateCustomCompletion(result, request.CompletionPath, request.CompletionValue); err != nil {
+		return "", err
+	}
 	result, err = jsonPointer(result, request.ResponsePath)
 	if err != nil {
 		return "", err
@@ -118,6 +124,41 @@ func (c *Client) translateCustom(ctx context.Context, p Profile, prompt, title s
 		return "", fmt.Errorf("custom response path did not return a complete title")
 	}
 	return translated, nil
+}
+
+// Standard provider envelopes keep their completion checks even with a custom
+// request template. Other APIs must describe their successful completion status.
+func validateCustomCompletion(result any, path string, expected any) error {
+	object, _ := result.(map[string]any)
+	protocol := ""
+	switch {
+	case object["choices"] != nil:
+		protocol = "chat"
+	case object["output"] != nil:
+		protocol = "responses"
+	case object["candidates"] != nil:
+		protocol = "gemini"
+	case object["content"] != nil && object["stop_reason"] != nil:
+		protocol = "anthropic"
+	}
+	if protocol != "" {
+		data, _ := json.Marshal(result)
+		if _, err := parseTranslation(data, protocol); err != nil {
+			return err
+		}
+	}
+	if path != "" {
+		if expected == nil {
+			return &ConfigError{"请配置 completion_value / Configure completion_value"}
+		}
+		status, err := jsonPointer(result, path)
+		if err != nil || !reflect.DeepEqual(status, expected) {
+			return fmt.Errorf("incomplete custom translation")
+		}
+	} else if protocol == "" {
+		return &ConfigError{"自定义响应需要 completion_path 和 completion_value / Custom responses require completion_path and completion_value"}
+	}
+	return nil
 }
 
 // RFC 6901 paths handle arbitrary object keys and array indexes without evaluation.

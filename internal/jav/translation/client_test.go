@@ -111,14 +111,15 @@ func TestCustomTemplatePreservesTypesAndUserText(t *testing.T) {
 		if expectedThinking && body["effort"] != "high" {
 			t.Error("missing effort")
 		}
-		w.Write([]byte(`{"result":{"a/b":["雨天"]}}`))
+		w.Write([]byte(`{"done":true,"result":{"a/b":["雨天"]}}`))
 	}))
 	defer upstream.Close()
 	p := Profile{Model: "custom", APIKey: "secret", Temperature: &temp, Effort: "high", Reasoning: "toggle",
 		Request: map[string]any{
 			"url": upstream.URL + "/translate", "headers": map[string]any{"X-Token": "{{api_key}}"},
-			"body":          map[string]any{"text": "{{title}}", "temp": "{{temperature}}", "think": "{{thinking}}"},
-			"response_path": "/result/a~1b/0",
+			"body":            map[string]any{"text": "{{title}}", "temp": "{{temperature}}", "think": "{{thinking}}"},
+			"response_path":   "/result/a~1b/0",
+			"completion_path": "/done", "completion_value": true,
 		},
 		FastParams:     map[string]any{"body": map[string]any{"think": false}},
 		ThinkingParams: map[string]any{"body": map[string]any{"think": true, "effort": "{{effort}}"}},

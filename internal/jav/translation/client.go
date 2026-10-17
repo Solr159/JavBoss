@@ -335,6 +335,14 @@ func (c *Client) Translate(ctx context.Context, provider string, p Profile, prom
 }
 
 func readTranslation(resp *http.Response, protocol string) (string, error) {
+	var data json.RawMessage
+	if err := readJSON(resp, &data); err != nil {
+		return "", err
+	}
+	return parseTranslation(data, protocol)
+}
+
+func parseTranslation(data []byte, protocol string) (string, error) {
 	var result struct {
 		Choices []struct {
 			Message      struct{ Content string }
@@ -363,8 +371,8 @@ func readTranslation(resp *http.Response, protocol string) (string, error) {
 			FinishReason string
 		}
 	}
-	if err := readJSON(resp, &result); err != nil {
-		return "", err
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", fmt.Errorf("invalid translation response")
 	}
 	var out strings.Builder
 	switch protocol {

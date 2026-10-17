@@ -338,6 +338,12 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
               'Template fields: url, method (GET/POST), headers, body, response_path (JSON Pointer, e.g. /choices/0/message/content). JSON responses only. Placeholders: {{base_url}}, {{api_key}}, {{model}}, {{prompt}}, {{title}}, {{temperature}}, {{thinking}}, {{effort}}. Exact placeholders preserve number/boolean types. Use the API key placeholder instead of a literal secret. Mode overrides may replace any field; null removes it. Toggleable models require both quick and reasoning overrides, e.g. {"body":{"thinking":{"type":"disabled"}}} for quick mode.'
             )}
           </p>
+          <p className="text-xs leading-5 text-slate-500">
+            {zh(
+              '常见模型响应会自动检查是否完整。其他 JSON 格式需指定 completion_path 和 completion_value，例如 "completion_path":"/done","completion_value":true；状态缺失或不匹配时不会保存译文。',
+              'Standard model responses are checked for completion automatically. Other JSON formats require completion_path and completion_value, e.g. "completion_path":"/done","completion_value":true. Missing or mismatched status prevents saving.'
+            )}
+          </p>
           {paramsError && (
             <p role="alert" className="text-xs text-red-600">
               {paramsError}

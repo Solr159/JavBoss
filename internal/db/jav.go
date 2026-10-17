@@ -1170,7 +1170,7 @@ func buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs []int64, search
 	q = q.Where("EXISTS (?)", validLocation)
 	if search != "" {
 		like := fmt.Sprintf("%%%s%%", search)
-		q = q.Where("code LIKE ? OR title LIKE ?", like, like)
+		q = q.Where("code LIKE ? OR title LIKE ? OR zh_title LIKE ?", like, like, like)
 	}
 	if filters.StudioID == 0 {
 		q = q.Where("studio_id IS NULL")
@@ -3300,10 +3300,12 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 		return nil, errors.New("english JAV metadata cannot be persisted")
 	}
 	javRec.Code = info.Code
-	javRec.Title = info.Title
-	if zhTitle := strings.TrimSpace(info.ZhTitle); zhTitle != "" {
-		javRec.ZhTitle = zhTitle
+	if javRec.Title != info.Title {
+		javRec.ZhTitle = ""
 	}
+	javRec.Title = info.Title
+	// Chinese titles belong to manual editing and AI translation. Scraped
+	// localized titles (including cached JavDB results) must not replace them.
 	javRec.ReleaseUnix = info.ReleaseUnix
 	javRec.DurationMin = info.DurationMin
 	javRec.FetchedAt = ts

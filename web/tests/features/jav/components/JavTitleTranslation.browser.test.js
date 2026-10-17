@@ -1,0 +1,77 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
+
+for (const scenario of ['unchanged source', 'changed source', 'manual correction']) {
+  test(
+    `JAV translation preview saves correctly with ${scenario}`,
+    { skip: browserUnavailable, timeout: 60000 },
+    async (t) => {
+      const { origin, command, evaluate, waitFor } = await openBrowser(t)
+      await command('Page.navigate', {
+        url: `${origin}/tests/fixtures/javDetailNavigation.html?view=jav`,
+      })
+      await waitFor(`document.querySelector('[aria-label="Edit JAV"]')`)
+      await evaluate(`{
+        const originalFetch = window.fetch;
+        window.fetch = (input, init) => {
+          const path = new URL(input, location.origin).pathname;
+          if (path.endsWith('/title-translation')) {
+            window.translationPayload = JSON.parse(init.body);
+            return Promise.resolve(Response.json({id:1,title:'Test JAV',zh_title:'雨天相遇'}));
+          }
+          if (['/jav/studios','/jav/series','/jav/idols/options'].includes(path))
+            return Promise.resolve(Response.json({items:[],total:0}));
+          if (path === '/jav/tags') return Promise.resolve(Response.json([]));
+          if (path === '/jav/items/1' && init?.method === 'PUT') {
+            window.savedPayload = JSON.parse(init.body);
+            return Promise.resolve(Response.json({id:1,...window.savedPayload}));
+          }
+          return originalFetch(input, init);
+        };
+        window.testStore.setState({loadJavTags:()=>Promise.resolve()});
+        window.setText = (selector, value) => {
+          const input = document.querySelector(selector);
+          Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,value);
+          input.dispatchEvent(new Event('input',{bubbles:true}));
+        };
+        document.querySelector('[aria-label="Edit JAV"]').click();
+      }`)
+      await waitFor(`document.querySelector('#jav-title-1')`)
+      await evaluate(
+        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Quick retranslation').click()`
+      )
+      await waitFor(`document.querySelector('#jav-zh-title-1').value === '雨天相遇'`)
+      assert.equal(await evaluate('window.savedPayload'), undefined)
+      assert.deepEqual(await evaluate('window.translationPayload'), {
+        refresh: true,
+        title: 'Test JAV',
+        thinking: false,
+      })
+      if (scenario === 'manual correction') {
+        await evaluate(`window.setText('#jav-zh-title-1', '人工校对译名')`)
+      }
+      if (scenario !== 'unchanged source') {
+        await evaluate(`window.setText('#jav-title-1', 'Different source')`)
+      }
+      const expectedTitle = scenario === 'unchanged source' ? 'Test JAV' : 'Different source'
+      const expectedChineseTitle =
+        scenario === 'changed source'
+          ? ''
+          : scenario === 'manual correction'
+            ? '人工校对译名'
+            : '雨天相遇'
+      assert.equal(
+        await evaluate(`document.querySelector('#jav-zh-title-1').value`),
+        expectedChineseTitle
+      )
+      await evaluate(
+        `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
+      )
+      await waitFor('window.savedPayload')
+      const payload = await evaluate('window.savedPayload')
+      assert.equal(payload.title, expectedTitle)
+      assert.equal(payload.zh_title || '', expectedChineseTitle)
+    }
+  )
+}

@@ -560,7 +560,12 @@ export function JavEditModal({
             rows={2}
             value={title}
             onChange={(event) => {
-              setTitle(event.target.value)
+              const nextTitle = event.target.value
+              setTitle(nextTitle)
+              if (refreshedTitle !== null && nextTitle.trim() !== refreshedTitle) {
+                setZhTitle('')
+                setRefreshedTitle(null)
+              }
               if (error) setError('')
             }}
             className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
@@ -619,6 +624,7 @@ export function JavEditModal({
             value={zhTitle}
             onChange={(event) => {
               setZhTitle(event.target.value)
+              setRefreshedTitle(null)
               if (error) setError('')
             }}
             className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
