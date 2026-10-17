@@ -190,7 +190,7 @@ func (job *titleTranslationBatch) run(items []dbpkg.JavTextTranslationItem, cfg 
 			job.record(false)
 			continue
 		}
-		title, err := titleTranslationClient.Translate(job.ctx, provider, profile, job.domain.prompt(cfg), item.Source, nil)
+		title, err := titleTranslationClient.Translate(job.ctx, provider, profile, cfg["jav_title_translation_prompt"], item.Source, nil)
 		var saved bool
 		if err == nil {
 			saved, err = job.domain.Save(job.ctx, &item, title)

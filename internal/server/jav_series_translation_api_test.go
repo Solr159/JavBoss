@@ -18,12 +18,16 @@ import (
 func TestSeriesTranslationPreviewSaveAndAutomaticTranslation(t *testing.T) {
 	var calls atomic.Int32
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
-		calls.Add(1)
+		call := calls.Add(1)
+		wantPrompt := translation.DefaultPrompt
+		if call > 1 {
+			wantPrompt = "共用自定义翻译提示词"
+		}
 		var payload struct{ Messages []struct{ Content string } }
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 			t.Error(err)
 		}
-		if len(payload.Messages) != 2 || payload.Messages[0].Content != translation.SeriesPrompt || payload.Messages[1].Content != "雨の日" {
+		if len(payload.Messages) != 2 || payload.Messages[0].Content != wantPrompt || payload.Messages[1].Content != "雨の日" {
 			t.Errorf("unexpected series translation request: %+v", payload)
 		}
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"雨天系列"}}]}`))
@@ -64,7 +68,7 @@ func TestSeriesTranslationPreviewSaveAndAutomaticTranslation(t *testing.T) {
 		t.Fatalf("stale save: %d %s", response.Code, response.Body)
 	}
 	assertStoredSeries("人工校对")
-	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_series_translation_enabled":true,"jav_title_translation_enabled":false}`)
+	response = translationAPIRequest(router, "PATCH", "/config", `{"jav_series_translation_enabled":true,"jav_title_translation_enabled":false,"jav_title_translation_prompt":"共用自定义翻译提示词"}`)
 	if response.Code != 200 {
 		t.Fatalf("configure series: %d %s", response.Code, response.Body)
 	}
@@ -92,6 +96,13 @@ func TestSeriesTranslationBatchScopesAndConcurrentEdits(t *testing.T) {
 		{Name: " "},
 	}
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) {
+		var payload struct{ Messages []struct{ Content string } }
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Error(err)
+		}
+		if len(payload.Messages) != 2 || payload.Messages[0].Content != "批量共用提示词" {
+			t.Errorf("unexpected batch translation prompt: %+v", payload)
+		}
 		if calls.Add(1) == 1 {
 			if err := common.DB.Model(&items[0]).Update("zh_name", "同时人工修改").Error; err != nil {
 				t.Error(err)
@@ -100,6 +111,9 @@ func TestSeriesTranslationBatchScopesAndConcurrentEdits(t *testing.T) {
 		_, _ = w.Write([]byte(`{"choices":[{"finish_reason":"stop","message":{"content":"新系列译名"}}]}`))
 	})
 	configureGroupedTranslation(t)
+	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_translation_prompt": "批量共用提示词"}); err != nil {
+		t.Fatal(err)
+	}
 	if err := common.DB.Create(&items).Error; err != nil {
 		t.Fatal(err)
 	}

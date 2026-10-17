@@ -173,7 +173,7 @@ func translateText(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, 400, "影片标题不能为空", "The title must not be empty")
 		return
 	}
-	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), domain.prompt(cfg), sourceTitle, req.Thinking)
+	title, err := titleTranslationClient.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], sourceTitle, req.Thinking)
 	if err != nil {
 		respondTitleTranslationError(c, err)
 		return

@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	dbpkg "javboss/internal/db"
-	"javboss/internal/jav/translation"
 )
 
 type textTranslationDomain struct {
@@ -21,13 +20,6 @@ func (d textTranslationDomain) enabledKey() string {
 		return "jav_series_translation_enabled"
 	}
 	return "jav_title_translation_enabled"
-}
-
-func (d textTranslationDomain) prompt(cfg map[string]string) string {
-	if d.Series {
-		return translation.SeriesPrompt
-	}
-	return cfg["jav_title_translation_prompt"]
 }
 
 func (d textTranslationDomain) acquire(ctx context.Context, id int64) (func(), error) {

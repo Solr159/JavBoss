@@ -146,7 +146,7 @@ func translateMissingText(ctx context.Context, cfg map[string]string, id int64, 
 		return nil, err
 	}
 	if strings.TrimSpace(item.Translation) == "" && strings.TrimSpace(item.Source) != "" {
-		title, err := titleTranslationClient.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), domain.prompt(cfg), item.Source, nil)
+		title, err := titleTranslationClient.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], item.Source, nil)
 		if err != nil {
 			return nil, err
 		}
