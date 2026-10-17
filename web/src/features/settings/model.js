@@ -1,4 +1,5 @@
 import { configFlag } from '@/utils/config'
+import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
 export function createVideoSettingsDraft(state) {
@@ -36,6 +37,7 @@ export function createJavSettingsDraft(state) {
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
     javTitleMaxRowsInput: javTitleMaxRows,
+    javTitlePreferChineseInput: preferChineseTitle(config),
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,
     javHideSeriesInput: configFlag(config?.jav_hide_series),

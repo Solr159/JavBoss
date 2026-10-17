@@ -12,7 +12,7 @@ const inputClass =
   'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
 const emptyCaps = { reasoning: 'unknown', efforts: [] }
 
-export default function JavTitleTranslationSettings({ value, onChange }) {
+export default function JavTitleTranslationSettings({ value, onChange, disabled = false }) {
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -59,7 +59,8 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
     setModels([])
     setError('')
     setLoading(false)
-    if ((!apiKey && !value.hasApiKey && !custom) || (custom && !baseUrl)) return undefined
+    if (disabled || (!apiKey && !value.hasApiKey && !custom) || (custom && !baseUrl))
+      return undefined
     setLoading(true)
     const controller = new AbortController()
     const timer = setTimeout(async () => {
@@ -81,7 +82,17 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [apiKey, value.hasApiKey, value.clearApiKey, providerID, baseUrl, protocol, custom, revision])
+  }, [
+    apiKey,
+    value.hasApiKey,
+    value.clearApiKey,
+    providerID,
+    baseUrl,
+    protocol,
+    custom,
+    revision,
+    disabled,
+  ])
 
   const thinking = caps.reasoning === 'always' || (caps.reasoning === 'toggle' && value.thinking)
   const temperatureSupported = caps.temperature && (!thinking || caps.temperature_with_thinking)
@@ -105,6 +116,7 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
     setAnchorEl,
   } = useAutocomplete({
     id: 'title-translation-model',
+    disabled,
     options: models.map((model) => model.id),
     value: value.model || null,
     inputValue: value.model,

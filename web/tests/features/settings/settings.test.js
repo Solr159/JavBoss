@@ -126,7 +126,7 @@ test('translation settings keep saved keys private and omit untouched credential
     const profile = payload.jav_title_translation_profiles.deepseek
     return Response.json({
       ...payload,
-      jav_title_translation_enabled: String(payload.jav_title_translation_enabled),
+      jav_title_translation_enabled: useStore.getState().config.jav_title_translation_enabled,
       jav_title_translation_profiles: JSON.stringify({
         deepseek: { ...profile, api_key: undefined, api_key_set: profile.api_key !== '' },
       }),
@@ -139,6 +139,7 @@ test('translation settings keep saved keys private and omit untouched credential
   assert.equal(payload.jav_title_translation_profiles.deepseek.thinking, false)
   assert.equal(Object.hasOwn(payload.jav_title_translation_profiles.deepseek, 'api_key'), false)
   assert.equal(payload.jav_title_translation_prompt, 'Custom prompt')
+  assert.equal(Object.hasOwn(payload, 'jav_title_translation_enabled'), false)
   draft.apiKey = 'replacement-key'
   draft.thinking = true
   await actions.saveTitleTranslationSettings(draft)
@@ -156,7 +157,7 @@ test('translation settings keep saved keys private and omit untouched credential
   assert.equal(payload.jav_title_translation_profiles.deepseek.api_key, '')
 })
 
-test('display settings leave all translation configuration untouched', async (t) => {
+test('display settings save the title preference independently of translation configuration', async (t) => {
   const [model, actions, { useStore }] = await loadModules(t, [
     'features/settings/model.js',
     'features/settings/actions.js',
@@ -168,8 +169,13 @@ test('display settings leave all translation configuration untouched', async (t)
     return Response.json(payload)
   })
   const draft = model.createJavSettingsDraft(useStore.getState())
+  assert.equal(draft.javTitlePreferChineseInput, true)
   await actions.saveJavSettings(draft, () => {})
-  assert.equal(Object.hasOwn(payload, 'jav_title_prefer_chinese'), false)
+  assert.equal(payload.jav_title_prefer_chinese, true)
+  draft.javTitlePreferChineseInput = false
+  await actions.saveJavSettings(draft, () => {})
+  assert.equal(payload.jav_title_prefer_chinese, false)
+  assert.equal(model.createJavSettingsDraft(useStore.getState()).javTitlePreferChineseInput, false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_enabled'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_api_key'), false)
   assert.equal(Object.hasOwn(payload, 'jav_title_translation_model'), false)
@@ -225,20 +231,20 @@ test('provider picker has defaults before catalog loads and fills each API endpo
   }
 })
 
-test('Chinese title display follows automatic translation and ignores the retired preference', async (t) => {
+test('Chinese title display defaults on and is independent of automatic translation', async (t) => {
   const [{ preferChineseTitle }, settings] = await loadModules(t, [
     'features/jav/titleTranslation.js',
     'features/settings/titleTranslation.js',
   ])
-  assert.equal(preferChineseTitle({}), false)
+  assert.equal(preferChineseTitle({}), true)
   for (const enabled of ['true', 'false']) {
-    for (const retired of [undefined, 'true', 'false']) {
+    for (const preference of [undefined, '', 'true', 'false']) {
       assert.equal(
         preferChineseTitle({
           jav_title_translation_enabled: enabled,
-          jav_title_prefer_chinese: retired,
+          jav_title_prefer_chinese: preference,
         }),
-        enabled === 'true'
+        preference !== 'false'
       )
     }
   }

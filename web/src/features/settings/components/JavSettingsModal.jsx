@@ -82,10 +82,15 @@ function SettingsSection({ title, children }) {
   )
 }
 
-function SettingsRow({ label, children }) {
+function SettingsRow({ label, hint, children }) {
   return (
     <div className="flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm text-slate-700">
-      <span className="font-medium">{label}</span>
+      <span className="font-medium">
+        {label}
+        {hint && (
+          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">{hint}</span>
+        )}
+      </span>
       {children}
     </div>
   )
@@ -316,6 +321,8 @@ export default function JavSettingsModal({
   javGridColumnsInput,
   onJavGridColumnsChange,
   javTitleMaxRowsInput,
+  javTitlePreferChineseInput = true,
+  onJavTitlePreferChineseChange,
   onJavTitleMaxRowsChange,
   javIdolTagMaxRowsInput,
   onJavIdolTagMaxRowsChange,
@@ -392,6 +399,7 @@ export default function JavSettingsModal({
         onJavTagShowSimplifiedChange?.(false)
         break
       default:
+        onJavTitlePreferChineseChange?.(true)
         onJavPageSizeChange?.(24)
         onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
@@ -496,6 +504,19 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow
+                  label={zh('优先展示中文标题', 'Prefer Chinese titles')}
+                  hint={zh(
+                    '有中文标题时优先展示，没有时显示原标题。',
+                    'Show Chinese titles when available; otherwise show the original title.'
+                  )}
+                >
+                  <SettingsSwitch
+                    label={zh('优先展示中文标题', 'Prefer Chinese titles')}
+                    checked={javTitlePreferChineseInput}
+                    onChange={onJavTitlePreferChineseChange}
+                  />
+                </SettingsRow>
                 <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
                   <input
                     type="number"

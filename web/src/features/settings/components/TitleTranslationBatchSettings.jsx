@@ -115,8 +115,8 @@ export default function TitleTranslationBatchSettings({ dirty }) {
         {dirty && (
           <p className="text-xs text-amber-700">
             {zh(
-              '请先保存上方修改，再开始批量翻译。',
-              'Save your changes above before starting a batch.'
+              '请先保存或取消服务商配置的修改，再开始批量翻译。',
+              'Save or cancel your provider changes before starting a batch.'
             )}
           </p>
         )}

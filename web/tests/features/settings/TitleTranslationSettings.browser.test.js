@@ -3,6 +3,144 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
+  'provider settings require editing, cancel discards drafts and automatic translation saves independently',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
+    })
+    await waitFor(`document.querySelector('#title-translation-model')`)
+    const button = (text) =>
+      `[...document.querySelectorAll('button')].find(b => b.textContent === '${text}')`
+    const disabled = `document.querySelector('#title-translation-model').matches(':disabled')`
+    const requests = `window.translationRequests.filter(r => r.path === '/config')`
+    assert.equal(await evaluate(disabled), true)
+    const readOnlyBackground = await evaluate(
+      `getComputedStyle(document.querySelector('#title-translation-model')).backgroundColor`
+    )
+    assert.equal(
+      await evaluate(`getComputedStyle(document.querySelector('#title-translation-model')).cursor`),
+      'not-allowed'
+    )
+    assert.equal(await evaluate(`Boolean(${button('Save configuration')})`), false)
+    assert.equal(await evaluate(`Boolean(${button('Cancel')})`), false)
+    assert.ok(
+      await evaluate(
+        `Boolean(document.querySelector('[data-translation-batch]').compareDocumentPosition(document.querySelector('[aria-labelledby="translation-service-heading"]')) & Node.DOCUMENT_POSITION_FOLLOWING)`
+      )
+    )
+    await evaluate(`${button('Edit')}.click()`)
+    assert.equal(await evaluate(disabled), false)
+    assert.notEqual(
+      await evaluate(
+        `getComputedStyle(document.querySelector('#title-translation-model')).backgroundColor`
+      ),
+      readOnlyBackground
+    )
+    for (const label of ['Cancel', 'Save configuration']) {
+      assert.equal(
+        await evaluate(
+          `${button(label)}.closest('header') === document.querySelector('[aria-labelledby="translation-service-heading"] > header')`
+        ),
+        true
+      )
+    }
+    await evaluate(`{
+      const input = document.querySelector('#title-translation-model');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, 'unsaved-model');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }`)
+    await evaluate(
+      `document.querySelector('[aria-label="Automatically translate missing titles"]').click()`
+    )
+    await waitFor(
+      `!document.querySelector('[aria-label="Automatically translate missing titles"]').disabled`
+    )
+    assert.deepEqual(await evaluate(`${requests}.at(-1).payload`), {
+      jav_title_translation_enabled: true,
+    })
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-model').value`),
+      'unsaved-model'
+    )
+    await evaluate(`${button('Cancel')}.click()`)
+    assert.equal(await evaluate(disabled), true)
+    assert.equal(
+      await evaluate(`document.querySelector('#title-translation-model').value`),
+      'saved-model'
+    )
+    assert.equal(await evaluate(`${requests}.length`), 1)
+    assert.equal(
+      await evaluate(
+        `document.querySelector('[aria-label="Automatically translate missing titles"]').checked`
+      ),
+      true
+    )
+    await evaluate(`${button('Edit')}.click()`)
+    await evaluate(`window.configFailure = true; ${button('Save configuration')}.click()`)
+    await waitFor(`document.body.textContent.includes('Save failed')`)
+    assert.equal(await evaluate(disabled), false)
+    await evaluate(`window.configFailure = false; ${button('Save configuration')}.click()`)
+    await waitFor(disabled)
+    assert.equal(await evaluate(`Boolean(${button('Edit')})`), true)
+    assert.equal(
+      await evaluate(`Object.hasOwn(${requests}.at(-1).payload, 'jav_title_translation_enabled')`),
+      false
+    )
+    assert.equal(
+      await evaluate(
+        `document.querySelector('[aria-label="Automatically translate missing titles"]').checked`
+      ),
+      true
+    )
+  }
+)
+
+test(
+  'display preference can be saved independently and restores to enabled',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
+    })
+    await waitFor(`document.querySelector('#title-translation-model')`)
+    const click = (text) =>
+      evaluate(
+        `[...document.querySelectorAll('button')].find(b => b.textContent === '${text}').click()`
+      )
+    const toggle = `document.querySelector('[role="switch"][aria-label="Prefer Chinese titles"]')`
+    await click('Display settings')
+    await waitFor(toggle)
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+    await evaluate(`${toggle}.click()`)
+    await click('Save')
+    await waitFor(`!${toggle}`)
+    const saved = await evaluate(
+      `window.translationRequests.filter(r => r.path === '/config').at(-1).payload`
+    )
+    assert.equal(saved.jav_title_prefer_chinese, false)
+    assert.equal(Object.hasOwn(saved, 'jav_title_translation_enabled'), false)
+    assert.equal(
+      await evaluate(`window.testStore.getState().config.jav_title_translation_enabled`),
+      'false'
+    )
+    await click('Display settings')
+    await waitFor(toggle)
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
+    await click('Restore defaults')
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+    await click('Save')
+    await waitFor(`!${toggle}`)
+    assert.equal(
+      await evaluate(`window.testStore.getState().config.jav_title_prefer_chinese`),
+      true
+    )
+  }
+)
+
+test(
   'model picker opens all models with a saved value, supports search, keyboard selection and manual IDs',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
@@ -22,6 +160,18 @@ test(
       url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
     })
     await waitFor(`document.querySelector('#title-translation-model')`)
+    assert.equal(
+      await evaluate(`document.querySelector('[data-translation-display-hint]').closest('form')`),
+      null
+    )
+    assert.ok(
+      await evaluate(
+        `document.querySelector('[data-translation-display-hint]').textContent.includes('automatic or batch translation')`
+      )
+    )
+    await evaluate(
+      `[...document.querySelectorAll('button')].find(b => b.textContent === 'Edit').click()`
+    )
     await click('[aria-label="Choose model"]')
     await waitFor(`document.querySelectorAll('[role="option"]').length === 2`)
     assert.equal(
@@ -127,8 +277,9 @@ test(
       Object.getOwnPropertyDescriptor(prototype,'value').set.call(input,value);
       input.dispatchEvent(new Event('input',{bubbles:true}));
     };
-    document.querySelector('[aria-label="Automatically translate missing titles"]').click();
   }`)
+    await evaluate(`${button('Edit')}.click()`)
+    await evaluate(`window.setInput('#title-translation-model','draft-model')`)
     assert.equal(await evaluate(`${requests('/config')}.length`), 0)
     assert.equal(
       await evaluate(
@@ -136,10 +287,6 @@ test(
       ),
       true
     )
-    await evaluate(
-      `document.querySelector('[aria-label="Automatically translate missing titles"]').click()`
-    )
-    await evaluate(`window.setInput('#title-translation-model','draft-model')`)
     await evaluate(`document.querySelector('[data-translation-test] > summary').click()`)
     await evaluate(`window.testFailure=true; ${button('Test translation')}.click()`)
     await waitFor(`document.body.textContent.includes('credit_balance_exhausted')`)
@@ -152,13 +299,13 @@ test(
     await evaluate(`document.querySelector('[data-translation-advanced] > summary').click()`)
     await evaluate(`${button('Restore default prompt')}.click()`)
     assert.equal(await evaluate(`document.querySelector('textarea').value`), 'Default prompt')
-    await evaluate(`${button('Save settings')}.click()`)
+    await evaluate(`${button('Save configuration')}.click()`)
     await waitFor(
       `document.body.textContent.includes('Saved') && !document.querySelector('[data-translation-batch] select').matches(':disabled')`
     )
     const saved = await evaluate(`${requests('/config')}.at(-1).payload`)
     assert.equal(Object.hasOwn(saved, 'jav_title_prefer_chinese'), false)
-    assert.equal(saved.jav_title_translation_enabled, false)
+    assert.equal(Object.hasOwn(saved, 'jav_title_translation_enabled'), false)
     assert.equal(saved.jav_title_translation_profiles.deepseek.model, 'draft-model')
     assert.equal(saved.jav_title_translation_prompt, 'Default prompt')
     await evaluate(`document.querySelector('[data-translation-batch] > summary').click()`)

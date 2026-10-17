@@ -1,7 +1,7 @@
 import { configFlag } from '@/utils/config'
 
 export function preferChineseTitle(config) {
-  return configFlag(config?.jav_title_translation_enabled)
+  return configFlag(config?.jav_title_prefer_chinese, true)
 }
 
 export function needsTitleTranslation(item) {

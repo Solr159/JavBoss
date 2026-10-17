@@ -92,6 +92,7 @@ func updateConfig(c *gin.Context) {
 		JavPageSize               *int                       `json:"jav_page_size"`
 		JavGridColumns            *int                       `json:"jav_grid_columns"`
 		JavTitleMaxRows           *int                       `json:"jav_title_max_rows"`
+		JavTitlePreferChinese     *bool                      `json:"jav_title_prefer_chinese"`
 		TitleTranslateProvider    *string                    `json:"jav_title_translation_provider"`
 		TitleTranslateProfiles    map[string]json.RawMessage `json:"jav_title_translation_profiles"`
 		TitleTranslateEnabled     *bool                      `json:"jav_title_translation_enabled"`
@@ -216,6 +217,9 @@ func updateConfig(c *gin.Context) {
 
 	if req.TitleTranslateEnabled != nil {
 		entries["jav_title_translation_enabled"] = strconv.FormatBool(*req.TitleTranslateEnabled)
+	}
+	if req.JavTitlePreferChinese != nil {
+		entries["jav_title_prefer_chinese"] = strconv.FormatBool(*req.JavTitlePreferChinese)
 	}
 	if req.TitleTranslateThinking != nil {
 		entries["jav_title_translation_thinking"] = strconv.FormatBool(*req.TitleTranslateThinking)
@@ -655,8 +659,9 @@ func updateConfig(c *gin.Context) {
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["app_version"] = common.Version
 	translation.PublicConfig(cfg)
-	// Title display follows automatic translation; ignore the retired display preference.
-	delete(cfg, "jav_title_prefer_chinese")
+	if strings.TrimSpace(cfg["jav_title_prefer_chinese"]) == "" {
+		cfg["jav_title_prefer_chinese"] = "true"
+	}
 	cfg["jav_title_translation_default_prompt"] = translation.DefaultPrompt
 	if strings.TrimSpace(cfg["jav_title_translation_prompt"]) == "" {
 		cfg["jav_title_translation_prompt"] = translation.DefaultPrompt

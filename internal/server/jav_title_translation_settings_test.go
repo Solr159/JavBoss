@@ -61,19 +61,29 @@ func TestTitleTranslationDraftTestDoesNotSaveSettingsOrTitles(t *testing.T) {
 	}
 }
 
-func TestTitleTranslationConfigIgnoresRetiredDisplayPreference(t *testing.T) {
+func TestTitleTranslationConfigDisplayPreferenceIsIndependentAndDefaultsOn(t *testing.T) {
 	router := titleTranslationRouter(t, func(w http.ResponseWriter, r *http.Request) { t.Error("configuration should not request translation") })
-	dbpkg.UpsertConfig(context.Background(), map[string]string{"jav_title_prefer_chinese": "true", "jav_title_translation_enabled": "false"})
-	for _, enabled := range []bool{true, false} {
-		body, _ := json.Marshal(map[string]bool{"jav_title_translation_enabled": enabled})
-		response := translationAPIRequest(router, "PATCH", "/config", string(body))
-		var cfg map[string]string
-		json.Unmarshal(response.Body.Bytes(), &cfg)
-		if response.Code != 200 || cfg["jav_title_translation_enabled"] != strconv.FormatBool(enabled) || cfg["jav_title_translation_default_prompt"] != translation.DefaultPrompt {
-			t.Fatalf("config: %d %s", response.Code, response.Body)
+	response := translationAPIRequest(router, "GET", "/config", "")
+	var cfg map[string]string
+	if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != 200 || cfg["jav_title_prefer_chinese"] != "true" {
+		t.Fatalf("default config: %d %s", response.Code, response.Body)
+	}
+	for _, preference := range []bool{false, true} {
+		body, _ := json.Marshal(map[string]bool{"jav_title_prefer_chinese": preference})
+		response = translationAPIRequest(router, "PATCH", "/config", string(body))
+		if response.Code != 200 {
+			t.Fatalf("preference: %d %s", response.Code, response.Body)
 		}
-		if _, exists := cfg["jav_title_prefer_chinese"]; exists {
-			t.Fatal("retired display setting exposed")
+		for _, enabled := range []bool{true, false} {
+			body, _ := json.Marshal(map[string]bool{"jav_title_translation_enabled": enabled})
+			response = translationAPIRequest(router, "PATCH", "/config", string(body))
+			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != 200 || cfg["jav_title_translation_enabled"] != strconv.FormatBool(enabled) || cfg["jav_title_prefer_chinese"] != strconv.FormatBool(preference) || cfg["jav_title_translation_default_prompt"] != translation.DefaultPrompt {
+				t.Fatalf("config: %d %s", response.Code, response.Body)
+			}
+			response = translationAPIRequest(router, "GET", "/config", "")
+			if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || cfg["jav_title_prefer_chinese"] != strconv.FormatBool(preference) {
+				t.Fatalf("persisted preference: %s", response.Body)
+			}
 		}
 	}
 }

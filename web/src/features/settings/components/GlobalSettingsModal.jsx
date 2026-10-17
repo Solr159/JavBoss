@@ -43,8 +43,8 @@ const SETTINGS_SECTIONS = [
     id: 'ai-translation',
     title: { zh: 'AI 翻译', en: 'AI Translation' },
     summary: {
-      zh: '标题显示、翻译服务与批量任务',
-      en: 'Title display, translation service and batch tasks',
+      zh: '自动翻译、服务商配置与批量任务',
+      en: 'Automatic translation, provider configuration and batch tasks',
     },
   },
   {
@@ -1528,8 +1528,12 @@ export default function GlobalSettingsModal({
         </aside>
 
         <section
-          className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-4 md:px-6 md:pb-6 ${
-            currentSection === 'directories' ? 'md:pt-3' : 'md:pt-6'
+          className={`min-h-0 flex-1 overflow-y-auto px-4 pb-4 md:px-6 md:pb-6 ${
+            currentSection === 'ai-translation'
+              ? 'pt-2 md:pt-2'
+              : currentSection === 'directories'
+                ? 'pt-4 md:pt-3'
+                : 'pt-4 md:pt-6'
           }`}
         >
           {currentSection === 'display' && renderDisplayPanel()}

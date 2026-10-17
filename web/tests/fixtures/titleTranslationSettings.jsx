@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import JavSettings from '@/features/settings/components/JavSettings'
 import { createRoot } from 'react-dom/client'
 import TitleTranslationToolSettings from '@/features/settings/components/TitleTranslationToolSettings'
 import { useStore } from '@/store'
@@ -22,17 +24,17 @@ window.fetch = async (input, init = {}) => {
   const payload = init.body ? JSON.parse(init.body) : null
   window.translationRequests.push({ path: url.pathname, method: init.method || 'GET', payload })
   if (url.pathname === '/config') {
-    config = {
-      ...config,
-      ...payload,
-      jav_title_translation_profiles: JSON.stringify(
+    if (window.configFailure) return Response.json({ error_en: 'Save failed' }, { status: 500 })
+    config = { ...config, ...payload }
+    if (payload.jav_title_translation_profiles) {
+      config.jav_title_translation_profiles = JSON.stringify(
         Object.fromEntries(
           Object.entries(payload.jav_title_translation_profiles).map(([id, p]) => [
             id,
             { ...p, api_key: undefined, api_key_set: true },
           ])
         )
-      ),
+      )
     }
     return Response.json(config)
   }
@@ -76,8 +78,22 @@ window.fetch = async (input, init = {}) => {
   }
   throw new Error(`Unexpected request: ${url.pathname}`)
 }
-createRoot(document.getElementById('root')).render(
-  <main className="mx-auto max-w-2xl p-4">
-    <TitleTranslationToolSettings />
-  </main>
-)
+function Fixture() {
+  const [displayOpen, setDisplayOpen] = useState(false)
+  return (
+    <main className="mx-auto max-w-2xl p-4">
+      <button onClick={() => setDisplayOpen(true)}>Display settings</button>
+      <TitleTranslationToolSettings />
+      {displayOpen && (
+        <JavSettings
+          onClose={() => setDisplayOpen(false)}
+          onError={(message) => {
+            window.displaySettingsError = message
+          }}
+          onWaterfallChange={() => {}}
+        />
+      )}
+    </main>
+  )
+}
+createRoot(document.getElementById('root')).render(<Fixture />)
