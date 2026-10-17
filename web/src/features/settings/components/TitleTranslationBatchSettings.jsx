@@ -14,6 +14,9 @@ export default function TitleTranslationBatchSettings({ dirty }) {
   const [batch, setBatch] = useState(null)
   const [scope, setScope] = useState('missing')
   const [preview, setPreview] = useState(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState('')
+  const [previewRevision, setPreviewRevision] = useState(0)
   const [confirmed, setConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -45,6 +48,25 @@ export default function TitleTranslationBatchSettings({ dirty }) {
       clearTimeout(timer)
     }
   }, [running])
+  useEffect(() => {
+    if (!expanded || running) return undefined
+    const controller = new AbortController()
+    setPreviewLoading(true)
+    setPreview(null)
+    setConfirmed(false)
+    setPreviewError('')
+    previewTitleTranslationBatch(scope, { signal: controller.signal })
+      .then((result) => {
+        if (!controller.signal.aborted) setPreview(result)
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setPreviewError(getErrorMessage(err))
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPreviewLoading(false)
+      })
+    return () => controller.abort()
+  }, [expanded, scope, running, previewRevision])
   const runAction = async (action) => {
     setBusy(true)
     setError('')
@@ -90,12 +112,6 @@ export default function TitleTranslationBatchSettings({ dirty }) {
         </span>
       </summary>
       <div className="space-y-4 border-t border-zinc-100 p-5">
-        <p className="text-xs leading-5 text-zinc-500">
-          {zh(
-            '使用已保存的配置，无需开启自动翻译。',
-            'Uses saved settings; automatic translation can remain off.'
-          )}
-        </p>
         {dirty && (
           <p className="text-xs text-amber-700">
             {zh(
@@ -132,20 +148,27 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                   </option>
                 </select>
               </label>
-              <button
-                type="button"
-                className={buttonClass}
-                onClick={() =>
-                  void runAction(async () => {
-                    setPreview(await previewTitleTranslationBatch(scope))
-                    setConfirmed(false)
-                  })
-                }
-              >
-                {zh('查看任务', 'Review batch')}
-              </button>
             </div>
-            {preview && (
+            {previewLoading && (
+              <p role="status" className="text-sm text-zinc-500">
+                {zh('正在加载任务详情…', 'Loading batch details…')}
+              </p>
+            )}
+            {previewError && (
+              <div className="space-y-2">
+                <p role="alert" className="break-words text-sm text-red-600">
+                  {previewError}
+                </p>
+                <button
+                  type="button"
+                  className={buttonClass}
+                  onClick={() => setPreviewRevision((revision) => revision + 1)}
+                >
+                  {zh('重试', 'Retry')}
+                </button>
+              </div>
+            )}
+            {!previewLoading && preview?.scope === scope && (
               <div className="space-y-3 rounded-lg bg-slate-50 p-3">
                 <p role="status" className="text-sm">
                   {zh(
@@ -181,6 +204,7 @@ export default function TitleTranslationBatchSettings({ dirty }) {
                     void runAction(async () => {
                       setBatch(await startTitleTranslationBatch(scope, confirmed))
                       setPreview(null)
+                      setPreviewRevision((revision) => revision + 1)
                       setConfirmed(false)
                     })
                   }

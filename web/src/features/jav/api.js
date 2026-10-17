@@ -37,10 +37,10 @@ export async function testTitleTranslation({ provider, profile, prompt, title })
   return res.json()
 }
 
-export async function previewTitleTranslationBatch(scope = 'missing') {
+export async function previewTitleTranslationBatch(scope = 'missing', { signal } = {}) {
   const res = await apiFetch(
     `/jav/title-translation/batch/preview?scope=${encodeURIComponent(scope)}`,
-    { cache: 'no-store' }
+    { cache: 'no-store', signal }
   )
   if (!res.ok) throw await apiError(res)
   return res.json()

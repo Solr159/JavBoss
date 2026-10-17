@@ -1,4 +1,6 @@
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined'
+import Popper from '@mui/material/Popper'
+import useAutocomplete from '@mui/material/useAutocomplete'
 import { useEffect, useState } from 'react'
 import { fetchTitleTranslationModels } from '@/features/jav/api'
 import { translationPresets, protocolNames } from '@/features/settings/translationPresets'
@@ -17,6 +19,7 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
   const [caps, setCaps] = useState(emptyCaps)
   const [checkingCaps, setCheckingCaps] = useState(true)
   const [revision, setRevision] = useState(0)
+  const [modelFilter, setModelFilter] = useState('')
   const { provider: providerID, baseUrl, protocol, model, reasoning } = value
   const provider = value.catalog.find((item) => item.id === providerID)
   const custom = providerID === 'custom'
@@ -57,9 +60,9 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
     setError('')
     setLoading(false)
     if ((!apiKey && !value.hasApiKey && !custom) || (custom && !baseUrl)) return undefined
+    setLoading(true)
     const controller = new AbortController()
     const timer = setTimeout(async () => {
-      setLoading(true)
       try {
         const result = await fetchTitleTranslationModels({
           apiKey: value.clearApiKey ? '' : apiKey || undefined,
@@ -89,6 +92,39 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
     </label>
   )
   const changeModel = (model) => onChange({ model, effort: '', temperature: '' })
+  const {
+    getRootProps,
+    getInputLabelProps,
+    getInputProps,
+    getPopupIndicatorProps,
+    getListboxProps,
+    getOptionProps,
+    groupedOptions,
+    popupOpen,
+    anchorEl,
+    setAnchorEl,
+  } = useAutocomplete({
+    id: 'title-translation-model',
+    options: models.map((model) => model.id),
+    value: value.model || null,
+    inputValue: value.model,
+    freeSolo: true,
+    openOnFocus: true,
+    filterOptions: (options) => {
+      const query = modelFilter.trim().toLowerCase()
+      return options.filter((id) =>
+        `${id} ${models.find((model) => model.id === id)?.name || ''}`.toLowerCase().includes(query)
+      )
+    },
+    onClose: () => setModelFilter(''),
+    onInputChange: (_, model, reason) => {
+      if (reason === 'input' || reason === 'clear') {
+        setModelFilter(model)
+        changeModel(model)
+      }
+    },
+    onChange: (_, model) => changeModel(model || ''),
+  })
   let paramsError = ''
   if (custom) {
     try {
@@ -148,27 +184,67 @@ export default function JavTitleTranslationSettings({ value, onChange }) {
           </select>
         )}
         <div className="flex min-w-0 items-end gap-2">
-          <div className="min-w-0 flex-1">
-            {field(
-              zh('模型', 'Model'),
+          <div {...getRootProps()} className="min-w-0 flex-1 space-y-1.5">
+            <label {...getInputLabelProps()} className="block font-medium text-slate-700">
+              {zh('模型', 'Model')}
+            </label>
+            <div ref={setAnchorEl} className="relative">
               <input
-                className={inputClass}
-                list="title-translation-models"
-                value={value.model}
+                {...getInputProps()}
+                className={inputClass + ' pr-9'}
                 placeholder={zh(
                   '选择、搜索或直接输入模型名称',
                   'Choose, search or enter a model ID'
                 )}
-                onChange={(e) => changeModel(e.target.value)}
               />
-            )}
-            <datalist id="title-translation-models">
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </datalist>
+              <button
+                {...getPopupIndicatorProps()}
+                type="button"
+                aria-label={zh('选择模型', 'Choose model')}
+                className="absolute inset-y-0 right-0 w-9 text-slate-500"
+              >
+                <span aria-hidden="true">{popupOpen ? '▴' : '▾'}</span>
+              </button>
+            </div>
+            <Popper
+              open={popupOpen && Boolean(anchorEl)}
+              anchorEl={anchorEl}
+              placement="bottom-start"
+              style={{ width: anchorEl?.clientWidth, zIndex: 1500 }}
+            >
+              <div className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
+                {groupedOptions.length ? (
+                  <ul {...getListboxProps()} className="max-h-60 overflow-auto py-1">
+                    {groupedOptions.map((option, index) => {
+                      const { key, ...props } = getOptionProps({ option, index })
+                      return (
+                        <li
+                          key={key}
+                          {...props}
+                          className="cursor-pointer break-all px-3 py-2 aria-selected:bg-blue-50 [&.Mui-focused]:bg-slate-100"
+                        >
+                          {option}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p role="status" className="px-3 py-2 text-slate-500">
+                    {loading
+                      ? zh('正在加载模型列表…', 'Loading models…')
+                      : !apiKey && !value.hasApiKey && !custom
+                        ? zh(
+                            '请先填写 API Key，也可直接输入模型名称。',
+                            'Enter an API key or type a model ID.'
+                          )
+                        : zh(
+                            '暂无匹配模型，可直接输入模型名称。',
+                            'No matching models. You can type a model ID.'
+                          )}
+                  </p>
+                )}
+              </div>
+            </Popper>
           </div>
           <button
             type="button"

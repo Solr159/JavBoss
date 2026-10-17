@@ -81,44 +81,31 @@ export default function TitleTranslationToolSettings() {
             aria-labelledby="translation-behavior-heading"
             className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
           >
-            <header className="border-b border-zinc-100 px-5 py-4">
+            <header className="flex items-center justify-between gap-6 px-5 pb-1 pt-4">
               <h4 id="translation-behavior-heading" className="text-sm font-semibold text-zinc-900">
-                {zh('自动翻译', 'Automatic translation')}
+                <label htmlFor="translation-auto-enabled" className="cursor-pointer">
+                  {zh('自动翻译缺失标题', 'Automatically translate missing titles')}
+                </label>
               </h4>
+              <Switch
+                size="small"
+                className="shrink-0"
+                checked={draft.enabled}
+                onChange={(_, checked) => onChange({ enabled: checked })}
+                slotProps={{
+                  input: {
+                    id: 'translation-auto-enabled',
+                    'aria-label': zh('自动翻译缺失标题', 'Automatically translate missing titles'),
+                  },
+                }}
+              />
             </header>
-            <div className="divide-y divide-zinc-100 px-5">
-              <label
-                htmlFor="translation-auto-enabled"
-                className="flex cursor-pointer items-center justify-between gap-6 py-4"
-              >
-                <span className="min-w-0 space-y-1">
-                  <span className="block text-sm font-medium text-zinc-800">
-                    {zh('自动翻译缺失标题', 'Automatically translate missing titles')}
-                  </span>
-                  <span className="block text-xs leading-5 text-zinc-500">
-                    {zh(
-                      '开启后优先显示中文标题，并自动翻译当前页缺失的标题；关闭后显示原标题。',
-                      'When enabled, prefer Chinese titles and translate missing titles on the page. When disabled, show original titles.'
-                    )}
-                  </span>
-                </span>
-                <Switch
-                  size="small"
-                  className="shrink-0"
-                  checked={draft.enabled}
-                  onChange={(_, checked) => onChange({ enabled: checked })}
-                  slotProps={{
-                    input: {
-                      id: 'translation-auto-enabled',
-                      'aria-label': zh(
-                        '自动翻译缺失标题',
-                        'Automatically translate missing titles'
-                      ),
-                    },
-                  }}
-                />
-              </label>
-            </div>
+            <p className="px-5 pb-4 text-xs leading-5 text-zinc-500">
+              {zh(
+                '开启后优先显示中文标题，并自动翻译当前页缺失的标题；关闭后显示原标题。',
+                'When enabled, prefer Chinese titles and translate missing titles on the page. When disabled, show original titles.'
+              )}
+            </p>
           </section>
           <section
             aria-labelledby="translation-service-heading"
@@ -126,7 +113,7 @@ export default function TitleTranslationToolSettings() {
           >
             <header className="border-b border-zinc-100 px-5 py-4">
               <h4 id="translation-service-heading" className="text-sm font-semibold text-zinc-900">
-                {zh('翻译服务', 'Translation service')}
+                {zh('服务商配置', 'Provider configuration')}
               </h4>
               <p className="mt-1 text-xs leading-5 text-zinc-500">
                 {zh(
