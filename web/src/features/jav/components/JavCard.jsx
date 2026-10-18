@@ -127,7 +127,7 @@ export default function JavCard(props) {
           )}
           <button
             type="button"
-            className="card-detail-trigger absolute inset-0 z-[1] cursor-pointer"
+            className="card-modal-trigger absolute inset-0 z-[1] cursor-pointer"
             onClick={handleOpenDetail}
             aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
           />
@@ -135,7 +135,7 @@ export default function JavCard(props) {
             <button
               onClick={handlePlay}
               disabled={!canPlay}
-              className={`pointer-events-auto rounded-full p-3 ${
+              className={`card-modal-trigger pointer-events-auto rounded-full p-3 ${
                 canPlay ? 'bg-black/60 hover:bg-black/80' : 'cursor-not-allowed bg-black/30'
               }`}
               aria-label={zh('播放', 'Play')}

@@ -159,3 +159,57 @@ test(
     assert.deepEqual(await box(), initial)
   }
 )
+
+test(
+  'Escape restores JAV play focus without revealing all cover actions, like the detail trigger',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/playerWindow.html?jav` })
+    const play = `document.querySelector('.jav-card button[aria-label="Play"]')`
+    await waitFor(play)
+    const point = await evaluate(`(() => {
+      const rect = ${play}.getBoundingClientRect();
+      return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
+    })()`)
+    const opacity = `getComputedStyle(${play}.closest('.card-hover-focus-visible')).opacity`
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+    await waitFor(`${opacity} === '1'`)
+    for (const type of ['mousePressed', 'mouseReleased'])
+      await command('Input.dispatchMouseEvent', {
+        type,
+        ...point,
+        button: 'left',
+        clickCount: 1,
+      })
+    await waitFor(`document.querySelector('.video-js')?.player`)
+    await evaluate(
+      `new Promise(resolve => document.querySelector('.video-js').player.ready(resolve))`
+    )
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    for (const type of ['keyDown', 'keyUp'])
+      await command('Input.dispatchKeyEvent', {
+        type,
+        key: 'Escape',
+        code: 'Escape',
+        windowsVirtualKeyCode: 27,
+      })
+    await waitFor(`!document.querySelector('.player-window')`)
+    assert.equal(await evaluate(`document.activeElement === ${play}`), true)
+    assert.equal(await evaluate(`${play}.matches(':focus-visible')`), true)
+    assert.equal(await evaluate(`${play}.closest('.card-hover-scope').matches(':hover')`), false)
+    await waitFor(`${opacity} === '0'`)
+    // Real hover and keyboard focus on other cover actions retain their existing behavior.
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+    await waitFor(`${opacity} === '1'`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    for (const type of ['keyDown', 'keyUp'])
+      await command('Input.dispatchKeyEvent', {
+        type,
+        key: 'Tab',
+        code: 'Tab',
+        windowsVirtualKeyCode: 9,
+      })
+    await waitFor(`${opacity} === '1'`)
+  }
+)

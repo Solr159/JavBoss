@@ -1,6 +1,7 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import PlayerModal from '@/features/playback/components/PlayerModal'
+import JavCard from '@/features/jav/components/JavCard'
 import '@/index.css'
 
 const videos = [
@@ -21,7 +22,16 @@ function Fixture() {
   const [index, setIndex] = useState(0)
   return (
     <>
-      <button onClick={() => setOpen(true)}>Open player</button>
+      {params.has('jav') ? (
+        <div style={{ width: 320, margin: 64 }}>
+          <JavCard
+            item={{ id: 1, code: 'TEST-001', title: 'Card playback', videos }}
+            onPlay={() => setOpen(true)}
+          />
+        </div>
+      ) : (
+        <button onClick={() => setOpen(true)}>Open player</button>
+      )}
       <PlayerModal
         video={open ? videos[index] : null}
         playlist={videos}
