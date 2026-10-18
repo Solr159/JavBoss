@@ -124,7 +124,7 @@ jobs:
 
       - name: Test frontend, including browser tests
         # Avoid starting several Chrome/Vite instances at once on the runner.
-        run: npm test -- --test-concurrency=1
+        run: npm test -- --test-concurrency=1 --test-reporter=tap
 
       - name: Build frontend
         run: npm run build
