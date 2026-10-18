@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -20,6 +21,16 @@ import (
 	dbpkg "javboss/internal/db"
 	"javboss/internal/models"
 )
+
+type closeCountingListener struct {
+	net.Listener
+	closes atomic.Int32
+}
+
+func (l *closeCountingListener) Close() error {
+	l.closes.Add(1)
+	return l.Listener.Close()
+}
 
 func TestHTTPShutdownEndsWatchedTimeStreams(t *testing.T) {
 	for _, proxy := range []bool{false, true} {
@@ -52,10 +63,11 @@ func TestHTTPShutdownEndsWatchedTimeStreams(t *testing.T) {
 					}
 					handler = httputil.NewSingleHostReverseProxy(target)
 				}
-				listener, err := net.Listen("tcp", "127.0.0.1:0")
+				tcpListener, err := net.Listen("tcp", "127.0.0.1:0")
 				if err != nil {
 					t.Fatal(err)
 				}
+				listener := &closeCountingListener{Listener: tcpListener}
 				srv := &http.Server{Handler: handler}
 				defer srv.Close()
 				ctx, cancel := context.WithCancel(context.Background())
@@ -91,6 +103,9 @@ func TestHTTPShutdownEndsWatchedTimeStreams(t *testing.T) {
 					}
 				case <-time.After(3 * time.Second):
 					t.Fatal("shutdown waited for the browser to disconnect")
+				}
+				if !listenerFailure && listener.closes.Load() != 1 {
+					t.Fatalf("graceful shutdown closed the listener %d times; want 1", listener.closes.Load())
 				}
 				select {
 				case <-streamDone:

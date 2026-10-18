@@ -99,8 +99,9 @@ func serveHTTP(ctx context.Context, srv *http.Server, listener net.Listener, ena
 	cancelRequests()
 	mu.Lock()
 	stopped = true
-	_ = listener.Close()
 	mu.Unlock()
+	// Shutdown owns closing the active listener; closing it here first races
+	// with net/http's listener cleanup and can turn a clean exit into net.ErrClosed.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
