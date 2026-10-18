@@ -1,4 +1,5 @@
-import { Fade, Tooltip } from '@mui/material'
+import Tooltip from '@/shared/ui/Tooltip'
+import { Fade } from '@mui/material'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { zh } from '@/utils/i18n'
 import { useStore } from '@/store'

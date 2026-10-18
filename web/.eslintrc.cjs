@@ -27,6 +27,24 @@ module.exports = {
   },
   overrides: [
     {
+      files: ['src/**/*.{js,jsx}'],
+      excludedFiles: ['src/shared/ui/Tooltip.jsx'],
+      rules: {
+        'no-restricted-syntax': [
+          'error',
+          {
+            selector:
+              "ImportDeclaration[source.value='@mui/material'] > ImportSpecifier[imported.name='Tooltip']",
+            message: '请使用 @/shared/ui/Tooltip，统一处理弹窗关闭后的焦点恢复和悬停行为。',
+          },
+          {
+            selector: "ImportDeclaration[source.value='@mui/material/Tooltip']",
+            message: '请使用 @/shared/ui/Tooltip，避免绕过 Tooltip 的交互规则。',
+          },
+        ],
+      },
+    },
+    {
       files: [
         'src/App.jsx',
         'src/app/**/*.jsx',

@@ -1,3 +1,4 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useState } from 'react'
 import BuildRoundedIcon from '@mui/icons-material/BuildRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -5,7 +6,7 @@ import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
-import { CircularProgress, IconButton, Switch, Tooltip } from '@mui/material'
+import { CircularProgress, IconButton, Switch } from '@mui/material'
 
 import DirectoryPickerModal from '@/features/directories/components/DirectoryPickerModal'
 import AppModal from '@/shared/ui/AppModal'

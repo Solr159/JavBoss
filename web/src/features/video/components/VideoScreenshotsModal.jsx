@@ -1,3 +1,4 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import VideoThumbnail from '@/features/video/components/VideoThumbnail'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
@@ -8,7 +9,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RestoreIcon from '@mui/icons-material/Restore'
-import { IconButton, Tooltip } from '@mui/material'
+import { IconButton } from '@mui/material'
 import {
   deleteVideoScreenshot,
   fetchVideoScreenshots,

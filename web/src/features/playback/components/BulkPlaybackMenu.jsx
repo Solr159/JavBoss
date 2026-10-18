@@ -1,5 +1,6 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded'
-import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
+import { IconButton, Menu, MenuItem } from '@mui/material'
 import { useState } from 'react'
 import { zh } from '@/utils/i18n'
 

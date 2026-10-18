@@ -1,5 +1,5 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Tooltip } from '@mui/material'
 import FolderOpenOutlinedIcon from '@mui/icons-material/FolderOpenOutlined'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'

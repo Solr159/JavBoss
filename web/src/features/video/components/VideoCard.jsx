@@ -1,5 +1,6 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useState } from 'react'
-import { IconButton, Popover, Tooltip } from '@mui/material'
+import { IconButton, Popover } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'

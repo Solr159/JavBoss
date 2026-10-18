@@ -1,7 +1,7 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import SearchIcon from '@mui/icons-material/Search'
-import { Tooltip } from '@mui/material'
 import AppModal from '@/shared/ui/AppModal'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'

@@ -1,3 +1,4 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useStore } from '@/store'
 import { preferChineseSeries, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { restoreDetailScroll } from '@/utils/restoreDetailScroll'
@@ -11,7 +12,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
-import { IconButton, Popper, Rating, Tooltip } from '@mui/material'
+import { IconButton, Popper, Rating } from '@mui/material'
 
 import { deleteVideoScreenshot, fetchVideoScreenshotsByIds } from '@/features/video/api'
 import { getResolvedJavSampleImages, resolveJavSampleImages } from '@/features/jav/api'

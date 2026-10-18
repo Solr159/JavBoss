@@ -1,5 +1,6 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useMemo, useState } from 'react'
-import { Button, IconButton, MenuItem, TextField, Tooltip } from '@mui/material'
+import { Button, IconButton, MenuItem, TextField } from '@mui/material'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined'

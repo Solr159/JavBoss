@@ -1,5 +1,6 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useRef, useState } from 'react'
-import { Pagination, Tooltip } from '@mui/material'
+import { Pagination } from '@mui/material'
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined'
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'

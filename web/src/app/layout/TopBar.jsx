@@ -1,3 +1,4 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import LibraryAddCheckOutlinedIcon from '@mui/icons-material/LibraryAddCheckOutlined'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
@@ -10,7 +11,7 @@ import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import SearchIcon from '@mui/icons-material/Search'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
-import { Button, IconButton, Menu, MenuItem, Popper, Slider, Tooltip } from '@mui/material'
+import { Button, IconButton, Menu, MenuItem, Popper, Slider } from '@mui/material'
 import {
   formatIdolProfileFilterRange,
   IDOL_PROFILE_FILTER_DEFINITIONS,

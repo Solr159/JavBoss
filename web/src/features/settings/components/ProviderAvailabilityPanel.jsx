@@ -1,5 +1,6 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useRef, useState } from 'react'
-import { IconButton, Tooltip } from '@mui/material'
+import { IconButton } from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 

@@ -1,4 +1,5 @@
-import { Button, IconButton, Tooltip } from '@mui/material'
+import Tooltip from '@/shared/ui/Tooltip'
+import { Button, IconButton } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import PlaylistPlayRoundedIcon from '@mui/icons-material/PlaylistPlayRounded'
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'

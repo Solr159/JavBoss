@@ -1,7 +1,7 @@
+import Tooltip from '@/shared/ui/Tooltip'
 import { useState, useRef, useMemo, useEffect } from 'react'
 import ExpandLessIcon from '@mui/icons-material/ExpandLess'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { Tooltip } from '@mui/material'
 import {
   normalizeIdolTagMaxRows,
   countFlexRows,
