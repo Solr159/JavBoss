@@ -16,7 +16,27 @@ export async function openBrowser(
   const server = await createServer({
     root,
     cacheDir,
-    plugins,
+    plugins: [
+      ...plugins,
+      {
+        name: 'browser-fixture-images',
+        configureServer(server) {
+          const prefixes = Object.keys(server.config.server.proxy || {})
+          server.middlewares.use((request, response, next) => {
+            // <img> bypasses the fixtures' window.fetch mocks. Explicit fixture
+            // middleware runs first; otherwise model a missing backend image.
+            const path = new URL(request.url, 'http://localhost').pathname
+            if (
+              request.headers['sec-fetch-dest'] !== 'image' ||
+              !prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`))
+            )
+              return next()
+            response.writeHead(404, { 'Cache-Control': 'no-store' })
+            response.end()
+          })
+        },
+      },
+    ],
     server: { port: 0, host: '127.0.0.1' },
   })
   await server.listen()
