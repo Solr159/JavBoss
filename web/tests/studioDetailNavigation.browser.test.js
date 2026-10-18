@@ -11,15 +11,9 @@ test(
     timeout: 60000,
   },
   async (t) => {
-    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+    const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t, {
       cacheDir: 'node_modules/.vite-studio-history-test',
     })
-    const reloadPage = async () => {
-      const previousTimeOrigin = await evaluate('performance.timeOrigin')
-      await command('Page.reload')
-      // The CDP reply can arrive while the previous document is still visible.
-      await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}`)
-    }
     const modal = `document.querySelector('[role="dialog"][aria-label="片商详情"], [role="dialog"][aria-label="Studio details"]')`
     const loaded = `${modal}?.querySelectorAll('section').length === 2`
     const scroll = `${modal}.querySelector('.overflow-y-auto')`

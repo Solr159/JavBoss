@@ -6,7 +6,7 @@ test(
   'player window moves, resizes and restores its geometry across reopen and reload',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
-    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t)
     const resizeViewport = async (width, height) => {
       await command('Emulation.setDeviceMetricsOverride', {
         width,
@@ -30,7 +30,13 @@ test(
       const {x,y,width,height} = document.querySelector('.player-window').getBoundingClientRect();
       return {x,y,width,height};
     })()`)
+    const paint = () =>
+      evaluate(
+        `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`
+      )
     const drag = async (selector, dx, dy) => {
+      // Finish layout/ResizeObserver work before starting the next gesture.
+      await paint()
       const start = await evaluate(`(() => {
         const {x,y,width,height} = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
         return {x:x+width/2,y:y+height/2};
@@ -55,6 +61,8 @@ test(
         button: 'left',
         clickCount: 1,
       })
+      // CDP acknowledges input before React's update has necessarily been painted.
+      await paint()
     }
     await open()
     const initial = await box()
@@ -109,7 +117,7 @@ test(
     await waitFor(`!document.querySelector('.player-window')`)
     await open()
     assert.deepEqual(await box(), saved)
-    await command('Page.reload')
+    await reloadPage()
     await waitFor(`!document.querySelector('.player-window')`)
     await open()
     assert.deepEqual(await box(), saved)
@@ -153,7 +161,7 @@ test(
     assert.deepEqual(await evaluate('window.appErrors'), [])
 
     await evaluate(`localStorage.setItem('javboss.player.window', '{broken json')`)
-    await command('Page.reload')
+    await reloadPage()
     await waitFor(`!document.querySelector('.player-window')`)
     await open()
     assert.deepEqual(await box(), initial)

@@ -83,5 +83,11 @@ export async function openBrowser(
     }
     assert.fail(`Timed out: ${expression}; URL: ${await evaluate('location.href')}`)
   }
-  return { origin, command, evaluate, waitFor }
+  const reloadPage = async () => {
+    const previousTimeOrigin = await evaluate('performance.timeOrigin')
+    await command('Page.reload')
+    // The CDP reply can arrive while the previous document is still visible.
+    await waitFor(`performance.timeOrigin !== ${previousTimeOrigin}`)
+  }
+  return { origin, command, evaluate, waitFor, reloadPage }
 }

@@ -6,7 +6,7 @@ test(
   'web player resumes on reopen/reload, isolates playlist items, and honors explicit seeks and disabled resume',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
-    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+    const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t, {
       cacheDir: 'node_modules/.vite-browser-resume-test',
     })
     const installMedia = async () => {
@@ -53,7 +53,7 @@ test(
     assert.equal(await evaluate(`Number(localStorage.getItem('javboss.player.position.1.11'))`), 17)
     await open(17)
     await seek(23)
-    await command('Page.reload')
+    await reloadPage()
     await installMedia()
     await open(23)
     await evaluate(`document.querySelector('[aria-label="Next video"]').click()`)
