@@ -39,16 +39,12 @@ The frontend lives in `web/`; paths below are relative to that directory.
 - Go: run `gofmt -w` and keep imports/go mod tidy; use context as first arg, return wrapped errors with lower-case messages, and log via `internal/common/logging`. Keep package names lowercase and files scoped to their package.
 - Frontend: functional React components in PascalCase (`VideoGrid.jsx`), hooks/helpers camelCase. Keep styles in Tailwind/`index.css`; prefer colocated component styles. Format with `npm run format` / `npm run format:check`; lint with `npm run lint`.
 - Naming: API routes are RESTful (`/videos`, `/tags`, `/directories`); keep new endpoints consistent and document query params.
+- Do not modify README files unless the user explicitly requests it.
 
 ## Frontend Implementation Guidelines
 - Prefer built-in capabilities of React, the existing component libraries (such as MUI), and the browser/platform. Check existing props, hooks, native HTML behavior, and CSS before implementing custom behavior.
 - Prefer configuration and composition over reimplementing framework or platform behavior. Avoid custom event tracking, focus management, timers, or state machines when existing capabilities meet the requirement.
 - When custom logic is necessary, keep it minimal and local, explain the specific gap it addresses, and preserve built-in accessibility and interaction behavior. Do not turn a local UI fix into a general-purpose mechanism without a concrete need.
-
-## README Guidelines
-- `README.md` is for end users. Keep edits concise and restrained, focusing on installation, configuration, usage, and limitations that affect user decisions.
-- Update it only when a change materially affects users; routine implementation changes do not need a README entry. Prefer small edits to existing sections and preserve the document's language and style.
-- Avoid implementation details, API field inventories, debugging notes, and exhaustive technical explanations. Put necessary developer documentation elsewhere and link to it only when useful to users.
 
 ## Database Migration Guidance
 - Do not modify existing DB migration files. Add a new migration for every schema or data migration change, and use that new migration to reconcile schema details such as column order when needed.
