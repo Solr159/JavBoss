@@ -29,6 +29,10 @@ useStore.setState({
 })
 window.fetch = async (input, init) => {
   const path = new URL(input, location.origin).pathname
+  if (path === '/jav/series/1' && init?.method === 'PATCH') {
+    Object.assign(studio.series[0], JSON.parse(init.body))
+    return Response.json(studio.series[0])
+  }
   if (path === '/jav/studios/7') return Response.json(studio)
   if (path === '/jav/series-translation/items') {
     const { ids } = JSON.parse(init.body)

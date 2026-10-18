@@ -47,6 +47,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
     <AppModal
       ariaLabel={zh('编辑系列译名', 'Edit series translation')}
       className="p-4"
+      zIndex={1700}
       contentClassName="w-full max-w-xl rounded-lg bg-white p-5 shadow-xl"
       closeDisabled={busy}
       onClose={onClose}

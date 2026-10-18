@@ -36,8 +36,12 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
         if (status.running) timer = setTimeout(poll, 1000)
         else if (running) {
           const state = useStore.getState()
-          const reload = series ? state.loadJavSeries : state.loadJavs
-          await reload({ force: true, reconcile: true, background: true })
+          const reloads = series
+            ? [state.loadJavSeries, state.loadJavs, state.loadJavStudios]
+            : [state.loadJavs]
+          await Promise.all(
+            reloads.map((reload) => reload({ force: true, reconcile: true, background: true }))
+          )
         }
       } catch (err) {
         if (!controller.signal.aborted) {

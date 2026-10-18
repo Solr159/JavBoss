@@ -6,6 +6,7 @@ import { useStore } from '@/store'
 import '@/index.css'
 
 window.testStore = useStore
+window.loadJavs = useStore.getState().loadJavs
 window.translationRequests = []
 window.testFailure = false
 window.pendingConfigResponses = []

@@ -444,3 +444,72 @@ test(
     )
   }
 )
+
+test(
+  'series batch completion refreshes series embedded in JAV and studio lists without automatic translation',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/titleTranslationSettings.html`,
+    })
+    await waitFor(`document.querySelector('#series-translation-enabled')`)
+    await evaluate(`(async () => {
+      window.listRequests = [];
+      window.seriesBatchStarted = false;
+      window.seriesBatchFinished = false;
+      const originalFetch = window.fetch;
+      window.fetch = async (input, init = {}) => {
+        const url = new URL(input, location.origin);
+        const path = url.pathname;
+        const translatedSeries = (id) => ({id, name:'Series ' + id, zh_name:window.seriesBatchFinished ? '中文系列 ' + id : ''});
+        if (path === '/jav/series-translation/batch') {
+          if (init.method === 'POST') {
+            window.seriesBatchStarted = true;
+            return Response.json({running:true,total:3,processed:0});
+          }
+          if (window.seriesBatchStarted) {
+            window.seriesBatchFinished = true;
+            return Response.json({running:false,total:3,processed:3,translated:3});
+          }
+        }
+        if (['/jav','/jav/series','/jav/studios'].includes(path)) {
+          window.listRequests.push({path,limit:Number(url.searchParams.get('limit'))});
+          const items = path === '/jav/series' ? [translatedSeries(1)] : path === '/jav'
+            ? [{id:1,code:'TEST-001',series:translatedSeries(2)}]
+            : [{id:1,name:'Studio',series:[translatedSeries(3)]}];
+          return Response.json({items,total:1});
+        }
+        return originalFetch(input, init);
+      };
+      window.testStore.setState({loadJavs:window.loadJavs});
+      await Promise.all(['loadJavs','loadJavSeries','loadJavStudios'].map(key => window.testStore.getState()[key]({force:true})));
+    })()`)
+    assert.equal(await evaluate('window.testStore.getState().javItems[0].series.zh_name'), '')
+    await evaluate(`document.querySelector('#series-translation-enabled').click()`)
+    await waitFor(`document.querySelector('[data-translation-batch="series"]')`)
+    assert.equal(
+      await evaluate(`document.querySelector('#series-translation-auto-enabled').checked`),
+      false
+    )
+    const batch = `document.querySelector('[data-translation-batch="series"]')`
+    await evaluate(`${batch}.querySelector('summary').click()`)
+    await waitFor(`${batch}.textContent.includes('Translate 3 series names')`)
+    await evaluate(
+      `[...${batch}.querySelectorAll('button')].find(button => button.textContent === 'Start translation').click()`
+    )
+    await waitFor(
+      `window.testStore.getState().seriesItems[0]?.zh_name === '中文系列 1' && window.testStore.getState().javItems[0]?.series.zh_name === '中文系列 2' && window.testStore.getState().studioItems[0]?.series[0].zh_name === '中文系列 3'`
+    )
+    for (const path of ['/jav', '/jav/series', '/jav/studios']) {
+      assert.equal(
+        await evaluate(`window.listRequests.filter(request => request.path === '${path}').length`),
+        2
+      )
+    }
+    assert.equal(
+      await evaluate(`window.translationRequests.some(request => request.path.endsWith('/items'))`),
+      false
+    )
+  }
+)

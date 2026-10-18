@@ -73,3 +73,49 @@ test(
     assert.equal(await evaluate('window.translationRequests.length'), 3)
   }
 )
+
+test(
+  'series editor receives pointer input above the studio detail dialog',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javStudioSeriesTranslation.html?manual`,
+    })
+    await waitFor(`document.querySelector('button')`)
+    await evaluate(openStudio)
+    await waitFor(`document.querySelector('[aria-label="Edit series translation"]')`)
+    await evaluate(`document.querySelector('[aria-label="Edit series translation"]').click()`)
+    const editor = `document.querySelector('[role="dialog"][aria-label="Edit series translation"]')`
+    await waitFor(editor)
+    const click = async (expression) => {
+      const point = await evaluate(`(() => {
+        const element = ${expression};
+        const rect = element.getBoundingClientRect();
+        const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2;
+        return {x, y, receivesPointer: element.contains(document.elementFromPoint(x, y))};
+      })()`)
+      assert.equal(point.receivesPointer, true)
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await command('Input.dispatchMouseEvent', {
+          type,
+          x: point.x,
+          y: point.y,
+          button: 'left',
+          clickCount: 1,
+        })
+      }
+    }
+    await click(`${editor}.querySelector('textarea')`)
+    await command('Input.insertText', { text: '人工校对系列' })
+    await waitFor(`${editor}.querySelector('textarea').value === '人工校对系列'`)
+    await click(
+      `[...${editor}.querySelectorAll('button')].find(button => button.textContent === 'Save')`
+    )
+    await waitFor(`!${editor}`)
+    await waitFor(
+      `document.querySelector('[aria-label="Studio details"]')?.textContent.includes('人工校对系列')`
+    )
+    assert.deepEqual(await evaluate('window.translationRequests'), [])
+  }
+)
