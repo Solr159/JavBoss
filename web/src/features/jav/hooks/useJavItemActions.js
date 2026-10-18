@@ -51,6 +51,7 @@ export default function useJavItemActions({
   loadStudioPreview,
   loadSeriesPreview,
   onIdolPreviewUpdated,
+  onSeriesPreviewUpdated,
   onOpenCoverPreview,
   preferChineseName = false,
   titleMaxRows,
@@ -327,6 +328,7 @@ export default function useJavItemActions({
   const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)
   const [idolCoverEditorItem, setIdolCoverEditorItem] = useState(null)
   const [idolEditorItem, setIdolEditorItem] = useState(null)
+  const [seriesEditorItem, setSeriesEditorItem] = useState(null)
   const closeTimerRef = useRef(null)
   const activeIdolHoverIdRef = useRef(null)
   const activeStudioHoverIdRef = useRef(null)
@@ -507,6 +509,17 @@ export default function useJavItemActions({
     setIdolEditorItem(idol)
   }
 
+  const handleOpenSeriesEditor = (series) => {
+    clearHoverCloseTimer()
+    clearHoverPreview()
+    setSeriesEditorItem(series)
+  }
+
+  const handleSeriesSaved = (updated) => {
+    onSeriesPreviewUpdated?.(updated)
+    setSeriesEditorItem(null)
+  }
+
   const handleIdolSaved = (updated) => {
     const updatedId = Number(updated?.id)
     if (!Number.isFinite(updatedId) || updatedId <= 0) return
@@ -654,6 +667,7 @@ export default function useJavItemActions({
     onOpenFavorites,
     handleOpenIdolCoverEditor,
     handleOpenIdolEditor,
+    handleOpenSeriesEditor,
     coverAspectPercent,
     showIdolWorkCount,
     hideTags,
@@ -687,6 +701,9 @@ export default function useJavItemActions({
     setIdolCoverEditorItem,
     handleIdolCoverSaved,
     idolEditorItem,
+    seriesEditorItem,
+    setSeriesEditorItem,
+    handleSeriesSaved,
     setIdolEditorItem,
     handleIdolSaved,
     setPreviewIdol,

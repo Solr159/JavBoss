@@ -124,6 +124,8 @@ for (const [owner, delayed] of [
       await waitFor(`document.querySelector('${editorButton}') && window.previewRequests === 1`)
       await evaluate(`document.querySelector('${editorButton}').click()`)
       await waitFor(`document.querySelector('textarea')?.value === '旧译名'`)
+      if (owner === 'jav')
+        assert.equal(await evaluate(`Boolean(document.querySelector('${editorButton}'))`), false)
       await evaluate(`{
         const input = document.querySelector('textarea');
         Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input, '校对后的译名');
@@ -151,3 +153,54 @@ for (const [owner, delayed] of [
     }
   )
 }
+
+test(
+  'JAV hover series editing closes the preview while the editor survives pointer movement and cancellation',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/javSeriesTranslation.html?preview=jav`,
+    })
+    const trigger = `[...document.querySelectorAll('a')].find(element => element.textContent.trim() === '旧译名')`
+    await waitFor(trigger)
+    const pointAt = async (expression, click = false) => {
+      const point = await evaluate(`(() => {
+        const element = ${expression};
+        element.scrollIntoView({block:'nearest'});
+        const rect = element.getBoundingClientRect();
+        return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
+      })()`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+      if (click)
+        for (const type of ['mousePressed', 'mouseReleased'])
+          await command('Input.dispatchMouseEvent', {
+            type,
+            ...point,
+            button: 'left',
+            clickCount: 1,
+          })
+    }
+    for (const closeWithEscape of [false, true]) {
+      await pointAt(trigger)
+      await waitFor(`document.querySelector('${editorButton}')`)
+      await pointAt(`document.querySelector('${editorButton}')`, true)
+      await waitFor(`document.querySelector('textarea')`)
+      assert.equal(await evaluate(`Boolean(document.querySelector('${editorButton}'))`), false)
+      await pointAt(`document.querySelector('textarea')`)
+      // The preview's delayed mouse-leave cleanup must not unmount the editor.
+      await evaluate('new Promise(resolve => setTimeout(resolve, 250))')
+      assert.equal(await evaluate(`document.querySelector('textarea')?.value`), '旧译名')
+      if (closeWithEscape) await press(command, 'Escape', 'Escape', 27)
+      else
+        await pointAt(
+          `[...document.querySelectorAll('button')].find(button => button.textContent === 'Cancel')`,
+          true
+        )
+      await waitFor(`!document.querySelector('textarea')`)
+      assert.equal(await evaluate(`Boolean(document.querySelector('${editorButton}'))`), false)
+    }
+    assert.deepEqual(await evaluate('window.savedTranslations'), [])
+    assert.equal(await evaluate('window.seriesNavigations'), 0)
+  }
+)

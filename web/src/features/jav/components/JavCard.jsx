@@ -98,6 +98,7 @@ export default function JavCard(props) {
     onOpenFavorites,
     handleOpenIdolCoverEditor,
     handleOpenIdolEditor,
+    handleOpenSeriesEditor,
     coverAspectPercent,
     showIdolWorkCount,
     hideTags,
@@ -491,7 +492,7 @@ export default function JavCard(props) {
               {previewSeries ? (
                 <SeriesCard
                   item={previewSeries}
-                  onUpdated={props.onSeriesPreviewUpdated}
+                  onOpenEditor={handleOpenSeriesEditor}
                   href={buildSeriesFilterHref(previewSeries)}
                   onSelectSeries={(series) => onSeriesClick?.(series)}
                   onSelectStudio={(studio) => onStudioClick?.(studio)}

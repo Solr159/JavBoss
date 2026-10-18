@@ -2,6 +2,7 @@ import JavIdolCoverModal from '@/features/jav/components/JavIdolCoverModal'
 import { JavIdolEditModal } from '@/features/jav/components/JavIdolGrid'
 import { JavEditModal } from '@/features/jav/components/JavEditModal'
 import { JavCustomTagModal } from '@/features/jav/components/JavCustomTagModal'
+import JavSeriesTranslationModal from '@/features/jav/components/JavSeriesTranslationModal'
 
 export function JavItemEditors({
   idolCoverEditorItem,
@@ -12,6 +13,9 @@ export function JavItemEditors({
   idolEditorItem,
   setIdolEditorItem,
   handleIdolSaved,
+  seriesEditorItem,
+  setSeriesEditorItem,
+  handleSeriesSaved,
   setPreviewIdol,
   editorOpen,
   item,
@@ -24,6 +28,13 @@ export function JavItemEditors({
 }) {
   return (
     <>
+      {seriesEditorItem && (
+        <JavSeriesTranslationModal
+          item={seriesEditorItem}
+          onClose={() => setSeriesEditorItem(null)}
+          onSaved={handleSeriesSaved}
+        />
+      )}
       <JavIdolCoverModal
         key={`idol-cover-${idolCoverEditorItem?.id || 'closed'}`}
         open={Boolean(idolCoverEditorItem)}

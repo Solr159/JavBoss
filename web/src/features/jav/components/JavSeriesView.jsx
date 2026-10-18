@@ -129,6 +129,7 @@ export function SeriesCard({
   onSelectStudio,
   onOpenFavorites,
   onUpdated,
+  onOpenEditor,
 }) {
   const [editing, setEditing] = useState(false)
   const [savedTranslation, setSavedTranslation] = useState(null)
@@ -220,7 +221,8 @@ export function SeriesCard({
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              setEditing(true)
+              if (onOpenEditor) onOpenEditor(displayItem)
+              else setEditing(true)
             }}
           >
             <EditOutlinedIcon sx={{ fontSize: 17 }} />
