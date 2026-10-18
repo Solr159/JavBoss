@@ -85,6 +85,7 @@ export default function JavDetail(props) {
         loadIdolPreview={loadIdolPreview}
         loadStudioPreview={loadStudioPreview}
         loadSeriesPreview={loadSeriesPreview}
+        onSeriesPreviewUpdated={props.onSeriesPreviewUpdated}
         buildIdolUrl={buildIdolFilterHref}
         buildStudioUrl={buildStudioFilterHref}
         buildSeriesUrl={buildSeriesFilterHref}

@@ -491,6 +491,7 @@ export default function JavCard(props) {
               {previewSeries ? (
                 <SeriesCard
                   item={previewSeries}
+                  onUpdated={props.onSeriesPreviewUpdated}
                   href={buildSeriesFilterHref(previewSeries)}
                   onSelectSeries={(series) => onSeriesClick?.(series)}
                   onSelectStudio={(studio) => onStudioClick?.(studio)}

@@ -7,12 +7,8 @@ import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import StarBorderRoundedIcon from '@mui/icons-material/StarBorderRounded'
 import StarRoundedIcon from '@mui/icons-material/StarRounded'
 
-import {
-  fetchJavSeriesPreview,
-  fetchJavStudioOptions,
-  mergeJavStudios,
-  updateJavStudio,
-} from '@/features/jav/api'
+import { fetchJavStudioOptions, mergeJavStudios, updateJavStudio } from '@/features/jav/api'
+import useJavPreviews from '@/features/jav/hooks/useJavPreviews'
 import AppModal from '@/shared/ui/AppModal'
 import Pagination from '@/shared/ui/Pagination'
 import { SeriesCard } from '@/features/jav/components/JavSeriesView'
@@ -187,11 +183,7 @@ export function StudioCard({
   previewZIndex = 1499,
 }) {
   const preferChinese = useStore((state) => preferChineseSeries(state.config))
-  const directoryVisibilityKey = useStore((state) =>
-    (state.directories || [])
-      .map((directory) => `${directory.id}:${directory.enabled !== false ? '1' : '0'}`)
-      .join(',')
-  )
+  const { loadSeriesPreview, handleSeriesPreviewUpdated } = useJavPreviews()
   const sampleCode = String(item?.sample_code || '').trim()
   const cover = sampleCode ? `/jav/${encodeURIComponent(sampleCode)}/cover` : null
   const name = item?.name || zh('未知片商', 'Unknown studio')
@@ -210,7 +202,6 @@ export function StudioCard({
     : ''
   const [previewSeries, setPreviewSeries] = useState(null)
   const [seriesHoverAnchorEl, setSeriesHoverAnchorEl] = useState(null)
-  const seriesPreviewCacheRef = useRef(new Map())
   const closeTimerRef = useRef(null)
   const activeSeriesHoverIdRef = useRef(null)
   const openStudioDetail = useContext(StudioDetailNavigationContext)
@@ -289,15 +280,8 @@ export function StudioCard({
     setPreviewSeries(series)
     setSeriesHoverAnchorEl(event.currentTarget)
 
-    const cacheKey = `${seriesId}|${directoryVisibilityKey}`
-    const cached = seriesPreviewCacheRef.current.get(cacheKey)
-    if (cached) {
-      setPreviewSeries(cached)
-      return
-    }
-    fetchJavSeriesPreview(seriesId)
+    loadSeriesPreview(series)
       .then((loadedSeries) => {
-        seriesPreviewCacheRef.current.set(cacheKey, loadedSeries)
         if (activeSeriesHoverIdRef.current === Number(loadedSeries?.id)) {
           setPreviewSeries(loadedSeries)
         }
@@ -505,6 +489,10 @@ export function StudioCard({
           {previewSeries ? (
             <SeriesCard
               item={previewSeries}
+              onUpdated={(updated) => {
+                handleSeriesPreviewUpdated(updated)
+                setPreviewSeries((current) => ({ ...current, ...updated }))
+              }}
               href={buildSeriesUrl?.(previewSeries)}
               onSelectSeries={(series) => {
                 closeSeriesPreview()

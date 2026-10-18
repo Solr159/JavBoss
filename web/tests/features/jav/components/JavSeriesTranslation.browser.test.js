@@ -64,3 +64,90 @@ test(
     ])
   }
 )
+
+const editorButton = 'button[aria-label="Edit series translation"]'
+async function press(command, key, code, keyCode) {
+  for (const type of ['keyDown', 'keyUp'])
+    await command('Input.dispatchKeyEvent', {
+      type,
+      key,
+      code,
+      windowsVirtualKeyCode: keyCode,
+      ...(type === 'keyDown' && key === 'Enter' ? { text: '\r' } : {}),
+    })
+}
+
+test(
+  'series edit buttons retain native Space and Enter activation without navigating the card',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/javSeriesTranslation.html` })
+    await waitFor(`document.querySelector('${editorButton}')`)
+    for (const [key, code, keyCode] of [
+      [' ', 'Space', 32],
+      ['Enter', 'Enter', 13],
+    ]) {
+      await evaluate(`document.querySelector('${editorButton}').focus()`)
+      await press(command, key, code, keyCode)
+      await waitFor(`document.querySelector('textarea')`)
+      assert.equal(await evaluate('window.seriesNavigations'), 0)
+      await press(command, 'Escape', 'Escape', 27)
+      await waitFor(`!document.querySelector('textarea')`)
+    }
+    await evaluate(`document.querySelector('${editorButton}').closest('a').focus()`)
+    await press(command, ' ', 'Space', 32)
+    assert.equal(await evaluate('window.seriesNavigations'), 1)
+  }
+)
+
+for (const [owner, delayed] of [
+  ['jav', false],
+  ['studio', false],
+  ['detail', false],
+  ['jav', true],
+]) {
+  test(
+    `${owner} series preview keeps saved corrections after reopening${delayed ? ' with a late preview response' : ''}`,
+    { skip: browserUnavailable, timeout: 60000 },
+    async (t) => {
+      const { origin, command, evaluate, waitFor } = await openBrowser(t)
+      await command('Page.navigate', {
+        url: `${origin}/tests/fixtures/javSeriesTranslation.html?preview=${owner}`,
+      })
+      const trigger = `[...document.querySelectorAll('a,button')].find(element => element.textContent.trim() === '旧译名')`
+      await waitFor(trigger)
+      if (delayed) await evaluate('window.holdPreview = true')
+      await evaluate(
+        `window.previewTrigger = ${trigger}; window.previewTrigger.dispatchEvent(new MouseEvent('mouseover', {bubbles:true}))`
+      )
+      await waitFor(`document.querySelector('${editorButton}') && window.previewRequests === 1`)
+      await evaluate(`document.querySelector('${editorButton}').click()`)
+      await waitFor(`document.querySelector('textarea')?.value === '旧译名'`)
+      await evaluate(`{
+        const input = document.querySelector('textarea');
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(input, '校对后的译名');
+        input.dispatchEvent(new Event('input', {bubbles:true}));
+      }`)
+      await evaluate(`document.querySelector('button[type="submit"]').click()`)
+      await waitFor(`!document.querySelector('textarea') && window.savedTranslations.length === 1`)
+      if (delayed) await evaluate('window.releasePreview()')
+      await evaluate(
+        `window.previewTrigger.dispatchEvent(new MouseEvent('mouseout', {bubbles:true, relatedTarget:document.body}))`
+      )
+      await waitFor(`!document.querySelector('${editorButton}')`)
+      await evaluate(
+        `window.previewTrigger.dispatchEvent(new MouseEvent('mouseover', {bubbles:true}))`
+      )
+      await waitFor(`document.querySelector('${editorButton}')`)
+      await evaluate(`document.querySelector('${editorButton}').click()`)
+      await waitFor(`document.querySelector('textarea')`)
+      assert.equal(await evaluate(`document.querySelector('textarea').value`), '校对后的译名')
+      assert.equal(await evaluate('window.previewRequests'), 1)
+      // Saving again must not replace the correction with the original cached translation.
+      await evaluate(`document.querySelector('button[type="submit"]').click()`)
+      await waitFor(`window.savedTranslations.length === 2`)
+      assert.equal(await evaluate('window.savedTranslations[1].zh_name'), '校对后的译名')
+    }
+  )
+}

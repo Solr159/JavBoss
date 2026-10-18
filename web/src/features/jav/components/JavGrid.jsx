@@ -59,8 +59,13 @@ export default function JavGrid({
     showFullFavoriteRating,
     displayItems,
   } = useJavPresentation(items)
-  const { loadIdolPreview, loadStudioPreview, loadSeriesPreview, handleIdolPreviewUpdated } =
-    useJavPreviews()
+  const {
+    loadIdolPreview,
+    loadStudioPreview,
+    loadSeriesPreview,
+    handleIdolPreviewUpdated,
+    handleSeriesPreviewUpdated,
+  } = useJavPreviews()
   const [coverPreview, setCoverPreview] = useState(null)
   const [videoManagerItem, setVideoManagerItem] = useState(null)
   const activeVideoManagerItem = useMemo(() => {
@@ -147,6 +152,7 @@ export default function JavGrid({
             loadStudioPreview={loadStudioPreview}
             loadSeriesPreview={loadSeriesPreview}
             onIdolPreviewUpdated={handleIdolPreviewUpdated}
+            onSeriesPreviewUpdated={handleSeriesPreviewUpdated}
             onOpenCoverPreview={setCoverPreview}
             preferChineseName={preferChineseName}
             titleMaxRows={titleMaxRows}

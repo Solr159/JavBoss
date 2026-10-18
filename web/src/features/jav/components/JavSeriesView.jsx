@@ -122,7 +122,14 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites,
   )
 }
 
-export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenFavorites }) {
+export function SeriesCard({
+  item,
+  href,
+  onSelectSeries,
+  onSelectStudio,
+  onOpenFavorites,
+  onUpdated,
+}) {
   const [editing, setEditing] = useState(false)
   const [savedTranslation, setSavedTranslation] = useState(null)
   const displayItem =
@@ -187,7 +194,10 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
         <JavSeriesTranslationModal
           item={displayItem}
           onClose={() => setEditing(false)}
-          onSaved={(updated) => setSavedTranslation({ item, updated })}
+          onSaved={(updated) => {
+            setSavedTranslation({ item, updated })
+            onUpdated?.(updated)
+          }}
         />
       )}
       <a
@@ -195,7 +205,7 @@ export function SeriesCard({ item, href, onSelectSeries, onSelectStudio, onOpenF
         className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
         onClick={handleClick}
         onKeyDown={(e) => {
-          if (e.key === ' ') {
+          if (e.target === e.currentTarget && e.key === ' ') {
             e.preventDefault()
             onSelectSeries?.(item)
           }

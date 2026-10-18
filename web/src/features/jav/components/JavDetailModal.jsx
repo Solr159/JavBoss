@@ -478,6 +478,7 @@ export default function JavDetailModal({
   loadIdolPreview,
   loadStudioPreview,
   loadSeriesPreview,
+  onSeriesPreviewUpdated,
   buildIdolUrl,
   buildStudioUrl,
   buildSeriesUrl,
@@ -979,6 +980,7 @@ export default function JavDetailModal({
           {hoverPreview?.type === 'series' ? (
             <SeriesCard
               item={hoverPreview.item}
+              onUpdated={onSeriesPreviewUpdated}
               href={buildSeriesUrl?.(hoverPreview.item)}
               onSelectSeries={onSelectSeries}
               onSelectStudio={onSelectStudio}

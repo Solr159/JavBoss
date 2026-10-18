@@ -1,13 +1,25 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import JavSeriesView from '@/features/jav/components/JavSeriesView'
+import JavGrid from '@/features/jav/components/JavGrid'
+import JavDetailRoute from '@/features/jav/components/JavDetailRoute'
+import { StudioCard } from '@/features/jav/components/JavStudioView'
 import { useStore } from '@/store'
 import '@/index.css'
 
 window.testStore = useStore
 window.translationRequests = []
 window.savedTranslations = []
-const automatic = new URLSearchParams(location.search).has('automatic')
+const params = new URLSearchParams(location.search)
+const automatic = params.has('automatic')
+const preview = params.get('preview')
+window.seriesNavigations = 0
+window.previewRequests = 0
+let savedSeries = { id: 1, name: '雨の日', zh_name: preview ? '旧译名' : '', work_count: 2 }
+const jav = { id: 1, code: 'TEST-001', title: 'Preview test', series: savedSeries, videos: [] }
+const studio = { id: 7, name: 'Preview studio', series: [savedSeries] }
+const selectSeries = () => window.seriesNavigations++
+const noop = () => {}
 useStore.setState({
   config: {
     jav_title_translation_enabled: 'false',
@@ -16,10 +28,9 @@ useStore.setState({
     jav_title_translation_provider: 'custom',
     jav_title_translation_profiles: JSON.stringify({ custom: { model: 'local' } }),
   },
-  seriesItems: [
-    { id: 1, name: '雨の日', zh_name: '', work_count: 2 },
-    { id: 2, name: 'Original two', zh_name: '人工译名', work_count: 1 },
-  ],
+  javItems: [jav],
+  studioItems: [studio],
+  seriesItems: [savedSeries, { id: 2, name: 'Original two', zh_name: '人工译名', work_count: 1 }],
 })
 window.fetch = async (input, init) => {
   const path = new URL(input, location.origin).pathname
@@ -39,9 +50,19 @@ window.fetch = async (input, init) => {
       return Response.json({ error_en: 'Translation failed' }, { status: 502 })
     return Response.json({ id: 1, name: '雨の日', zh_name: 'AI 系列译名' })
   }
-  if (path === '/jav/series/1' && init.method === 'PATCH') {
+  if (path === '/jav/series/1' && init?.method !== 'PATCH') {
+    window.previewRequests++
+    const snapshot = { ...savedSeries }
+    if (window.holdPreview)
+      return new Promise((resolve) => {
+        window.releasePreview = () => resolve(Response.json(snapshot))
+      })
+    return Response.json(snapshot)
+  }
+  if (path === '/jav/series/1' && init?.method === 'PATCH') {
     const payload = JSON.parse(init.body)
     window.savedTranslations.push(payload)
+    savedSeries = { ...savedSeries, ...payload }
     return Response.json({ id: 1, ...payload })
   }
   throw new Error(`Unexpected request: ${path}`)
@@ -49,7 +70,32 @@ window.fetch = async (input, init) => {
 
 function Fixture() {
   const items = useStore((state) => state.seriesItems)
-  return <JavSeriesView items={items} page={1} lastPage={1} totalItems={2} />
+  const javItems = useStore((state) => state.javItems)
+  const studioItems = useStore((state) => state.studioItems)
+  if (preview === 'jav') return <JavGrid items={javItems} onSeriesClick={selectSeries} />
+  if (preview === 'studio')
+    return <StudioCard item={studioItems[0]} onSelectSeries={selectSeries} />
+  if (preview === 'detail')
+    return (
+      <JavDetailRoute
+        itemId={1}
+        initialItem={jav}
+        onLoaded={noop}
+        initialState={{ scrollTop: 0 }}
+        onStateChange={noop}
+        onClose={noop}
+        onSeriesClick={selectSeries}
+      />
+    )
+  return (
+    <JavSeriesView
+      items={items}
+      page={1}
+      lastPage={1}
+      totalItems={2}
+      onSelectSeries={selectSeries}
+    />
+  )
 }
 createRoot(document.getElementById('root')).render(
   <StrictMode>

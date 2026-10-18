@@ -95,8 +95,10 @@ export default function useJavPreviews() {
 
     const request = fetchJavSeriesPreview(seriesId)
       .then((preview) => {
-        seriesPreviewCacheRef.current.set(cacheKey, preview)
-        return preview
+        // A correction may have been saved while this preview request was in flight.
+        const current = { ...preview, ...seriesPreviewCacheRef.current.get(cacheKey) }
+        seriesPreviewCacheRef.current.set(cacheKey, current)
+        return current
       })
       .finally(() => {
         seriesPreviewInflightRef.current.delete(cacheKey)
@@ -115,5 +117,22 @@ export default function useJavPreviews() {
     }
   }
 
-  return { loadIdolPreview, loadStudioPreview, loadSeriesPreview, handleIdolPreviewUpdated }
+  const handleSeriesPreviewUpdated = (updated) => {
+    const seriesId = Number(updated?.id)
+    if (!Number.isFinite(seriesId) || seriesId <= 0) return
+    const cache = seriesPreviewCacheRef.current
+    const currentKey = `${seriesId}|${directoryVisibilityKey}`
+    cache.set(currentKey, { ...cache.get(currentKey), ...updated })
+    for (const [key, cached] of cache) {
+      if (key.startsWith(`${seriesId}|`)) cache.set(key, { ...cached, ...updated })
+    }
+  }
+
+  return {
+    loadIdolPreview,
+    loadStudioPreview,
+    loadSeriesPreview,
+    handleIdolPreviewUpdated,
+    handleSeriesPreviewUpdated,
+  }
 }

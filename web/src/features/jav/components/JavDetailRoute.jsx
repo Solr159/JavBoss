@@ -97,6 +97,7 @@ export default function JavDetailRoute({
       {...presentation}
       {...previews}
       onIdolPreviewUpdated={previews.handleIdolPreviewUpdated}
+      onSeriesPreviewUpdated={previews.handleSeriesPreviewUpdated}
       detailView={{
         onClose,
         scrollTop: initialState.scrollTop,
