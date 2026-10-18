@@ -18,7 +18,7 @@ import (
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/scrape"
 )
 
 func openTestTerminal(t *testing.T) (*os.File, *os.File) {
@@ -104,7 +104,7 @@ func TestInteractiveProcess(t *testing.T) {
 	calls := 0
 	for i := range cmd.methods {
 		method := cmd.methods[i].name
-		cmd.methods[i].call = func(_ context.Context, provider jav.Provider, input string) (any, error) {
+		cmd.methods[i].call = func(_ context.Context, provider scrape.Provider, input string) (any, error) {
 			calls++
 			if method != os.Getenv("JAVPROVIDER_TEST_METHOD") || provider.String() != os.Getenv("JAVPROVIDER_TEST_PROVIDER") || input != os.Getenv("JAVPROVIDER_TEST_INPUT") {
 				return nil, fmt.Errorf("unexpected lookup %s/%s/%q", method, provider, input)

@@ -6,7 +6,6 @@ import (
 	"strings"
 	"unicode"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -30,7 +29,7 @@ func isEnglishStudioName(name string) bool {
 // ReconcileJavStudioNames merges names returned for the same movie in provider
 // priority order. English names take precedence; all other names become aliases.
 // expectedStudioID prevents an in-flight lookup from replacing a manual assignment.
-func ReconcileJavStudioNames(ctx context.Context, javID int64, expectedStudioID *int64, names []string) (bool, error) {
+func (store *Store) ReconcileJavStudioNames(ctx context.Context, javID int64, expectedStudioID *int64, names []string) (bool, error) {
 	if javID <= 0 {
 		return false, fmt.Errorf("jav id must be positive")
 	}
@@ -47,7 +46,7 @@ func ReconcileJavStudioNames(ctx context.Context, javID int64, expectedStudioID 
 		return false, nil
 	}
 	updated := false
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var item models.Jav
 		if err := tx.Select("id", "studio_id").First(&item, javID).Error; err != nil {
 			return fmt.Errorf("load jav for studio reconciliation: %w", err)

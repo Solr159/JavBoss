@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"gorm.io/gorm"
-	"javboss/internal/common"
 	"javboss/internal/models"
+
+	"gorm.io/gorm"
 )
 
 var ErrJavVideoShared = errors.New("video is linked to another jav")
@@ -16,9 +16,9 @@ var ErrJavVideoShared = errors.New("video is linked to another jav")
 // while preserving the JAV and all its metadata associations.
 // cleanup runs under the database write lock before any records are removed. A file
 // failure leaves records available for retry; filesystem changes cannot be rolled back.
-func DeleteJavVideos(ctx context.Context, id int64, cleanup func([]models.VideoLocation, []int64) error) ([]int64, error) {
+func (store *Store) DeleteJavVideos(ctx context.Context, id int64, cleanup func([]models.VideoLocation, []int64) error) ([]int64, error) {
 	var videoIDs []int64
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.Jav{}).Where("id = ?", id).UpdateColumn("id", id).Error; err != nil {
 			return err
 		}

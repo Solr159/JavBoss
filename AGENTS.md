@@ -6,7 +6,7 @@
 
 - `cmd/server`: Go entrypoint that loads config, opens the DB, starts background scanners, and serves the Gin API plus optional static frontend.
 - `cmd/javprovider`: small Go utility for exercising JAV provider lookups outside the main server.
-- `internal/`: application packages; key folders include `common` (shared config/globals/logging), `db` (GORM setup and stores), `models` (domain structs), `server` (Gin router and handlers), `service` (directory/video/JAV scanners), `jav` (metadata providers), `manager` (cover and screenshot helpers), `mpv` (player integration), and `util` (filesystem, locale, proxy, playback, and platform helpers).
+- `internal/`: application packages; key folders include `common` (shared path and runtime config/version/logging), `db` (GORM setup, stores, and the application-wide default Store), `models` (domain structs), `api` (Gin router and handlers), `directory` (directory scanning, file organization, and JAV linking), `jav` (`jav/scrape` metadata lookup, providers, and cover downloads; `jav/translation` title translation; `jav/enrichment` background jobs), `download` (download task scheduling, `download/downloader` provider adapters, and `download/clouddrive` clients/protocol), `video/screenshot` and `video/stream` (video image generation and streaming), `ffmpeg` (FFmpeg installation), `mpv` (player integration), and `util` (filesystem, locale, proxy, playback, and platform helpers).
 
 ### Frontend (React + Tailwind, Vite)
 

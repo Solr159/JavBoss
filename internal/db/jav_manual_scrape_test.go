@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"javboss/internal/jav/metadata"
+	"javboss/internal/jav/scrape/metadata"
 	"javboss/internal/models"
 )
 
 func TestManualScrapeReplacesMetadata(t *testing.T) {
+	deps := newTestDependencies()
 	for _, tt := range []struct {
 		name       string
 		targetCode string
@@ -24,7 +25,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 		{name: "clear different JAV", targetCode: "NEW-001", empty: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			ctx := context.Background()
 			now := time.Now()
 			seed := func(code string) *models.Jav {
@@ -36,7 +37,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 					metadata.ProviderJavDBAPI, metadata.ProviderAvmoo, metadata.ProviderAvsox, metadata.ProviderJavMenu,
 				} {
 					var err error
-					rec, err = SaveJavInfo(ctx, &metadata.JavInfo{
+					rec, err = deps.store.SaveJavInfo(ctx, &metadata.JavInfo{
 						Code: code, Title: "Old title", Tags: []string{"Old tag"},
 						Actors: []string{"Old actor"}, Provider: provider,
 					})
@@ -51,11 +52,11 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 			if tt.targetCode != old.Code && !tt.newTarget {
 				target = seed(tt.targetCode)
 			}
-			userTag, err := CreateJavTag(ctx, "User tag")
+			userTag, err := deps.store.CreateJavTag(ctx, "User tag")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := AddJavTagToJavs(ctx, userTag.ID, []int64{target.ID}); err != nil {
+			if err := deps.store.AddJavTagToJavs(ctx, userTag.ID, []int64{target.ID}); err != nil {
 				t.Fatal(err)
 			}
 			var oldTags []models.JavTagMap
@@ -72,7 +73,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, path := range []string{"one.mp4", "two.mp4"} {
-				loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, path, now)
+				loc, err := deps.store.UpsertVideoLocation(ctx, video.ID, dir.ID, path, now)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -88,7 +89,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 				info.Tags = []string{"New tag"}
 				info.Actors = []string{"New actor"}
 			}
-			rec, err := SaveManualJavInfoAndLinkVideoLocations(ctx, info, video.ID)
+			rec, err := deps.store.SaveManualJavInfoAndLinkVideoLocations(ctx, info, video.ID)
 			if err != nil || rec == nil {
 				t.Fatalf("manual scrape: record=%+v err=%v", rec, err)
 			}
@@ -97,7 +98,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 				t.Fatal(err)
 			}
 			for _, loc := range locations {
-				updated, err := GetVideoForLocation(ctx, video.ID, loc.ID)
+				updated, err := deps.store.GetVideoForLocation(ctx, video.ID, loc.ID)
 				if err != nil || updated == nil || updated.Jav == nil {
 					t.Fatalf("load updated video: %+v, %v", updated, err)
 				}
@@ -106,7 +107,7 @@ func TestManualScrapeReplacesMetadata(t *testing.T) {
 					t.Fatalf("incorrect video association: %+v", updated)
 				}
 			}
-			updatedJav, err := GetJav(ctx, rec.ID, nil)
+			updatedJav, err := deps.store.GetJav(ctx, rec.ID, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

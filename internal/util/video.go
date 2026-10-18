@@ -18,7 +18,7 @@ import (
 
 	"github.com/h2non/filetype"
 
-	"javboss/internal/runtimeconfig"
+	"javboss/internal/common"
 )
 
 type VideoMetadata struct {
@@ -251,7 +251,7 @@ func findFFBinaryPath(name string) (string, error) {
 }
 
 func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)) (string, error) {
-	if runtimeconfig.ContainerMode() {
+	if common.ContainerMode() {
 		imagePath := ContainerFFBinaryDir + "/" + name
 		resolved, err := lookup(imagePath)
 		if err != nil {

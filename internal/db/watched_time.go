@@ -5,14 +5,14 @@ import (
 	"errors"
 	"fmt"
 
-	"gorm.io/gorm"
-	"javboss/internal/common"
 	"javboss/internal/models"
+
+	"gorm.io/gorm"
 )
 
-func GetVideoLocationByPath(ctx context.Context, dirPath, relativePath string) (*models.VideoLocation, error) {
+func (store *Store) GetVideoLocationByPath(ctx context.Context, dirPath, relativePath string) (*models.VideoLocation, error) {
 	var loc models.VideoLocation
-	err := common.DB.WithContext(ctx).Model(&models.VideoLocation{}).
+	err := store.conn.WithContext(ctx).Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("directory.path = ? AND video_location.relative_path = ?", dirPath, cleanRelativePathForDB(relativePath)).
 		Where(activeDirectoryWhereSQL("directory")).First(&loc).Error
@@ -24,8 +24,8 @@ func GetVideoLocationByPath(ctx context.Context, dirPath, relativePath string) (
 
 // AddWatchedTime keeps historical JAV totals independent of video locations.
 // Missing rows are allowed: a video may be deleted while its player is open.
-func AddWatchedTime(ctx context.Context, videoID, javID, deltaMS int64) error {
-	_, err := AddWatchedTimeWithTotals(ctx, videoID, javID, deltaMS)
+func (store *Store) AddWatchedTime(ctx context.Context, videoID, javID, deltaMS int64) error {
+	_, err := store.AddWatchedTimeWithTotals(ctx, videoID, javID, deltaMS)
 	return err
 }
 
@@ -41,7 +41,7 @@ type WatchedTimeSnapshot struct {
 
 // AddWatchedTimeWithTotals returns the totals from the same transaction, only
 // after it commits. Callers may then notify viewers without publishing rollbacks.
-func AddWatchedTimeWithTotals(ctx context.Context, videoID, javID, deltaMS int64) (WatchedTimeSnapshot, error) {
+func (store *Store) AddWatchedTimeWithTotals(ctx context.Context, videoID, javID, deltaMS int64) (WatchedTimeSnapshot, error) {
 	var snapshot WatchedTimeSnapshot
 	if videoID <= 0 || deltaMS < 0 {
 		return snapshot, fmt.Errorf("invalid watched time increment")
@@ -49,7 +49,7 @@ func AddWatchedTimeWithTotals(ctx context.Context, videoID, javID, deltaMS int64
 	if deltaMS == 0 {
 		return snapshot, nil
 	}
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&models.Video{}).Where("id = ?", videoID).
 			UpdateColumn("watched_ms", gorm.Expr("watched_ms + ?", deltaMS)).Error; err != nil {
 			return fmt.Errorf("update video watched time: %w", err)
@@ -71,9 +71,9 @@ func AddWatchedTimeWithTotals(ctx context.Context, videoID, javID, deltaMS int64
 }
 
 // GetWatchedTimes reads just the counters, without reloading or reordering lists.
-func GetWatchedTimes(ctx context.Context, videoIDs, javIDs []int64) (WatchedTimeSnapshot, error) {
+func (store *Store) GetWatchedTimes(ctx context.Context, videoIDs, javIDs []int64) (WatchedTimeSnapshot, error) {
 	var snapshot WatchedTimeSnapshot
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
 		snapshot, err = readWatchedTimes(tx, videoIDs, javIDs)
 		return err

@@ -14,7 +14,8 @@ import (
 )
 
 func TestListVideoCoverScreenshotNames(t *testing.T) {
-	db := openTestDB(t)
+	deps := newTestDependencies()
+	db := openTestDB(deps, t)
 	videos := []models.Video{
 		{Fingerprint: "cover-name-a", CoverScreenshotName: " mpv_00-00-01.jpg "},
 		{Fingerprint: "cover-name-b"},
@@ -23,7 +24,7 @@ func TestListVideoCoverScreenshotNames(t *testing.T) {
 		t.Fatalf("create videos: %v", err)
 	}
 
-	items, err := ListVideoCoverScreenshotNames(
+	items, err := deps.store.ListVideoCoverScreenshotNames(
 		context.Background(),
 		[]int64{videos[0].ID, videos[1].ID, videos[0].ID, videos[1].ID + 999},
 	)
@@ -39,7 +40,8 @@ func TestListVideoCoverScreenshotNames(t *testing.T) {
 }
 
 func TestListVideosSortByDurationDirections(t *testing.T) {
-	db := openTestDB(t)
+	deps := newTestDependencies()
+	db := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -74,7 +76,7 @@ func TestListVideosSortByDurationDirections(t *testing.T) {
 	}
 	createVideoLocationsForVideos(t, db, shortVideo, longVideo)
 
-	items, err := ListVideos(ctx, 20, 0, nil, "", "duration", nil, nil)
+	items, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "duration", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos duration: %v", err)
 	}
@@ -85,7 +87,7 @@ func TestListVideosSortByDurationDirections(t *testing.T) {
 		t.Fatalf("unexpected first video: got %d want %d", items[0].ID, longVideo.ID)
 	}
 
-	items, err = ListVideos(ctx, 20, 0, nil, "", "duration_asc", nil, nil)
+	items, err = deps.store.ListVideos(ctx, 20, 0, nil, "", "duration_asc", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos duration_asc: %v", err)
 	}
@@ -98,7 +100,8 @@ func TestListVideosSortByDurationDirections(t *testing.T) {
 }
 
 func TestListVideosCanHideRecognizedJav(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -148,7 +151,7 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 		t.Fatalf("create video tags: %v", err)
 	}
 
-	defaultItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil)
+	defaultItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos default: %v", err)
 	}
@@ -168,14 +171,14 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 	if recognized.Jav == nil || recognized.Jav.Code != "ABC-001" {
 		t.Fatalf("recognized video should include jav code: %#v", recognized.Jav)
 	}
-	defaultCount, err := CountVideos(ctx, nil, "", nil)
+	defaultCount, err := deps.store.CountVideos(ctx, nil, "", nil)
 	if err != nil {
 		t.Fatalf("CountVideos default: %v", err)
 	}
 	if defaultCount != 2 {
 		t.Fatalf("default count should include recognized jav: got %d want 2", defaultCount)
 	}
-	defaultTags, err := ListTags(ctx, nil)
+	defaultTags, err := deps.store.ListTags(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTags default: %v", err)
 	}
@@ -183,21 +186,21 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 		t.Fatalf("default tag count should include recognized jav: %#v", defaultTags)
 	}
 
-	hiddenItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, true)
+	hiddenItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, true)
 	if err != nil {
 		t.Fatalf("ListVideos hide jav: %v", err)
 	}
 	if len(hiddenItems) != 1 || hiddenItems[0].ID != plainVideo.ID {
 		t.Fatalf("hide jav list should return only plain videos: %#v", hiddenItems)
 	}
-	hiddenCount, err := CountVideos(ctx, nil, "", nil, true)
+	hiddenCount, err := deps.store.CountVideos(ctx, nil, "", nil, true)
 	if err != nil {
 		t.Fatalf("CountVideos hide jav: %v", err)
 	}
 	if hiddenCount != 1 {
 		t.Fatalf("hide jav count should return only plain videos: got %d want 1", hiddenCount)
 	}
-	hiddenTags, err := ListTags(ctx, nil, true)
+	hiddenTags, err := deps.store.ListTags(ctx, nil, true)
 	if err != nil {
 		t.Fatalf("ListTags hide jav: %v", err)
 	}
@@ -207,7 +210,8 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 }
 
 func TestUpdateVideoCoverScreenshotName(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -228,7 +232,7 @@ func TestUpdateVideoCoverScreenshotName(t *testing.T) {
 	}
 	createVideoLocationsForVideos(t, gdb, video)
 
-	updated, err := UpdateVideoCoverScreenshotName(ctx, video.ID, " mpv_00-00-05.jpg ")
+	updated, err := deps.store.UpdateVideoCoverScreenshotName(ctx, video.ID, " mpv_00-00-05.jpg ")
 	if err != nil {
 		t.Fatalf("update video cover: %v", err)
 	}
@@ -236,10 +240,10 @@ func TestUpdateVideoCoverScreenshotName(t *testing.T) {
 		t.Fatalf("unexpected cover after update: %#v", updated)
 	}
 
-	if err := ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_other.jpg"); err != nil {
+	if err := deps.store.ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_other.jpg"); err != nil {
 		t.Fatalf("clear non-matching cover: %v", err)
 	}
-	got, err := GetVideo(ctx, video.ID)
+	got, err := deps.store.GetVideo(ctx, video.ID)
 	if err != nil {
 		t.Fatalf("get video after non-matching clear: %v", err)
 	}
@@ -247,10 +251,10 @@ func TestUpdateVideoCoverScreenshotName(t *testing.T) {
 		t.Fatalf("cover changed after non-matching clear: %q", got.CoverScreenshotName)
 	}
 
-	if err := ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_00-00-05.jpg"); err != nil {
+	if err := deps.store.ClearVideoCoverScreenshotNameIfMatch(ctx, video.ID, "mpv_00-00-05.jpg"); err != nil {
 		t.Fatalf("clear matching cover: %v", err)
 	}
-	got, err = GetVideo(ctx, video.ID)
+	got, err = deps.store.GetVideo(ctx, video.ID)
 	if err != nil {
 		t.Fatalf("get video after matching clear: %v", err)
 	}
@@ -258,7 +262,7 @@ func TestUpdateVideoCoverScreenshotName(t *testing.T) {
 		t.Fatalf("cover was not cleared: %q", got.CoverScreenshotName)
 	}
 
-	updated, err = UpdateVideoCoverScreenshotName(ctx, video.ID, "")
+	updated, err = deps.store.UpdateVideoCoverScreenshotName(ctx, video.ID, "")
 	if err != nil {
 		t.Fatalf("reset video cover: %v", err)
 	}
@@ -268,7 +272,8 @@ func TestUpdateVideoCoverScreenshotName(t *testing.T) {
 }
 
 func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -284,7 +289,7 @@ func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
 	if err := gdb.Create(&video).Error; err != nil {
 		t.Fatalf("create video: %v", err)
 	}
-	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
+	loc, err := deps.store.UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert video location: %v", err)
 	}
@@ -292,11 +297,11 @@ func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
-	if err := SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
+	if err := deps.store.SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
 		t.Fatalf("set jav id: %v", err)
 	}
 
-	updated, err := UpdateVideoJavScrapeOverride(ctx, video.ID, models.JavScrapeOverrideSkip)
+	updated, err := deps.store.UpdateVideoJavScrapeOverride(ctx, video.ID, models.JavScrapeOverrideSkip)
 	if err != nil {
 		t.Fatalf("update scrape override: %v", err)
 	}
@@ -314,7 +319,8 @@ func TestUpdateVideoJavScrapeOverrideClearsExistingJavLinks(t *testing.T) {
 }
 
 func TestUpdateVideoJavScrapeOverrideManualPrefixKeepsMatchingLinks(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -330,7 +336,7 @@ func TestUpdateVideoJavScrapeOverrideManualPrefixKeepsMatchingLinks(t *testing.T
 	if err := gdb.Create(&video).Error; err != nil {
 		t.Fatalf("create video: %v", err)
 	}
-	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
+	loc, err := deps.store.UpsertVideoLocation(ctx, video.ID, dir.ID, "abc-001.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert video location: %v", err)
 	}
@@ -338,12 +344,12 @@ func TestUpdateVideoJavScrapeOverrideManualPrefixKeepsMatchingLinks(t *testing.T
 	if err := gdb.Create(&javRec).Error; err != nil {
 		t.Fatalf("create jav: %v", err)
 	}
-	if err := SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
+	if err := deps.store.SetVideoLocationJavIDForVideo(ctx, loc.ID, video.ID, javRec.ID, loc.UpdatedAt); err != nil {
 		t.Fatalf("set jav id: %v", err)
 	}
 
 	override := models.JavScrapeOverrideManualPrefix + "ABC-001"
-	updated, err := UpdateVideoJavScrapeOverride(ctx, video.ID, override)
+	updated, err := deps.store.UpdateVideoJavScrapeOverride(ctx, video.ID, override)
 	if err != nil {
 		t.Fatalf("update scrape override: %v", err)
 	}
@@ -361,7 +367,8 @@ func TestUpdateVideoJavScrapeOverrideManualPrefixKeepsMatchingLinks(t *testing.T
 }
 
 func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -388,11 +395,11 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("create video: %v", err)
 	}
 
-	locA, err := UpsertVideoLocation(ctx, video.ID, dirA.ID, "movie.mp4", now)
+	locA, err := deps.store.UpsertVideoLocation(ctx, video.ID, dirA.ID, "movie.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert loc a: %v", err)
 	}
-	locB, err := UpsertVideoLocation(ctx, video.ID, dirB.ID, "copies/movie.mp4", now.Add(time.Minute))
+	locB, err := deps.store.UpsertVideoLocation(ctx, video.ID, dirB.ID, "copies/movie.mp4", now.Add(time.Minute))
 	if err != nil {
 		t.Fatalf("upsert loc b: %v", err)
 	}
@@ -400,7 +407,7 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("reconcile: %v", err)
 	}
 
-	items, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil)
+	items, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos: %v", err)
 	}
@@ -410,49 +417,49 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 	if len(items[0].Locations) != 1 || len(items[1].Locations) != 1 {
 		t.Fatalf("list rows should be location-level: %#v", items)
 	}
-	count, err := CountVideos(ctx, nil, "", nil)
+	count, err := deps.store.CountVideos(ctx, nil, "", nil)
 	if err != nil {
 		t.Fatalf("CountVideos: %v", err)
 	}
 	if count != 2 {
 		t.Fatalf("unexpected location count: got %d want 2", count)
 	}
-	dirBItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{dirB.ID})
+	dirBItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{dirB.ID})
 	if err != nil {
 		t.Fatalf("ListVideos dir filter: %v", err)
 	}
 	if len(dirBItems) != 1 || dirBItems[0].LocationID != locB.ID || dirBItems[0].Path != "copies/movie.mp4" {
 		t.Fatalf("unexpected filtered items: %#v", dirBItems)
 	}
-	dirBCount, err := CountVideos(ctx, nil, "", []int64{dirB.ID})
+	dirBCount, err := deps.store.CountVideos(ctx, nil, "", []int64{dirB.ID})
 	if err != nil {
 		t.Fatalf("CountVideos dir filter: %v", err)
 	}
 	if dirBCount != 1 {
 		t.Fatalf("unexpected filtered count: got %d want 1", dirBCount)
 	}
-	pathSearchItems, err := ListVideos(ctx, 20, 0, nil, "copies", "recent", nil, nil)
+	pathSearchItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "copies", "recent", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos path search: %v", err)
 	}
 	if len(pathSearchItems) != 0 {
 		t.Fatalf("search should use filename, not relative path directories: %#v", pathSearchItems)
 	}
-	filenameSearchItems, err := ListVideos(ctx, 20, 0, nil, "movie.mp4", "recent", nil, nil)
+	filenameSearchItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "movie.mp4", "recent", nil, nil)
 	if err != nil {
 		t.Fatalf("ListVideos filename search: %v", err)
 	}
 	if len(filenameSearchItems) != 2 {
 		t.Fatalf("filename search should match both copies: got %d want 2", len(filenameSearchItems))
 	}
-	disabledItems, err := ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{0})
+	disabledItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, []int64{0})
 	if err != nil {
 		t.Fatalf("ListVideos disabled dir filter: %v", err)
 	}
 	if len(disabledItems) != 0 {
 		t.Fatalf("disabled directory filter should return no rows: %#v", disabledItems)
 	}
-	disabledCount, err := CountVideos(ctx, nil, "", []int64{0})
+	disabledCount, err := deps.store.CountVideos(ctx, nil, "", []int64{0})
 	if err != nil {
 		t.Fatalf("CountVideos disabled dir filter: %v", err)
 	}
@@ -460,7 +467,7 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("disabled directory filter count: got %d want 0", disabledCount)
 	}
 
-	videoID, err := GetVideoIDByPath(ctx, dirB.Path, "copies/movie.mp4")
+	videoID, err := deps.store.GetVideoIDByPath(ctx, dirB.Path, "copies/movie.mp4")
 	if err != nil {
 		t.Fatalf("GetVideoIDByPath: %v", err)
 	}
@@ -468,13 +475,13 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("unexpected video id by second location: got %d want %d", videoID, video.ID)
 	}
 
-	if err := DeleteVideoLocationsByIDs(ctx, []int64{locA.ID}); err != nil {
+	if err := deps.store.DeleteVideoLocationsByIDs(ctx, []int64{locA.ID}); err != nil {
 		t.Fatalf("hide loc a: %v", err)
 	}
 	if err := ReconcileAllVideoPaths(ctx); err != nil {
 		t.Fatalf("reconcile after hiding loc a: %v", err)
 	}
-	visible, err := GetVideo(ctx, video.ID)
+	visible, err := deps.store.GetVideo(ctx, video.ID)
 	if err != nil {
 		t.Fatalf("GetVideo: %v", err)
 	}
@@ -485,13 +492,13 @@ func TestVideoLocationsAllowSameVideoInMultipleDirectories(t *testing.T) {
 		t.Fatalf("unexpected remaining locations: %#v", visible.Locations)
 	}
 
-	if err := DeleteVideoLocationsByIDs(ctx, []int64{locB.ID}); err != nil {
+	if err := deps.store.DeleteVideoLocationsByIDs(ctx, []int64{locB.ID}); err != nil {
 		t.Fatalf("hide loc b: %v", err)
 	}
 	if err := ReconcileAllVideoPaths(ctx); err != nil {
 		t.Fatalf("reconcile after hiding loc b: %v", err)
 	}
-	unavailable, err := GetVideo(ctx, video.ID)
+	unavailable, err := deps.store.GetVideo(ctx, video.ID)
 	if err != nil {
 		t.Fatalf("GetVideo unavailable: %v", err)
 	}

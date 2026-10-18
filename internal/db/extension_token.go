@@ -6,32 +6,32 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-	"javboss/internal/common"
 	"javboss/internal/models"
+
+	"gorm.io/gorm"
 )
 
 var ErrExtensionTokenNotFound = errors.New("extension token not found")
 
-func ListExtensionTokens(ctx context.Context) ([]models.ExtensionToken, error) {
+func (store *Store) ListExtensionTokens(ctx context.Context) ([]models.ExtensionToken, error) {
 	items := []models.ExtensionToken{}
-	if err := common.DB.WithContext(ctx).Order("id DESC").Find(&items).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Order("id DESC").Find(&items).Error; err != nil {
 		return nil, fmt.Errorf("list extension tokens: %w", err)
 	}
 	return items, nil
 }
 
-func CreateExtensionToken(ctx context.Context, token *models.ExtensionToken) error {
-	if err := common.DB.WithContext(ctx).Create(token).Error; err != nil {
+func (store *Store) CreateExtensionToken(ctx context.Context, token *models.ExtensionToken) error {
+	if err := store.conn.WithContext(ctx).Create(token).Error; err != nil {
 		return fmt.Errorf("create extension token: %w", err)
 	}
 	return nil
 }
 
 // RotateExtensionToken invalidates the old credential atomically.
-func RotateExtensionToken(ctx context.Context, id uint, credential string, expiresAt time.Time) (models.ExtensionToken, error) {
+func (store *Store) RotateExtensionToken(ctx context.Context, id uint, credential string, expiresAt time.Time) (models.ExtensionToken, error) {
 	var token models.ExtensionToken
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&models.ExtensionToken{}).Where("id = ?", id).
 			Updates(map[string]any{"token": credential, "expires_at": expiresAt, "last_used_at": nil})
 		if result.Error != nil {
@@ -48,8 +48,8 @@ func RotateExtensionToken(ctx context.Context, id uint, credential string, expir
 	return token, nil
 }
 
-func DeleteExtensionToken(ctx context.Context, id uint) error {
-	result := common.DB.WithContext(ctx).Where("id = ?", id).Delete(&models.ExtensionToken{})
+func (store *Store) DeleteExtensionToken(ctx context.Context, id uint) error {
+	result := store.conn.WithContext(ctx).Where("id = ?", id).Delete(&models.ExtensionToken{})
 	if result.Error != nil {
 		return fmt.Errorf("delete extension token: %w", result.Error)
 	}
@@ -60,9 +60,9 @@ func DeleteExtensionToken(ctx context.Context, id uint) error {
 }
 
 // UseExtensionToken atomically checks existence and expiry and records use.
-func UseExtensionToken(ctx context.Context, credential string, now time.Time) (bool, error) {
+func (store *Store) UseExtensionToken(ctx context.Context, credential string, now time.Time) (bool, error) {
 	now = now.UTC()
-	result := common.DB.WithContext(ctx).Model(&models.ExtensionToken{}).
+	result := store.conn.WithContext(ctx).Model(&models.ExtensionToken{}).
 		Where("token = ? AND (expires_at = ? OR expires_at > ?)", credential, time.Time{}, now).
 		Update("last_used_at", now)
 	if result.Error != nil {

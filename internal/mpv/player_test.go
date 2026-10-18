@@ -7,7 +7,6 @@ import (
 	"runtime"
 	"testing"
 
-	"javboss/internal/common"
 	dbpkg "javboss/internal/db"
 )
 
@@ -147,20 +146,20 @@ func TestBuildAfterLoadCommandsRestoresWindowOnDarwin(t *testing.T) {
 }
 
 func TestBuildBeforeLoadCommandsSkipsWatchLaterWhenResumeDisabled(t *testing.T) {
-	prevDB := common.DB
+	previousProvider := playerConfigProvider
 	db, err := dbpkg.Open(t.TempDir() + "/test.db")
 	if err != nil {
 		t.Fatalf("open test db: %v", err)
 	}
-	common.DB = db
+	SetPlayerConfigProvider(func() (map[string]string, error) { return dbpkg.NewStore(db).ListConfig(context.Background()) })
 	t.Cleanup(func() {
-		common.DB = prevDB
+		SetPlayerConfigProvider(previousProvider)
 		sqlDB, err := db.DB()
 		if err == nil {
 			_ = sqlDB.Close()
 		}
 	})
-	if err := dbpkg.UpsertConfig(context.Background(), map[string]string{
+	if err := dbpkg.NewStore(db).UpsertConfig(context.Background(), map[string]string{
 		playerResumePlaybackConfigKey: "false",
 	}); err != nil {
 		t.Fatalf("upsert config: %v", err)

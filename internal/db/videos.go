@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -17,7 +16,7 @@ import (
 
 // ListVideos returns paginated active video locations as video-like rows.
 // By default it includes locations already associated with JAV metadata.
-func ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
+func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -65,7 +64,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 		orderClause = "video.created_at DESC, video_location.id DESC"
 	}
 
-	query := common.DB.WithContext(ctx).
+	query := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Joins("JOIN video ON video.id = video_location.video_id").
@@ -105,7 +104,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 	if err := query.Find(&locations).Error; err != nil {
 		return nil, fmt.Errorf("list videos: %w", err)
 	}
-	if err := hydrateLocationJavs(ctx, locations); err != nil {
+	if err := store.hydrateLocationJavs(ctx, locations); err != nil {
 		return nil, err
 	}
 	videos := make([]models.Video, 0, len(locations))
@@ -120,7 +119,7 @@ func ListVideos(ctx context.Context, limit, offset int, tagNames []string, searc
 
 // CountVideos returns the total number of active locations that match optional filters.
 // By default it includes locations already associated with JAV metadata.
-func CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
+func (store *Store) CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
 	cleanedTags := normalizeTagNames(tagNames)
 	cleanedSearch := strings.TrimSpace(search)
 	hideRecognizedJav := false
@@ -135,7 +134,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	// Base query counts locations; when filtering by tags, group by location id and
 	// ensure all requested video tags are matched (intersection semantics).
 	if len(cleanedTags) == 0 {
-		base := common.DB.WithContext(ctx).
+		base := store.conn.WithContext(ctx).
 			Model(&models.VideoLocation{}).
 			Joins("JOIN directory ON directory.id = video_location.directory_id").
 			Where(activeDirectoryWhereSQL("directory"))
@@ -154,7 +153,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 	}
 
 	// Build subquery selecting matching location ids then count outer rows.
-	sub := common.DB.WithContext(ctx).
+	sub := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where(activeDirectoryWhereSQL("directory")).
@@ -175,7 +174,7 @@ func CountVideos(ctx context.Context, tagNames []string, search string, director
 		Having("COUNT(DISTINCT tag.name) = ?", len(cleanedTags))
 
 	var count int64
-	if err := common.DB.Table("(?) as m", sub).Count(&count).Error; err != nil {
+	if err := store.conn.Table("(?) as m", sub).Count(&count).Error; err != nil {
 		return 0, fmt.Errorf("count videos (filtered): %w", err)
 	}
 	return count, nil
@@ -204,13 +203,13 @@ func videoFromLocation(loc models.VideoLocation) models.Video {
 // UpdateVideoJavScrapeOverride stores the user's per-video JAV scrape override.
 // Non-empty overrides intentionally clear existing location links so the next scan
 // honors the new skip or forced-code decision.
-func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override string) (*models.Video, error) {
+func (store *Store) UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override string) (*models.Video, error) {
 	if videoID <= 0 {
 		return nil, errors.New("video id cannot be zero")
 	}
 	override = strings.TrimSpace(override)
 
-	if err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		return updateVideoJavScrapeOverrideTx(tx, videoID, override)
 	}); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -219,7 +218,7 @@ func UpdateVideoJavScrapeOverride(ctx context.Context, videoID int64, override s
 		return nil, err
 	}
 
-	return GetVideo(ctx, videoID)
+	return store.GetVideo(ctx, videoID)
 }
 
 func updateVideoJavScrapeOverrideTx(tx *gorm.DB, videoID int64, override string) error {
@@ -263,16 +262,16 @@ func updateVideoJavScrapeOverrideTx(tx *gorm.DB, videoID int64, override string)
 
 // UpdateVideoCoverScreenshotName stores the screenshot filename used as a video's custom cover.
 // Empty names restore the default generated thumbnail.
-func UpdateVideoCoverScreenshotName(ctx context.Context, videoID int64, name string) (*models.Video, error) {
+func (store *Store) UpdateVideoCoverScreenshotName(ctx context.Context, videoID int64, name string) (*models.Video, error) {
 	if videoID <= 0 {
 		return nil, errors.New("video id cannot be zero")
 	}
 	name = strings.TrimSpace(name)
 
-	res := common.DB.WithContext(ctx).
+	res := store.conn.WithContext(ctx).
 		Model(&models.Video{}).
 		Where("id = ?", videoID).
-		Where("EXISTS (?)", activeVideoLocationSubquery(ctx)).
+		Where("EXISTS (?)", store.activeVideoLocationSubquery(ctx)).
 		Updates(map[string]any{
 			"cover_screenshot_name": name,
 			"updated_at":            time.Now(),
@@ -283,11 +282,11 @@ func UpdateVideoCoverScreenshotName(ctx context.Context, videoID int64, name str
 	if res.RowsAffected == 0 {
 		return nil, nil
 	}
-	return GetVideo(ctx, videoID)
+	return store.GetVideo(ctx, videoID)
 }
 
 // ClearVideoCoverScreenshotNameIfMatch restores the default thumbnail when a referenced screenshot is removed.
-func ClearVideoCoverScreenshotNameIfMatch(ctx context.Context, videoID int64, name string) error {
+func (store *Store) ClearVideoCoverScreenshotNameIfMatch(ctx context.Context, videoID int64, name string) error {
 	if videoID <= 0 {
 		return errors.New("video id cannot be zero")
 	}
@@ -295,7 +294,7 @@ func ClearVideoCoverScreenshotNameIfMatch(ctx context.Context, videoID int64, na
 	if name == "" {
 		return nil
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.Video{}).
 		Where("id = ?", videoID).
 		Where("cover_screenshot_name = ?", name).
@@ -321,11 +320,11 @@ func javScrapeOverrideCode(override string) string {
 
 // ClearVideoLocationJavIDForVideo clears one active scan target before a forced
 // scrape relink, while guarding that the row still belongs to the scanned video.
-func ClearVideoLocationJavIDForVideo(ctx context.Context, locationID, videoID int64, expectedUpdatedAt time.Time) error {
+func (store *Store) ClearVideoLocationJavIDForVideo(ctx context.Context, locationID, videoID int64, expectedUpdatedAt time.Time) error {
 	if locationID <= 0 || videoID <= 0 {
 		return errors.New("location id and video id are required")
 	}
-	q := common.DB.WithContext(ctx).
+	q := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Where("id = ?", locationID).
 		Where("video_id = ?", videoID)
@@ -342,7 +341,7 @@ func ClearVideoLocationJavIDForVideo(ctx context.Context, locationID, videoID in
 	return nil
 }
 
-func hydrateLocationJavs(ctx context.Context, locations []models.VideoLocation) error {
+func (store *Store) hydrateLocationJavs(ctx context.Context, locations []models.VideoLocation) error {
 	javIDs := make([]int64, 0)
 	seen := make(map[int64]struct{})
 	for _, loc := range locations {
@@ -360,7 +359,7 @@ func hydrateLocationJavs(ctx context.Context, locations []models.VideoLocation) 
 	}
 
 	var javs []models.Jav
-	if err := common.DB.WithContext(ctx).Where("id IN ?", javIDs).Find(&javs).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Where("id IN ?", javIDs).Find(&javs).Error; err != nil {
 		return fmt.Errorf("load location javs: %w", err)
 	}
 	byID := make(map[int64]*models.Jav, len(javs))
@@ -401,11 +400,11 @@ func applyLocationFields(video *models.Video, loc models.VideoLocation) {
 }
 
 // GetVideo fetches a single video by identifier.
-func GetVideo(ctx context.Context, id int64) (*models.Video, error) {
+func (store *Store) GetVideo(ctx context.Context, id int64) (*models.Video, error) {
 	var video models.Video
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.Video{}).
-		Where("EXISTS (?)", activeVideoLocationSubquery(ctx)).
+		Where("EXISTS (?)", store.activeVideoLocationSubquery(ctx)).
 		Preload("Tags").
 		Scopes(preloadActiveLocations).
 		First(&video, id).Error; err != nil {
@@ -419,7 +418,7 @@ func GetVideo(ctx context.Context, id int64) (*models.Video, error) {
 }
 
 // ListVideoCoverScreenshotNames returns cover screenshot names for the requested video IDs.
-func ListVideoCoverScreenshotNames(ctx context.Context, videoIDs []int64) (map[int64]string, error) {
+func (store *Store) ListVideoCoverScreenshotNames(ctx context.Context, videoIDs []int64) (map[int64]string, error) {
 	ids := uniqueInt64s(videoIDs)
 	result := make(map[int64]string, len(ids))
 	if len(ids) == 0 {
@@ -430,7 +429,7 @@ func ListVideoCoverScreenshotNames(ctx context.Context, videoIDs []int64) (map[i
 		ID                  int64  `gorm:"column:id"`
 		CoverScreenshotName string `gorm:"column:cover_screenshot_name"`
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.Video{}).
 		Select("id, cover_screenshot_name").
 		Where("id IN ?", ids).
@@ -444,15 +443,15 @@ func ListVideoCoverScreenshotNames(ctx context.Context, videoIDs []int64) (map[i
 }
 
 // GetVideoForLocation returns a video-shaped row for a specific active location.
-func GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*models.Video, error) {
-	loc, err := GetActiveVideoLocation(ctx, videoID, locationID)
+func (store *Store) GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*models.Video, error) {
+	loc, err := store.GetActiveVideoLocation(ctx, videoID, locationID)
 	if err != nil {
 		return nil, err
 	}
 	if loc == nil {
 		return nil, nil
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Where("id = ?", loc.ID).
 		Preload("DirectoryRef").
@@ -462,7 +461,7 @@ func GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*model
 		return nil, fmt.Errorf("get video for location: %w", err)
 	}
 	locs := []models.VideoLocation{*loc}
-	if err := hydrateLocationJavs(ctx, locs); err != nil {
+	if err := store.hydrateLocationJavs(ctx, locs); err != nil {
 		return nil, err
 	}
 	video := videoFromLocation(locs[0])
@@ -470,22 +469,22 @@ func GetVideoForLocation(ctx context.Context, videoID, locationID int64) (*model
 }
 
 // AllVideos returns every video row; used for sync bookkeeping.
-func AllVideos(ctx context.Context) ([]models.Video, error) {
+func (store *Store) AllVideos(ctx context.Context) ([]models.Video, error) {
 	var videos []models.Video
-	if err := common.DB.WithContext(ctx).Find(&videos).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Find(&videos).Error; err != nil {
 		return nil, fmt.Errorf("load videos: %w", err)
 	}
 	return videos, nil
 }
 
 // GetVideoByFingerprint returns a video by its globally unique content fingerprint.
-func GetVideoByFingerprint(ctx context.Context, fingerprint string) (*models.Video, error) {
+func (store *Store) GetVideoByFingerprint(ctx context.Context, fingerprint string) (*models.Video, error) {
 	fingerprint = strings.TrimSpace(fingerprint)
 	if fingerprint == "" {
 		return nil, nil
 	}
 	var video models.Video
-	err := common.DB.WithContext(ctx).
+	err := store.conn.WithContext(ctx).
 		Where("fingerprint = ?", fingerprint).
 		First(&video).Error
 	if err != nil {
@@ -498,47 +497,47 @@ func GetVideoByFingerprint(ctx context.Context, fingerprint string) (*models.Vid
 }
 
 // SaveVideo inserts or updates a video based on its primary key.
-func SaveVideo(ctx context.Context, video *models.Video) error {
+func (store *Store) SaveVideo(ctx context.Context, video *models.Video) error {
 	if video == nil {
 		return errors.New("video is nil")
 	}
-	if err := common.DB.WithContext(ctx).Omit("watched_ms").Save(video).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Omit("watched_ms").Save(video).Error; err != nil {
 		return fmt.Errorf("save video %d: %w", video.ID, err)
 	}
 	return nil
 }
 
 // CreateVideo inserts a new video record.
-func CreateVideo(ctx context.Context, video *models.Video) error {
+func (store *Store) CreateVideo(ctx context.Context, video *models.Video) error {
 	if video == nil {
 		return errors.New("video is nil")
 	}
-	if err := common.DB.WithContext(ctx).Create(video).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Create(video).Error; err != nil {
 		return fmt.Errorf("create video %q: %w", video.Fingerprint, err)
 	}
 	return nil
 }
 
 // DeleteByIDs removes videos by their identifiers.
-func DeleteByIDs(ctx context.Context, ids []int64) error {
+func (store *Store) DeleteByIDs(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
-	if err := common.DB.WithContext(ctx).Where("id IN ?", ids).Delete(&models.Video{}).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Where("id IN ?", ids).Delete(&models.Video{}).Error; err != nil {
 		return fmt.Errorf("delete videos: %w", err)
 	}
 	return nil
 }
 
 // IncrementVideoPlayCount increments the play count for a video if it has an active location.
-func IncrementVideoPlayCount(ctx context.Context, id int64) error {
+func (store *Store) IncrementVideoPlayCount(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return errors.New("video id cannot be zero")
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.Video{}).
 		Where("id = ?", id).
-		Where("EXISTS (?)", activeVideoLocationSubquery(ctx)).
+		Where("EXISTS (?)", store.activeVideoLocationSubquery(ctx)).
 		UpdateColumn("play_count", gorm.Expr("COALESCE(play_count, 0) + 1")).Error; err != nil {
 		return fmt.Errorf("increment play count: %w", err)
 	}
@@ -546,8 +545,8 @@ func IncrementVideoPlayCount(ctx context.Context, id int64) error {
 }
 
 // IncrementVideoPlayCountByPath increments the play count for a video located at a directory path + relative path.
-func IncrementVideoPlayCountByPath(ctx context.Context, dirPath, relPath string) error {
-	videoID, err := GetVideoIDByPath(ctx, dirPath, relPath)
+func (store *Store) IncrementVideoPlayCountByPath(ctx context.Context, dirPath, relPath string) error {
+	videoID, err := store.GetVideoIDByPath(ctx, dirPath, relPath)
 	if err != nil {
 		return err
 	}
@@ -555,5 +554,5 @@ func IncrementVideoPlayCountByPath(ctx context.Context, dirPath, relPath string)
 		return nil
 	}
 
-	return IncrementVideoPlayCount(ctx, videoID)
+	return store.IncrementVideoPlayCount(ctx, videoID)
 }

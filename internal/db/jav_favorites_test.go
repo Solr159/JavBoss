@@ -10,7 +10,8 @@ import (
 )
 
 func TestAddJavsToFavoriteGroupsPreservesMembershipsAndOrder(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	items := []models.Jav{{Code: "BULK-001"}, {Code: "BULK-002"}, {Code: "BULK-003"}}
 	groups := []models.JavFavoriteGroup{
@@ -34,7 +35,7 @@ func TestAddJavsToFavoriteGroupsPreservesMembershipsAndOrder(t *testing.T) {
 	ids := []int64{items[2].ID, items[0].ID, items[1].ID, items[2].ID}
 	groupIDs := []int64{groups[1].ID, groups[2].ID, groups[1].ID}
 	for attempt := 0; attempt < 2; attempt++ {
-		counts, err := AddJavsToFavoriteGroups(ctx, ids, groupIDs)
+		counts, err := deps.store.AddJavsToFavoriteGroups(ctx, ids, groupIDs)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -66,9 +67,10 @@ func TestAddJavsToFavoriteGroupsPreservesMembershipsAndOrder(t *testing.T) {
 }
 
 func TestAddJavsToFavoriteGroupsRejectsInvalidSelectionAtomically(t *testing.T) {
+	deps := newTestDependencies()
 	for _, name := range []string{"empty items", "empty groups", "invalid id", "missing item", "missing group", "wrong group type"} {
 		t.Run(name, func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			item := models.Jav{Code: "BULK-001"}
 			groups := []models.JavFavoriteGroup{{Name: "JAV", EntityType: JavFavoriteEntityJav}, {Name: "Idols", EntityType: JavFavoriteEntityIdol}}
 			if err := gdb.Create(&item).Error; err != nil {
@@ -92,7 +94,7 @@ func TestAddJavsToFavoriteGroupsRejectsInvalidSelectionAtomically(t *testing.T) 
 			case "wrong group type":
 				groupIDs = append(groupIDs, groups[1].ID)
 			}
-			counts, err := AddJavsToFavoriteGroups(context.Background(), ids, groupIDs)
+			counts, err := deps.store.AddJavsToFavoriteGroups(context.Background(), ids, groupIDs)
 			if err == nil || counts != nil {
 				t.Fatalf("got counts=%v err=%v, want failure", counts, err)
 			}
@@ -108,7 +110,8 @@ func TestAddJavsToFavoriteGroupsRejectsInvalidSelectionAtomically(t *testing.T) 
 }
 
 func TestAddJavsToFavoriteGroupsHandlesLargeSelection(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	items := make([]models.Jav, 1001)
 	ids := make([]int64, len(items))
 	for i := range items {
@@ -124,7 +127,7 @@ func TestAddJavsToFavoriteGroupsHandlesLargeSelection(t *testing.T) {
 	if err := gdb.Create(&group).Error; err != nil {
 		t.Fatal(err)
 	}
-	counts, err := AddJavsToFavoriteGroups(context.Background(), ids, []int64{group.ID})
+	counts, err := deps.store.AddJavsToFavoriteGroups(context.Background(), ids, []int64{group.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +149,8 @@ func TestAddJavsToFavoriteGroupsHandlesLargeSelection(t *testing.T) {
 }
 
 func TestJavFavoriteItemsIncludeChineseTitle(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	item := models.Jav{Code: "ZH-001", Title: "Original title", ZhTitle: "中文标题"}
 	group := models.JavFavoriteGroup{Name: "Titles", EntityType: JavFavoriteEntityJav}
 	if err := gdb.Create(&item).Error; err != nil {
@@ -155,7 +159,7 @@ func TestJavFavoriteItemsIncludeChineseTitle(t *testing.T) {
 	if err := gdb.Create(&group).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := AddJavsToFavoriteGroups(context.Background(), []int64{item.ID}, []int64{group.ID}); err != nil {
+	if _, err := deps.store.AddJavsToFavoriteGroups(context.Background(), []int64{item.ID}, []int64{group.ID}); err != nil {
 		t.Fatal(err)
 	}
 	directory := models.Directory{Path: t.TempDir()}
@@ -169,7 +173,7 @@ func TestJavFavoriteItemsIncludeChineseTitle(t *testing.T) {
 	if err := gdb.Create(&models.VideoLocation{VideoID: video.ID, DirectoryID: directory.ID, RelativePath: "favorite.mp4", Filename: "favorite.mp4", JavID: &item.ID}).Error; err != nil {
 		t.Fatal(err)
 	}
-	items, err := ListJavFavoriteGroupItems(context.Background(), JavFavoriteEntityJav, group.ID, nil)
+	items, err := deps.store.ListJavFavoriteGroupItems(context.Background(), JavFavoriteEntityJav, group.ID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

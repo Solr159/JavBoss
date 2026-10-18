@@ -8,7 +8,8 @@ import (
 )
 
 func TestLookupJavOwnership(t *testing.T) {
-	database := openTestDB(t)
+	deps := newTestDependencies()
+	database := openTestDB(deps, t)
 	directories := []models.Directory{
 		{Path: "/active"}, {Path: "/deleted", IsDelete: true}, {Path: "/disabled"}, {Path: "/offline", Missing: true},
 	}
@@ -75,11 +76,11 @@ func TestLookupJavOwnership(t *testing.T) {
 		codes = append(codes, code)
 		want = append(want, JavOwnership{Code: code})
 	}
-	got, err := LookupJavOwnership(t.Context(), codes)
+	got, err := deps.store.LookupJavOwnership(t.Context(), codes)
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Fatalf("ownership = %#v, err = %v, want %#v", got, err, want)
 	}
-	if empty, err := LookupJavOwnership(t.Context(), nil); err != nil || empty == nil || len(empty) != 0 {
+	if empty, err := deps.store.LookupJavOwnership(t.Context(), nil); err != nil || empty == nil || len(empty) != 0 {
 		t.Fatalf("empty lookup = %#v, %v", empty, err)
 	}
 }

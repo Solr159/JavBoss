@@ -10,6 +10,7 @@ import (
 )
 
 func TestReconcileJavStudioNames(t *testing.T) {
+	deps := newTestDependencies()
 	for _, tc := range []struct {
 		name, current, want string
 		names, aliases      []string
@@ -25,7 +26,7 @@ func TestReconcileJavStudioNames(t *testing.T) {
 		{"accented Latin", "元の片商", "Café Studio", []string{"Café Studio"}, []string{"元の片商"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			row := models.Jav{Code: "STUDIO-001"}
 			if tc.current != "" {
 				studio := models.JavStudio{Name: tc.current}
@@ -37,7 +38,7 @@ func TestReconcileJavStudioNames(t *testing.T) {
 			if err := gdb.Create(&row).Error; err != nil {
 				t.Fatal(err)
 			}
-			if _, err := ReconcileJavStudioNames(context.Background(), row.ID, row.StudioID, tc.names); err != nil {
+			if _, err := deps.store.ReconcileJavStudioNames(context.Background(), row.ID, row.StudioID, tc.names); err != nil {
 				t.Fatal(err)
 			}
 			assertJavStudio(t, gdb, row.Code, tc.want)
@@ -53,7 +54,7 @@ func TestReconcileJavStudioNames(t *testing.T) {
 			if err := gdb.First(&row, row.ID).Error; err != nil {
 				t.Fatal(err)
 			}
-			if updated, err := ReconcileJavStudioNames(context.Background(), row.ID, row.StudioID, tc.names); err != nil || updated {
+			if updated, err := deps.store.ReconcileJavStudioNames(context.Background(), row.ID, row.StudioID, tc.names); err != nil || updated {
 				t.Fatalf("repeat updated=%v err=%v", updated, err)
 			}
 		})
@@ -61,7 +62,8 @@ func TestReconcileJavStudioNames(t *testing.T) {
 }
 
 func TestReconcileJavStudioNamesMergesRelationships(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	local := models.JavStudio{Name: "元の片商"}
 	canonical := models.JavStudio{Name: "Stable English"}
@@ -95,7 +97,7 @@ func TestReconcileJavStudioNamesMergesRelationships(t *testing.T) {
 	if err := gdb.Create(&favorite).Error; err != nil {
 		t.Fatal(err)
 	}
-	if updated, err := ReconcileJavStudioNames(ctx, rows[0].ID, &local.ID, []string{"Provider English", "Other English", "元の片商", "New Alias"}); err != nil || !updated {
+	if updated, err := deps.store.ReconcileJavStudioNames(ctx, rows[0].ID, &local.ID, []string{"Provider English", "Other English", "元の片商", "New Alias"}); err != nil || !updated {
 		t.Fatalf("merge updated=%v err=%v", updated, err)
 	}
 	for _, tc := range []struct {
@@ -124,7 +126,8 @@ func TestReconcileJavStudioNamesMergesRelationships(t *testing.T) {
 }
 
 func TestReconcileJavStudioNamesPromotesExistingAlias(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	studio := models.JavStudio{Name: "日本語"}
 	if err := gdb.Create(&studio).Error; err != nil {
 		t.Fatal(err)
@@ -136,7 +139,7 @@ func TestReconcileJavStudioNamesPromotesExistingAlias(t *testing.T) {
 	if err := gdb.Create(&row).Error; err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ReconcileJavStudioNames(context.Background(), row.ID, nil, []string{"English Studio"}); err != nil {
+	if _, err := deps.store.ReconcileJavStudioNames(context.Background(), row.ID, nil, []string{"English Studio"}); err != nil {
 		t.Fatal(err)
 	}
 	assertJavStudio(t, gdb, row.Code, "English Studio")

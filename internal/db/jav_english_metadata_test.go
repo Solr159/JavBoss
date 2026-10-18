@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 
-	"javboss/internal/jav/metadata"
+	"javboss/internal/jav/scrape/metadata"
 	"javboss/internal/models"
 )
 
 func TestEnglishJavMetadataCannotBePersisted(t *testing.T) {
-	db := openTestDB(t)
+	deps := newTestDependencies()
+	db := openTestDB(deps, t)
 	ctx := context.Background()
 
 	for _, provider := range []metadata.Provider{metadata.ProviderJavDatabase, metadata.ProviderThePornDB} {
-		if _, err := SaveJavInfo(ctx, &metadata.JavInfo{
+		if _, err := deps.store.SaveJavInfo(ctx, &metadata.JavInfo{
 			Code:     "EN-ONLY-001",
 			Title:    "English title",
 			Series:   "English series",
@@ -37,7 +38,8 @@ func TestEnglishJavMetadataCannotBePersisted(t *testing.T) {
 }
 
 func TestInternalEnglishSeriesRemainsHidden(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 
 	studio := models.JavStudio{Name: "Studio"}
@@ -49,7 +51,7 @@ func TestInternalEnglishSeriesRemainsHidden(t *testing.T) {
 		t.Fatalf("create jav: %v", err)
 	}
 
-	updated, err := UpdateJavEnglishSeriesIfMissing(ctx, javRec.ID, "English Series")
+	updated, err := deps.store.UpdateJavEnglishSeriesIfMissing(ctx, javRec.ID, "English Series")
 	if err != nil {
 		t.Fatalf("UpdateJavEnglishSeriesIfMissing: %v", err)
 	}
@@ -64,11 +66,11 @@ func TestInternalEnglishSeriesRemainsHidden(t *testing.T) {
 		t.Fatal("missing internal English series")
 	}
 	englishSeriesID := *javRec.SeriesEnID
-	if _, err := UpdateJav(ctx, javRec.ID, JavUpdateInput{SeriesID: &englishSeriesID}, nil); err == nil {
+	if _, err := deps.store.UpdateJav(ctx, javRec.ID, JavUpdateInput{SeriesID: &englishSeriesID}, nil); err == nil {
 		t.Fatal("frontend edit accepted an internal English series")
 	}
 
-	if err := UpdateJavSeries(ctx, javRec.ID, "中文系列"); err != nil {
+	if err := deps.store.UpdateJavSeries(ctx, javRec.ID, "中文系列"); err != nil {
 		t.Fatalf("UpdateJavSeries: %v", err)
 	}
 	var stored models.Jav

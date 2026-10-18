@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/scrape"
 )
 
 type unexpectedReader struct{}
@@ -21,13 +21,13 @@ func TestCommandLookupModes(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
 		args          []string
-		provider      jav.Provider
+		provider      scrape.Provider
 		method, input string
 	}{
-		{"CLI default method", []string{"-provider", "javdb-api", "-input", "ABC-001"}, jav.ProviderJavDBAPI, "LookupJavByCode", "ABC-001"},
-		{"CLI explicit method", []string{"--provider", "minnanoav", "--method", "LookupActressByJapaneseName", "--input", " 女优 名字 "}, jav.ProviderMinnanoAV, "LookupActressByJapaneseName", "女优 名字"},
-		{"CLI avwiki", []string{"--provider", "avwiki", "--method", "LookupActressByJapaneseName", "--input", "森沢かな"}, jav.ProviderAVWiki, "LookupActressByJapaneseName", "森沢かな"},
-		{"CLI case insensitive", []string{"-provider", "JAVDATABASE", "-method", "lookupactressbycode", "-input", "ABC-001"}, jav.ProviderJavDatabase, "LookupActressByCode", "ABC-001"},
+		{"CLI default method", []string{"-provider", "javdb-api", "-input", "ABC-001"}, scrape.ProviderJavDBAPI, "LookupJavByCode", "ABC-001"},
+		{"CLI explicit method", []string{"--provider", "minnanoav", "--method", "LookupActressByJapaneseName", "--input", " 女优 名字 "}, scrape.ProviderMinnanoAV, "LookupActressByJapaneseName", "女优 名字"},
+		{"CLI avwiki", []string{"--provider", "avwiki", "--method", "LookupActressByJapaneseName", "--input", "森沢かな"}, scrape.ProviderAVWiki, "LookupActressByJapaneseName", "森沢かな"},
+		{"CLI case insensitive", []string{"-provider", "JAVDATABASE", "-method", "lookupactressbycode", "-input", "ABC-001"}, scrape.ProviderJavDatabase, "LookupActressByCode", "ABC-001"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := newCommand()
@@ -37,7 +37,7 @@ func TestCommandLookupModes(t *testing.T) {
 			calls := 0
 			for i := range cmd.methods {
 				method := cmd.methods[i].name
-				cmd.methods[i].call = func(gotCtx context.Context, provider jav.Provider, input string) (any, error) {
+				cmd.methods[i].call = func(gotCtx context.Context, provider scrape.Provider, input string) (any, error) {
 					calls++
 					if gotCtx.Value(contextKey{}) != "request" || provider != tc.provider || method != tc.method || input != tc.input {
 						t.Errorf("unexpected lookup: context=%v provider=%s method=%s input=%q", gotCtx.Value(contextKey{}) == "request", provider, method, input)
@@ -81,7 +81,7 @@ func TestCommandValidationAndHelp(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := newCommand()
 			for i := range cmd.methods {
-				cmd.methods[i].call = func(context.Context, jav.Provider, string) (any, error) {
+				cmd.methods[i].call = func(context.Context, scrape.Provider, string) (any, error) {
 					t.Fatal("validation/help must not query a provider")
 					return nil, nil
 				}
@@ -110,13 +110,13 @@ func TestCommandErrorsAndResultFormats(t *testing.T) {
 	}{
 		{"null", nil, nil, "null\n"},
 		{"string", "https://example.test/movie", nil, "https://example.test/movie\n"},
-		{"unsupported", nil, jav.ErrUnsupportedOperation, ""},
-		{"not found", nil, jav.ErrNotFound, ""},
+		{"unsupported", nil, scrape.ErrUnsupportedOperation, ""},
+		{"not found", nil, scrape.ErrNotFound, ""},
 		{"cancelled", nil, context.Canceled, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cmd := newCommand()
-			cmd.methods[2].call = func(context.Context, jav.Provider, string) (any, error) { return tc.result, tc.err }
+			cmd.methods[2].call = func(context.Context, scrape.Provider, string) (any, error) { return tc.result, tc.err }
 			var out, errOut bytes.Buffer
 			err := cmd.run(context.Background(), []string{"-provider", "javbus", "-input", "ABC-001"}, unexpectedReader{}, &out, &errOut)
 			if !errors.Is(err, tc.err) || out.String() != tc.want {

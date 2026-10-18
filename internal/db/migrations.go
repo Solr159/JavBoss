@@ -7,8 +7,9 @@ import (
 	"io/fs"
 	"time"
 
-	"github.com/pressly/goose/v3"
 	_ "javboss/internal/db/migrations"
+
+	"github.com/pressly/goose/v3"
 )
 
 const migrationDir = "."

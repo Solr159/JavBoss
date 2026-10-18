@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -21,12 +20,12 @@ type DownloadJobResult struct {
 	MagnetURL  string   `json:"magnet_url"`
 }
 
-func GetDownloaderSettings(ctx context.Context) (*models.DownloaderSettings, error) {
-	if common.DB == nil {
+func (store *Store) GetDownloaderSettings(ctx context.Context) (*models.DownloaderSettings, error) {
+	if store.conn == nil {
 		return nil, errors.New("get downloader settings: nil db")
 	}
 	var settings models.DownloaderSettings
-	err := common.DB.WithContext(ctx).First(&settings, 1).Error
+	err := store.conn.WithContext(ctx).First(&settings, 1).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return &models.DownloaderSettings{
 			ID: 1, ActiveProvider: models.DownloaderProviderCloudDrive2, LocalConcurrency: 2,
@@ -40,8 +39,8 @@ func GetDownloaderSettings(ctx context.Context) (*models.DownloaderSettings, err
 	return &settings, nil
 }
 
-func SaveDownloaderSettings(ctx context.Context, settings *models.DownloaderSettings) error {
-	if common.DB == nil {
+func (store *Store) SaveDownloaderSettings(ctx context.Context, settings *models.DownloaderSettings) error {
+	if store.conn == nil {
 		return errors.New("save downloader settings: nil db")
 	}
 	if settings == nil {
@@ -57,7 +56,7 @@ func SaveDownloaderSettings(ctx context.Context, settings *models.DownloaderSett
 		settings.MinVideoSizeBytes = models.DefaultMinVideoSizeBytes
 	}
 	now := time.Now().UTC()
-	if err := common.DB.WithContext(ctx).Exec(`
+	if err := store.conn.WithContext(ctx).Exec(`
 		INSERT INTO downloader_settings (
 			id, active_provider, download_directory, local_concurrency,
 			min_video_size_bytes, created_at, updated_at
@@ -76,8 +75,8 @@ func SaveDownloaderSettings(ctx context.Context, settings *models.DownloaderSett
 	return nil
 }
 
-func GetDownloaderProviderSettings(ctx context.Context, provider string) (*models.DownloaderProviderSettings, error) {
-	if common.DB == nil {
+func (store *Store) GetDownloaderProviderSettings(ctx context.Context, provider string) (*models.DownloaderProviderSettings, error) {
+	if store.conn == nil {
 		return nil, errors.New("get downloader provider settings: nil db")
 	}
 	provider = strings.TrimSpace(provider)
@@ -85,7 +84,7 @@ func GetDownloaderProviderSettings(ctx context.Context, provider string) (*model
 		return nil, errors.New("get downloader provider settings: missing provider")
 	}
 	var settings models.DownloaderProviderSettings
-	err := common.DB.WithContext(ctx).First(&settings, "provider = ?", provider).Error
+	err := store.conn.WithContext(ctx).First(&settings, "provider = ?", provider).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return &models.DownloaderProviderSettings{Provider: provider}, nil
 	}
@@ -95,8 +94,8 @@ func GetDownloaderProviderSettings(ctx context.Context, provider string) (*model
 	return &settings, nil
 }
 
-func SaveDownloaderProviderSettings(ctx context.Context, settings *models.DownloaderProviderSettings) error {
-	if common.DB == nil {
+func (store *Store) SaveDownloaderProviderSettings(ctx context.Context, settings *models.DownloaderProviderSettings) error {
+	if store.conn == nil {
 		return errors.New("save downloader provider settings: nil db")
 	}
 	if settings == nil {
@@ -108,7 +107,7 @@ func SaveDownloaderProviderSettings(ctx context.Context, settings *models.Downlo
 	}
 	settings.Address = strings.TrimSpace(settings.Address)
 	settings.RemoteFolder = strings.TrimSpace(settings.RemoteFolder)
-	if err := common.DB.WithContext(ctx).Clauses(clause.OnConflict{
+	if err := store.conn.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "provider"}},
 		DoUpdates: clause.AssignmentColumns([]string{"address", "api_token", "remote_folder", "updated_at"}),
 	}).Create(settings).Error; err != nil {
@@ -117,8 +116,8 @@ func SaveDownloaderProviderSettings(ctx context.Context, settings *models.Downlo
 	return nil
 }
 
-func CreateDownloadJob(ctx context.Context, job *models.DownloadJob) error {
-	if common.DB == nil {
+func (store *Store) CreateDownloadJob(ctx context.Context, job *models.DownloadJob) error {
+	if store.conn == nil {
 		return errors.New("create download job: nil db")
 	}
 	if job == nil {
@@ -136,18 +135,18 @@ func CreateDownloadJob(ctx context.Context, job *models.DownloadJob) error {
 	}
 	job.Status = models.DownloadQueued
 	job.LocalFilesJSON = "[]"
-	if err := common.DB.WithContext(ctx).Create(job).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Create(job).Error; err != nil {
 		return fmt.Errorf("create download job: %w", err)
 	}
 	return nil
 }
 
-func GetDownloadJob(ctx context.Context, id int64) (*models.DownloadJob, error) {
-	if common.DB == nil {
+func (store *Store) GetDownloadJob(ctx context.Context, id int64) (*models.DownloadJob, error) {
+	if store.conn == nil {
 		return nil, errors.New("get download job: nil db")
 	}
 	var job models.DownloadJob
-	if err := common.DB.WithContext(ctx).First(&job, id).Error; err != nil {
+	if err := store.conn.WithContext(ctx).First(&job, id).Error; err != nil {
 		return nil, fmt.Errorf("get download job: %w", err)
 	}
 	return &job, nil
@@ -165,8 +164,8 @@ type DownloadJobPage struct {
 	Counts DownloadJobCounts   `json:"counts"`
 }
 
-func ListDownloadJobs(ctx context.Context, limit, offset int) (*DownloadJobPage, error) {
-	if common.DB == nil {
+func (store *Store) ListDownloadJobs(ctx context.Context, limit, offset int) (*DownloadJobPage, error) {
+	if store.conn == nil {
 		return nil, errors.New("list download jobs: nil db")
 	}
 	if limit <= 0 || limit > 500 {
@@ -177,7 +176,7 @@ func ListDownloadJobs(ctx context.Context, limit, offset int) (*DownloadJobPage,
 	}
 	result := &DownloadJobPage{Items: []DownloadJobResult{}}
 	// Keep counts and rows consistent if tasks are created or removed concurrently.
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var statuses []struct {
 			Status string
 			Count  int64
@@ -213,8 +212,8 @@ func ListDownloadJobs(ctx context.Context, limit, offset int) (*DownloadJobPage,
 	return result, nil
 }
 
-func ResetInterruptedDownloadJobs(ctx context.Context) error {
-	if common.DB == nil {
+func (store *Store) ResetInterruptedDownloadJobs(ctx context.Context) error {
+	if store.conn == nil {
 		return errors.New("reset download jobs: nil db")
 	}
 	active := []string{
@@ -223,7 +222,7 @@ func ResetInterruptedDownloadJobs(ctx context.Context) error {
 		models.DownloadWaitingLocal,
 		models.DownloadLocalDownloading,
 	}
-	if err := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+	if err := store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("status IN ?", active).
 		Updates(map[string]any{"status": models.DownloadQueued, "error_message": ""}).Error; err != nil {
 		return fmt.Errorf("reset download jobs: %w", err)
@@ -231,8 +230,8 @@ func ResetInterruptedDownloadJobs(ctx context.Context) error {
 	return nil
 }
 
-func ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.DownloadJob, error) {
-	if common.DB == nil {
+func (store *Store) ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.DownloadJob, error) {
+	if store.conn == nil {
 		return nil, errors.New("claim download job: nil db")
 	}
 	if provider != models.DownloaderProviderCloudDrive2 {
@@ -240,7 +239,7 @@ func ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.D
 	}
 	for attempts := 0; attempts < 10; attempts++ {
 		var job models.DownloadJob
-		err := common.DB.WithContext(ctx).
+		err := store.conn.WithContext(ctx).
 			Where("status = ? AND provider = ?", models.DownloadQueued, provider).
 			Order("created_at, id").
 			First(&job).Error
@@ -250,7 +249,7 @@ func ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.D
 		if err != nil {
 			return nil, fmt.Errorf("claim download job: %w", err)
 		}
-		result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+		result := store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 			Where("id = ? AND status = ? AND provider = ?", job.ID, models.DownloadQueued, provider).
 			Updates(map[string]any{
 				"status": models.DownloadOfflineDownloading, "error_message": "",
@@ -267,22 +266,22 @@ func ClaimNextQueuedDownloadJob(ctx context.Context, provider string) (*models.D
 	return nil, errors.New("claim download job: too much contention")
 }
 
-func UpdateDownloadJob(ctx context.Context, id int64, updates map[string]any) error {
-	if common.DB == nil {
+func (store *Store) UpdateDownloadJob(ctx context.Context, id int64, updates map[string]any) error {
+	if store.conn == nil {
 		return errors.New("update download job: nil db")
 	}
 	if id <= 0 || len(updates) == 0 {
 		return nil
 	}
-	if err := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+	if err := store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("id = ?", id).Updates(updates).Error; err != nil {
 		return fmt.Errorf("update download job: %w", err)
 	}
 	return nil
 }
 
-func RetryDownloadJob(ctx context.Context, id int64) error {
-	result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+func (store *Store) RetryDownloadJob(ctx context.Context, id int64) error {
+	result := store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("id = ? AND status IN ?", id, []string{models.DownloadFailed, models.DownloadCanceled}).
 		Updates(map[string]any{
 			"status": models.DownloadQueued, "error_message": "", "completed_at": nil,
@@ -297,8 +296,8 @@ func RetryDownloadJob(ctx context.Context, id int64) error {
 	return nil
 }
 
-func CancelDownloadJob(ctx context.Context, id int64) error {
-	result := common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+func (store *Store) CancelDownloadJob(ctx context.Context, id int64) error {
+	result := store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("id = ? AND status NOT IN ?", id, []string{models.DownloadCompleted, models.DownloadCanceled}).
 		Updates(map[string]any{"status": models.DownloadCanceled, "error_message": ""})
 	if result.Error != nil {
@@ -310,8 +309,8 @@ func CancelDownloadJob(ctx context.Context, id int64) error {
 	return nil
 }
 
-func DeleteDownloadJob(ctx context.Context, id int64) error {
-	result := common.DB.WithContext(ctx).
+func (store *Store) DeleteDownloadJob(ctx context.Context, id int64) error {
+	result := store.conn.WithContext(ctx).
 		Where("id = ? AND status IN ?", id, []string{
 			models.DownloadCompleted, models.DownloadFailed, models.DownloadCanceled,
 		}).Delete(&models.DownloadJob{})
@@ -324,8 +323,8 @@ func DeleteDownloadJob(ctx context.Context, id int64) error {
 	return nil
 }
 
-func CompleteDownloadJob(ctx context.Context, id int64, files []string, total int64, warning string) error {
-	if common.DB == nil {
+func (store *Store) CompleteDownloadJob(ctx context.Context, id int64, files []string, total int64, warning string) error {
+	if store.conn == nil {
 		return errors.New("complete download job: nil db")
 	}
 	if id <= 0 {
@@ -336,7 +335,7 @@ func CompleteDownloadJob(ctx context.Context, id int64, files []string, total in
 		return fmt.Errorf("encode download job local files: %w", err)
 	}
 	now := time.Now().UTC()
-	return common.DB.WithContext(ctx).Model(&models.DownloadJob{}).
+	return store.conn.WithContext(ctx).Model(&models.DownloadJob{}).
 		Where("id = ? AND status <> ?", id, models.DownloadCanceled).Updates(map[string]any{
 		"status":           models.DownloadCompleted,
 		"bytes_total":      total,

@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 
 	"github.com/mattn/go-ieproxy"
+	"javboss/internal/common"
 	"javboss/internal/common/logging"
-	"javboss/internal/runtimeconfig"
 )
 
 const dockerHostGateway = "host.docker.internal"
@@ -157,7 +157,7 @@ func configuredProxy(systemProxy func(*http.Request) (*url.URL, error)) func(*ht
 }
 
 func mapProxyURLForContainer(u *url.URL) *url.URL {
-	if u == nil || !runtimeconfig.ProxyHostGatewayEnabled() {
+	if u == nil || !common.ProxyHostGatewayEnabled() {
 		return u
 	}
 	host := strings.TrimSpace(u.Hostname())

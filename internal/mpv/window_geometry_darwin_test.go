@@ -11,8 +11,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
-	"javboss/internal/common"
 )
 
 // Opt in separately from headless tests because this opens real macOS windows.
@@ -36,9 +34,9 @@ func TestDarwinWindowGeometryIsOnlyAppliedInitially(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	previousDB := common.DB
-	common.DB = nil
-	t.Cleanup(func() { common.DB = previousDB })
+	previousProvider := playerConfigProvider
+	SetPlayerConfigProvider(nil)
+	t.Cleanup(func() { SetPlayerConfigProvider(previousProvider) })
 	config, err := buildConfigContent()
 	if err != nil {
 		t.Fatal(err)

@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"golang.org/x/term"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/scrape"
 )
 
 func (cmd command) selectLookup(ctx context.Context, in io.Reader, out io.Writer) (providerOption, methodOption, string, error) {
@@ -20,7 +20,7 @@ func (cmd command) selectLookup(ctx context.Context, in io.Reader, out io.Writer
 		return providerOption{}, methodOption{}, "", errors.New("交互模式需要终端；请使用 --provider、--method 和 --input 参数")
 	}
 	methodIndex := 0
-	var providerID jav.Provider
+	var providerID scrape.Provider
 	var input string
 	options := make([]huh.Option[int], 0, len(cmd.methods))
 	for i, method := range cmd.methods {
@@ -32,12 +32,12 @@ func (cmd command) selectLookup(ctx context.Context, in io.Reader, out io.Writer
 	// Static lists retain their row positions; huh's dynamic options reset the
 	// scroll offset on every update. Show only the selected method's group.
 	for i, method := range cmd.methods {
-		options := make([]huh.Option[jav.Provider], 0)
+		options := make([]huh.Option[scrape.Provider], 0)
 		for _, provider := range cmd.supportedProviders(method) {
 			options = append(options, huh.NewOption(provider.name, provider.provider))
 		}
 		groups = append(groups, huh.NewGroup(
-			huh.NewSelect[jav.Provider]().Title("请选择 provider").Options(options...).Value(&providerID),
+			huh.NewSelect[scrape.Provider]().Title("请选择 provider").Options(options...).Value(&providerID),
 		).WithHideFunc(func() bool { return methodIndex != i }))
 	}
 	groups = append(groups,

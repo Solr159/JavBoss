@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -20,6 +19,7 @@ type JavTextTranslationItem struct {
 // JavTextTranslationStore selects one of the two supported translation domains.
 // Column names are internal constants, never request input.
 type JavTextTranslationStore struct {
+	store  *Store
 	Series bool
 }
 
@@ -32,9 +32,9 @@ func (s JavTextTranslationStore) columns() (string, string) {
 
 func (s JavTextTranslationStore) query(ctx context.Context) *gorm.DB {
 	if s.Series {
-		return common.DB.WithContext(ctx).Model(&models.JavSeries{}).Where("is_english = ?", false)
+		return s.store.conn.WithContext(ctx).Model(&models.JavSeries{}).Where("is_english = ?", false)
 	}
-	return common.DB.WithContext(ctx).Model(&models.Jav{})
+	return s.store.conn.WithContext(ctx).Model(&models.Jav{})
 }
 
 func (s JavTextTranslationStore) selectQuery(ctx context.Context) *gorm.DB {
@@ -68,4 +68,9 @@ func (s JavTextTranslationStore) Save(ctx context.Context, item *JavTextTranslat
 		return false, fmt.Errorf("save translation text: %w", result.Error)
 	}
 	return result.RowsAffected > 0, nil
+}
+
+// TextTranslations selects the title or series translation store.
+func (s *Store) TextTranslations(series bool) JavTextTranslationStore {
+	return JavTextTranslationStore{store: s, Series: series}
 }

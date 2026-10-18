@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 )
 
@@ -18,7 +17,7 @@ type JavOwnership struct {
 // LookupJavOwnership counts file locations in undeleted directories,
 // including disabled or temporarily offline directories. Metadata alone is not owned.
 // Code matching ignores case, spaces, hyphens and underscores, but never prefixes.
-func LookupJavOwnership(ctx context.Context, codes []string) ([]JavOwnership, error) {
+func (store *Store) LookupJavOwnership(ctx context.Context, codes []string) ([]JavOwnership, error) {
 	separators := strings.NewReplacer("-", "", "_", "", " ", "")
 	normalize := func(code string) string {
 		return separators.Replace(strings.ToUpper(code))
@@ -31,12 +30,12 @@ func LookupJavOwnership(ctx context.Context, codes []string) ([]JavOwnership, er
 	for _, code := range codes {
 		keys = append(keys, normalize(code))
 	}
-	locations := common.DB.WithContext(ctx).Table("video_location vl").Select("1").
+	locations := store.conn.WithContext(ctx).Table("video_location vl").Select("1").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
 		Where("vl.jav_id = jav.id").
 		Where("COALESCE(d.is_delete, 0) = 0")
 	var ownedCodes []string
-	if err := common.DB.WithContext(ctx).Model(&models.Jav{}).
+	if err := store.conn.WithContext(ctx).Model(&models.Jav{}).
 		Where("UPPER(REPLACE(REPLACE(REPLACE(code, '-', ''), '_', ''), ' ', '')) IN ?", keys).
 		Where("EXISTS (?)", locations).Pluck("code", &ownedCodes).Error; err != nil {
 		return nil, fmt.Errorf("lookup jav ownership: %w", err)

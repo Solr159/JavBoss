@@ -6,34 +6,35 @@ import (
 	"testing"
 	"time"
 
-	"javboss/internal/jav/metadata"
+	"javboss/internal/jav/scrape/metadata"
 	"javboss/internal/models"
 )
 
 func TestSaveJavInfoIgnoresScrapedChineseTitles(t *testing.T) {
+	deps := newTestDependencies()
 	for _, provider := range []metadata.Provider{metadata.ProviderJavDBAPI, metadata.ProviderJavDB, metadata.ProviderJavBus} {
 		t.Run(provider.String(), func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			ctx := context.Background()
 			info := &metadata.JavInfo{Code: "ABC-001", Title: "日本語の原題", ZhTitle: "站点中文译名", Provider: provider}
-			item, err := SaveJavInfo(ctx, info)
+			item, err := deps.store.SaveJavInfo(ctx, info)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if item.ZhTitle != "" {
 				t.Fatalf("scraped Chinese title persisted: %q", item.ZhTitle)
 			}
-			if saved, err := SaveJavTitleTranslation(ctx, item, "AI 中文标题"); err != nil || !saved {
+			if saved, err := deps.store.SaveJavTitleTranslation(ctx, item, "AI 中文标题"); err != nil || !saved {
 				t.Fatalf("save translation: saved=%v err=%v", saved, err)
 			}
 			manual := "人工校对的中文标题"
 			for _, want := range []string{"AI 中文标题", manual} {
 				if want == manual {
-					if _, err := UpdateJav(ctx, item.ID, JavUpdateInput{ZhTitle: &manual}, nil); err != nil {
+					if _, err := deps.store.UpdateJav(ctx, item.ID, JavUpdateInput{ZhTitle: &manual}, nil); err != nil {
 						t.Fatal(err)
 					}
 				}
-				if _, err := SaveJavInfo(ctx, info); err != nil {
+				if _, err := deps.store.SaveJavInfo(ctx, info); err != nil {
 					t.Fatal(err)
 				}
 				var stored models.Jav
@@ -56,7 +57,7 @@ func TestSaveJavInfoIgnoresScrapedChineseTitles(t *testing.T) {
 				}
 			}
 			info.Title = "更新した原題"
-			updated, err := SaveJavInfo(ctx, info)
+			updated, err := deps.store.SaveJavInfo(ctx, info)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -68,7 +69,8 @@ func TestSaveJavInfoIgnoresScrapedChineseTitles(t *testing.T) {
 }
 
 func TestSearchJavMatchesChineseTitlesAndKeepsFilters(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	dir := models.Directory{Path: "/media/title-search"}
 	video := models.Video{Fingerprint: "title-search"}
@@ -79,7 +81,7 @@ func TestSearchJavMatchesChineseTitlesAndKeepsFilters(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	location, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "title.mp4", time.Now())
+	location, err := deps.store.UpsertVideoLocation(ctx, video.ID, dir.ID, "title.mp4", time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +99,7 @@ func TestSearchJavMatchesChineseTitlesAndKeepsFilters(t *testing.T) {
 		{"雨天", []int64{dir.ID + 1}, 0},
 		{"missing", nil, 0},
 	} {
-		items, total, err := SearchJav(ctx, nil, nil, tc.search, "recent", 25, 0, nil, tc.dirs)
+		items, total, err := deps.store.SearchJav(ctx, nil, nil, tc.search, "recent", 25, 0, nil, tc.dirs)
 		if err != nil {
 			t.Fatal(err)
 		}

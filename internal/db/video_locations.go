@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -19,23 +18,23 @@ import (
 var ErrVideoLocationPathConflict = errors.New("video location path already exists")
 
 // AllVideoLocations returns every known video location; used for scan bookkeeping.
-func AllVideoLocations(ctx context.Context) ([]models.VideoLocation, error) {
+func (store *Store) AllVideoLocations(ctx context.Context) ([]models.VideoLocation, error) {
 	var locations []models.VideoLocation
-	if err := common.DB.WithContext(ctx).Find(&locations).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Find(&locations).Error; err != nil {
 		return nil, fmt.Errorf("load video locations: %w", err)
 	}
 	return locations, nil
 }
 
 // VideoLocationsByDirectory returns every known location in a directory, without filtering directory visibility.
-func VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models.VideoLocation, error) {
+func (store *Store) VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models.VideoLocation, error) {
 	if directoryID <= 0 {
 		return nil, errors.New("directory id cannot be zero")
 	}
 	var locations []models.VideoLocation
 	// Join the belongs-to relation so loading a large directory does not expand
 	// every video ID into a Preload IN query and exceed SQLite's parameter limit.
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Where("video_location.directory_id = ?", directoryID).
 		Joins("Video").
 		Find(&locations).Error; err != nil {
@@ -45,7 +44,7 @@ func VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models
 }
 
 // UpsertVideoLocation records or updates the on-disk location for a video.
-func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relativePath string, modifiedAt time.Time) (*models.VideoLocation, error) {
+func (store *Store) UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relativePath string, modifiedAt time.Time) (*models.VideoLocation, error) {
 	relativePath = cleanRelativePathForDB(relativePath)
 	filename := filepath.Base(filepath.FromSlash(relativePath))
 	if videoID <= 0 || directoryID <= 0 || relativePath == "" {
@@ -59,7 +58,7 @@ func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relati
 		Filename:     filename,
 		ModifiedAt:   modifiedAt,
 	}
-	tx := common.DB.WithContext(ctx)
+	tx := store.conn.WithContext(ctx)
 	if err := tx.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "directory_id"}, {Name: "relative_path"}},
 		DoUpdates: clause.Assignments(map[string]any{
@@ -82,13 +81,13 @@ func UpsertVideoLocation(ctx context.Context, videoID, directoryID int64, relati
 }
 
 // DeleteVideoLocationsByIDs removes file locations while preserving video metadata and history.
-func DeleteVideoLocationsByIDs(ctx context.Context, ids []int64) error {
+func (store *Store) DeleteVideoLocationsByIDs(ctx context.Context, ids []int64) error {
 	if len(ids) == 0 {
 		return nil
 	}
 	// Keep batches below SQLite's older 999-variable limit and delete them atomically.
 	const batchSize = 400
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for start := 0; start < len(ids); start += batchSize {
 			batch := ids[start:min(start+batchSize, len(ids))]
 			if err := tx.Model(&models.VideoLocation{}).
@@ -106,13 +105,13 @@ func DeleteVideoLocationsByIDs(ctx context.Context, ids []int64) error {
 }
 
 // GetVideoIDByPath returns the video ID for an active directory path + relative path.
-func GetVideoIDByPath(ctx context.Context, dirPath, relPath string) (int64, error) {
+func (store *Store) GetVideoIDByPath(ctx context.Context, dirPath, relPath string) (int64, error) {
 	if strings.TrimSpace(dirPath) == "" || strings.TrimSpace(relPath) == "" {
 		return 0, errors.New("directory path and relative path are required")
 	}
 
 	var loc models.VideoLocation
-	err := common.DB.WithContext(ctx).
+	err := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Select("video_location.video_id").
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
@@ -133,12 +132,12 @@ func GetVideoIDByPath(ctx context.Context, dirPath, relPath string) (int64, erro
 }
 
 // GetPrimaryVideoLocation returns the preferred active location for a video.
-func GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoLocation, error) {
+func (store *Store) GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoLocation, error) {
 	if videoID <= 0 {
 		return nil, errors.New("video id cannot be zero")
 	}
 	var loc models.VideoLocation
-	err := common.DB.WithContext(ctx).
+	err := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.video_id = ?", videoID).
@@ -156,12 +155,12 @@ func GetPrimaryVideoLocation(ctx context.Context, videoID int64) (*models.VideoL
 }
 
 // GetActiveVideoLocation returns a specific active location for a video.
-func GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*models.VideoLocation, error) {
+func (store *Store) GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*models.VideoLocation, error) {
 	if videoID <= 0 || locationID <= 0 {
 		return nil, errors.New("video id and location id are required")
 	}
 	var loc models.VideoLocation
-	err := common.DB.WithContext(ctx).
+	err := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
 		Where("video_location.id = ?", locationID).
@@ -179,13 +178,13 @@ func GetActiveVideoLocation(ctx context.Context, videoID, locationID int64) (*mo
 }
 
 // VideoLocationPathExists reports whether any active location row already uses the directory/path pair.
-func VideoLocationPathExists(ctx context.Context, directoryID int64, relativePath string) (bool, error) {
+func (store *Store) VideoLocationPathExists(ctx context.Context, directoryID int64, relativePath string) (bool, error) {
 	relativePath = cleanRelativePathForDB(relativePath)
 	if directoryID <= 0 || relativePath == "" {
 		return false, errors.New("directory id and relative path are required")
 	}
 	var count int64
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.VideoLocation{}).
 		Where("directory_id = ? AND relative_path = ?", directoryID, relativePath).
 		Count(&count).Error; err != nil {
@@ -195,7 +194,7 @@ func VideoLocationPathExists(ctx context.Context, directoryID int64, relativePat
 }
 
 // UpdateVideoLocationPath updates the stored path metadata for a location after a filesystem rename.
-func UpdateVideoLocationPath(ctx context.Context, locationID int64, relativePath string, modifiedAt time.Time) (*models.VideoLocation, error) {
+func (store *Store) UpdateVideoLocationPath(ctx context.Context, locationID int64, relativePath string, modifiedAt time.Time) (*models.VideoLocation, error) {
 	relativePath = cleanRelativePathForDB(relativePath)
 	if locationID <= 0 || relativePath == "" {
 		return nil, errors.New("location id and relative path are required")
@@ -208,7 +207,7 @@ func UpdateVideoLocationPath(ctx context.Context, locationID int64, relativePath
 	}
 
 	var loc models.VideoLocation
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var current models.VideoLocation
 		if err := tx.
 			Model(&models.VideoLocation{}).
@@ -252,8 +251,8 @@ func UpdateVideoLocationPath(ctx context.Context, locationID int64, relativePath
 	return &loc, nil
 }
 
-func activeVideoLocationSubquery(ctx context.Context) *gorm.DB {
-	return common.DB.WithContext(ctx).
+func (store *Store) activeVideoLocationSubquery(ctx context.Context) *gorm.DB {
+	return store.conn.WithContext(ctx).
 		Table("video_location vl").
 		Select("1").
 		Joins("JOIN directory d ON d.id = vl.directory_id").

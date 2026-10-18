@@ -5,11 +5,12 @@ import (
 	"reflect"
 	"testing"
 
-	"javboss/internal/jav/metadata"
+	"javboss/internal/jav/scrape/metadata"
 	"javboss/internal/models"
 )
 
 func TestRenameAndDeleteJavTags(t *testing.T) {
+	deps := newTestDependencies()
 	for _, tc := range []struct {
 		name      string
 		isUser    bool
@@ -20,7 +21,7 @@ func TestRenameAndDeleteJavTags(t *testing.T) {
 		{name: "unattached scraped"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			ctx := context.Background()
 			tag := models.JavTag{Name: "Original", IsUser: tc.isUser}
 			other := models.JavTag{Name: "Original", IsUser: !tc.isUser}
@@ -51,7 +52,7 @@ func TestRenameAndDeleteJavTags(t *testing.T) {
 				t.Fatalf("load original relations: %v", err)
 			}
 
-			if err := RenameJavTag(ctx, tag.ID, "  Renamed  "); err != nil {
+			if err := deps.store.RenameJavTag(ctx, tag.ID, "  Renamed  "); err != nil {
 				t.Fatalf("rename tag: %v", err)
 			}
 			var renamed models.JavTag
@@ -69,7 +70,7 @@ func TestRenameAndDeleteJavTags(t *testing.T) {
 				t.Fatalf("rename changed relations: got %+v, want %+v", after, before)
 			}
 
-			if err := DeleteJavTag(ctx, tag.ID); err != nil {
+			if err := deps.store.DeleteJavTag(ctx, tag.ID); err != nil {
 				t.Fatalf("delete tag: %v", err)
 			}
 			var remaining []models.JavTag

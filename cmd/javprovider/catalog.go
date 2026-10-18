@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/scrape"
 )
 
 type methodOption struct {
-	supports func(jav.Capabilities) bool
+	supports func(scrape.Capabilities) bool
 	name     string
 	prompt   string
-	call     func(context.Context, jav.Provider, string) (any, error)
+	call     func(context.Context, scrape.Provider, string) (any, error)
 }
 
 type providerOption struct {
 	name     string
-	provider jav.Provider
+	provider scrape.Provider
 }
 
 type command struct {
@@ -27,10 +27,10 @@ type command struct {
 
 func newCommand() command {
 	providers := make([]providerOption, 0, 11)
-	for _, provider := range []jav.Provider{
-		jav.ProviderJavBus, jav.ProviderJavDatabase, jav.ProviderJavDB, jav.ProviderJavDBAPI,
-		jav.ProviderAvmoo, jav.ProviderAvsox, jav.ProviderJavMenu, jav.ProviderJavModel,
-		jav.ProviderThePornDB, jav.ProviderMinnanoAV, jav.ProviderAVWiki,
+	for _, provider := range []scrape.Provider{
+		scrape.ProviderJavBus, scrape.ProviderJavDatabase, scrape.ProviderJavDB, scrape.ProviderJavDBAPI,
+		scrape.ProviderAvmoo, scrape.ProviderAvsox, scrape.ProviderJavMenu, scrape.ProviderJavModel,
+		scrape.ProviderThePornDB, scrape.ProviderMinnanoAV, scrape.ProviderAVWiki,
 	} {
 		providers = append(providers, providerOption{name: provider.String(), provider: provider})
 	}
@@ -38,26 +38,26 @@ func newCommand() command {
 	methods := []methodOption{
 		{
 			name:     "LookupActressByCode",
-			supports: func(c jav.Capabilities) bool { return c.ActressByCode },
+			supports: func(c scrape.Capabilities) bool { return c.ActressByCode },
 			prompt:   "请输入番号",
-			call: func(ctx context.Context, provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByCode(ctx, input, provider)
+			call: func(ctx context.Context, provider scrape.Provider, input string) (any, error) {
+				return scrape.LookupActressByCode(ctx, input, provider)
 			},
 		},
 		{
 			name:     "LookupActressByJapaneseName",
-			supports: func(c jav.Capabilities) bool { return c.ActressByName },
+			supports: func(c scrape.Capabilities) bool { return c.ActressByName },
 			prompt:   "请输入女优日文名",
-			call: func(ctx context.Context, provider jav.Provider, input string) (any, error) {
-				return jav.LookupActressByJapaneseName(ctx, input, provider)
+			call: func(ctx context.Context, provider scrape.Provider, input string) (any, error) {
+				return scrape.LookupActressByJapaneseName(ctx, input, provider)
 			},
 		},
 		{
 			name:     "LookupJavByCode",
-			supports: func(c jav.Capabilities) bool { return c.Movie },
+			supports: func(c scrape.Capabilities) bool { return c.Movie },
 			prompt:   "请输入番号",
-			call: func(ctx context.Context, provider jav.Provider, input string) (any, error) {
-				return jav.LookupJavByCode(ctx, input, provider)
+			call: func(ctx context.Context, provider scrape.Provider, input string) (any, error) {
+				return scrape.LookupJavByCode(ctx, input, provider)
 			},
 		},
 	}
@@ -84,7 +84,7 @@ func methodNames(methods []methodOption) []string {
 func (cmd command) supportedProviders(method methodOption) []providerOption {
 	providers := make([]providerOption, 0, len(cmd.providers))
 	for _, provider := range cmd.providers {
-		if method.supports(jav.CapabilitiesFor(provider.provider)) {
+		if method.supports(scrape.CapabilitiesFor(provider.provider)) {
 			providers = append(providers, provider)
 		}
 	}

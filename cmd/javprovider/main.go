@@ -12,7 +12,7 @@ import (
 
 	"github.com/urfave/cli/v3"
 
-	"javboss/internal/jav"
+	"javboss/internal/jav/scrape"
 )
 
 func main() {
@@ -86,7 +86,7 @@ func nonEmptyInput(value string) error {
 func executeLookup(ctx context.Context, out io.Writer, provider providerOption, method methodOption, input string) error {
 	result, err := method.call(ctx, provider.provider, input)
 	if err != nil {
-		if errors.Is(err, jav.ErrUnsupportedOperation) {
+		if errors.Is(err, scrape.ErrUnsupportedOperation) {
 			return fmt.Errorf("%s 不支持 %s: %w", provider.name, method.name, err)
 		}
 		return fmt.Errorf("调用 %s/%s 失败: %w", provider.name, method.name, err)

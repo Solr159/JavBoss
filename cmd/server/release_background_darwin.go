@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"javboss/internal/runtimeconfig"
+	"javboss/internal/common"
 )
 
 const backgroundChildEnv = "JAVBOSS_BACKGROUND_CHILD"
@@ -22,7 +22,7 @@ func startReleaseInBackground(baseDir string) (bool, error) {
 		signal.Ignore(syscall.SIGHUP)
 		return false, nil
 	}
-	if buildMode != "release" || runtimeconfig.ContainerMode() {
+	if buildMode != "release" || common.ContainerMode() {
 		return false, nil
 	}
 	// Attempt cleanup before re-exec, including bundled tools. Individual failures

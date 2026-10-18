@@ -19,21 +19,25 @@ import (
 	"syscall"
 	"time"
 
+	"javboss/internal/api"
 	"javboss/internal/cache"
 	clientpkg "javboss/internal/client"
 	"javboss/internal/common"
 	"javboss/internal/common/logging"
 	"javboss/internal/db"
-	"javboss/internal/jav"
+	"javboss/internal/directory"
+	"javboss/internal/jav/enrichment"
+	"javboss/internal/jav/scrape"
+	"javboss/internal/jav/translation"
 	"javboss/internal/models"
 	"javboss/internal/mpv"
-	"javboss/internal/runtimeconfig"
-	"javboss/internal/server"
-	"javboss/internal/service"
-	"javboss/internal/service/enrichment"
 	"javboss/internal/util"
 
-	"javboss/internal/manager"
+	"javboss/internal/download"
+	"javboss/internal/ffmpeg"
+	"javboss/internal/jav/scrape/cover"
+	"javboss/internal/video/screenshot"
+	"javboss/internal/video/stream"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pelletier/go-toml/v2"
@@ -122,7 +126,7 @@ func run() int {
 
 	// Desktop releases own a single-instance lock; containers are managed by
 	// their runtime and must not enter interactive duplicate-instance controls.
-	if buildMode == "release" && !runtimeconfig.ContainerMode() {
+	if buildMode == "release" && !common.ContainerMode() {
 		dataDir := filepath.Dir(cfg.DatabasePath)
 		lockPath := filepath.Join(dataDir, "javboss.lock")
 		lock, ok := acquireSingleInstanceLock(lockPath, logger)
@@ -159,15 +163,20 @@ func run() int {
 		return 1
 	}
 	defer sqlDB.Close()
-	// Flush final playback checkpoints while the database is still open.
-	defer mpv.Shutdown()
+	store := db.NewStore(database)
+	db.SetDefault(store)
+	// Flush final playback checkpoints before releasing the config provider and database.
+	defer func() {
+		mpv.Shutdown()
+		mpv.SetPlayerConfigProvider(nil)
+	}()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	common.DB = database
-	passwordResetPath := filepath.Join(filepath.Dir(cfg.DatabasePath), server.PasswordResetFilename)
-	passwordResetApplied, err := server.ApplyPasswordResetFile(ctx, passwordResetPath)
+	mpv.SetPlayerConfigProvider(func() (map[string]string, error) { return store.ListConfig(context.Background()) })
+	passwordResetPath := filepath.Join(filepath.Dir(cfg.DatabasePath), api.PasswordResetFilename)
+	passwordResetApplied, err := api.ApplyPasswordResetFile(ctx, passwordResetPath)
 	if err != nil {
 		logger.Printf("apply password reset file: %v", err)
 		return 1
@@ -176,40 +185,39 @@ func run() int {
 		logger.Printf("password reset applied; all existing sessions were revoked")
 	}
 	runtimeCfg := applyRuntimeConfig(ctx)
-	allowLANAccess := configBool(runtimeCfg["allow_lan_access"]) && !runtimeconfig.ContainerMode()
+	allowLANAccess := configBool(runtimeCfg["allow_lan_access"]) && !common.ContainerMode()
 
 	var activeDirs []models.Directory
-	if dirs, err := db.ListDirectories(ctx); err == nil {
+	if dirs, err := store.ListDirectories(ctx); err == nil {
 		activeDirs = dirs
 		logger.Printf("directories configured: %d (启动时不自动扫描)", len(activeDirs))
 	} else {
 		logger.Printf("list directories on startup failed: %v", err)
 	}
 
+	common.SetConfig(cfg)
 	dataDir := filepath.Dir(cfg.DatabasePath)
-	screenshotManager := manager.NewScreenshotManager(dataDir, db.GetVideo)
-	streamManager := manager.NewStreamManager(filepath.Join(dataDir, "cache", "streams"))
-	ffmpegToolManager := manager.NewFFmpegToolManager(ctx, baseDir)
-	coverManager := manager.NewCoverManager(cfg.JavCoverDir)
+	ffmpeg.Init(ctx, baseDir)
 
-	common.AppConfig = cfg
-	common.ScreenshotManager = screenshotManager
-	common.CoverManager = coverManager
-	common.StreamManager = streamManager
-	common.FFmpegToolManager = ffmpegToolManager
+	directory.Init(cfg.JavCoverDir)
+	translation.Init(ctx)
+	defer func() {
+		stop()
+		translation.WaitBatches()
+	}()
 
 	javCache, err := cache.OpenSQLiteKV(filepath.Join(dataDir, "cache", "jav_cache.db"))
 	if err != nil {
 		logger.Printf("open jav lookup cache failed, continue without cache: %v", err)
 	} else {
 		defer javCache.Close()
-		jav.SetCache(javCache)
+		scrape.SetCache(javCache)
 		javCache.StartCleaner(ctx, 24*time.Hour)
 	}
 
-	screenshotManager.Start(ctx)
-	coverManager.Start(ctx)
-	streamManager.Start(ctx)
+	screenshot.Start(ctx, dataDir)
+	cover.Start(ctx, cfg.JavCoverDir)
+	stream.Start(ctx, filepath.Join(dataDir, "cache", "streams"))
 	go func() {
 		timer := time.NewTimer(5 * time.Second)
 		defer timer.Stop()
@@ -218,8 +226,8 @@ func run() int {
 		case <-ctx.Done():
 			return
 		case <-timer.C:
-			service.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
-			service.StartDownloadManager(ctx)
+			directory.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
+			download.Start(ctx)
 			enrichment.StartCensoredStudioEnrichment(ctx, time.Minute)
 			enrichment.StartCensoredSeriesEnrichment(ctx, time.Minute)
 			enrichment.StartCensoredIdolEnrichment(ctx, time.Minute)
@@ -230,7 +238,7 @@ func run() int {
 		}
 	}()
 
-	authService, err := server.NewAuthServiceForInstance(ctx, baseDir)
+	authService, err := api.NewAuthServiceForInstance(ctx, baseDir)
 	if err != nil {
 		logger.Printf("initialize authentication: %v", err)
 		return 1
@@ -247,8 +255,7 @@ func run() int {
 		return 1
 	}
 	defer listener.Close()
-	server.BindTitleTranslationContext(ctx)
-	router := server.NewRouter(resolveStaticDir(defaultStaticDir), authService)
+	router := api.NewRouter(resolveStaticDir(defaultStaticDir), authService)
 
 	srv := &http.Server{
 		Addr:         listenAddr,
@@ -262,7 +269,7 @@ func run() int {
 	displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 	logger.Printf("server listening on %s", listener.Addr().String())
 	if err := serveWithReleaseControls(ctx, stop, displayURL, "", logger, func() error {
-		return server.ServeHTTP(ctx, srv, listener, allowLANAccess, !runtimeconfig.ContainerMode())
+		return api.ServeHTTP(ctx, srv, listener, allowLANAccess, !common.ContainerMode())
 	}); err != nil {
 		logger.Printf("server error: %v", err)
 		return 1
@@ -284,7 +291,7 @@ func resolveClientServerURL(flagValue, configuredValue string) string {
 func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, serverURL string, configuredPort int, logger *log.Logger) error {
 	port := configuredPort
 	if port == 0 {
-		if buildMode == "release" && !runtimeconfig.ContainerMode() {
+		if buildMode == "release" && !common.ContainerMode() {
 			port = defaultReleasePort
 		} else {
 			port = defaultDevelopmentPort
@@ -324,7 +331,7 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 	displayURL := fmt.Sprintf("http://localhost:%d", port)
 	logger.Printf("client mode listening on %s, remote server %s", listenAddr, strings.TrimSpace(serverURL))
 	if err := serveWithReleaseControls(ctx, stop, displayURL, serverURL, logger, func() error {
-		return server.ServeHTTP(ctx, srv, listener, false, false)
+		return api.ServeHTTP(ctx, srv, listener, false, false)
 	}); err != nil {
 		return fmt.Errorf("client server: %w", err)
 	}
@@ -332,7 +339,7 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 }
 
 func applyRuntimeConfig(ctx context.Context) map[string]string {
-	cfg, err := db.ListConfig(ctx)
+	cfg, err := db.Default().ListConfig(ctx)
 	if err != nil {
 		logging.Error("load runtime config failed: %v", err)
 		return nil
@@ -343,7 +350,7 @@ func applyRuntimeConfig(ctx context.Context) map[string]string {
 
 func buildLogger(baseDir string) (*log.Logger, func(), error) {
 	// Container logs belong to the runtime, even for release builds.
-	if runtimeconfig.ContainerMode() || gin.Mode() != gin.ReleaseMode {
+	if common.ContainerMode() || gin.Mode() != gin.ReleaseMode {
 		logger := log.New(os.Stdout, "", log.LstdFlags|log.Lmicroseconds)
 		return logger, func() {}, nil
 	}
@@ -375,7 +382,7 @@ func configuredListenAddr(port int, allowLANAccess bool, containerMode bool) str
 }
 
 func serverListenAddr(baseDir string, allowLANAccess bool, portOverride int) (string, error) {
-	if runtimeconfig.ContainerMode() {
+	if common.ContainerMode() {
 		port := configuredPortWithOverride(defaultDevelopmentPort, portOverride)
 		return configuredListenAddr(port, false, true), nil
 	}
@@ -529,7 +536,7 @@ func startReleaseKeyboardControls(ctx context.Context, cancel context.CancelFunc
 
 func resolveBaseDir() (string, error) {
 	// Containers keep data relative to their configured working directory.
-	if buildMode == "release" && !runtimeconfig.ContainerMode() {
+	if buildMode == "release" && !common.ContainerMode() {
 		execPath, err := os.Executable()
 		if err != nil {
 			return "", fmt.Errorf("resolve executable directory: %w", err)

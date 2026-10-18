@@ -40,7 +40,8 @@ func createDirectoryLocationFixtures(t *testing.T, gdb *gorm.DB, count int) (mod
 }
 
 func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	// Reproduce the reported library size, exceeding SQLite's 32766-variable limit.
 	dir, fixtures := createDirectoryLocationFixtures(t, gdb, 41888)
 	duplicate := models.VideoLocation{VideoID: fixtures[0].VideoID, DirectoryID: dir.ID, RelativePath: "copy.mp4"}
@@ -54,7 +55,7 @@ func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	locations, err := VideoLocationsByDirectory(t.Context(), dir.ID)
+	locations, err := deps.store.VideoLocationsByDirectory(t.Context(), dir.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,13 +77,14 @@ func TestVideoLocationsByDirectoryLargeLibrary(t *testing.T) {
 			t.Fatalf("missing location %d", loc.ID)
 		}
 	}
-	empty, err := VideoLocationsByDirectory(t.Context(), otherDir.ID+1)
+	empty, err := deps.store.VideoLocationsByDirectory(t.Context(), otherDir.ID+1)
 	if err != nil || len(empty) != 0 {
 		t.Fatalf("empty directory: count=%d err=%v", len(empty), err)
 	}
 }
 
 func TestDeleteVideoLocationsByIDs(t *testing.T) {
+	deps := newTestDependencies()
 	for _, tc := range []struct {
 		name     string
 		count    int
@@ -94,7 +96,7 @@ func TestDeleteVideoLocationsByIDs(t *testing.T) {
 		{name: "rollback earlier batches", count: 1001, failLast: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			gdb := openTestDB(t)
+			gdb := openTestDB(deps, t)
 			_, locations := createDirectoryLocationFixtures(t, gdb, tc.count+1)
 			ids := make([]int64, tc.count)
 			for i := range ids {
@@ -107,7 +109,7 @@ func TestDeleteVideoLocationsByIDs(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			err := DeleteVideoLocationsByIDs(t.Context(), ids)
+			err := deps.store.DeleteVideoLocationsByIDs(t.Context(), ids)
 			wantDeleted := int64(tc.count)
 			if tc.failLast {
 				if err == nil || !strings.Contains(err.Error(), "forced delete failure") {
@@ -136,7 +138,8 @@ func TestDeleteVideoLocationsByIDs(t *testing.T) {
 }
 
 func TestVideoLocationPathExistsAfterDelete(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -155,15 +158,15 @@ func TestVideoLocationPathExistsAfterDelete(t *testing.T) {
 	if err := gdb.Create(&video).Error; err != nil {
 		t.Fatalf("create video: %v", err)
 	}
-	loc, err := UpsertVideoLocation(ctx, video.ID, dir.ID, "deleted.mp4", now)
+	loc, err := deps.store.UpsertVideoLocation(ctx, video.ID, dir.ID, "deleted.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert location: %v", err)
 	}
-	if err := DeleteVideoLocationsByIDs(ctx, []int64{loc.ID}); err != nil {
+	if err := deps.store.DeleteVideoLocationsByIDs(ctx, []int64{loc.ID}); err != nil {
 		t.Fatalf("delete location: %v", err)
 	}
 
-	exists, err := VideoLocationPathExists(ctx, dir.ID, "deleted.mp4")
+	exists, err := deps.store.VideoLocationPathExists(ctx, dir.ID, "deleted.mp4")
 	if err != nil {
 		t.Fatalf("check path exists: %v", err)
 	}
@@ -173,7 +176,8 @@ func TestVideoLocationPathExistsAfterDelete(t *testing.T) {
 }
 
 func TestUpdateVideoLocationPathReusesDeletedPath(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 	now := time.Unix(1710000000, 0).UTC()
 
@@ -201,19 +205,19 @@ func TestUpdateVideoLocationPathReusesDeletedPath(t *testing.T) {
 	if err := gdb.Create(&activeVideo).Error; err != nil {
 		t.Fatalf("create active video: %v", err)
 	}
-	deletedLoc, err := UpsertVideoLocation(ctx, deletedVideo.ID, dir.ID, "target.mp4", now)
+	deletedLoc, err := deps.store.UpsertVideoLocation(ctx, deletedVideo.ID, dir.ID, "target.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert deleted location: %v", err)
 	}
-	activeLoc, err := UpsertVideoLocation(ctx, activeVideo.ID, dir.ID, "source.mp4", now)
+	activeLoc, err := deps.store.UpsertVideoLocation(ctx, activeVideo.ID, dir.ID, "source.mp4", now)
 	if err != nil {
 		t.Fatalf("upsert active location: %v", err)
 	}
-	if err := DeleteVideoLocationsByIDs(ctx, []int64{deletedLoc.ID}); err != nil {
+	if err := deps.store.DeleteVideoLocationsByIDs(ctx, []int64{deletedLoc.ID}); err != nil {
 		t.Fatalf("delete target location: %v", err)
 	}
 
-	updated, err := UpdateVideoLocationPath(ctx, activeLoc.ID, "target.mp4", now.Add(time.Minute))
+	updated, err := deps.store.UpdateVideoLocationPath(ctx, activeLoc.ID, "target.mp4", now.Add(time.Minute))
 	if err != nil {
 		t.Fatalf("update active location path: %v", err)
 	}

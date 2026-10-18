@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 
 	"gorm.io/gorm"
@@ -37,7 +36,7 @@ type JavFavoriteCount struct {
 
 // AddJavsToFavoriteGroups appends JAV items to every selected group atomically.
 // Existing memberships and their order are preserved; new items follow javIDs order.
-func AddJavsToFavoriteGroups(ctx context.Context, javIDs, groupIDs []int64) ([]JavFavoriteCount, error) {
+func (store *Store) AddJavsToFavoriteGroups(ctx context.Context, javIDs, groupIDs []int64) ([]JavFavoriteCount, error) {
 	for _, ids := range [][]int64{javIDs, groupIDs} {
 		if len(ids) == 0 {
 			return nil, errors.New("jav_ids and group_ids are required")
@@ -52,7 +51,7 @@ func AddJavsToFavoriteGroups(ctx context.Context, javIDs, groupIDs []int64) ([]J
 	groupIDs = uniqueInt64s(groupIDs)
 	const batchSize = 400
 	counts := make([]JavFavoriteCount, 0, len(javIDs))
-	err := common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for start := 0; start < len(javIDs); start += batchSize {
 			batch := javIDs[start:min(start+batchSize, len(javIDs))]
 			var count int64
@@ -153,23 +152,23 @@ func normalizeJavFavoriteEntityType(entityType string) (string, error) {
 	}
 }
 
-func buildFavoriteCountQuery(ctx context.Context, entityType string) *gorm.DB {
-	return common.DB.WithContext(ctx).
+func (store *Store) buildFavoriteCountQuery(ctx context.Context, entityType string) *gorm.DB {
+	return store.conn.WithContext(ctx).
 		Table("jav_favorite_map").
 		Select("entity_id, COUNT(DISTINCT jav_favorite_group_id) AS favorite_count").
 		Where("entity_type = ?", entityType).
 		Group("entity_id")
 }
 
-func buildIdolFavoriteCountQuery(ctx context.Context) *gorm.DB {
-	return common.DB.WithContext(ctx).
+func (store *Store) buildIdolFavoriteCountQuery(ctx context.Context) *gorm.DB {
+	return store.conn.WithContext(ctx).
 		Table("jav_favorite_map").
 		Select("entity_id AS jav_idol_id, COUNT(DISTINCT jav_favorite_group_id) AS favorite_count").
 		Where("entity_type = ?", JavFavoriteEntityIdol).
 		Group("entity_id")
 }
 
-func attachJavFavoriteCounts(ctx context.Context, items []models.Jav) error {
+func (store *Store) attachJavFavoriteCounts(ctx context.Context, items []models.Jav) error {
 	if len(items) == 0 {
 		return nil
 	}
@@ -188,7 +187,7 @@ func attachJavFavoriteCounts(ctx context.Context, items []models.Jav) error {
 		EntityID      int64 `gorm:"column:entity_id"`
 		FavoriteCount int64 `gorm:"column:favorite_count"`
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Table("jav_favorite_map").
 		Select("entity_id, COUNT(DISTINCT jav_favorite_group_id) AS favorite_count").
 		Where("entity_type = ? AND entity_id IN ?", JavFavoriteEntityJav, ids).
@@ -205,14 +204,14 @@ func attachJavFavoriteCounts(ctx context.Context, items []models.Jav) error {
 }
 
 // ListJavFavoriteGroups returns user-created favorite groups for an entity type.
-func ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs []int64) ([]JavFavoriteGroupSummary, error) {
+func (store *Store) ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs []int64) ([]JavFavoriteGroupSummary, error) {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return nil, err
 	}
 
 	var groups []JavFavoriteGroupSummary
-	query := common.DB.WithContext(ctx).
+	query := store.conn.WithContext(ctx).
 		Table("jav_favorite_group jfg").
 		Where("jfg.entity_type = ?", entityType).
 		Group("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order").
@@ -224,7 +223,7 @@ func ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs 
 			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN solo_idols.cover_code IS NOT NULL THEN jfm.entity_id END) AS count").
 			Joins("LEFT JOIN jav_favorite_map jfm ON jfm.jav_favorite_group_id = jfg.id AND jfm.entity_type = ?", entityType).
 			Joins("LEFT JOIN jav_idol ji ON ji.id = jfm.entity_id").
-			Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = jfm.entity_id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs))
+			Joins("LEFT JOIN (?) solo_idols ON solo_idols.jav_idol_id = jfm.entity_id", store.buildVisibleSoloIdolCoverQuery(ctx, directoryIDs))
 	case JavFavoriteEntityJav:
 		query = query.
 			Select("jfg.id, jfg.entity_type, jfg.name, jfg.sort_order, COUNT(DISTINCT CASE WHEN j.id IS NOT NULL AND vl.id IS NOT NULL AND d.id IS NOT NULL AND "+activeDirectoryWhereSQL("d")+directoryFilterSQL("vl", directoryIDs)+" THEN j.id END) AS count").
@@ -257,7 +256,7 @@ func ListJavFavoriteGroups(ctx context.Context, entityType string, directoryIDs 
 }
 
 // CreateJavFavoriteGroup creates a favorite group or returns the existing group with the same name and entity type.
-func CreateJavFavoriteGroup(ctx context.Context, entityType, name string) (*models.JavFavoriteGroup, error) {
+func (store *Store) CreateJavFavoriteGroup(ctx context.Context, entityType, name string) (*models.JavFavoriteGroup, error) {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return nil, err
@@ -268,27 +267,27 @@ func CreateJavFavoriteGroup(ctx context.Context, entityType, name string) (*mode
 	}
 
 	var group models.JavFavoriteGroup
-	err = common.DB.WithContext(ctx).Where("entity_type = ? AND name = ?", entityType, name).First(&group).Error
+	err = store.conn.WithContext(ctx).Where("entity_type = ? AND name = ?", entityType, name).First(&group).Error
 	if err == nil {
 		return &group, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, fmt.Errorf("find jav favorite group %q: %w", name, err)
 	}
-	nextOrder, err := nextJavFavoriteGroupSortOrder(ctx, entityType)
+	nextOrder, err := store.nextJavFavoriteGroupSortOrder(ctx, entityType)
 	if err != nil {
 		return nil, err
 	}
 	group = models.JavFavoriteGroup{Name: name, EntityType: entityType, SortOrder: nextOrder}
-	if err := common.DB.WithContext(ctx).Create(&group).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Create(&group).Error; err != nil {
 		return nil, fmt.Errorf("create jav favorite group %q: %w", name, err)
 	}
 	return &group, nil
 }
 
-func nextJavFavoriteGroupSortOrder(ctx context.Context, entityType string) (int, error) {
+func (store *Store) nextJavFavoriteGroupSortOrder(ctx context.Context, entityType string) (int, error) {
 	var maxOrder int
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.JavFavoriteGroup{}).
 		Where("entity_type = ?", entityType).
 		Select("COALESCE(MAX(sort_order), 0)").
@@ -299,7 +298,7 @@ func nextJavFavoriteGroupSortOrder(ctx context.Context, entityType string) (int,
 }
 
 // RenameJavFavoriteGroup renames a favorite group.
-func RenameJavFavoriteGroup(ctx context.Context, entityType string, id int64, name string) error {
+func (store *Store) RenameJavFavoriteGroup(ctx context.Context, entityType string, id int64, name string) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -311,7 +310,7 @@ func RenameJavFavoriteGroup(ctx context.Context, entityType string, id int64, na
 	if name == "" {
 		return errors.New("favorite group name cannot be empty")
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Model(&models.JavFavoriteGroup{}).
 		Where("id = ? AND entity_type = ?", id, entityType).
 		Update("name", name).Error; err != nil {
@@ -321,7 +320,7 @@ func RenameJavFavoriteGroup(ctx context.Context, entityType string, id int64, na
 }
 
 // DeleteJavFavoriteGroup deletes a favorite group and its memberships.
-func DeleteJavFavoriteGroup(ctx context.Context, entityType string, id int64) error {
+func (store *Store) DeleteJavFavoriteGroup(ctx context.Context, entityType string, id int64) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -329,7 +328,7 @@ func DeleteJavFavoriteGroup(ctx context.Context, entityType string, id int64) er
 	if id <= 0 {
 		return errors.New("favorite group id must be positive")
 	}
-	res := common.DB.WithContext(ctx).Where("entity_type = ?", entityType).Delete(&models.JavFavoriteGroup{}, id)
+	res := store.conn.WithContext(ctx).Where("entity_type = ?", entityType).Delete(&models.JavFavoriteGroup{}, id)
 	if res.Error != nil {
 		return fmt.Errorf("delete jav favorite group: %w", res.Error)
 	}
@@ -340,7 +339,7 @@ func DeleteJavFavoriteGroup(ctx context.Context, entityType string, id int64) er
 }
 
 // ReorderJavFavoriteGroups persists the display order of favorite groups.
-func ReorderJavFavoriteGroups(ctx context.Context, entityType string, groupIDs []int64) error {
+func (store *Store) ReorderJavFavoriteGroups(ctx context.Context, entityType string, groupIDs []int64) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -349,7 +348,7 @@ func ReorderJavFavoriteGroups(ctx context.Context, entityType string, groupIDs [
 	if len(cleanIDs) == 0 {
 		return errors.New("group_ids required")
 	}
-	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var count int64
 		if err := tx.Model(&models.JavFavoriteGroup{}).Where("entity_type = ? AND id IN ?", entityType, cleanIDs).Count(&count).Error; err != nil {
 			return fmt.Errorf("find jav favorite groups: %w", err)
@@ -417,7 +416,7 @@ func nextJavFavoriteMapSortOrderTx(tx *gorm.DB, groupID int64) (int, error) {
 }
 
 // ListJavFavoriteGroupIDs returns favorite group IDs containing the entity.
-func ListJavFavoriteGroupIDs(ctx context.Context, entityType string, entityID int64) ([]int64, error) {
+func (store *Store) ListJavFavoriteGroupIDs(ctx context.Context, entityType string, entityID int64) ([]int64, error) {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return nil, err
@@ -426,7 +425,7 @@ func ListJavFavoriteGroupIDs(ctx context.Context, entityType string, entityID in
 		return nil, errors.New("entity id must be positive")
 	}
 	var ids []int64
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Table("jav_favorite_map").
 		Where("entity_type = ? AND entity_id = ?", entityType, entityID).
 		Order("jav_favorite_group_id").
@@ -437,7 +436,7 @@ func ListJavFavoriteGroupIDs(ctx context.Context, entityType string, entityID in
 }
 
 // ReplaceJavFavoriteGroups replaces all favorite group memberships for one entity.
-func ReplaceJavFavoriteGroups(ctx context.Context, entityType string, entityID int64, groupIDs []int64) error {
+func (store *Store) ReplaceJavFavoriteGroups(ctx context.Context, entityType string, entityID int64, groupIDs []int64) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -447,7 +446,7 @@ func ReplaceJavFavoriteGroups(ctx context.Context, entityType string, entityID i
 	}
 	cleanGroupIDs := uniqueInt64s(groupIDs)
 
-	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := validateJavFavoriteEntityTx(tx, entityType, entityID); err != nil {
 			return err
 		}
@@ -507,7 +506,7 @@ func ReplaceJavFavoriteGroups(ctx context.Context, entityType string, entityID i
 }
 
 // ListJavFavoriteGroupItems returns visible entities in a favorite group order.
-func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, directoryIDs []int64) ([]JavFavoriteItemSummary, error) {
+func (store *Store) ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, directoryIDs []int64) ([]JavFavoriteItemSummary, error) {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return nil, err
@@ -516,7 +515,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 		return nil, errors.New("favorite group id must be positive")
 	}
 	var items []JavFavoriteItemSummary
-	query := common.DB.WithContext(ctx).Table("jav_favorite_map jfm").
+	query := store.conn.WithContext(ctx).Table("jav_favorite_map jfm").
 		Where("jfm.entity_type = ? AND jfm.jav_favorite_group_id = ?", entityType, groupID).
 		Order("jfm.sort_order ASC")
 
@@ -534,7 +533,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 		query = query.
 			Select("'idol' AS entity_type, ji.id, ji.name, ji.roman_name, ji.japanese_name, ji.chinese_name, COUNT(DISTINCT j.id) AS work_count, COALESCE(NULLIF(cover_jav.code, ''), solo_idols.cover_code) AS sample_code").
 			Joins("JOIN jav_idol ji ON ji.id = jfm.entity_id").
-			Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)).
+			Joins("JOIN (?) solo_idols ON solo_idols.jav_idol_id = ji.id", store.buildVisibleSoloIdolCoverQuery(ctx, directoryIDs)).
 			Joins("LEFT JOIN jav cover_jav ON cover_jav.id = ji.cover_jav_id").
 			Joins("JOIN jav_idol_map jim ON jim.jav_idol_id = ji.id").
 			Joins("JOIN jav j ON j.id = jim.jav_id").
@@ -572,7 +571,7 @@ func ListJavFavoriteGroupItems(ctx context.Context, entityType string, groupID i
 }
 
 // ReorderJavFavoriteGroupItems persists item order inside a favorite group.
-func ReorderJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, entityIDs []int64) error {
+func (store *Store) ReorderJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, entityIDs []int64) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -584,7 +583,7 @@ func ReorderJavFavoriteGroupItems(ctx context.Context, entityType string, groupI
 	if len(cleanIDs) == 0 {
 		return errors.New("entity_ids required")
 	}
-	return common.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	return store.conn.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := validateJavFavoriteGroupTx(tx, entityType, groupID); err != nil {
 			return err
 		}
@@ -609,7 +608,7 @@ func ReorderJavFavoriteGroupItems(ctx context.Context, entityType string, groupI
 }
 
 // RemoveJavFavoriteGroupItems removes entities from a favorite group.
-func RemoveJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, entityIDs []int64) error {
+func (store *Store) RemoveJavFavoriteGroupItems(ctx context.Context, entityType string, groupID int64, entityIDs []int64) error {
 	entityType, err := normalizeJavFavoriteEntityType(entityType)
 	if err != nil {
 		return err
@@ -621,7 +620,7 @@ func RemoveJavFavoriteGroupItems(ctx context.Context, entityType string, groupID
 	if len(cleanIDs) == 0 {
 		return errors.New("entity_ids required")
 	}
-	if err := common.DB.WithContext(ctx).
+	if err := store.conn.WithContext(ctx).
 		Where("entity_type = ? AND jav_favorite_group_id = ? AND entity_id IN ?", entityType, groupID, cleanIDs).
 		Delete(&models.JavFavoriteMap{}).Error; err != nil {
 		return fmt.Errorf("remove jav favorite maps: %w", err)

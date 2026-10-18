@@ -8,14 +8,15 @@ import (
 )
 
 func TestManageAndAssignTagCategories(t *testing.T) {
-	gdb := openTestDB(t)
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
 	ctx := context.Background()
 
-	categoryA, err := CreateTagCategory(ctx, " A ")
+	categoryA, err := deps.store.CreateTagCategory(ctx, " A ")
 	if err != nil {
 		t.Fatalf("CreateTagCategory A: %v", err)
 	}
-	categoryB, err := CreateTagCategory(ctx, "B")
+	categoryB, err := deps.store.CreateTagCategory(ctx, "B")
 	if err != nil {
 		t.Fatalf("CreateTagCategory B: %v", err)
 	}
@@ -23,14 +24,14 @@ func TestManageAndAssignTagCategories(t *testing.T) {
 		t.Fatalf("unexpected categories: A=%+v B=%+v", categoryA, categoryB)
 	}
 
-	tag, err := CreateTag(ctx, "grouped")
+	tag, err := deps.store.CreateTag(ctx, "grouped")
 	if err != nil {
 		t.Fatalf("CreateTag: %v", err)
 	}
-	if err := AssignTagsCategory(ctx, []int64{tag.ID}, &categoryB.ID); err != nil {
+	if err := deps.store.AssignTagsCategory(ctx, []int64{tag.ID}, &categoryB.ID); err != nil {
 		t.Fatalf("AssignTagsCategory: %v", err)
 	}
-	tags, err := ListTags(ctx, nil)
+	tags, err := deps.store.ListTags(ctx, nil)
 	if err != nil {
 		t.Fatalf("ListTags: %v", err)
 	}
@@ -38,13 +39,13 @@ func TestManageAndAssignTagCategories(t *testing.T) {
 		t.Fatalf("listed tag category = %+v", tags)
 	}
 
-	if err := ReorderTagCategories(ctx, []int64{categoryB.ID, 0, categoryA.ID}); err != nil {
+	if err := deps.store.ReorderTagCategories(ctx, []int64{categoryB.ID, 0, categoryA.ID}); err != nil {
 		t.Fatalf("ReorderTagCategories: %v", err)
 	}
-	if err := RenameTagCategory(ctx, categoryB.ID, "Renamed"); err != nil {
+	if err := deps.store.RenameTagCategory(ctx, categoryB.ID, "Renamed"); err != nil {
 		t.Fatalf("RenameTagCategory: %v", err)
 	}
-	categories, err := ListTagCategories(ctx)
+	categories, err := deps.store.ListTagCategories(ctx)
 	if err != nil {
 		t.Fatalf("ListTagCategories: %v", err)
 	}
@@ -52,7 +53,7 @@ func TestManageAndAssignTagCategories(t *testing.T) {
 		t.Fatalf("reordered categories = %+v", categories)
 	}
 
-	if err := DeleteTagCategory(ctx, categoryB.ID); err != nil {
+	if err := deps.store.DeleteTagCategory(ctx, categoryB.ID); err != nil {
 		t.Fatalf("DeleteTagCategory: %v", err)
 	}
 	var stored models.Tag
@@ -62,7 +63,7 @@ func TestManageAndAssignTagCategories(t *testing.T) {
 	if stored.CategoryID != nil {
 		t.Fatalf("deleted category still assigned: %+v", stored)
 	}
-	categories, err = ListTagCategories(ctx)
+	categories, err = deps.store.ListTagCategories(ctx)
 	if err != nil {
 		t.Fatalf("ListTagCategories after delete: %v", err)
 	}
@@ -72,13 +73,14 @@ func TestManageAndAssignTagCategories(t *testing.T) {
 }
 
 func TestAssignTagsCategoryRejectsMissingCategory(t *testing.T) {
-	openTestDB(t)
-	tag, err := CreateTag(context.Background(), "tag")
+	deps := newTestDependencies()
+	openTestDB(deps, t)
+	tag, err := deps.store.CreateTag(context.Background(), "tag")
 	if err != nil {
 		t.Fatalf("CreateTag: %v", err)
 	}
 	missingID := int64(999)
-	if err := AssignTagsCategory(context.Background(), []int64{tag.ID}, &missingID); err == nil {
+	if err := deps.store.AssignTagsCategory(context.Background(), []int64{tag.ID}, &missingID); err == nil {
 		t.Fatal("AssignTagsCategory accepted a missing category")
 	}
 }

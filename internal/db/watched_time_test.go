@@ -8,7 +8,8 @@ import (
 )
 
 func TestWatchedTimeAtomicityAndHistoricalJavTotal(t *testing.T) {
-	database := openTestDB(t)
+	deps := newTestDependencies()
+	database := openTestDB(deps, t)
 	ctx := context.Background()
 	video := models.Video{Fingerprint: "watch-video"}
 	jav := models.Jav{Code: "WATCH-001"}
@@ -18,11 +19,11 @@ func TestWatchedTimeAtomicityAndHistoricalJavTotal(t *testing.T) {
 		}
 	}
 	staleVideo := video
-	if err := AddWatchedTime(ctx, video.ID, jav.ID, 1500); err != nil {
+	if err := deps.store.AddWatchedTime(ctx, video.ID, jav.ID, 1500); err != nil {
 		t.Fatal(err)
 	}
 	staleVideo.DurationSec = 600
-	if err := SaveVideo(ctx, &staleVideo); err != nil {
+	if err := deps.store.SaveVideo(ctx, &staleVideo); err != nil {
 		t.Fatal(err)
 	}
 	if err := database.First(&video, video.ID).Error; err != nil {
@@ -34,7 +35,7 @@ func TestWatchedTimeAtomicityAndHistoricalJavTotal(t *testing.T) {
 	if err := database.Exec(`CREATE TRIGGER reject_watch BEFORE UPDATE OF watched_ms ON jav BEGIN SELECT RAISE(ABORT, 'test failure'); END`).Error; err != nil {
 		t.Fatal(err)
 	}
-	if err := AddWatchedTime(ctx, video.ID, jav.ID, 500); err == nil {
+	if err := deps.store.AddWatchedTime(ctx, video.ID, jav.ID, 500); err == nil {
 		t.Fatal("expected failed transaction")
 	}
 	if err := database.First(&video, video.ID).Error; err != nil {
@@ -50,10 +51,10 @@ func TestWatchedTimeAtomicityAndHistoricalJavTotal(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The open player can still checkpoint after deleting the video.
-	if err := AddWatchedTime(ctx, video.ID, jav.ID, 500); err != nil {
+	if err := deps.store.AddWatchedTime(ctx, video.ID, jav.ID, 500); err != nil {
 		t.Fatal(err)
 	}
-	if err := DeleteOrphanJavs(ctx); err != nil {
+	if err := deps.store.DeleteOrphanJavs(ctx); err != nil {
 		t.Fatal(err)
 	}
 	if err := database.First(&jav, jav.ID).Error; err != nil {
@@ -65,7 +66,8 @@ func TestWatchedTimeAtomicityAndHistoricalJavTotal(t *testing.T) {
 }
 
 func TestWatchedTimeSort(t *testing.T) {
-	database := openTestDB(t)
+	deps := newTestDependencies()
+	database := openTestDB(deps, t)
 	ctx := context.Background()
 	dir := models.Directory{Path: "/watch-sort"}
 	if err := database.Create(&dir).Error; err != nil {
@@ -89,11 +91,11 @@ func TestWatchedTimeSort(t *testing.T) {
 		sort                 string
 		videoIndex, javIndex int
 	}{{"watched", 1, 0}, {"watched_asc", 0, 1}} {
-		vs, err := ListVideos(ctx, 10, 0, nil, "", tc.sort, nil, nil)
+		vs, err := deps.store.ListVideos(ctx, 10, 0, nil, "", tc.sort, nil, nil)
 		if err != nil || len(vs) != 2 || vs[0].ID != videos[tc.videoIndex].ID {
 			t.Fatalf("video order %s: %v %v", tc.sort, vs, err)
 		}
-		js, _, err := SearchJav(ctx, nil, nil, "", tc.sort, 10, 0, nil, nil)
+		js, _, err := deps.store.SearchJav(ctx, nil, nil, "", tc.sort, 10, 0, nil, nil)
 		if err != nil || len(js) != 2 || js[0].ID != javs[tc.javIndex].ID {
 			t.Fatalf("jav order %s: %v %v", tc.sort, js, err)
 		}
@@ -103,7 +105,7 @@ func TestWatchedTimeSort(t *testing.T) {
 		videoIndex int
 	}{{"watched_desc", 1}, {"play_count", 1}, {"play_count_desc", 1}, {"play_count_asc", 0}} {
 		t.Run(tc.sort, func(t *testing.T) {
-			vs, err := ListVideos(ctx, 10, 0, nil, "", tc.sort, nil, nil)
+			vs, err := deps.store.ListVideos(ctx, 10, 0, nil, "", tc.sort, nil, nil)
 			if err != nil || len(vs) != 2 || vs[0].ID != videos[tc.videoIndex].ID {
 				t.Fatalf("video order %s: %v %v", tc.sort, vs, err)
 			}
@@ -118,7 +120,7 @@ func TestWatchedTimeSort(t *testing.T) {
 		javIndex int
 	}{{"watched", 0}, {"watched_desc", 0}, {"watched_asc", 1}, {"play_count", 0}, {"play_count_desc", 0}, {"play_count_asc", 1}} {
 		t.Run("jav-"+tc.sort, func(t *testing.T) {
-			js, _, err := SearchJav(ctx, nil, nil, "", tc.sort, 10, 0, nil, nil)
+			js, _, err := deps.store.SearchJav(ctx, nil, nil, "", tc.sort, 10, 0, nil, nil)
 			if err != nil || len(js) != 2 || js[0].ID != javs[tc.javIndex].ID {
 				t.Fatalf("jav order %s: %v %v", tc.sort, js, err)
 			}

@@ -8,7 +8,8 @@ import (
 )
 
 func TestSeriesTranslationAppearsInSummariesAndSearch(t *testing.T) {
-	database := openTestDB(t)
+	deps := newTestDependencies()
+	database := openTestDB(deps, t)
 	create := func(value any) {
 		t.Helper()
 		if err := database.Create(value).Error; err != nil {
@@ -28,16 +29,16 @@ func TestSeriesTranslationAppearsInSummariesAndSearch(t *testing.T) {
 	create(&models.VideoLocation{VideoID: video.ID, DirectoryID: directory.ID, RelativePath: "series.mp4", Filename: "series.mp4", JavID: &work.ID})
 	ctx := context.Background()
 	for _, search := range []string{series.Name, series.ZhName} {
-		items, total, err := ListJavSeries(ctx, search, 10, 0, nil)
+		items, total, err := deps.store.ListJavSeries(ctx, search, 10, 0, nil)
 		if err != nil || total != 1 || len(items) != 1 || items[0].Name != series.Name || items[0].ZhName != series.ZhName {
 			t.Fatalf("search %q: items=%+v total=%d err=%v", search, items, total, err)
 		}
 	}
-	summary, err := GetJavSeriesSummary(ctx, series.ID, nil)
+	summary, err := deps.store.GetJavSeriesSummary(ctx, series.ID, nil)
 	if err != nil || summary.ZhName != series.ZhName {
 		t.Fatalf("summary=%+v err=%v", summary, err)
 	}
-	studios, _, err := ListJavStudios(ctx, "", 10, 0, nil)
+	studios, _, err := deps.store.ListJavStudios(ctx, "", 10, 0, nil)
 	if err != nil || len(studios) != 1 || len(studios[0].Series) != 1 || studios[0].Series[0].ZhName != series.ZhName {
 		t.Fatalf("studio series=%+v err=%v", studios, err)
 	}

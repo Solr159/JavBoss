@@ -1,7 +1,6 @@
 package mpv
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,9 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"javboss/internal/common"
 	"javboss/internal/common/logging"
-	dbpkg "javboss/internal/db"
 )
 
 const playerHotkeysConfigKey = "player_hotkeys"
@@ -70,9 +67,8 @@ var (
 	playerConfigProvider   func() (map[string]string, error)
 )
 
-// SetPlayerConfigProvider overrides player configuration loading. It is used by
-// the standalone client mode, which intentionally does not open the server DB.
-// Passing nil restores the default DB-backed behavior.
+// SetPlayerConfigProvider supplies configuration from the host application.
+// Passing nil restores built-in player defaults.
 func SetPlayerConfigProvider(provider func() (map[string]string, error)) {
 	playerConfigProviderMu.Lock()
 	playerConfigProvider = provider
@@ -88,10 +84,7 @@ func loadPlayerConfig() (map[string]string, error) {
 	if provider != nil {
 		return provider()
 	}
-	if common.DB == nil {
-		return nil, nil
-	}
-	return dbpkg.ListConfig(context.Background())
+	return nil, nil
 }
 
 func InvalidateHotkeysCache() {

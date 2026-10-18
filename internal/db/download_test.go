@@ -6,33 +6,35 @@ import (
 	"testing"
 	"time"
 
-	"javboss/internal/common"
 	"javboss/internal/models"
 )
 
 func TestCreateDownloadJobAllowsRepeatedMagnet(t *testing.T) {
+	deps := newTestDependencies()
 	database, err := Open(filepath.Join(t.TempDir(), "download.db"))
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
 	}
-	previousDB := common.DB
-	common.DB = database
+
+	deps.database = database
+	deps.bindDatabase()
+
 	t.Cleanup(func() {
-		common.DB = previousDB
+
 		if sqlDB, dbErr := database.DB(); dbErr == nil {
 			_ = sqlDB.Close()
 		}
 	})
 
 	downloadDirectory := t.TempDir()
-	defaults, err := GetDownloaderSettings(context.Background())
+	defaults, err := deps.store.GetDownloaderSettings(context.Background())
 	if err != nil {
 		t.Fatalf("get default downloader settings: %v", err)
 	}
 	if defaults.ActiveProvider != models.DownloaderProviderCloudDrive2 || defaults.MinVideoSizeBytes != models.DefaultMinVideoSizeBytes {
 		t.Fatalf("default small-video settings = %#v", defaults)
 	}
-	if err := SaveDownloaderSettings(context.Background(), &models.DownloaderSettings{
+	if err := deps.store.SaveDownloaderSettings(context.Background(), &models.DownloaderSettings{
 		ActiveProvider:    models.DownloaderProviderCloudDrive2,
 		DownloadDirectory: downloadDirectory, LocalConcurrency: 2,
 	}); err != nil {
@@ -46,7 +48,7 @@ func TestCreateDownloadJobAllowsRepeatedMagnet(t *testing.T) {
 		MagnetName:        "manual download",
 		Provider:          models.DownloaderProviderCloudDrive2,
 	}
-	if err := CreateDownloadJob(context.Background(), job); err != nil {
+	if err := deps.store.CreateDownloadJob(context.Background(), job); err != nil {
 		t.Fatalf("create download job: %v", err)
 	}
 	if job.ID <= 0 || job.Status != models.DownloadQueued {
@@ -55,7 +57,7 @@ func TestCreateDownloadJobAllowsRepeatedMagnet(t *testing.T) {
 
 	duplicate := *job
 	duplicate.ID = 0
-	if err := CreateDownloadJob(context.Background(), &duplicate); err != nil {
+	if err := deps.store.CreateDownloadJob(context.Background(), &duplicate); err != nil {
 		t.Fatalf("create repeated download job: %v", err)
 	}
 	if duplicate.ID <= 0 || duplicate.ID == job.ID {
@@ -70,7 +72,7 @@ func TestCreateDownloadJobAllowsRepeatedMagnet(t *testing.T) {
 	if count != 2 {
 		t.Fatalf("repeated download job count = %d, want 2", count)
 	}
-	jobs, err := ListDownloadJobs(context.Background(), 10, 0)
+	jobs, err := deps.store.ListDownloadJobs(context.Background(), 10, 0)
 	if err != nil {
 		t.Fatalf("list download jobs: %v", err)
 	}
@@ -80,27 +82,30 @@ func TestCreateDownloadJobAllowsRepeatedMagnet(t *testing.T) {
 }
 
 func TestCreateDownloadJobUsesForcedCloudDrive2Provider(t *testing.T) {
+	deps := newTestDependencies()
 	database, err := Open(filepath.Join(t.TempDir(), "forced-provider.db"))
 	if err != nil {
 		t.Fatalf("open test database: %v", err)
 	}
-	previousDB := common.DB
-	common.DB = database
+
+	deps.database = database
+	deps.bindDatabase()
+
 	t.Cleanup(func() {
-		common.DB = previousDB
+
 		if sqlDB, dbErr := database.DB(); dbErr == nil {
 			_ = sqlDB.Close()
 		}
 	})
 
 	downloadDirectory := t.TempDir()
-	if err := SaveDownloaderSettings(context.Background(), &models.DownloaderSettings{
+	if err := deps.store.SaveDownloaderSettings(context.Background(), &models.DownloaderSettings{
 		DownloadDirectory: downloadDirectory, LocalConcurrency: 2,
 		MinVideoSizeBytes: 75 * 1024 * 1024,
 	}); err != nil {
 		t.Fatalf("save downloader settings: %v", err)
 	}
-	settings, err := GetDownloaderSettings(context.Background())
+	settings, err := deps.store.GetDownloaderSettings(context.Background())
 	if err != nil {
 		t.Fatalf("get downloader settings: %v", err)
 	}
@@ -113,25 +118,28 @@ func TestCreateDownloadJobUsesForcedCloudDrive2Provider(t *testing.T) {
 		MagnetURL:         "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
 		Provider:          models.DownloaderProviderCloudDrive2,
 	}
-	if err := CreateDownloadJob(context.Background(), job); err != nil {
+	if err := deps.store.CreateDownloadJob(context.Background(), job); err != nil {
 		t.Fatalf("create download job: %v", err)
 	}
 }
 
 func TestListDownloadJobsPaginationAndGlobalCounts(t *testing.T) {
+	deps := newTestDependencies()
 	database, err := Open(filepath.Join(t.TempDir(), "download-pages.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	previousDB := common.DB
-	common.DB = database
+
+	deps.database = database
+	deps.bindDatabase()
+
 	t.Cleanup(func() {
-		common.DB = previousDB
+
 		if sqlDB, err := database.DB(); err == nil {
 			_ = sqlDB.Close()
 		}
 	})
-	empty, err := ListDownloadJobs(t.Context(), 20, 0)
+	empty, err := deps.store.ListDownloadJobs(t.Context(), 20, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +171,7 @@ func TestListDownloadJobsPaginationAndGlobalCounts(t *testing.T) {
 		{"excessive limit", 501, 0, 20, 123},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			page, err := ListDownloadJobs(t.Context(), tt.limit, tt.offset)
+			page, err := deps.store.ListDownloadJobs(t.Context(), tt.limit, tt.offset)
 			if err != nil {
 				t.Fatal(err)
 			}
