@@ -30,6 +30,7 @@ const Tooltip = forwardRef(function Tooltip({ children, open, onOpen, onClose, .
 
   return (
     <MuiTooltip
+      arrow
       {...props}
       ref={ref}
       open={open ?? visible}
