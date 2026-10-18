@@ -116,7 +116,10 @@ func (m *Manager) acquireDirectoryScanSession(ctx context.Context, id int64) (co
 		return nil, nil, errors.New("directory id cannot be zero")
 	}
 	if ctx == nil {
-		ctx = context.Background()
+		ctx = m.ctx
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
 	}
 	m.dirScanMu.Lock()
 	defer m.dirScanMu.Unlock()

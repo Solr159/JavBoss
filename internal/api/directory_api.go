@@ -72,7 +72,7 @@ func createDirectory(c *gin.Context) {
 		return
 	}
 	go func(created models.Directory) {
-		ctx := context.Background()
+		ctx := directory.Context()
 		if _, err := directory.ScanDirectory(ctx, created); err != nil {
 			if errors.Is(err, directory.ErrDirectoryScanInProgress) {
 				return
@@ -170,7 +170,7 @@ func updateDirectory(c *gin.Context) {
 		if updated.IsDelete || !scan {
 			return
 		}
-		ctx := context.Background()
+		ctx := directory.Context()
 		if _, err := directory.ScanDirectory(ctx, updated); err != nil {
 			if errors.Is(err, directory.ErrDirectoryScanInProgress) {
 				return

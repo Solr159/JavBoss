@@ -322,7 +322,7 @@ func (m *installer) downloadToTarget() error {
 	if err := os.Chmod(tempPath, 0o755); err != nil {
 		return fmt.Errorf("make FFmpeg executable: %w", err)
 	}
-	if err := validateFFmpeg(tempPath); err != nil {
+	if err := validateFFmpeg(m.context, tempPath); err != nil {
 		return err
 	}
 
@@ -471,8 +471,8 @@ func pathWithinDirectory(path string, directory string) bool {
 		!strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
 }
 
-func validateFFmpeg(path string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+func validateFFmpeg(parent context.Context, path string) error {
+	ctx, cancel := context.WithTimeout(parent, 15*time.Second)
 	defer cancel()
 	output, err := util.BackgroundCommandContext(ctx, path, "-version").CombinedOutput()
 	if err != nil {

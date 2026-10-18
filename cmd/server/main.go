@@ -199,7 +199,7 @@ func run() int {
 	dataDir := filepath.Dir(cfg.DatabasePath)
 	ffmpeg.Init(ctx, baseDir)
 
-	directory.Init(cfg.JavCoverDir)
+	directory.Init(ctx, cfg.JavCoverDir)
 	translation.Init(ctx)
 	defer func() {
 		stop()

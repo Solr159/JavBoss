@@ -97,6 +97,9 @@ func (m *Manager) setDirectoryProcessingStatus(id int64, status string) {
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
 func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string) error {
+	if err := m.ctx.Err(); err != nil {
+		return err
+	}
 	normalizedMode, status, ok := directoryProcessMode(mode)
 	if !ok {
 		return ErrInvalidDirectoryProcessMode
@@ -127,7 +130,7 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		defer release()
 
 		startedAt := time.Now()
-		summary, processErr := ProcessDirectory(context.Background(), m.coverDir, directory, mode, layout)
+		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout)
 		finishedAt := time.Now()
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
@@ -159,8 +162,11 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		}
 
 		release()
+		if m.ctx.Err() != nil {
+			return
+		}
 		m.setDirectoryProcessingStatus(directory.ID, DirectoryWorkScanning)
-		if _, err := m.ScanDirectory(context.Background(), directory); err != nil &&
+		if _, err := m.ScanDirectory(m.ctx, directory); err != nil &&
 			!errors.Is(err, ErrDirectoryScanInProgress) {
 			logging.Error("rescan after directory processing failed id=%d err=%v", directory.ID, err)
 		}

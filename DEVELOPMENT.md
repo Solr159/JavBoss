@@ -115,4 +115,4 @@ data/                  运行期数据库、封面、缩略图与缓存
 
 `internal/api` 的路由注册、HTTP 处理函数和辅助函数使用普通包函数，通过 `api.NewRouter(...)` 和 `api.ServeHTTP(...)` 启动，不再构造 `Server`。路径配置由 `common.SetConfig(cfg)` 初始化，通过 `common.CurrentConfig()` 读取副本；目录扫描状态由 `directory` 管理，播放会话和观看时长订阅由 `playback` 管理，翻译批处理和并发限制由 `jav/translation` 管理，资源采样由 `monitor` 管理。API 只保留鉴权和监听地址切换等 HTTP 职责。
 
-入口在消费者启动前调用 `directory.Init(coverDir)` 和 `translation.Init(ctx)`，退出时先取消应用 context，再调用 `translation.WaitBatches()`，最后关闭数据库。业务包内部保留维护锁、队列和会话所需的状态；调用方无需构造或传递这些实例。应用采用单实例运行方式，测试替换共享配置或数据库时必须串行执行，并等待后台任务退出。
+入口在消费者启动前调用 `directory.Init(ctx, coverDir)` 和 `translation.Init(ctx)`，退出时先取消应用 context，再调用 `translation.WaitBatches()`，最后关闭数据库。业务包内部保留维护锁、队列和会话所需的状态；调用方无需构造或传递这些实例。应用采用单实例运行方式，测试替换共享配置或数据库时必须串行执行，并等待后台任务退出。

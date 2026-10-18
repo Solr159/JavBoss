@@ -10,10 +10,17 @@ import (
 
 var applicationTasks atomic.Pointer[Manager]
 
-func init() { Init("") }
+func init() { Init(context.Background(), "") }
 
 // Init configures directory tasks before consumers start. Previous tasks must have stopped.
-func Init(coverDir string) { applicationTasks.Store(New(Options{CoverDir: coverDir})) }
+func Init(ctx context.Context, coverDir string) {
+	m := New(Options{CoverDir: coverDir})
+	m.ctx = ctx
+	applicationTasks.Store(m)
+}
+
+// Context is the application lifetime for directory jobs that outlive HTTP requests.
+func Context() context.Context { return applicationTasks.Load().ctx }
 
 func DirectoryWorkSnapshot(id int64) (string, *DirectoryScanProgress) {
 	return applicationTasks.Load().DirectoryWorkSnapshot(id)

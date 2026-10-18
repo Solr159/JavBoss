@@ -171,7 +171,7 @@ func (m *Manager) StartManualDirectoryScan(directory models.Directory) error {
 		return errors.New("invalid directory")
 	}
 
-	scanCtx, finish, err := m.acquireDirectoryScanSession(context.Background(), directory.ID)
+	scanCtx, finish, err := m.acquireDirectoryScanSession(m.ctx, directory.ID)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func (m *Manager) StartManualDirectoryScan(directory models.Directory) error {
 			return
 		}
 		if scanErr == nil {
-			if err := enqueueMissingCoversForDirectory(context.Background(), directory.ID); err != nil {
+			if err := enqueueMissingCoversForDirectory(m.ctx, directory.ID); err != nil && !errors.Is(err, context.Canceled) {
 				logging.Error("jav cover enqueue after manual scan failed: id=%d err=%v", directory.ID, err)
 			}
 		}

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"javboss/internal/common"
 	"javboss/internal/db"
 	"javboss/internal/directory"
@@ -28,5 +29,5 @@ func (d *testDependencies) bindDatabase(t *testing.T) {
 	if d.config != nil {
 		coverDir = d.config.JavCoverDir
 	}
-	directory.Init(coverDir)
+	directory.Init(context.Background(), coverDir)
 }
