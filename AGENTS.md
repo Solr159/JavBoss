@@ -1,12 +1,28 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
+## Project Structure
+
+### Backend (Go)
+
 - `cmd/server`: Go entrypoint that loads config, opens the DB, starts background scanners, and serves the Gin API plus optional static frontend.
 - `cmd/javprovider`: small Go utility for exercising JAV provider lookups outside the main server.
 - `internal/`: application packages; key folders include `common` (shared config/globals/logging), `db` (GORM setup and stores), `models` (domain structs), `server` (Gin router and handlers), `service` (directory/video/JAV scanners), `jav` (metadata providers), `manager` (cover and screenshot helpers), `mpv` (player integration), and `util` (filesystem, locale, proxy, playback, and platform helpers).
-- `web/`: React + Tailwind frontend (Vite). Business components live in `web/src/features/<domain>/components`, domain-independent UI in `web/src/shared/ui`, and application layout in `web/src/app/layout`. Shared state is composed in `web/src/store.js` from `web/src/state`, and API helpers live in `web/src/features/<domain>/api.js` (`web/src/api.js` remains a compatibility barrel). Constants live in `web/src/constants`, utilities in `web/src/utils`, and static icons in `web/public/ico`.
-- Place components by business ownership, including components reused across domains. `shared/ui` must not import feature modules, application state, or API clients; pass business data and callbacks through props. Route composition belongs in `web/src/routes`; do not recreate a top-level `web/src/components` directory.
-- Place business hooks in `web/src/features/<domain>/hooks`. Navigation, history, scroll restoration, and page navigation shortcuts belong in `web/src/navigation`; data loading coordination belongs in `web/src/query`. Put only domain-independent hooks in `web/src/shared/hooks`, which must not import business modules, application state, or API clients. Keep navigation contexts beside their navigation hooks; do not recreate a top-level `web/src/hooks` directory.
+
+### Frontend (React + Tailwind, Vite)
+
+The frontend lives in `web/`; paths below are relative to that directory.
+
+- `src/features/<domain>/`: business components in `components/`, business hooks in `hooks/`, and API helpers in `api.js`. Place code by business ownership, including components reused across domains.
+- `src/shared/ui` and `src/shared/hooks`: domain-independent UI and hooks only. They must not import feature modules, application state, or API clients; pass business data and callbacks through props or hook arguments.
+- `src/app/layout`: application layout. `src/routes`: route composition.
+- `src/navigation`: navigation, history, scroll restoration, and page navigation shortcuts. Keep navigation contexts beside their navigation hooks. `src/query`: data loading coordination.
+- `src/store.js` and `src/state`: shared state composition and modules. `src/api.js` remains a compatibility barrel for feature API helpers.
+- `src/constants` and `src/utils`: constants and utilities. `public/ico`: static icons.
+- `tests/`: frontend tests, mirroring source organization where practical.
+- Do not recreate top-level `src/components` or `src/hooks` directories; use the ownership boundaries above.
+
+### Tooling, Assets, and Generated Files
+
 - `scripts/`: development/release helpers. `scripts/cli.sh` wraps common workflows, while `scripts/cli/` contains the Node CLI source and generated `scripts/cli/build/` output.
 - `bin/`, `internal/bin/`, and `modernz/`: bundled runtime player/tool assets used by releases and mpv integration.
 - `data/`, `web/dist/`, `release/`, `screenshot/`, `temp/`, `.gocache/`, and other scratch/build output directories are generated or runtime artifacts; keep them out of commits unless a release workflow explicitly requires them.
