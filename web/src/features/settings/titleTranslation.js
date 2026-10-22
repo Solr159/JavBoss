@@ -1,4 +1,4 @@
-import { parseTranslationConfig } from '@/features/jav/titleTranslation'
+import { parseTranslationConfig, titleLanguage } from '@/features/jav/titleTranslation'
 import { zh } from '@/utils/i18n'
 
 export const defaultRequest = {
@@ -26,7 +26,7 @@ function profileDraft(profile = {}, provider = {}) {
     model: profile.model || '',
     customAddress: Boolean(
       profile.base_url &&
-        profile.base_url.replace(/\/$/, '') !== provider.base_url?.replace(/\/$/, '')
+      profile.base_url.replace(/\/$/, '') !== provider.base_url?.replace(/\/$/, '')
     ),
     temperature: profile.temperature ?? '',
     thinking: Boolean(profile.thinking),
@@ -53,8 +53,11 @@ export function createTitleTranslationDraft(config) {
     ])
   )
   return {
+    jav_title_language: titleLanguage(config),
     defaultPrompt: config?.jav_title_translation_default_prompt || '',
+    defaultPromptEn: config?.jav_title_translation_default_prompt_en || '',
     prompt: config?.jav_title_translation_prompt || '',
+    promptEn: config?.jav_title_translation_prompt_en || '',
     catalog,
     provider,
     profiles,
@@ -69,13 +72,25 @@ export function createTitleTranslationDraft(config) {
 // Keep unfinished edits when switching providers; never reuse another provider's key.
 export function changeTranslationDraft(current, patch) {
   if (!patch.provider || patch.provider === current.provider) return { ...current, ...patch }
-  const { profiles, catalog, defaultPrompt, prompt, provider, ...profile } = current
+  const {
+    profiles,
+    catalog,
+    defaultPrompt,
+    defaultPromptEn,
+    prompt,
+    promptEn,
+    provider,
+    ...profile
+  } = current
   const nextProfiles = { ...profiles, [provider]: profile }
   return {
     profiles: nextProfiles,
     catalog,
     defaultPrompt,
+    defaultPromptEn,
     prompt,
+    promptEn,
+    jav_title_language: current.jav_title_language,
     provider: patch.provider,
     ...(nextProfiles[patch.provider] ||
       profileDraft(

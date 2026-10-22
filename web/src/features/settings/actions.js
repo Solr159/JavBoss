@@ -182,6 +182,8 @@ export async function saveTitleTranslationSettings(draft) {
     jav_title_translation_provider: draft.provider,
     jav_title_translation_profiles: translationProfiles(draft),
     jav_title_translation_prompt: draft.prompt,
+    jav_title_translation_prompt_en: draft.promptEn,
+    jav_title_language: draft.jav_title_language || 'zh',
   })
   useStore.setState({ config: cfg })
 }

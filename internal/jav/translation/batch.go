@@ -37,11 +37,12 @@ func (e *BatchError) Error() string              { return e.EN }
 func batchError(status int, zh, en string) error { return &BatchError{status, zh, en} }
 
 type batch struct {
-	domain Domain
-	mu     sync.Mutex
-	ctx    context.Context
-	status BatchStatus
-	done   chan struct{}
+	domain   Domain
+	mu       sync.Mutex
+	ctx      context.Context
+	status   BatchStatus
+	language string
+	done     chan struct{}
 }
 
 var titleBatch = batch{ctx: context.Background()}
@@ -95,11 +96,11 @@ func StopBatch(series bool) BatchStatus {
 	return job.status
 }
 
-func PreviewBatch(ctx context.Context, series bool, scope string) (BatchPreview, error) {
+func PreviewBatch(ctx context.Context, series bool, scope string, language string) (BatchPreview, error) {
 	if scope != "missing" && scope != "all" {
 		return BatchPreview{}, batchError(400, "翻译范围无效", "Invalid translation scope")
 	}
-	items, err := (Domain{Series: series}).List(ctx)
+	items, err := (Domain{Series: series, Language: language}).List(ctx)
 	if err != nil {
 		return BatchPreview{}, batchError(500, "读取影片标题失败", "Failed to load JAV titles")
 	}
@@ -154,7 +155,10 @@ func StartBatch(ctx context.Context, series bool, scope string, confirmOverwrite
 	if err := profile.Validate(provider); err != nil {
 		return BatchStatus{}, batchError(400, "翻译配置无效", "Invalid translation settings")
 	}
-	items, err := job.domain.List(ctx)
+	job.language = TargetLanguage(cfg)
+	domain := job.domain
+	domain.Language = job.language
+	items, err := domain.List(ctx)
 	if err != nil {
 		return BatchStatus{}, batchError(500, "读取影片标题失败", "Failed to load JAV titles")
 	}
@@ -176,11 +180,13 @@ func (job *batch) run(ctx context.Context, items []dbpkg.JavTextTranslationItem,
 	}()
 	provider := ActiveProvider(cfg)
 	profile := ActiveProfile(cfg)
+	domain := job.domain
+	domain.Language = job.language
 	for _, item := range items {
 		if ctx.Err() != nil {
 			return
 		}
-		release, err := job.domain.Acquire(ctx, item.ID)
+		release, err := domain.Acquire(ctx, item.ID)
 		if err != nil {
 			return
 		}
@@ -192,7 +198,7 @@ func (job *batch) run(ctx context.Context, items []dbpkg.JavTextTranslationItem,
 			return
 		}
 		// Skip titles changed since the batch started, before spending a request.
-		current, err := job.domain.Get(ctx, item.ID)
+		current, err := domain.Get(ctx, item.ID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			release()
 			job.fail("读取待翻译内容失败，任务已停止", "Failed to load text; translation stopped")
@@ -203,10 +209,10 @@ func (job *batch) run(ctx context.Context, items []dbpkg.JavTextTranslationItem,
 			job.record(false)
 			continue
 		}
-		title, err := Translate(ctx, provider, profile, cfg["jav_title_translation_prompt"], item.Source, nil)
+		title, err := Translate(ctx, provider, profile, PromptFor(cfg), item.Source, nil)
 		var saved bool
 		if err == nil {
-			saved, err = job.domain.Save(ctx, &item, title)
+			saved, err = domain.Save(ctx, &item, title)
 		}
 		release()
 		if err != nil {

@@ -18,7 +18,19 @@ func (d textTranslationDomain) response(item *dbpkg.JavTextTranslationItem) gin.
 	if d.Series {
 		return gin.H{"id": item.ID, "name": item.Source, "zh_name": item.Translation}
 	}
+	if d.Language == "en" {
+		return gin.H{"id": item.ID, "title": item.Source, "en_title": item.Translation}
+	}
 	return gin.H{"id": item.ID, "title": item.Source, "zh_title": item.Translation}
+}
+
+// withConfig copies the domain with the configured title translation language.
+// The shared package-level domains are never mutated.
+func (d textTranslationDomain) withConfig(cfg map[string]string) textTranslationDomain {
+	if !d.Series {
+		d.Language = translation.TargetLanguage(cfg)
+	}
+	return d
 }
 
 func (d textTranslationDomain) error(c *gin.Context, status int, zh, en string) {

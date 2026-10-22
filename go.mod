@@ -1,6 +1,6 @@
 module javboss
 
-go 1.25.1
+go 1.26.0
 
 require (
 	fyne.io/systray v1.12.2
@@ -16,10 +16,10 @@ require (
 	github.com/pressly/goose/v3 v3.26.0
 	github.com/shirou/gopsutil/v4 v4.25.9
 	github.com/urfave/cli/v3 v3.13.0
-	golang.org/x/crypto v0.40.0
-	golang.org/x/net v0.42.0
-	golang.org/x/sys v0.35.0
-	golang.org/x/term v0.33.0
+	golang.org/x/crypto v0.57.0
+	golang.org/x/net v0.59.0
+	golang.org/x/sys v0.48.0
+	golang.org/x/term v0.46.0
 	google.golang.org/grpc v1.75.0
 	google.golang.org/protobuf v1.36.9
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
@@ -64,7 +64,7 @@ require (
 	github.com/liuzl/da v0.0.0-20180704015230-14771aad5b1d // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
@@ -88,9 +88,10 @@ require (
 	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/mod v0.41.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	golang.org/x/tools v0.50.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
+	modernc.org/sqlite v1.60.1 // indirect
 )

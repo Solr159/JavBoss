@@ -1,4 +1,3 @@
-import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import ImageRoundedIcon from '@mui/icons-material/ImageRounded'
@@ -119,8 +118,8 @@ export default function JavIdolCoverModal({
   )
   const previewCode = String(selectedOption?.code || itemCoverCode).trim()
   const coverSrc = previewCode ? `/jav/${encodeURIComponent(previewCode)}/cover` : ''
-  const translateTitle = useStore((state) => preferChineseTitle(state.config))
-  const title = selectedOption ? getJavDisplayTitle(selectedOption, translateTitle) : ''
+  const javConfig = useStore((state) => state.config)
+  const title = selectedOption ? getJavDisplayTitle(selectedOption, javConfig) : ''
   const visibleRatio = getCoverVisibleRatio(imageSize)
   const maxCropLeft = Math.max(0, 1 - visibleRatio)
   const displayCropLeft = Math.min(cropLeft, maxCropLeft)
@@ -218,7 +217,7 @@ export default function JavIdolCoverModal({
           ) : options.length > 0 ? (
             options.map((option) => {
               const active = Number(option.id) === Number(selectedJavId)
-              const optionTitle = getJavDisplayTitle(option, translateTitle)
+              const optionTitle = getJavDisplayTitle(option, javConfig)
               return (
                 <button
                   key={option.id}

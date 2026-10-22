@@ -18,10 +18,12 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^7.3.6",
     "@mui/material": "^7.3.6",
+    "@rolldown/binding-win32-x64-msvc": "^1.2.14",
     "flv.js": "^1.6.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.4",
+    "rolldown": "^1.2.14",
     "video.js": "^8.23.4",
     "videojs-flvjs": "^0.3.1",
     "zustand": "^4.5.2"

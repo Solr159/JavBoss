@@ -76,10 +76,10 @@ export default function TitleTranslationToolSettings() {
       const response = await testTitleTranslation({
         provider: draft.provider,
         profile: translationProfile(draft),
-        prompt: draft.prompt,
+        prompt: draft.jav_title_language === 'en' ? draft.promptEn : draft.prompt,
         title: sample.trim(),
       })
-      setResult(response.zh_title)
+      setResult(response.zh_title ?? response.en_title ?? '')
     } catch (err) {
       setTestError(getErrorMessage(err))
     } finally {

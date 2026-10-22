@@ -9,18 +9,20 @@ import (
 
 type Domain struct {
 	Series bool
+	// Language picks the title translation column ("en" or "zh"); ignored for series.
+	Language string
 }
 
 func (d Domain) Get(ctx context.Context, id int64) (*dbpkg.JavTextTranslationItem, error) {
-	return dbpkg.Default().TextTranslations(d.Series).Get(ctx, id)
+	return dbpkg.Default().TextTranslations(d.Series, d.Language).Get(ctx, id)
 }
 
 func (d Domain) List(ctx context.Context) ([]dbpkg.JavTextTranslationItem, error) {
-	return dbpkg.Default().TextTranslations(d.Series).List(ctx)
+	return dbpkg.Default().TextTranslations(d.Series, d.Language).List(ctx)
 }
 
 func (d Domain) Save(ctx context.Context, item *dbpkg.JavTextTranslationItem, text string) (bool, error) {
-	return dbpkg.Default().TextTranslations(d.Series).Save(ctx, item, text)
+	return dbpkg.Default().TextTranslations(d.Series, d.Language).Save(ctx, item, text)
 }
 
 func (d Domain) EnabledKey() string {

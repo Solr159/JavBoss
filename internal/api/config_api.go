@@ -96,7 +96,9 @@ func updateConfig(c *gin.Context) {
 		TitleTranslateEnabled     *bool                      `json:"jav_title_translation_enabled"`
 		TitleTranslateAutomatic   *bool                      `json:"jav_title_translation_auto_enabled"`
 		SeriesTranslateAutomatic  *bool                      `json:"jav_series_translation_auto_enabled"`
+		TitleLanguage             *string                    `json:"jav_title_language"`
 		TitleTranslatePrompt      *string                    `json:"jav_title_translation_prompt"`
+		TitleTranslatePromptEN    *string                    `json:"jav_title_translation_prompt_en"`
 		JavIdolTagMaxRows         *int                       `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows             *int                       `json:"jav_tag_max_rows"`
 		JavHideSeries             *bool                      `json:"jav_hide_series"`
@@ -221,6 +223,14 @@ func updateConfig(c *gin.Context) {
 	if req.TitleTranslateAutomatic != nil {
 		entries["jav_title_translation_auto_enabled"] = strconv.FormatBool(*req.TitleTranslateAutomatic)
 	}
+	if req.TitleLanguage != nil {
+		language := strings.ToLower(strings.TrimSpace(*req.TitleLanguage))
+		if language != "zh" && language != "en" && language != "ja" {
+			respondLocalizedError(c, http.StatusBadRequest, "显示语言无效", "Invalid display language")
+			return
+		}
+		entries["jav_title_language"] = language
+	}
 	if req.SeriesTranslateAutomatic != nil {
 		entries["jav_series_translation_auto_enabled"] = strconv.FormatBool(*req.SeriesTranslateAutomatic)
 	}
@@ -231,6 +241,14 @@ func updateConfig(c *gin.Context) {
 			return
 		}
 		entries["jav_title_translation_prompt"] = value
+	}
+	if req.TitleTranslatePromptEN != nil {
+		value := strings.TrimSpace(*req.TitleTranslatePromptEN)
+		if utf8.RuneCountInString(value) > 8192 || !utf8.ValidString(value) {
+			respondLocalizedError(c, http.StatusBadRequest, "翻译配置无效或过长", "Translation settings are invalid or too long")
+			return
+		}
+		entries["jav_title_translation_prompt_en"] = value
 	}
 	if req.JavTitleMaxRows != nil {
 		rows := *req.JavTitleMaxRows
@@ -650,9 +668,13 @@ func updateConfig(c *gin.Context) {
 func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 	cfg["app_version"] = common.Version
 	translation.PublicConfig(cfg)
-	cfg["jav_title_translation_default_prompt"] = translation.DefaultPrompt
-	if strings.TrimSpace(cfg["jav_title_translation_prompt"]) == "" {
-		cfg["jav_title_translation_prompt"] = translation.DefaultPrompt
+	cfg[translation.DefaultPromptKey] = translation.DefaultPrompt
+	cfg[translation.DefaultPromptKeyEN] = translation.DefaultPromptEN
+	if strings.TrimSpace(cfg[translation.PromptKey]) == "" {
+		cfg[translation.PromptKey] = translation.DefaultPrompt
+	}
+	if strings.TrimSpace(cfg[translation.PromptKeyEN]) == "" {
+		cfg[translation.PromptKeyEN] = translation.DefaultPromptEN
 	}
 	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
 	remoteRequest := isRemoteRequest(remoteAddr)
