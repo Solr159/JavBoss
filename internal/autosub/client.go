@@ -35,11 +35,11 @@ type DownloadRequest struct {
 
 // DownloadResult mirrors the gateway's DownloadResult payload.
 type DownloadResult struct {
-	Success       bool   `json:"success"`
-	SubtitlePath  string `json:"subtitle_path"`
-	Source        string `json:"source"`
-	Error         string `json:"error"`
-	Language      string `json:"language"`
+	Success       bool     `json:"success"`
+	SubtitlePath  string   `json:"subtitle_path"`
+	Source        string   `json:"source"`
+	Error         string   `json:"error"`
+	Language      string   `json:"language"`
 	Failures      []string `json:"failures"`
 	FailureDetail string   `json:"failure_detail"`
 }
