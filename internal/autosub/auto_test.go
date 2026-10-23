@@ -365,8 +365,40 @@ func TestSweepStatusRecordsFailures(t *testing.T) {
 	if last == nil || last.Error == "" {
 		t.Fatalf("expected the failure in the last run summary, got %+v", last)
 	}
+	if last.ErrorCode != SweepErrorGatewayUnavailable {
+		t.Fatalf("error code = %q, want %q", last.ErrorCode, SweepErrorGatewayUnavailable)
+	}
 	if service.Status().Running {
 		t.Fatal("a failed sweep must not stay marked as running")
+	}
+}
+
+func TestFinishRunRecordsErrorCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		wantCode string
+	}{
+		{name: "gateway", err: newSweepError(SweepErrorGatewayUnavailable, errors.New("boom")), wantCode: SweepErrorGatewayUnavailable},
+		{name: "settings", err: newSweepError(SweepErrorSettingsUnavailable, errors.New("boom")), wantCode: SweepErrorSettingsUnavailable},
+		{name: "locations", err: newSweepError(SweepErrorLocationsUnavailable, errors.New("boom")), wantCode: SweepErrorLocationsUnavailable},
+		{name: "uncoded", err: errors.New("boom"), wantCode: ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			service := NewAutoService(&fakeGateway{}, &fakeLocations{}, fakeConfig{})
+			service.finishRun(time.Now(), AutoSweepResult{}, tc.err)
+			last := service.Status().LastRun
+			if last == nil {
+				t.Fatal("finishRun did not publish a summary")
+			}
+			if last.ErrorCode != tc.wantCode {
+				t.Fatalf("error code = %q, want %q", last.ErrorCode, tc.wantCode)
+			}
+			if last.Error != tc.err.Error() {
+				t.Fatalf("error = %q, want %q", last.Error, tc.err.Error())
+			}
+		})
 	}
 }
 

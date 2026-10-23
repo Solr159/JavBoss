@@ -24,6 +24,13 @@ const (
 	// DefaultAutoLanguage mirrors the default used by the manual download endpoint.
 	DefaultAutoLanguage = "Chinese Simplified"
 
+	// SweepErrorGatewayUnavailable marks a pass that could not reach the gateway.
+	SweepErrorGatewayUnavailable = "gateway_unavailable"
+	// SweepErrorSettingsUnavailable marks a pass that could not read its settings.
+	SweepErrorSettingsUnavailable = "settings_unavailable"
+	// SweepErrorLocationsUnavailable marks a pass that could not read the library.
+	SweepErrorLocationsUnavailable = "locations_unavailable"
+
 	autoSweepInterval    = 10 * time.Minute
 	autoSweepBatchSize   = 10
 	autoFailureCooldown  = 6 * time.Hour
@@ -62,6 +69,22 @@ type ConfigSource interface {
 // still in flight.
 var ErrSweepRunning = errors.New("auto subtitle sweep already running")
 
+// sweepError attaches a stable code to a pass failure so clients can localize
+// the reason instead of parsing the message. The wrapped message stays English
+// for the server log.
+type sweepError struct {
+	code string
+	err  error
+}
+
+func (e *sweepError) Error() string { return e.err.Error() }
+
+func (e *sweepError) Unwrap() error { return e.err }
+
+func newSweepError(code string, err error) error {
+	return &sweepError{code: code, err: err}
+}
+
 // AutoSweepResult summarizes one pass of the background subtitle sweep.
 type AutoSweepResult struct {
 	Enabled    bool
@@ -83,6 +106,8 @@ type RunSummary struct {
 	Skipped    int       `json:"skipped"`
 	Failed     int       `json:"failed"`
 	Error      string    `json:"error,omitempty"`
+	// ErrorCode is one of the SweepError* constants, empty when the pass succeeded.
+	ErrorCode string `json:"error_code,omitempty"`
 }
 
 // Status reports whether a sweep is in flight and the last finished pass.
@@ -264,6 +289,10 @@ func (s *AutoService) finishRun(startedAt time.Time, result AutoSweepResult, err
 	}
 	if err != nil {
 		summary.Error = err.Error()
+		var coded *sweepError
+		if errors.As(err, &coded) {
+			summary.ErrorCode = coded.code
+		}
 	}
 	s.lastRun = summary
 }
@@ -273,7 +302,7 @@ func (s *AutoService) sweep(ctx context.Context, force bool) (AutoSweepResult, e
 
 	cfg, err := s.config.ListConfig(ctx)
 	if err != nil {
-		return result, fmt.Errorf("load auto subtitle settings: %w", err)
+		return result, newSweepError(SweepErrorSettingsUnavailable, fmt.Errorf("load auto subtitle settings: %w", err))
 	}
 	result.Enabled = parseConfigBool(cfg[AutoEnabledKey])
 	if !result.Enabled && !force {
@@ -287,12 +316,12 @@ func (s *AutoService) sweep(ctx context.Context, force bool) (AutoSweepResult, e
 	err = s.gateway.Ping(pingCtx)
 	cancel()
 	if err != nil {
-		return result, fmt.Errorf("auto subtitle gateway is unavailable: %w", err)
+		return result, newSweepError(SweepErrorGatewayUnavailable, fmt.Errorf("auto subtitle gateway is unavailable: %w", err))
 	}
 
 	recent, backlog, err := s.nextBatches(ctx)
 	if err != nil {
-		return result, err
+		return result, newSweepError(SweepErrorLocationsUnavailable, err)
 	}
 	backlogIDs := make(map[int64]struct{}, len(backlog))
 	for _, loc := range backlog {

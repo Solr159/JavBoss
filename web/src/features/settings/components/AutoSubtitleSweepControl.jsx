@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { fetchAutoSubtitleSweep, runAutoSubtitleSweep } from '@/features/settings/api'
-import { autoSubtitleRunSummary, autoSubtitleRunTime } from '@/features/settings/autoSubtitleSweep'
+import {
+  autoSubtitleRunError,
+  autoSubtitleRunSummary,
+  autoSubtitleRunTime,
+} from '@/features/settings/autoSubtitleSweep'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
@@ -81,7 +85,7 @@ export default function AutoSubtitleSweepControl({ dirty = false }) {
       )}
       {!running && lastRun?.error && (
         <p role="alert" className="break-words text-red-600">
-          {lastRun.error}
+          {autoSubtitleRunError(lastRun)}
         </p>
       )}
       {error && (

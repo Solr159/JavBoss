@@ -24,6 +24,44 @@ test('auto subtitle sweep helpers describe the last run', async (t) => {
   assert.match(sweep.autoSubtitleRunTime('2026-10-23T10:00:00Z'), /\d{2}:\d{2}/)
 })
 
+test('auto subtitle sweep errors are localized by code', async (t) => {
+  const [sweep] = await loadModules(t, ['features/settings/autoSubtitleSweep.js'])
+
+  const gateway = sweep.autoSubtitleRunError({
+    error: 'auto subtitle gateway is unavailable: gateway is unreachable: dial tcp 127.0.0.1:8765',
+    error_code: 'gateway_unavailable',
+  })
+  assert.equal(gateway, 'The AutoSub gateway is unavailable. Make sure it is running.')
+  assert.doesNotMatch(gateway, /dial tcp/)
+
+  assert.equal(
+    sweep.autoSubtitleRunError({ error: 'server detail', error_code: 'future_code' }),
+    'server detail'
+  )
+  assert.equal(sweep.autoSubtitleRunError({ error: 'server detail' }), 'server detail')
+  assert.equal(sweep.autoSubtitleRunError({}), '')
+  assert.equal(sweep.autoSubtitleRunError(null), '')
+})
+
+test('auto subtitle sweep errors follow the Chinese locale', async (t) => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, 'navigator')
+  Object.defineProperty(globalThis, 'navigator', {
+    value: { languages: ['zh-CN'] },
+    configurable: true,
+    writable: true,
+  })
+  t.after(() => {
+    if (original) Object.defineProperty(globalThis, 'navigator', original)
+    else delete globalThis.navigator
+  })
+
+  const [sweep] = await loadModules(t, ['features/settings/autoSubtitleSweep.js'])
+  assert.equal(
+    sweep.autoSubtitleRunError({ error: 'server detail', error_code: 'gateway_unavailable' }),
+    '自动字幕网关不可用，请确认网关已启动。'
+  )
+})
+
 test('auto subtitle sweep API targets the status and run endpoints', async (t) => {
   const [api] = await loadModules(t, ['features/settings/api.js'])
   const calls = []
