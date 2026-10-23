@@ -94,6 +94,9 @@ type installer struct {
 
 	containerMode bool
 	resolveFFmpeg func() (string, error)
+	// validate overrides the post-download version probe for fixture payloads
+	// that the host platform cannot execute.
+	validate func(context.Context, string) error
 
 	downloading     bool
 	progress        int
@@ -322,7 +325,7 @@ func (m *installer) downloadToTarget() error {
 	if err := os.Chmod(tempPath, 0o755); err != nil {
 		return fmt.Errorf("make FFmpeg executable: %w", err)
 	}
-	if err := validateFFmpeg(m.context, tempPath); err != nil {
+	if err := m.validateBinary(tempPath); err != nil {
 		return err
 	}
 
@@ -469,6 +472,14 @@ func pathWithinDirectory(path string, directory string) bool {
 	return relativePath != ".." &&
 		relativePath != "." &&
 		!strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
+}
+
+// validateBinary confirms a staged download is a working FFmpeg build.
+func (m *installer) validateBinary(path string) error {
+	if m.validate != nil {
+		return m.validate(m.context, path)
+	}
+	return validateFFmpeg(m.context, path)
 }
 
 func validateFFmpeg(parent context.Context, path string) error {

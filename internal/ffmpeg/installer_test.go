@@ -58,7 +58,7 @@ func TestFFmpegDownloadSources(t *testing.T) {
 }
 
 func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
-	payload := []byte("#!/bin/sh\necho 'ffmpeg version test'\n")
+	payload, validate := ffmpegTestPayload()
 	archive := gzipTestPayload(t, payload)
 	digest := sha256.Sum256(archive)
 	binaryDigest := sha256.Sum256(payload)
@@ -77,6 +77,7 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 		downloadSHA: hex.EncodeToString(digest[:]),
 		binarySHA:   hex.EncodeToString(binaryDigest[:]),
 		httpClient:  server.Client(),
+		validate:    validate,
 		resolveFFmpeg: func() (string, error) {
 			return "", errors.New("FFmpeg not found")
 		},
@@ -117,7 +118,7 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 }
 
 func TestFFmpegToolManagerDownloadsRawBinary(t *testing.T) {
-	payload := []byte("#!/bin/sh\necho 'ffmpeg version test'\n")
+	payload, validate := ffmpegTestPayload()
 	digest := sha256.Sum256(payload)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -134,6 +135,7 @@ func TestFFmpegToolManagerDownloadsRawBinary(t *testing.T) {
 		downloadSHA: hex.EncodeToString(digest[:]),
 		binarySHA:   hex.EncodeToString(digest[:]),
 		httpClient:  server.Client(),
+		validate:    validate,
 		resolveFFmpeg: func() (string, error) {
 			return "", errors.New("FFmpeg not found")
 		},
@@ -261,8 +263,8 @@ func TestInstallFFmpegFileStagesAndAtomicallyReplacesExistingTarget(t *testing.T
 }
 
 func TestFFmpegToolManagerTreatsManagedChecksumMismatchAsUpgrade(t *testing.T) {
-	oldPayload := []byte("#!/bin/sh\necho 'ffmpeg version old'\n")
-	newPayload := []byte("#!/bin/sh\necho 'ffmpeg version new'\n")
+	oldPayload := []byte("test ffmpeg old")
+	newPayload, validate := ffmpegTestPayload()
 	newDigest := sha256.Sum256(newPayload)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write(newPayload)
@@ -286,6 +288,7 @@ func TestFFmpegToolManagerTreatsManagedChecksumMismatchAsUpgrade(t *testing.T) {
 		downloadSHA: hex.EncodeToString(newDigest[:]),
 		binarySHA:   hex.EncodeToString(newDigest[:]),
 		httpClient:  server.Client(),
+		validate:    validate,
 		resolveFFmpeg: func() (string, error) {
 			return targetPath, nil
 		},
@@ -469,6 +472,29 @@ func TestDockerFFmpegToolManagerOnlyUsesImage(t *testing.T) {
 				t.Fatalf("Docker must never download FFmpeg: started=%t, err=%v", started, err)
 			}
 		})
+	}
+}
+
+// ffmpegTestPayload returns a downloaded FFmpeg fixture. The installer verifies
+// a download by executing it with -version and checking for an FFmpeg banner,
+// which a shell script only satisfies on Unix; on Windows the fixture is plain
+// bytes and the returned validator replaces the probe.
+func ffmpegTestPayload() ([]byte, func(context.Context, string) error) {
+	if runtime.GOOS == "windows" {
+		return []byte("test ffmpeg"), func(context.Context, string) error { return nil }
+	}
+	return []byte("#!/bin/sh\necho 'ffmpeg version test'\n"), nil
+}
+
+func TestValidateFFmpegRejectsNonFFmpegExecutable(t *testing.T) {
+	// The test binary is a real executable on every platform; it exits with a
+	// flag error rather than printing an FFmpeg version banner.
+	path, err := os.Executable()
+	if err != nil {
+		t.Fatalf("resolve test executable: %v", err)
+	}
+	if err := validateFFmpeg(context.Background(), path); err == nil {
+		t.Fatal("validateFFmpeg accepted an executable that does not report an FFmpeg version")
 	}
 }
 

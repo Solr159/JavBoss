@@ -135,20 +135,10 @@ func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
 
 func TestFindFFmpegPathUsesPersistentDataTool(t *testing.T) {
 	t.Setenv("JAVBOSS_BUILD_MODE", "development")
-	originalWorkingDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("get working directory: %v", err)
-	}
-	t.Cleanup(func() {
-		if err := os.Chdir(originalWorkingDir); err != nil {
-			t.Errorf("restore working directory: %v", err)
-		}
-	})
-
+	// t.Chdir restores the working directory before the temporary directory is
+	// removed; Windows cannot delete a directory that is still the process cwd.
 	baseDir := t.TempDir()
-	if err := os.Chdir(baseDir); err != nil {
-		t.Fatalf("change working directory: %v", err)
-	}
+	t.Chdir(baseDir)
 	t.Setenv("JAVBOSS_CONTAINER", "")
 
 	ignoredEnvPath := filepath.Join(baseDir, "ignored-env-ffmpeg")
