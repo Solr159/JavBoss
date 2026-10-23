@@ -5,6 +5,8 @@ export {
   checkProviderAvailability,
   fetchConfig,
   updateConfig,
+  fetchAutoSubtitleSweep,
+  runAutoSubtitleSweep,
   fetchTools,
   downloadFFmpeg,
 } from '@/features/settings/api'

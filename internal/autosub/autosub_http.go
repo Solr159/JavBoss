@@ -23,6 +23,73 @@ func NewHandler(client *Client) *Handler {
 	return &Handler{client: client}
 }
 
+// SweepHandler exposes the background auto subtitle sweep to the REST API.
+type SweepHandler struct {
+	// service resolves the running sweep on each request so the routes can be
+	// registered before the background sweep starts.
+	service func() *AutoService
+}
+
+// NewSweepHandler constructs a SweepHandler. A nil resolver falls back to the
+// sweep registered by StartAutoSweep.
+func NewSweepHandler(service func() *AutoService) *SweepHandler {
+	if service == nil {
+		service = Default
+	}
+	return &SweepHandler{service: service}
+}
+
+// SweepStatusResponse is the JSON shape reported for the background sweep.
+type SweepStatusResponse struct {
+	Available bool        `json:"available"`
+	Running   bool        `json:"running"`
+	LastRun   *RunSummary `json:"last_run"`
+}
+
+// SweepRunResponse is the JSON shape returned when a sweep is triggered.
+type SweepRunResponse struct {
+	SweepStatusResponse
+	Started bool `json:"started"`
+}
+
+// ServeSweepStatus handles GET /autosub/auto/status.
+func (h *SweepHandler) ServeSweepStatus(c *gin.Context) {
+	c.JSON(http.StatusOK, h.status())
+}
+
+// ServeSweepRun handles POST /autosub/auto/run. The sweep runs in the
+// background so a slow gateway never blocks the request.
+func (h *SweepHandler) ServeSweepRun(c *gin.Context) {
+	service := h.service()
+	if service == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":    "auto subtitle sweep is not ready",
+			"error_zh": "自动字幕扫描尚未就绪",
+			"error_en": "The auto subtitle sweep is not ready yet.",
+		})
+		return
+	}
+	started := service.RunAsync(c.Request.Context())
+	status := service.Status()
+	c.JSON(http.StatusAccepted, SweepRunResponse{
+		SweepStatusResponse: SweepStatusResponse{
+			Available: true,
+			Running:   status.Running,
+			LastRun:   status.LastRun,
+		},
+		Started: started,
+	})
+}
+
+func (h *SweepHandler) status() SweepStatusResponse {
+	service := h.service()
+	if service == nil {
+		return SweepStatusResponse{}
+	}
+	status := service.Status()
+	return SweepStatusResponse{Available: true, Running: status.Running, LastRun: status.LastRun}
+}
+
 // AutoSubDownloadResponse is the JSON shape returned to the browser.
 type AutoSubDownloadResponse struct {
 	Success       bool     `json:"success"`

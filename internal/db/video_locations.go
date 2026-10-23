@@ -26,6 +26,50 @@ func (store *Store) AllVideoLocations(ctx context.Context) ([]models.VideoLocati
 	return locations, nil
 }
 
+// ListAutoSubtitleLocations returns active video locations in ascending ID order
+// after the given cursor, with their directory loaded so callers can resolve
+// absolute paths. Used by the background subtitle sweep.
+func (store *Store) ListAutoSubtitleLocations(ctx context.Context, afterID int64, limit int) ([]models.VideoLocation, error) {
+	query := store.autoSubtitleLocationsQuery(ctx, limit).Order("video_location.id")
+	if afterID > 0 {
+		query = query.Where("video_location.id > ?", afterID)
+	}
+
+	var locations []models.VideoLocation
+	if err := query.Find(&locations).Error; err != nil {
+		return nil, fmt.Errorf("list auto subtitle locations: %w", err)
+	}
+	return locations, nil
+}
+
+// ListRecentAutoSubtitleLocations returns the newest active video locations so
+// newly imported videos are processed before the sweep cursor reaches them.
+func (store *Store) ListRecentAutoSubtitleLocations(ctx context.Context, limit int) ([]models.VideoLocation, error) {
+	var locations []models.VideoLocation
+	if err := store.autoSubtitleLocationsQuery(ctx, limit).
+		Order("video_location.created_at DESC, video_location.id DESC").
+		Find(&locations).Error; err != nil {
+		return nil, fmt.Errorf("list recent auto subtitle locations: %w", err)
+	}
+	return locations, nil
+}
+
+func (store *Store) autoSubtitleLocationsQuery(ctx context.Context, limit int) *gorm.DB {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return store.conn.WithContext(ctx).
+		Model(&models.VideoLocation{}).
+		Joins("JOIN directory ON directory.id = video_location.directory_id").
+		Where(activeDirectoryWhereSQL("directory")).
+		Where("COALESCE(directory.missing, 0) = 0").
+		Preload("DirectoryRef").
+		Limit(limit)
+}
+
 // VideoLocationsByDirectory returns every known location in a directory, without filtering directory visibility.
 func (store *Store) VideoLocationsByDirectory(ctx context.Context, directoryID int64) ([]models.VideoLocation, error) {
 	if directoryID <= 0 {

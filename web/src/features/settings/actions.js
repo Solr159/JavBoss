@@ -1,4 +1,5 @@
 import { translationProfiles } from '@/features/settings/titleTranslation'
+import { normalizeSubtitleLanguage } from '@/features/settings/model'
 import { useStore } from '@/store'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 import { normalizeVideoSort } from '@/constants/video'
@@ -27,6 +28,8 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
     video_sort: normalizedSort,
     video_hide_jav: videoHideJavInput,
     video_waterfall_default: waterfallDefault,
+    autosub_auto_enabled: Boolean(draft.autoSubtitleEnabledInput),
+    autosub_auto_language: normalizeSubtitleLanguage(draft.autoSubtitleLanguageInput),
   })
   const prevPage = page
   // ensure current page does not exceed last page after page size change

@@ -40,10 +40,14 @@ test('saving video settings persists normalized values and clamps the current pa
   draft.videoPageSizeInput = '40'
   draft.videoWatchTimeIconMinutesInput = '10'
   draft.videoWaterfallDefaultInput = true
+  draft.autoSubtitleEnabledInput = true
+  draft.autoSubtitleLanguageInput = ' English '
   const changes = []
   await actions.saveVideoSettings(draft, (...args) => changes.push(args))
   assert.equal(payload.video_page_size, 40)
   assert.equal(payload.video_watch_time_icon_minutes, 10)
+  assert.equal(payload.autosub_auto_enabled, true)
+  assert.equal(payload.autosub_auto_language, 'English')
   assert.equal(
     model.createVideoSettingsDraft(useStore.getState()).videoWatchTimeIconMinutesInput,
     10
@@ -52,6 +56,18 @@ test('saving video settings persists normalized values and clamps the current pa
   assert.equal(useStore.getState().randomMode, false)
   assert.equal(useStore.getState().randomSeed, null)
   assert.deepEqual(changes, [['video', true]])
+  const savedDraft = model.createVideoSettingsDraft(useStore.getState())
+  assert.equal(savedDraft.autoSubtitleEnabledInput, true)
+  assert.equal(savedDraft.autoSubtitleLanguageInput, 'English')
+})
+
+test('auto subtitle settings default to disabled with the gateway language', async (t) => {
+  const [model] = await loadModules(t, ['features/settings/model.js'])
+  const draft = model.createVideoSettingsDraft({ config: {} })
+  assert.equal(draft.autoSubtitleEnabledInput, false)
+  assert.equal(draft.autoSubtitleLanguageInput, 'Chinese Simplified')
+  assert.equal(model.normalizeSubtitleLanguage('  '), 'Chinese Simplified')
+  assert.equal(model.normalizeSubtitleLanguage(' Japanese '), 'Japanese')
 })
 
 test('a failed settings save leaves configuration and list state unchanged', async (t) => {

@@ -1,5 +1,6 @@
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import AppModal from '@/shared/ui/AppModal'
+import AutoSubtitleSweepControl from '@/features/settings/components/AutoSubtitleSweepControl'
 import {
   VIDEO_SORT_OPTIONS,
   findVideoSortOption,
@@ -85,6 +86,11 @@ export default function VideoSettingsModal({
   onWaterfallDefaultChange,
   watchTimeIconMinutesInput = 30,
   onWatchTimeIconMinutesChange,
+  autoSubtitleEnabledInput = false,
+  onAutoSubtitleEnabledChange,
+  autoSubtitleLanguageInput = 'Chinese Simplified',
+  onAutoSubtitleLanguageChange,
+  dirty = false,
   onSave,
   saving = false,
 }) {
@@ -145,6 +151,28 @@ export default function VideoSettingsModal({
             checked={waterfallDefaultInput}
             onChange={onWaterfallDefaultChange}
           />
+        </div>
+        <div className="mt-2 space-y-2 border-t pt-2">
+          <div className="flex min-h-11 items-center justify-between gap-4 text-sm text-slate-700">
+            <span className="font-medium">{zh('自动下载字幕', 'Auto-download subtitles')}</span>
+            <SettingsSwitch
+              label={zh('自动下载字幕', 'Auto-download subtitles')}
+              checked={autoSubtitleEnabledInput}
+              onChange={onAutoSubtitleEnabledChange}
+            />
+          </div>
+          <label className="flex items-center justify-between gap-3 text-sm font-medium text-gray-700">
+            <span>{zh('字幕语言', 'Subtitle language')}</span>
+            <input
+              type="text"
+              maxLength={64}
+              value={autoSubtitleLanguageInput}
+              placeholder="Chinese Simplified"
+              onChange={(event) => onAutoSubtitleLanguageChange?.(event.target.value)}
+              className="w-40 rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </label>
+          <AutoSubtitleSweepControl dirty={dirty} />
         </div>
         <div className="text-sm font-medium text-gray-700">{zh('默认排序', 'Default sort')}</div>
         {VIDEO_SORT_OPTIONS.map((option) => (

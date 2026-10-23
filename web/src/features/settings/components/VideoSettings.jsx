@@ -6,8 +6,10 @@ import { getErrorMessage } from '@/utils/errors'
 import VideoSettingsModal from '@/features/settings/components/VideoSettingsModal'
 
 export default function VideoSettings({ onClose, onError, onWaterfallChange }) {
-  const [draft, setDraft] = useState(() => createVideoSettingsDraft(useStore.getState()))
+  const [initialDraft] = useState(() => createVideoSettingsDraft(useStore.getState()))
+  const [draft, setDraft] = useState(initialDraft)
   const [saving, setSaving] = useState(false)
+  const dirty = Object.keys(draft).some((key) => draft[key] !== initialDraft[key])
   const handleSave = async () => {
     if (saving) return
     setSaving(true)
@@ -40,6 +42,15 @@ export default function VideoSettings({ onClose, onError, onWaterfallChange }) {
       onWatchTimeIconMinutesChange={(value) =>
         setDraft((current) => ({ ...current, videoWatchTimeIconMinutesInput: value }))
       }
+      autoSubtitleEnabledInput={draft.autoSubtitleEnabledInput}
+      onAutoSubtitleEnabledChange={(value) =>
+        setDraft((current) => ({ ...current, autoSubtitleEnabledInput: value }))
+      }
+      autoSubtitleLanguageInput={draft.autoSubtitleLanguageInput}
+      onAutoSubtitleLanguageChange={(value) =>
+        setDraft((current) => ({ ...current, autoSubtitleLanguageInput: value }))
+      }
+      dirty={dirty}
       onSave={handleSave}
       saving={saving}
     />

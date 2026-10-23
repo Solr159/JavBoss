@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"javboss/internal/autosub"
 	"javboss/internal/common"
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
@@ -140,6 +141,8 @@ func updateConfig(c *gin.Context) {
 		VideoWatchTimeIconMinutes *int                       `json:"video_watch_time_icon_minutes"`
 		JavWatchTimeIconMinutes   *int                       `json:"jav_watch_time_icon_minutes"`
 		BrowserResumePlayback     *bool                      `json:"browser_player_resume_playback"`
+		AutoSubtitleEnabled       *bool                      `json:"autosub_auto_enabled"`
+		AutoSubtitleLanguage      *string                    `json:"autosub_auto_language"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "配置请求无效", "Invalid configuration request")
@@ -492,6 +495,20 @@ func updateConfig(c *gin.Context) {
 	if req.BrowserShowHotkeyHint != nil {
 		entries["browser_player_show_hotkey_hint"] = strconv.FormatBool(*req.BrowserShowHotkeyHint)
 	}
+	if req.AutoSubtitleEnabled != nil {
+		entries[autosub.AutoEnabledKey] = strconv.FormatBool(*req.AutoSubtitleEnabled)
+	}
+	if req.AutoSubtitleLanguage != nil {
+		language := strings.TrimSpace(*req.AutoSubtitleLanguage)
+		if !utf8.ValidString(language) || utf8.RuneCountInString(language) > 64 {
+			respondLocalizedError(c, http.StatusBadRequest, "字幕语言无效", "Invalid subtitle language")
+			return
+		}
+		if language == "" {
+			language = autosub.DefaultAutoLanguage
+		}
+		entries[autosub.AutoLanguageKey] = language
+	}
 	if req.PlayerHotkeys != nil {
 		clean := make([]playerHotkeyPayload, 0, len(req.PlayerHotkeys))
 		seen := make(map[string]struct{}, len(req.PlayerHotkeys))
@@ -677,6 +694,12 @@ func applyRuntimeConfigFields(cfg map[string]string, remoteAddr string) {
 		cfg[translation.PromptKeyEN] = translation.DefaultPromptEN
 	}
 	cfg["proxy_mode"] = util.ResolveProxyMode(cfg["proxy_mode"], cfg["proxy_port"])
+	if _, ok := cfg[autosub.AutoEnabledKey]; !ok {
+		cfg[autosub.AutoEnabledKey] = "false"
+	}
+	if strings.TrimSpace(cfg[autosub.AutoLanguageKey]) == "" {
+		cfg[autosub.AutoLanguageKey] = autosub.DefaultAutoLanguage
+	}
 	remoteRequest := isRemoteRequest(remoteAddr)
 	containerMode := common.ContainerMode()
 	cfg["runtime_os"] = runtime.GOOS

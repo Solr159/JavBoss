@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"javboss/internal/api"
+	"javboss/internal/autosub"
 	"javboss/internal/cache"
 	clientpkg "javboss/internal/client"
 	"javboss/internal/common"
@@ -228,6 +229,7 @@ func run() int {
 		case <-timer.C:
 			directory.StartAutomaticDirectoryScanScheduler(ctx, 30*time.Second)
 			download.Start(ctx)
+			autosub.StartAutoSweep(ctx)
 			enrichment.StartCensoredStudioEnrichment(ctx, time.Minute)
 			enrichment.StartCensoredSeriesEnrichment(ctx, time.Minute)
 			enrichment.StartCensoredIdolEnrichment(ctx, time.Minute)
