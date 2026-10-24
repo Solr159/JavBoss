@@ -13,9 +13,13 @@ test(
     await waitFor(`document.title === 'Videos'`)
     assert.deepEqual(await evaluate('window.appErrors'), [])
     const display = `document.querySelector('aside button[aria-label="Display"]')`
-    const settings = `document.querySelector('[role="dialog"][aria-label="Video Settings"]')`
+    const settings = `document.querySelector('[role="dialog"][aria-labelledby="display-settings-title"]')`
     await evaluate(`${display}.click()`)
     await waitFor(settings)
+    assert.equal(
+      await evaluate(`${settings}.querySelector('[role="tab"][aria-selected="true"]').textContent`),
+      'Videos'
+    )
     assert.deepEqual(
       await evaluate(`[...${settings}.querySelectorAll('footer button')].map(b => b.textContent)`),
       ['Edit']
@@ -71,6 +75,16 @@ test(
         `window.testStore.getState().javTab === '${tab}' && document.querySelector('main')`
       )
       await waitFor(`document.title === '${label}'`)
+      await evaluate(`${display}.click()`)
+      await waitFor(settings)
+      assert.equal(
+        await evaluate(
+          `${settings}.querySelector('[role="tab"][aria-selected="true"]').textContent`
+        ),
+        label
+      )
+      await evaluate(`${settings}.querySelector('[aria-label="Close settings"]').click()`)
+      await waitFor(`!${settings}`)
     }
     await evaluate(
       `document.activeElement.blur(); window.dispatchEvent(new KeyboardEvent('keydown', {key: ' ', code: 'Space', bubbles: true}))`

@@ -1,6 +1,12 @@
 import { configFlag } from '@/utils/config'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
+export function createDisplaySettingsDraft(state, tab) {
+  if (tab === 'video') return createVideoSettingsDraft(state)
+  if (tab) return createJavSettingsDraft(state, tab)
+  return { ...createVideoSettingsDraft(state), ...createJavSettingsDraft(state) }
+}
+
 export function createVideoSettingsDraft(state) {
   const { pageSize, sortOrder, videoHideJav, config } = state
   return {

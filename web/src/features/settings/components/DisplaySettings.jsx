@@ -1,23 +1,24 @@
 import { useState } from 'react'
-import { createJavSettingsDraft } from '@/features/settings/model'
+import { createDisplaySettingsDraft } from '@/features/settings/model'
 import { useStore } from '@/store'
-import { saveJavSettings } from '@/features/settings/actions'
+import { saveJavSettings, saveVideoSettings } from '@/features/settings/actions'
 import { getErrorMessage } from '@/utils/errors'
-import JavSettingsModal from '@/features/settings/components/JavSettingsModal'
+import DisplaySettingsModal from '@/features/settings/components/DisplaySettingsModal'
 
-export default function JavSettings({ onClose, onError, onWaterfallChange, initialTab }) {
-  const [draft, setDraft] = useState(() => createJavSettingsDraft(useStore.getState()))
+export default function DisplaySettings({ onClose, onError, onWaterfallChange, initialTab }) {
+  const [draft, setDraft] = useState(() => createDisplaySettingsDraft(useStore.getState()))
   const [editingTabs, setEditingTabs] = useState({})
   const [savingTabs, setSavingTabs] = useState({})
   const resetTabDraft = (tab) => {
-    const saved = createJavSettingsDraft(useStore.getState(), tab)
+    const saved = createDisplaySettingsDraft(useStore.getState(), tab)
     setDraft((current) => ({ ...current, ...saved }))
   }
   const handleSave = async (tab) => {
     if (savingTabs[tab]) return
     setSavingTabs((current) => ({ ...current, [tab]: true }))
     try {
-      await saveJavSettings(draft, onWaterfallChange, tab)
+      if (tab === 'video') await saveVideoSettings(draft, onWaterfallChange)
+      else await saveJavSettings(draft, onWaterfallChange, tab)
       onClose()
     } catch (error) {
       onError(getErrorMessage(error))
@@ -26,7 +27,7 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
     }
   }
   return (
-    <JavSettingsModal
+    <DisplaySettingsModal
       open={true}
       initialTab={initialTab}
       onClose={() => onClose()}
@@ -39,6 +40,22 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       onCancel={(tab) => {
         resetTabDraft(tab)
         setEditingTabs((current) => ({ ...current, [tab]: false }))
+      }}
+      videoSettings={{
+        pageSizeInput: draft.videoPageSizeInput,
+        onPageSizeChange: (value) =>
+          setDraft((current) => ({ ...current, videoPageSizeInput: value })),
+        sortInput: draft.videoSortInput,
+        onSortChange: (value) => setDraft((current) => ({ ...current, videoSortInput: value })),
+        hideJavInput: draft.videoHideJavInput,
+        onHideJavChange: (value) =>
+          setDraft((current) => ({ ...current, videoHideJavInput: value })),
+        waterfallDefaultInput: draft.videoWaterfallDefaultInput,
+        onWaterfallDefaultChange: (value) =>
+          setDraft((current) => ({ ...current, videoWaterfallDefaultInput: value })),
+        watchTimeIconMinutesInput: draft.videoWatchTimeIconMinutesInput,
+        onWatchTimeIconMinutesChange: (value) =>
+          setDraft((current) => ({ ...current, videoWatchTimeIconMinutesInput: value })),
       }}
       javPageSizeInput={draft.javPageSizeInput}
       onJavPageSizeChange={(value) =>

@@ -3,6 +3,8 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import AppModal from '@/shared/ui/AppModal'
+import VideoDisplaySettings from '@/features/settings/components/VideoDisplaySettings'
+import { VIDEO_SORT_OPTIONS } from '@/constants/video'
 import {
   IDOL_SORT_OPTIONS,
   JAV_SORT_OPTIONS,
@@ -309,10 +311,10 @@ const controlClassName =
   'h-9 w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
 
 function normalizeSettingsTab(tab) {
-  return ['jav', 'idol', 'studio', 'series', 'tag'].includes(tab) ? tab : 'jav'
+  return ['video', 'jav', 'idol', 'studio', 'series', 'tag'].includes(tab) ? tab : 'jav'
 }
 
-export default function JavSettingsModal({
+export default function DisplaySettingsModal({
   open,
   initialTab = 'jav',
   onClose,
@@ -320,6 +322,7 @@ export default function JavSettingsModal({
   onEdit,
   editingTabs = {},
   savingTabs = {},
+  videoSettings,
   javPageSizeInput,
   onJavPageSizeChange,
   javGridColumnsInput,
@@ -379,6 +382,7 @@ export default function JavSettingsModal({
   if (!open) return null
 
   const tabs = [
+    { key: 'video', label: zh('视频', 'Videos') },
     { key: 'jav', label: zh('JAV', 'JAV') },
     { key: 'idol', label: zh('女优', 'Idols') },
     { key: 'studio', label: zh('片商', 'Studios') },
@@ -388,6 +392,13 @@ export default function JavSettingsModal({
 
   const resetActiveTab = () => {
     switch (activeTab) {
+      case 'video':
+        videoSettings.onPageSizeChange(25)
+        videoSettings.onSortChange(VIDEO_SORT_OPTIONS[0].defaultValue)
+        videoSettings.onHideJavChange(false)
+        videoSettings.onWaterfallDefaultChange(false)
+        videoSettings.onWatchTimeIconMinutesChange(30)
+        break
       case 'idol':
         onIdolPageSizeChange?.(24)
         onIdolWaterfallDefaultChange?.(false)
@@ -428,16 +439,13 @@ export default function JavSettingsModal({
 
   return (
     <AppModal
-      ariaLabelledby="jav-display-settings-title"
+      ariaLabelledby="display-settings-title"
       className="px-4 py-4"
       contentClassName="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 shadow-2xl shadow-slate-900/20"
       onClose={onClose}
     >
       <header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
-        <h2
-          id="jav-display-settings-title"
-          className="text-xl font-bold tracking-tight text-slate-900"
-        >
+        <h2 id="display-settings-title" className="text-xl font-bold tracking-tight text-slate-900">
           {zh('显示设置', 'Display settings')}
         </h2>
         <button
@@ -472,363 +480,368 @@ export default function JavSettingsModal({
         })}
       </div>
 
-      <fieldset
-        disabled={!editing || saving}
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pb-4 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 [&_select:disabled]:bg-slate-100"
-      >
-        {activeTab === 'jav' ? (
-          <div className="space-y-3">
-            <SettingsSection title={zh('布局设置', 'Layout')}>
-              <div className="divide-y divide-slate-100 px-1">
-                <SettingsRow label={zh('每页 JAV 数量', 'JAVs per page')}>
-                  <input
-                    type="number"
-                    min="1"
-                    value={javPageSizeInput}
-                    onChange={(e) => onJavPageSizeChange?.(e.target.value)}
-                    className={controlClassName}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('每行 JAV 数量', 'JAVs per row')}>
-                  <select
-                    value={String(javGridColumnsInput ?? 0)}
-                    onChange={(e) => onJavGridColumnsChange?.(e.target.value)}
-                    className={controlClassName}
-                  >
-                    <option value="0">{zh('自适应', 'Auto')}</option>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
-                      <option key={count} value={String(count)}>
-                        {count}
-                      </option>
-                    ))}
-                  </select>
-                </SettingsRow>
-                <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
-                  <SettingsSwitch
-                    label={zh('默认开启瀑布流', 'Enable waterfall by default')}
-                    checked={javWaterfallDefaultInput}
-                    onChange={onJavWaterfallDefaultChange}
-                  />
-                </SettingsRow>
-              </div>
-            </SettingsSection>
-
-            <SettingsSection title={zh('卡片设置', 'Card settings')}>
-              <div className="divide-y divide-slate-100 px-1">
-                <SettingsRow label={zh('封面显示模式', 'Cover display mode')}>
-                  <select
-                    aria-label={zh('封面显示模式', 'Cover display mode')}
-                    value={javCardPortraitInput ? 'portrait' : 'landscape'}
-                    onChange={(event) =>
-                      onJavCardPortraitChange?.(event.target.value === 'portrait')
-                    }
-                    className={controlClassName}
-                  >
-                    <option value="landscape">{zh('横版', 'Landscape')}</option>
-                    <option value="portrait">{zh('竖版', 'Portrait')}</option>
-                  </select>
-                </SettingsRow>
-                <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    aria-label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}
-                    value={javWatchTimeIconMinutesInput}
-                    onChange={(event) => onJavWatchTimeIconMinutesChange?.(event.target.value)}
-                    className={controlClassName}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('标题最多行数', 'Title max rows')}>
-                  <select
-                    value={String(javTitleMaxRowsInput ?? 2)}
-                    onChange={(e) => onJavTitleMaxRowsChange?.(e.target.value)}
-                    className={controlClassName}
-                  >
-                    <option value="0">{zh('完全展开', 'All')}</option>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
-                      <option key={count} value={String(count)}>
-                        {count}
-                      </option>
-                    ))}
-                  </select>
-                </SettingsRow>
-                <SettingsRow label={zh('演员最多行数', 'Actor max rows')}>
-                  <select
-                    aria-label={zh('演员最多行数', 'Actor max rows')}
-                    value={javHideIdolsInput ? 'hidden' : String(javIdolTagMaxRowsInput ?? 0)}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      onJavHideIdolsChange?.(value === 'hidden')
-                      if (value !== 'hidden') onJavIdolTagMaxRowsChange?.(value)
-                    }}
-                    className={controlClassName}
-                  >
-                    <option value="hidden">{zh('隐藏', 'Hide')}</option>
-                    <option value="0">{zh('完全展开', 'All')}</option>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
-                      <option key={count} value={String(count)}>
-                        {count}
-                      </option>
-                    ))}
-                  </select>
-                </SettingsRow>
-                <SettingsRow label={zh('标签最多行数', 'Tag max rows')}>
-                  <select
-                    aria-label={zh('标签最多行数', 'Tag max rows')}
-                    value={javHideTagsInput ? 'hidden' : String(javTagMaxRowsInput ?? 2)}
-                    onChange={(event) => {
-                      const value = event.target.value
-                      onJavHideTagsChange?.(value === 'hidden')
-                      if (value !== 'hidden') onJavTagMaxRowsChange?.(value)
-                    }}
-                    className={controlClassName}
-                  >
-                    <option value="hidden">{zh('隐藏', 'Hide')}</option>
-                    <option value="0">{zh('完全展开', 'All')}</option>
-                    {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
-                      <option key={count} value={String(count)}>
-                        {count}
-                      </option>
-                    ))}
-                  </select>
-                </SettingsRow>
-                <SettingsRow label={zh('不显示片商', 'Hide studio')}>
-                  <SettingsSwitch
-                    label={zh('不显示片商', 'Hide studio')}
-                    checked={javHideStudioInput}
-                    onChange={onJavHideStudioChange}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('不显示系列', 'Hide series')}>
-                  <SettingsSwitch
-                    label={zh('不显示系列', 'Hide series')}
-                    checked={javHideSeriesInput}
-                    onChange={onJavHideSeriesChange}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('不显示操作按钮', 'Hide action buttons')}>
-                  <SettingsSwitch
-                    label={zh('不显示操作按钮', 'Hide action buttons')}
-                    checked={javHideActionsInput}
-                    onChange={onJavHideActionsChange}
-                  />
-                </SettingsRow>
-                {!javCardPortraitInput ? (
-                  <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
-                    <SettingsSwitch
-                      label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
-                      checked={javFavoriteRatingShowFullInput}
-                      onChange={onJavFavoriteRatingShowFullChange}
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pb-4">
+        <fieldset
+          disabled={!editing || saving}
+          className="min-w-0 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 [&_select:disabled]:bg-slate-100"
+        >
+          {activeTab === 'video' ? <VideoDisplaySettings {...videoSettings} /> : null}
+          {activeTab === 'jav' ? (
+            <div className="space-y-3">
+              <SettingsSection title={zh('布局设置', 'Layout')}>
+                <div className="divide-y divide-slate-100 px-1">
+                  <SettingsRow label={zh('每页 JAV 数量', 'JAVs per page')}>
+                    <input
+                      type="number"
+                      min="1"
+                      value={javPageSizeInput}
+                      onChange={(e) => onJavPageSizeChange?.(e.target.value)}
+                      className={controlClassName}
                     />
                   </SettingsRow>
-                ) : null}
-              </div>
-            </SettingsSection>
-
-            <SettingsSection title={zh('排序规则', 'Sort rules')}>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs leading-5 text-slate-500">
-                  {zh(
-                    '规则从上到下匹配，第一条命中的规则生效。',
-                    'Rules match top to bottom; the first match wins.'
-                  )}
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={(javSortRulesInput || []).length >= 50}
-                    onClick={() =>
-                      onJavSortRulesChange?.([
-                        ...(javSortRulesInput || []),
-                        {
-                          id: nextJavSortRuleID('rule', javSortRulesInput),
-                          enabled: true,
-                          mode: 'any',
-                          active: [],
-                          sort: 'recent',
-                        },
-                      ])
-                    }
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-default disabled:opacity-40"
-                  >
-                    {zh('添加规则', 'Add rule')}
-                  </button>
+                  <SettingsRow label={zh('每行 JAV 数量', 'JAVs per row')}>
+                    <select
+                      value={String(javGridColumnsInput ?? 0)}
+                      onChange={(e) => onJavGridColumnsChange?.(e.target.value)}
+                      className={controlClassName}
+                    >
+                      <option value="0">{zh('自适应', 'Auto')}</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={String(count)}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingsRow>
+                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                    <SettingsSwitch
+                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                      checked={javWaterfallDefaultInput}
+                      onChange={onJavWaterfallDefaultChange}
+                    />
+                  </SettingsRow>
                 </div>
-              </div>
-              <div className="space-y-2">
-                {(javSortRulesInput || []).map((rule, index) => (
-                  <JavSortRuleEditor
-                    key={rule.id}
-                    rule={rule}
-                    index={index}
-                    total={javSortRulesInput.length}
-                    onChange={(nextRule) =>
-                      onJavSortRulesChange?.(
-                        javSortRulesInput.map((item, itemIndex) =>
-                          itemIndex === index ? nextRule : item
+              </SettingsSection>
+
+              <SettingsSection title={zh('卡片设置', 'Card settings')}>
+                <div className="divide-y divide-slate-100 px-1">
+                  <SettingsRow label={zh('封面显示模式', 'Cover display mode')}>
+                    <select
+                      aria-label={zh('封面显示模式', 'Cover display mode')}
+                      value={javCardPortraitInput ? 'portrait' : 'landscape'}
+                      onChange={(event) =>
+                        onJavCardPortraitChange?.(event.target.value === 'portrait')
+                      }
+                      className={controlClassName}
+                    >
+                      <option value="landscape">{zh('横版', 'Landscape')}</option>
+                      <option value="portrait">{zh('竖版', 'Portrait')}</option>
+                    </select>
+                  </SettingsRow>
+                  <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      aria-label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}
+                      value={javWatchTimeIconMinutesInput}
+                      onChange={(event) => onJavWatchTimeIconMinutesChange?.(event.target.value)}
+                      className={controlClassName}
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={zh('标题最多行数', 'Title max rows')}>
+                    <select
+                      value={String(javTitleMaxRowsInput ?? 2)}
+                      onChange={(e) => onJavTitleMaxRowsChange?.(e.target.value)}
+                      className={controlClassName}
+                    >
+                      <option value="0">{zh('完全展开', 'All')}</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={String(count)}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingsRow>
+                  <SettingsRow label={zh('演员最多行数', 'Actor max rows')}>
+                    <select
+                      aria-label={zh('演员最多行数', 'Actor max rows')}
+                      value={javHideIdolsInput ? 'hidden' : String(javIdolTagMaxRowsInput ?? 0)}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        onJavHideIdolsChange?.(value === 'hidden')
+                        if (value !== 'hidden') onJavIdolTagMaxRowsChange?.(value)
+                      }}
+                      className={controlClassName}
+                    >
+                      <option value="hidden">{zh('隐藏', 'Hide')}</option>
+                      <option value="0">{zh('完全展开', 'All')}</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={String(count)}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingsRow>
+                  <SettingsRow label={zh('标签最多行数', 'Tag max rows')}>
+                    <select
+                      aria-label={zh('标签最多行数', 'Tag max rows')}
+                      value={javHideTagsInput ? 'hidden' : String(javTagMaxRowsInput ?? 2)}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        onJavHideTagsChange?.(value === 'hidden')
+                        if (value !== 'hidden') onJavTagMaxRowsChange?.(value)
+                      }}
+                      className={controlClassName}
+                    >
+                      <option value="hidden">{zh('隐藏', 'Hide')}</option>
+                      <option value="0">{zh('完全展开', 'All')}</option>
+                      {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
+                        <option key={count} value={String(count)}>
+                          {count}
+                        </option>
+                      ))}
+                    </select>
+                  </SettingsRow>
+                  <SettingsRow label={zh('不显示片商', 'Hide studio')}>
+                    <SettingsSwitch
+                      label={zh('不显示片商', 'Hide studio')}
+                      checked={javHideStudioInput}
+                      onChange={onJavHideStudioChange}
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={zh('不显示系列', 'Hide series')}>
+                    <SettingsSwitch
+                      label={zh('不显示系列', 'Hide series')}
+                      checked={javHideSeriesInput}
+                      onChange={onJavHideSeriesChange}
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={zh('不显示操作按钮', 'Hide action buttons')}>
+                    <SettingsSwitch
+                      label={zh('不显示操作按钮', 'Hide action buttons')}
+                      checked={javHideActionsInput}
+                      onChange={onJavHideActionsChange}
+                    />
+                  </SettingsRow>
+                  {!javCardPortraitInput ? (
+                    <SettingsRow
+                      label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
+                    >
+                      <SettingsSwitch
+                        label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
+                        checked={javFavoriteRatingShowFullInput}
+                        onChange={onJavFavoriteRatingShowFullChange}
+                      />
+                    </SettingsRow>
+                  ) : null}
+                </div>
+              </SettingsSection>
+
+              <SettingsSection title={zh('排序规则', 'Sort rules')}>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs leading-5 text-slate-500">
+                    {zh(
+                      '规则从上到下匹配，第一条命中的规则生效。',
+                      'Rules match top to bottom; the first match wins.'
+                    )}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={(javSortRulesInput || []).length >= 50}
+                      onClick={() =>
+                        onJavSortRulesChange?.([
+                          ...(javSortRulesInput || []),
+                          {
+                            id: nextJavSortRuleID('rule', javSortRulesInput),
+                            enabled: true,
+                            mode: 'any',
+                            active: [],
+                            sort: 'recent',
+                          },
+                        ])
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-default disabled:opacity-40"
+                    >
+                      {zh('添加规则', 'Add rule')}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {(javSortRulesInput || []).map((rule, index) => (
+                    <JavSortRuleEditor
+                      key={rule.id}
+                      rule={rule}
+                      index={index}
+                      total={javSortRulesInput.length}
+                      onChange={(nextRule) =>
+                        onJavSortRulesChange?.(
+                          javSortRulesInput.map((item, itemIndex) =>
+                            itemIndex === index ? nextRule : item
+                          )
                         )
-                      )
-                    }
-                    onMove={(direction) => {
-                      const target = index + direction
-                      if (target < 0 || target >= javSortRulesInput.length) return
-                      const next = [...javSortRulesInput]
-                      ;[next[index], next[target]] = [next[target], next[index]]
-                      onJavSortRulesChange?.(next)
-                    }}
-                    onRemove={() =>
-                      onJavSortRulesChange?.(
-                        javSortRulesInput.filter((_, itemIndex) => itemIndex !== index)
-                      )
-                    }
-                  />
-                ))}
-                {(javSortRulesInput || []).length === 0 ? (
-                  <div className="rounded-lg border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-500">
-                    {zh('暂无排序规则', 'No sort rules')}
-                  </div>
-                ) : null}
-              </div>
-              <div className="mt-4 border-t border-slate-200 pt-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-700">
-                      {zh('默认排序（兜底）', 'Default sort (fallback)')}
+                      }
+                      onMove={(direction) => {
+                        const target = index + direction
+                        if (target < 0 || target >= javSortRulesInput.length) return
+                        const next = [...javSortRulesInput]
+                        ;[next[index], next[target]] = [next[target], next[index]]
+                        onJavSortRulesChange?.(next)
+                      }}
+                      onRemove={() =>
+                        onJavSortRulesChange?.(
+                          javSortRulesInput.filter((_, itemIndex) => itemIndex !== index)
+                        )
+                      }
+                    />
+                  ))}
+                  {(javSortRulesInput || []).length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-500">
+                      {zh('暂无排序规则', 'No sort rules')}
                     </div>
-                    <div className="mt-1 text-xs font-normal leading-5 text-slate-500">
-                      {zh('当所有规则都不满足时使用。', 'Used when none of the rules match.')}
-                    </div>
-                  </div>
-                  <select
-                    aria-label={zh('默认排序（兜底）', 'Default sort (fallback)')}
-                    value={javSortInput}
-                    onChange={(event) => onJavSortChange?.(event.target.value)}
-                    className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-64"
-                  >
-                    {javSortChoices.map((choice) => (
-                      <option key={choice.value} value={choice.value}>
-                        {choice.label}
-                      </option>
-                    ))}
-                  </select>
+                  ) : null}
                 </div>
-              </div>
-            </SettingsSection>
-          </div>
-        ) : null}
+                <div className="mt-4 border-t border-slate-200 pt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-700">
+                        {zh('默认排序（兜底）', 'Default sort (fallback)')}
+                      </div>
+                      <div className="mt-1 text-xs font-normal leading-5 text-slate-500">
+                        {zh('当所有规则都不满足时使用。', 'Used when none of the rules match.')}
+                      </div>
+                    </div>
+                    <select
+                      aria-label={zh('默认排序（兜底）', 'Default sort (fallback)')}
+                      value={javSortInput}
+                      onChange={(event) => onJavSortChange?.(event.target.value)}
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-64"
+                    >
+                      {javSortChoices.map((choice) => (
+                        <option key={choice.value} value={choice.value}>
+                          {choice.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </SettingsSection>
+            </div>
+          ) : null}
 
-        {activeTab === 'idol' ? (
-          <div className="space-y-3">
+          {activeTab === 'idol' ? (
+            <div className="space-y-3">
+              <SettingsSection title={zh('布局设置', 'Layout')}>
+                <div className="divide-y divide-slate-100 px-1">
+                  <SettingsRow label={zh('每页 女优 数量', 'Idols per page')}>
+                    <input
+                      type="number"
+                      min="1"
+                      value={idolPageSizeInput}
+                      onChange={(e) => onIdolPageSizeChange?.(e.target.value)}
+                      className={controlClassName}
+                    />
+                  </SettingsRow>
+                  <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                    <SettingsSwitch
+                      label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                      checked={idolWaterfallDefaultInput}
+                      onChange={onIdolWaterfallDefaultChange}
+                    />
+                  </SettingsRow>
+                </div>
+              </SettingsSection>
+              <SettingsSection title={zh('卡片设置', 'Card settings')}>
+                <SettingsRow label={zh('优先显示中文名', 'Prefer Chinese name')}>
+                  <SettingsSwitch
+                    label={zh('优先显示中文名', 'Prefer Chinese name')}
+                    checked={javIdolPreferChineseNameInput}
+                    onChange={onJavIdolPreferChineseNameChange}
+                  />
+                </SettingsRow>
+              </SettingsSection>
+              <SettingsSection title={zh('默认排序', 'Default sort')}>
+                <div className="space-y-2">
+                  {IDOL_SORT_OPTIONS.map((option) => (
+                    <SortOptionRow
+                      key={option.base}
+                      option={option}
+                      name="idol-sort"
+                      inputValue={idolSortInput}
+                      onChange={onIdolSortChange}
+                    />
+                  ))}
+                </div>
+              </SettingsSection>
+            </div>
+          ) : null}
+
+          {activeTab === 'studio' ? (
             <SettingsSection title={zh('布局设置', 'Layout')}>
               <div className="divide-y divide-slate-100 px-1">
-                <SettingsRow label={zh('每页 女优 数量', 'Idols per page')}>
+                <SettingsRow label={zh('每页 片商 数量', 'Studios per page')}>
                   <input
                     type="number"
                     min="1"
-                    value={idolPageSizeInput}
-                    onChange={(e) => onIdolPageSizeChange?.(e.target.value)}
+                    value={studioPageSizeInput}
+                    onChange={(e) => onStudioPageSizeChange?.(e.target.value)}
                     className={controlClassName}
                   />
                 </SettingsRow>
                 <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
                   <SettingsSwitch
                     label={zh('默认开启瀑布流', 'Enable waterfall by default')}
-                    checked={idolWaterfallDefaultInput}
-                    onChange={onIdolWaterfallDefaultChange}
+                    checked={studioWaterfallDefaultInput}
+                    onChange={onStudioWaterfallDefaultChange}
                   />
                 </SettingsRow>
               </div>
             </SettingsSection>
-            <SettingsSection title={zh('卡片设置', 'Card settings')}>
-              <SettingsRow label={zh('优先显示中文名', 'Prefer Chinese name')}>
-                <SettingsSwitch
-                  label={zh('优先显示中文名', 'Prefer Chinese name')}
-                  checked={javIdolPreferChineseNameInput}
-                  onChange={onJavIdolPreferChineseNameChange}
-                />
-              </SettingsRow>
-            </SettingsSection>
-            <SettingsSection title={zh('默认排序', 'Default sort')}>
-              <div className="space-y-2">
-                {IDOL_SORT_OPTIONS.map((option) => (
-                  <SortOptionRow
-                    key={option.base}
-                    option={option}
-                    name="idol-sort"
-                    inputValue={idolSortInput}
-                    onChange={onIdolSortChange}
+          ) : null}
+
+          {activeTab === 'series' ? (
+            <SettingsSection title={zh('布局设置', 'Layout')}>
+              <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('每页 系列 数量', 'Series per page')}>
+                  <input
+                    type="number"
+                    min="1"
+                    value={seriesPageSizeInput}
+                    onChange={(e) => onSeriesPageSizeChange?.(e.target.value)}
+                    className={controlClassName}
                   />
-                ))}
+                </SettingsRow>
+                <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
+                  <SettingsSwitch
+                    label={zh('默认开启瀑布流', 'Enable waterfall by default')}
+                    checked={seriesWaterfallDefaultInput}
+                    onChange={onSeriesWaterfallDefaultChange}
+                  />
+                </SettingsRow>
               </div>
             </SettingsSection>
-          </div>
-        ) : null}
+          ) : null}
 
-        {activeTab === 'studio' ? (
-          <SettingsSection title={zh('布局设置', 'Layout')}>
-            <div className="divide-y divide-slate-100 px-1">
-              <SettingsRow label={zh('每页 片商 数量', 'Studios per page')}>
-                <input
-                  type="number"
-                  min="1"
-                  value={studioPageSizeInput}
-                  onChange={(e) => onStudioPageSizeChange?.(e.target.value)}
+          {activeTab === 'tag' ? (
+            <SettingsSection title={zh('标签设置', 'Tag settings')}>
+              <SettingsRow label={zh('刮削标签显示语言', 'Scraped tag display language')}>
+                <select
+                  aria-label={zh('刮削标签显示语言', 'Scraped tag display language')}
+                  value={javTagShowSimplifiedInput ? 'simplified' : 'traditional'}
+                  onChange={(event) =>
+                    onJavTagShowSimplifiedChange?.(event.target.value === 'simplified')
+                  }
                   className={controlClassName}
-                />
+                >
+                  <option value="traditional">{zh('繁体中文', 'Traditional Chinese')}</option>
+                  <option value="simplified">{zh('简体中文', 'Simplified Chinese')}</option>
+                </select>
               </SettingsRow>
-              <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
-                <SettingsSwitch
-                  label={zh('默认开启瀑布流', 'Enable waterfall by default')}
-                  checked={studioWaterfallDefaultInput}
-                  onChange={onStudioWaterfallDefaultChange}
-                />
-              </SettingsRow>
-            </div>
-          </SettingsSection>
-        ) : null}
-
-        {activeTab === 'series' ? (
-          <SettingsSection title={zh('布局设置', 'Layout')}>
-            <div className="divide-y divide-slate-100 px-1">
-              <SettingsRow label={zh('每页 系列 数量', 'Series per page')}>
-                <input
-                  type="number"
-                  min="1"
-                  value={seriesPageSizeInput}
-                  onChange={(e) => onSeriesPageSizeChange?.(e.target.value)}
-                  className={controlClassName}
-                />
-              </SettingsRow>
-              <SettingsRow label={zh('默认开启瀑布流', 'Enable waterfall by default')}>
-                <SettingsSwitch
-                  label={zh('默认开启瀑布流', 'Enable waterfall by default')}
-                  checked={seriesWaterfallDefaultInput}
-                  onChange={onSeriesWaterfallDefaultChange}
-                />
-              </SettingsRow>
-            </div>
-          </SettingsSection>
-        ) : null}
-
-        {activeTab === 'tag' ? (
-          <SettingsSection title={zh('标签设置', 'Tag settings')}>
-            <SettingsRow label={zh('刮削标签显示语言', 'Scraped tag display language')}>
-              <select
-                aria-label={zh('刮削标签显示语言', 'Scraped tag display language')}
-                value={javTagShowSimplifiedInput ? 'simplified' : 'traditional'}
-                onChange={(event) =>
-                  onJavTagShowSimplifiedChange?.(event.target.value === 'simplified')
-                }
-                className={controlClassName}
-              >
-                <option value="traditional">{zh('繁体中文', 'Traditional Chinese')}</option>
-                <option value="simplified">{zh('简体中文', 'Simplified Chinese')}</option>
-              </select>
-            </SettingsRow>
-          </SettingsSection>
-        ) : null}
-      </fieldset>
+            </SettingsSection>
+          ) : null}
+        </fieldset>
+      </div>
 
       <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
         {editing && (

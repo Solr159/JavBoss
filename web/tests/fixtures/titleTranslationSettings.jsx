@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import JavSettings from '@/features/settings/components/JavSettings'
+import DisplaySettings from '@/features/settings/components/DisplaySettings'
 import { createRoot } from 'react-dom/client'
 import TitleTranslationToolSettings from '@/features/settings/components/TitleTranslationToolSettings'
 import { useStore } from '@/store'
@@ -102,7 +102,7 @@ function Fixture() {
       <button onClick={() => setDisplayOpen(true)}>Display settings</button>
       <TitleTranslationToolSettings />
       {displayOpen && (
-        <JavSettings
+        <DisplaySettings
           onClose={() => setDisplayOpen(false)}
           onError={(message) => {
             window.displaySettingsError = message

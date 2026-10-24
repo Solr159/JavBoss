@@ -6,8 +6,7 @@ import { useCallback } from 'react'
 
 export default function useSectionNavigation({
   setTagModalOpen,
-  setVideoSettingsOpen,
-  setJavSettingsOpen,
+  setDisplaySettingsTab,
   setGlobalSettingsOpen,
   isJavMode,
   setJavSearchInput,
@@ -26,8 +25,7 @@ export default function useSectionNavigation({
   )
   const handleHomeClick = () => {
     setTagModalOpen(false)
-    setVideoSettingsOpen(false)
-    setJavSettingsOpen(false)
+    setDisplaySettingsTab(null)
     setGlobalSettingsOpen(false)
     if (isJavMode) {
       const updates = {

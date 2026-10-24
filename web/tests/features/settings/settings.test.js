@@ -342,3 +342,41 @@ test("display tabs saving out of order preserve each other's saved configuration
   assert.equal(useStore.getState().studioPageSize, 40)
   assert.equal(useStore.getState().seriesPageSize, 50)
 })
+
+test('video and JAV saves arriving out of order preserve both tabs', async (t) => {
+  const [model, actions, { useStore }] = await loadModules(t, [
+    'features/settings/model.js',
+    'features/settings/actions.js',
+    'store.js',
+  ])
+  const pending = []
+  let config = { ...useStore.getState().config }
+  t.mock.method(globalThis, 'fetch', (_url, init) => {
+    config = { ...config, ...JSON.parse(init.body) }
+    const response = Response.json(config)
+    return new Promise((resolve) => pending.push(() => resolve(response)))
+  })
+  const draft = {
+    ...model.createDisplaySettingsDraft(useStore.getState()),
+    videoPageSizeInput: 40,
+    javPageSizeInput: 48,
+  }
+  assert.deepEqual(
+    model.createDisplaySettingsDraft(useStore.getState(), 'video'),
+    model.createVideoSettingsDraft(useStore.getState())
+  )
+  assert.deepEqual(
+    model.createDisplaySettingsDraft(useStore.getState(), 'jav'),
+    model.createJavSettingsDraft(useStore.getState(), 'jav')
+  )
+  const videoSave = actions.saveVideoSettings(draft, () => {})
+  const javSave = actions.saveJavSettings(draft, () => {}, 'jav')
+  pending[1]()
+  await javSave
+  pending[0]()
+  await videoSave
+  assert.equal(useStore.getState().config.video_page_size, 40)
+  assert.equal(useStore.getState().config.jav_page_size, 48)
+  assert.equal(useStore.getState().pageSize, 40)
+  assert.equal(useStore.getState().javPageSize, 48)
+})

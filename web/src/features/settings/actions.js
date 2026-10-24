@@ -19,7 +19,7 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
   const normalizedSort = normalizeVideoSort(videoSortInput)
   const waterfallDefault = Boolean(videoWaterfallDefaultInput)
 
-  const cfg = await updateConfig({
+  const payload = {
     video_watch_time_icon_minutes: normalizeWatchTimeIconMinutes(
       draft.videoWatchTimeIconMinutesInput
     ),
@@ -27,7 +27,8 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
     video_sort: normalizedSort,
     video_hide_jav: videoHideJavInput,
     video_waterfall_default: waterfallDefault,
-  })
+  }
+  const cfg = await updateConfig(payload)
   const prevPage = page
   // ensure current page does not exceed last page after page size change
   const lastPage = Math.max(1, Math.ceil((total || 0) / size))
@@ -36,7 +37,7 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
 
   onWaterfallChange('video', waterfallDefault)
 
-  useStore.setState({
+  useStore.setState((state) => ({
     pageSize: size,
     sortOrder: normalizedSort,
     videoHideJav: videoHideJavInput,
@@ -44,8 +45,11 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
     page: nextPage,
     randomMode: false,
     randomSeed: null,
-    config: cfg,
-  })
+    config: {
+      ...state.config,
+      ...Object.fromEntries(Object.keys(payload).map((key) => [key, cfg[key]])),
+    },
+  }))
 }
 
 export async function saveJavSettings(draft, onWaterfallChange, tab) {

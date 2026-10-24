@@ -20,7 +20,6 @@ test(
       await waitFor(dialog)
     }
     const selectTab = async (tab) => {
-      if (tab === 'Videos') return
       await evaluate(
         `[...${dialog}.querySelectorAll('[role="tab"]')].find(button => button.textContent === '${tab}').click()`
       )
@@ -30,12 +29,23 @@ test(
     }
 
     for (const [view, tabs] of [
-      ['video', ['Videos']],
-      ['jav', ['JAV', 'Idols', 'Studios', 'Series', 'Tags']],
+      ['video', ['Videos', 'JAV', 'Idols', 'Studios', 'Series', 'Tags']],
+      ['jav', ['Videos', 'JAV', 'Idols', 'Studios', 'Series', 'Tags']],
     ]) {
       await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=${view}` })
       await waitFor(`document.querySelector('aside button[aria-label="Display"]')`)
       await openSettings()
+      assert.equal(await evaluate(`document.querySelectorAll('[role="dialog"]').length`), 1)
+      assert.deepEqual(
+        await evaluate(
+          `[...${dialog}.querySelectorAll('[role="tab"]')].map(tab => tab.textContent)`
+        ),
+        ['Videos', 'JAV', 'Idols', 'Studios', 'Series', 'Tags']
+      )
+      assert.equal(
+        await evaluate(`${dialog}.querySelector('[role="tab"][aria-selected="true"]').textContent`),
+        view === 'video' ? 'Videos' : 'JAV'
+      )
       const savedValues = new Map()
       for (const tab of tabs) {
         await selectTab(tab)
@@ -265,6 +275,70 @@ test(
         await evaluate(`window.requests.some(r => r.url === '/config' && r.method === 'PATCH')`),
         false
       )
+    }
+  }
+)
+
+test(
+  'video and JAV tabs share one dialog but save only the selected tab',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-display-settings-test',
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=video` })
+    await waitFor(`document.querySelector('aside button[aria-label="Display"]')`)
+    const dialog = `document.querySelector('[aria-labelledby="display-settings-title"]')`
+    const fields = `${dialog}.querySelector('fieldset')`
+    const input = `${fields}.querySelector('input[type="number"]')`
+    const click = (label) =>
+      evaluate(
+        `[...${dialog}.querySelectorAll('button')].find(button => button.textContent === '${label}').click()`
+      )
+    const setPageSize = (value) =>
+      evaluate(`{
+      const input = ${input};
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '${value}');
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    }`)
+    await evaluate(`{
+      const originalFetch = window.fetch;
+      window.savedSettings = [];
+      window.fetch = (url, init) => {
+        if (url === '/config' && init?.method === 'PATCH') window.savedSettings.push(JSON.parse(init.body));
+        return originalFetch(url, init);
+      };
+    }`)
+    for (const target of ['Videos', 'JAV']) {
+      await evaluate(`document.querySelector('aside button[aria-label="Display"]').click()`)
+      await waitFor(dialog)
+      assert.equal(
+        await evaluate(`${dialog}.querySelector('[role="tab"][aria-selected="true"]').textContent`),
+        'Videos'
+      )
+      await click('Edit')
+      await setPageSize(target === 'Videos' ? 40 : 60)
+      await click('JAV')
+      assert.equal(await evaluate(`${fields}.disabled`), true)
+      await click('Edit')
+      await setPageSize(48)
+      await click('Videos')
+      assert.equal(await evaluate(`${fields}.disabled`), false)
+      assert.equal(await evaluate(`${input}.value`), target === 'Videos' ? '40' : '60')
+      await click(target)
+      await click('Save')
+      await waitFor(`!${dialog}`)
+      assert.equal(await evaluate('window.testStore.getState().pageSize'), 40)
+      assert.equal(
+        await evaluate('window.testStore.getState().javPageSize'),
+        target === 'Videos' ? 24 : 48
+      )
+      assert.ok(
+        await evaluate(
+          `Object.keys(window.savedSettings.at(-1)).every(key => key.startsWith('${target === 'Videos' ? 'video_' : 'jav_'}'))`
+        )
+      )
+      assert.equal(await evaluate('window.testStore.getState().viewMode'), 'video')
     }
   }
 )
