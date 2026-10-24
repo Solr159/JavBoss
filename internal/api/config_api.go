@@ -100,6 +100,7 @@ func updateConfig(c *gin.Context) {
 		TitleTranslatePrompt      *string                    `json:"jav_title_translation_prompt"`
 		JavIdolTagMaxRows         *int                       `json:"jav_idol_tag_max_rows"`
 		JavTagMaxRows             *int                       `json:"jav_tag_max_rows"`
+		JavHideStudio             *bool                      `json:"jav_hide_studio"`
 		JavHideSeries             *bool                      `json:"jav_hide_series"`
 		JavHideIdols              *bool                      `json:"jav_hide_idols"`
 		JavHideTags               *bool                      `json:"jav_hide_tags"`
@@ -265,6 +266,9 @@ func updateConfig(c *gin.Context) {
 	}
 	if req.JavHideSeries != nil {
 		entries["jav_hide_series"] = strconv.FormatBool(*req.JavHideSeries)
+	}
+	if req.JavHideStudio != nil {
+		entries["jav_hide_studio"] = strconv.FormatBool(*req.JavHideStudio)
 	}
 	if req.JavCardPortrait != nil {
 		entries["jav_card_portrait"] = strconv.FormatBool(*req.JavCardPortrait)

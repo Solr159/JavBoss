@@ -328,6 +328,8 @@ export default function JavSettingsModal({
   onJavIdolTagMaxRowsChange,
   javTagMaxRowsInput,
   onJavTagMaxRowsChange,
+  javHideStudioInput = false,
+  onJavHideStudioChange,
   javHideSeriesInput = false,
   onJavHideSeriesChange,
   javHideIdolsInput = false,
@@ -407,6 +409,7 @@ export default function JavSettingsModal({
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
         onJavTagMaxRowsChange?.(2)
+        onJavHideStudioChange?.(false)
         onJavHideSeriesChange?.(false)
         onJavHideIdolsChange?.(false)
         onJavHideTagsChange?.(false)
@@ -575,6 +578,13 @@ export default function JavSettingsModal({
                       </option>
                     ))}
                   </select>
+                </SettingsRow>
+                <SettingsRow label={zh('不显示片商', 'Hide studio')}>
+                  <SettingsSwitch
+                    label={zh('不显示片商', 'Hide studio')}
+                    checked={javHideStudioInput}
+                    onChange={onJavHideStudioChange}
+                  />
                 </SettingsRow>
                 <SettingsRow label={zh('不显示系列', 'Hide series')}>
                   <SettingsSwitch

@@ -39,6 +39,7 @@ export function createJavSettingsDraft(state) {
     javTitleMaxRowsInput: javTitleMaxRows,
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,
+    javHideStudioInput: configFlag(config?.jav_hide_studio),
     javHideSeriesInput: configFlag(config?.jav_hide_series),
     javHideIdolsInput: configFlag(config?.jav_hide_idols),
     javHideTagsInput: configFlag(config?.jav_hide_tags),

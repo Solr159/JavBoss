@@ -3,6 +3,72 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'studio visibility persists independently of series in both card orientations',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-jav-card-test',
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
+    await waitFor('document.querySelector(".jav-card")')
+    await evaluate(
+      `(async () => {
+        const response = await fetch('/jav/items/1', {method: 'PUT', body: JSON.stringify({studio: {id: 1, name: 'Test Studio'}, series: {id: 1, name: 'Test Series'}})});
+        window.testStore.getState().patchJavItem(await response.json());
+      })()`
+    )
+    const studio = `document.querySelector('.jav-card a[title="Test Studio"]')`
+    const series = `document.querySelector('.jav-card a[title="Test Series"]')`
+    const toggle = `document.querySelector('[role="switch"][aria-label="Hide studio"]')`
+    const openSettings = async () => {
+      await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
+      await waitFor(toggle)
+    }
+    const click = async (label) =>
+      evaluate(
+        `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === '${label}').click()`
+      )
+    await waitFor(`${studio} && ${series}`)
+    for (const portrait of [false, true]) {
+      await evaluate(
+        `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: ${portrait}}}))`
+      )
+      await openSettings()
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
+      await evaluate(`${toggle}.click()`)
+      await click('Save')
+      await waitFor(`!${toggle} && !${studio}`)
+      assert.ok(await evaluate(`Boolean(${series})`))
+      assert.equal(await evaluate('window.testStore.getState().config.jav_hide_studio'), true)
+      await openSettings()
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+      await click('Restore defaults')
+      await click('Cancel')
+      await waitFor(`!${toggle}`)
+      assert.equal(await evaluate(`Boolean(${studio})`), false)
+      await openSettings()
+      await click('Restore defaults')
+      await click('Save')
+      await waitFor(`!${toggle} && ${studio}`)
+      assert.equal(await evaluate('window.testStore.getState().config.jav_hide_studio'), false)
+    }
+    await evaluate(
+      `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: true}}))`
+    )
+    await waitFor(series)
+    await evaluate(`${series}.parentElement.parentElement.dataset.testMetadataRow = 'true'`)
+    await evaluate(
+      `window.testStore.setState(state => ({config: {...state.config, jav_hide_studio: true, jav_hide_series: true}}))`
+    )
+    await waitFor(`!${studio} && !${series}`)
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('[data-test-metadata-row]'))`),
+      false
+    )
+  }
+)
+
+test(
   'JAV portrait cards crop the right side and persist the display setting',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

@@ -53,6 +53,7 @@ export default function JavGrid({
   const {
     portrait,
     preferChineseName,
+    hideStudio,
     hideSeries,
     hideIdols,
     hideTags,
@@ -160,6 +161,7 @@ export default function JavGrid({
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}
             tagMaxRows={tagMaxRows}
+            hideStudio={hideStudio}
             hideSeries={hideSeries}
             hideIdols={hideIdols}
             hideTags={hideTags}

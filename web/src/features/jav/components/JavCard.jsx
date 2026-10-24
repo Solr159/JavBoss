@@ -78,6 +78,7 @@ export default function JavCard(props) {
     onStudioClick,
     handleStudioHoverStart,
     scheduleHoverClose,
+    hideStudio,
     hideSeries,
     seriesText,
     buildSeriesFilterHref,
@@ -122,7 +123,8 @@ export default function JavCard(props) {
   const metadataTextClassName = portrait ? 'text-[11px] leading-4 tracking-tight' : 'text-xs'
   const fullDurationText = durationText || zh('时长未知', 'Unknown duration')
   const compactDurationText = item?.duration_min ? `${item.duration_min} min` : '—'
-  const studioMetadata = studioText ? (
+  const showStudio = !hideStudio && Boolean(studioText)
+  const studioMetadata = showStudio ? (
     <span
       className={`flex min-w-0 flex-1 items-center overflow-hidden ${portrait ? 'gap-0.5' : 'gap-1'}`}
     >
@@ -486,7 +488,7 @@ export default function JavCard(props) {
               compact={portrait}
             />
           </div>
-          {(portrait && studioText) || (!hideSeries && seriesText) ? (
+          {(portrait && showStudio) || (!hideSeries && seriesText) ? (
             <div
               className={`flex min-w-0 items-center text-gray-600 ${metadataTextClassName} ${portrait ? '-my-0.5 gap-2' : 'gap-3'}`}
             >

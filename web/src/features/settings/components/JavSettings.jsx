@@ -49,6 +49,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       onJavTagMaxRowsChange={(value) =>
         setDraft((current) => ({ ...current, javTagMaxRowsInput: value }))
       }
+      javHideStudioInput={draft.javHideStudioInput}
+      onJavHideStudioChange={(value) =>
+        setDraft((current) => ({ ...current, javHideStudioInput: value }))
+      }
       javHideSeriesInput={draft.javHideSeriesInput}
       onJavHideSeriesChange={(value) =>
         setDraft((current) => ({ ...current, javHideSeriesInput: value }))
