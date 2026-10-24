@@ -62,6 +62,7 @@ test(
     const mode = `document.querySelector('select[aria-label="Cover display mode"]')`
     const fullRating = `document.querySelector('[role="switch"][aria-label="Show full favorite-rating hearts"]')`
     await waitFor(mode)
+    await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     assert.equal(await evaluate(`Boolean(${fullRating})`), false)
     await evaluate(
       `${mode}.value = 'landscape'; ${mode}.dispatchEvent(new Event('change', {bubbles: true}))`
@@ -71,6 +72,8 @@ test(
     await evaluate(
       `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === 'Cancel').click()`
     )
+    await waitFor(`${mode}.matches(':disabled') && ${mode}.value === 'portrait'`)
+    await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
     await waitFor(`!${mode}`)
     await evaluate(
       `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: false}}))`
@@ -100,6 +103,7 @@ test(
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(toggle)
+      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const click = async (label) =>
       evaluate(
@@ -121,9 +125,10 @@ test(
       assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
       await click('Restore defaults')
       await click('Cancel')
-      await waitFor(`!${toggle}`)
+      await waitFor(`${toggle}.matches(':disabled')`)
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
       assert.equal(await evaluate(`Boolean(${studio})`), false)
-      await openSettings()
+      await click('Edit')
       await click('Restore defaults')
       await click('Save')
       await waitFor(`!${toggle} && ${studio}`)
@@ -190,6 +195,7 @@ test(
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(select)
+      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const clickDialogButton = async (text) => {
       await evaluate(
@@ -291,9 +297,9 @@ test(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
     await clickDialogButton('Cancel')
-    await waitFor(`!${select}`)
+    await waitFor(`${select}.matches(':disabled') && ${select}.value === 'portrait'`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
-    await openSettings()
+    await clickDialogButton('Edit')
     await evaluate(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )

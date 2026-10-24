@@ -16,6 +16,15 @@ test(
     const settings = `document.querySelector('[role="dialog"][aria-label="Video Settings"]')`
     await evaluate(`${display}.click()`)
     await waitFor(settings)
+    assert.deepEqual(
+      await evaluate(`[...${settings}.querySelectorAll('footer button')].map(b => b.textContent)`),
+      ['Edit']
+    )
+    assert.equal(
+      await evaluate(`${settings}.querySelector('input[type="number"]').matches(':disabled')`),
+      true
+    )
+    await evaluate(`${settings}.querySelector('footer button').click()`)
     await evaluate(`{
       const input = ${settings}.querySelector('input[type="number"]');
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '40');
@@ -25,9 +34,13 @@ test(
       `Array.from(${settings}.querySelectorAll('button')).find(b => b.textContent === 'Cancel').click()`
     )
     assert.equal(await evaluate('window.testStore.getState().pageSize'), 25)
-    await evaluate(`${display}.click()`)
-    await waitFor(settings)
+    await waitFor(`${settings} && ${settings}.querySelector('fieldset').disabled`)
     assert.equal(await evaluate(`${settings}.querySelector('input[type="number"]').value`), '25')
+    assert.equal(
+      await evaluate(`${settings}.querySelector('input[type="number"]').matches(':disabled')`),
+      true
+    )
+    await evaluate(`${settings}.querySelector('footer button').click()`)
     await evaluate(`{
       const input = ${settings}.querySelector('input[type="number"]');
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '40');

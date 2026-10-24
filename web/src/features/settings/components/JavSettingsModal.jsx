@@ -316,6 +316,7 @@ export default function JavSettingsModal({
   open,
   initialTab = 'jav',
   onClose,
+  onCancel,
   javPageSizeInput,
   onJavPageSizeChange,
   javGridColumnsInput,
@@ -370,6 +371,7 @@ export default function JavSettingsModal({
   saving = false,
 }) {
   const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(initialTab))
+  const [editing, setEditing] = useState(false)
 
   if (!open) return null
 
@@ -467,7 +469,10 @@ export default function JavSettingsModal({
         })}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+      <fieldset
+        disabled={!editing || saving}
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pb-4 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 [&_select:disabled]:bg-slate-100"
+      >
         {activeTab === 'jav' ? (
           <div className="space-y-3">
             <SettingsSection title={zh('布局设置', 'Layout')}>
@@ -642,7 +647,7 @@ export default function JavSettingsModal({
                         },
                       ])
                     }
-                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-default disabled:opacity-40"
                   >
                     {zh('添加规则', 'Add rule')}
                   </button>
@@ -820,33 +825,50 @@ export default function JavSettingsModal({
             </SettingsRow>
           </SettingsSection>
         ) : null}
-      </div>
+      </fieldset>
 
       <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
-        <button
-          type="button"
-          onClick={resetActiveTab}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none"
-        >
-          {zh('恢复默认', 'Restore defaults')}
-        </button>
-        <div className="flex items-center gap-3">
+        {editing ? (
+          <>
+            <button
+              type="button"
+              onClick={resetActiveTab}
+              disabled={saving}
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none disabled:opacity-50"
+            >
+              {zh('恢复默认', 'Restore defaults')}
+            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  onCancel?.()
+                  setEditing(false)
+                }}
+                disabled={saving}
+                className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none disabled:opacity-50"
+              >
+                {zh('取消', 'Cancel')}
+              </button>
+              <button
+                type="button"
+                onClick={onSave}
+                disabled={saving}
+                className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+              >
+                {zh('保存', 'Save')}
+              </button>
+            </div>
+          </>
+        ) : (
           <button
             type="button"
-            onClick={onClose}
-            className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none"
+            onClick={() => setEditing(true)}
+            className="ml-auto min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none"
           >
-            {zh('取消', 'Cancel')}
+            {zh('编辑', 'Edit')}
           </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={saving}
-            className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none"
-          >
-            {zh('保存', 'Save')}
-          </button>
-        </div>
+        )}
       </footer>
     </AppModal>
   )

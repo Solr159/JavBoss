@@ -24,6 +24,7 @@ export default function VideoSettings({ onClose, onError, onWaterfallChange }) {
     <VideoSettingsModal
       open={true}
       onClose={() => onClose()}
+      onCancel={() => setDraft(createVideoSettingsDraft(useStore.getState()))}
       pageSizeInput={draft.videoPageSizeInput}
       onPageSizeChange={(value) =>
         setDraft((current) => ({ ...current, videoPageSizeInput: value }))

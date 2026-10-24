@@ -202,6 +202,7 @@ test(
       await evaluate(`document.body.textContent.includes('Prefer Chinese titles')`),
       false
     )
+    await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     await evaluate(
       `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
     )

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import AppModal from '@/shared/ui/AppModal'
 import {
@@ -75,6 +76,7 @@ function SettingsSwitch({ label, checked, onChange }) {
 export default function VideoSettingsModal({
   open,
   onClose,
+  onCancel,
   pageSizeInput,
   onPageSizeChange,
   sortInput,
@@ -88,7 +90,17 @@ export default function VideoSettingsModal({
   onSave,
   saving = false,
 }) {
+  const [editing, setEditing] = useState(false)
+
   if (!open) return null
+
+  const resetDefaults = () => {
+    onPageSizeChange?.(25)
+    onSortChange?.(VIDEO_SORT_OPTIONS[0].defaultValue)
+    onHideJavChange?.(false)
+    onWaterfallDefaultChange?.(false)
+    onWatchTimeIconMinutesChange?.(30)
+  }
 
   return (
     <AppModal
@@ -107,7 +119,10 @@ export default function VideoSettingsModal({
           ✕
         </button>
       </div>
-      <div className="space-y-2">
+      <fieldset
+        disabled={!editing || saving}
+        className="min-w-0 space-y-2 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100"
+      >
         <label className="flex cursor-pointer items-center gap-2 rounded border px-3 py-2 text-sm font-medium text-gray-700 hover:border-blue-500">
           <input
             type="checkbox"
@@ -155,19 +170,48 @@ export default function VideoSettingsModal({
             onChange={onSortChange}
           />
         ))}
-      </div>
-      <div className="mt-3 flex justify-end">
-        <button onClick={onClose} className="rounded border px-3 py-1 text-sm hover:bg-gray-50">
-          {zh('取消', 'Cancel')}
-        </button>
-        <button
-          onClick={onSave}
-          disabled={saving}
-          className="ml-2 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-        >
-          {zh('保存', 'Save')}
-        </button>
-      </div>
+      </fieldset>
+      <footer className="mt-3 flex items-center justify-end gap-2">
+        {editing ? (
+          <>
+            <button
+              type="button"
+              onClick={resetDefaults}
+              disabled={saving}
+              className="mr-auto rounded px-3 py-1 text-sm text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {zh('恢复默认', 'Restore defaults')}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onCancel?.()
+                setEditing(false)
+              }}
+              disabled={saving}
+              className="rounded border px-3 py-1 text-sm hover:bg-gray-50 disabled:opacity-50"
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={saving}
+              className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {zh('保存', 'Save')}
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
+          >
+            {zh('编辑', 'Edit')}
+          </button>
+        )}
+      </footer>
     </AppModal>
   )
 }
