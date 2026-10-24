@@ -446,7 +446,11 @@ export default function JavCard(props) {
           ) : null}
         </div>
         <div className={`flex flex-1 flex-col gap-2 py-3 ${portrait ? 'px-2' : 'px-3'}`}>
-          <div className="text-sm leading-tight" title={titleText} style={titleClampStyle}>
+          <div
+            className={`leading-tight ${portrait ? 'text-[13px]' : 'text-sm'}`}
+            title={titleText}
+            style={titleClampStyle}
+          >
             {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
             {codeText ? ' ' : null}
             <span className="font-medium text-gray-800">{mainTitle}</span>
