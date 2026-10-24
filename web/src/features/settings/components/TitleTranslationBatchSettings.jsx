@@ -121,7 +121,7 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
           ⌄
         </span>
       </summary>
-      <div className="space-y-4 border-t border-zinc-100 p-5">
+      <div className="mx-5 mb-5 space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
         {dirty && (
           <p className="text-xs text-amber-700">
             {zh(
@@ -133,10 +133,12 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
         {!running && (
           <fieldset disabled={busy || dirty} className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label className="block min-w-0 flex-1 space-y-2 text-sm">
-                <span>{zh('翻译范围', 'Translation scope')}</span>
+              <label className="block min-w-0 flex-1 space-y-2">
+                <span className="text-xs font-medium text-zinc-600">
+                  {zh('翻译范围', 'Translation scope')}
+                </span>
                 <select
-                  className="block w-full rounded-lg border border-zinc-200 px-3 py-2"
+                  className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                   value={scope}
                   onChange={(e) => {
                     setScope(e.target.value)
@@ -187,8 +189,8 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
               </div>
             )}
             {!previewLoading && preview?.scope === scope && (
-              <div className="space-y-3 rounded-lg bg-slate-50 p-3">
-                <p role="status" className="text-sm">
+              <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3">
+                <p role="status" className="text-sm text-zinc-700">
                   {zh(
                     series
                       ? `将翻译 ${preview.total} 个系列，其中 ${preview.existing} 个已有中文名称。`
