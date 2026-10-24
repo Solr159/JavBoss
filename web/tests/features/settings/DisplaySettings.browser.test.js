@@ -138,7 +138,7 @@ test(
 )
 
 test(
-  'saving a display tab preserves other drafts and a failed save stays editable',
+  'saving closes display settings and persists only the current tab, while failed saves stay editable',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t, {
@@ -179,7 +179,7 @@ test(
     await click('Edit')
     await setPageSize(48)
     await click('Save')
-    await waitFor(`${fields}.disabled && window.testStore.getState().idolPageSize === 48`)
+    await waitFor(`!${dialog} && window.testStore.getState().idolPageSize === 48`)
     assert.equal(await evaluate('window.testStore.getState().javPageSize'), 24)
     assert.deepEqual(await evaluate('Object.keys(window.settingsSaves[0]).sort()'), [
       'idol_page_size',
@@ -187,9 +187,12 @@ test(
       'idol_waterfall_default',
       'jav_idol_prefer_chinese_name',
     ])
-    await click('JAV')
-    assert.equal(await evaluate(`${fields}.disabled`), false)
-    assert.equal(await evaluate(`${input}.value`), '40')
+    await evaluate(`document.querySelector('aside button[aria-label="Display"]').click()`)
+    await waitFor(dialog)
+    assert.equal(await evaluate(`${fields}.disabled`), true)
+    assert.equal(await evaluate(`${input}.value`), '24')
+    await click('Edit')
+    await setPageSize(40)
     await evaluate('window.failSettingsSave = true')
     await click('Save')
     await waitFor('window.settingsSaves.length === 2')
@@ -198,8 +201,10 @@ test(
     assert.equal(await evaluate('window.testStore.getState().javPageSize'), 24)
     await evaluate('window.failSettingsSave = false')
     await click('Save')
-    await waitFor(`${fields}.disabled && window.testStore.getState().javPageSize === 40`)
+    await waitFor(`!${dialog} && window.testStore.getState().javPageSize === 40`)
     assert.equal(await evaluate('window.testStore.getState().idolPageSize'), 48)
+    await evaluate(`document.querySelector('aside button[aria-label="Display"]').click()`)
+    await waitFor(dialog)
     await click('Idols')
     assert.equal(await evaluate(`${fields}.disabled`), true)
     assert.equal(await evaluate(`${input}.value`), '48')

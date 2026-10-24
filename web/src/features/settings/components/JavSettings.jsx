@@ -18,8 +18,7 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
     setSavingTabs((current) => ({ ...current, [tab]: true }))
     try {
       await saveJavSettings(draft, onWaterfallChange, tab)
-      resetTabDraft(tab)
-      setEditingTabs((current) => ({ ...current, [tab]: false }))
+      onClose()
     } catch (error) {
       onError(getErrorMessage(error))
     } finally {
