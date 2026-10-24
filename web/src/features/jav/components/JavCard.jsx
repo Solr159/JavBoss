@@ -186,7 +186,7 @@ export default function JavCard(props) {
             <button
               onClick={handlePlay}
               disabled={!canPlay}
-              className={`card-modal-trigger pointer-events-auto rounded-full p-3 ${
+              className={`card-modal-trigger pointer-events-auto rounded-full ${portrait ? 'p-2.5' : 'p-3'} ${
                 canPlay ? 'bg-black/60 hover:bg-black/80' : 'cursor-not-allowed bg-black/30'
               }`}
               aria-label={zh('播放', 'Play')}
@@ -196,7 +196,7 @@ export default function JavCard(props) {
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="h-10 w-10"
+                className={portrait ? 'h-9 w-9' : 'h-10 w-10'}
               >
                 <path d="M8 5v14l11-7z" />
               </svg>
