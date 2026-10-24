@@ -34,7 +34,10 @@ export default function JavCard(props) {
   const coverButtonSizeClassName = portrait ? 'h-7 w-7' : 'h-8 w-8'
   const coverSmallButtonSizeClassName = portrait ? 'h-6 w-6' : 'h-7 w-7'
   const favoriteRatingIconSize = portrait ? 18 : 21
-  const model = useJavItemActions(props)
+  const model = useJavItemActions({
+    ...props,
+    showFullFavoriteRating: portrait ? false : props.showFullFavoriteRating,
+  })
   const {
     checked,
     cover,

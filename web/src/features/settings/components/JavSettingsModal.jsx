@@ -606,13 +606,15 @@ export default function JavSettingsModal({
                     onChange={onJavHideActionsChange}
                   />
                 </SettingsRow>
-                <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
-                  <SettingsSwitch
-                    label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
-                    checked={javFavoriteRatingShowFullInput}
-                    onChange={onJavFavoriteRatingShowFullChange}
-                  />
-                </SettingsRow>
+                {!javCardPortraitInput ? (
+                  <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
+                    <SettingsSwitch
+                      label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
+                      checked={javFavoriteRatingShowFullInput}
+                      onChange={onJavFavoriteRatingShowFullChange}
+                    />
+                  </SettingsRow>
+                ) : null}
               </div>
             </SettingsSection>
 

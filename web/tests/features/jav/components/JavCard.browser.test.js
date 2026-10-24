@@ -3,6 +3,83 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'portrait cards ignore full rating display and keep selection clickable',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-jav-card-test',
+    })
+    await command('Emulation.setDeviceMetricsOverride', {
+      width: 1280,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
+    const card = `document.querySelector('.jav-card')`
+    const checkbox = `document.querySelector('.jav-card [role="checkbox"]')`
+    const rating = `document.querySelector('.jav-card [aria-label="Favorite rating"]')`
+    await waitFor(checkbox)
+    await evaluate(`window.testStore.setState(state => ({
+      config: {...state.config, jav_card_portrait: true, jav_favorite_rating_show_full: true},
+      javItems: state.javItems.map(item => ({...item, favorite_rating: 5}))
+    }))`)
+    await waitFor(`${rating}.textContent.includes('5.0')`)
+    await waitFor(`${rating}.firstElementChild.getBoundingClientRect().width === 18`)
+    for (const width of [204, 176, 260]) {
+      await evaluate(`${card}.style.width = '${width}px'`)
+      await evaluate(`${card}.scrollIntoView({block: 'center'})`)
+      const controls = await evaluate(`(() => {
+          const card = ${card};
+          const checkbox = ${checkbox};
+          const rect = checkbox.getBoundingClientRect();
+          const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+          const boxes = [checkbox, ${rating}, card.querySelector('[aria-label="Edit custom tags"]'), card.querySelector('[aria-label="Add to JAV favorite groups"]')].map(el => el.getBoundingClientRect());
+          return {x, y, hit: checkbox.contains(document.elementFromPoint(x, y)), overlap: boxes.some((a, i) => boxes.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top))};
+        })()`)
+      assert.equal(controls.overlap, false, `width=${width}`)
+      assert.equal(controls.hit, true, `selection hit target at width=${width}`)
+      const before = await evaluate(`${checkbox}.getAttribute('aria-checked')`)
+      await command('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        x: controls.x,
+        y: controls.y,
+        button: 'left',
+        clickCount: 1,
+      })
+      await command('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        x: controls.x,
+        y: controls.y,
+        button: 'left',
+        clickCount: 1,
+      })
+      await waitFor(`${checkbox}.getAttribute('aria-checked') !== '${before}'`)
+      assert.equal(await evaluate(`Boolean(document.querySelector('[role="dialog"]'))`), false)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1200, y: 850 })
+    }
+    await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
+    const mode = `document.querySelector('select[aria-label="Cover display mode"]')`
+    const fullRating = `document.querySelector('[role="switch"][aria-label="Show full favorite-rating hearts"]')`
+    await waitFor(mode)
+    assert.equal(await evaluate(`Boolean(${fullRating})`), false)
+    await evaluate(
+      `${mode}.value = 'landscape'; ${mode}.dispatchEvent(new Event('change', {bubbles: true}))`
+    )
+    await waitFor(fullRating)
+    assert.equal(await evaluate(`${fullRating}.getAttribute('aria-checked')`), 'true')
+    await evaluate(
+      `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === 'Cancel').click()`
+    )
+    await waitFor(`!${mode}`)
+    await evaluate(
+      `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: false}}))`
+    )
+    await waitFor(`${rating}.firstElementChild.getBoundingClientRect().width === 105`)
+  }
+)
+
+test(
   'studio visibility persists independently of series in both card orientations',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
@@ -96,7 +173,7 @@ test(
     })
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
     const frame = `document.querySelector('.jav-card .card-hover-scope')`
-    const img = `${frame}.querySelector('img')`
+    const img = `document.querySelector('.jav-card .card-hover-scope img')`
     const select = `document.querySelector('select[aria-label="Cover display mode"]')`
     await waitFor(frame)
     await waitFor(`${img}?.naturalWidth === 800`)
@@ -105,7 +182,7 @@ test(
     await evaluate(
       `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: false}}))`
     )
-    await waitFor(`getComputedStyle(${img}).objectFit === 'contain'`)
+    await waitFor(`${img} && getComputedStyle(${img}).objectFit === 'contain'`)
     const landscapeWidth = await evaluate(`${frame}.getBoundingClientRect().width`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'contain')
     const cropButton = `document.querySelector('.jav-card button[aria-label="Adjust cover"]')`
@@ -125,7 +202,7 @@ test(
       `${select}.value = 'portrait'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
     await clickDialogButton('Save')
-    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'cover'`)
+    await waitFor(`!${select} && ${img} && getComputedStyle(${img}).objectFit === 'cover'`)
     assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), true)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectPosition`), '100% 50%')
     const dimensions = await evaluate(`(() => {
@@ -187,7 +264,9 @@ test(
     assert.equal(await evaluate(`${slider}.value`), '0.25')
     await evaluate('window.fetch = window.cropFetch')
     await clickDialogButton('Save')
-    await waitFor(`!${cropDialog} && getComputedStyle(${img}).objectPosition === '25% 50%'`)
+    await waitFor(
+      `!${cropDialog} && ${img} && getComputedStyle(${img}).objectPosition === '25% 50%'`
+    )
     assert.equal(
       await evaluate('window.testStore.getState().javItems[0].cover_crop_position'),
       0.25
@@ -202,7 +281,9 @@ test(
     assert.equal(await evaluate(`${slider}.value`), '0.25')
     await clickDialogButton('Reset')
     await clickDialogButton('Save')
-    await waitFor(`!${cropDialog} && getComputedStyle(${img}).objectPosition === '100% 50%'`)
+    await waitFor(
+      `!${cropDialog} && ${img} && getComputedStyle(${img}).objectPosition === '100% 50%'`
+    )
     // The setting is restored when reopening; cancelling a change keeps portrait mode.
     await openSettings()
     assert.equal(await evaluate(`${select}.value`), 'portrait')
@@ -217,7 +298,7 @@ test(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
     await clickDialogButton('Save')
-    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'contain'`)
+    await waitFor(`!${select} && ${img} && getComputedStyle(${img}).objectFit === 'contain'`)
     assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), false)
     assert.equal(await evaluate(`Boolean(${cropButton})`), false)
     assert.equal(await evaluate(`${frame}.getBoundingClientRect().width`), landscapeWidth)
@@ -226,7 +307,7 @@ test(
     await clickDialogButton('Restore defaults')
     await waitFor(`${select}.value === 'portrait'`)
     await clickDialogButton('Save')
-    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'cover'`)
+    await waitFor(`!${select} && ${img} && getComputedStyle(${img}).objectFit === 'cover'`)
     assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), true)
   }
 )
