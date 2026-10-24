@@ -5,7 +5,8 @@ import { zh } from '@/utils/i18n'
 import { useStore } from '@/store'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
-export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
+export default function WatchTimeIcons({ watchedMs, entityType, entityId, compact = false }) {
+  const iconSize = compact ? 12 : 16
   const latest = useStore((state) => state.watchedTimes?.[entityType]?.[entityId] || 0)
   const minutesPerIcon = useStore((state) =>
     normalizeWatchTimeIconMinutes(
@@ -36,7 +37,7 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
       <span
         role="img"
         aria-label={label}
-        className="watch-time-icons inline-flex shrink-0 items-center gap-0.5 text-teal-600"
+        className={`watch-time-icons inline-flex shrink-0 items-center text-teal-600 ${compact ? 'gap-px' : 'gap-0.5'}`}
       >
         {[0, 1, 2].map((index) => {
           const progress = Math.min(1, Math.max(0, totalMs / (minutesPerIcon * 60000) - index))
@@ -44,7 +45,7 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
             <span
               key={index}
               aria-hidden="true"
-              className="relative inline-flex h-4 w-4"
+              className={`relative inline-flex ${compact ? 'h-3 w-3' : 'h-4 w-4'}`}
               // Rasterize partial fills separately so fractional card positions
               // don't round away their subpixel clip widths.
               style={{ willChange: progress > 0 && progress < 1 ? 'transform' : undefined }}
@@ -52,12 +53,12 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId }) {
               <PlayCircleFilledIcon
                 viewBox="2 2 20 20"
                 className="text-teal-100"
-                sx={{ fontSize: 16 }}
+                sx={{ fontSize: iconSize }}
               />
               <PlayCircleFilledIcon
                 viewBox="2 2 20 20"
                 className="absolute inset-0 text-teal-600"
-                sx={{ fontSize: 16 }}
+                sx={{ fontSize: iconSize }}
                 style={{ clipPath: `inset(0 ${100 - progress * 100}% 0 0)` }}
               />
             </span>

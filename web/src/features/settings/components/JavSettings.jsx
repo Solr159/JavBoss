@@ -30,6 +30,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
         setDraft((current) => ({ ...current, javPageSizeInput: value }))
       }
       javGridColumnsInput={draft.javGridColumnsInput}
+      javCardPortraitInput={draft.javCardPortraitInput}
+      onJavCardPortraitChange={(value) =>
+        setDraft((current) => ({ ...current, javCardPortraitInput: value }))
+      }
       onJavGridColumnsChange={(value) =>
         setDraft((current) => ({ ...current, javGridColumnsInput: value }))
       }
@@ -44,6 +48,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       javTagMaxRowsInput={draft.javTagMaxRowsInput}
       onJavTagMaxRowsChange={(value) =>
         setDraft((current) => ({ ...current, javTagMaxRowsInput: value }))
+      }
+      javHideStudioInput={draft.javHideStudioInput}
+      onJavHideStudioChange={(value) =>
+        setDraft((current) => ({ ...current, javHideStudioInput: value }))
       }
       javHideSeriesInput={draft.javHideSeriesInput}
       onJavHideSeriesChange={(value) =>

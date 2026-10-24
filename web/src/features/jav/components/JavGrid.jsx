@@ -51,7 +51,9 @@ export default function JavGrid({
   )
   const seriesTranslation = useJavSeriesTranslation(seriesItems)
   const {
+    portrait,
     preferChineseName,
+    hideStudio,
     hideSeries,
     hideIdols,
     hideTags,
@@ -87,7 +89,7 @@ export default function JavGrid({
   const gridClassName = 'grid gap-4'
   const gridStyle = fixedColumnCount
     ? { gridTemplateColumns: `repeat(${fixedColumnCount}, minmax(0, 1fr))` }
-    : { gridTemplateColumns: 'repeat(auto-fill, minmax(21rem, 1fr))' }
+    : { gridTemplateColumns: `repeat(auto-fill, minmax(${portrait ? '11rem' : '21rem'}, 1fr))` }
 
   if (!hasItems) {
     return (
@@ -118,6 +120,7 @@ export default function JavGrid({
         {displayItems.map((item) => (
           <JavCard
             key={item.id || item.code}
+            portrait={portrait}
             item={item}
             checked={selectedIds?.has(Number(item.id)) || false}
             onToggleSelect={onToggleSelect}
@@ -158,6 +161,7 @@ export default function JavGrid({
             titleMaxRows={titleMaxRows}
             idolTagMaxRows={idolTagMaxRows}
             tagMaxRows={tagMaxRows}
+            hideStudio={hideStudio}
             hideSeries={hideSeries}
             hideIdols={hideIdols}
             hideTags={hideTags}

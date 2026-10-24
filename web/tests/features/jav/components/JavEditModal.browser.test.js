@@ -112,7 +112,11 @@ for (const fromDetail of [false, true]) {
           return originalFetch(input, init);
         };
         window.confirm = () => true;
-        window.testStore.setState({javGridColumns: 3});
+        // The fixed scroll offset and fully visible card selection use landscape geometry.
+        window.testStore.setState(state => ({
+          javGridColumns: 3,
+          config: {...state.config, jav_card_portrait: false},
+        }));
       }`)
       await evaluate(
         `window.listLoad = window.testStore.getState().loadJavs({force: true}); void 0`

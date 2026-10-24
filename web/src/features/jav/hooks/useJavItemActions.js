@@ -57,6 +57,7 @@ export default function useJavItemActions({
   titleMaxRows,
   idolTagMaxRows,
   tagMaxRows,
+  hideStudio = false,
   hideSeries = false,
   hideIdols = false,
   hideTags = false,
@@ -78,9 +79,7 @@ export default function useJavItemActions({
       ? new Date(item.release_unix * 1000)
       : null
   const releaseText = release ? release.toISOString().slice(0, 10) : zh('未知', 'Unknown')
-  const durationText = item?.duration_min
-    ? zh(`${item.duration_min} 分钟`, `${item.duration_min} min`)
-    : ''
+  const durationText = item?.duration_min ? `${item.duration_min} min` : ''
   const studioText = String(item?.studio?.name || '').trim()
   const canFilterStudio = studioText && typeof onStudioClick === 'function'
   const preferredSeries = item?.series
@@ -639,6 +638,7 @@ export default function useJavItemActions({
     onStudioClick,
     handleStudioHoverStart,
     scheduleHoverClose,
+    hideStudio,
     hideSeries,
     seriesText,
     buildSeriesFilterHref,

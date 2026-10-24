@@ -320,12 +320,16 @@ export default function JavSettingsModal({
   onJavPageSizeChange,
   javGridColumnsInput,
   onJavGridColumnsChange,
+  javCardPortraitInput = true,
+  onJavCardPortraitChange,
   javTitleMaxRowsInput,
   onJavTitleMaxRowsChange,
   javIdolTagMaxRowsInput,
   onJavIdolTagMaxRowsChange,
   javTagMaxRowsInput,
   onJavTagMaxRowsChange,
+  javHideStudioInput = false,
+  onJavHideStudioChange,
   javHideSeriesInput = false,
   onJavHideSeriesChange,
   javHideIdolsInput = false,
@@ -401,9 +405,11 @@ export default function JavSettingsModal({
         onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
+        onJavCardPortraitChange?.(true)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
         onJavTagMaxRowsChange?.(2)
+        onJavHideStudioChange?.(false)
         onJavHideSeriesChange?.(false)
         onJavHideIdolsChange?.(false)
         onJavHideTagsChange?.(false)
@@ -501,6 +507,19 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow label={zh('封面显示模式', 'Cover display mode')}>
+                  <select
+                    aria-label={zh('封面显示模式', 'Cover display mode')}
+                    value={javCardPortraitInput ? 'portrait' : 'landscape'}
+                    onChange={(event) =>
+                      onJavCardPortraitChange?.(event.target.value === 'portrait')
+                    }
+                    className={controlClassName}
+                  >
+                    <option value="landscape">{zh('横版', 'Landscape')}</option>
+                    <option value="portrait">{zh('竖版', 'Portrait')}</option>
+                  </select>
+                </SettingsRow>
                 <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
                   <input
                     type="number"
@@ -526,12 +545,18 @@ export default function JavSettingsModal({
                     ))}
                   </select>
                 </SettingsRow>
-                <SettingsRow label={zh('标签最多行数', 'Tag max rows')}>
+                <SettingsRow label={zh('演员最多行数', 'Actor max rows')}>
                   <select
-                    value={String(javTagMaxRowsInput ?? 2)}
-                    onChange={(e) => onJavTagMaxRowsChange?.(e.target.value)}
+                    aria-label={zh('演员最多行数', 'Actor max rows')}
+                    value={javHideIdolsInput ? 'hidden' : String(javIdolTagMaxRowsInput ?? 0)}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      onJavHideIdolsChange?.(value === 'hidden')
+                      if (value !== 'hidden') onJavIdolTagMaxRowsChange?.(value)
+                    }}
                     className={controlClassName}
                   >
+                    <option value="hidden">{zh('隐藏', 'Hide')}</option>
                     <option value="0">{zh('完全展开', 'All')}</option>
                     {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
                       <option key={count} value={String(count)}>
@@ -540,12 +565,18 @@ export default function JavSettingsModal({
                     ))}
                   </select>
                 </SettingsRow>
-                <SettingsRow label={zh('演员标签最多行数', 'Actor tag max rows')}>
+                <SettingsRow label={zh('标签最多行数', 'Tag max rows')}>
                   <select
-                    value={String(javIdolTagMaxRowsInput ?? 0)}
-                    onChange={(e) => onJavIdolTagMaxRowsChange?.(e.target.value)}
+                    aria-label={zh('标签最多行数', 'Tag max rows')}
+                    value={javHideTagsInput ? 'hidden' : String(javTagMaxRowsInput ?? 2)}
+                    onChange={(event) => {
+                      const value = event.target.value
+                      onJavHideTagsChange?.(value === 'hidden')
+                      if (value !== 'hidden') onJavTagMaxRowsChange?.(value)
+                    }}
                     className={controlClassName}
                   >
+                    <option value="hidden">{zh('隐藏', 'Hide')}</option>
                     <option value="0">{zh('完全展开', 'All')}</option>
                     {Array.from({ length: 12 }, (_, index) => index + 1).map((count) => (
                       <option key={count} value={String(count)}>
@@ -553,26 +584,19 @@ export default function JavSettingsModal({
                       </option>
                     ))}
                   </select>
+                </SettingsRow>
+                <SettingsRow label={zh('不显示片商', 'Hide studio')}>
+                  <SettingsSwitch
+                    label={zh('不显示片商', 'Hide studio')}
+                    checked={javHideStudioInput}
+                    onChange={onJavHideStudioChange}
+                  />
                 </SettingsRow>
                 <SettingsRow label={zh('不显示系列', 'Hide series')}>
                   <SettingsSwitch
                     label={zh('不显示系列', 'Hide series')}
                     checked={javHideSeriesInput}
                     onChange={onJavHideSeriesChange}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('不显示演员', 'Hide actors')}>
-                  <SettingsSwitch
-                    label={zh('不显示演员', 'Hide actors')}
-                    checked={javHideIdolsInput}
-                    onChange={onJavHideIdolsChange}
-                  />
-                </SettingsRow>
-                <SettingsRow label={zh('不显示标签', 'Hide tags')}>
-                  <SettingsSwitch
-                    label={zh('不显示标签', 'Hide tags')}
-                    checked={javHideTagsInput}
-                    onChange={onJavHideTagsChange}
                   />
                 </SettingsRow>
                 <SettingsRow label={zh('不显示操作按钮', 'Hide action buttons')}>
@@ -582,13 +606,15 @@ export default function JavSettingsModal({
                     onChange={onJavHideActionsChange}
                   />
                 </SettingsRow>
-                <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
-                  <SettingsSwitch
-                    label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
-                    checked={javFavoriteRatingShowFullInput}
-                    onChange={onJavFavoriteRatingShowFullChange}
-                  />
-                </SettingsRow>
+                {!javCardPortraitInput ? (
+                  <SettingsRow label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}>
+                    <SettingsSwitch
+                      label={zh('展示完整喜爱度爱心', 'Show full favorite-rating hearts')}
+                      checked={javFavoriteRatingShowFullInput}
+                      onChange={onJavFavoriteRatingShowFullChange}
+                    />
+                  </SettingsRow>
+                ) : null}
               </div>
             </SettingsSection>
 

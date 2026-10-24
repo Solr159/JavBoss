@@ -395,16 +395,11 @@ func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *Fil
 	return nil
 }
 
-// deleteUnprocessedVideoLocations removes old locations only after confirming the paths are absent.
+// deleteUnprocessedVideoLocations removes locations not processed by the scan,
+// without rechecking their paths on the filesystem.
 func deleteUnprocessedVideoLocations(ctx context.Context, processedLocationIDs map[int64]struct{}, summary *Summary, directory models.Directory) error {
 	if err := ctx.Err(); err != nil {
 		return err
-	}
-	// An incomplete traversal cannot establish which old locations disappeared.
-	// Keep all of them until a later scan can read the entire directory.
-	if summary.ReadErrors > 0 {
-		logging.Error("skip stale video location cleanup after incomplete scan: id=%d path=%s read_errors=%d", directory.ID, directory.Path, summary.ReadErrors)
-		return nil
 	}
 	locations, err := db.Default().VideoLocationsByDirectory(ctx, directory.ID)
 	if err != nil {
@@ -413,27 +408,10 @@ func deleteUnprocessedVideoLocations(ctx context.Context, processedLocationIDs m
 	if len(locations) == 0 {
 		return nil
 	}
-	// The root may have gone offline after traversal. Do not purge its locations.
-	root, err := os.Stat(directory.Path)
-	if err != nil {
-		return fmt.Errorf("check directory before deleting stale locations: %w", err)
-	}
-	if !root.IsDir() {
-		return fmt.Errorf("scan root is no longer a directory: %s", directory.Path)
-	}
-
 	staleIDs := make([]int64, 0, len(locations))
 	for _, loc := range locations {
 		if _, ok := processedLocationIDs[loc.ID]; ok {
 			continue
-		}
-		// A failed probe or write must not turn a present file into a deletion.
-		_, err := os.Lstat(filepath.Join(directory.Path, filepath.FromSlash(loc.RelativePath)))
-		if err == nil {
-			continue
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("check stale video location %d: %w", loc.ID, err)
 		}
 		staleIDs = append(staleIDs, loc.ID)
 	}
