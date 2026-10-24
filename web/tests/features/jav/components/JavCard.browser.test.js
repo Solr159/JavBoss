@@ -402,7 +402,7 @@ test(
 )
 
 test(
-  'JAV cover actions hide after mouse-opened details close with Escape',
+  'JAV cover actions hide after mouse-opened dialogs close with Escape',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t, {
@@ -474,5 +474,51 @@ test(
       `${cover}.contains(document.activeElement) && document.activeElement !== ${trigger}`
     )
     await waitFor(actionsHaveOpacity(1))
+
+    await evaluate(`window.testStore.setState(state => ({
+      javItems: state.javItems.map(item => ({...item, videos: [
+        {id: 1, path: 'ABC-001.mp4', directory_path: '/videos'}
+      ]}))
+    }))`)
+    for (const [label, dialogLabel] of [
+      ['View cover', 'Cover preview'],
+      ['View screenshots', 'Video Screenshots'],
+      ['Adjust cover', 'Adjust cover'],
+      ['Edit custom tags', 'Edit custom tags'],
+      ['Add to JAV favorite groups', 'Choose favorite groups'],
+    ]) {
+      const button = `${cover}.querySelector('[aria-label="${label}"]')`
+      const dialog = `document.querySelector('[role="dialog"][aria-label="${dialogLabel}"]')`
+      await waitFor(`${button} && !${button}.disabled`)
+      const buttonPoint = await evaluate(`(() => {
+        const rect = ${button}.getBoundingClientRect();
+        return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+      })()`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...buttonPoint })
+      await waitFor(actionsHaveOpacity(1))
+      await command('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        ...buttonPoint,
+        button: 'left',
+        clickCount: 1,
+      })
+      await command('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        ...buttonPoint,
+        button: 'left',
+        clickCount: 1,
+      })
+      await waitFor(dialog)
+      await pressKey('Escape', 'Escape', 27)
+      await waitFor(`!${dialog} && document.activeElement === ${button}`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1200, y: 850 })
+      await waitFor(`!${cover}.matches(':hover')`)
+      await waitFor(actionsHaveOpacity(0))
+      assert.equal(await evaluate(`document.activeElement === ${button}`), true, label)
+      await pressKey('Enter', 'Enter', 13)
+      await waitFor(dialog)
+      await pressKey('Escape', 'Escape', 27)
+      await waitFor(`!${dialog} && document.activeElement === ${button}`)
+    }
   }
 )
