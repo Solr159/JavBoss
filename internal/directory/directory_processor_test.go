@@ -562,7 +562,7 @@ func TestWriteDirectoryProcessReportOverwritesPreviousReport(t *testing.T) {
 		"JavBoss 目录整理报告",
 		"开始时间：2026-09-02 14:30:00",
 		"完成时间：2026-09-02 14:30:18",
-		"处理模式：整理并生成 NFO 和封面",
+		"处理模式：整理目录并生成 NFO 和封面",
 		"整理方式：按番号前缀（JAV/前缀/番号）",
 		"参与处理视频：5",
 		"成功移动：2",

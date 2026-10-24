@@ -33,11 +33,10 @@ import JavStudioDetailModal from '@/features/jav/components/JavStudioDetailModal
 import DownloadView from '@/features/downloads/components/DownloadView'
 import JavQueryEditorModal from '@/features/jav/components/JavQueryEditorModal'
 import { configFlag } from '@/utils/config'
-import VideoSettings from '@/features/settings/components/VideoSettings'
 import VideoScreenshotsModal from '@/features/video/components/VideoScreenshotsModal'
 import PlayerModal from '@/features/playback/components/PlayerModal'
 import VideoScrapeSettingsModal from '@/features/video/components/VideoScrapeSettingsModal'
-import JavSettings from '@/features/settings/components/JavSettings'
+import DisplaySettings from '@/features/settings/components/DisplaySettings'
 import JavVideoPickerModal from '@/features/jav/components/JavVideoPickerModal'
 import { buildVideoFullPath } from '@/utils/display'
 import JavFavoriteModal from '@/features/favorites/components/JavFavoriteModal'
@@ -140,8 +139,7 @@ export default function App() {
   const [tagModalOpen, setTagModalOpen] = useState(false)
   const [tagModalApplyMode, setTagModalApplyMode] = useState('replace')
 
-  const [videoSettingsOpen, setVideoSettingsOpen] = useState(false)
-  const [javSettingsOpen, setJavSettingsOpen] = useState(false)
+  const [displaySettingsTab, setDisplaySettingsTab] = useState(null)
   const [globalSettingsOpen, setGlobalSettingsOpen] = useState(false)
   const [downloadOpen, setDownloadOpen] = useState(false)
   const [javTagModalOpen, setJavTagModalOpen] = useState(false)
@@ -427,9 +425,10 @@ export default function App() {
     waterfallModes,
   })
 
-  const openVideoSettings = useCallback(() => setVideoSettingsOpen(true), [])
-
-  const openJavSettings = useCallback(() => setJavSettingsOpen(true), [])
+  const openDisplaySettings = useCallback(
+    () => setDisplaySettingsTab(isJavMode ? (javTab === 'list' ? 'jav' : javTab) : 'video'),
+    [isJavMode, javTab]
+  )
 
   const {
     handleHomeClick,
@@ -442,8 +441,7 @@ export default function App() {
     handleJavTagClick,
   } = useSectionNavigation({
     setTagModalOpen,
-    setVideoSettingsOpen,
-    setJavSettingsOpen,
+    setDisplaySettingsTab,
     setGlobalSettingsOpen,
     isJavMode,
     setJavSearchInput,
@@ -526,11 +524,10 @@ export default function App() {
         onBrowserForward={handleBrowserForward}
         onOpenDownload={() => setDownloadOpen(true)}
         onOpenGlobalSettings={() => setGlobalSettingsOpen(true)}
-        onOpenJavSettings={openJavSettings}
+        onOpenDisplaySettings={openDisplaySettings}
         onOpenJavTagModal={handleOpenJavTagModal}
         onJavPrefixClick={handleSelectJavPrefix}
         onOpenTagModal={handleOpenTagModal}
-        onOpenVideoSettings={openVideoSettings}
         onSelectTab={handleSelectSideTab}
         showDirectorySetupHint={showDirectorySetupHint}
       />
@@ -772,14 +769,6 @@ export default function App() {
         favoriteRatingMax={javFavoriteRatingMax}
       />
 
-      {videoSettingsOpen && (
-        <VideoSettings
-          onClose={() => setVideoSettingsOpen(false)}
-          onError={showCenterToast}
-          onWaterfallChange={setWaterfallMode}
-        />
-      )}
-
       <VideoScreenshotsModal
         video={screenshotsVideo}
         playerHotkeys={config?.player_hotkeys}
@@ -814,12 +803,12 @@ export default function App() {
         onLinkExistingJav={handleLinkExistingJav}
       />
 
-      {javSettingsOpen && (
-        <JavSettings
-          onClose={() => setJavSettingsOpen(false)}
+      {displaySettingsTab && (
+        <DisplaySettings
+          onClose={() => setDisplaySettingsTab(null)}
           onError={showCenterToast}
           onWaterfallChange={setWaterfallMode}
-          initialTab={javTab === 'list' ? 'jav' : javTab}
+          initialTab={displaySettingsTab}
         />
       )}
 

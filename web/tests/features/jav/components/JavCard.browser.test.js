@@ -62,6 +62,7 @@ test(
     const mode = `document.querySelector('select[aria-label="Cover display mode"]')`
     const fullRating = `document.querySelector('[role="switch"][aria-label="Show full favorite-rating hearts"]')`
     await waitFor(mode)
+    await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     assert.equal(await evaluate(`Boolean(${fullRating})`), false)
     await evaluate(
       `${mode}.value = 'landscape'; ${mode}.dispatchEvent(new Event('change', {bubbles: true}))`
@@ -71,6 +72,8 @@ test(
     await evaluate(
       `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === 'Cancel').click()`
     )
+    await waitFor(`${mode}.matches(':disabled') && ${mode}.value === 'portrait'`)
+    await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
     await waitFor(`!${mode}`)
     await evaluate(
       `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: false}}))`
@@ -100,11 +103,13 @@ test(
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(toggle)
+      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
-    const click = async (label) =>
-      evaluate(
+    const click = async (label) => {
+      await evaluate(
         `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === '${label}').click()`
       )
+    }
     await waitFor(`${studio} && ${series}`)
     for (const portrait of [false, true]) {
       await evaluate(
@@ -121,9 +126,10 @@ test(
       assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
       await click('Restore defaults')
       await click('Cancel')
-      await waitFor(`!${toggle}`)
+      await waitFor(`${toggle}.matches(':disabled')`)
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
       assert.equal(await evaluate(`Boolean(${studio})`), false)
-      await openSettings()
+      await click('Edit')
       await click('Restore defaults')
       await click('Save')
       await waitFor(`!${toggle} && ${studio}`)
@@ -190,6 +196,7 @@ test(
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(select)
+      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const clickDialogButton = async (text) => {
       await evaluate(
@@ -291,9 +298,9 @@ test(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
     await clickDialogButton('Cancel')
-    await waitFor(`!${select}`)
+    await waitFor(`${select}.matches(':disabled') && ${select}.value === 'portrait'`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
-    await openSettings()
+    await clickDialogButton('Edit')
     await evaluate(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
@@ -402,7 +409,7 @@ test(
 )
 
 test(
-  'JAV cover actions hide after mouse-opened details close with Escape',
+  'JAV cover actions hide after mouse-opened dialogs close with Escape',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t, {
@@ -474,5 +481,51 @@ test(
       `${cover}.contains(document.activeElement) && document.activeElement !== ${trigger}`
     )
     await waitFor(actionsHaveOpacity(1))
+
+    await evaluate(`window.testStore.setState(state => ({
+      javItems: state.javItems.map(item => ({...item, videos: [
+        {id: 1, path: 'ABC-001.mp4', directory_path: '/videos'}
+      ]}))
+    }))`)
+    for (const [label, dialogLabel] of [
+      ['View cover', 'Cover preview'],
+      ['View screenshots', 'Video Screenshots'],
+      ['Adjust cover', 'Adjust cover'],
+      ['Edit custom tags', 'Edit custom tags'],
+      ['Add to JAV favorite groups', 'Choose favorite groups'],
+    ]) {
+      const button = `${cover}.querySelector('[aria-label="${label}"]')`
+      const dialog = `document.querySelector('[role="dialog"][aria-label="${dialogLabel}"]')`
+      await waitFor(`${button} && !${button}.disabled`)
+      const buttonPoint = await evaluate(`(() => {
+        const rect = ${button}.getBoundingClientRect();
+        return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+      })()`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...buttonPoint })
+      await waitFor(actionsHaveOpacity(1))
+      await command('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        ...buttonPoint,
+        button: 'left',
+        clickCount: 1,
+      })
+      await command('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        ...buttonPoint,
+        button: 'left',
+        clickCount: 1,
+      })
+      await waitFor(dialog)
+      await pressKey('Escape', 'Escape', 27)
+      await waitFor(`!${dialog} && document.activeElement === ${button}`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1200, y: 850 })
+      await waitFor(`!${cover}.matches(':hover')`)
+      await waitFor(actionsHaveOpacity(0))
+      assert.equal(await evaluate(`document.activeElement === ${button}`), true, label)
+      await pressKey('Enter', 'Enter', 13)
+      await waitFor(dialog)
+      await pressKey('Escape', 'Escape', 27)
+      await waitFor(`!${dialog} && document.activeElement === ${button}`)
+    }
   }
 )

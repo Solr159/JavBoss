@@ -41,7 +41,7 @@ const directoryProcessOptions = () => [
   },
   {
     mode: DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR,
-    title: zh('整理并生成 NFO 和封面', 'Organize and generate NFO and covers'),
+    title: zh('整理目录并生成 NFO 和封面', 'Organize and generate NFO and covers'),
     description: zh(
       '移动视频及同名附属文件，保留原文件名，然后生成媒体库可用的 NFO 和封面。',
       'Move videos and matching companion files while preserving filenames, then generate media-library-compatible NFO files and covers.'
@@ -136,7 +136,7 @@ const directoryWorkStatusDisplay = (status) => {
     case 'organizing_with_sidecar':
       return {
         label: zh(
-          '当前状态：整理并生成 NFO 和封面中',
+          '当前状态：整理目录并生成 NFO 和封面中',
           'Status: Organizing and generating NFO and covers'
         ),
         badge: 'bg-amber-50 text-amber-700',

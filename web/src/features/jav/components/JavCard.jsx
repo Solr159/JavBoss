@@ -127,9 +127,10 @@ export default function JavCard(props) {
   const fullDurationText = durationText || zh('时长未知', 'Unknown duration')
   const compactDurationText = item?.duration_min ? `${item.duration_min} min` : '—'
   const showStudio = !hideStudio && Boolean(studioText)
+  const showSeries = !hideSeries && Boolean(seriesText)
   const studioMetadata = showStudio ? (
     <span
-      className={`flex min-w-0 flex-1 items-center overflow-hidden ${portrait ? 'gap-0.5' : 'gap-1'}`}
+      className={`flex min-w-0 items-center overflow-hidden ${portrait && showSeries ? 'max-w-[50%] flex-none' : 'flex-1'} ${portrait ? 'gap-0.5' : 'gap-1'}`}
     >
       <Tooltip title={zh('片商', 'Studio')} arrow>
         <span className="inline-flex shrink-0">
@@ -377,7 +378,7 @@ export default function JavCard(props) {
           ) : null}
           <button
             type="button"
-            className={`card-hover-focus-visible absolute top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100 ${portrait ? 'right-10' : 'right-12'}`}
+            className={`card-modal-trigger card-hover-focus-visible absolute top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100 ${portrait ? 'right-10' : 'right-12'}`}
             title={zh('编辑自定义标签', 'Edit custom tags')}
             aria-label={zh('编辑自定义标签', 'Edit custom tags')}
             onClick={handleOpenCustomTags}
@@ -386,7 +387,7 @@ export default function JavCard(props) {
           </button>
           <button
             type="button"
-            className={`card-hover-focus-visible absolute right-2 top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+            className={`card-modal-trigger card-hover-focus-visible absolute right-2 top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                 : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
@@ -411,7 +412,7 @@ export default function JavCard(props) {
                   onClick={() => setCoverCropEditorOpen(true)}
                   title={zh('调整封面', 'Adjust cover')}
                   aria-label={zh('调整封面', 'Adjust cover')}
-                  className={`flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85`}
+                  className={`card-modal-trigger flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85`}
                 >
                   <CropRoundedIcon sx={{ fontSize: 16 }} />
                 </button>
@@ -422,7 +423,7 @@ export default function JavCard(props) {
                   onClick={handleOpenCoverPreview}
                   title={zh('查看封面', 'View cover')}
                   aria-label={zh('查看封面', 'View cover')}
-                  className={`flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85`}
+                  className={`card-modal-trigger flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85`}
                 >
                   <SearchIcon
                     className={`text-white ${portrait ? 'h-4 w-4' : 'h-5 w-5'}`}
@@ -436,7 +437,7 @@ export default function JavCard(props) {
                 disabled={!canOpen}
                 title={zh('查看截图', 'View screenshots')}
                 aria-label={zh('查看截图', 'View screenshots')}
-                className={`flex ${coverButtonSizeClassName} items-center justify-center rounded-full text-white shadow-lg shadow-black/60 ${
+                className={`card-modal-trigger flex ${coverButtonSizeClassName} items-center justify-center rounded-full text-white shadow-lg shadow-black/60 ${
                   canOpen ? 'bg-black/70 hover:bg-black/85' : 'cursor-not-allowed bg-black/30'
                 }`}
               >
@@ -495,12 +496,12 @@ export default function JavCard(props) {
               compact={portrait}
             />
           </div>
-          {(portrait && showStudio) || (!hideSeries && seriesText) ? (
+          {(portrait && showStudio) || showSeries ? (
             <div
               className={`flex min-w-0 items-center text-gray-600 ${metadataTextClassName} ${portrait ? '-my-0.5 gap-2' : 'gap-3'}`}
             >
               {portrait ? studioMetadata : null}
-              {!hideSeries && seriesText ? (
+              {showSeries ? (
                 <div
                   className={`flex min-w-0 items-center ${portrait ? 'flex-1 gap-0.5' : 'gap-1'}`}
                 >
