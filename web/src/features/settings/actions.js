@@ -48,7 +48,7 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
   })
 }
 
-export async function saveJavSettings(draft, onWaterfallChange) {
+export async function saveJavSettings(draft, onWaterfallChange, tab) {
   const {
     javPageSizeInput,
     javGridColumnsInput,
@@ -118,66 +118,100 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     series: Boolean(seriesWaterfallDefaultInput),
   }
 
-  const cfg = await updateConfig({
-    jav_watch_time_icon_minutes: normalizeWatchTimeIconMinutes(draft.javWatchTimeIconMinutesInput),
-    jav_page_size: javSize,
-    jav_grid_columns: javColumns,
-    jav_card_portrait: Boolean(draft.javCardPortraitInput),
-    jav_title_max_rows: javTitleRows,
-    jav_idol_tag_max_rows: javIdolTagRows,
-    jav_tag_max_rows: javTagRows,
-    jav_hide_studio: Boolean(javHideStudioInput),
-    jav_hide_series: Boolean(javHideSeriesInput),
-    jav_hide_idols: Boolean(javHideIdolsInput),
-    jav_hide_tags: Boolean(javHideTagsInput),
-    jav_hide_actions: Boolean(javHideActionsInput),
-    jav_favorite_rating_show_full: Boolean(javFavoriteRatingShowFullInput),
-    jav_waterfall_default: waterfallDefaults.jav,
-    idol_page_size: idolSize,
-    idol_waterfall_default: waterfallDefaults.idol,
-    studio_page_size: studioSize,
-    studio_waterfall_default: waterfallDefaults.studio,
-    series_page_size: seriesSize,
-    series_waterfall_default: waterfallDefaults.series,
-    jav_sort: normalizedSort,
-    jav_sort_rules: javSortRulesConfig(javSortRulesInput),
-    idol_sort: normalizedIdolSort,
-    jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
-    jav_tag_show_simplified: Boolean(javTagShowSimplifiedInput),
-  })
-  const prevJavPage = javPage
-  const prevIdolPage = idolPage
-  const prevStudioPage = studioPage
-  const prevSeriesPage = seriesPage
-  const javLast = Math.max(1, Math.ceil((javTotal || 0) / javSize))
-  const idolLast = Math.max(1, Math.ceil((idolTotal || 0) / idolSize))
-  const studioLast = Math.max(1, Math.ceil((studioTotal || 0) / studioSize))
-  const seriesLast = Math.max(1, Math.ceil((seriesTotal || 0) / seriesSize))
+  const settingsByTab = {
+    jav: {
+      config: {
+        jav_watch_time_icon_minutes: normalizeWatchTimeIconMinutes(
+          draft.javWatchTimeIconMinutesInput
+        ),
+        jav_page_size: javSize,
+        jav_grid_columns: javColumns,
+        jav_card_portrait: Boolean(draft.javCardPortraitInput),
+        jav_title_max_rows: javTitleRows,
+        jav_idol_tag_max_rows: javIdolTagRows,
+        jav_tag_max_rows: javTagRows,
+        jav_hide_studio: Boolean(javHideStudioInput),
+        jav_hide_series: Boolean(javHideSeriesInput),
+        jav_hide_idols: Boolean(javHideIdolsInput),
+        jav_hide_tags: Boolean(javHideTagsInput),
+        jav_hide_actions: Boolean(javHideActionsInput),
+        jav_favorite_rating_show_full: Boolean(javFavoriteRatingShowFullInput),
+        jav_waterfall_default: waterfallDefaults.jav,
+        jav_sort: normalizedSort,
+        jav_sort_rules: javSortRulesConfig(javSortRulesInput),
+      },
+      state: {
+        javPageSize: javSize,
+        javGridColumns: javColumns,
+        javTitleMaxRows: javTitleRows,
+        javIdolTagMaxRows: javIdolTagRows,
+        javTagMaxRows: javTagRows,
+        javSort: normalizedSort,
+        javTempSort: '',
+        javPage: Math.min(javPage, Math.max(1, Math.ceil((javTotal || 0) / javSize))),
+        javRandomMode: false,
+        javRandomSeed: null,
+      },
+    },
+    idol: {
+      config: {
+        idol_page_size: idolSize,
+        idol_waterfall_default: waterfallDefaults.idol,
+        idol_sort: normalizedIdolSort,
+        jav_idol_prefer_chinese_name: Boolean(javIdolPreferChineseNameInput),
+      },
+      state: {
+        idolPageSize: idolSize,
+        idolSort: normalizedIdolSort,
+        idolTempSort: '',
+        idolPage: Math.min(idolPage, Math.max(1, Math.ceil((idolTotal || 0) / idolSize))),
+      },
+    },
+    studio: {
+      config: {
+        studio_page_size: studioSize,
+        studio_waterfall_default: waterfallDefaults.studio,
+      },
+      state: {
+        studioPageSize: studioSize,
+        studioPage: Math.min(studioPage, Math.max(1, Math.ceil((studioTotal || 0) / studioSize))),
+      },
+    },
+    series: {
+      config: {
+        series_page_size: seriesSize,
+        series_waterfall_default: waterfallDefaults.series,
+      },
+      state: {
+        seriesPageSize: seriesSize,
+        seriesPage: Math.min(seriesPage, Math.max(1, Math.ceil((seriesTotal || 0) / seriesSize))),
+      },
+    },
+    tag: {
+      config: { jav_tag_show_simplified: Boolean(javTagShowSimplifiedInput) },
+      state: {},
+    },
+  }
+  const selected = tab ? [settingsByTab[tab]] : Object.values(settingsByTab)
+  const payload = Object.assign({}, ...selected.map((settings) => settings.config))
+  const cfg = await updateConfig(payload)
+  const updates = Object.assign({}, ...selected.map((settings) => settings.state))
+  if (!tab || tab === 'jav') {
+    updates.javSortRules = normalizeJavSortRules(cfg?.jav_sort_rules)
+  }
   Object.entries(waterfallDefaults).forEach(([key, enabled]) => {
-    onWaterfallChange(key, enabled)
+    if (!tab || key === tab) onWaterfallChange(key, enabled)
   })
-  useStore.setState({
-    javPageSize: javSize,
-    javGridColumns: javColumns,
-    javTitleMaxRows: javTitleRows,
-    javIdolTagMaxRows: javIdolTagRows,
-    javTagMaxRows: javTagRows,
-    idolPageSize: idolSize,
-    studioPageSize: studioSize,
-    seriesPageSize: seriesSize,
-    javSort: normalizedSort,
-    javSortRules: normalizeJavSortRules(cfg?.jav_sort_rules),
-    javTempSort: '',
-    idolSort: normalizedIdolSort,
-    idolTempSort: '',
-    javPage: Math.min(prevJavPage, javLast),
-    idolPage: Math.min(prevIdolPage, idolLast),
-    studioPage: Math.min(prevStudioPage, studioLast),
-    seriesPage: Math.min(prevSeriesPage, seriesLast),
-    javRandomMode: false,
-    javRandomSeed: null,
-    config: cfg,
-  })
+  useStore.setState((state) => ({
+    ...updates,
+    // A different tab may have finished saving while this request was in flight.
+    config: tab
+      ? {
+          ...state.config,
+          ...Object.fromEntries(Object.keys(payload).map((key) => [key, cfg[key]])),
+        }
+      : cfg,
+  }))
 }
 
 export async function saveTitleTranslationSettings(draft) {

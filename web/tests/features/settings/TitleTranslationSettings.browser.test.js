@@ -206,6 +206,8 @@ test(
     await evaluate(
       `[...document.querySelectorAll('button')].find(b => b.textContent === 'Save').click()`
     )
+    await waitFor(`document.querySelector('[role="dialog"] fieldset').disabled`)
+    await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
     await waitFor(`!document.querySelector('[role="dialog"]')`)
     const saved = await evaluate(
       `window.translationRequests.filter(r => r.path === '/config').at(-1).payload`

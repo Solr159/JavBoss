@@ -253,3 +253,92 @@ test('Chinese display follows independent master switches regardless of automati
     }
   }
 })
+
+test('saving one display tab only persists its fields and updates its list state', async (t) => {
+  const [model, actions, { useStore }] = await loadModules(t, [
+    'features/settings/model.js',
+    'features/settings/actions.js',
+    'store.js',
+  ])
+  const tabs = ['jav', 'idol', 'studio', 'series', 'tag']
+  let payload
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    payload = JSON.parse(init.body)
+    return Response.json({ ...useStore.getState().config, ...payload })
+  })
+  for (const tab of tabs) {
+    useStore.setState({
+      javTempSort: 'watched',
+      idolTempSort: 'name',
+      javRandomMode: true,
+      javRandomSeed: 7,
+    })
+    const before = useStore.getState()
+    const draft = {
+      ...model.createJavSettingsDraft(before),
+      javPageSizeInput: '40',
+      idolPageSizeInput: '48',
+      studioPageSizeInput: '50',
+      seriesPageSizeInput: '60',
+      javWaterfallDefaultInput: true,
+      idolWaterfallDefaultInput: true,
+      studioWaterfallDefaultInput: true,
+      seriesWaterfallDefaultInput: true,
+      javTagShowSimplifiedInput: true,
+    }
+    const changes = []
+    await actions.saveJavSettings(draft, (...args) => changes.push(args), tab)
+    const after = useStore.getState()
+    for (const other of tabs.filter((other) => other !== tab)) {
+      assert.deepEqual(
+        model.createJavSettingsDraft(after, other),
+        model.createJavSettingsDraft(before, other),
+        `${tab} must preserve ${other}`
+      )
+    }
+    assert.equal(
+      Object.keys(payload).length,
+      { jav: 16, idol: 4, studio: 2, series: 2, tag: 1 }[tab]
+    )
+    assert.deepEqual(changes, tab === 'tag' ? [] : [[tab, true]])
+    if (tab !== 'jav') {
+      assert.equal(after.javTempSort, 'watched')
+      assert.equal(after.javRandomMode, true)
+      assert.equal(after.javRandomSeed, 7)
+    }
+    if (tab !== 'idol') assert.equal(after.idolTempSort, 'name')
+    if (tab === 'tag') assert.equal(payload.jav_tag_show_simplified, true)
+    else
+      assert.equal(payload[`${tab}_page_size`], { jav: 40, idol: 48, studio: 50, series: 60 }[tab])
+  }
+})
+
+test("display tabs saving out of order preserve each other's saved configuration", async (t) => {
+  const [model, actions, { useStore }] = await loadModules(t, [
+    'features/settings/model.js',
+    'features/settings/actions.js',
+    'store.js',
+  ])
+  const pending = []
+  let config = { ...useStore.getState().config }
+  t.mock.method(globalThis, 'fetch', (_url, init) => {
+    config = { ...config, ...JSON.parse(init.body) }
+    const response = Response.json(config)
+    return new Promise((resolve) => pending.push(() => resolve(response)))
+  })
+  const draft = {
+    ...model.createJavSettingsDraft(useStore.getState()),
+    studioPageSizeInput: 40,
+    seriesPageSizeInput: 50,
+  }
+  const studioSave = actions.saveJavSettings(draft, () => {}, 'studio')
+  const seriesSave = actions.saveJavSettings(draft, () => {}, 'series')
+  pending[1]()
+  await seriesSave
+  pending[0]()
+  await studioSave
+  assert.equal(useStore.getState().config.studio_page_size, 40)
+  assert.equal(useStore.getState().config.series_page_size, 50)
+  assert.equal(useStore.getState().studioPageSize, 40)
+  assert.equal(useStore.getState().seriesPageSize, 50)
+})

@@ -172,7 +172,7 @@ export default function VideoSettingsModal({
         ))}
       </fieldset>
       <footer className="mt-3 flex items-center justify-end gap-2">
-        {editing ? (
+        {editing && (
           <>
             <button
               type="button"
@@ -193,24 +193,17 @@ export default function VideoSettingsModal({
             >
               {zh('取消', 'Cancel')}
             </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving}
-              className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {zh('保存', 'Save')}
-            </button>
           </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
-          >
-            {zh('编辑', 'Edit')}
-          </button>
         )}
+        <button
+          key="primary"
+          type="button"
+          onClick={editing ? onSave : () => setEditing(true)}
+          disabled={saving}
+          className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {editing ? zh('保存', 'Save') : zh('编辑', 'Edit')}
+        </button>
       </footer>
     </AppModal>
   )

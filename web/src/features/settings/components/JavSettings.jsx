@@ -7,17 +7,23 @@ import JavSettingsModal from '@/features/settings/components/JavSettingsModal'
 
 export default function JavSettings({ onClose, onError, onWaterfallChange, initialTab }) {
   const [draft, setDraft] = useState(() => createJavSettingsDraft(useStore.getState()))
-  const [saving, setSaving] = useState(false)
-  const handleSave = async () => {
-    if (saving) return
-    setSaving(true)
+  const [editingTabs, setEditingTabs] = useState({})
+  const [savingTabs, setSavingTabs] = useState({})
+  const resetTabDraft = (tab) => {
+    const saved = createJavSettingsDraft(useStore.getState(), tab)
+    setDraft((current) => ({ ...current, ...saved }))
+  }
+  const handleSave = async (tab) => {
+    if (savingTabs[tab]) return
+    setSavingTabs((current) => ({ ...current, [tab]: true }))
     try {
-      await saveJavSettings(draft, onWaterfallChange)
-      onClose()
+      await saveJavSettings(draft, onWaterfallChange, tab)
+      resetTabDraft(tab)
+      setEditingTabs((current) => ({ ...current, [tab]: false }))
     } catch (error) {
       onError(getErrorMessage(error))
     } finally {
-      setSaving(false)
+      setSavingTabs((current) => ({ ...current, [tab]: false }))
     }
   }
   return (
@@ -25,7 +31,16 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
       open={true}
       initialTab={initialTab}
       onClose={() => onClose()}
-      onCancel={() => setDraft(createJavSettingsDraft(useStore.getState()))}
+      editingTabs={editingTabs}
+      savingTabs={savingTabs}
+      onEdit={(tab) => {
+        resetTabDraft(tab)
+        setEditingTabs((current) => ({ ...current, [tab]: true }))
+      }}
+      onCancel={(tab) => {
+        resetTabDraft(tab)
+        setEditingTabs((current) => ({ ...current, [tab]: false }))
+      }}
       javPageSizeInput={draft.javPageSizeInput}
       onJavPageSizeChange={(value) =>
         setDraft((current) => ({ ...current, javPageSizeInput: value }))
@@ -123,7 +138,6 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
         setDraft((current) => ({ ...current, javWatchTimeIconMinutesInput: value }))
       }
       onSave={handleSave}
-      saving={saving}
     />
   )
 }

@@ -105,10 +105,15 @@ test(
       await waitFor(toggle)
       await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
-    const click = async (label) =>
-      evaluate(
+    const click = async (label) => {
+      await evaluate(
         `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === '${label}').click()`
       )
+      if (label === 'Save') {
+        await waitFor(`${toggle}.matches(':disabled')`)
+        await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+      }
+    }
     await waitFor(`${studio} && ${series}`)
     for (const portrait of [false, true]) {
       await evaluate(
@@ -198,9 +203,16 @@ test(
       await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const clickDialogButton = async (text) => {
+      const displaySettings = await evaluate(
+        `Boolean(document.querySelector('#jav-display-settings-title'))`
+      )
       await evaluate(
         `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === '${text}').click()`
       )
+      if (text === 'Save' && displaySettings) {
+        await waitFor(`${select}.matches(':disabled')`)
+        await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+      }
     }
     await openSettings()
     assert.equal(await evaluate(`${select}.value`), 'landscape')

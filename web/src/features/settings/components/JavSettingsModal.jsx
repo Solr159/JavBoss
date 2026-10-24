@@ -317,6 +317,9 @@ export default function JavSettingsModal({
   initialTab = 'jav',
   onClose,
   onCancel,
+  onEdit,
+  editingTabs = {},
+  savingTabs = {},
   javPageSizeInput,
   onJavPageSizeChange,
   javGridColumnsInput,
@@ -368,10 +371,10 @@ export default function JavSettingsModal({
   javWatchTimeIconMinutesInput = 30,
   onJavWatchTimeIconMinutesChange,
   onSave,
-  saving = false,
 }) {
   const [activeTab, setActiveTab] = useState(() => normalizeSettingsTab(initialTab))
-  const [editing, setEditing] = useState(false)
+  const editing = Boolean(editingTabs[activeTab])
+  const saving = Boolean(savingTabs[activeTab])
 
   if (!open) return null
 
@@ -828,47 +831,38 @@ export default function JavSettingsModal({
       </fieldset>
 
       <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
-        {editing ? (
-          <>
-            <button
-              type="button"
-              onClick={resetActiveTab}
-              disabled={saving}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none disabled:opacity-50"
-            >
-              {zh('恢复默认', 'Restore defaults')}
-            </button>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  onCancel?.()
-                  setEditing(false)
-                }}
-                disabled={saving}
-                className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none disabled:opacity-50"
-              >
-                {zh('取消', 'Cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={onSave}
-                disabled={saving}
-                className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50"
-              >
-                {zh('保存', 'Save')}
-              </button>
-            </div>
-          </>
-        ) : (
+        {editing && (
           <button
             type="button"
-            onClick={() => setEditing(true)}
-            className="ml-auto min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none"
+            onClick={resetActiveTab}
+            disabled={saving}
+            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none disabled:opacity-50"
           >
-            {zh('编辑', 'Edit')}
+            {zh('恢复默认', 'Restore defaults')}
           </button>
         )}
+        <div className="ml-auto flex items-center gap-3">
+          {editing && (
+            <button
+              key="cancel"
+              type="button"
+              onClick={() => onCancel?.(activeTab)}
+              disabled={saving}
+              className="min-w-24 rounded-lg border border-slate-300 bg-white px-5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none disabled:opacity-50"
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+          )}
+          <button
+            key="primary"
+            type="button"
+            onClick={() => (editing ? onSave?.(activeTab) : onEdit?.(activeTab))}
+            disabled={saving}
+            className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+          >
+            {editing ? zh('保存', 'Save') : zh('编辑', 'Edit')}
+          </button>
+        </div>
       </footer>
     </AppModal>
   )

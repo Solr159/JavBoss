@@ -14,7 +14,37 @@ export function createVideoSettingsDraft(state) {
   }
 }
 
-export function createJavSettingsDraft(state) {
+const javSettingsFieldsByTab = {
+  jav: [
+    'javWatchTimeIconMinutesInput',
+    'javPageSizeInput',
+    'javGridColumnsInput',
+    'javCardPortraitInput',
+    'javTitleMaxRowsInput',
+    'javIdolTagMaxRowsInput',
+    'javTagMaxRowsInput',
+    'javHideStudioInput',
+    'javHideSeriesInput',
+    'javHideIdolsInput',
+    'javHideTagsInput',
+    'javHideActionsInput',
+    'javFavoriteRatingShowFullInput',
+    'javWaterfallDefaultInput',
+    'javSortInput',
+    'javSortRulesInput',
+  ],
+  idol: [
+    'idolPageSizeInput',
+    'idolWaterfallDefaultInput',
+    'idolSortInput',
+    'javIdolPreferChineseNameInput',
+  ],
+  studio: ['studioPageSizeInput', 'studioWaterfallDefaultInput'],
+  series: ['seriesPageSizeInput', 'seriesWaterfallDefaultInput'],
+  tag: ['javTagShowSimplifiedInput'],
+}
+
+export function createJavSettingsDraft(state, tab) {
   const {
     javPageSize,
     javGridColumns,
@@ -29,7 +59,7 @@ export function createJavSettingsDraft(state) {
     javSortRules,
     idolSort,
   } = state
-  return {
+  const draft = {
     javWatchTimeIconMinutesInput: normalizeWatchTimeIconMinutes(
       config?.jav_watch_time_icon_minutes
     ),
@@ -58,4 +88,7 @@ export function createJavSettingsDraft(state) {
     javIdolPreferChineseNameInput: configFlag(config?.jav_idol_prefer_chinese_name),
     javTagShowSimplifiedInput: configFlag(config?.jav_tag_show_simplified),
   }
+  return tab
+    ? Object.fromEntries(javSettingsFieldsByTab[tab].map((key) => [key, draft[key]]))
+    : draft
 }
