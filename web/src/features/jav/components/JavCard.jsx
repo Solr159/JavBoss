@@ -127,9 +127,10 @@ export default function JavCard(props) {
   const fullDurationText = durationText || zh('时长未知', 'Unknown duration')
   const compactDurationText = item?.duration_min ? `${item.duration_min} min` : '—'
   const showStudio = !hideStudio && Boolean(studioText)
+  const showSeries = !hideSeries && Boolean(seriesText)
   const studioMetadata = showStudio ? (
     <span
-      className={`flex min-w-0 flex-1 items-center overflow-hidden ${portrait ? 'gap-0.5' : 'gap-1'}`}
+      className={`flex min-w-0 items-center overflow-hidden ${portrait && showSeries ? 'max-w-[50%] flex-none' : 'flex-1'} ${portrait ? 'gap-0.5' : 'gap-1'}`}
     >
       <Tooltip title={zh('片商', 'Studio')} arrow>
         <span className="inline-flex shrink-0">
@@ -495,12 +496,12 @@ export default function JavCard(props) {
               compact={portrait}
             />
           </div>
-          {(portrait && showStudio) || (!hideSeries && seriesText) ? (
+          {(portrait && showStudio) || showSeries ? (
             <div
               className={`flex min-w-0 items-center text-gray-600 ${metadataTextClassName} ${portrait ? '-my-0.5 gap-2' : 'gap-3'}`}
             >
               {portrait ? studioMetadata : null}
-              {!hideSeries && seriesText ? (
+              {showSeries ? (
                 <div
                   className={`flex min-w-0 items-center ${portrait ? 'flex-1 gap-0.5' : 'gap-1'}`}
                 >
