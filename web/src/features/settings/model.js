@@ -35,7 +35,7 @@ export function createJavSettingsDraft(state) {
     ),
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
-    javCardPortraitInput: configFlag(config?.jav_card_portrait),
+    javCardPortraitInput: configFlag(config?.jav_card_portrait, true),
     javTitleMaxRowsInput: javTitleMaxRows,
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,

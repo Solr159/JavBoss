@@ -97,9 +97,15 @@ test(
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
     const frame = `document.querySelector('.jav-card .card-hover-scope')`
     const img = `${frame}.querySelector('img')`
-    const select = `document.querySelector('select[aria-label="Card orientation"]')`
+    const select = `document.querySelector('select[aria-label="Cover display mode"]')`
     await waitFor(frame)
     await waitFor(`${img}?.naturalWidth === 800`)
+    assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
+    // An explicitly saved landscape preference still takes precedence over the default.
+    await evaluate(
+      `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: false}}))`
+    )
+    await waitFor(`getComputedStyle(${img}).objectFit === 'contain'`)
     const landscapeWidth = await evaluate(`${frame}.getBoundingClientRect().width`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'contain')
     const cropButton = `document.querySelector('.jav-card button[aria-label="Adjust cover"]')`
@@ -197,21 +203,31 @@ test(
     await clickDialogButton('Reset')
     await clickDialogButton('Save')
     await waitFor(`!${cropDialog} && getComputedStyle(${img}).objectPosition === '100% 50%'`)
-    // The setting is restored when reopening; cancelling a reset keeps portrait mode.
+    // The setting is restored when reopening; cancelling a change keeps portrait mode.
     await openSettings()
     assert.equal(await evaluate(`${select}.value`), 'portrait')
-    await clickDialogButton('Restore defaults')
-    await waitFor(`${select}.value === 'landscape'`)
+    await evaluate(
+      `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
+    )
     await clickDialogButton('Cancel')
     await waitFor(`!${select}`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
     await openSettings()
-    await clickDialogButton('Restore defaults')
+    await evaluate(
+      `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
+    )
     await clickDialogButton('Save')
     await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'contain'`)
     assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), false)
     assert.equal(await evaluate(`Boolean(${cropButton})`), false)
     assert.equal(await evaluate(`${frame}.getBoundingClientRect().width`), landscapeWidth)
+    await openSettings()
+    assert.equal(await evaluate(`${select}.value`), 'landscape')
+    await clickDialogButton('Restore defaults')
+    await waitFor(`${select}.value === 'portrait'`)
+    await clickDialogButton('Save')
+    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'cover'`)
+    assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), true)
   }
 )
 
@@ -271,10 +287,10 @@ test(
       const indicator = ${indicator};
       const icons = indicator.getBoundingClientRect();
       const row = indicator.parentElement.getBoundingClientRect();
-      return {right: icons.right, rowRight: row.right, top: icons.top, rowTop: row.top};
+      return {right: icons.right, rowRight: row.right, centerY: icons.top + icons.height / 2, rowCenterY: row.top + row.height / 2};
     })()`)
     assert.equal(layout.right, layout.rowRight)
-    assert.equal(layout.top, layout.rowTop)
+    assert.equal(layout.centerY, layout.rowCenterY)
     await evaluate(`${indicator}.scrollIntoView({ block: 'center' })`)
     const point = await evaluate(`(() => {
       const rect = ${indicator}.getBoundingClientRect();

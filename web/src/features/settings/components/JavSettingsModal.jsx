@@ -320,7 +320,7 @@ export default function JavSettingsModal({
   onJavPageSizeChange,
   javGridColumnsInput,
   onJavGridColumnsChange,
-  javCardPortraitInput = false,
+  javCardPortraitInput = true,
   onJavCardPortraitChange,
   javTitleMaxRowsInput,
   onJavTitleMaxRowsChange,
@@ -405,7 +405,7 @@ export default function JavSettingsModal({
         onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
-        onJavCardPortraitChange?.(false)
+        onJavCardPortraitChange?.(true)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
         onJavTagMaxRowsChange?.(2)
@@ -507,15 +507,9 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
-                <SettingsRow
-                  label={zh('卡片显示方向', 'Card orientation')}
-                  hint={zh(
-                    '竖版默认显示封面右侧部分',
-                    'Portrait shows the right side of the cover'
-                  )}
-                >
+                <SettingsRow label={zh('封面显示模式', 'Cover display mode')}>
                   <select
-                    aria-label={zh('卡片显示方向', 'Card orientation')}
+                    aria-label={zh('封面显示模式', 'Cover display mode')}
                     value={javCardPortraitInput ? 'portrait' : 'landscape'}
                     onChange={(event) =>
                       onJavCardPortraitChange?.(event.target.value === 'portrait')
