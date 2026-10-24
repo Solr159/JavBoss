@@ -654,13 +654,16 @@ export default function JavCard(props) {
           )}
           {!hideActions ? (
             <div className={`flex flex-wrap items-center gap-2 ${portrait ? 'mt-auto' : ''}`}>
-              <div className="flex items-center gap-2">
+              <div className={`flex items-center ${portrait ? '-my-0.5 gap-1' : 'gap-2'}`}>
                 <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
                   <IconButton
                     size="small"
                     onClick={handleOpenEditor}
                     aria-label={zh('编辑 JAV', 'Edit JAV')}
-                    className="h-6 w-6"
+                    className={portrait ? undefined : 'h-6 w-6'}
+                    sx={
+                      portrait ? { width: 22, height: 22, padding: '2px', fontSize: 16 } : undefined
+                    }
                   >
                     <MovieEdit fontSize="inherit" />
                   </IconButton>
@@ -672,7 +675,12 @@ export default function JavCard(props) {
                       onClick={handleOpenVideoManager}
                       disabled={videoCount === 0}
                       aria-label={zh('视频管理', 'Manage videos')}
-                      className="h-6 w-6"
+                      className={portrait ? undefined : 'h-6 w-6'}
+                      sx={
+                        portrait
+                          ? { width: 22, height: 22, padding: '2px', fontSize: 16 }
+                          : undefined
+                      }
                     >
                       <VideoLibraryOutlinedIcon fontSize="inherit" />
                     </IconButton>
