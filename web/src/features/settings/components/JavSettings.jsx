@@ -30,6 +30,10 @@ export default function JavSettings({ onClose, onError, onWaterfallChange, initi
         setDraft((current) => ({ ...current, javPageSizeInput: value }))
       }
       javGridColumnsInput={draft.javGridColumnsInput}
+      javCardPortraitInput={draft.javCardPortraitInput}
+      onJavCardPortraitChange={(value) =>
+        setDraft((current) => ({ ...current, javCardPortraitInput: value }))
+      }
       onJavGridColumnsChange={(value) =>
         setDraft((current) => ({ ...current, javGridColumnsInput: value }))
       }

@@ -400,12 +400,6 @@ func deleteUnprocessedVideoLocations(ctx context.Context, processedLocationIDs m
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	// An incomplete traversal cannot establish which old locations disappeared.
-	// Keep all of them until a later scan can read the entire directory.
-	if summary.ReadErrors > 0 {
-		logging.Error("skip stale video location cleanup after incomplete scan: id=%d path=%s read_errors=%d", directory.ID, directory.Path, summary.ReadErrors)
-		return nil
-	}
 	locations, err := db.Default().VideoLocationsByDirectory(ctx, directory.ID)
 	if err != nil {
 		return err

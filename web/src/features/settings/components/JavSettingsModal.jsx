@@ -320,6 +320,8 @@ export default function JavSettingsModal({
   onJavPageSizeChange,
   javGridColumnsInput,
   onJavGridColumnsChange,
+  javCardPortraitInput = false,
+  onJavCardPortraitChange,
   javTitleMaxRowsInput,
   onJavTitleMaxRowsChange,
   javIdolTagMaxRowsInput,
@@ -401,6 +403,7 @@ export default function JavSettingsModal({
         onJavWatchTimeIconMinutesChange?.(30)
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
+        onJavCardPortraitChange?.(false)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
         onJavTagMaxRowsChange?.(2)
@@ -501,6 +504,25 @@ export default function JavSettingsModal({
 
             <SettingsSection title={zh('卡片设置', 'Card settings')}>
               <div className="divide-y divide-slate-100 px-1">
+                <SettingsRow
+                  label={zh('卡片显示方向', 'Card orientation')}
+                  hint={zh(
+                    '竖版默认显示封面右侧部分',
+                    'Portrait shows the right side of the cover'
+                  )}
+                >
+                  <select
+                    aria-label={zh('卡片显示方向', 'Card orientation')}
+                    value={javCardPortraitInput ? 'portrait' : 'landscape'}
+                    onChange={(event) =>
+                      onJavCardPortraitChange?.(event.target.value === 'portrait')
+                    }
+                    className={controlClassName}
+                  >
+                    <option value="landscape">{zh('横版', 'Landscape')}</option>
+                    <option value="portrait">{zh('竖版', 'Portrait')}</option>
+                  </select>
+                </SettingsRow>
                 <SettingsRow label={zh('每个观看图标代表的分钟数', 'Minutes per watch icon')}>
                   <input
                     type="number"

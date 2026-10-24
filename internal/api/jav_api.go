@@ -559,17 +559,18 @@ func assignJavTagsCategory(c *gin.Context) {
 }
 
 type javItemUpdateRequest struct {
-	Title          *string  `json:"title"`
-	ZhTitle        *string  `json:"zh_title"`
-	CoverURL       *string  `json:"cover_url"`
-	TagIDs         *[]int64 `json:"tag_ids"`
-	IdolIDs        *[]int64 `json:"idol_ids"`
-	ScrapedTagIDs  *[]int64 `json:"scraped_tag_ids"`
-	StudioID       *int64   `json:"studio_id"`
-	SeriesID       *int64   `json:"series_id"`
-	ReleaseDate    *string  `json:"release_date"`
-	DurationMin    *int     `json:"duration_min"`
-	FavoriteRating *float64 `json:"favorite_rating"`
+	Title             *string  `json:"title"`
+	ZhTitle           *string  `json:"zh_title"`
+	CoverURL          *string  `json:"cover_url"`
+	TagIDs            *[]int64 `json:"tag_ids"`
+	IdolIDs           *[]int64 `json:"idol_ids"`
+	ScrapedTagIDs     *[]int64 `json:"scraped_tag_ids"`
+	StudioID          *int64   `json:"studio_id"`
+	SeriesID          *int64   `json:"series_id"`
+	ReleaseDate       *string  `json:"release_date"`
+	DurationMin       *int     `json:"duration_min"`
+	FavoriteRating    *float64 `json:"favorite_rating"`
+	CoverCropPosition *float64 `json:"cover_crop_position"`
 }
 
 func updateJavItem(c *gin.Context) {
@@ -619,16 +620,17 @@ func updateJavItem(c *gin.Context) {
 	}
 
 	updated, err := dbpkg.Default().UpdateJav(c.Request.Context(), id, dbpkg.JavUpdateInput{
-		Title:          req.Title,
-		ZhTitle:        req.ZhTitle,
-		StudioID:       req.StudioID,
-		SeriesID:       req.SeriesID,
-		IdolIDs:        req.IdolIDs,
-		UserTagIDs:     req.TagIDs,
-		ScrapedTagIDs:  req.ScrapedTagIDs,
-		ReleaseUnix:    releaseUnix,
-		DurationMin:    req.DurationMin,
-		FavoriteRating: req.FavoriteRating,
+		Title:             req.Title,
+		ZhTitle:           req.ZhTitle,
+		StudioID:          req.StudioID,
+		SeriesID:          req.SeriesID,
+		IdolIDs:           req.IdolIDs,
+		UserTagIDs:        req.TagIDs,
+		ScrapedTagIDs:     req.ScrapedTagIDs,
+		ReleaseUnix:       releaseUnix,
+		DurationMin:       req.DurationMin,
+		FavoriteRating:    req.FavoriteRating,
+		CoverCropPosition: req.CoverCropPosition,
 	}, nil)
 	if err != nil {
 		logging.Error("update jav item error: %v", err)

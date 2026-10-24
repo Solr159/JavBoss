@@ -402,6 +402,26 @@ func TestIsRemoteRequest(t *testing.T) {
 	}
 }
 
+func TestJavCardPortraitConfigPersists(t *testing.T) {
+	deps := newTestDependencies()
+	testAuthService(deps, t)
+	router := gin.New()
+	RegisterRoutes(router)
+	for _, value := range []string{"true", "false"} {
+		req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(`{"jav_card_portrait":`+value+`}`))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != http.StatusOK {
+			t.Fatalf("status=%d body=%s", response.Code, response.Body)
+		}
+		cfg, err := dbpkg.Default().ListConfig(context.Background())
+		if err != nil || cfg["jav_card_portrait"] != value {
+			t.Fatalf("portrait=%q, want %s; err=%v", cfg["jav_card_portrait"], value, err)
+		}
+	}
+}
+
 func TestUpdateConfigPersistsWebHotkeys(t *testing.T) {
 	deps := newTestDependencies()
 	gin.SetMode(gin.TestMode)

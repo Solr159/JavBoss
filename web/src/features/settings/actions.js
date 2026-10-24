@@ -121,6 +121,7 @@ export async function saveJavSettings(draft, onWaterfallChange) {
     jav_watch_time_icon_minutes: normalizeWatchTimeIconMinutes(draft.javWatchTimeIconMinutesInput),
     jav_page_size: javSize,
     jav_grid_columns: javColumns,
+    jav_card_portrait: Boolean(draft.javCardPortraitInput),
     jav_title_max_rows: javTitleRows,
     jav_idol_tag_max_rows: javIdolTagRows,
     jav_tag_max_rows: javTagRows,

@@ -92,16 +92,17 @@ type JavScanVideo struct {
 
 // JavUpdateInput contains user-editable JAV metadata fields.
 type JavUpdateInput struct {
-	Title          *string
-	ZhTitle        *string
-	StudioID       *int64
-	SeriesID       *int64
-	IdolIDs        *[]int64
-	UserTagIDs     *[]int64
-	ScrapedTagIDs  *[]int64
-	ReleaseUnix    *int64
-	DurationMin    *int
-	FavoriteRating *float64
+	Title             *string
+	ZhTitle           *string
+	StudioID          *int64
+	SeriesID          *int64
+	IdolIDs           *[]int64
+	UserTagIDs        *[]int64
+	ScrapedTagIDs     *[]int64
+	ReleaseUnix       *int64
+	DurationMin       *int
+	FavoriteRating    *float64
+	CoverCropPosition *float64 // Horizontal position from 0 (left) to 1 (right).
 }
 
 // JavIdolUpdateInput contains user-editable JAV idol profile fields.
@@ -476,6 +477,13 @@ func (store *Store) UpdateJav(ctx context.Context, javID int64, input JavUpdateI
 				return errors.New("favorite rating must be 0 or between 0.5 and 5 in 0.5 increments")
 			}
 			updates["favorite_rating"] = favoriteRating
+		}
+		if input.CoverCropPosition != nil {
+			position := *input.CoverCropPosition
+			if math.IsNaN(position) || math.IsInf(position, 0) || position < 0 || position > 1 {
+				return errors.New("cover crop position must be between 0 and 1")
+			}
+			updates["cover_crop_position"] = position
 		}
 		if input.StudioID != nil {
 			studioID := *input.StudioID
@@ -3298,7 +3306,7 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 		return nil, err
 	}
 	if javRec == nil {
-		javRec = &models.Jav{Code: info.Code}
+		javRec = &models.Jav{Code: info.Code, CoverCropPosition: 1}
 	}
 	provider := metadata.ParseProvider(int(info.Provider))
 	if provider == metadata.ProviderJavDatabase || provider == metadata.ProviderThePornDB {
@@ -3336,8 +3344,9 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	// Sample images are resolved lazily by the detail API. Metadata scans must
 	// neither import provider sample images nor overwrite a previously resolved
 	// list. Studio and series are enriched in the background; only explicit
-	// manual input may write them during a scrape.
-	omit := []string{"sample_images", "watched_ms"}
+	// manual input may write them during a scrape. Preserve the user-selected
+	// portrait crop position as well.
+	omit := []string{"sample_images", "watched_ms", "cover_crop_position"}
 	if !manualMetadata {
 		omit = append(omit, "studio_id", "series_id")
 	}

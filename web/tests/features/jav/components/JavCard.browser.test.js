@@ -3,6 +3,153 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'JAV portrait cards crop the right side and persist the display setting',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-jav-portrait-test',
+      plugins: [
+        {
+          name: 'portrait-cover-fixture',
+          configureServer(server) {
+            server.middlewares.use('/jav/ABC-001/cover', (_request, response) => {
+              response.setHeader('Content-Type', 'image/svg+xml')
+              response.end(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="538"><path fill="red" d="M0 0h424v538H0z"/><path fill="blue" d="M424 0h376v538H424z"/></svg>'
+              )
+            })
+          },
+        },
+      ],
+    })
+    await command('Emulation.setDeviceMetricsOverride', {
+      width: 1280,
+      height: 900,
+      deviceScaleFactor: 1,
+      mobile: false,
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
+    const frame = `document.querySelector('.jav-card .card-hover-scope')`
+    const img = `${frame}.querySelector('img')`
+    const select = `document.querySelector('select[aria-label="Card orientation"]')`
+    await waitFor(frame)
+    await waitFor(`${img}?.naturalWidth === 800`)
+    const landscapeWidth = await evaluate(`${frame}.getBoundingClientRect().width`)
+    assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'contain')
+    const cropButton = `document.querySelector('.jav-card button[aria-label="Adjust cover"]')`
+    assert.equal(await evaluate(`Boolean(${cropButton})`), false)
+    const openSettings = async () => {
+      await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
+      await waitFor(select)
+    }
+    const clickDialogButton = async (text) => {
+      await evaluate(
+        `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === '${text}').click()`
+      )
+    }
+    await openSettings()
+    assert.equal(await evaluate(`${select}.value`), 'landscape')
+    await evaluate(
+      `${select}.value = 'portrait'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
+    )
+    await clickDialogButton('Save')
+    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'cover'`)
+    assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), true)
+    assert.equal(await evaluate(`getComputedStyle(${img}).objectPosition`), '100% 50%')
+    const dimensions = await evaluate(`(() => {
+      const rect = ${frame}.getBoundingClientRect();
+      return {width: rect.width, height: rect.height};
+    })()`)
+    assert.ok(dimensions.width < landscapeWidth)
+    assert.ok(Math.abs(dimensions.width / dimensions.height - 376 / 538) < 0.001)
+    // The crop editor belongs immediately to the left of the full-cover preview.
+    assert.equal(
+      await evaluate(`${cropButton}.nextElementSibling.getAttribute('aria-label')`),
+      'View cover'
+    )
+    const cropDialog = `document.querySelector('[role="dialog"][aria-label="Adjust cover"]')`
+    const slider = `${cropDialog}.querySelector('input[type="range"]')`
+    const openCrop = async () => {
+      await evaluate(`${cropButton}.click()`)
+      await waitFor(`${slider} && !${slider}.disabled`)
+    }
+    const setCrop = async (value) => {
+      await evaluate(
+        `Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(${slider}, '${value}'); ${slider}.dispatchEvent(new Event('input', {bubbles: true}))`
+      )
+      await waitFor(`${slider}.value === '${value}'`)
+    }
+    await openCrop()
+    assert.equal(await evaluate(`${slider}.value`), '1')
+    await setCrop(0)
+    await clickDialogButton('Cancel')
+    await waitFor(`!${cropDialog}`)
+    assert.equal(await evaluate(`getComputedStyle(${img}).objectPosition`), '100% 50%')
+    await openCrop()
+    assert.equal(await evaluate(`${slider}.value`), '1')
+    // Pointer movement can place the crop at the left edge.
+    const point = await evaluate(`(() => {
+      const rect = ${cropDialog}.querySelector('img').getBoundingClientRect();
+      return {x: rect.left + 2, y: rect.top + rect.height / 2};
+    })()`)
+    await command('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      ...point,
+      button: 'left',
+      clickCount: 1,
+    })
+    await command('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      ...point,
+      button: 'left',
+      clickCount: 1,
+    })
+    await waitFor(`${slider}.value === '0'`)
+    await setCrop(0.25)
+    // A failed save leaves the draft available for retry.
+    await evaluate(
+      `window.cropFetch = window.fetch; window.fetch = (input, init) => init?.method === 'PUT' ? Promise.resolve(Response.json({error: 'Crop save failed'}, {status: 500})) : window.cropFetch(input, init)`
+    )
+    await clickDialogButton('Save')
+    await waitFor(`${cropDialog}.querySelector('[role="alert"]')`)
+    assert.equal(await evaluate(`${slider}.value`), '0.25')
+    await evaluate('window.fetch = window.cropFetch')
+    await clickDialogButton('Save')
+    await waitFor(`!${cropDialog} && getComputedStyle(${img}).objectPosition === '25% 50%'`)
+    assert.equal(
+      await evaluate('window.testStore.getState().javItems[0].cover_crop_position'),
+      0.25
+    )
+    assert.equal(
+      await evaluate(
+        `(async () => (await (await fetch('/jav/items/1')).json()).cover_crop_position)()`
+      ),
+      0.25
+    )
+    await openCrop()
+    assert.equal(await evaluate(`${slider}.value`), '0.25')
+    await clickDialogButton('Reset')
+    await clickDialogButton('Save')
+    await waitFor(`!${cropDialog} && getComputedStyle(${img}).objectPosition === '100% 50%'`)
+    // The setting is restored when reopening; cancelling a reset keeps portrait mode.
+    await openSettings()
+    assert.equal(await evaluate(`${select}.value`), 'portrait')
+    await clickDialogButton('Restore defaults')
+    await waitFor(`${select}.value === 'landscape'`)
+    await clickDialogButton('Cancel')
+    await waitFor(`!${select}`)
+    assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
+    await openSettings()
+    await clickDialogButton('Restore defaults')
+    await clickDialogButton('Save')
+    await waitFor(`!${select} && getComputedStyle(${img}).objectFit === 'contain'`)
+    assert.equal(await evaluate('window.testStore.getState().config.jav_card_portrait'), false)
+    assert.equal(await evaluate(`Boolean(${cropButton})`), false)
+    assert.equal(await evaluate(`${frame}.getBoundingClientRect().width`), landscapeWidth)
+  }
+)
+
+test(
   'JAV watch time icons show dark half-hour fill at the right of the metadata row',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

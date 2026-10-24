@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { withJavTagDisplayName } from '@/utils/javTag'
 
 export default function useJavPresentation(items) {
+  const portrait = useStore((state) => configFlag(state.config?.jav_card_portrait))
   const preferChineseName = useStore((state) =>
     configFlag(state.config?.jav_idol_prefer_chinese_name)
   )
@@ -25,6 +26,7 @@ export default function useJavPresentation(items) {
     }))
   }, [items, showSimplifiedTags])
   return {
+    portrait,
     preferChineseName,
     hideSeries,
     hideIdols,

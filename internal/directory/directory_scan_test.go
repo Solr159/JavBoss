@@ -22,7 +22,7 @@ func TestDeleteUnprocessedVideoLocations(t *testing.T) {
 	}{
 		{name: "only confirmed missing files", wantCount: 1},
 		{name: "root disappeared", rootAbsent: true, wantErr: true, wantCount: 2},
-		{name: "incomplete scan retains all locations", readErrors: 1, wantCount: 2},
+		{name: "incomplete scan removes confirmed missing files", readErrors: 1, wantCount: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			gdb, err := db.Open(filepath.Join(t.TempDir(), "scan.db"))
@@ -84,7 +84,8 @@ func TestScanDirectoryContinuesAfterUnreadableSubdirectory(t *testing.T) {
 	if err := os.Mkdir(unreadable, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(unreadable, 0); err != nil {
+	// Deny listing while allowing individual paths to be checked during cleanup.
+	if err := os.Chmod(unreadable, 0100); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.Chmod(unreadable, 0700) })
@@ -130,15 +131,15 @@ func TestScanDirectoryContinuesAfterUnreadableSubdirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.ReadErrors != 1 || summary.FilesSeen != 1 || summary.Removed != 0 {
+	if summary.ReadErrors != 1 || summary.FilesSeen != 1 || summary.Removed != 2 {
 		t.Fatalf("partial scan summary = %+v", summary)
 	}
 	var count int64
-	if err := gdb.Model(&models.VideoLocation{}).Count(&count).Error; err != nil || count != 3 {
+	if err := gdb.Model(&models.VideoLocation{}).Count(&count).Error; err != nil || count != 1 {
 		t.Fatalf("partial scan retained %d locations, err=%v", count, err)
 	}
 
-	// Once the subtree is readable, a complete scan can remove missing locations.
+	// Once the subtree is readable, no stale locations remain to be removed.
 	if err := os.Chmod(unreadable, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +147,7 @@ func TestScanDirectoryContinuesAfterUnreadableSubdirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if summary.ReadErrors != 0 || summary.FilesSeen != 1 || summary.Removed != 2 {
+	if summary.ReadErrors != 0 || summary.FilesSeen != 1 || summary.Removed != 0 {
 		t.Fatalf("recovered scan summary = %+v", summary)
 	}
 	if err := gdb.Model(&models.VideoLocation{}).Count(&count).Error; err != nil || count != 1 {
