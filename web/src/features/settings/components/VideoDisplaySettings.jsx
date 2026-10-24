@@ -96,7 +96,7 @@ export default function VideoDisplaySettings({
   onWatchTimeIconMinutesChange,
 }) {
   return (
-    <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
+    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
       <label className={rowClassName}>
         <span>{zh('每页视频数量', 'Videos per page')}</span>
         <input
@@ -134,18 +134,18 @@ export default function VideoDisplaySettings({
           onChange={onHideJavChange}
         />
       </div>
-      <div className="pt-2 text-sm font-medium text-slate-700">
-        {zh('默认排序', 'Default sort')}
-      </div>
-      <div className="space-y-2">
-        {VIDEO_SORT_OPTIONS.map((option) => (
-          <SortOptionRow
-            key={option.base}
-            option={option}
-            inputValue={sortInput}
-            onChange={onSortChange}
-          />
-        ))}
+      <div className="space-y-2 pt-3">
+        <div className="text-sm font-medium text-slate-700">{zh('默认排序', 'Default sort')}</div>
+        <div className="space-y-2">
+          {VIDEO_SORT_OPTIONS.map((option) => (
+            <SortOptionRow
+              key={option.base}
+              option={option}
+              inputValue={sortInput}
+              onChange={onSortChange}
+            />
+          ))}
+        </div>
       </div>
     </div>
   )
