@@ -3,11 +3,8 @@ name: release-draft
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "Git tag to create or reuse for the draft release"
-        required: true
-      version:
-        description: "Release version"
+      release:
+        description: "New release version and Git tag, for example v1.8.2"
         required: true
       publish_browser_extension:
         description: "Include the browser extension in the draft release"
@@ -20,6 +17,7 @@ permissions:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   NODE_VERSION: "23.11.0"
+  RELEASE: ${{ inputs.release }}
 
 jobs:
   build:
@@ -70,13 +68,13 @@ jobs:
         run: bash scripts/cli.sh download-dependencies "${{ matrix.platform }}"
 
       - name: Build release
-        run: bash scripts/cli.sh release "${{ matrix.platform }}" "${{ inputs.version }}"
+        run: bash scripts/cli.sh release "${{ matrix.platform }}" "$RELEASE"
 
       - name: Upload release asset
         uses: actions/upload-artifact@v6
         with:
-          name: javboss-${{ inputs.version }}-${{ matrix.platform }}-zip
-          path: release/javboss-${{ inputs.version }}-${{ matrix.platform }}.zip
+          name: javboss-${{ inputs.release }}-${{ matrix.platform }}-zip
+          path: release/javboss-${{ inputs.release }}-${{ matrix.platform }}.zip
 
   build-browser-extension:
     if: ${{ inputs.publish_browser_extension }}
@@ -130,6 +128,9 @@ jobs:
            (!inputs.publish_browser_extension && needs.build-browser-extension.result == 'skipped')) }}
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
       - name: Download release assets
         uses: actions/download-artifact@v5
         with:
@@ -141,8 +142,9 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PUBLISH_BROWSER_EXTENSION: ${{ inputs.publish_browser_extension }}
         run: |
-          if gh release view "${{ inputs.tag }}" --repo "$GH_REPO" >/dev/null 2>&1; then
-            echo "release for tag '${{ inputs.tag }}' already exists" >&2
+          existing_tag="$(git ls-remote --tags origin "refs/tags/$RELEASE")"
+          if [[ -n "$existing_tag" ]]; then
+            echo "git tag '$RELEASE' already exists" >&2
             exit 1
           fi
 
@@ -156,9 +158,9 @@ jobs:
             exit 1
           fi
 
-          gh release create "${{ inputs.tag }}" "${assets[@]}" \
+          gh release create "$RELEASE" "${assets[@]}" \
             --repo "$GH_REPO" \
             --target "${{ github.sha }}" \
             --draft \
-            --title "JavBoss ${{ inputs.version }}" \
+            --title "JavBoss $RELEASE" \
             --generate-notes
