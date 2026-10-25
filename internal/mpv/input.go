@@ -168,6 +168,7 @@ func buildInputConfContent() (string, error) {
 	}
 
 	lines = append(lines, "SPACE cycle pause")
+	lines = append(lines, "MBTN_LEFT_DBL cycle fullscreen")
 	lines = append(lines, buildEscapeHotkeyBinding())
 	return strings.Join(lines, "\n") + "\n", nil
 }
