@@ -8,6 +8,12 @@ export function normalizeSubtitleLanguage(value) {
   return text || DEFAULT_SUBTITLE_LANGUAGE
 }
 
+export function createDisplaySettingsDraft(state, tab) {
+  if (tab === 'video') return createVideoSettingsDraft(state)
+  if (tab) return createJavSettingsDraft(state, tab)
+  return { ...createVideoSettingsDraft(state), ...createJavSettingsDraft(state) }
+}
+
 export function createVideoSettingsDraft(state) {
   const { pageSize, sortOrder, videoHideJav, config } = state
   return {
@@ -23,7 +29,37 @@ export function createVideoSettingsDraft(state) {
   }
 }
 
-export function createJavSettingsDraft(state) {
+const javSettingsFieldsByTab = {
+  jav: [
+    'javWatchTimeIconMinutesInput',
+    'javPageSizeInput',
+    'javGridColumnsInput',
+    'javCardPortraitInput',
+    'javTitleMaxRowsInput',
+    'javIdolTagMaxRowsInput',
+    'javTagMaxRowsInput',
+    'javHideStudioInput',
+    'javHideSeriesInput',
+    'javHideIdolsInput',
+    'javHideTagsInput',
+    'javHideActionsInput',
+    'javFavoriteRatingShowFullInput',
+    'javWaterfallDefaultInput',
+    'javSortInput',
+    'javSortRulesInput',
+  ],
+  idol: [
+    'idolPageSizeInput',
+    'idolWaterfallDefaultInput',
+    'idolSortInput',
+    'javIdolPreferChineseNameInput',
+  ],
+  studio: ['studioPageSizeInput', 'studioWaterfallDefaultInput'],
+  series: ['seriesPageSizeInput', 'seriesWaterfallDefaultInput'],
+  tag: ['javTagShowSimplifiedInput'],
+}
+
+export function createJavSettingsDraft(state, tab) {
   const {
     javPageSize,
     javGridColumns,
@@ -38,15 +74,17 @@ export function createJavSettingsDraft(state) {
     javSortRules,
     idolSort,
   } = state
-  return {
+  const draft = {
     javWatchTimeIconMinutesInput: normalizeWatchTimeIconMinutes(
       config?.jav_watch_time_icon_minutes
     ),
     javPageSizeInput: javPageSize,
     javGridColumnsInput: javGridColumns,
+    javCardPortraitInput: configFlag(config?.jav_card_portrait, true),
     javTitleMaxRowsInput: javTitleMaxRows,
     javIdolTagMaxRowsInput: javIdolTagMaxRows,
     javTagMaxRowsInput: javTagMaxRows,
+    javHideStudioInput: configFlag(config?.jav_hide_studio),
     javHideSeriesInput: configFlag(config?.jav_hide_series),
     javHideIdolsInput: configFlag(config?.jav_hide_idols),
     javHideTagsInput: configFlag(config?.jav_hide_tags),
@@ -65,4 +103,7 @@ export function createJavSettingsDraft(state) {
     javIdolPreferChineseNameInput: configFlag(config?.jav_idol_prefer_chinese_name),
     javTagShowSimplifiedInput: configFlag(config?.jav_tag_show_simplified),
   }
+  return tab
+    ? Object.fromEntries(javSettingsFieldsByTab[tab].map((key) => [key, draft[key]]))
+    : draft
 }

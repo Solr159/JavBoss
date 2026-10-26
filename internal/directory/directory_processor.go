@@ -557,7 +557,7 @@ func directoryProcessModeDisplay(mode string) string {
 	case DirectoryProcessOrganize:
 		return "仅整理目录"
 	case DirectoryProcessOrganizeWithSidecar:
-		return "整理并生成 NFO 和封面"
+		return "整理目录并生成 NFO 和封面"
 	default:
 		return mode
 	}

@@ -10,10 +10,21 @@ import {
 import { getIdolDisplayName } from '@/utils/javIdol'
 import { zh } from '@/utils/i18n'
 import { isUserJavTag } from '@/constants/jav'
+import { normalizeCoverCropPosition } from '@/features/jav/coverCrop'
 
-export function JavCoverImage({ src, alt }) {
+export function JavCoverImage({ src, alt, portrait = false, cropPosition }) {
   return (
-    <img src={src} alt={alt} className="h-full w-full object-contain object-top" loading="lazy" />
+    <img
+      src={src}
+      alt={alt}
+      className={`h-full w-full ${portrait ? 'object-cover object-right' : 'object-contain object-top'}`}
+      style={
+        portrait
+          ? { objectPosition: `${normalizeCoverCropPosition(cropPosition) * 100}% center` }
+          : undefined
+      }
+      loading="lazy"
+    />
   )
 }
 
@@ -69,6 +80,7 @@ export function TagCollapseToggleButton({
 export function IdolTagList({
   idols,
   maxRows,
+  compact = false,
   preferChineseName = false,
   buildIdolFilterHref,
   onIdolClick,
@@ -76,6 +88,11 @@ export function IdolTagList({
   onIdolHoverStart,
   onIdolHoverEnd,
 }) {
+  const tagSizeClassName = compact ? 'px-1.5 py-0.5 text-[11px] leading-4' : 'px-2 py-1 text-xs'
+  const gapClassName = compact ? 'gap-0.5' : 'gap-1'
+  const toggleSizeClassName = compact
+    ? 'h-5 gap-0.5 px-1 text-[10px]'
+    : 'h-6 gap-1 px-1.5 text-[11px]'
   const measureRef = useRef(null)
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
@@ -94,7 +111,7 @@ export function IdolTagList({
   useEffect(() => {
     setExpanded(false)
     setVisibleCount(idols.length)
-  }, [identity, idols.length, rowLimit])
+  }, [compact, identity, idols.length, rowLimit])
 
   useEffect(() => {
     if (rowLimit <= 0) {
@@ -152,7 +169,7 @@ export function IdolTagList({
       resizeObserver?.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [identity, idols.length, rowLimit])
+  }, [compact, identity, idols.length, rowLimit])
 
   const showToggle = rowLimit > 0 && overflowing
   const renderedIdols = showToggle && !expanded ? idols.slice(0, visibleCount) : idols
@@ -162,12 +179,12 @@ export function IdolTagList({
 
   return (
     <div className="relative">
-      <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+      <div className={`flex min-w-0 flex-1 flex-wrap ${gapClassName}`}>
         {renderedIdols.map((idol) => (
           <a
             key={idol.id || idol.name}
             href={buildIdolFilterHref(idol)}
-            className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 transition hover:bg-purple-200"
+            className={`rounded-full bg-purple-100 font-medium text-purple-700 transition hover:bg-purple-200 ${tagSizeClassName}`}
             onMouseEnter={(event) => onIdolHoverStart(idol, event)}
             onMouseLeave={onIdolHoverEnd}
             onClick={(event) => onFilterLinkClick(event, () => onIdolClick?.(idol))}
@@ -180,8 +197,8 @@ export function IdolTagList({
             expanded={expanded}
             count={idols.length}
             title={toggleTitle}
-            expandedClassName="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100"
-            collapsedClassName="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-purple-300 bg-white px-1.5 text-[11px] font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50"
+            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100 ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-purple-300 bg-white font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50 ${toggleSizeClassName}`}
             onToggle={() => setExpanded((current) => !current)}
           />
         ) : null}
@@ -190,20 +207,20 @@ export function IdolTagList({
         <div
           ref={measureRef}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap gap-1 opacity-0"
+          className={`pointer-events-none absolute inset-x-0 top-0 flex flex-wrap opacity-0 ${gapClassName}`}
         >
           {idols.map((idol) => (
             <span
               key={idol.id || idol.name}
               data-idol-tag-measure
-              className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium"
+              className={`rounded-full bg-purple-100 font-medium ${tagSizeClassName}`}
             >
               {getIdolDisplayName(idol, preferChineseName)}
             </span>
           ))}
           <span
             data-idol-toggle-measure
-            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-semibold"
+            className={`inline-flex shrink-0 items-center rounded-md border font-semibold ${toggleSizeClassName}`}
           >
             <span>{idols.length}</span>
             <ExpandMoreIcon sx={{ fontSize: 15 }} />
@@ -214,7 +231,19 @@ export function IdolTagList({
   )
 }
 
-export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFilterLinkClick }) {
+export function JavTagList({
+  tags,
+  maxRows,
+  compact = false,
+  buildTagFilterHref,
+  onTagClick,
+  onFilterLinkClick,
+}) {
+  const tagSizeClassName = compact ? 'px-1.5 py-0.5 text-[11px] leading-4' : 'px-2 py-1 text-xs'
+  const gapClassName = compact ? 'gap-0.5' : 'gap-1'
+  const toggleSizeClassName = compact
+    ? 'h-5 gap-0.5 px-1 text-[10px]'
+    : 'h-6 gap-1 px-1.5 text-[11px]'
   const measureRef = useRef(null)
   const [expanded, setExpanded] = useState(false)
   const [overflowing, setOverflowing] = useState(false)
@@ -228,7 +257,7 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
   useEffect(() => {
     setExpanded(false)
     setVisibleCount(tags.length)
-  }, [identity, tags.length, rowLimit])
+  }, [compact, identity, tags.length, rowLimit])
 
   useEffect(() => {
     if (rowLimit <= 0) {
@@ -286,7 +315,7 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
       resizeObserver?.disconnect()
       window.removeEventListener('resize', measure)
     }
-  }, [identity, rowLimit, tags.length])
+  }, [compact, identity, rowLimit, tags.length])
 
   const showToggle = rowLimit > 0 && overflowing
   const renderedTags = showToggle && !expanded ? tags.slice(0, visibleCount) : tags
@@ -296,7 +325,7 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
 
   return (
     <div className="relative">
-      <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+      <div className={`flex min-w-0 flex-1 flex-wrap ${gapClassName}`}>
         {renderedTags.map((tag) => {
           const isUser = isUserJavTag(tag)
           const tagClass = isUser
@@ -306,7 +335,7 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
             <a
               key={`${tag.id || tag.name}-${tag.provider || 0}`}
               href={buildTagFilterHref(tag)}
-              className={`rounded-full px-2 py-1 text-xs font-medium text-white transition ${tagClass}`}
+              className={`rounded-full font-medium text-white transition ${tagClass} ${tagSizeClassName}`}
               onClick={(event) => onFilterLinkClick(event, () => onTagClick?.(tag))}
             >
               {tag.name}
@@ -318,8 +347,8 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
             expanded={expanded}
             count={tags.length}
             title={toggleTitle}
-            expandedClassName="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100"
-            collapsedClassName="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border border-orange-300 bg-white px-1.5 text-[11px] font-semibold text-orange-700 shadow-sm transition hover:border-orange-500 hover:bg-orange-50"
+            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100 ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-orange-300 bg-white font-semibold text-orange-700 shadow-sm transition hover:border-orange-500 hover:bg-orange-50 ${toggleSizeClassName}`}
             onToggle={() => setExpanded((current) => !current)}
           />
         ) : null}
@@ -328,20 +357,20 @@ export function JavTagList({ tags, maxRows, buildTagFilterHref, onTagClick, onFi
         <div
           ref={measureRef}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap gap-1 opacity-0"
+          className={`pointer-events-none absolute inset-x-0 top-0 flex flex-wrap opacity-0 ${gapClassName}`}
         >
           {tags.map((tag) => (
             <span
               key={`${tag.id || tag.name}-${tag.provider || 0}`}
               data-jav-tag-measure
-              className="rounded-full px-2 py-1 text-xs font-medium"
+              className={`rounded-full font-medium ${tagSizeClassName}`}
             >
               {tag.name}
             </span>
           ))}
           <span
             data-jav-tag-toggle-measure
-            className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] font-semibold"
+            className={`inline-flex shrink-0 items-center rounded-md border font-semibold ${toggleSizeClassName}`}
           >
             <span>{tags.length}</span>
             <ExpandMoreIcon sx={{ fontSize: 15 }} />

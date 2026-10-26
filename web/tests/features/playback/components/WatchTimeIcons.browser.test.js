@@ -11,7 +11,9 @@ test(
     })
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
     await waitFor('window.testStore && document.querySelector(".jav-card")')
+    // These subpixel coverage thresholds exercise the 16px landscape icons.
     await evaluate(`window.testStore.setState(state => ({
+      config: {...state.config, jav_card_portrait: false},
       javItems: state.javItems.map(item => ({...item, watched_ms: 16000}))
     }))`)
     await waitFor('document.querySelector(".watch-time-icons")')

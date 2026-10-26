@@ -993,6 +993,19 @@ body.has-page-scroll .sticky-pagination {
     transform 160ms ease;
 }
 
+/* Keep full date and duration text readable on the narrowest portrait cards. */
+@container (max-width: 198px) {
+  .jav-card-duration-icon {
+    display: none;
+  }
+}
+
+@container (max-width: 184px) {
+  .jav-card-release-icon {
+    display: none;
+  }
+}
+
 /* Restored modal-trigger focus must not keep cover actions visible on mouse leave. */
 .card-hover-scope:has(:focus-visible:not(.card-modal-trigger)) .card-hover-focus-visible {
   opacity: 1;

@@ -1,6 +1,10 @@
-export function DurationIcon() {
+export function DurationIcon({ compact = false }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 shrink-0">
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className={`shrink-0 ${compact ? 'h-3 w-3' : 'h-4 w-4'}`}
+    >
       <circle cx="10" cy="10" r="7" fill="#F59E0B" />
       <circle cx="10" cy="10" r="5.4" fill="#FEF3C7" />
       <path
@@ -16,9 +20,13 @@ export function DurationIcon() {
   )
 }
 
-export function ReleaseIcon() {
+export function ReleaseIcon({ compact = false }) {
   return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" className="h-4 w-4 shrink-0">
+    <svg
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      className={`shrink-0 ${compact ? 'h-3 w-3' : 'h-4 w-4'}`}
+    >
       <rect x="3.1" y="4.1" width="13.8" height="12.8" rx="2.4" fill="#A78BFA" />
       <rect x="3.9" y="7" width="12.2" height="8.9" rx="1.7" fill="#FFF7ED" />
       <rect
