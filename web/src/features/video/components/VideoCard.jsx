@@ -128,7 +128,7 @@ export default function VideoCard({
 
   return (
     <div
-      className={`video-card relative flex flex-col overflow-hidden rounded-xl border bg-white shadow transition-all ${
+      className={`video-card relative flex flex-col overflow-hidden rounded-lg border bg-white shadow transition-all ${
         checked ? 'border-sky-400 ring-2 ring-sky-200' : 'border-gray-200 hover:border-gray-300'
       }`}
     >
