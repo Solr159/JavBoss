@@ -58,6 +58,7 @@ export default function VideoCard({
   const sizeText = formatBytes(meta.size || video?.size)
   const directoryPath = video?.directory?.path || video?.directory_path || ''
   const videoPath = video?.path || ''
+  const relativeDirectoryPath = videoPath.split(/[/\\]/).slice(0, -1).join('/') || '.'
   const fullPath = buildVideoFullPath(video)
   const displayPath = displayHostPath(fullPath, useHostPaths)
   const canOpen = Boolean(directoryPath && videoPath)
@@ -282,6 +283,14 @@ export default function VideoCard({
             {displayName}
           </div>
         </div>
+        {videoPath ? (
+          <div
+            className="mt-1 truncate text-[10px] text-gray-500 sm:text-[11px]"
+            title={relativeDirectoryPath}
+          >
+            {relativeDirectoryPath}
+          </div>
+        ) : null}
         <div className="mt-2 flex min-w-0 items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
