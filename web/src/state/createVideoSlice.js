@@ -101,8 +101,6 @@ export function createVideoSlice({ set, get, lists }) {
     clearFilters: () =>
       set({
         selectedTags: [],
-        videoDirectoryId: null,
-        videoSubdirectory: '',
         videoTempSort: '',
         page: 1,
       }),

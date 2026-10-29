@@ -513,6 +513,11 @@ export default function TopBar({
           JavBoss
         </button>
         <div className="filter-topbar__controls">
+          {!isJavMode ? (
+            <div className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4">
+              <VideoDirectoryFilter />
+            </div>
+          ) : null}
           {isJavMode && !isJavDownload ? (
             <div
               ref={favoriteMenuRef}
@@ -583,8 +588,6 @@ export default function TopBar({
               </Button>
             </form>
           ) : null}
-
-          {!isJavMode ? <VideoDirectoryFilter /> : null}
 
           {isJavMode && javTab === 'list' ? (
             <FavoriteRatingFilter

@@ -30,9 +30,6 @@ export default function useLibraryFilters({
     setSearchTerm,
     setSelectedTags,
     searchTerm,
-    videoDirectoryId,
-    videoSubdirectory,
-    directories,
     javSearchTerm,
     javTagOptions,
     config,
@@ -60,9 +57,6 @@ export default function useLibraryFilters({
       setSearchTerm: state.setSearchTerm,
       setSelectedTags: state.setSelectedTags,
       searchTerm: state.searchTerm,
-      videoDirectoryId: state.videoDirectoryId,
-      videoSubdirectory: state.videoSubdirectory,
-      directories: state.directories,
       javSearchTerm: state.javSearchTerm,
       javTagOptions: state.javTagOptions,
       config: state.config,
@@ -320,19 +314,6 @@ export default function useLibraryFilters({
           },
         })
       }
-      if (videoDirectoryId) {
-        const root = directories.find((directory) => directory.id === videoDirectoryId)
-        const rootLabel = root?.path || `#${videoDirectoryId}`
-        const path =
-          videoSubdirectory && videoSubdirectory !== '.'
-            ? `${rootLabel.replace(/[\\/]+$/, '')}/${videoSubdirectory}`
-            : rootLabel
-        items.push({
-          key: 'video-directory',
-          label: zh(`目录: ${path}`, `Directory: ${path}`),
-          onRemove: () => updateVideoFilters({ videoDirectoryId: null, videoSubdirectory: '' }),
-        })
-      }
       selectedTags.forEach((name) => {
         items.push({
           key: `video-tag-${name}`,
@@ -478,9 +459,6 @@ export default function useLibraryFilters({
     javTags,
     randomMode,
     searchTerm,
-    videoDirectoryId,
-    videoSubdirectory,
-    directories,
     selectedTags,
     setJavSearchInput,
     setSearchInput,
@@ -494,8 +472,6 @@ export default function useLibraryFilters({
       updateVideoFilters({
         selectedTags: [],
         searchTerm: '',
-        videoDirectoryId: null,
-        videoSubdirectory: '',
         randomMode: false,
         randomSeed: null,
       })

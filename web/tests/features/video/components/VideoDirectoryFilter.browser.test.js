@@ -109,12 +109,29 @@ test(
       `window.requests.some(request => request.url.startsWith('/videos?') && new URL(request.url, location.origin).searchParams.get('directory_id') === '1')`
     )
     assert.equal(await evaluate(`${trigger}.title`), '/videos/旅行/100%_fun')
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('[aria-label^="Remove filter Directory:"]'))`),
+      false
+    )
+    const layout = await evaluate(`(() => {
+      const button = ${trigger};
+      const wrapper = button.parentElement;
+      return {first: wrapper === document.querySelector('.filter-topbar__controls').firstElementChild,
+        border: getComputedStyle(wrapper).borderRightWidth};
+    })()`)
+    assert.deepEqual(layout, { first: true, border: '1px' })
+    await evaluate(`window.testStore.setState({searchTerm: 'movie'})`)
+    await waitFor(`document.querySelector('[aria-label="Remove filter Search: movie"]')`)
     await evaluate(
-      `[...document.querySelectorAll('button')].find(button => button.getAttribute('aria-label')?.startsWith('Remove filter Directory:')).click()`
+      `[...document.querySelectorAll('.filter-clear-button')].find(button => button.textContent === 'Clear').click()`
     )
-    await waitFor(
-      `!new URLSearchParams(location.search).has('directory_id') && !window.testStore.getState().videoDirectoryId`
-    )
+    await waitFor(`!window.testStore.getState().searchTerm`)
+    assert.equal(await evaluate('window.testStore.getState().videoDirectoryId'), 1)
+    assert.equal(await evaluate('window.testStore.getState().videoSubdirectory'), '旅行/100%_fun')
+    await evaluate(`${trigger}.click()`)
+    await waitFor(`document.querySelector('[aria-label="Clear directory filter"]')`)
+    await evaluate(`document.querySelector('[aria-label="Clear directory filter"]').click()`)
+    await waitFor(`!window.testStore.getState().videoDirectoryId`)
     assert.deepEqual(await evaluate('window.appErrors'), [])
   }
 )

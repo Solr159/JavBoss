@@ -146,7 +146,7 @@ export default function VideoDirectoryFilter() {
     <>
       <button
         type="button"
-        className={`filter-action-button ${value ? 'filter-action-button--active' : ''}`}
+        className={`filter-action-button favorite-menu-trigger ${value ? 'favorite-menu-trigger--selected' : ''}`}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         aria-label={zh('选择子目录', 'Select subdirectory')}
         aria-haspopup="dialog"
@@ -154,14 +154,12 @@ export default function VideoDirectoryFilter() {
         title={value ? directoryLabel(value) : zh('全部目录', 'All directories')}
       >
         <FolderOutlinedIcon fontSize="small" />
-        <span className="max-w-40 truncate">
-          {value
-            ? value.path === '.'
-              ? value.directory_path
-              : value.path
-            : zh('子目录', 'Subdirectory')}
-        </span>
-        <ExpandMoreIcon fontSize="small" />
+        {value ? (
+          <span className="max-w-28 truncate">
+            {value.path === '.' ? value.directory_path : value.path}
+          </span>
+        ) : null}
+        <ExpandMoreIcon fontSize="small" className="favorite-menu-trigger__chevron" />
       </button>
       <Popover
         open={open}
