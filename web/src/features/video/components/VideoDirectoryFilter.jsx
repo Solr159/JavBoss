@@ -146,7 +146,7 @@ export default function VideoDirectoryFilter() {
     <>
       <button
         type="button"
-        className={`filter-action-button favorite-menu-trigger ${value ? 'favorite-menu-trigger--selected' : ''}`}
+        className={`filter-action-button favorite-menu-trigger ${value ? 'filter-action-button--active' : ''}`}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         aria-label={zh('选择子目录', 'Select subdirectory')}
         aria-haspopup="dialog"
