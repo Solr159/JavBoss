@@ -20,6 +20,7 @@ test(
         const url = new URL(input, location.origin);
         if (url.pathname === '/videos/directories') return Response.json({items: [
           {directory_id: 1, directory_path: '/videos', path: '.'},
+          ...Array.from({length: 60}, (_, index) => ({directory_id: 1, directory_path: '/videos', path: 'folder-' + index})),
           {directory_id: 1, directory_path: '/videos', path: '旅行'},
           {directory_id: 1, directory_path: '/videos', path: '旅行/100%_fun'},
           {directory_id: 2, directory_path: '/other', path: '旅行'},
@@ -93,6 +94,15 @@ test(
     await evaluate(`${trigger}.click()`)
     await waitFor(`${leaf}?.checkVisibility()`)
     assert.equal(await evaluate(`${leaf}.getAttribute('aria-pressed')`), 'true')
+    await waitFor(`(() => {
+      const selected = ${leaf};
+      const container = document.querySelector('[aria-label="Directory tree"]').parentElement;
+      const itemRect = selected.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      return container.scrollTop > 0 && itemRect.top >= containerRect.top && itemRect.bottom <= containerRect.bottom;
+    })()`)
+    assert.equal(await evaluate('window.scrollY'), 0)
+
     await evaluate(`document.querySelector('[aria-label="Clear directory filter"]').click()`)
     await waitFor(
       `!window.testStore.getState().videoDirectoryId && !new URLSearchParams(location.search).has('directory_id')`

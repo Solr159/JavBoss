@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, Popover } from '@mui/material'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
@@ -102,6 +102,7 @@ export default function VideoDirectoryFilter() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
+  const treeContainerRef = useRef(null)
 
   useEffect(() => {
     if (!open) return undefined
@@ -121,6 +122,18 @@ export default function VideoDirectoryFilter() {
       })
     return () => controller.abort()
   }, [open, scopeKey, retry])
+
+  const revealSelection = useCallback(() => {
+    treeContainerRef.current
+      ?.querySelector('button[aria-pressed="true"]')
+      ?.scrollIntoView({ block: 'center', inline: 'nearest' })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!open || loading) return
+    // Handle data arriving after the popover has finished opening.
+    revealSelection()
+  }, [open, loading, options, directoryId, subdirectory, revealSelection])
 
   const value = useMemo(
     () =>
@@ -168,7 +181,10 @@ export default function VideoDirectoryFilter() {
         disableScrollLock
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { role: 'dialog', 'aria-label': zh('视频目录', 'Video directories') } }}
+        slotProps={{
+          paper: { role: 'dialog', 'aria-label': zh('视频目录', 'Video directories') },
+          transition: { onEntered: revealSelection },
+        }}
       >
         <div className="w-96 max-w-[calc(100vw-2rem)]">
           <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-2">
@@ -183,7 +199,7 @@ export default function VideoDirectoryFilter() {
               {zh('全部目录', 'All directories')}
             </Button>
           </div>
-          <div className="max-h-[60vh] overflow-y-auto p-2">
+          <div ref={treeContainerRef} className="max-h-[60vh] overflow-y-auto p-2">
             {loading ? (
               <div role="status" className="p-3 text-center text-sm text-gray-500">
                 {zh('加载中…', 'Loading...')}
