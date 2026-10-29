@@ -525,7 +525,7 @@ export default function TopBar({
             >
               <button
                 type="button"
-                className={`filter-action-button favorite-menu-trigger ${selectedFavoriteGroup ? 'favorite-menu-trigger--selected' : 'favorite-menu-trigger--unselected'}`}
+                className={`filter-action-button favorite-menu-trigger ${selectedFavoriteGroup ? 'favorite-menu-trigger--selected' : ''}`}
                 onClick={() => {
                   setFavoriteMenuOpen((open) => !open)
                   if (!favoriteMenuOpen) onOpenFavoriteGroups?.()
