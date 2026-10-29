@@ -258,7 +258,7 @@ export default function VideoCard({
             onPointerUp={(e) => {
               e.currentTarget.blur()
             }}
-            className="pointer-events-auto rounded-full bg-black/60 p-2 hover:bg-black/80"
+            className="pointer-events-auto rounded-full bg-black/60 p-2.5 hover:bg-black/80"
             aria-label={zh('播放', 'Play')}
             title={zh('播放', 'Play')}
           >
@@ -266,7 +266,7 @@ export default function VideoCard({
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
               fill="currentColor"
-              className="h-8 w-8"
+              className="h-9 w-9"
             >
               <path d="M8 5v14l11-7z" />
             </svg>
