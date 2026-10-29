@@ -788,7 +788,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
   return (
     <div
       className={`group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none ${
-        active ? 'border-blue-300 bg-blue-50 shadow-md' : 'border-amber-300 bg-amber-50 shadow-sm'
+        active ? 'border-blue-300 bg-blue-50 shadow-md' : 'border-transparent bg-transparent'
       }`}
     >
       <a
@@ -801,38 +801,21 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         className="relative block h-full focus:outline-none"
       >
         <span
-          className={`absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 ${
-            active
-              ? 'border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300'
-              : 'border-amber-300 bg-gradient-to-b from-amber-200 to-amber-300'
-          }`}
+          className="absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300"
           aria-hidden="true"
         />
         <span
-          className={`absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)] ${
-            active
-              ? 'border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300'
-              : 'border-amber-300 bg-gradient-to-br from-amber-100 via-amber-200 to-amber-300'
-          }`}
+          className="absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)]"
           aria-hidden="true"
         />
         <span
-          className={`absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md ${
-            active ? 'bg-blue-300/45' : 'bg-amber-400/40'
-          }`}
+          className="absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md bg-blue-300/45"
           aria-hidden="true"
         />
         <span className="relative flex h-full px-2 pt-5">
           <span className="flex items-start gap-1">
-            <FolderRoundedIcon
-              sx={{ fontSize: 14 }}
-              className={active ? 'shrink-0 text-blue-700' : 'shrink-0 text-amber-700'}
-            />
-            <span
-              className={`min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 ${
-                active ? 'text-blue-950' : 'text-amber-950'
-              }`}
-            >
+            <FolderRoundedIcon sx={{ fontSize: 14 }} className="shrink-0 text-blue-700" />
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 text-blue-950">
               {label}
             </span>
           </span>
