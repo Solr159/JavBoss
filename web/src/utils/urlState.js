@@ -84,6 +84,8 @@ export const parseUrlState = (searchString = window.location.search, options = {
     page: parseIntSafe(sp.get('page'), 1),
     search: (sp.get('search') || '').trim(),
     tempSort: videoTempSort,
+    directoryId: parsePositiveInt(sp.get('directory_id')),
+    subdirectory: sp.get('subdirectory') || '',
     tagIds: parseIds(sp.get('tag_ids')),
     random: sp.get('random') === '1',
     seed: clampSeed(sp.get('seed')),
@@ -215,6 +217,10 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
 
   sp.set('view', 'video')
   if (state.video.search) sp.set('search', state.video.search)
+  if (state.video.directoryId) {
+    sp.set('directory_id', String(state.video.directoryId))
+    if (state.video.subdirectory) sp.set('subdirectory', state.video.subdirectory)
+  }
   if (!state.video.random && state.video.tempSort) sp.set('temp_sort', state.video.tempSort)
   if (state.video.tagIds?.length) {
     sp.set('tag_ids', [...state.video.tagIds].sort((a, b) => a - b).join(','))
@@ -241,6 +247,8 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
     video: {
       page: store.randomMode ? 1 : store.page,
       search: (store.searchTerm || '').trim(),
+      directoryId: store.videoDirectoryId || null,
+      subdirectory: store.videoSubdirectory || '',
       tempSort: store.randomMode ? '' : store.videoTempSort || '',
       tagIds: selectedIds,
       random: store.randomMode,

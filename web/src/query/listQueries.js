@@ -15,6 +15,8 @@ export function videoQuery(state) {
     offset: state.randomMode ? 0 : (state.page - 1) * state.pageSize,
     tags: state.selectedTags || [],
     search: state.searchTerm || '',
+    directoryId: state.videoDirectoryId || null,
+    subdirectory: state.videoSubdirectory || '',
     sort: state.randomMode ? 'random' : state.videoTempSort || state.sortOrder,
     seed: state.randomMode ? state.randomSeed : null,
     hideJav: state.videoHideJav,
