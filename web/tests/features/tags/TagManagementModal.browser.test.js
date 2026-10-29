@@ -8,7 +8,7 @@ test(
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=video` })
-    await waitFor(`document.querySelector('aside button[aria-label="Tags (Video)"]')`)
+    await waitFor(`document.querySelector('header button[aria-label="Tags"]')`)
     await evaluate(`{
       const originalFetch = window.fetch;
       window.fetch = (input, init) => new URL(input, location.origin).pathname === '/tags'
@@ -16,7 +16,7 @@ test(
             id: i + 1, name: 'Example tag ' + (i + 1), count: 24 - i
           }))))
         : originalFetch(input, init);
-      document.querySelector('aside button[aria-label="Tags (Video)"]').click();
+      document.querySelector('header button[aria-label="Tags"]').click();
     }`)
     await waitFor(
       `document.querySelectorAll('.tag-management-modal-list .skeuo-tag').length === 24`
@@ -102,6 +102,24 @@ test(
       0,
       'delete actions are hidden outside edit mode'
     )
+    await evaluate(`document.querySelector('[aria-label="Close tag management"]').click()`)
+    await waitFor(`!document.querySelector('[aria-label="Close tag management"]')`)
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('aside button[aria-label="Tags (Video)"]'))`),
+      false
+    )
+    await evaluate(`document.querySelector('aside button[aria-label="Tags"]').click()`)
+    await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('Scraped tags')`)
+    await evaluate(`document.querySelector('[aria-label="Close tag management"]').click()`)
+    await waitFor(`!document.querySelector('[aria-label="Close tag management"]')`)
+    await evaluate(`document.querySelector('aside button[aria-label="JAV"]').click()`)
+    await waitFor(`window.testStore.getState().viewMode === 'jav'`)
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('header button[aria-label="Tags"]'))`),
+      false
+    )
+    await evaluate(`document.querySelector('aside button[aria-label="Tags"]').click()`)
+    await waitFor(`document.querySelector('[role="dialog"]')?.textContent.includes('Scraped tags')`)
     assert.deepEqual(await evaluate('window.appErrors'), [])
   }
 )

@@ -10,6 +10,7 @@ import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import FolderRoundedIcon from '@mui/icons-material/FolderRounded'
 import SearchIcon from '@mui/icons-material/Search'
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined'
 import ShuffleOutlinedIcon from '@mui/icons-material/ShuffleOutlined'
 import { Button, IconButton, Menu, MenuItem, Popper, Slider } from '@mui/material'
@@ -389,6 +390,7 @@ export default function TopBar({
   onRandomClick,
   onOpenFavoriteGroups,
   onOpenFilterEditor,
+  onOpenVideoTags,
   onOpenFavoriteManager,
   onSearchInputChange,
   onSubmitSearch,
@@ -587,6 +589,18 @@ export default function TopBar({
                 <SearchIcon sx={{ fontSize: 17 }} />
               </Button>
             </form>
+          ) : null}
+
+          {!isJavMode ? (
+            <button
+              type="button"
+              className="filter-action-button"
+              onClick={onOpenVideoTags}
+              aria-label={zh('标签', 'Tags')}
+            >
+              <LocalOfferOutlinedIcon fontSize="small" />
+              <span>{zh('标签', 'Tags')}</span>
+            </button>
           ) : null}
 
           {isJavMode && javTab === 'list' ? (
