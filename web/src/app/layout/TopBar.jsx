@@ -822,13 +822,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         </span>
       </a>
       {Number.isFinite(count) ? (
-        <span
-          className={`absolute right-1.5 top-1.5 rounded-full border px-1.5 text-[10px] leading-4 shadow-sm ${
-            active
-              ? 'border-blue-200 bg-white/80 text-blue-700'
-              : 'border-amber-200 bg-white/80 text-amber-700'
-          }`}
-        >
+        <span className="absolute right-1.5 top-1.5 rounded-full border border-blue-200 bg-white/80 px-1.5 text-[10px] leading-4 text-blue-700 shadow-sm">
           {count}
         </span>
       ) : null}
@@ -840,11 +834,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
             event.stopPropagation()
             onEdit?.()
           }}
-          className={`absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border bg-white/85 shadow-sm backdrop-blur-sm transition-colors ${
-            active
-              ? 'border-blue-200 text-blue-700 hover:bg-blue-50'
-              : 'border-amber-200 text-amber-700 hover:bg-amber-50'
-          }`}
+          className="absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border border-blue-200 bg-white/85 text-blue-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-blue-50"
           aria-label={zh(`编辑收藏夹 ${label}`, `Edit favorite ${label}`)}
         >
           <EditRoundedIcon sx={{ fontSize: 14 }} />
