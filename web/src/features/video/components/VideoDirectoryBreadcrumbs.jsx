@@ -72,7 +72,7 @@ export default function VideoDirectoryBreadcrumbs() {
       <div className="h-[calc(2rem+env(safe-area-inset-bottom))]" aria-hidden="true" />
       <nav
         aria-label={zh('当前视频目录', 'Current video directory')}
-        className="fixed bottom-0 left-[var(--side-tabs-width)] right-0 z-40 border-t border-gray-200 bg-white pl-[var(--page-left-padding)] pr-[var(--page-right-padding)] shadow-[0_-2px_8px_rgba(15,23,42,0.04)]"
+        className="fixed bottom-0 left-[var(--side-tabs-width)] right-0 z-40 border-t border-gray-200 bg-white pl-3 pr-[var(--page-right-padding)] shadow-[0_-2px_8px_rgba(15,23,42,0.04)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <ol className="flex h-8 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[11px]">
