@@ -1,13 +1,11 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button, Popover } from '@mui/material'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import { useShallow } from 'zustand/react/shallow'
-import { fetchVideoDirectories } from '@/features/video/api'
-import { directoryScopeKey } from '@/query/listQueries'
+import useVideoDirectories from '@/features/video/hooks/useVideoDirectories'
 import { useStore } from '@/store'
-import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
 const directoryLabel = (directory) =>
@@ -87,41 +85,18 @@ function DirectoryNode({ node, value, onSelect }) {
 }
 
 export default function VideoDirectoryFilter() {
-  const { directoryId, subdirectory, directories, scopeKey, setDirectory } = useStore(
+  const { directoryId, subdirectory, directories, setDirectory } = useStore(
     useShallow((state) => ({
       directoryId: state.videoDirectoryId,
       subdirectory: state.videoSubdirectory,
       directories: state.directories,
-      scopeKey: directoryScopeKey(state),
       setDirectory: state.setVideoDirectoryFilter,
     }))
   )
   const [anchorEl, setAnchorEl] = useState(null)
   const open = Boolean(anchorEl)
-  const [options, setOptions] = useState([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [retry, setRetry] = useState(0)
+  const { options, loading, error, retry } = useVideoDirectories(open)
   const treeContainerRef = useRef(null)
-
-  useEffect(() => {
-    if (!open) return undefined
-    const controller = new AbortController()
-    setLoading(true)
-    setError('')
-    setOptions([])
-    fetchVideoDirectories({ signal: controller.signal })
-      .then((items) => {
-        if (!controller.signal.aborted) setOptions(items)
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) setError(getErrorMessage(err))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [open, scopeKey, retry])
 
   const revealSelection = useCallback(() => {
     treeContainerRef.current
@@ -207,7 +182,7 @@ export default function VideoDirectoryFilter() {
             ) : error ? (
               <div role="alert" className="p-3 text-sm text-red-600">
                 {error}
-                <Button size="small" onClick={() => setRetry((current) => current + 1)}>
+                <Button size="small" onClick={retry}>
                   {zh('重试', 'Retry')}
                 </Button>
               </div>

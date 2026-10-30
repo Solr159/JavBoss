@@ -4,6 +4,7 @@ import { useState } from 'react'
 import BulkPlaybackMenu from '@/features/playback/components/BulkPlaybackMenu'
 import Pagination from '@/shared/ui/Pagination'
 import VideoGrid from '@/features/video/components/VideoGrid'
+import VideoDirectoryBreadcrumbs from '@/features/video/components/VideoDirectoryBreadcrumbs'
 import WaterfallLoader from '@/shared/ui/WaterfallLoader'
 import {
   VIDEO_SORT_OPTIONS,
@@ -230,6 +231,7 @@ export default function VideoView({
         loading={loadingMore}
         onLoadMore={onLoadMore}
       />
+      <VideoDirectoryBreadcrumbs />
     </>
   )
 }
