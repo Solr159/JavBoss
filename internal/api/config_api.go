@@ -87,6 +87,7 @@ func updateConfig(c *gin.Context) {
 	var req struct {
 		VideoPageSize             *int                       `json:"video_page_size"`
 		VideoWaterfallDefault     *bool                      `json:"video_waterfall_default"`
+		VideoShowDirectoryBar     *bool                      `json:"video_show_directory_bar"`
 		JavPageSize               *int                       `json:"jav_page_size"`
 		JavGridColumns            *int                       `json:"jav_grid_columns"`
 		JavCardPortrait           *bool                      `json:"jav_card_portrait"`
@@ -177,6 +178,9 @@ func updateConfig(c *gin.Context) {
 	}
 	if req.VideoWaterfallDefault != nil {
 		entries["video_waterfall_default"] = strconv.FormatBool(*req.VideoWaterfallDefault)
+	}
+	if req.VideoShowDirectoryBar != nil {
+		entries["video_show_directory_bar"] = strconv.FormatBool(*req.VideoShowDirectoryBar)
 	}
 	if req.JavPageSize != nil {
 		if v, ok := clampSize(*req.JavPageSize); ok {

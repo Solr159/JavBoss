@@ -12,7 +12,8 @@ import {
   reverseVideoSortValue,
   videoSortLabelParts,
 } from '@/constants/video'
-import { videoSelectionKey } from '@/store'
+import { useStore, videoSelectionKey } from '@/store'
+import { configFlag } from '@/utils/config'
 import { zh } from '@/utils/i18n'
 
 function SortText({ option, value, className = '' }) {
@@ -65,6 +66,9 @@ export default function VideoView({
   hasMore,
 }) {
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
+  const showDirectoryBar = useStore((state) =>
+    configFlag(state.config?.video_show_directory_bar, true)
+  )
   const pageIds = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
   const pageSelectable = pageIds.length > 0
   const hasVideos = Number(totalItems) > 0
@@ -231,7 +235,7 @@ export default function VideoView({
         loading={loadingMore}
         onLoadMore={onLoadMore}
       />
-      <VideoDirectoryBreadcrumbs />
+      {showDirectoryBar && <VideoDirectoryBreadcrumbs />}
     </>
   )
 }

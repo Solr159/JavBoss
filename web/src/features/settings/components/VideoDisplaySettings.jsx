@@ -92,6 +92,8 @@ export default function VideoDisplaySettings({
   onHideJavChange,
   waterfallDefaultInput = false,
   onWaterfallDefaultChange,
+  showDirectoryBarInput = true,
+  onShowDirectoryBarChange,
   watchTimeIconMinutesInput = 30,
   onWatchTimeIconMinutesChange,
 }) {
@@ -113,6 +115,14 @@ export default function VideoDisplaySettings({
           label={zh('默认开启瀑布流', 'Enable waterfall by default')}
           checked={waterfallDefaultInput}
           onChange={onWaterfallDefaultChange}
+        />
+      </div>
+      <div className={rowClassName}>
+        <span>{zh('显示目录栏', 'Show directory bar')}</span>
+        <SettingsSwitch
+          label={zh('显示目录栏', 'Show directory bar')}
+          checked={showDirectoryBarInput}
+          onChange={onShowDirectoryBarChange}
         />
       </div>
       <label className={rowClassName}>

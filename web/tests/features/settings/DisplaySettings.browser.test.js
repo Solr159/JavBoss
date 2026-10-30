@@ -3,6 +3,61 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
+  'video directory bar defaults to visible and follows saved settings and restored defaults',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-display-settings-test',
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=video` })
+    const bar = `document.querySelector('nav[aria-label="Current video directory"]')`
+    const dialog = `document.querySelector('[role="dialog"]')`
+    const toggle = `${dialog}.querySelector('[role="switch"][aria-label="Show directory bar"]')`
+    const openSettings = async () => {
+      await evaluate(`document.querySelector('aside button[aria-label="Display"]').click()`)
+      await waitFor(toggle)
+    }
+    const clickFooter = (label) =>
+      evaluate(
+        `[...${dialog}.querySelectorAll('footer button')].find(button => button.textContent === '${label}').click()`
+      )
+    await waitFor(`${bar} && window.testStore.getState().config.video_page_size`)
+    await openSettings()
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+    await clickFooter('Edit')
+    await evaluate(`${toggle}.click()`)
+    assert.ok(await evaluate(`Boolean(${bar})`), 'unsaved changes must not hide the bar')
+    await clickFooter('Cancel')
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+    await clickFooter('Edit')
+    await evaluate(`${toggle}.click()`)
+    await clickFooter('Save')
+    await waitFor(`!${dialog} && !${bar}`)
+    assert.equal(
+      await evaluate('window.testStore.getState().config.video_show_directory_bar'),
+      false
+    )
+    await evaluate(
+      `window.testStore.setState({config:{}}); window.testStore.getState().loadConfig()`
+    )
+    await waitFor(`window.testStore.getState().config.video_page_size && !${bar}`)
+    await openSettings()
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
+    await clickFooter('Edit')
+    await clickFooter('Restore defaults')
+    assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+    assert.equal(await evaluate(`Boolean(${bar})`), false)
+    await clickFooter('Save')
+    await waitFor(`!${dialog} && ${bar}`)
+    assert.equal(
+      await evaluate('window.testStore.getState().config.video_show_directory_bar'),
+      true
+    )
+    assert.deepEqual(await evaluate('window.appErrors'), [])
+  }
+)
+
+test(
   'display settings cancel edits across all tabs without closing and keep default cursors',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

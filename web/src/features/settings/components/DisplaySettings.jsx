@@ -51,6 +51,9 @@ export default function DisplaySettings({ onClose, onError, onWaterfallChange, i
         onHideJavChange: (value) =>
           setDraft((current) => ({ ...current, videoHideJavInput: value })),
         waterfallDefaultInput: draft.videoWaterfallDefaultInput,
+        showDirectoryBarInput: draft.videoShowDirectoryBarInput,
+        onShowDirectoryBarChange: (value) =>
+          setDraft((current) => ({ ...current, videoShowDirectoryBarInput: value })),
         onWaterfallDefaultChange: (value) =>
           setDraft((current) => ({ ...current, videoWaterfallDefaultInput: value })),
         watchTimeIconMinutesInput: draft.videoWatchTimeIconMinutesInput,
