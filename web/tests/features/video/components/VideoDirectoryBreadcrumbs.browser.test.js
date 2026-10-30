@@ -63,7 +63,7 @@ test(
       evaluate(`[...${menu}.querySelectorAll('[role="menuitem"]')].map(b => b.textContent)`)
     assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026'])
     await openLevel('旅行')
-    assert.deepEqual(await menuLabels(), ['View videos in this directory', '2025', '2026'])
+    assert.deepEqual(await menuLabels(), ['2025', '2026', 'View videos in this directory'])
     await select('2025')
     await waitFor(
       `new URLSearchParams(location.search).get('subdirectory') === '旅行/2025' && !window.testStore.getState().loading`
@@ -82,7 +82,7 @@ test(
     assert.equal(query.get('search'), 'clip')
     assert.equal(query.get('offset'), '0')
     await openLevel('2025')
-    assert.deepEqual(await menuLabels(), ['View videos in this directory', 'No subdirectories'])
+    assert.deepEqual(await menuLabels(), ['No subdirectories', 'View videos in this directory'])
     await command('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Escape',
@@ -97,22 +97,22 @@ test(
     })
     await waitFor(`!${menu}`)
     await openLevel('/videos')
-    assert.deepEqual(await menuLabels(), ['View videos in this directory', 'other', '旅行'])
+    assert.deepEqual(await menuLabels(), ['other', '旅行', 'View videos in this directory'])
     await select('View videos in this directory')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     assert.deepEqual(await labels(), ['All directories', '/videos'])
     await evaluate('window.failNextDirectoryRequest = true')
     await openLevel('All directories')
-    assert.deepEqual(await menuLabels(), ['View all videos', 'Directory lookup failed', 'Retry'])
+    assert.deepEqual(await menuLabels(), ['Directory lookup failed', 'Retry', 'View all videos'])
     await evaluate(
       `[...${menu}.querySelectorAll('[role="menuitem"]')].find(b => b.textContent === 'Retry').click()`
     )
     await waitFor(`${menu}.textContent.includes('/archive')`)
-    assert.deepEqual(await menuLabels(), ['View all videos', '/videos', '/archive'])
+    assert.deepEqual(await menuLabels(), ['/videos', '/archive', 'View all videos'])
     await select('/archive')
     await waitFor(`window.testStore.getState().videoDirectoryId === 2`)
     await openLevel('/archive')
-    assert.deepEqual(await menuLabels(), ['View videos in this directory', '旅行'])
+    assert.deepEqual(await menuLabels(), ['旅行', 'View videos in this directory'])
     await select('旅行')
     await waitFor(`new URLSearchParams(location.search).get('subdirectory') === '旅行'`)
     await evaluate('history.back()')
@@ -124,6 +124,42 @@ test(
     await select('View all videos')
     await waitFor(`!new URLSearchParams(location.search).has('directory_id')`)
     assert.deepEqual(await labels(), ['All directories'])
+
+    // The directory action stays visible while a long list of children scrolls.
+    await evaluate(`(() => {
+      window.savedDirectoryOptions = window.directoryOptions;
+      window.directoryOptions = [...window.directoryOptions, ...Array.from({length:60}, (_,i) => ({
+        directory_id:1, directory_path:'/videos', path:'child-' + i,
+      }))];
+      window.testStore.getState().setVideoDirectoryFilter({directory_id:1,path:'旅行'});
+    })()`)
+    await waitFor(`${nav}.textContent.includes('旅行')`)
+    await openLevel('/videos')
+    const menuBounds = () =>
+      evaluate(`(() => {
+      const list=${menu}, paper=list.parentElement;
+      const footer=list.lastElementChild.getBoundingClientRect();
+      const bounds=paper.getBoundingClientRect();
+      return {footerTop:footer.top,footerBottom:footer.bottom,paperTop:bounds.top,paperBottom:bounds.bottom,
+        childTop:list.firstElementChild.getBoundingClientRect().top,scroll:paper.scrollTop};
+    })()`)
+    // Wait for the popup's opening transform to finish before comparing positions.
+    await waitFor(`getComputedStyle(${menu}.parentElement).transform === 'none'`)
+    const beforeScroll = await menuBounds()
+    assert.ok(beforeScroll.footerTop >= beforeScroll.paperTop)
+    assert.ok(Math.abs(beforeScroll.footerBottom - beforeScroll.paperBottom) <= 1)
+    await evaluate(`${menu}.parentElement.scrollTop = 500`)
+    const afterScroll = await menuBounds()
+    assert.ok(afterScroll.scroll > beforeScroll.scroll)
+    assert.ok(afterScroll.childTop < beforeScroll.childTop)
+    assert.ok(Math.abs(afterScroll.footerTop - beforeScroll.footerTop) <= 1)
+    assert.ok(Math.abs(afterScroll.footerBottom - afterScroll.paperBottom) <= 1)
+    await select('View videos in this directory')
+    await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
+    await evaluate(`window.directoryOptions = window.savedDirectoryOptions`)
+    await openLevel('All directories')
+    await select('View all videos')
+    await waitFor(`window.testStore.getState().videoDirectoryId === null`)
 
     // The top tree and URL restore update the same breadcrumb path.
     await evaluate(`document.querySelector('button[aria-label="Select subdirectory"]').click()`)

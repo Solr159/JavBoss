@@ -109,14 +109,13 @@ export default function VideoDirectoryBreadcrumbs() {
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
           paper: { sx: { minWidth: 220, maxWidth: 'calc(100vw - 32px)', maxHeight: '50vh' } },
-          list: { dense: true, 'aria-label': zh('选择视频目录', 'Choose video directory') },
+          list: {
+            dense: true,
+            sx: { py: 0 },
+            'aria-label': zh('选择视频目录', 'Choose video directory'),
+          },
         }}
       >
-        <MenuItem divider onClick={() => selectDirectory(parent || null)}>
-          {parent
-            ? zh('查看此目录的视频', 'View videos in this directory')
-            : zh('查看全部视频', 'View all videos')}
-        </MenuItem>
         {loading ? (
           <MenuItem disabled>{zh('加载中…', 'Loading...')}</MenuItem>
         ) : error ? (
@@ -152,6 +151,22 @@ export default function VideoDirectoryBreadcrumbs() {
         ) : (
           <MenuItem disabled>{zh('没有子目录', 'No subdirectories')}</MenuItem>
         )}
+        <MenuItem
+          onClick={() => selectDirectory(parent || null)}
+          sx={{
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 1,
+            bgcolor: 'background.paper',
+            borderTop: 1,
+            borderColor: 'divider',
+            '&:hover, &.Mui-focusVisible': { bgcolor: 'grey.100' },
+          }}
+        >
+          {parent
+            ? zh('查看此目录的视频', 'View videos in this directory')
+            : zh('查看全部视频', 'View all videos')}
+        </MenuItem>
       </Menu>
     </>
   )
