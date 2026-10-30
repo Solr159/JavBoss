@@ -70,3 +70,49 @@ test('item edits merge into list data without losing unrelated fields or other e
   assert.equal(store.getState().javItems[0].idols[0].name, 'after')
   assert.equal(store.getState().javItems[1], other)
 })
+
+test('directory changes invalidate videos and carry through paging, waterfall and random requests', async (t) => {
+  const [queries, { createAppState }] = await loadModules(t, ['query/listQueries.js', 'store.js'])
+  const store = createStore(createAppState)
+  const requests = []
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    requests.push(new URL(url, 'http://localhost').searchParams)
+    return Response.json({
+      items: Array.from({ length: 25 }, (_, index) => ({
+        id: Number(requests.at(-1).get('offset')) + index + 1,
+        location_id: Number(requests.at(-1).get('offset')) + index + 1,
+      })),
+      total: 100,
+    })
+  })
+  const before = queries.videoQueryKey(store.getState())
+  store.setState({ page: 4 })
+  store.getState().setVideoDirectoryFilter({ directory_id: 2, path: '旅行/100%_fun' })
+  assert.equal(store.getState().page, 1)
+  const filtered = queries.videoQueryKey(store.getState())
+  assert.notEqual(before, filtered)
+  assert.notEqual(
+    filtered,
+    queries.videoQueryKey({ ...store.getState(), videoSubdirectory: 'elsewhere' })
+  )
+  assert.notEqual(filtered, queries.videoQueryKey({ ...store.getState(), videoDirectoryId: 3 }))
+  await store.getState().loadVideos()
+  store.getState().setPage(2)
+  await store.getState().loadVideos()
+  store.setState({ waterfallModes: { video: true } })
+  await store.getState().loadMoreVideos()
+  store.getState().loadRandom(42)
+  await store.getState().loadVideos()
+  assert.equal(requests.length, 4)
+  assert.equal(requests[1].get('offset'), '25')
+  assert.equal(requests[2].get('offset'), '50')
+  assert.equal(requests[3].get('seed'), '42')
+  for (const query of requests) {
+    assert.equal(query.get('directory_id'), '2')
+    assert.equal(query.get('subdirectory'), '旅行/100%_fun')
+  }
+  store.getState().setVideoDirectoryFilter(null)
+  await store.getState().loadVideos()
+  assert.equal(requests.at(-1).has('directory_id'), false)
+  assert.equal(requests.at(-1).has('subdirectory'), false)
+})

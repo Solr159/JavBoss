@@ -16,7 +16,7 @@ import (
 
 // ListVideos returns paginated active video locations as video-like rows.
 // By default it includes locations already associated with JAV metadata.
-func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, hideJav ...bool) ([]models.Video, error) {
+func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames []string, search, sort string, seed *int64, directoryIDs []int64, filters ...VideoFilter) ([]models.Video, error) {
 	if limit <= 0 {
 		limit = 100
 	}
@@ -24,8 +24,8 @@ func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames 
 		offset = 0
 	}
 	hideRecognizedJav := false
-	if len(hideJav) > 0 {
-		hideRecognizedJav = hideJav[0]
+	if len(filters) > 0 {
+		hideRecognizedJav = filters[0].HideJav
 	}
 
 	orderClause := "video.created_at DESC, video_location.id DESC" // default: newest first
@@ -78,6 +78,7 @@ func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames 
 		query = query.Where("video_location.jav_id IS NULL")
 	}
 	query = applyDirectoryFilter(query, "video_location", directoryIDs)
+	query = applyVideoSubdirectoryFilter(query, filters)
 	if useExpr {
 		query = query.Order(clause.OrderBy{Expression: orderExpr})
 	} else {
@@ -119,12 +120,12 @@ func (store *Store) ListVideos(ctx context.Context, limit, offset int, tagNames 
 
 // CountVideos returns the total number of active locations that match optional filters.
 // By default it includes locations already associated with JAV metadata.
-func (store *Store) CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, hideJav ...bool) (int64, error) {
+func (store *Store) CountVideos(ctx context.Context, tagNames []string, search string, directoryIDs []int64, filters ...VideoFilter) (int64, error) {
 	cleanedTags := normalizeTagNames(tagNames)
 	cleanedSearch := strings.TrimSpace(search)
 	hideRecognizedJav := false
-	if len(hideJav) > 0 {
-		hideRecognizedJav = hideJav[0]
+	if len(filters) > 0 {
+		hideRecognizedJav = filters[0].HideJav
 	}
 	like := ""
 	if cleanedSearch != "" {
@@ -142,6 +143,7 @@ func (store *Store) CountVideos(ctx context.Context, tagNames []string, search s
 			base = base.Where("video_location.jav_id IS NULL")
 		}
 		base = applyDirectoryFilter(base, "video_location", directoryIDs)
+		base = applyVideoSubdirectoryFilter(base, filters)
 		if like != "" {
 			base = base.Where("video_location.filename LIKE ? COLLATE NOCASE", like)
 		}
@@ -165,6 +167,7 @@ func (store *Store) CountVideos(ctx context.Context, tagNames []string, search s
 		sub = sub.Where("video_location.jav_id IS NULL")
 	}
 	sub = applyDirectoryFilter(sub, "video_location", directoryIDs)
+	sub = applyVideoSubdirectoryFilter(sub, filters)
 
 	if like != "" {
 		sub = sub.Where("video_location.filename LIKE ? COLLATE NOCASE", like)

@@ -89,3 +89,28 @@ test('links to another catalog use its own page, favorites and sorting', async (
   assert.equal(query.random, false)
   assert.equal(query.tempSort, '')
 })
+
+test('video directory filters survive pagination and random links and can be cleared', async (t) => {
+  const [links, urls, { createAppState }] = await loadModules(t, [
+    'navigation/queryLinks.js',
+    'utils/urlState.js',
+    'store.js',
+  ])
+  const store = createStore(createAppState)
+  store.setState({
+    videoDirectoryId: 7,
+    videoSubdirectory: '旅行/100%_fun & friends',
+    searchTerm: 'movie',
+  })
+  const query = (options) =>
+    urls.parseUrlState(
+      new URL(links.buildVideoQueryLink(store.getState(), options), 'http://localhost').search
+    ).video
+  for (const options of [{ page: 3 }, { random: true, seed: 42 }, { search: 'another' }]) {
+    assert.equal(query(options).directoryId, 7)
+    assert.equal(query(options).subdirectory, '旅行/100%_fun & friends')
+  }
+  const cleared = query({ directoryId: null, subdirectory: '' })
+  assert.equal(cleared.directoryId, null)
+  assert.equal(cleared.subdirectory, '')
+})

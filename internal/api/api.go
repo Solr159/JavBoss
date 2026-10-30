@@ -23,6 +23,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/tools", getTools)
 	router.POST("/tools/ffmpeg/download", downloadFFmpeg)
 	router.GET("/videos", listVideos)
+	router.GET("/videos/directories", listVideoDirectories)
 	router.GET("/videos/watched-time", getWatchedTime)
 	router.GET("/videos/watched-time/events", streamWatchedTime)
 	router.GET("/videos/screenshots", listVideosScreenshots)

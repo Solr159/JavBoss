@@ -17,6 +17,8 @@ export const JAV_TAG_MAX_ROWS_DEFAULT = 2
 export const RANDOM_SEED_MAX = 2147483646
 
 export const directoryScopeResetState = () => ({
+  videoDirectoryId: null,
+  videoSubdirectory: '',
   page: 1,
   javPage: 1,
   idolPage: 1,
