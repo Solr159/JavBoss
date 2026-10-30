@@ -54,10 +54,26 @@ test(
       await waitFor(`!${menu}.textContent.includes('Loading...')`)
     }
     const select = async (label) => {
+      const expectedLabels = await menuLabels()
+      await evaluate(`(() => {
+        const list = ${menu};
+        window.closingDirectoryMenuLabels = [];
+        window.directoryMenuObserver = new MutationObserver(() => {
+          if (list.isConnected) {
+            window.closingDirectoryMenuLabels.push([...list.querySelectorAll('[role="menuitem"]')].map(item => item.textContent));
+          }
+        });
+        window.directoryMenuObserver.observe(list, {childList:true, subtree:true, characterData:true});
+      })()`)
       await evaluate(
         `[...${menu}.querySelectorAll('[role="menuitem"]')].find(b => b.textContent === ${JSON.stringify(label)}).click()`
       )
       await waitFor(`!${menu}`)
+      await evaluate('window.directoryMenuObserver.disconnect()')
+      const closingLabels = await evaluate('window.closingDirectoryMenuLabels')
+      for (const labels of closingLabels) {
+        assert.deepEqual(labels, expectedLabels, 'menu contents must stay stable while closing')
+      }
     }
     const menuLabels = () =>
       evaluate(`[...${menu}.querySelectorAll('[role="menuitem"]')].map(b => b.textContent)`)

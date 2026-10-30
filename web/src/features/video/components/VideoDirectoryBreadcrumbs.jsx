@@ -17,8 +17,9 @@ export default function VideoDirectoryBreadcrumbs() {
     }))
   )
   const [menu, setMenu] = useState(null)
+  const [menuOpen, setMenuOpen] = useState(false)
   const currentRef = useRef(null)
-  const { options, loading, error, retry } = useVideoDirectories(Boolean(menu))
+  const { options, loading, error, retry } = useVideoDirectories(menuOpen)
   const rootPath =
     directories.find((directory) => directory.id === directoryId)?.path || `#${directoryId}`
   const crumbs = [{ label: zh('全部目录', 'All directories'), directory: null }]
@@ -40,7 +41,7 @@ export default function VideoDirectoryBreadcrumbs() {
     })
   }
 
-  useEffect(() => setMenu(null), [directoryId, subdirectory])
+  useEffect(() => setMenuOpen(false), [directoryId, subdirectory])
   useLayoutEffect(() => {
     // Long paths stay horizontally scrollable, with the current directory in view.
     currentRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -56,7 +57,7 @@ export default function VideoDirectoryBreadcrumbs() {
     return relative && !relative.includes('/')
   })
   const selectDirectory = (directory) => {
-    setMenu(null)
+    setMenuOpen(false)
     setDirectory(directory)
   }
   const title = (crumb) =>
@@ -87,8 +88,11 @@ export default function VideoDirectoryBreadcrumbs() {
                   type="button"
                   aria-current={current ? 'location' : undefined}
                   aria-haspopup="menu"
-                  aria-expanded={menu?.index === index}
-                  onClick={(event) => setMenu({ anchor: event.currentTarget, crumb, index })}
+                  aria-expanded={menuOpen && menu?.index === index}
+                  onClick={(event) => {
+                    setMenu({ anchor: event.currentTarget, crumb, index })
+                    setMenuOpen(true)
+                  }}
                   title={title(crumb)}
                   className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 ${current ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
                 >
@@ -101,13 +105,15 @@ export default function VideoDirectoryBreadcrumbs() {
         </ol>
       </nav>
       <Menu
-        open={Boolean(menu)}
+        open={menuOpen}
         anchorEl={menu?.anchor}
-        onClose={() => setMenu(null)}
+        onClose={() => setMenuOpen(false)}
         disableScrollLock
         anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
+          // Keep the current directory and anchor throughout the exit animation.
+          transition: { onExited: () => setMenu(null) },
           paper: { sx: { minWidth: 220, maxWidth: 'calc(100vw - 32px)', maxHeight: '50vh' } },
           list: {
             dense: true,
