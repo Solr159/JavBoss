@@ -24,7 +24,7 @@ import { zh } from '@/utils/i18n'
 function isModifiedClick(event) {
   return Boolean(
     event &&
-      (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+    (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
   )
 }
 

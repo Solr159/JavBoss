@@ -108,7 +108,11 @@ func testTitleTranslation(c *gin.Context) {
 		respondTitleTranslationError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"zh_title": title})
+	key := "zh_title"
+	if translation.TargetLanguage(cfg) == "en" {
+		key = "en_title"
+	}
+	c.JSON(http.StatusOK, gin.H{key: title})
 }
 
 // POST /jav/items/:id/title-translation previews a Chinese title; nothing is saved.
@@ -154,6 +158,7 @@ func translateText(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, http.StatusInternalServerError, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
+	domain = domain.withConfig(cfg)
 	if !domain.Enabled(cfg) {
 		domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
 		return
@@ -175,7 +180,7 @@ func translateText(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, 400, "影片标题不能为空", "The title must not be empty")
 		return
 	}
-	title, err := translation.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], sourceTitle, req.Thinking)
+	title, err := translation.Translate(c.Request.Context(), translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), translation.PromptFor(cfg), sourceTitle, req.Thinking)
 	if err != nil {
 		respondTitleTranslationError(c, err)
 		return

@@ -238,3 +238,79 @@ func TestUpdateVideoLocationPathReusesDeletedPath(t *testing.T) {
 		t.Fatalf("target path should belong to the active location: %#v", locations[0])
 	}
 }
+
+func TestListAutoSubtitleLocationsFiltersAndPages(t *testing.T) {
+	deps := newTestDependencies()
+	gdb := openTestDB(deps, t)
+	ctx := context.Background()
+
+	active := models.Directory{Path: "/tmp/auto-sub-active"}
+	missing := models.Directory{Path: "/tmp/auto-sub-missing", Missing: true}
+	deleted := models.Directory{Path: "/tmp/auto-sub-deleted", IsDelete: true}
+	disabled := models.Directory{Path: "/tmp/auto-sub-disabled"}
+	if err := gdb.Create(&active).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&missing).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&deleted).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Create(&disabled).Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := gdb.Model(&models.Directory{}).Where("id = ?", disabled.ID).Update("enabled", false).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	video := models.Video{Fingerprint: "auto-subtitle-locations", Size: 1, DurationSec: 60}
+	if err := gdb.Create(&video).Error; err != nil {
+		t.Fatal(err)
+	}
+	locations := []models.VideoLocation{
+		{VideoID: video.ID, DirectoryID: active.ID, RelativePath: "a.mp4", Filename: "a.mp4"},
+		{VideoID: video.ID, DirectoryID: missing.ID, RelativePath: "b.mp4", Filename: "b.mp4"},
+		{VideoID: video.ID, DirectoryID: deleted.ID, RelativePath: "c.mp4", Filename: "c.mp4"},
+		{VideoID: video.ID, DirectoryID: disabled.ID, RelativePath: "d.mp4", Filename: "d.mp4"},
+		{VideoID: video.ID, DirectoryID: active.ID, RelativePath: "e.mp4", Filename: "e.mp4"},
+	}
+	if err := gdb.Create(&locations).Error; err != nil {
+		t.Fatal(err)
+	}
+
+	first, err := deps.store.ListAutoSubtitleLocations(ctx, 0, 1)
+	if err != nil {
+		t.Fatalf("first page: %v", err)
+	}
+	if len(first) != 1 || first[0].RelativePath != "a.mp4" {
+		t.Fatalf("unexpected first page: %#v", first)
+	}
+	if first[0].DirectoryRef.Path != active.Path {
+		t.Fatalf("directory path = %q, want %q", first[0].DirectoryRef.Path, active.Path)
+	}
+
+	recent, err := deps.store.ListRecentAutoSubtitleLocations(ctx, 10)
+	if err != nil {
+		t.Fatalf("recent locations: %v", err)
+	}
+	if len(recent) != 2 || recent[0].RelativePath != "e.mp4" || recent[1].RelativePath != "a.mp4" {
+		t.Fatalf("unexpected recent locations: %#v", recent)
+	}
+
+	second, err := deps.store.ListAutoSubtitleLocations(ctx, first[0].ID, 10)
+	if err != nil {
+		t.Fatalf("second page: %v", err)
+	}
+	if len(second) != 1 || second[0].RelativePath != "e.mp4" {
+		t.Fatalf("unexpected second page: %#v", second)
+	}
+
+	none, err := deps.store.ListAutoSubtitleLocations(ctx, second[0].ID, 10)
+	if err != nil {
+		t.Fatalf("end page: %v", err)
+	}
+	if len(none) != 0 {
+		t.Fatalf("expected no more locations, got %#v", none)
+	}
+}

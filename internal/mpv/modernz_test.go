@@ -57,14 +57,11 @@ func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
 		t.Fatalf("find ModernZ source dir: %v", err)
 	}
 
-	config, err := os.ReadFile(filepath.Join(sourceDir, "modernz.conf"))
-	if err != nil {
-		t.Fatalf("read ModernZ config: %v", err)
-	}
-	if !strings.Contains(string(config), "fullscreen_autohide=yes\n") {
+	config := readModernZAsset(t, filepath.Join(sourceDir, "modernz.conf"))
+	if !strings.Contains(config, "fullscreen_autohide=yes\n") {
 		t.Fatalf("expected bundled ModernZ config to enable fullscreen autohide")
 	}
-	if !strings.Contains(string(config), "osc_height=47\n") {
+	if !strings.Contains(config, "osc_height=47\n") {
 		t.Fatalf("expected bundled ModernZ config to use compact OSC height")
 	}
 	for _, expected := range []string{
@@ -72,15 +69,12 @@ func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
 		"midbuttons_size=19\n",
 		"sidebuttons_size=19\n",
 	} {
-		if !strings.Contains(string(config), expected) {
+		if !strings.Contains(config, expected) {
 			t.Fatalf("expected bundled ModernZ config to contain %q", expected)
 		}
 	}
 
-	script, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))
-	if err != nil {
-		t.Fatalf("read ModernZ script: %v", err)
-	}
+	script := readModernZAsset(t, filepath.Join(sourceDir, "modernz.lua"))
 	for _, expected := range []string{
 		`visibility_mode("auto", true)`,
 		`mp.set_property_number("video-margin-ratio-bottom", 0)`,
@@ -88,7 +82,7 @@ func TestBundledModernZEnablesFullscreenAutohide(t *testing.T) {
 		`user_opts.keep_with_cursor = false`,
 		`visibility_mode(restore_visibility, true)`,
 	} {
-		if !strings.Contains(string(script), expected) {
+		if !strings.Contains(script, expected) {
 			t.Fatalf("expected bundled ModernZ script to contain %q", expected)
 		}
 	}
@@ -100,10 +94,7 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		t.Fatalf("find ModernZ source dir: %v", err)
 	}
 
-	config, err := os.ReadFile(filepath.Join(sourceDir, "playlist_sidebar.conf"))
-	if err != nil {
-		t.Fatalf("read playlist sidebar config: %v", err)
-	}
+	config := readModernZAsset(t, filepath.Join(sourceDir, "playlist_sidebar.conf"))
 	for _, expected := range []string{
 		"enabled=yes\n",
 		"width=320\n",
@@ -114,15 +105,12 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		"auto_hide_single=yes\n",
 		"hide_fullscreen=yes\n",
 	} {
-		if !strings.Contains(string(config), expected) {
+		if !strings.Contains(config, expected) {
 			t.Fatalf("expected bundled playlist sidebar config to contain %q", expected)
 		}
 	}
 
-	script, err := os.ReadFile(filepath.Join(sourceDir, "playlist_sidebar.lua"))
-	if err != nil {
-		t.Fatalf("read playlist sidebar script: %v", err)
-	}
+	script := readModernZAsset(t, filepath.Join(sourceDir, "playlist_sidebar.lua"))
 	for _, expected := range []string{
 		`mp.create_osd_overlay("ass-events")`,
 		`mp.set_property_number("video-margin-ratio-right", value)`,
@@ -150,30 +138,38 @@ func TestBundledPlaylistSidebarIsPersistentAndInteractive(t *testing.T) {
 		`mp.commandv("write-watch-later-config")`,
 		`mp.add_hook("on_unload", 50, save_position_before_unload)`,
 	} {
-		if !strings.Contains(string(script), expected) {
+		if !strings.Contains(script, expected) {
 			t.Fatalf("expected bundled playlist sidebar script to contain %q", expected)
 		}
 	}
-	dragCheck := strings.Index(string(script), `if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then`)
-	videoAreaCheck := strings.Index(string(script), `if not mouse_x or mouse_x < pane_left then`)
+	dragCheck := strings.Index(script, `if mouse_x and math.abs(mouse_x - pane_left) <= opts.resize_handle_width then`)
+	videoAreaCheck := strings.Index(script, `if not mouse_x or mouse_x < pane_left then`)
 	if dragCheck < 0 || videoAreaCheck < 0 || dragCheck >= videoAreaCheck {
 		t.Fatal("expected resize handle detection before the video-area click guard")
 	}
 
-	modernZScript, err := os.ReadFile(filepath.Join(sourceDir, "modernz.lua"))
-	if err != nil {
-		t.Fatalf("read ModernZ script: %v", err)
-	}
+	modernZScript := readModernZAsset(t, filepath.Join(sourceDir, "modernz.lua"))
 	for _, expected := range []string{
 		`displayresx = 0`,
 		`user-data/javboss/playlist-sidebar-width`,
 		`osc_param.playresx = math.max(1, osc_param.displayresx - sidebar_virtual_width)`,
 		`set_osd(state.osd, osc_param.displayresx, osc_param.playresy, ass.text, 1000)`,
 	} {
-		if !strings.Contains(string(modernZScript), expected) {
+		if !strings.Contains(modernZScript, expected) {
 			t.Fatalf("expected ModernZ sidebar integration to contain %q", expected)
 		}
 	}
+}
+
+// readModernZAsset reads a bundled ModernZ asset and normalizes CRLF line
+// endings, which a Windows checkout with core.autocrlf=true introduces.
+func readModernZAsset(t *testing.T, path string) string {
+	t.Helper()
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read ModernZ asset %s: %v", path, err)
+	}
+	return strings.ReplaceAll(string(content), "\r\n", "\n")
 }
 
 func TestSessionPathsSharePerProcessRoot(t *testing.T) {

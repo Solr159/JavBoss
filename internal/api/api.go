@@ -4,7 +4,12 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"javboss/internal/autosub"
 )
+
+var autosubHandler = autosub.NewHandler(autosub.NewClient())
+var autosubSweepHandler = autosub.NewSweepHandler(autosub.Default)
 
 // RegisterRoutes wires handlers onto the provided router.
 func RegisterRoutes(router gin.IRoutes) {
@@ -133,6 +138,11 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.GET("/jav/title-translation/batch", getTitleTranslationBatch)
 	router.POST("/jav/items/:id/title-translation", translateJavTitle)
 	router.POST("/jav/title-translation/items", translateJavTitles)
+	router.GET("/autosub/status", autosubHandler.ServeAutoSubStatus)
+	router.POST("/autosub/download", autosubHandler.ServeAutoSubDownload)
+	router.POST("/autosub/translate", autosubHandler.ServeAutoSubTranslate)
+	router.GET("/autosub/auto/status", autosubSweepHandler.ServeSweepStatus)
+	router.POST("/autosub/auto/run", autosubSweepHandler.ServeSweepRun)
 	router.GET("/jav/items/:id/sample-images/:index/:variant", getJavSampleImage)
 	router.GET("/jav/items/:id", getJavItem)
 	router.PUT("/jav/items/:id", updateJavItem)

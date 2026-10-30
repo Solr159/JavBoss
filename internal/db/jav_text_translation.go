@@ -21,11 +21,17 @@ type JavTextTranslationItem struct {
 type JavTextTranslationStore struct {
 	store  *Store
 	Series bool
+	// Language picks the title translation column ("en" -> en_title, else zh_title).
+	// It is ignored for series, which only have zh_name.
+	Language string
 }
 
 func (s JavTextTranslationStore) columns() (string, string) {
 	if s.Series {
 		return "name", "zh_name"
+	}
+	if s.Language == "en" {
+		return "title", "en_title"
 	}
 	return "title", "zh_title"
 }
@@ -71,6 +77,6 @@ func (s JavTextTranslationStore) Save(ctx context.Context, item *JavTextTranslat
 }
 
 // TextTranslations selects the title or series translation store.
-func (s *Store) TextTranslations(series bool) JavTextTranslationStore {
-	return JavTextTranslationStore{store: s, Series: series}
+func (s *Store) TextTranslations(series bool, language string) JavTextTranslationStore {
+	return JavTextTranslationStore{store: s, Series: series, Language: language}
 }

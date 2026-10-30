@@ -1,6 +1,13 @@
 import { configFlag } from '@/utils/config'
 import { normalizeWatchTimeIconMinutes } from '@/features/playback/watchTime'
 
+export const DEFAULT_SUBTITLE_LANGUAGE = 'Chinese Simplified'
+
+export function normalizeSubtitleLanguage(value) {
+  const text = typeof value === 'string' ? value.trim() : ''
+  return text || DEFAULT_SUBTITLE_LANGUAGE
+}
+
 export function createDisplaySettingsDraft(state, tab) {
   if (tab === 'video') return createVideoSettingsDraft(state)
   if (tab) return createJavSettingsDraft(state, tab)
@@ -17,6 +24,8 @@ export function createVideoSettingsDraft(state) {
     videoSortInput: sortOrder,
     videoHideJavInput: videoHideJav,
     videoWaterfallDefaultInput: configFlag(config?.video_waterfall_default),
+    autoSubtitleEnabledInput: configFlag(config?.autosub_auto_enabled),
+    autoSubtitleLanguageInput: normalizeSubtitleLanguage(config?.autosub_auto_language),
   }
 }
 

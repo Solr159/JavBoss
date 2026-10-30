@@ -74,6 +74,7 @@ func NewRouter(staticDir string, auth *AuthService) *gin.Engine {
 func isAPIPath(path string) bool {
 	for _, prefix := range []string{
 		"/auth",
+		"/autosub",
 		"/config",
 		"/directories",
 		"/downloader",

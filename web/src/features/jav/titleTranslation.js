@@ -1,11 +1,26 @@
 import { configFlag } from '@/utils/config'
 
-export function preferChineseTitle(config) {
+export function isTitleTranslationEnabled(config) {
   return configFlag(config?.jav_title_translation_enabled)
 }
 
-export function preferChineseSeries(config) {
+export function titleLanguage(config) {
+  return String(config?.jav_title_language || 'zh')
+    .trim()
+    .toLowerCase()
+}
+
+export function isSeriesTranslationEnabled(config) {
   return configFlag(config?.jav_series_translation_enabled)
+}
+
+// Backward-compatible aliases for existing code that still reads the old boolean flags.
+export function preferChineseTitle(config) {
+  return isTitleTranslationEnabled(config) && titleLanguage(config) === 'zh'
+}
+
+export function preferChineseSeries(config) {
+  return isSeriesTranslationEnabled(config)
 }
 
 export function needsTitleTranslation(item) {

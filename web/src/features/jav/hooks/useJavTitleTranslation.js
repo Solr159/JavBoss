@@ -3,7 +3,7 @@ import { useStore } from '@/store'
 import { configFlag } from '@/utils/config'
 import { getErrorMessage } from '@/utils/errors'
 import { translateJavTitles, translateJavSeriesNames } from '@/features/jav/api'
-import { parseTranslationConfig } from '@/features/jav/titleTranslation'
+import { parseTranslationConfig, titleLanguage } from '@/features/jav/titleTranslation'
 
 // Paid requests finish once started; share them across rerenders, StrictMode and list remounts.
 const inFlight = new Map()
@@ -86,6 +86,9 @@ export function useJavSeriesTranslation(items, onTranslated) {
 function useJavTextTranslation(items, target, onTranslated) {
   const domain = domains[target]
   const config = useStore((state) => state.config)
+  // English display mode stores translations in en_title instead of zh_title.
+  const translatedKey =
+    target === 'title' && titleLanguage(config) === 'en' ? 'en_title' : domain.translated
   const patchItem = useStore((state) => state[domain.patch])
   const attempted = useRef(new Set())
   const stopped = useRef(false)
@@ -118,7 +121,7 @@ function useJavTextTranslation(items, target, onTranslated) {
             !(
               Number(item?.id) > 0 &&
               String(item[domain.source] || '').trim() &&
-              !String(item[domain.translated] || '').trim()
+              !String(item[translatedKey] || '').trim()
             ) ||
             seen.has(Number(item.id))
           )
@@ -128,7 +131,7 @@ function useJavTextTranslation(items, target, onTranslated) {
             target,
             item.id,
             item[domain.source],
-            item[domain.translated],
+            item[translatedKey],
             provider,
             profile,
             prompt,
@@ -158,7 +161,7 @@ function useJavTextTranslation(items, target, onTranslated) {
     return () => {
       cancelled = true
     }
-  }, [items, config, revision, patchItem, domain, target, onTranslated])
+  }, [items, config, revision, patchItem, domain, target, translatedKey, onTranslated])
 
   return {
     error,

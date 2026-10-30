@@ -94,6 +94,7 @@ type JavScanVideo struct {
 type JavUpdateInput struct {
 	Title             *string
 	ZhTitle           *string
+	EnTitle           *string
 	StudioID          *int64
 	SeriesID          *int64
 	IdolIDs           *[]int64
@@ -450,11 +451,16 @@ func (store *Store) UpdateJav(ctx context.Context, javID int64, input JavUpdateI
 		if input.Title != nil {
 			updates["title"] = strings.TrimSpace(*input.Title)
 			if updates["title"] != javRec.Title {
+				// Saved translations no longer match the new source title.
 				updates["zh_title"] = ""
+				updates["en_title"] = ""
 			}
 		}
 		if input.ZhTitle != nil {
 			updates["zh_title"] = strings.TrimSpace(*input.ZhTitle)
+		}
+		if input.EnTitle != nil {
+			updates["en_title"] = strings.TrimSpace(*input.EnTitle)
 		}
 		if input.ReleaseUnix != nil {
 			releaseUnix := *input.ReleaseUnix
@@ -1177,7 +1183,7 @@ func (store *Store) buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs 
 	q = q.Where("EXISTS (?)", validLocation)
 	if search != "" {
 		like := fmt.Sprintf("%%%s%%", search)
-		q = q.Where("code LIKE ? OR title LIKE ? OR zh_title LIKE ?", like, like, like)
+		q = q.Where("code LIKE ? OR title LIKE ? OR zh_title LIKE ? OR en_title LIKE ?", like, like, like, like)
 	}
 	if filters.StudioID == 0 {
 		q = q.Where("studio_id IS NULL")
@@ -2035,6 +2041,7 @@ type JavIdolCoverOption struct {
 	Code    string `json:"code"`
 	Title   string `json:"title"`
 	ZhTitle string `json:"zh_title"`
+	EnTitle string `json:"en_title"`
 	Solo    bool   `json:"solo"`
 }
 
@@ -2538,11 +2545,12 @@ func (store *Store) ListIdolCoverOptions(ctx context.Context, idolID int64, dire
 		Code    string
 		Title   string
 		ZhTitle string
+		EnTitle string
 		Solo    int
 	}
 	query := store.conn.WithContext(ctx).
 		Table("jav_idol_map jim").
-		Select("j.id, j.code, j.title, j.zh_title, CASE WHEN s.c = 1 THEN 1 ELSE 0 END AS solo").
+		Select("j.id, j.code, j.title, j.zh_title, j.en_title, CASE WHEN s.c = 1 THEN 1 ELSE 0 END AS solo").
 		Joins("JOIN jav j ON j.id = jim.jav_id").
 		Joins("JOIN video_location vl ON vl.jav_id = j.id").
 		Joins("JOIN directory d ON d.id = vl.directory_id").
@@ -2551,7 +2559,7 @@ func (store *Store) ListIdolCoverOptions(ctx context.Context, idolID int64, dire
 		Where(activeDirectoryWhereSQL("d"))
 	query = applyDirectoryFilter(query, "vl", directoryIDs)
 	if err := query.
-		Group("j.id, j.code, j.title, j.zh_title, solo").
+		Group("j.id, j.code, j.title, j.zh_title, j.en_title, solo").
 		Order("solo DESC, j.code ASC").
 		Scan(&rows).Error; err != nil {
 		return nil, fmt.Errorf("list idol cover options: %w", err)
@@ -2568,6 +2576,7 @@ func (store *Store) ListIdolCoverOptions(ctx context.Context, idolID int64, dire
 			Code:    code,
 			Title:   strings.TrimSpace(row.Title),
 			ZhTitle: strings.TrimSpace(row.ZhTitle),
+			EnTitle: strings.TrimSpace(row.EnTitle),
 			Solo:    row.Solo == 1,
 		})
 	}
@@ -3315,6 +3324,7 @@ func saveJavInfoTx(tx *gorm.DB, info *metadata.JavInfo, now ...time.Time) (*mode
 	javRec.Code = info.Code
 	if javRec.Title != info.Title {
 		javRec.ZhTitle = ""
+		javRec.EnTitle = ""
 	}
 	javRec.Title = info.Title
 	// Chinese titles belong to manual editing and AI translation. Scraped

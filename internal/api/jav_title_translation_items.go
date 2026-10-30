@@ -45,6 +45,7 @@ func translateTexts(c *gin.Context, domain textTranslationDomain) {
 		domain.error(c, 500, "读取翻译配置失败", "Failed to load translation settings")
 		return
 	}
+	domain = domain.withConfig(cfg)
 	automatic, _ := strconv.ParseBool(cfg[domain.AutoKey()])
 	if !domain.Enabled(cfg) || !automatic {
 		domain.error(c, 400, "标题翻译未开启", "Title translation is disabled")
@@ -146,7 +147,7 @@ func translateMissingText(ctx context.Context, cfg map[string]string, id int64, 
 		return nil, err
 	}
 	if strings.TrimSpace(item.Translation) == "" && strings.TrimSpace(item.Source) != "" {
-		title, err := translation.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), cfg["jav_title_translation_prompt"], item.Source, nil)
+		title, err := translation.Translate(ctx, translation.ActiveProvider(cfg), translation.ActiveProfile(cfg), translation.PromptFor(cfg), item.Source, nil)
 		if err != nil {
 			return nil, err
 		}

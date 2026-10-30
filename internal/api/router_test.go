@@ -1,16 +1,23 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
+
+// errWindowsPrivilegeNotHeld is Windows' ERROR_PRIVILEGE_NOT_HELD, which
+// os.Symlink reports when the process lacks the symlink privilege.
+const errWindowsPrivilegeNotHeld = syscall.Errno(1314)
 
 func TestIndexHTMLIgnoresStaleBrowserValidators(t *testing.T) {
 	deps := newTestDependencies()
@@ -165,6 +172,12 @@ func TestFrontendStaticFileCannotEscapeStaticDirectory(t *testing.T) {
 		t.Fatalf("write secret: %v", err)
 	}
 	if err := os.Symlink(secretPath, filepath.Join(staticDir, "secret.txt")); err != nil {
+		// Windows only allows symlinks once Developer Mode or an elevated
+		// process enables the privilege; the escape check still runs on the
+		// platforms that can create the link.
+		if runtime.GOOS == "windows" && errors.Is(err, errWindowsPrivilegeNotHeld) {
+			t.Skipf("creating symlinks requires the Windows symlink privilege: %v", err)
+		}
 		t.Fatalf("create symlink: %v", err)
 	}
 

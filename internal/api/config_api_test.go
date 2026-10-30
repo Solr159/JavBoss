@@ -612,3 +612,67 @@ func TestBrowserResumePlaybackSettingPersists(t *testing.T) {
 		})
 	}
 }
+
+func TestUpdateConfigPersistsAutoSubtitleSettings(t *testing.T) {
+	deps := newTestDependencies()
+	gin.SetMode(gin.TestMode)
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "config.db"))
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	sqlDB, err := database.DB()
+	if err != nil {
+		t.Fatalf("database handle: %v", err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	deps.database = database
+	deps.bindDatabase(t)
+
+	router := gin.New()
+	router.PATCH("/config", updateConfig)
+	router.GET("/config", getConfig)
+
+	readConfig := func() map[string]string {
+		t.Helper()
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/config", nil))
+		if response.Code != http.StatusOK {
+			t.Fatalf("get config status=%d body=%s", response.Code, response.Body)
+		}
+		var config map[string]string
+		if err := json.Unmarshal(response.Body.Bytes(), &config); err != nil {
+			t.Fatal(err)
+		}
+		return config
+	}
+
+	defaults := readConfig()
+	if defaults["autosub_auto_enabled"] != "false" || defaults["autosub_auto_language"] != "Chinese Simplified" {
+		t.Fatalf("unexpected defaults: enabled=%q language=%q", defaults["autosub_auto_enabled"], defaults["autosub_auto_language"])
+	}
+
+	patch := func(body string, wantStatus int) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, req)
+		if response.Code != wantStatus {
+			t.Fatalf("patch status=%d want=%d body=%s", response.Code, wantStatus, response.Body)
+		}
+	}
+
+	patch(`{"autosub_auto_enabled":true,"autosub_auto_language":" English "}`, http.StatusOK)
+	saved := readConfig()
+	if saved["autosub_auto_enabled"] != "true" || saved["autosub_auto_language"] != "English" {
+		t.Fatalf("saved settings: enabled=%q language=%q", saved["autosub_auto_enabled"], saved["autosub_auto_language"])
+	}
+
+	patch(`{"autosub_auto_language":"   "}`, http.StatusOK)
+	reset := readConfig()
+	if reset["autosub_auto_language"] != "Chinese Simplified" {
+		t.Fatalf("empty language should reset to default, got %q", reset["autosub_auto_language"])
+	}
+
+	patch(`{"autosub_auto_language":"`+strings.Repeat("x", 65)+`"}`, http.StatusBadRequest)
+}

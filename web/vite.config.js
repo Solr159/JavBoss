@@ -26,6 +26,7 @@ export default defineConfig({
       '/downloads': backendProxy(),
       '/extension': backendProxy(),
       '/jav': backendProxy(),
+      '/autosub': backendProxy(),
       '/config': backendProxy(),
       '/tools': backendProxy(),
     },

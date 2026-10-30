@@ -94,6 +94,10 @@ export default function VideoDisplaySettings({
   onWaterfallDefaultChange,
   watchTimeIconMinutesInput = 30,
   onWatchTimeIconMinutesChange,
+  autoSubtitleEnabledInput = false,
+  onAutoSubtitleEnabledChange,
+  autoSubtitleLanguageInput = 'Chinese Simplified',
+  onAutoSubtitleLanguageChange,
 }) {
   return (
     <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
@@ -134,6 +138,25 @@ export default function VideoDisplaySettings({
           onChange={onHideJavChange}
         />
       </div>
+      <div className={rowClassName}>
+        <span>{zh('自动下载字幕', 'Auto-download subtitles')}</span>
+        <SettingsSwitch
+          label={zh('自动下载字幕', 'Auto-download subtitles')}
+          checked={autoSubtitleEnabledInput}
+          onChange={onAutoSubtitleEnabledChange}
+        />
+      </div>
+      <label className={rowClassName}>
+        <span>{zh('字幕语言', 'Subtitle language')}</span>
+        <input
+          type="text"
+          maxLength={64}
+          value={autoSubtitleLanguageInput}
+          placeholder="Chinese Simplified"
+          onChange={(event) => onAutoSubtitleLanguageChange?.(event.target.value)}
+          className={controlClassName}
+        />
+      </label>
       <div className="space-y-2 pt-3">
         <div className="text-sm font-medium text-slate-700">{zh('默认排序', 'Default sort')}</div>
         <div className="space-y-2">

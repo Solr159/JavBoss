@@ -1,0 +1,10 @@
+# Keep line endings identical on every platform. gofmt, Prettier and the mpv
+# asset checks all compare exact bytes, so a Windows checkout must produce the
+# same LF content that Linux and macOS produce.
+* text=auto eol=lf
+
+# Binary assets must never be converted.
+*.png binary
+*.ico binary
+*.ttf binary
+*.syso binary

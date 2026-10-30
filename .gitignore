@@ -15,3 +15,8 @@ release/
 temp
 internal/bin/
 bin
+/javboss-server
+/mingw*
+/sqlite3.zip
+/ucrt.zip
+/nul

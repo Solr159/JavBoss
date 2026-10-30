@@ -1,10 +1,6 @@
 import { getJavDisplayTitle } from '@/utils/jav'
 import { useStore } from '@/store'
-import {
-  preferChineseTitle,
-  preferChineseSeries,
-  getSeriesDisplayName,
-} from '@/features/jav/titleTranslation'
+import { preferChineseSeries, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useEffect, useState } from 'react'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
@@ -520,7 +516,7 @@ function IdolOrderList({
   preferChineseName = false,
 }) {
   const preferChinese = useStore((state) => preferChineseSeries(state.config))
-  const translateTitle = useStore((state) => preferChineseTitle(state.config))
+  const javConfig = useStore((state) => state.config)
   if (!idols.length) {
     return (
       <div className="rounded border border-dashed border-gray-200 px-3 py-8 text-center text-sm text-gray-500">
@@ -534,7 +530,7 @@ function IdolOrderList({
       onReorder={onReorder}
       onReorderCommit={onReorderCommit}
       getLabel={(idol) =>
-        favoriteItemLabel(labels.entityType, idol, preferChineseName, preferChinese, translateTitle)
+        favoriteItemLabel(labels.entityType, idol, preferChineseName, preferChinese, javConfig)
       }
       getMeta={(idol) => labels.itemMeta(idol)}
       renderLeading={(idol) => (
@@ -612,14 +608,14 @@ function favoriteManageLabels(entityType) {
   }
 }
 
-function favoriteItemLabel(entityType, item, preferChineseName, preferChinese, translateTitle) {
+function favoriteItemLabel(entityType, item, preferChineseName, preferChinese, javConfig) {
   if (entityType === 'series')
     return getSeriesDisplayName(item, preferChinese) || zh('未知系列', 'Unknown series')
   if (entityType === 'idol') {
     return getIdolDisplayName(item, preferChineseName)
   }
   if (entityType === 'jav') {
-    const title = getJavDisplayTitle(item, translateTitle)
+    const title = getJavDisplayTitle(item, javConfig)
     return [...new Set([item?.code, title])].filter(Boolean).join(' ')
   }
   const name = String(item?.name || '').trim()

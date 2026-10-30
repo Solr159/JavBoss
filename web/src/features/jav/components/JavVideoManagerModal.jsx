@@ -1,4 +1,3 @@
-import { preferChineseTitle } from '@/features/jav/titleTranslation'
 import { useState, useEffect } from 'react'
 import { getJavDisplayTitle } from '@/utils/jav'
 import { useStore, videoSelectionKey } from '@/store'
@@ -22,7 +21,7 @@ export function JavVideoManagerModal({
   onTagClick,
 }) {
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  const translateTitle = useStore((state) => preferChineseTitle(state.config))
+  const javConfig = useStore((state) => state.config)
 
   useEffect(() => {
     if (open) setSelectedIds(new Set())
@@ -31,7 +30,7 @@ export function JavVideoManagerModal({
   if (!open) return null
 
   const videos = Array.isArray(item?.videos) ? item.videos : []
-  const title = getJavDisplayTitle(item, translateTitle)
+  const title = getJavDisplayTitle(item, javConfig)
   const toggleSelectVideo = (video) => {
     const key = videoSelectionKey(video)
     if (!key) return

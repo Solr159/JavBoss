@@ -1,4 +1,4 @@
-import { apiFetch, apiError, jsonHeaders } from '@/api/client'
+import { apiFetch, apiError, jsonHeaders, parseJSONResponse } from '@/api/client'
 
 export async function fetchVideos({
   limit = 25,
@@ -186,6 +186,29 @@ export async function deleteVideoLocation(videoId, locationId) {
   if (!res.ok) {
     throw await apiError(res)
   }
+}
+
+export async function fetchAutoSubStatus() {
+  const res = await apiFetch('/autosub/status')
+  return parseJSONResponse(res)
+}
+
+export async function downloadVideoSubtitles(payload) {
+  const res = await apiFetch('/autosub/download', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload),
+  })
+  return parseJSONResponse(res)
+}
+
+export async function translateVideoSubtitles(payload) {
+  const res = await apiFetch('/autosub/translate', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(payload),
+  })
+  return parseJSONResponse(res)
 }
 
 // Indexed subdirectories include all ancestors and are grouped by library root.

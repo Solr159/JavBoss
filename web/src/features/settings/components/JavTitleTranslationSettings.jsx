@@ -23,7 +23,7 @@ export default function JavTitleTranslationSettings({
   const [models, setModels] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [draftCaps, setCaps] = useState(emptyCaps)
+  const [draftCaps, setDraftCaps] = useState(emptyCaps)
   const caps = readOnly ? parseTranslationConfig(savedCapabilities, emptyCaps) : draftCaps
   const [checkingCaps, setCheckingCaps] = useState(true)
   const [revision, setRevision] = useState(0)
@@ -33,10 +33,16 @@ export default function JavTitleTranslationSettings({
   const custom = providerID === 'custom'
   const apiKey = value.apiKey.trim()
 
+  // Display language: zh = Chinese translation, en = English, ja = original Japanese
+  const displayLanguage = value.jav_title_language || 'zh'
+  const isEnglish = displayLanguage === 'en'
+  const promptValue = isEnglish ? value.promptEn : value.prompt
+  const defaultPromptValue = isEnglish ? value.defaultPromptEn : value.defaultPrompt
+
   useEffect(() => {
     if (readOnly) return undefined
     const controller = new AbortController()
-    setCaps(emptyCaps)
+    setDraftCaps(emptyCaps)
     setCheckingCaps(true)
     const timer = setTimeout(async () => {
       try {
@@ -49,7 +55,7 @@ export default function JavTitleTranslationSettings({
           discover: false,
           signal: controller.signal,
         })
-        if (!controller.signal.aborted) setCaps(result.capabilities || emptyCaps)
+        if (!controller.signal.aborted) setDraftCaps(result.capabilities || emptyCaps)
       } catch {
         // Unknown capability stays explicit; discovery errors are shown separately.
       } finally {
@@ -205,80 +211,90 @@ export default function JavTitleTranslationSettings({
             ))}
           </select>
         )}
-        <div className="flex min-w-0 items-end gap-2">
-          <div {...getRootProps()} className="min-w-0 flex-1 space-y-1.5">
-            <label {...getInputLabelProps()} className="block font-medium text-slate-700">
-              {zh('模型', 'Model')}
-            </label>
-            <div ref={setAnchorEl} className="relative">
-              <input
-                {...getInputProps()}
-                className={inputClass + ' pr-9'}
-                placeholder={zh(
-                  '选择、搜索或直接输入模型名称',
-                  'Choose, search or enter a model ID'
-                )}
-              />
-              <button
-                {...getPopupIndicatorProps()}
-                type="button"
-                aria-label={zh('选择模型', 'Choose model')}
-                className="absolute inset-y-0 right-0 w-9 text-slate-500"
-              >
-                <span aria-hidden="true">{popupOpen ? '▴' : '▾'}</span>
-              </button>
-            </div>
-            <Popper
-              open={popupOpen && Boolean(anchorEl)}
-              anchorEl={anchorEl}
-              placement="bottom-start"
-              style={{ width: anchorEl?.clientWidth, zIndex: 1500 }}
-            >
-              <div className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
-                {groupedOptions.length ? (
-                  <ul {...getListboxProps()} className="max-h-60 overflow-auto py-1">
-                    {groupedOptions.map((option, index) => {
-                      const { key, ...props } = getOptionProps({ option, index })
-                      return (
-                        <li
-                          key={key}
-                          {...props}
-                          className="cursor-pointer break-all px-3 py-2 aria-selected:bg-blue-50 [&.Mui-focused]:bg-slate-100"
-                        >
-                          {option}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                ) : (
-                  <p role="status" className="px-3 py-2 text-slate-500">
-                    {loading
-                      ? zh('正在加载模型列表…', 'Loading models…')
-                      : !apiKey && !value.hasApiKey && !custom
-                        ? zh(
-                            '请先填写 API Key，也可直接输入模型名称。',
-                            'Enter an API key or type a model ID.'
-                          )
-                        : zh(
-                            '暂无匹配模型，可直接输入模型名称。',
-                            'No matching models. You can type a model ID.'
-                          )}
-                  </p>
-                )}
-              </div>
-            </Popper>
-          </div>
-          <button
-            type="button"
-            disabled={loading || (!apiKey && !value.hasApiKey && !custom)}
-            aria-label={zh('刷新模型列表', 'Refresh model list')}
-            title={zh('刷新模型列表', 'Refresh model list')}
-            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
-            onClick={() => setRevision((current) => current + 1)}
+        {field(
+          zh('显示语言', 'Display Language'),
+          <select
+            className={inputClass}
+            value={displayLanguage}
+            onChange={(e) => onChange({ jav_title_language: e.target.value })}
           >
-            <RefreshOutlinedIcon className={loading ? 'animate-spin' : ''} sx={{ fontSize: 18 }} />
-          </button>
+            <option value="zh">{zh('中文', 'Chinese (简体)')}</option>
+            <option value="en">{zh('English', 'English')}</option>
+            <option value="ja">{zh('日文', 'Japanese (日本語)')}</option>
+          </select>
+        )}
+      </div>
+
+      <div className="flex min-w-0 items-end gap-2">
+        <div {...getRootProps()} className="min-w-0 flex-1 space-y-1.5">
+          <label {...getInputLabelProps()} className="block font-medium text-slate-700">
+            {zh('模型', 'Model')}
+          </label>
+          <div ref={setAnchorEl} className="relative">
+            <input
+              {...getInputProps()}
+              className={inputClass + ' pr-9'}
+              placeholder={zh('选择、搜索或直接输入模型名称', 'Choose, search or enter a model ID')}
+            />
+            <button
+              {...getPopupIndicatorProps()}
+              type="button"
+              aria-label={zh('选择模型', 'Choose model')}
+              className="absolute inset-y-0 right-0 w-9 text-slate-500"
+            >
+              <span aria-hidden="true">{popupOpen ? '▴' : '▾'}</span>
+            </button>
+          </div>
+          <Popper
+            open={popupOpen && Boolean(anchorEl)}
+            anchorEl={anchorEl}
+            placement="bottom-start"
+            style={{ width: anchorEl?.clientWidth, zIndex: 1500 }}
+          >
+            <div className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
+              {groupedOptions.length ? (
+                <ul {...getListboxProps()} className="max-h-60 overflow-auto py-1">
+                  {groupedOptions.map((option, index) => {
+                    const { key, ...props } = getOptionProps({ option, index })
+                    return (
+                      <li
+                        key={key}
+                        {...props}
+                        className="cursor-pointer break-all px-3 py-2 aria-selected:bg-blue-50 [&.Mui-focused]:bg-slate-100"
+                      >
+                        {option}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p role="status" className="px-3 py-2 text-slate-500">
+                  {loading
+                    ? zh('正在加载模型列表…', 'Loading models…')
+                    : !apiKey && !value.hasApiKey && !custom
+                      ? zh(
+                          '请先填写 API Key，也可直接输入模型名称。',
+                          'Enter an API key or type a model ID.'
+                        )
+                      : zh(
+                          '暂无匹配模型，可直接输入模型名称。',
+                          'No matching models. You can type a model ID.'
+                        )}
+                </p>
+              )}
+            </div>
+          </Popper>
         </div>
+        <button
+          type="button"
+          disabled={loading || (!apiKey && !value.hasApiKey && !custom)}
+          aria-label={zh('刷新模型列表', 'Refresh model list')}
+          title={zh('刷新模型列表', 'Refresh model list')}
+          className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+          onClick={() => setRevision((current) => current + 1)}
+        >
+          <RefreshOutlinedIcon className={loading ? 'animate-spin' : ''} sx={{ fontSize: 18 }} />
+        </button>
       </div>
       <div className="relative">
         {field(
@@ -519,14 +535,20 @@ export default function JavTitleTranslationSettings({
               className={inputClass}
               rows={5}
               maxLength={8192}
-              value={value.prompt}
-              onChange={(e) => onChange({ prompt: e.target.value })}
+              value={promptValue}
+              onChange={(e) =>
+                onChange(isEnglish ? { promptEn: e.target.value } : { prompt: e.target.value })
+              }
             />
           )}
           <button
             type="button"
             className="text-xs text-blue-600 underline"
-            onClick={() => onChange({ prompt: value.defaultPrompt })}
+            onClick={() =>
+              onChange(
+                isEnglish ? { promptEn: defaultPromptValue } : { prompt: defaultPromptValue }
+              )
+            }
           >
             {zh('恢复默认提示词', 'Restore default prompt')}
           </button>

@@ -3,6 +3,7 @@ import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import SwapVertIcon from '@mui/icons-material/SwapVert'
 import AppModal from '@/shared/ui/AppModal'
+import AutoSubtitleSweepControl from '@/features/settings/components/AutoSubtitleSweepControl'
 import VideoDisplaySettings from '@/features/settings/components/VideoDisplaySettings'
 import { VIDEO_SORT_OPTIONS } from '@/constants/video'
 import {
@@ -398,6 +399,8 @@ export default function DisplaySettingsModal({
         videoSettings.onHideJavChange(false)
         videoSettings.onWaterfallDefaultChange(false)
         videoSettings.onWatchTimeIconMinutesChange(30)
+        videoSettings.onAutoSubtitleEnabledChange(false)
+        videoSettings.onAutoSubtitleLanguageChange('Chinese Simplified')
         break
       case 'idol':
         onIdolPageSizeChange?.(24)
@@ -841,6 +844,14 @@ export default function DisplaySettingsModal({
             </SettingsSection>
           ) : null}
         </fieldset>
+        {activeTab === 'video' ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
+            <div className="mb-2 text-sm font-medium text-slate-700">
+              {zh('自动字幕扫描', 'Auto subtitle sweep')}
+            </div>
+            <AutoSubtitleSweepControl dirty={editing} />
+          </div>
+        ) : null}
       </div>
 
       <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">

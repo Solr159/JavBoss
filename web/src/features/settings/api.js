@@ -39,6 +39,18 @@ export async function updateConfig(payload) {
   return res.json()
 }
 
+export async function fetchAutoSubtitleSweep({ signal } = {}) {
+  const res = await apiFetch('/autosub/auto/status', { signal, cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
+export async function runAutoSubtitleSweep() {
+  const res = await apiFetch('/autosub/auto/run', { method: 'POST' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
 export async function fetchTools() {
   const res = await apiFetch('/tools', { cache: 'no-store' })
   if (!res.ok) throw await apiError(res)

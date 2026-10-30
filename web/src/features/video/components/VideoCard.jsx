@@ -4,10 +4,15 @@ import { Popover } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
+import TranslateOutlinedIcon from '@mui/icons-material/TranslateOutlined'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
-import { revealVideoLocation } from '@/features/video/api'
+import {
+  revealVideoLocation,
+  downloadVideoSubtitles,
+  translateVideoSubtitles,
+} from '@/features/video/api'
 import { useStore } from '@/store'
 import { displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
 import {
@@ -125,6 +130,117 @@ export default function VideoCard({
     event.stopPropagation()
     closeEditMenu()
     onDeleteVideo?.(video)
+  }
+
+  const buildSubtitlePayload = () => ({
+    path: videoPath,
+    name: video?.filename || displayName || '',
+    size_bytes: video?.size ?? 0,
+    modified_time: video?.modified_at ? Math.floor(Date.parse(video.modified_at) / 1000) || 0 : 0,
+    duration_seconds: Number(video?.duration_sec) || 0,
+  })
+
+  const alertGatewayFailure = (err) => {
+    console.error(err)
+    window.alert(
+      zh(
+        '调用后端接口失败，请确认后端已启动，并运行了 AutoSub 网关（python auto_gateway.py）',
+        'Failed to call the backend API. Make sure the backend is running and the AutoSub gateway is up (python auto_gateway.py).'
+      )
+    )
+  }
+
+  const handleDownloadSubtitles = async (event) => {
+    event.stopPropagation()
+    closeEditMenu()
+    if (!videoPath) {
+      window.alert(
+        zh(
+          '无法获取视频路径，无法下载字幕',
+          'Cannot get video path; subtitles cannot be downloaded'
+        )
+      )
+      return
+    }
+    try {
+      const data = await downloadVideoSubtitles({
+        ...buildSubtitlePayload(),
+        language: 'Chinese Simplified',
+      })
+      if (data.success) {
+        window.alert(
+          zh(
+            '字幕下载完成：' + String(data.subtitle_path || ''),
+            'Subtitles downloaded: ' + String(data.subtitle_path || '')
+          )
+        )
+      } else {
+        const failures = Array.isArray(data.failures) ? data.failures.join('\n') : ''
+        window.alert(
+          zh(
+            '字幕下载失败：' +
+              String(data.error || data.failure_detail || 'unknown error') +
+              (failures ? '\n' + failures : ''),
+            'Subtitle download failed: ' +
+              String(data.error || data.failure_detail || 'unknown error') +
+              (failures ? '\n' + failures : '')
+          )
+        )
+      }
+    } catch (err) {
+      alertGatewayFailure(err)
+    }
+  }
+
+  const handleTranslateSubtitles = async (event) => {
+    event.stopPropagation()
+    closeEditMenu()
+    if (!videoPath) {
+      window.alert(
+        zh(
+          '无法获取视频路径，无法翻译字幕',
+          'Cannot get video path; subtitles cannot be translated'
+        )
+      )
+      return
+    }
+    try {
+      const downloaded = await downloadVideoSubtitles({
+        ...buildSubtitlePayload(),
+        language: 'Japanese',
+      })
+      if (!downloaded.success || !downloaded.subtitle_path) {
+        window.alert(
+          zh(
+            '未找到可翻译的字幕：' + String(downloaded.error || 'unknown error'),
+            'No subtitle available to translate: ' + String(downloaded.error || 'unknown error')
+          )
+        )
+        return
+      }
+      const data = await translateVideoSubtitles({
+        ...buildSubtitlePayload(),
+        subtitle_path: downloaded.subtitle_path,
+        params: { target_language: 'English', source_language: 'auto' },
+      })
+      if (data.success) {
+        window.alert(
+          zh(
+            '英文字幕已生成：' + String(data.subtitle_path || ''),
+            'English subtitles saved: ' + String(data.subtitle_path || '')
+          )
+        )
+      } else {
+        window.alert(
+          zh(
+            '字幕翻译失败：' + String(data.error || 'unknown error'),
+            'Subtitle translation failed: ' + String(data.error || 'unknown error')
+          )
+        )
+      }
+    } catch (err) {
+      alertGatewayFailure(err)
+    }
   }
 
   return (
@@ -353,6 +469,33 @@ export default function VideoCard({
           >
             <DeleteOutlineIcon className="h-4 w-4" fontSize="inherit" />
             <span>{zh('删除', 'Delete')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDownloadSubtitles}
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-blue-600 hover:bg-blue-50"
+          >
+            <svg
+              className="h-4 w-4"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+            </svg>
+            <span>{zh('下载字幕', 'Download subtitles')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleTranslateSubtitles}
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-blue-600 hover:bg-blue-50"
+          >
+            <TranslateOutlinedIcon className="h-4 w-4" fontSize="inherit" />
+            <span>{zh('英文字幕', 'English subtitles')}</span>
           </button>
         </div>
       </Popover>

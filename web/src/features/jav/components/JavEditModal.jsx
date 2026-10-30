@@ -1,5 +1,6 @@
 import {
-  preferChineseTitle,
+  isTitleTranslationEnabled,
+  titleLanguage,
   preferChineseSeries,
   getSeriesDisplayName,
   parseTranslationConfig,
@@ -65,6 +66,8 @@ function JavEditForm({
   const tagOptions = useStore((state) => state.javTagOptions || [])
   const loadJavTags = useStore((state) => state.loadJavTags)
   const showSimplifiedTags = useStore((state) => configFlag(state.config?.jav_tag_show_simplified))
+  const displayLanguage = useStore((state) => titleLanguage(state.config))
+  const translatedTitleKey = displayLanguage === 'en' ? 'en_title' : 'zh_title'
   const [title, setTitle] = useState('')
   const [zhTitle, setZhTitle] = useState('')
   const [refreshedTitle, setRefreshedTitle] = useState(null)
@@ -243,7 +246,7 @@ function JavEditForm({
   useEffect(() => {
     let cancelled = false
     setTitle(editableJavTitle(item))
-    setZhTitle(item?.zh_title || '')
+    setZhTitle(item?.[translatedTitleKey] || '')
     setRefreshedTitle(null)
     setCoverUrl('')
     setSelectedTagIds(
@@ -290,7 +293,7 @@ function JavEditForm({
     return () => {
       cancelled = true
     }
-  }, [currentScrapedTags, currentSeries?.id, item, loadJavTags])
+  }, [currentScrapedTags, currentSeries?.id, item, loadJavTags, translatedTitleKey])
 
   useEffect(() => {
     let cancelled = false
@@ -433,7 +436,7 @@ function JavEditForm({
         title: sourceTitle,
         thinking,
       })
-      setZhTitle(result.zh_title)
+      setZhTitle(result[translatedTitleKey] || '')
       setRefreshedTitle(sourceTitle)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -459,8 +462,9 @@ function JavEditForm({
     try {
       const payload = {
         title: title.trim(),
-        ...(zhTitle.trim() !== (item?.zh_title || '').trim() || refreshedTitle === title.trim()
-          ? { zh_title: zhTitle.trim() }
+        ...(zhTitle.trim() !== (item?.[translatedTitleKey] || '').trim() ||
+        refreshedTitle === title.trim()
+          ? { [translatedTitleKey]: zhTitle.trim() }
           : {}),
         ...(trimmedCoverUrl ? { cover_url: trimmedCoverUrl } : {}),
         tag_ids: selectedTagIds.map((id) => Number(id)).filter(Boolean),
@@ -520,7 +524,7 @@ function JavEditForm({
 
   const creatingOption =
     creatingIdol || creatingScrapedTag || creatingUserTag || deleting || translating
-  const translationEnabled = useStore((state) => preferChineseTitle(state.config))
+  const translationEnabled = useStore((state) => isTitleTranslationEnabled(state.config))
   const translationActions = !translationEnabled
     ? []
     : [
@@ -589,7 +593,9 @@ function JavEditForm({
               className="block text-[13px] font-semibold text-black"
               htmlFor={`jav-zh-title-${item?.id || 'new'}`}
             >
-              {zh('中文标题', 'Chinese title')}
+              {translatedTitleKey === 'en_title'
+                ? zh('英文标题', 'English title')
+                : zh('中文标题', 'Chinese title')}
             </label>
             <div className="flex flex-wrap items-center gap-2">
               {translationActions.map(({ mode, label, thinking }) => {

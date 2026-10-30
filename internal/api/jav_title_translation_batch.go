@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"io"
+	dbpkg "javboss/internal/db"
 	"javboss/internal/jav/translation"
 	"net/http"
 
@@ -19,7 +20,15 @@ func getTranslationBatch(c *gin.Context, domain textTranslationDomain) {
 }
 
 func previewTranslationBatch(c *gin.Context, domain textTranslationDomain) {
-	result, err := translation.PreviewBatch(c.Request.Context(), domain.Series, c.DefaultQuery("scope", "missing"))
+	if !domain.Series {
+		cfg, err := dbpkg.Default().ListConfig(c.Request.Context())
+		if err != nil {
+			domain.error(c, 500, "读取翻译配置失败", "Failed to load translation settings")
+			return
+		}
+		domain = domain.withConfig(cfg)
+	}
+	result, err := translation.PreviewBatch(c.Request.Context(), domain.Series, c.DefaultQuery("scope", "missing"), domain.Language)
 	if err != nil {
 		status, zh, en := translation.ErrorDetails(err)
 		domain.error(c, status, zh, en)

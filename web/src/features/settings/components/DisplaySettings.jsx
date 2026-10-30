@@ -56,6 +56,12 @@ export default function DisplaySettings({ onClose, onError, onWaterfallChange, i
         watchTimeIconMinutesInput: draft.videoWatchTimeIconMinutesInput,
         onWatchTimeIconMinutesChange: (value) =>
           setDraft((current) => ({ ...current, videoWatchTimeIconMinutesInput: value })),
+        autoSubtitleEnabledInput: draft.autoSubtitleEnabledInput,
+        onAutoSubtitleEnabledChange: (value) =>
+          setDraft((current) => ({ ...current, autoSubtitleEnabledInput: value })),
+        autoSubtitleLanguageInput: draft.autoSubtitleLanguageInput,
+        onAutoSubtitleLanguageChange: (value) =>
+          setDraft((current) => ({ ...current, autoSubtitleLanguageInput: value })),
       }}
       javPageSizeInput={draft.javPageSizeInput}
       onJavPageSizeChange={(value) =>
