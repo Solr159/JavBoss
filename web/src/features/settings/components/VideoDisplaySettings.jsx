@@ -118,9 +118,9 @@ export default function VideoDisplaySettings({
         />
       </div>
       <div className={rowClassName}>
-        <span>{zh('显示目录栏', 'Show directory bar')}</span>
+        <span>{zh('显示底部目录栏', 'Show bottom directory bar')}</span>
         <SettingsSwitch
-          label={zh('显示目录栏', 'Show directory bar')}
+          label={zh('显示底部目录栏', 'Show bottom directory bar')}
           checked={showDirectoryBarInput}
           onChange={onShowDirectoryBarChange}
         />

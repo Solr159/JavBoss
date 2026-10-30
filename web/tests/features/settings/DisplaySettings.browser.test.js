@@ -12,7 +12,7 @@ test(
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=video` })
     const bar = `document.querySelector('nav[aria-label="Current video directory"]')`
     const dialog = `document.querySelector('[role="dialog"]')`
-    const toggle = `${dialog}.querySelector('[role="switch"][aria-label="Show directory bar"]')`
+    const toggle = `${dialog}.querySelector('[role="switch"][aria-label="Show bottom directory bar"]')`
     const openSettings = async () => {
       await evaluate(`document.querySelector('aside button[aria-label="Display"]').click()`)
       await waitFor(toggle)
