@@ -28,6 +28,8 @@ export default function useVideoSelection({
     selectedTags,
     searchTerm,
     videoHideJav,
+    videoDirectoryId,
+    videoSubdirectory,
   } = useStore(
     useShallow((state) => ({
       selectedVideoIds: state.selectedVideoIds,
@@ -43,6 +45,8 @@ export default function useVideoSelection({
       selectedTags: state.selectedTags,
       searchTerm: state.searchTerm,
       videoHideJav: state.videoHideJav,
+      videoDirectoryId: state.videoDirectoryId,
+      videoSubdirectory: state.videoSubdirectory,
     }))
   )
   const [selectionOpsOpen, setSelectionOpsOpen] = useState(false)
@@ -416,6 +420,8 @@ export default function useVideoSelection({
         search: searchTerm || '',
         sort: effectiveSort,
         hideJav: videoHideJav,
+        directoryId: videoDirectoryId,
+        subdirectory: videoSubdirectory,
       })
       const batch = Array.isArray(response?.items) ? response.items : []
       items.push(...batch)
@@ -428,7 +434,18 @@ export default function useVideoSelection({
     }
 
     return items
-  }, [randomMode, searchTerm, selectedTags, sortOrder, total, videoHideJav, videoTempSort, videos])
+  }, [
+    randomMode,
+    searchTerm,
+    selectedTags,
+    sortOrder,
+    total,
+    videoHideJav,
+    videoDirectoryId,
+    videoSubdirectory,
+    videoTempSort,
+    videos,
+  ])
 
   const handleSelectVideoPage = useCallback(() => {
     const count = addVideosToSelection(videos)

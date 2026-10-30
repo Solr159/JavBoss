@@ -186,14 +186,14 @@ func TestListVideosCanHideRecognizedJav(t *testing.T) {
 		t.Fatalf("default tag count should include recognized jav: %#v", defaultTags)
 	}
 
-	hiddenItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, true)
+	hiddenItems, err := deps.store.ListVideos(ctx, 20, 0, nil, "", "recent", nil, nil, VideoFilter{HideJav: true})
 	if err != nil {
 		t.Fatalf("ListVideos hide jav: %v", err)
 	}
 	if len(hiddenItems) != 1 || hiddenItems[0].ID != plainVideo.ID {
 		t.Fatalf("hide jav list should return only plain videos: %#v", hiddenItems)
 	}
-	hiddenCount, err := deps.store.CountVideos(ctx, nil, "", nil, true)
+	hiddenCount, err := deps.store.CountVideos(ctx, nil, "", nil, VideoFilter{HideJav: true})
 	if err != nil {
 		t.Fatalf("CountVideos hide jav: %v", err)
 	}

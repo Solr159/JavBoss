@@ -1,6 +1,6 @@
 import Tooltip from '@/shared/ui/Tooltip'
 import { useState } from 'react'
-import { IconButton, Popover } from '@mui/material'
+import { Popover } from '@mui/material'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline'
 import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined'
@@ -21,6 +21,9 @@ import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { MovieEdit } from '@mui/icons-material'
 import WatchTimeIcons from '@/features/playback/components/WatchTimeIcons'
 import VideoThumbnail from '@/features/video/components/VideoThumbnail'
+
+const coverButtonClassName =
+  'flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85 disabled:cursor-not-allowed disabled:opacity-40'
 
 export default function VideoCard({
   video,
@@ -55,6 +58,7 @@ export default function VideoCard({
   const sizeText = formatBytes(meta.size || video?.size)
   const directoryPath = video?.directory?.path || video?.directory_path || ''
   const videoPath = video?.path || ''
+  const relativeDirectoryPath = videoPath.split(/[/\\]/).slice(0, -1).join('/') || '.'
   const fullPath = buildVideoFullPath(video)
   const displayPath = displayHostPath(fullPath, useHostPaths)
   const canOpen = Boolean(directoryPath && videoPath)
@@ -125,27 +129,27 @@ export default function VideoCard({
 
   return (
     <div
-      className={`card-hover-scope video-card group relative flex flex-col overflow-hidden rounded-xl border bg-white shadow transition-all ${
+      className={`video-card relative flex flex-col overflow-hidden rounded-lg border bg-white shadow transition-all ${
         checked ? 'border-sky-400 ring-2 ring-sky-200' : 'border-gray-200 hover:border-gray-300'
       }`}
     >
-      {showSelection ? (
-        <div className={`video-card-select ${checked ? 'is-visible' : ''}`}>
-          <input
-            id={inputId}
-            type="checkbox"
-            checked={checked}
-            onChange={onToggle}
-            className="video-select-check"
-            onClick={(e) => e.stopPropagation()}
-            onPointerUp={(e) => {
-              e.currentTarget.blur()
-            }}
-            aria-label={zh(`选择 ${displayName}`, `Select ${displayName}`)}
-          />
-        </div>
-      ) : null}
-      <div className="relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200">
+      <div className="card-hover-scope video-card-cover group/cover relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200">
+        {showSelection ? (
+          <div className={`video-card-select ${checked ? 'is-visible' : ''}`}>
+            <input
+              id={inputId}
+              type="checkbox"
+              checked={checked}
+              onChange={onToggle}
+              className="video-select-check"
+              onClick={(e) => e.stopPropagation()}
+              onPointerUp={(e) => {
+                e.currentTarget.blur()
+              }}
+              aria-label={zh(`选择 ${displayName}`, `Select ${displayName}`)}
+            />
+          </div>
+        ) : null}
         <VideoThumbnail
           src={thumbnailSrc}
           alt={displayName}
@@ -160,15 +164,112 @@ export default function VideoCard({
             {zh(`已刮削 ${javCode}`, `Scraped ${javCode}`)}
           </div>
         ) : null}
-        <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover:opacity-100">
+        <div className="card-hover-focus-visible absolute bottom-2 left-2 z-10 opacity-0 transition-opacity group-hover/cover:opacity-100">
           <button
             type="button"
             onClick={handleOpenScreenshots}
             title={zh('查看截图', 'View screenshots')}
             aria-label={zh('查看截图', 'View screenshots')}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-black/70 text-white shadow-lg shadow-black/60 hover:bg-black/85"
+            className={coverButtonClassName}
           >
-            <PhotoLibraryOutlinedIcon className="h-5 w-5 text-white" fontSize="inherit" />
+            <PhotoLibraryOutlinedIcon className="h-4 w-4 text-white" fontSize="inherit" />
+          </button>
+        </div>
+        <div className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center gap-1 opacity-0 transition-opacity group-hover/cover:opacity-100">
+          {showTagEditor ? (
+            <Tooltip title={zh('修改标签', 'Edit tags')}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenTagPicker()
+                }}
+                aria-label={zh('修改标签', 'Edit tags')}
+                className={coverButtonClassName}
+              >
+                <LocalOfferOutlinedIcon className="h-4 w-4" fontSize="inherit" />
+              </button>
+            </Tooltip>
+          ) : null}
+          {canOpenFile ? (
+            <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
+              <button
+                type="button"
+                onClick={handleOpenFile}
+                disabled={!canOpen}
+                aria-label={openFileLabel || zh('打开文件', 'Open file')}
+                className={coverButtonClassName}
+              >
+                <PlayArrowIcon className="h-4 w-4" fontSize="inherit" />
+              </button>
+            </Tooltip>
+          ) : null}
+          {canRevealFile ? (
+            <Tooltip
+              title={
+                <span className="whitespace-normal break-all">
+                  {zh(`打开所在位置：${displayPath}`, `Reveal in folder: ${displayPath}`)}
+                </span>
+              }
+            >
+              <button
+                type="button"
+                onClick={handleRevealFile}
+                disabled={!canOpen}
+                aria-label={zh('打开所在位置', 'Reveal in folder')}
+                className={coverButtonClassName}
+              >
+                <FolderOpenIcon className="h-4 w-4" fontSize="inherit" />
+              </button>
+            </Tooltip>
+          ) : null}
+          <Tooltip title={zh('编辑视频', 'Edit video')}>
+            <button
+              type="button"
+              onClick={openEditMenu}
+              aria-label={zh('编辑视频', 'Edit video')}
+              className={coverButtonClassName}
+            >
+              <MovieEdit className="h-4 w-4" fontSize="inherit" />
+            </button>
+          </Tooltip>
+          <Tooltip title={zh('刮削设置', 'Scrape settings')}>
+            <button
+              type="button"
+              onClick={handleOpenScrapeSettings}
+              aria-label={zh('刮削设置', 'Scrape settings')}
+              className={coverButtonClassName}
+            >
+              <ManageSearchIcon
+                className={`h-4 w-4 ${hasScrapeOverride ? 'text-blue-300' : ''}`}
+                fontSize="inherit"
+              />
+            </button>
+          </Tooltip>
+        </div>
+        <div className="card-hover-focus-visible pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover/cover:opacity-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              e.currentTarget.blur()
+              onPlay(video)
+            }}
+            onPointerUp={(e) => {
+              e.currentTarget.blur()
+            }}
+            className="pointer-events-auto rounded-full bg-black/60 p-2.5 hover:bg-black/80"
+            aria-label={zh('播放', 'Play')}
+            title={zh('播放', 'Play')}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="h-9 w-9"
+            >
+              <path d="M8 5v14l11-7z" />
+            </svg>
           </button>
         </div>
       </div>
@@ -182,6 +283,14 @@ export default function VideoCard({
             {displayName}
           </div>
         </div>
+        {videoPath ? (
+          <div
+            className="mt-1 truncate text-[10px] text-gray-500 sm:text-[11px]"
+            title={relativeDirectoryPath}
+          >
+            {relativeDirectoryPath}
+          </div>
+        ) : null}
         <div className="mt-2 flex min-w-0 items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
             <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
@@ -202,143 +311,51 @@ export default function VideoCard({
           </div>
           <WatchTimeIcons watchedMs={video?.watched_ms} entityType="videos" entityId={video.id} />
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-1">
-          {video.tags?.length
-            ? video.tags.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="inline-flex h-4 items-center justify-center rounded bg-orange-300 px-1 text-[10px] font-semibold text-black"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onTagClick?.(t.name)
-                  }}
-                >
-                  {t.name}
-                </button>
-              ))
-            : null}
-          {showTagEditor ? (
-            <Tooltip title={zh('修改标签', 'Edit tags')}>
-              <IconButton
-                size="small"
+        {video.tags?.length ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {video.tags.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="inline-flex h-4 items-center justify-center rounded bg-orange-300 px-1 text-[10px] font-semibold text-black"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onOpenTagPicker()
+                  onTagClick?.(t.name)
                 }}
-                aria-label={zh('修改标签', 'Edit tags')}
-                className="h-6 w-6"
               >
-                <LocalOfferOutlinedIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-          ) : null}
-          {canOpenFile ? (
-            <Tooltip title={openFileLabel || zh('用默认程序打开', 'Open with default app')}>
-              <IconButton
-                size="small"
-                onClick={handleOpenFile}
-                disabled={!canOpen}
-                aria-label={openFileLabel || zh('打开文件', 'Open file')}
-                className="h-6 w-6"
-              >
-                <PlayArrowIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-          ) : null}
-          {canRevealFile ? (
-            <Tooltip
-              title={
-                <span className="whitespace-normal break-all">
-                  {zh(`打开所在位置：${displayPath}`, `Reveal in folder: ${displayPath}`)}
-                </span>
-              }
-            >
-              <IconButton
-                size="small"
-                onClick={handleRevealFile}
-                disabled={!canOpen}
-                aria-label={zh('打开所在位置', 'Reveal in folder')}
-                className="h-6 w-6"
-              >
-                <FolderOpenIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-          ) : null}
-          <Tooltip title={zh('编辑视频', 'Edit video')}>
-            <IconButton
-              size="small"
-              onClick={openEditMenu}
-              aria-label={zh('编辑视频', 'Edit video')}
-              className="h-6 w-6"
-            >
-              <MovieEdit fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title={zh('刮削设置', 'Scrape settings')}>
-            <IconButton
-              size="small"
-              onClick={handleOpenScrapeSettings}
-              aria-label={zh('刮削设置', 'Scrape settings')}
-              className={`h-6 w-6 ${hasScrapeOverride ? 'text-blue-700' : ''}`}
-            >
-              <ManageSearchIcon fontSize="inherit" />
-            </IconButton>
-          </Tooltip>
-          <Popover
-            open={Boolean(editAnchorEl)}
-            anchorEl={editAnchorEl}
-            onClose={closeEditMenu}
-            disableScrollLock
-            anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+                {t.name}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <Popover
+        open={Boolean(editAnchorEl)}
+        anchorEl={editAnchorEl}
+        onClose={closeEditMenu}
+        disableScrollLock
+        anchorOrigin={{ vertical: 'center', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'center', horizontal: 'left' }}
+      >
+        <div className="flex min-w-[112px] flex-col p-1">
+          <button
+            type="button"
+            onClick={handleRename}
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
           >
-            <div className="flex min-w-[112px] flex-col p-1">
-              <button
-                type="button"
-                onClick={handleRename}
-                className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
-              >
-                <DriveFileRenameOutlineIcon className="h-4 w-4" fontSize="inherit" />
-                <span>{zh('重命名', 'Rename')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
-              >
-                <DeleteOutlineIcon className="h-4 w-4" fontSize="inherit" />
-                <span>{zh('删除', 'Delete')}</span>
-              </button>
-            </div>
-          </Popover>
+            <DriveFileRenameOutlineIcon className="h-4 w-4" fontSize="inherit" />
+            <span>{zh('重命名', 'Rename')}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+          >
+            <DeleteOutlineIcon className="h-4 w-4" fontSize="inherit" />
+            <span>{zh('删除', 'Delete')}</span>
+          </button>
         </div>
-      </div>
-
-      <div className="card-hover-focus-visible pointer-events-none absolute inset-0 flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            e.currentTarget.blur()
-            onPlay(video)
-          }}
-          onPointerUp={(e) => {
-            e.currentTarget.blur()
-          }}
-          className="pointer-events-auto rounded-full bg-black/60 p-3 hover:bg-black/80"
-          aria-label={zh('播放', 'Play')}
-          title={zh('播放', 'Play')}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className="h-10 w-10"
-          >
-            <path d="M8 5v14l11-7z" />
-          </svg>
-        </button>
-      </div>
+      </Popover>
     </div>
   )
 }

@@ -330,9 +330,9 @@ body.has-page-scroll .sticky-pagination {
 
 .favorite-menu-trigger--selected,
 .favorite-menu-trigger--selected:hover {
-  border-color: #fbbf24;
-  background: #fef3c7;
-  color: #92400e;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .favorite-menu-trigger[aria-expanded='true'] .favorite-menu-trigger__chevron {
@@ -1011,8 +1011,8 @@ body.has-page-scroll .sticky-pagination {
   opacity: 1;
 }
 
-.video-card:hover .video-card-select,
-.video-card:has(:focus-visible) .video-card-select,
+.video-card-cover:hover .video-card-select,
+.video-card-cover:has(:focus-visible) .video-card-select,
 .video-card-select.is-visible {
   opacity: 1;
   transform: translateY(0) scale(1);

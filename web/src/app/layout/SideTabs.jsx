@@ -56,7 +56,6 @@ export default function SideTabs({
   activeTab,
   canGoBack,
   canGoForward,
-  isJavMode,
   javPrefix = '',
   buildJavPrefixUrl,
   onBrowserBack,
@@ -66,7 +65,6 @@ export default function SideTabs({
   onOpenDisplaySettings,
   onOpenJavTagModal,
   onJavPrefixClick,
-  onOpenTagModal,
   onSelectTab,
   showDirectorySetupHint = false,
 }) {
@@ -128,11 +126,9 @@ export default function SideTabs({
         ))}
         <div className="side-tabs__nav-tools">
           <RailButton
-            badge={isJavMode ? 'JAV' : zh('视频', 'Video')}
-            badgeTone={isJavMode ? 'jav' : 'video'}
             icon={LocalOfferOutlinedIcon}
             label={zh('标签', 'Tags')}
-            onClick={isJavMode ? onOpenJavTagModal : onOpenTagModal}
+            onClick={onOpenJavTagModal}
           />
           <RailButton
             icon={NumbersRoundedIcon}

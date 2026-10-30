@@ -69,6 +69,8 @@ export default function useSectionNavigation({
         randomSeed: null,
         selectedTags: [],
         searchTerm: '',
+        videoDirectoryId: null,
+        videoSubdirectory: '',
         page: 1,
       })
       setSearchInput('')
