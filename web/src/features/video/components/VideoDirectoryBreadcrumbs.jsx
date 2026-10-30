@@ -68,18 +68,20 @@ export default function VideoDirectoryBreadcrumbs() {
 
   return (
     <>
-      <div className="h-[calc(3rem+env(safe-area-inset-bottom))]" aria-hidden="true" />
+      <div className="h-[calc(2rem+env(safe-area-inset-bottom))]" aria-hidden="true" />
       <nav
         aria-label={zh('当前视频目录', 'Current video directory')}
         className="fixed bottom-0 left-[var(--side-tabs-width)] right-0 z-40 border-t border-gray-200 bg-white pl-[var(--page-left-padding)] pr-[var(--page-right-padding)] shadow-[0_-2px_8px_rgba(15,23,42,0.04)]"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        <ol className="flex h-12 items-center gap-1 overflow-x-auto whitespace-nowrap text-xs">
+        <ol className="flex h-8 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[11px]">
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1
             return (
-              <li key={index} className="flex shrink-0 items-center gap-1">
-                {index > 0 ? <ChevronRightIcon className="text-gray-400" fontSize="small" /> : null}
+              <li key={index} className="flex shrink-0 items-center gap-0.5">
+                {index > 0 ? (
+                  <ChevronRightIcon className="text-gray-400" sx={{ fontSize: 16 }} />
+                ) : null}
                 <button
                   ref={current ? currentRef : undefined}
                   type="button"
@@ -88,9 +90,9 @@ export default function VideoDirectoryBreadcrumbs() {
                   aria-expanded={menu?.index === index}
                   onClick={(event) => setMenu({ anchor: event.currentTarget, crumb, index })}
                   title={title(crumb)}
-                  className={`inline-flex h-8 items-center gap-1.5 rounded px-2 hover:bg-blue-50 hover:text-blue-700 ${current ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
+                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 ${current ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
                 >
-                  {index === 0 ? <FolderOutlinedIcon fontSize="small" /> : null}
+                  {index === 0 ? <FolderOutlinedIcon sx={{ fontSize: 16 }} /> : null}
                   <span className="max-w-48 truncate">{crumb.label}</span>
                 </button>
               </li>
