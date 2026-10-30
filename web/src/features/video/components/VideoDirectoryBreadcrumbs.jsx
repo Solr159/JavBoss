@@ -163,6 +163,7 @@ export default function VideoDirectoryBreadcrumbs() {
             position: 'sticky',
             bottom: 0,
             zIndex: 1,
+            fontSize: '0.75rem',
             bgcolor: 'background.paper',
             borderTop: 1,
             borderColor: 'divider',
