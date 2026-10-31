@@ -64,7 +64,15 @@ export default function VideoCard({
   const directoryHref = useStore((state) =>
     buildVideoQueryLink(
       state,
-      { directoryId, subdirectory: relativeDirectoryPath, page: 1, tempSort: '' },
+      {
+        directoryId,
+        subdirectory: relativeDirectoryPath,
+        page: 1,
+        search: '',
+        tagIds: [],
+        random: false,
+        tempSort: '',
+      },
       window.location.pathname
     )
   )

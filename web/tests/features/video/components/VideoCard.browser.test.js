@@ -3,7 +3,7 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
-  'video directory links filter in place without reloading the application',
+  'video directory links reset filters in place without reloading the application',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t, {
@@ -31,7 +31,7 @@ test(
       const query = new URL(href).searchParams
       assert.equal(query.get('directory_id'), '1')
       assert.equal(query.get('subdirectory'), directory)
-      assert.equal(query.get('search'), 'test')
+      assert.equal(query.has('search'), false)
       assert.equal(query.get('page'), '1')
       assert.deepEqual(
         await evaluate(`['ctrlKey', 'metaKey', 'shiftKey', 'altKey'].map(key => {
@@ -53,7 +53,8 @@ test(
         window.testStore.getState().videoSubdirectory === ${JSON.stringify(directory)} &&
         !window.testStore.getState().loading`)
       assert.equal(await evaluate('performance.timeOrigin'), timeOrigin)
-      assert.equal(await evaluate('window.testStore.getState().searchTerm'), 'test')
+      assert.equal(await evaluate('window.testStore.getState().searchTerm'), '')
+      assert.equal(await evaluate(`document.querySelector('.filter-search input').value`), '')
       assert.equal(await evaluate('window.testStore.getState().page'), 1)
       const request = new URL(
         await evaluate(
@@ -63,7 +64,7 @@ test(
       ).searchParams
       assert.equal(request.get('directory_id'), '1')
       assert.equal(request.get('subdirectory'), directory)
-      assert.equal(request.get('search'), 'test')
+      assert.equal(request.has('search'), false)
     }
     assert.equal(
       await evaluate(`window.requests.filter(request =>

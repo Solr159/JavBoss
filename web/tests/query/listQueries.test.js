@@ -86,9 +86,21 @@ test('directory changes invalidate videos and carry through paging, waterfall an
     })
   })
   const before = queries.videoQueryKey(store.getState())
-  store.setState({ page: 4 })
+  store.setState({
+    page: 4,
+    searchTerm: 'movie',
+    selectedTags: ['favorite'],
+    videoTempSort: 'filename',
+    randomMode: true,
+    randomSeed: 42,
+  })
   store.getState().setVideoDirectoryFilter({ directory_id: 2, path: '旅行/100%_fun' })
   assert.equal(store.getState().page, 1)
+  assert.equal(store.getState().searchTerm, '')
+  assert.deepEqual(store.getState().selectedTags, [])
+  assert.equal(store.getState().videoTempSort, '')
+  assert.equal(store.getState().randomMode, false)
+  assert.equal(store.getState().randomSeed, null)
   const filtered = queries.videoQueryKey(store.getState())
   assert.notEqual(before, filtered)
   assert.notEqual(
@@ -97,6 +109,10 @@ test('directory changes invalidate videos and carry through paging, waterfall an
   )
   assert.notEqual(filtered, queries.videoQueryKey({ ...store.getState(), videoDirectoryId: 3 }))
   await store.getState().loadVideos()
+  assert.equal(requests[0].has('search'), false)
+  assert.equal(requests[0].has('tags'), false)
+  assert.equal(requests[0].has('seed'), false)
+  assert.equal(requests[0].get('sort'), 'recent')
   store.getState().setPage(2)
   await store.getState().loadVideos()
   store.setState({ waterfallModes: { video: true } })
@@ -111,8 +127,13 @@ test('directory changes invalidate videos and carry through paging, waterfall an
     assert.equal(query.get('directory_id'), '2')
     assert.equal(query.get('subdirectory'), '旅行/100%_fun')
   }
+  store.setState({ searchTerm: 'movie', selectedTags: ['favorite'], videoTempSort: 'filename' })
   store.getState().setVideoDirectoryFilter(null)
   await store.getState().loadVideos()
   assert.equal(requests.at(-1).has('directory_id'), false)
   assert.equal(requests.at(-1).has('subdirectory'), false)
+  assert.equal(requests.at(-1).has('search'), false)
+  assert.equal(requests.at(-1).has('tags'), false)
+  assert.equal(requests.at(-1).has('seed'), false)
+  assert.equal(requests.at(-1).get('sort'), 'recent')
 })

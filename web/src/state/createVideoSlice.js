@@ -46,6 +46,10 @@ export function createVideoSlice({ set, get, lists }) {
       set({
         videoDirectoryId: directory?.directory_id || null,
         videoSubdirectory: directory?.path || '',
+        searchTerm: '',
+        selectedTags: [],
+        randomMode: false,
+        randomSeed: null,
         videoTempSort: '',
         page: 1,
       }),
