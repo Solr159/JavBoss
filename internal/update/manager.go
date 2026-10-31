@@ -32,6 +32,7 @@ type Status struct {
 	Phase          string  `json:"phase"`
 	ReleaseURL     string  `json:"release_url,omitempty"`
 	Notes          string  `json:"notes,omitempty"`
+	NotesHTML      string  `json:"notes_html,omitempty"`
 	CheckedAt      int64   `json:"checked_at,omitempty"`
 	Downloaded     int64   `json:"downloaded_bytes"`
 	Total          int64   `json:"total_bytes"`
@@ -132,7 +133,7 @@ func (m *Manager) check() {
 	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 	defer cancel()
 	r, err := latestRelease(ctx, m.client, m.endpoint)
-	var notes string
+	var notes releaseNotes
 	if err == nil && r != nil {
 		notesCtx, notesCancel := context.WithTimeout(ctx, 10*time.Second)
 		var notesErr error
@@ -153,11 +154,11 @@ func (m *Manager) check() {
 	}
 	m.status.CheckedAt = time.Now().UnixMilli()
 	m.status.Available, m.status.CanInstall = false, false
-	m.status.LatestVersion, m.status.Notes, m.status.ReleaseURL = "", "", ""
+	m.status.LatestVersion, m.status.Notes, m.status.NotesHTML, m.status.ReleaseURL = "", "", "", ""
 	if r == nil {
 		return
 	}
-	m.status.LatestVersion, m.status.Notes = r.Tag, notes
+	m.status.LatestVersion, m.status.Notes, m.status.NotesHTML = r.Tag, notes.Text, notes.HTML
 	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {

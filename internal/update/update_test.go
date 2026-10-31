@@ -302,7 +302,7 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 			if status.DisabledReason != tc.reason || status.CanInstall != installable {
 				t.Fatalf("status=%+v", status)
 			}
-			if requests != 2 || status.Notes != "更新说明" {
+			if requests != 2 || status.Notes != "更新说明" || status.NotesHTML != "<p>更新说明</p>" {
 				t.Fatalf("requests=%d notes=%q", requests, status.Notes)
 			}
 			if installable && m.selected.URL != "https://github.com/"+repository+"/releases/download/v2.0.0/"+name {

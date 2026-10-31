@@ -208,3 +208,70 @@ test(
     assert.deepEqual(await evaluate('window.appErrors'), [])
   }
 )
+
+test(
+  'release notes preserve formatting, sanitize HTML and fall back to plain text',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { evaluate, waitFor } = await setup(t)
+    const markup = `<h1>Release heading</h1><h2>Features</h2>
+      <p><strong>Bold text</strong> and <em>emphasis</em></p>
+      <ul><li>First item</li></ul><ol><li>Numbered item</li></ol>
+      <pre><code>line one\nline two</code></pre><blockquote>A quotation</blockquote>
+      <table><tbody><tr><th>Platform</th><td>Windows</td></tr></tbody></table>
+      <p><a href="https://github.com/Solr159/JavBoss/releases/tag/v2.0.0">Release link</a>
+      <a href="javascript:window.notesXSS=1">Unsafe link</a></p>
+      <img src="javascript:alert(1)" onerror="window.notesXSS=1" alt="Unsafe image">
+      <script>window.notesXSS=1</script><svg onload="window.notesXSS=1"></svg>
+      <iframe srcdoc="<script>parent.notesXSS=1</script>"></iframe>
+      <p style="position:fixed" class="fixed" id="spoofed">Safe text</p>`
+    await evaluate(`{
+      window.notesXSS = 0;
+      window.updateStatus.notes = 'Plain notes';
+      window.updateStatus.notes_html = ${JSON.stringify(markup)};
+      Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check for updates').click();
+    }`)
+    await waitFor(`document.querySelector('.release-notes h1')`)
+    const result = await evaluate(`(() => {
+      const root = document.querySelector('.release-notes');
+      const link = root.querySelector('a');
+      return {
+        title: root.previousElementSibling.textContent,
+        headingSize: parseFloat(getComputedStyle(root.querySelector('h1')).fontSize),
+        bodySize: parseFloat(getComputedStyle(root).fontSize),
+        weight: getComputedStyle(root.querySelector('strong')).fontWeight,
+        listStyle: getComputedStyle(root.querySelector('ul')).listStyleType,
+        orderedStyle: getComputedStyle(root.querySelector('ol')).listStyleType,
+        code: root.querySelector('pre code').textContent,
+        target: link.target, rel: link.rel,
+        unsafeLink: root.querySelectorAll('a')[1].hasAttribute('href'),
+        unsafeElements: root.querySelectorAll('script, svg, iframe, [onerror], [onload], [style], [class], [id]').length,
+        unsafeImage: root.querySelector('img').hasAttribute('src'),
+        xss: window.notesXSS
+      };
+    })()`)
+    assert.equal(result.title, 'v2.0.0')
+    assert.ok(result.headingSize > result.bodySize)
+    assert.ok(Number(result.weight) >= 600)
+    assert.equal(result.listStyle, 'disc')
+    assert.equal(result.orderedStyle, 'decimal')
+    assert.equal(result.code, 'line one\nline two')
+    assert.equal(result.target, '_blank')
+    assert.match(result.rel, /noopener/)
+    assert.match(result.rel, /noreferrer/)
+    assert.equal(result.unsafeLink, false)
+    assert.equal(result.unsafeImage, false)
+    assert.equal(result.unsafeElements, 0)
+    assert.equal(result.xss, 0)
+
+    await evaluate(`{
+      window.updateStatus.notes_html = '';
+      window.updateStatus.notes = 'Legacy <b>plain text</b>';
+      Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check for updates').click();
+    }`)
+    await waitFor(
+      `!document.querySelector('.release-notes') && document.body.textContent.includes('Legacy <b>plain text</b>')`
+    )
+    assert.deepEqual(await evaluate('window.appErrors'), [])
+  }
+)

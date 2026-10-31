@@ -14,6 +14,7 @@ import {
 import { fetchAppUpdate, isAppUpdateTargetReady, requestAppUpdate } from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
+import ReleaseNotes from '@/features/settings/components/ReleaseNotes'
 
 export default function AppUpdateSettings({ clientMode = false }) {
   const [target, setTarget] = useState(clientMode ? 'local' : 'server')
@@ -209,10 +210,12 @@ function UpdateTarget({ local, remote }) {
           </Button>
         )}
       </div>
-      {status?.notes && (
+      {(status?.notes_html || status?.notes) && (
         <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <h4 className="mb-2 text-sm font-medium">{zh('更新说明', 'Release notes')}</h4>
-          <p className="whitespace-pre-wrap break-words text-sm text-zinc-600">{status.notes}</p>
+          {status.latest_version && (
+            <h4 className="mb-2 text-sm font-medium">{status.latest_version}</h4>
+          )}
+          <ReleaseNotes html={status.notes_html} text={status.notes} />
         </div>
       )}
       <Dialog

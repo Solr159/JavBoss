@@ -34,10 +34,28 @@ func TestReleaseNotesFromPublicPage(t *testing.T) {
 			}))
 			defer server.Close()
 			notes, err := readReleaseNotes(t.Context(), server.Client(), server.URL+"/releases/tag/v2.1.3")
-			if (err != nil) != tc.bad || notes != tc.want {
-				t.Fatalf("notes=%q err=%v", notes, err)
+			if (err != nil) != tc.bad || notes.Text != tc.want {
+				t.Fatalf("notes=%+v err=%v", notes, err)
+			}
+			if tc.name == "formatted" {
+				for _, fragment := range []string{"<h1>更新日志</h1>", "<strong>AI 翻译</strong>", "<code>模型配置</code>", `<a href="https://example.com">说明</a>`} {
+					if !strings.Contains(notes.HTML, fragment) {
+						t.Fatalf("missing HTML fragment %q: %s", fragment, notes.HTML)
+					}
+				}
 			}
 		})
+	}
+}
+
+func TestReleaseNotesResolvesRelativeLinks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`<div data-test-selector="body-content" class="markdown-body"><a href="/repo/issues/1">Issue</a><img src="../image.png" alt="preview"></div>`))
+	}))
+	defer server.Close()
+	notes, err := readReleaseNotes(t.Context(), server.Client(), server.URL+"/releases/tag/v2.1.3")
+	if err != nil || !strings.Contains(notes.HTML, `href="`+server.URL+`/repo/issues/1"`) || !strings.Contains(notes.HTML, `src="`+server.URL+`/releases/image.png"`) {
+		t.Fatalf("notes=%+v err=%v", notes, err)
 	}
 }
 
@@ -45,6 +63,7 @@ func TestUnavailableNotesDoNotBlockInstall(t *testing.T) {
 	m := newManager(t.Context(), Options{BaseDir: t.TempDir(), Version: "v1.0.0", Release: true})
 	m.platform = "linux-x86_64"
 	m.status.Notes = "outdated notes"
+	m.status.NotesHTML = "<p>outdated notes</p>"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodHead && r.URL.Path == "/releases/latest" {
 			w.Header().Set("Location", "https://github.com/"+repository+"/releases/tag/v2.1.3")
@@ -61,7 +80,7 @@ func TestUnavailableNotesDoNotBlockInstall(t *testing.T) {
 	m.client = server.Client()
 	m.check()
 	status := m.Status()
-	if !status.CanInstall || !status.Available || status.Error != "" || status.Notes != "" || status.LatestVersion != "v2.1.3" {
+	if !status.CanInstall || !status.Available || status.Error != "" || status.Notes != "" || status.NotesHTML != "" || status.LatestVersion != "v2.1.3" {
 		t.Fatalf("status=%+v", status)
 	}
 }
