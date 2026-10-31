@@ -65,7 +65,7 @@ test(
       const expectedLabels = await menuLabels()
       await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
       const point = await evaluate(`(() => {
-        window.directoryChoice = [...${menu}.querySelectorAll('button')].find(item => (${itemLabel})(item) === ${JSON.stringify(label)});
+        window.directoryChoice = [...${menu}.querySelectorAll('button')].find(item => item.checkVisibility() && (${itemLabel})(item) === ${JSON.stringify(label)});
         window.directoryChoice.scrollIntoView({block:'nearest'});
         const rect = window.directoryChoice.getBoundingClientRect();
         return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
@@ -179,10 +179,23 @@ test(
       '/videos/旅行/2026/deeper'
     )
     await openLevel('2026')
-    await select('Select current directory')
+    assert.deepEqual(await menuLabels(), ['旅行', '2025', '2026'])
+    assert.equal(
+      await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`),
+      '/videos/旅行/2026'
+    )
+    assert.equal(await evaluate(`${menu}.textContent.includes('Select current directory')`), false)
+    await select('2026')
     await waitFor(`window.testStore.getState().videoSubdirectory === '旅行/2026'`)
     await openLevel('旅行')
-    assert.deepEqual(await menuLabels(), ['2025', '2026', 'Select current directory'])
+    assert.deepEqual(await menuLabels(), ['/videos', 'other', '旅行'])
+    assert.equal(
+      await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`),
+      '/videos/旅行'
+    )
+    await evaluate(
+      `${menu}.querySelector('summary[aria-label="Expand or collapse directory /videos/旅行"]').click()`
+    )
     await select('2025')
     await waitFor(
       `new URLSearchParams(location.search).get('subdirectory') === '旅行/2025' && !window.testStore.getState().loading`
@@ -201,7 +214,11 @@ test(
     assert.equal(query.get('search'), 'clip')
     assert.equal(query.get('offset'), '0')
     await openLevel('2025')
-    assert.deepEqual(await menuLabels(), ['No subdirectories', 'Select current directory'])
+    assert.deepEqual(await menuLabels(), ['旅行', '2025', '2026'])
+    assert.equal(
+      await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`),
+      '/videos/旅行/2025'
+    )
     await command('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Escape',
@@ -216,14 +233,8 @@ test(
     })
     await waitFor(`!${menu}`)
     await openLevel('/videos')
-    assert.deepEqual(await menuLabels(), [
-      'other',
-      '旅行',
-      '2025',
-      '2026',
-      'Select current directory',
-    ])
-    await select('Select current directory')
+    assert.deepEqual(await menuLabels(), ['/videos', 'other', '旅行', '/archive'])
+    await select('/videos')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     assert.deepEqual(await labels(), ['All directories', '/videos'])
     await evaluate('window.failNextDirectoryRequest = true')
@@ -243,7 +254,7 @@ test(
     await select('/archive')
     await waitFor(`window.testStore.getState().videoDirectoryId === 2`)
     await openLevel('/archive')
-    assert.deepEqual(await menuLabels(), ['旅行', 'Select current directory'])
+    assert.deepEqual(await menuLabels(), ['/videos', '/archive', '旅行'])
     await select('旅行')
     await waitFor(`new URLSearchParams(location.search).get('subdirectory') === '旅行'`)
     await evaluate('history.back()')
@@ -256,36 +267,31 @@ test(
     await waitFor(`!new URLSearchParams(location.search).has('directory_id')`)
     assert.deepEqual(await labels(), ['All directories'])
 
-    // The directory action stays visible while a long list of children scrolls.
+    // Opening a long sibling list reveals the current directory without a footer action.
     await evaluate(`(() => {
       window.savedDirectoryOptions = window.directoryOptions;
       window.directoryOptions = [...window.directoryOptions, ...Array.from({length:60}, (_,i) => ({
         directory_id:1, directory_path:'/videos', path:'child-' + i,
       }))];
-      window.testStore.getState().setVideoDirectoryFilter({directory_id:1,path:'旅行'});
+      window.testStore.getState().setVideoDirectoryFilter({directory_id:1,path:'child-59'});
     })()`)
-    await waitFor(`${nav}.textContent.includes('旅行')`)
-    await openLevel('/videos')
-    const menuBounds = () =>
-      evaluate(`(() => {
-      const paper=${menu}, list=paper.firstElementChild;
-      const footer=paper.lastElementChild.getBoundingClientRect();
-      const bounds=paper.getBoundingClientRect();
-      return {footerTop:footer.top,footerBottom:footer.bottom,paperTop:bounds.top,paperBottom:bounds.bottom,
-        childTop:list.firstElementChild.getBoundingClientRect().top,scroll:list.scrollTop};
-    })()`)
-    // Wait for the popup's opening transform to finish before comparing positions.
+    await waitFor(`${nav}.textContent.includes('child-59')`)
+    await openLevel('child-59')
     await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
-    const beforeScroll = await menuBounds()
-    assert.ok(beforeScroll.footerTop >= beforeScroll.paperTop)
-    assert.ok(Math.abs(beforeScroll.footerBottom - beforeScroll.paperBottom) <= 1)
-    await evaluate(`${menu}.firstElementChild.scrollTop = 500`)
-    const afterScroll = await menuBounds()
-    assert.ok(afterScroll.scroll > beforeScroll.scroll)
-    assert.ok(afterScroll.childTop < beforeScroll.childTop)
-    assert.ok(Math.abs(afterScroll.footerTop - beforeScroll.footerTop) <= 1)
-    assert.ok(Math.abs(afterScroll.footerBottom - afterScroll.paperBottom) <= 1)
-    await select('Select current directory')
+    await waitFor(`(() => {
+      const list=${menu}.firstElementChild, selected=list.querySelector('[aria-pressed="true"]');
+      const bounds=list.getBoundingClientRect(), rect=selected.getBoundingClientRect();
+      return list.scrollTop > 0 && rect.top >= bounds.top && rect.bottom <= bounds.bottom;
+    })()`)
+    assert.equal(await evaluate(`${menu}.children.length`), 1)
+    assert.equal(
+      await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`),
+      '/videos/child-59'
+    )
+    await select('child-58')
+    await waitFor(`window.testStore.getState().videoSubdirectory === 'child-58'`)
+    await openLevel('/videos')
+    await select('/videos')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     await evaluate(`window.directoryOptions = window.savedDirectoryOptions`)
     await openLevel('All directories')

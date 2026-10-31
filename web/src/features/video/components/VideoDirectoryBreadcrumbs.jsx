@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Popover } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
@@ -23,6 +23,7 @@ export default function VideoDirectoryBreadcrumbs() {
   const [menuOpen, setMenuOpen] = useState(false)
   const currentRef = useRef(null)
   const popoverRef = useRef(null)
+  const treeContainerRef = useRef(null)
   const { options, loading, error, retry } = useVideoDirectories(menuOpen)
   const rootPath =
     directories.find((directory) => directory.id === directoryId)?.path || `#${directoryId}`
@@ -51,14 +52,23 @@ export default function VideoDirectoryBreadcrumbs() {
     currentRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [directoryId, subdirectory, rootPath])
 
-  const parent = menu?.crumb.directory
+  const revealSelection = useCallback(() => {
+    treeContainerRef.current
+      ?.querySelector('button[aria-pressed="true"]')
+      ?.scrollIntoView({ block: 'center', inline: 'nearest' })
+  }, [])
+  useLayoutEffect(() => {
+    if (menuOpen && !loading) revealSelection()
+  }, [menuOpen, loading, options, revealSelection])
+
+  const directory = menu?.crumb.directory
   const tree = useMemo(() => buildDirectoryTree(options), [options])
-  let parentNode = tree.find((node) => node.directory_id === parent?.directory_id)
-  const segments = parent && parent.path !== '.' ? parent.path.split('/') : []
+  let parentNode = tree.find((node) => node.directory_id === directory?.directory_id)
+  const segments = directory && directory.path !== '.' ? directory.path.split('/').slice(0, -1) : []
   segments.forEach((_, index) => {
     parentNode = parentNode?.children.get(segments.slice(0, index + 1).join('/'))
   })
-  const children = parent ? Array.from(parentNode?.children.values() || []) : tree
+  const nodes = directory && directory.path !== '.' ? (parentNode ? [parentNode] : []) : tree
   const selectDirectory = (directory) => {
     setMenuOpen(false)
     setDirectory(directory)
@@ -97,9 +107,11 @@ export default function VideoDirectoryBreadcrumbs() {
                       anchor: event.currentTarget,
                       crumb,
                       index,
-                      value: directoryId
-                        ? { directory_id: directoryId, path: subdirectory || '.' }
-                        : null,
+                      value:
+                        crumb.directory ||
+                        (directoryId
+                          ? { directory_id: directoryId, path: subdirectory || '.' }
+                          : null),
                     })
                     setMenuOpen(true)
                   }}
@@ -125,7 +137,7 @@ export default function VideoDirectoryBreadcrumbs() {
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
           // Keep the current directory and anchor throughout the exit animation.
-          transition: { onExited: () => setMenu(null) },
+          transition: { onEntered: revealSelection, onExited: () => setMenu(null) },
           paper: {
             role: 'dialog',
             'aria-label': zh('选择视频目录', 'Choose video directory'),
@@ -140,7 +152,7 @@ export default function VideoDirectoryBreadcrumbs() {
           },
         }}
       >
-        <div className="min-h-0 overflow-y-auto p-1">
+        <div ref={treeContainerRef} className="min-h-0 overflow-y-auto p-1">
           {loading ? (
             <div role="status" className="px-3 py-2 text-xs text-gray-500">
               {zh('加载中…', 'Loading...')}
@@ -154,9 +166,9 @@ export default function VideoDirectoryBreadcrumbs() {
                 {zh('重试', 'Retry')}
               </button>
             </>
-          ) : children.length ? (
+          ) : nodes.length ? (
             <VideoDirectoryTree
-              nodes={children}
+              nodes={nodes}
               value={menu?.value}
               onSelect={selectDirectory}
               // Native disclosure changes the height without a React render.
@@ -164,19 +176,19 @@ export default function VideoDirectoryBreadcrumbs() {
             />
           ) : (
             <div role="status" className="px-3 py-2 text-xs text-gray-500">
-              {zh('没有子目录', 'No subdirectories')}
+              {zh('暂无视频目录', 'No video directories')}
             </div>
           )}
         </div>
-        <button
-          type="button"
-          onClick={() => selectDirectory(parent || null)}
-          className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100"
-        >
-          {parent
-            ? zh('选择当前目录', 'Select current directory')
-            : zh('查看全部视频', 'View all videos')}
-        </button>
+        {!directory && (
+          <button
+            type="button"
+            onClick={() => selectDirectory(null)}
+            className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100"
+          >
+            {zh('查看全部视频', 'View all videos')}
+          </button>
+        )}
       </Popover>
     </>
   )
