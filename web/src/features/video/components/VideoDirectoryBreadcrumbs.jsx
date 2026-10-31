@@ -116,6 +116,7 @@ export default function VideoDirectoryBreadcrumbs() {
       </nav>
       <Popover
         action={popoverRef}
+        elevation={3}
         open={menuOpen}
         anchorEl={menu?.anchor}
         onClose={() => setMenuOpen(false)}
