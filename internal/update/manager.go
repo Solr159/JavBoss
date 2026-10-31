@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
-	"javboss/internal/util"
 
 	"golang.org/x/mod/semver"
 )
@@ -65,7 +64,7 @@ var active atomic.Pointer[Manager]
 func platformOS() string { return runtime.GOOS }
 
 func newManager(ctx context.Context, options Options) *Manager {
-	m := &Manager{ctx: ctx, options: options, client: util.NewHTTPClient(0),
+	m := &Manager{ctx: ctx, options: options, client: newUpdateHTTPClient(),
 		endpoint: "https://github.com/" + repository + "/releases/latest", platform: platformName(runtime.GOOS, runtime.GOARCH),
 		status: Status{CurrentVersion: options.Version, Phase: "idle"}}
 	if options.Container {
