@@ -3,11 +3,22 @@ package api
 import (
 	"net/http"
 
+	"javboss/internal/update"
+
 	"github.com/gin-gonic/gin"
 )
 
 // RegisterRoutes wires handlers onto the provided router.
 func RegisterRoutes(router gin.IRoutes) {
+	// Update status/check/install have no query parameters. Installation uses the
+	// official release selected by the server and requires normal session auth.
+	for _, route := range []struct{ method, path string }{
+		{http.MethodGet, "/system/update"},
+		{http.MethodPost, "/system/update/check"},
+		{http.MethodPost, "/system/update/install"},
+	} {
+		router.Handle(route.method, route.path, func(c *gin.Context) { update.ServeHTTP(c.Writer, c.Request, "/system/update") })
+	}
 	router.GET("/auth/extension-tokens", listExtensionTokens)
 	router.POST("/auth/extension-tokens", createExtensionToken)
 	router.POST("/auth/extension-tokens/:id/rotate", rotateExtensionToken)
