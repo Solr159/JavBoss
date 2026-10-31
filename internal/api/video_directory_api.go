@@ -35,6 +35,8 @@ func parseVideoDirectoryFilter(c *gin.Context) ([]int64, string, bool) {
 
 // GET /videos/directories returns indexed directories and their ancestors for
 // the video filter, grouped by enabled library root (directory_id).
+// Each item includes video_count (direct files only) and videos (up to five
+// filenames, ordered by name). Ancestors without direct files have an empty list.
 func listVideoDirectories(c *gin.Context) {
 	items, err := dbpkg.Default().ListVideoDirectories(c.Request.Context())
 	if err != nil {

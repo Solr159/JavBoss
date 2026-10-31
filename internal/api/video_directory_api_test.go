@@ -166,6 +166,14 @@ func TestVideoDirectoryFilter(t *testing.T) {
 			t.Fatalf("duplicate option: %s", key)
 		}
 		seen[key] = true
+		if item.DirectoryID == roots[0].ID && item.Path == "." {
+			if item.VideoCount != 1 || len(item.Videos) != 1 || item.Videos[0] != "root.mp4" {
+				t.Errorf("root preview includes descendants or omits files: %+v", item)
+			}
+		}
+		if item.DirectoryID == roots[1].ID && item.Path == "." && (item.VideoCount != 0 || len(item.Videos) != 0) {
+			t.Errorf("ancestor should have no direct videos: %+v", item)
+		}
 	}
 	for _, dir := range []string{".", "旅行", "旅行/2026", "旅行/2026/deeper", "100%_fun"} {
 		if !seen[fmt.Sprintf("%d:%s", roots[0].ID, dir)] {

@@ -29,10 +29,14 @@ func applyVideoSubdirectoryFilter(query *gorm.DB, filters []VideoFilter) *gorm.D
 }
 
 type VideoDirectory struct {
-	DirectoryID   int64  `json:"directory_id"`
-	DirectoryPath string `json:"directory_path"`
-	Path          string `json:"path"`
+	DirectoryID   int64    `json:"directory_id"`
+	DirectoryPath string   `json:"directory_path"`
+	Path          string   `json:"path"`
+	Videos        []string `json:"videos"`
+	VideoCount    int      `json:"video_count"`
 }
+
+const directoryVideoPreviewLimit = 5
 
 // ListVideoDirectories includes ancestors of indexed video locations, scoped to
 // enabled, non-deleted roots. It does not walk or expose unindexed filesystem paths.
@@ -45,23 +49,41 @@ func (store *Store) ListVideoDirectories(ctx context.Context) ([]VideoDirectory,
 	if err := store.conn.WithContext(ctx).Model(&models.VideoLocation{}).
 		Select("video_location.directory_id, directory.path AS directory_path, video_location.relative_path").
 		Joins("JOIN directory ON directory.id = video_location.directory_id").
-		Where(activeDirectoryWhereSQL("directory")).Scan(&locations).Error; err != nil {
+		Where(activeDirectoryWhereSQL("directory")).
+		Order("video_location.directory_id, video_location.relative_path").Scan(&locations).Error; err != nil {
 		return nil, fmt.Errorf("list video directories: %w", err)
 	}
 	items := make([]VideoDirectory, 0)
-	seen := make(map[VideoDirectory]bool)
+	type directoryKey struct {
+		id   int64
+		path string
+	}
+	directories := make(map[directoryKey]*VideoDirectory)
 	for _, location := range locations {
 		for dir := path.Dir(location.RelativePath); ; dir = path.Dir(dir) {
-			item := VideoDirectory{location.DirectoryID, location.DirectoryPath, dir}
-			if seen[item] {
+			key := directoryKey{location.DirectoryID, dir}
+			if directories[key] != nil {
 				break
 			}
-			seen[item] = true
-			items = append(items, item)
+			directories[key] = &VideoDirectory{
+				DirectoryID:   location.DirectoryID,
+				DirectoryPath: location.DirectoryPath,
+				Path:          dir,
+				Videos:        []string{},
+			}
 			if dir == "." || dir == "/" {
 				break
 			}
 		}
+		// Count only files directly in this directory, keeping the response bounded.
+		directory := directories[directoryKey{location.DirectoryID, path.Dir(location.RelativePath)}]
+		directory.VideoCount++
+		if len(directory.Videos) < directoryVideoPreviewLimit {
+			directory.Videos = append(directory.Videos, path.Base(location.RelativePath))
+		}
+	}
+	for _, directory := range directories {
+		items = append(items, *directory)
 	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].DirectoryPath != items[j].DirectoryPath {

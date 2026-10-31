@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import VideoFileOutlinedIcon from '@mui/icons-material/VideoFileOutlined'
 import { zh } from '@/utils/i18n'
 
 export const directoryLabel = (directory) =>
@@ -14,18 +15,29 @@ export function buildDirectoryTree(directories) {
   for (const directory of directories) {
     let node = roots.get(directory.directory_id)
     if (!node) {
-      node = { ...directory, path: '.', children: new Map() }
+      node = {
+        directory_id: directory.directory_id,
+        directory_path: directory.directory_path,
+        path: '.',
+        children: new Map(),
+      }
       roots.set(directory.directory_id, node)
     }
-    if (directory.path === '.') continue
-    const segments = directory.path.split('/')
+    const segments = directory.path === '.' ? [] : directory.path.split('/')
     for (let index = 0; index < segments.length; index++) {
       const path = segments.slice(0, index + 1).join('/')
       if (!node.children.has(path)) {
-        node.children.set(path, { ...directory, path, children: new Map() })
+        node.children.set(path, {
+          directory_id: directory.directory_id,
+          directory_path: directory.directory_path,
+          path,
+          children: new Map(),
+        })
       }
       node = node.children.get(path)
     }
+    node.videos = directory.videos || []
+    node.video_count = directory.video_count || 0
   }
   return Array.from(roots.values())
 }
@@ -39,6 +51,8 @@ function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, 
     (node.path === '.' || value.path.startsWith(`${node.path}/`))
   const label = node.path === '.' ? node.directory_path : node.path.split('/').pop()
   const path = directoryLabel(node)
+  const videos = node.videos || []
+  const remainingVideos = Math.max(0, (node.video_count || 0) - videos.length)
   const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 ${selected ? 'bg-sky-50 font-semibold text-sky-700' : 'text-gray-700'}`
   const name = (
     <span className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5" title={path}>
@@ -65,7 +79,7 @@ function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, 
 
   return (
     <li>
-      {node.children.size ? (
+      {node.children.size || videos.length || remainingVideos ? (
         <details
           className="[&[open]>summary>svg]:rotate-90"
           open={containsSelection}
@@ -91,6 +105,21 @@ function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, 
                 onToggle={onToggle}
               />
             ))}
+            {videos.map((filename) => (
+              <li
+                key={filename}
+                title={filename}
+                className="flex min-w-0 cursor-default items-center gap-2 py-1 pl-7 pr-2 text-xs text-gray-400"
+              >
+                <VideoFileOutlinedIcon className="shrink-0" sx={{ fontSize: 16 }} />
+                <span className="truncate">{filename}</span>
+              </li>
+            ))}
+            {remainingVideos > 0 && (
+              <li className="cursor-default py-1 pl-7 pr-2 text-xs text-gray-400">
+                {zh(`……还有 ${remainingVideos} 个视频`, `… ${remainingVideos} more videos`)}
+              </li>
+            )}
           </ul>
         </details>
       ) : (
