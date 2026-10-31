@@ -2,7 +2,6 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $Repo = "Solr159/JavBoss"
-$Version = "v2.1.3"
 
 function Test-PrefersChinese {
   if ($env:JAVBOSS_LANG -like "zh*") {
@@ -36,6 +35,34 @@ function Get-PlatformLabel {
     return "windows-x86_64"
   }
   Fail "unsupported Windows architecture"
+}
+
+function Get-LatestReleaseAsset {
+  param([string]$Platform)
+
+  try {
+    $response = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -Method Head -UseBasicParsing -MaximumRedirection 10 -Headers @{ "User-Agent" = "JavBoss-Installer" }
+  } catch {
+    Fail "could not resolve the latest release: $_"
+  }
+
+  # Windows PowerShell 5.1 and PowerShell 7 expose the final URL differently.
+  if ($response.BaseResponse.ResponseUri) {
+    $releaseUrl = $response.BaseResponse.ResponseUri.AbsoluteUri
+  } else {
+    $releaseUrl = $response.BaseResponse.RequestMessage.RequestUri.AbsoluteUri
+  }
+  $prefix = "https://github.com/$Repo/releases/tag/"
+  if (-not $releaseUrl -or -not $releaseUrl.StartsWith($prefix, [System.StringComparison]::Ordinal)) {
+    Fail "invalid latest release redirect: $releaseUrl"
+  }
+  $tag = $releaseUrl.Substring($prefix.Length)
+  if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
+    Fail "latest release is not a JavBoss application release: $tag"
+  }
+  $fileName = "javboss-$tag-$Platform.zip"
+  $url = "https://github.com/$Repo/releases/download/$tag/$fileName"
+  return [PSCustomObject]@{ Tag = $tag; FileName = $fileName; Url = $url }
 }
 
 function Save-ExistingConfig {
@@ -200,17 +227,19 @@ if (-not $baseDir) {
 }
 $Dir = Join-Path $baseDir "JavBoss"
 $Dir = [System.IO.Path]::GetFullPath($Dir)
-Assert-JavBossNotRunning -InstallDir $Dir
-
 $platform = Get-PlatformLabel
-$tag = $Version
-$fileName = "javboss-$tag-$platform.zip"
-$url = "https://github.com/$Repo/releases/download/$tag/$fileName"
+Write-Log "checking the latest JavBoss release"
+$asset = Get-LatestReleaseAsset -Platform $platform
+$tag = $asset.Tag
+$fileName = $asset.FileName
+$url = $asset.Url
 
 if ((Get-InstalledVersion -InstallDir $Dir) -eq $tag) {
   Write-Log "JavBoss $tag is already installed; no update needed"
   return
 }
+
+Assert-JavBossNotRunning -InstallDir $Dir
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("javboss-install-" + [System.Guid]::NewGuid().ToString())
 $zipPath = Join-Path $tempRoot $fileName

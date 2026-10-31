@@ -2,7 +2,6 @@
 set -euo pipefail
 
 REPO="Solr159/JavBoss"
-VERSION="v2.1.3"
 INSTALL_DIR=""
 TMP_DIR=""
 
@@ -94,6 +93,32 @@ download_file() {
     return
   fi
   die "curl or wget is required"
+}
+
+resolve_latest_release() {
+  # Populate main's tag, filename and url using the latest page's redirect.
+  local platform="$1"
+  local latest_url="https://github.com/${REPO}/releases/latest"
+  local release_url prefix
+  prefix="https://github.com/${REPO}/releases/tag/"
+  if command_exists curl; then
+    release_url="$(curl -fsSL --head --retry 3 --max-redirs 10 -o /dev/null -w '%{url_effective}' "$latest_url")" || die "could not resolve the latest release"
+  elif command_exists wget; then
+    LC_ALL=C wget --spider --server-response --tries=3 --max-redirect=10 "$latest_url" 2>"$TMP_DIR/latest.headers" || die "could not resolve the latest release"
+    release_url="$(awk 'tolower($1) == "location:" { url = $2; sub(/\r$/, "", url) } END { print url }' "$TMP_DIR/latest.headers")"
+    # GitHub may send either an absolute URL or an origin-relative Location.
+    case "$release_url" in
+      /${REPO}/releases/tag/*) release_url="https://github.com${release_url}" ;;
+    esac
+  else
+    die "curl or wget is required"
+  fi
+
+  [[ "$release_url" == "$prefix"* ]] || die "invalid latest release redirect: $release_url"
+  tag="${release_url#"$prefix"}"
+  [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]] || die "latest release is not a JavBoss application release: $tag"
+  filename="javboss-${tag}-${platform}.zip"
+  url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
 }
 
 detect_platform() {
@@ -302,7 +327,11 @@ main() {
   platform="$(detect_platform)"
   INSTALL_DIR="$(default_install_dir)"
 
-  tag="$VERSION"
+  TMP_DIR="$(mktemp -d)"
+  trap cleanup EXIT
+
+  log "checking the latest JavBoss release"
+  resolve_latest_release "$platform"
   if [[ "$(installed_version "$INSTALL_DIR")" == "$tag" ]]; then
     create_command_link "$INSTALL_DIR"
     ensure_command_on_path
@@ -311,12 +340,6 @@ main() {
   fi
 
   ensure_not_running "$INSTALL_DIR"
-
-  filename="javboss-${tag}-${platform}.zip"
-  url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
-
-  TMP_DIR="$(mktemp -d)"
-  trap cleanup EXIT
 
   zip_file="$TMP_DIR/$filename"
   extract_dir="$TMP_DIR/extract"

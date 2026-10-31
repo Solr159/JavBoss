@@ -45,14 +45,6 @@ const releaseUrlPattern = new RegExp(
 
 const releaseUrlReplacement = `https://github.com/${REPO}/releases/download/${version}/javboss-${version}-$1.zip`;
 
-await replaceRequired("scripts/install.sh", [
-  [/^VERSION="[^"]+"/m, `VERSION="${version}"`],
-]);
-
-await replaceRequired("scripts/install.ps1", [
-  [/^\$Version = "[^"]+"/m, `$Version = "${version}"`],
-]);
-
 await replaceRequired("README.md", [[releaseUrlPattern, releaseUrlReplacement]]);
 
 console.log(`updated release version to ${version}`);
