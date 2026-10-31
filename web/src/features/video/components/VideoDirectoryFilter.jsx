@@ -10,14 +10,16 @@ import VideoDirectoryTree, {
 } from '@/features/video/components/VideoDirectoryTree'
 import { useStore } from '@/store'
 import { zh } from '@/utils/i18n'
+import { displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
 
 export default function VideoDirectoryFilter() {
-  const { directoryId, subdirectory, directories, setDirectory } = useStore(
+  const { directoryId, subdirectory, directories, setDirectory, useHostPaths } = useStore(
     useShallow((state) => ({
       directoryId: state.videoDirectoryId,
       subdirectory: state.videoSubdirectory,
       directories: state.directories,
       setDirectory: state.setVideoDirectoryFilter,
+      useHostPaths: hostPathsEnabled(state.config),
     }))
   )
   const [anchorEl, setAnchorEl] = useState(null)
@@ -66,12 +68,12 @@ export default function VideoDirectoryFilter() {
         aria-label={zh('选择子目录', 'Select subdirectory')}
         aria-haspopup="dialog"
         aria-expanded={open}
-        title={value ? directoryLabel(value) : zh('全部目录', 'All directories')}
+        title={value ? directoryLabel(value, useHostPaths) : zh('全部目录', 'All directories')}
       >
         <FolderOutlinedIcon fontSize="small" />
         {value ? (
           <span className="max-w-28 truncate">
-            {value.path === '.' ? value.directory_path : value.path}
+            {value.path === '.' ? displayHostPath(value.directory_path, useHostPaths) : value.path}
           </span>
         ) : null}
         <ExpandMoreIcon fontSize="small" className="favorite-menu-trigger__chevron" />
@@ -114,7 +116,12 @@ export default function VideoDirectoryFilter() {
                 </Button>
               </div>
             ) : tree.length ? (
-              <VideoDirectoryTree nodes={tree} value={value} onSelect={selectDirectory} />
+              <VideoDirectoryTree
+                nodes={tree}
+                value={value}
+                useHostPaths={useHostPaths}
+                onSelect={selectDirectory}
+              />
             ) : (
               <div className="p-3 text-center text-sm text-gray-500">
                 {zh('暂无视频目录', 'No video directories')}

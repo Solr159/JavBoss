@@ -3,6 +3,111 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'directory controls display Docker host paths without changing selection paths',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-directory-video-previews-test',
+    })
+    await command('Page.navigate', {
+      url: `${origin}/tests/fixtures/app.html?view=video&directory_id=1&subdirectory=host/child`,
+    })
+    await waitFor(
+      `window.testStore?.getState().config.video_page_size && window.testStore.getState().directories.length && !window.testStore.getState().loading`
+    )
+    await evaluate(`(() => {
+      const originalFetch=window.fetch;
+      window.fetch=(input,init) => {
+        if(new URL(input,location.origin).pathname === '/videos/directories') return Promise.resolve(Response.json({
+          directory_paths:{1:'/host/media/videos',2:'/hosted/archive',3:'/host'},
+          items:[{directory_id:1,path:'.'},{directory_id:1,path:'host'},{directory_id:1,path:'host/child'},
+            {directory_id:2,path:'.'},{directory_id:3,path:'.'},{directory_id:3,path:'child'}],
+        }));
+        return originalFetch(input,init);
+      };
+      window.testStore.setState({directories:[{id:1,path:'/host/media/videos',enabled:true}]});
+    })()`)
+    const nav = `document.querySelector('nav[aria-label="Current video directory"]')`
+    const trigger = `document.querySelector('button[aria-label="Select subdirectory"]')`
+    for (const [container, override, root] of [
+      [true, null, '/media/videos'],
+      [false, null, '/host/media/videos'],
+      [true, false, '/host/media/videos'],
+    ]) {
+      await evaluate(`window.testStore.setState(state=>({config:{...state.config,runtime_container:${container},host_path_prefix_enabled:${override}}}));
+        window.testStore.getState().setVideoDirectoryFilter({directory_id:1,path:'host/child'})`)
+      await waitFor(
+        `${nav}.querySelector('[aria-current="location"]').textContent === 'child' && !window.testStore.getState().loading`
+      )
+      assert.equal(await evaluate(`${nav}.querySelectorAll('button')[1].textContent`), root)
+      assert.equal(await evaluate(`${nav}.querySelectorAll('button')[1].title`), root)
+      assert.equal(
+        await evaluate(`${nav}.querySelector('[aria-current="location"]').title`),
+        `${root}/host/child`
+      )
+      assert.equal(await evaluate(`${trigger}.title`), `${root}/host/child`)
+      await evaluate(`${trigger}.click()`)
+      const top = `document.querySelector('[role="dialog"][aria-label="Video directories"]')`
+      await waitFor(
+        `${top}?.querySelector('button[aria-label="Select directory ${root}/host/child"]')`
+      )
+      assert.equal(
+        await evaluate(
+          `${top}.querySelector('button[aria-label="Select directory ${root}"]').previousElementSibling.textContent`
+        ),
+        root
+      )
+      assert.ok(
+        await evaluate(
+          `${top}.querySelector('button[aria-label="Select directory /hosted/archive"]') !== null`
+        )
+      )
+      const mountRoot = container && override !== false ? '/' : '/host'
+      assert.ok(
+        await evaluate(
+          `${top}.querySelector('button[aria-label="Select directory ${mountRoot}"]') !== null`
+        )
+      )
+      await evaluate(
+        `${top}.querySelector('button[aria-label="Select directory ${root}/host"]').click()`
+      )
+      await waitFor(
+        `!${top} && window.testStore.getState().videoSubdirectory === 'host' && !window.testStore.getState().loading`
+      )
+      assert.equal(
+        await evaluate('window.testStore.getState().directories[0].path'),
+        '/host/media/videos'
+      )
+      assert.equal(
+        await evaluate(`new URLSearchParams(location.search).get('subdirectory')`),
+        'host'
+      )
+      await evaluate(`${nav}.querySelector('[aria-current="location"]').click()`)
+      const bottom = `document.querySelector('[role="dialog"][aria-label="Choose video directory"]')`
+      await waitFor(
+        `${bottom}?.querySelector('button[aria-label="Select directory ${root}/host"]')`
+      )
+      assert.equal(
+        await evaluate(`${bottom}.querySelector('[aria-pressed="true"]').title`),
+        `${root}/host`
+      )
+      assert.equal(
+        await evaluate(
+          `${bottom}.querySelector('button[aria-label="Select directory ${root}"]').previousElementSibling.textContent`
+        ),
+        root
+      )
+      await evaluate(
+        `${bottom}.querySelector('button[aria-label="Select directory ${root}"]').click()`
+      )
+      await waitFor(`!${bottom} && window.testStore.getState().videoSubdirectory === '.'`)
+      assert.equal(await evaluate(`${trigger}.textContent`), root)
+    }
+    assert.deepEqual(await evaluate('window.appErrors'), [])
+  }
+)
+
+test(
   'both directory trees show noninteractive direct video previews and remaining counts',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

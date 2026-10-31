@@ -6,17 +6,20 @@ import { useShallow } from 'zustand/react/shallow'
 import useVideoDirectories from '@/features/video/hooks/useVideoDirectories'
 import VideoDirectoryTree, {
   buildDirectoryTree,
+  directoryLabel,
 } from '@/features/video/components/VideoDirectoryTree'
 import { useStore } from '@/store'
 import { zh } from '@/utils/i18n'
+import { displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
 
 export default function VideoDirectoryBreadcrumbs() {
-  const { directoryId, subdirectory, directories, setDirectory } = useStore(
+  const { directoryId, subdirectory, directories, setDirectory, useHostPaths } = useStore(
     useShallow((state) => ({
       directoryId: state.videoDirectoryId,
       subdirectory: state.videoSubdirectory,
       directories: state.directories,
       setDirectory: state.setVideoDirectoryFilter,
+      useHostPaths: hostPathsEnabled(state.config),
     }))
   )
   const [menu, setMenu] = useState(null)
@@ -30,7 +33,7 @@ export default function VideoDirectoryBreadcrumbs() {
   const crumbs = [{ label: zh('全部目录', 'All directories'), directory: null }]
   if (directoryId) {
     crumbs.push({
-      label: rootPath,
+      label: displayHostPath(rootPath, useHostPaths),
       directory: { directory_id: directoryId, directory_path: rootPath, path: '.' },
     })
     const segments = subdirectory && subdirectory !== '.' ? subdirectory.split('/') : []
@@ -74,11 +77,7 @@ export default function VideoDirectoryBreadcrumbs() {
     setDirectory(directory)
   }
   const title = (crumb) =>
-    !crumb.directory
-      ? crumb.label
-      : crumb.directory.path === '.'
-        ? rootPath
-        : `${rootPath.replace(/[\\/]+$/, '')}/${crumb.directory.path}`
+    crumb.directory ? directoryLabel(crumb.directory, useHostPaths) : crumb.label
 
   return (
     <>
@@ -169,6 +168,7 @@ export default function VideoDirectoryBreadcrumbs() {
             <VideoDirectoryTree
               nodes={nodes}
               value={menu?.value}
+              useHostPaths={useHostPaths}
               expandSelection={Boolean(directory)}
               onSelect={selectDirectory}
               // Native disclosure changes the height without a React render.

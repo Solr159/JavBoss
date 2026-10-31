@@ -3,11 +3,15 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import VideoFileOutlinedIcon from '@mui/icons-material/VideoFileOutlined'
 import { zh } from '@/utils/i18n'
+import { displayHostPath } from '@/utils/hostPath'
 
-export const directoryLabel = (directory) =>
-  directory.path === '.'
-    ? directory.directory_path
-    : `${directory.directory_path.replace(/[\\/]+$/, '')}/${directory.path}`
+export const directoryLabel = (directory, useHostPaths = false) =>
+  displayHostPath(
+    directory.path === '.'
+      ? directory.directory_path
+      : `${directory.directory_path.replace(/[\\/]+$/, '')}/${directory.path}`,
+    useHostPaths
+  )
 
 // Build missing ancestors too, so each library root remains a separate tree.
 export function buildDirectoryTree(directories) {
@@ -42,15 +46,26 @@ export function buildDirectoryTree(directories) {
   return Array.from(roots.values())
 }
 
-function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, onToggle }) {
+function DirectoryNode({
+  node,
+  value,
+  showSelection,
+  expandSelection,
+  useHostPaths,
+  onSelect,
+  onToggle,
+}) {
   const selected =
     showSelection && value?.directory_id === node.directory_id && value.path === node.path
   const containsSelection =
     expandSelection &&
     value?.directory_id === node.directory_id &&
     (node.path === '.' || value.path.startsWith(`${node.path}/`))
-  const label = node.path === '.' ? node.directory_path : node.path.split('/').pop()
-  const path = directoryLabel(node)
+  const label =
+    node.path === '.'
+      ? displayHostPath(node.directory_path, useHostPaths)
+      : node.path.split('/').pop()
+  const path = directoryLabel(node, useHostPaths)
   const videos = node.videos || []
   const remainingVideos = Math.max(0, (node.video_count || 0) - videos.length)
   const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 ${selected ? 'bg-sky-50 font-semibold text-sky-700' : 'text-gray-700'}`
@@ -101,6 +116,7 @@ function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, 
                 value={value}
                 showSelection={showSelection}
                 expandSelection={expandSelection}
+                useHostPaths={useHostPaths}
                 onSelect={onSelect}
                 onToggle={onToggle}
               />
@@ -136,6 +152,7 @@ export default function VideoDirectoryTree({
   nodes,
   value,
   expandSelection = true,
+  useHostPaths = false,
   onSelect,
   onToggle,
 }) {
@@ -149,6 +166,7 @@ export default function VideoDirectoryTree({
           value={value}
           showSelection={showSelection}
           expandSelection={expandSelection}
+          useHostPaths={useHostPaths}
           onSelect={onSelect}
           onToggle={onToggle}
         />
