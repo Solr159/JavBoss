@@ -173,7 +173,7 @@ export default function VideoDirectoryBreadcrumbs() {
           className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100"
         >
           {parent
-            ? zh('查看此目录的视频', 'View videos in this directory')
+            ? zh('选择当前目录', 'Select current directory')
             : zh('查看全部视频', 'View all videos')}
         </button>
       </Popover>

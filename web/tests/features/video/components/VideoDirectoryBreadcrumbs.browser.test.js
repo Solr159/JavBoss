@@ -179,10 +179,10 @@ test(
       '/videos/旅行/2026/deeper'
     )
     await openLevel('2026')
-    await select('View videos in this directory')
+    await select('Select current directory')
     await waitFor(`window.testStore.getState().videoSubdirectory === '旅行/2026'`)
     await openLevel('旅行')
-    assert.deepEqual(await menuLabels(), ['2025', '2026', 'View videos in this directory'])
+    assert.deepEqual(await menuLabels(), ['2025', '2026', 'Select current directory'])
     await select('2025')
     await waitFor(
       `new URLSearchParams(location.search).get('subdirectory') === '旅行/2025' && !window.testStore.getState().loading`
@@ -201,7 +201,7 @@ test(
     assert.equal(query.get('search'), 'clip')
     assert.equal(query.get('offset'), '0')
     await openLevel('2025')
-    assert.deepEqual(await menuLabels(), ['No subdirectories', 'View videos in this directory'])
+    assert.deepEqual(await menuLabels(), ['No subdirectories', 'Select current directory'])
     await command('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Escape',
@@ -221,9 +221,9 @@ test(
       '旅行',
       '2025',
       '2026',
-      'View videos in this directory',
+      'Select current directory',
     ])
-    await select('View videos in this directory')
+    await select('Select current directory')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     assert.deepEqual(await labels(), ['All directories', '/videos'])
     await evaluate('window.failNextDirectoryRequest = true')
@@ -243,7 +243,7 @@ test(
     await select('/archive')
     await waitFor(`window.testStore.getState().videoDirectoryId === 2`)
     await openLevel('/archive')
-    assert.deepEqual(await menuLabels(), ['旅行', 'View videos in this directory'])
+    assert.deepEqual(await menuLabels(), ['旅行', 'Select current directory'])
     await select('旅行')
     await waitFor(`new URLSearchParams(location.search).get('subdirectory') === '旅行'`)
     await evaluate('history.back()')
@@ -285,7 +285,7 @@ test(
     assert.ok(afterScroll.childTop < beforeScroll.childTop)
     assert.ok(Math.abs(afterScroll.footerTop - beforeScroll.footerTop) <= 1)
     assert.ok(Math.abs(afterScroll.footerBottom - afterScroll.paperBottom) <= 1)
-    await select('View videos in this directory')
+    await select('Select current directory')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     await evaluate(`window.directoryOptions = window.savedDirectoryOptions`)
     await openLevel('All directories')
