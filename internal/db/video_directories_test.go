@@ -31,7 +31,7 @@ func TestListVideoDirectoriesPreviews(t *testing.T) {
 		}
 	}
 	// Insert in reverse order: previews must remain stable and sorted by filename.
-	for i := 8; i >= 1; i-- {
+	for i := 23; i >= 1; i-- {
 		add(0, fmt.Sprintf("parent/files/clip-%02d.mp4", i))
 	}
 	add(0, "parent/sibling/另一部.mp4")
@@ -53,7 +53,10 @@ func TestListVideoDirectoriesPreviews(t *testing.T) {
 		case item.DirectoryID == roots[1].ID:
 			want, count = []string{"clip-01.mp4"}, 1
 		case item.Path == "parent/files":
-			want, count = []string{"clip-01.mp4", "clip-02.mp4", "clip-03.mp4", "clip-04.mp4", "clip-05.mp4"}, 8
+			count = 23
+			for i := 1; i <= 20; i++ {
+				want = append(want, fmt.Sprintf("clip-%02d.mp4", i))
+			}
 		case item.Path == "parent/sibling":
 			want, count = []string{"另一部.mp4"}, 1
 		default:

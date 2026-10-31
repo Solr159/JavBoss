@@ -19,7 +19,7 @@ test(
       const originalFetch=window.fetch;
       window.fetch=(input,init) => {
         if(new URL(input,location.origin).pathname === '/videos/directories') return Promise.resolve(Response.json({items:[
-          {directory_id:1,directory_path:'/videos',path:'folder',video_count:8,videos:Array.from({length:5},(_,i)=>'clip-0'+(i+1)+'.mp4')},
+          {directory_id:1,directory_path:'/videos',path:'folder',video_count:23,videos:Array.from({length:20},(_,i)=>'clip-'+String(i+1).padStart(2,'0')+'.mp4')},
           {directory_id:1,directory_path:'/videos',path:'.',video_count:1,videos:['root.mp4']},
           {directory_id:2,directory_path:'/archive',path:'.',video_count:1,videos:['other-root.mp4']},
         ]}));
@@ -42,13 +42,10 @@ test(
       await evaluate(`${branch}.querySelector('span').click()`)
       await waitFor(`${branch}.parentElement.open`)
       const files = `${branch}.nextElementSibling.querySelectorAll('li[title]')`
-      assert.deepEqual(await evaluate(`[...${files}].map(file=>file.textContent)`), [
-        'clip-01.mp4',
-        'clip-02.mp4',
-        'clip-03.mp4',
-        'clip-04.mp4',
-        'clip-05.mp4',
-      ])
+      assert.deepEqual(
+        await evaluate(`[...${files}].map(file=>file.textContent)`),
+        Array.from({ length: 20 }, (_, i) => `clip-${String(i + 1).padStart(2, '0')}.mp4`)
+      )
       assert.ok(
         await evaluate(`${branch}.nextElementSibling.textContent.includes('3 more videos')`)
       )

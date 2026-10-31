@@ -36,7 +36,7 @@ type VideoDirectory struct {
 	VideoCount    int      `json:"video_count"`
 }
 
-const directoryVideoPreviewLimit = 5
+const directoryVideoPreviewLimit = 20
 
 // ListVideoDirectories includes ancestors of indexed video locations, scoped to
 // enabled, non-deleted roots. It does not walk or expose unindexed filesystem paths.
