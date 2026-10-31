@@ -17,7 +17,7 @@ test(
     })
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?${initialQuery}` })
     const nav = `document.querySelector('nav[aria-label="Current video directory"]')`
-    const menu = `document.querySelector('[role="menu"][aria-label="Choose video directory"]')`
+    const menu = `document.querySelector('[role="dialog"][aria-label="Choose video directory"]')`
     await waitFor(
       `${nav} && window.testStore && window.requests.some(r => r.url.startsWith('/videos?')) && !window.testStore.getState().loading`
     )
@@ -45,7 +45,10 @@ test(
         return originalFetch(input, init);
       };
     })()`)
-    const labels = () => evaluate(`[...${nav}.querySelectorAll('button')].map(b => b.textContent)`)
+    const labels = () =>
+      evaluate(
+        `[...${nav}.querySelectorAll('button')].filter(b => b.checkVisibility()).map(b => b.textContent)`
+      )
     const openLevel = async (label) => {
       await evaluate(
         `[...${nav}.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(label)}).click()`
@@ -60,13 +63,13 @@ test(
         window.closingDirectoryMenuLabels = [];
         window.directoryMenuObserver = new MutationObserver(() => {
           if (list.isConnected) {
-            window.closingDirectoryMenuLabels.push([...list.querySelectorAll('[role="menuitem"]')].map(item => item.textContent));
+            window.closingDirectoryMenuLabels.push([...list.querySelectorAll('button, [role="status"], [role="alert"]')].filter(item => item.checkVisibility()).map(item => item.textContent));
           }
         });
         window.directoryMenuObserver.observe(list, {childList:true, subtree:true, characterData:true});
       })()`)
       await evaluate(
-        `[...${menu}.querySelectorAll('[role="menuitem"]')].find(b => b.textContent === ${JSON.stringify(label)}).click()`
+        `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].find(b => b.textContent === ${JSON.stringify(label)}).click()`
       )
       await waitFor(`!${menu}`)
       await evaluate('window.directoryMenuObserver.disconnect()')
@@ -76,8 +79,52 @@ test(
       }
     }
     const menuLabels = () =>
-      evaluate(`[...${menu}.querySelectorAll('[role="menuitem"]')].map(b => b.textContent)`)
+      evaluate(
+        `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].filter(b => b.checkVisibility()).map(b => b.textContent)`
+      )
     assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026'])
+    // Expand descendants without changing the filter, then select a deep directory.
+    await openLevel('All directories')
+    const disclosure = `${menu}.querySelector('summary[aria-label="Expand or collapse directory /videos/旅行/2026"]')`
+    await evaluate(`${disclosure}.focus()`)
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      key: 'Enter',
+      code: 'Enter',
+      windowsVirtualKeyCode: 13,
+      text: '\r',
+      unmodifiedText: '\r',
+    })
+    await command('Input.dispatchKeyEvent', {
+      type: 'keyUp',
+      key: 'Enter',
+      code: 'Enter',
+      windowsVirtualKeyCode: 13,
+    })
+    await waitFor(`${disclosure}.parentElement.open`)
+    await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
+    await waitFor(
+      `${menu}.getBoundingClientRect().bottom <= ${nav}.querySelector('button').getBoundingClientRect().top + 1`
+    )
+    assert.equal(await evaluate('window.testStore.getState().videoSubdirectory'), '旅行/2026')
+    assert.ok(
+      await evaluate(
+        `${menu}.querySelector('button[aria-label="Select directory /videos/旅行/2026/deeper"]').checkVisibility()`
+      )
+    )
+    await evaluate(`${disclosure}.click()`)
+    await waitFor(`!${disclosure}.parentElement.open`)
+    await evaluate(`${disclosure}.click()`)
+    await select('deeper')
+    await waitFor(`new URLSearchParams(location.search).get('subdirectory') === '旅行/2026/deeper'`)
+    assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026', 'deeper'])
+    assert.equal(
+      await evaluate(`document.querySelector('button[aria-label="Select subdirectory"]').title`),
+      '/videos/旅行/2026/deeper'
+    )
+    await openLevel('2026')
+    await select('View videos in this directory')
+    await waitFor(`window.testStore.getState().videoSubdirectory === '旅行/2026'`)
     await openLevel('旅行')
     assert.deepEqual(await menuLabels(), ['2025', '2026', 'View videos in this directory'])
     await select('2025')
@@ -113,7 +160,13 @@ test(
     })
     await waitFor(`!${menu}`)
     await openLevel('/videos')
-    assert.deepEqual(await menuLabels(), ['other', '旅行', 'View videos in this directory'])
+    assert.deepEqual(await menuLabels(), [
+      'other',
+      '旅行',
+      '2025',
+      '2026',
+      'View videos in this directory',
+    ])
     await select('View videos in this directory')
     await waitFor(`window.testStore.getState().videoSubdirectory === '.'`)
     assert.deepEqual(await labels(), ['All directories', '/videos'])
@@ -121,10 +174,16 @@ test(
     await openLevel('All directories')
     assert.deepEqual(await menuLabels(), ['Directory lookup failed', 'Retry', 'View all videos'])
     await evaluate(
-      `[...${menu}.querySelectorAll('[role="menuitem"]')].find(b => b.textContent === 'Retry').click()`
+      `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].find(b => b.textContent === 'Retry').click()`
     )
     await waitFor(`${menu}.textContent.includes('/archive')`)
-    assert.deepEqual(await menuLabels(), ['/videos', '/archive', 'View all videos'])
+    assert.deepEqual(await menuLabels(), [
+      '/videos',
+      'other',
+      '旅行',
+      '/archive',
+      'View all videos',
+    ])
     await select('/archive')
     await waitFor(`window.testStore.getState().videoDirectoryId === 2`)
     await openLevel('/archive')
@@ -153,18 +212,18 @@ test(
     await openLevel('/videos')
     const menuBounds = () =>
       evaluate(`(() => {
-      const list=${menu}, paper=list.parentElement;
-      const footer=list.lastElementChild.getBoundingClientRect();
+      const paper=${menu}, list=paper.firstElementChild;
+      const footer=paper.lastElementChild.getBoundingClientRect();
       const bounds=paper.getBoundingClientRect();
       return {footerTop:footer.top,footerBottom:footer.bottom,paperTop:bounds.top,paperBottom:bounds.bottom,
-        childTop:list.firstElementChild.getBoundingClientRect().top,scroll:paper.scrollTop};
+        childTop:list.firstElementChild.getBoundingClientRect().top,scroll:list.scrollTop};
     })()`)
     // Wait for the popup's opening transform to finish before comparing positions.
-    await waitFor(`getComputedStyle(${menu}.parentElement).transform === 'none'`)
+    await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
     const beforeScroll = await menuBounds()
     assert.ok(beforeScroll.footerTop >= beforeScroll.paperTop)
     assert.ok(Math.abs(beforeScroll.footerBottom - beforeScroll.paperBottom) <= 1)
-    await evaluate(`${menu}.parentElement.scrollTop = 500`)
+    await evaluate(`${menu}.firstElementChild.scrollTop = 500`)
     const afterScroll = await menuBounds()
     assert.ok(afterScroll.scroll > beforeScroll.scroll)
     assert.ok(afterScroll.childTop < beforeScroll.childTop)

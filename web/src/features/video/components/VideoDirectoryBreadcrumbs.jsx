@@ -1,9 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Menu, MenuItem } from '@mui/material'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Popover } from '@mui/material'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import { useShallow } from 'zustand/react/shallow'
 import useVideoDirectories from '@/features/video/hooks/useVideoDirectories'
+import VideoDirectoryTree, {
+  buildDirectoryTree,
+} from '@/features/video/components/VideoDirectoryTree'
 import { useStore } from '@/store'
 import { zh } from '@/utils/i18n'
 
@@ -19,6 +22,7 @@ export default function VideoDirectoryBreadcrumbs() {
   const [menu, setMenu] = useState(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const currentRef = useRef(null)
+  const popoverRef = useRef(null)
   const { options, loading, error, retry } = useVideoDirectories(menuOpen)
   const rootPath =
     directories.find((directory) => directory.id === directoryId)?.path || `#${directoryId}`
@@ -48,14 +52,13 @@ export default function VideoDirectoryBreadcrumbs() {
   }, [directoryId, subdirectory, rootPath])
 
   const parent = menu?.crumb.directory
-  const prefix = parent && parent.path !== '.' ? `${parent.path}/` : ''
-  const children = options.filter((directory) => {
-    if (!parent) return directory.path === '.'
-    if (directory.directory_id !== parent.directory_id || directory.path === '.') return false
-    if (!directory.path.startsWith(prefix)) return false
-    const relative = directory.path.slice(prefix.length)
-    return relative && !relative.includes('/')
+  const tree = useMemo(() => buildDirectoryTree(options), [options])
+  let parentNode = tree.find((node) => node.directory_id === parent?.directory_id)
+  const segments = parent && parent.path !== '.' ? parent.path.split('/') : []
+  segments.forEach((_, index) => {
+    parentNode = parentNode?.children.get(segments.slice(0, index + 1).join('/'))
   })
+  const children = parent ? Array.from(parentNode?.children.values() || []) : tree
   const selectDirectory = (directory) => {
     setMenuOpen(false)
     setDirectory(directory)
@@ -87,10 +90,17 @@ export default function VideoDirectoryBreadcrumbs() {
                   ref={current ? currentRef : undefined}
                   type="button"
                   aria-current={current ? 'location' : undefined}
-                  aria-haspopup="menu"
+                  aria-haspopup="dialog"
                   aria-expanded={menuOpen && menu?.index === index}
                   onClick={(event) => {
-                    setMenu({ anchor: event.currentTarget, crumb, index })
+                    setMenu({
+                      anchor: event.currentTarget,
+                      crumb,
+                      index,
+                      value: directoryId
+                        ? { directory_id: directoryId, path: subdirectory || '.' }
+                        : null,
+                    })
                     setMenuOpen(true)
                   }}
                   title={title(crumb)}
@@ -104,7 +114,8 @@ export default function VideoDirectoryBreadcrumbs() {
           })}
         </ol>
       </nav>
-      <Menu
+      <Popover
+        action={popoverRef}
         open={menuOpen}
         anchorEl={menu?.anchor}
         onClose={() => setMenuOpen(false)}
@@ -114,67 +125,58 @@ export default function VideoDirectoryBreadcrumbs() {
         slotProps={{
           // Keep the current directory and anchor throughout the exit animation.
           transition: { onExited: () => setMenu(null) },
-          paper: { sx: { minWidth: 220, maxWidth: 'calc(100vw - 32px)', maxHeight: '50vh' } },
-          list: {
-            dense: true,
-            sx: { py: 0 },
+          paper: {
+            role: 'dialog',
             'aria-label': zh('选择视频目录', 'Choose video directory'),
+            sx: {
+              width: 320,
+              maxWidth: 'calc(100vw - 32px)',
+              maxHeight: '50vh',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            },
           },
         }}
       >
-        {loading ? (
-          <MenuItem disabled>{zh('加载中…', 'Loading...')}</MenuItem>
-        ) : error ? (
-          [
-            <MenuItem key="error" disabled sx={{ whiteSpace: 'normal' }}>
-              {error}
-            </MenuItem>,
-            <MenuItem key="retry" onClick={retry}>
-              {zh('重试', 'Retry')}
-            </MenuItem>,
-          ]
-        ) : children.length ? (
-          children.map((directory) => (
-            <MenuItem
-              key={`${directory.directory_id}:${directory.path}`}
-              selected={
-                directory.directory_id === directoryId &&
-                (directory.path === '.' ||
-                  subdirectory === directory.path ||
-                  subdirectory.startsWith(`${directory.path}/`))
-              }
-              onClick={() => selectDirectory(directory)}
-              title={directory.path === '.' ? directory.directory_path : directory.path}
-            >
-              <FolderOutlinedIcon className="mr-2 shrink-0 text-blue-600" fontSize="small" />
-              <span className="truncate">
-                {directory.path === '.'
-                  ? directory.directory_path
-                  : directory.path.split('/').pop()}
-              </span>
-            </MenuItem>
-          ))
-        ) : (
-          <MenuItem disabled>{zh('没有子目录', 'No subdirectories')}</MenuItem>
-        )}
-        <MenuItem
+        <div className="min-h-0 overflow-y-auto p-1">
+          {loading ? (
+            <div role="status" className="px-3 py-2 text-xs text-gray-500">
+              {zh('加载中…', 'Loading...')}
+            </div>
+          ) : error ? (
+            <>
+              <div role="alert" className="px-3 py-2 text-xs text-red-600">
+                {error}
+              </div>
+              <button type="button" onClick={retry} className="px-3 py-2 text-xs text-blue-600">
+                {zh('重试', 'Retry')}
+              </button>
+            </>
+          ) : children.length ? (
+            <VideoDirectoryTree
+              nodes={children}
+              value={menu?.value}
+              onSelect={selectDirectory}
+              // Native disclosure changes the height without a React render.
+              onToggle={() => popoverRef.current?.updatePosition()}
+            />
+          ) : (
+            <div role="status" className="px-3 py-2 text-xs text-gray-500">
+              {zh('没有子目录', 'No subdirectories')}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
           onClick={() => selectDirectory(parent || null)}
-          sx={{
-            position: 'sticky',
-            bottom: 0,
-            zIndex: 1,
-            fontSize: '0.75rem',
-            bgcolor: 'background.paper',
-            borderTop: 1,
-            borderColor: 'divider',
-            '&:hover, &.Mui-focusVisible': { bgcolor: 'grey.100' },
-          }}
+          className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100"
         >
           {parent
             ? zh('查看此目录的视频', 'View videos in this directory')
             : zh('查看全部视频', 'View all videos')}
-        </MenuItem>
-      </Menu>
+        </button>
+      </Popover>
     </>
   )
 }
