@@ -91,6 +91,7 @@ export default function VideoDirectoryBreadcrumbs() {
         <ol className="flex h-8 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[11px]">
           {crumbs.map((crumb, index) => {
             const current = index === crumbs.length - 1
+            const active = menuOpen && menu?.index === index
             return (
               <li key={index} className="flex shrink-0 items-center gap-0.5">
                 {index > 0 ? (
@@ -101,7 +102,7 @@ export default function VideoDirectoryBreadcrumbs() {
                   type="button"
                   aria-current={current ? 'location' : undefined}
                   aria-haspopup="dialog"
-                  aria-expanded={menuOpen && menu?.index === index}
+                  aria-expanded={active}
                   onClick={(event) => {
                     setMenu({
                       anchor: event.currentTarget,
@@ -114,7 +115,7 @@ export default function VideoDirectoryBreadcrumbs() {
                     setMenuOpen(true)
                   }}
                   title={title(crumb)}
-                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 ${current ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
+                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 ${active ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
                 >
                   {index === 0 ? <FolderOutlinedIcon sx={{ fontSize: 16 }} /> : null}
                   <span className="max-w-48 truncate">{crumb.label}</span>
