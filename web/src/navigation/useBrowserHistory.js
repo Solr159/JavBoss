@@ -9,7 +9,7 @@ import {
   SCROLL_RESTORE_MAX_ATTEMPTS,
 } from '@/navigation/historyState'
 
-export default function useBrowserHistory({ currentRoute }) {
+export default function useBrowserHistory({ currentRoute, onSaveScroll }) {
   const browserInitialCanGoBackRef = useRef(window.history.length > 1)
 
   const browserHistoryIndexRef = useRef(0)
@@ -34,10 +34,13 @@ export default function useBrowserHistory({ currentRoute }) {
   const setBrowserNavigationFromIndex = useCallback((index, max) => {
     browserHistoryIndexRef.current = index
     browserHistoryMaxRef.current = max
-    setBrowserNavigation({
-      canGoBack: index > 0 || (index === 0 && browserInitialCanGoBackRef.current),
-      canGoForward: index < max,
-    })
+    const canGoBack = index > 0 || (index === 0 && browserInitialCanGoBackRef.current)
+    const canGoForward = index < max
+    setBrowserNavigation((current) =>
+      current.canGoBack === canGoBack && current.canGoForward === canGoForward
+        ? current
+        : { canGoBack, canGoForward }
+    )
   }, [])
 
   const readBrowserHistoryIndex = useCallback((state = window.history.state) => {
@@ -48,6 +51,7 @@ export default function useBrowserHistory({ currentRoute }) {
   const saveCurrentScrollPosition = useCallback(() => {
     const currentState = window.history.state || {}
     const currentScroll = readWindowScrollPosition()
+    onSaveScroll?.(currentRoute, currentScroll)
     const previousScroll = normalizeHistoryScrollPosition(
       getHistoryAppStateValue(currentState, HISTORY_SCROLL_KEY)
     )
@@ -57,7 +61,7 @@ export default function useBrowserHistory({ currentRoute }) {
       '',
       currentRoute
     )
-  }, [currentRoute])
+  }, [currentRoute, onSaveScroll])
 
   const saveScrollBeforeUrlStateChange = useCallback(() => {
     if (scrollSaveFrameRef.current) {

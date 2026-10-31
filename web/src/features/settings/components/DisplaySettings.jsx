@@ -7,12 +7,7 @@ import DisplaySettingsModal from '@/features/settings/components/DisplaySettings
 
 export default function DisplaySettings({ onClose, onError, onWaterfallChange, initialTab }) {
   const [draft, setDraft] = useState(() => createDisplaySettingsDraft(useStore.getState()))
-  const [editingTabs, setEditingTabs] = useState({})
   const [savingTabs, setSavingTabs] = useState({})
-  const resetTabDraft = (tab) => {
-    const saved = createDisplaySettingsDraft(useStore.getState(), tab)
-    setDraft((current) => ({ ...current, ...saved }))
-  }
   const handleSave = async (tab) => {
     if (savingTabs[tab]) return
     setSavingTabs((current) => ({ ...current, [tab]: true }))
@@ -31,16 +26,7 @@ export default function DisplaySettings({ onClose, onError, onWaterfallChange, i
       open={true}
       initialTab={initialTab}
       onClose={() => onClose()}
-      editingTabs={editingTabs}
       savingTabs={savingTabs}
-      onEdit={(tab) => {
-        resetTabDraft(tab)
-        setEditingTabs((current) => ({ ...current, [tab]: true }))
-      }}
-      onCancel={(tab) => {
-        resetTabDraft(tab)
-        setEditingTabs((current) => ({ ...current, [tab]: false }))
-      }}
       videoSettings={{
         pageSizeInput: draft.videoPageSizeInput,
         onPageSizeChange: (value) =>

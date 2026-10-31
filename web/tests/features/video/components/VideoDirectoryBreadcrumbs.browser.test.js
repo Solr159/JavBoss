@@ -237,7 +237,7 @@ test(
     ).searchParams
     assert.equal(query.get('directory_id'), '1')
     assert.equal(query.get('subdirectory'), '旅行/2025')
-    assert.equal(query.get('search'), 'clip')
+    assert.equal(query.has('search'), false)
     assert.equal(query.get('offset'), '0')
     await openLevel('2025')
     assert.deepEqual(await menuLabels(), ['旅行', '2025', '2026'])
