@@ -109,9 +109,7 @@ export default function VideoDirectoryBreadcrumbs() {
                       index,
                       value:
                         crumb.directory ||
-                        (directoryId
-                          ? { directory_id: directoryId, path: subdirectory || '.' }
-                          : null),
+                        (directoryId ? { directory_id: directoryId, path: '.' } : null),
                     })
                     setMenuOpen(true)
                   }}
@@ -170,6 +168,7 @@ export default function VideoDirectoryBreadcrumbs() {
             <VideoDirectoryTree
               nodes={nodes}
               value={menu?.value}
+              expandSelection={Boolean(directory)}
               onSelect={selectDirectory}
               // Native disclosure changes the height without a React render.
               onToggle={() => popoverRef.current?.updatePosition()}

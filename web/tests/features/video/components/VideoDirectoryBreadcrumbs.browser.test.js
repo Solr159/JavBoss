@@ -108,8 +108,34 @@ test(
         `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].filter(b => b.checkVisibility()).map(${itemLabel})`
       )
     assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026'])
-    // Expand descendants without changing the filter, then select a deep directory.
+    // All directories starts with collapsed library roots and highlights the current library.
     await openLevel('All directories')
+    assert.deepEqual(await menuLabels(), ['/videos', '/archive', 'View all videos'])
+    assert.equal(await evaluate(`${menu}.querySelectorAll('details[open]').length`), 0)
+    assert.equal(await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`), '/videos')
+    await evaluate(
+      `${menu}.querySelector('summary[aria-label="Expand or collapse directory /videos"] span').click()`
+    )
+    assert.deepEqual(await menuLabels(), [
+      '/videos',
+      'other',
+      '旅行',
+      '/archive',
+      'View all videos',
+    ])
+    assert.equal(await evaluate('window.testStore.getState().videoSubdirectory'), '旅行/2026')
+    assert.equal(await evaluate(`${menu}.querySelector('[aria-pressed="true"]') !== null`), false)
+    for (const type of ['keyDown', 'keyUp']) {
+      await command('Input.dispatchKeyEvent', {
+        type,
+        key: 'Escape',
+        code: 'Escape',
+        windowsVirtualKeyCode: 27,
+      })
+    }
+    await waitFor(`!${menu}`)
+    // Subdirectory popups still expand the parent and highlight the selected breadcrumb.
+    await openLevel('2026')
     const disclosure = `${menu}.querySelector('summary[aria-label="Expand or collapse directory /videos/旅行/2026"]')`
     const currentAction = `${disclosure}.querySelector('button')`
     assert.equal(await evaluate(`${currentAction}.getAttribute('aria-pressed')`), 'true')
@@ -244,13 +270,7 @@ test(
       `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].find(b => b.textContent === 'Retry').click()`
     )
     await waitFor(`${menu}.textContent.includes('/archive')`)
-    assert.deepEqual(await menuLabels(), [
-      '/videos',
-      'other',
-      '旅行',
-      '/archive',
-      'View all videos',
-    ])
+    assert.deepEqual(await menuLabels(), ['/videos', '/archive', 'View all videos'])
     await select('/archive')
     await waitFor(`window.testStore.getState().videoDirectoryId === 2`)
     await openLevel('/archive')
@@ -263,6 +283,8 @@ test(
     )
     assert.deepEqual(await labels(), ['All directories', '/archive'])
     await openLevel('All directories')
+    assert.deepEqual(await menuLabels(), ['/videos', '/archive', 'View all videos'])
+    assert.equal(await evaluate(`${menu}.querySelector('[aria-pressed="true"]').title`), '/archive')
     await select('View all videos')
     await waitFor(`!new URLSearchParams(location.search).has('directory_id')`)
     assert.deepEqual(await labels(), ['All directories'])

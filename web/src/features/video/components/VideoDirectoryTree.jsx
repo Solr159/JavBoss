@@ -30,10 +30,11 @@ export function buildDirectoryTree(directories) {
   return Array.from(roots.values())
 }
 
-function DirectoryNode({ node, value, showSelection, onSelect, onToggle }) {
+function DirectoryNode({ node, value, showSelection, expandSelection, onSelect, onToggle }) {
   const selected =
     showSelection && value?.directory_id === node.directory_id && value.path === node.path
   const containsSelection =
+    expandSelection &&
     value?.directory_id === node.directory_id &&
     (node.path === '.' || value.path.startsWith(`${node.path}/`))
   const label = node.path === '.' ? node.directory_path : node.path.split('/').pop()
@@ -85,6 +86,7 @@ function DirectoryNode({ node, value, showSelection, onSelect, onToggle }) {
                 node={child}
                 value={value}
                 showSelection={showSelection}
+                expandSelection={expandSelection}
                 onSelect={onSelect}
                 onToggle={onToggle}
               />
@@ -101,7 +103,13 @@ function DirectoryNode({ node, value, showSelection, onSelect, onToggle }) {
   )
 }
 
-export default function VideoDirectoryTree({ nodes, value, onSelect, onToggle }) {
+export default function VideoDirectoryTree({
+  nodes,
+  value,
+  expandSelection = true,
+  onSelect,
+  onToggle,
+}) {
   const [showSelection, setShowSelection] = useState(true)
   return (
     <ul aria-label={zh('目录树', 'Directory tree')} onClickCapture={() => setShowSelection(false)}>
@@ -111,6 +119,7 @@ export default function VideoDirectoryTree({ nodes, value, onSelect, onToggle })
           node={node}
           value={value}
           showSelection={showSelection}
+          expandSelection={expandSelection}
           onSelect={onSelect}
           onToggle={onToggle}
         />
