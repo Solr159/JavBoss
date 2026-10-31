@@ -86,5 +86,6 @@ jobs:
             --repo "$GH_REPO" \
             --target "${{ github.sha }}" \
             --draft \
+            --latest=false \
             --title "JavBoss Browser Extension v${{ needs.build.outputs.version }}" \
             --generate-notes

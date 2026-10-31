@@ -150,10 +150,11 @@ jobs:
         working-directory: scripts/cli
         run: npm ci
 
-      - name: Verify release test prerequisites
+      - name: Verify release and installer test prerequisites
         run: |
           command -v zip
           command -v unzip
+          command -v pwsh
 
       - name: Test CLI
         working-directory: scripts/cli
