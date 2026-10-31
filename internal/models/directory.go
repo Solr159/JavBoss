@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -52,6 +53,61 @@ func (summary *DirectoryScanSummary) Scan(value any) error {
 	return nil
 }
 
+// DirectoryScanScope stores the subdirectories a directory should scan. An empty
+// Include list means "scan everything below Path". Include paths are relative to
+// Path and stored with forward slashes so databases stay portable.
+type DirectoryScanScope struct {
+	Include []string `json:"include,omitempty"`
+}
+
+func (scope DirectoryScanScope) Value() (driver.Value, error) {
+	data, err := json.Marshal(scope)
+	if err != nil {
+		return nil, fmt.Errorf("marshal directory scan scope: %w", err)
+	}
+	return string(data), nil
+}
+
+func (scope *DirectoryScanScope) Scan(value any) error {
+	if scope == nil {
+		return fmt.Errorf("scan directory scope into nil receiver")
+	}
+	var data []byte
+	switch typed := value.(type) {
+	case nil:
+		*scope = DirectoryScanScope{}
+		return nil
+	case string:
+		data = []byte(typed)
+	case []byte:
+		data = typed
+	default:
+		return fmt.Errorf("scan directory scope from %T", value)
+	}
+	if raw := strings.TrimSpace(string(data)); raw == "" || raw == "null" {
+		*scope = DirectoryScanScope{}
+		return nil
+	}
+	if err := json.Unmarshal(data, scope); err != nil {
+		return fmt.Errorf("unmarshal directory scan scope: %w", err)
+	}
+	return nil
+}
+
+// Includes returns the normalized relative subdirectories to scan.
+func (scope DirectoryScanScope) Includes() []string {
+	if len(scope.Include) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(scope.Include))
+	for _, value := range scope.Include {
+		if cleaned := strings.Trim(strings.TrimSpace(filepath.ToSlash(value)), "/"); cleaned != "" && cleaned != "." {
+			out = append(out, cleaned)
+		}
+	}
+	return out
+}
+
 // Directory represents a root path that can be scanned for videos.
 type Directory struct {
 	ID                      int64                `json:"id" gorm:"primaryKey"`
@@ -66,4 +122,5 @@ type Directory struct {
 	AutoScanEnabled         bool                 `json:"auto_scan_enabled" gorm:"not null;default:true"`
 	AutoScanIntervalMinutes int                  `json:"auto_scan_interval_minutes" gorm:"not null;default:1"`
 	Enabled                 bool                 `json:"enabled" gorm:"not null;default:true"`
+	ScanScope               DirectoryScanScope   `json:"scan_scope" gorm:"type:text;not null;default:'{}'"`
 }

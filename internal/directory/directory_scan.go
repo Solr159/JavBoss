@@ -228,17 +228,79 @@ func reconcileDirectoryContents(ctx context.Context, dir models.Directory, state
 	return true, nil
 }
 
-// walkAndReconcileVideoFiles 遍历单个目录，实时写入视频位置并记录统计、缩略图和 JAV 关联任务。
+// walkAndReconcileVideoFiles 遍历目录中选中的子目录，实时写入视频位置并记录统计、缩略图和 JAV 关联任务。
+// 未选择子目录时遍历整个目录，与历史行为一致。
 func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory, state *syncState, summary *Summary) error {
 	// 边遍历文件边做指纹计算和 DB 更新，避免一次性构建全量快照
 	normalizedRoot := filepath.Clean(directory.Path)
+	walkRoots, err := directoryWalkRoots(normalizedRoot, directory.ScanScope.Includes())
+	if err != nil {
+		return err
+	}
+	for _, walkRoot := range walkRoots {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := walkDirectoryRoot(ctx, normalizedRoot, walkRoot, directory, state, summary); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// directoryWalkRoots 将目录扫描范围转换为实际遍历的根目录列表。
+// 未选择子目录时返回目录本身；选择子目录时只返回这些子目录，并跳过无效范围。
+func directoryWalkRoots(root string, include []string) ([]string, error) {
+	if len(include) == 0 {
+		return []string{root}, nil
+	}
+	roots := make([]string, 0, len(include))
+	for _, value := range include {
+		if strings.TrimSpace(value) == "" {
+			continue
+		}
+		relative := filepath.Clean(filepath.FromSlash(value))
+		if relative == "." || relative == ".." ||
+			filepath.IsAbs(relative) || filepath.VolumeName(relative) != "" ||
+			strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("invalid scan scope %q in directory %s", value, root)
+		}
+		candidate := filepath.Join(root, relative)
+		nested := false
+		for _, existing := range roots {
+			if candidate == existing || strings.HasPrefix(candidate, existing+string(filepath.Separator)) {
+				nested = true
+				break
+			}
+		}
+		if nested {
+			continue
+		}
+		info, statErr := os.Stat(candidate)
+		if statErr != nil {
+			// 选中的子目录不可用时中止本次扫描，避免把其中的文件位置误判为已删除。
+			return nil, fmt.Errorf("stat scan scope %s: %w", candidate, statErr)
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("scan scope %s is not a directory", candidate)
+		}
+		roots = append(roots, candidate)
+	}
+	if len(roots) == 0 {
+		return nil, fmt.Errorf("no valid scan scope in directory %s", root)
+	}
+	return roots, nil
+}
+
+// walkDirectoryRoot 遍历单个根目录，并把发现的视频与文件位置对账。
+func walkDirectoryRoot(ctx context.Context, normalizedRoot, walkRoot string, directory models.Directory, state *syncState, summary *Summary) error {
 	progress, _ := ctx.Value(directoryScanProgressKey{}).(*directoryScanProgress)
-	return filepath.WalkDir(normalizedRoot, func(candidatePath string, entry fs.DirEntry, walkErr error) error {
+	return filepath.WalkDir(walkRoot, func(candidatePath string, entry fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		if walkErr != nil {
-			if candidatePath == normalizedRoot {
+			if candidatePath == walkRoot {
 				return fmt.Errorf("walk directory entry %s: %w", candidatePath, walkErr)
 			}
 			summary.ReadErrors++

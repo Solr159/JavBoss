@@ -19,8 +19,8 @@ export function createDirectorySlice({ set, get, invalidateDirectoryScopedReques
         console.error(zh('加载目录失败', 'Failed to load directories'), e)
       }
     },
-    createDirectory: async ({ path }) => {
-      const dir = await createDirectory({ path })
+    createDirectory: async ({ path, scan_include }) => {
+      const dir = await createDirectory({ path, scan_include })
       const next = dir && !dir.is_delete ? [...get().directories, dir] : get().directories
       invalidateDirectoryScopedRequests()
       set({ directories: next, ...directoryScopeResetState() })
@@ -44,7 +44,9 @@ export function createDirectorySlice({ set, get, invalidateDirectoryScopedReques
         )
         .filter((d) => d && !d.is_delete)
       const scopeChanged =
-        Object.prototype.hasOwnProperty.call(payload || {}, 'enabled') || Boolean(dir?.is_delete)
+        Object.prototype.hasOwnProperty.call(payload || {}, 'enabled') ||
+        Object.prototype.hasOwnProperty.call(payload || {}, 'scan_include') ||
+        Boolean(dir?.is_delete)
       if (scopeChanged) invalidateDirectoryScopedRequests()
       set({ directories: next, ...(scopeChanged ? directoryScopeResetState() : {}) })
       return dir

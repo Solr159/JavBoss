@@ -199,6 +199,8 @@ export default function DirectoryManager({
 }) {
   const useHostPaths = useStore((state) => hostPathsEnabled(state.config))
   const [path, setPath] = useState('')
+  // Subdirectories (relative to path) ticked in the picker; empty means the whole directory.
+  const [scanInclude, setScanInclude] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [pickerTarget, setPickerTarget] = useState(null)
   const picking = pickerTarget !== null
@@ -207,6 +209,7 @@ export default function DirectoryManager({
 
   const [editId, setEditId] = useState(null)
   const [editPath, setEditPath] = useState('')
+  const [editScanInclude, setEditScanInclude] = useState([])
   const [rowErrorId, setRowErrorId] = useState(null)
   const [rowErrorMsg, setRowErrorMsg] = useState('')
   const [savingId, setSavingId] = useState(null)
@@ -241,15 +244,26 @@ export default function DirectoryManager({
   )
   const displayPath = (value) => displayHostPath(value, useHostPaths)
   const apiPath = (value) => apiHostPath(value, useHostPaths)
+  const scanIncludeLabel = (include) =>
+    include.length > 0
+      ? zh(
+          `只扫描 ${include.length} 个子文件夹：${include.join(' / ')}`,
+          `Scanning ${include.length} subfolders only: ${include.join(' / ')}`
+        )
+      : zh('扫描目录内全部子文件夹', 'Scan every subfolder in this directory')
+  const scopeIncludes = (directory) =>
+    Array.isArray(directory?.scan_scope?.include) ? directory.scan_scope.include : []
 
   useEffect(() => {
     if (open) {
       setPickerTarget(null)
       setPath('')
+      setScanInclude([])
       setError('')
       setAdding(false)
       setEditId(null)
       setEditPath('')
+      setEditScanInclude([])
       setRowErrorId(null)
       setRowErrorMsg('')
       setScanSettingsDirectory(null)
@@ -313,8 +327,9 @@ export default function DirectoryManager({
     }
     setSubmitting(true)
     try {
-      await onCreate?.({ path: apiPath(path) })
+      await onCreate?.({ path: apiPath(path), scan_include: scanInclude })
       setPath('')
+      setScanInclude([])
       setAdding(false)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -326,6 +341,7 @@ export default function DirectoryManager({
   const startEdit = (dir) => {
     setEditId(dir.id)
     setEditPath(displayPath(dir.path))
+    setEditScanInclude(scopeIncludes(dir))
     setRowErrorId(null)
     setRowErrorMsg('')
   }
@@ -333,6 +349,7 @@ export default function DirectoryManager({
   const cancelEdit = () => {
     setEditId(null)
     setEditPath('')
+    setEditScanInclude([])
     setRowErrorId(null)
     setRowErrorMsg('')
   }
@@ -352,11 +369,15 @@ export default function DirectoryManager({
     try {
       const original = directories.find((directory) => directory.id === editId)
       const nextPath = apiPath(trimmed)
-      if (original && nextPath === original.path) {
+      const nextInclude = editScanInclude
+      const scopeChanged = JSON.stringify(nextInclude) !== JSON.stringify(scopeIncludes(original))
+      if (original && nextPath === original.path && !scopeChanged) {
         cancelEdit()
         return
       }
-      await onUpdate?.(editId, { path: nextPath })
+      const payload = scopeChanged ? { scan_include: nextInclude } : {}
+      if (original && nextPath !== original.path) payload.path = nextPath
+      if (Object.keys(payload).length > 0) await onUpdate?.(editId, payload)
       cancelEdit()
     } catch (err) {
       setRowErrorId(editId)
@@ -548,8 +569,20 @@ export default function DirectoryManager({
                         >
                           {picking
                             ? zh('选择中…', 'Picking...')
-                            : zh('选择目录', 'Choose directory')}
+                            : zh('选择目录和子文件夹', 'Choose directory and subfolders')}
                         </button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-blue-700">
+                        <span>{scanIncludeLabel(editScanInclude)}</span>
+                        {editScanInclude.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setEditScanInclude([])}
+                            className="text-blue-600 underline hover:text-blue-800"
+                          >
+                            {zh('改为扫描整个目录', 'Scan the whole directory')}
+                          </button>
+                        )}
                       </div>
                       <div className="text-xs text-blue-700">{pathHelperText}</div>
                     </form>
@@ -601,6 +634,17 @@ export default function DirectoryManager({
                     {d.missing && (
                       <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
                         {zh('目录缺失', 'Missing')}
+                      </span>
+                    )}
+                    {!isEditing && scopeIncludes(d).length > 0 && (
+                      <span
+                        className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
+                        title={scopeIncludes(d).join(' / ')}
+                      >
+                        {zh(
+                          `扫描 ${scopeIncludes(d).length} 个子文件夹`,
+                          `Scanning ${scopeIncludes(d).length} subfolders`
+                        )}
                       </span>
                     )}
                     {d.is_delete && (
@@ -793,8 +837,22 @@ export default function DirectoryManager({
               disabled={picking || submitting}
               className="rounded border px-3 py-2 text-sm hover:bg-gray-100 disabled:opacity-60"
             >
-              {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
+              {picking
+                ? zh('选择中…', 'Picking...')
+                : zh('选择目录和子文件夹', 'Choose directory and subfolders')}
             </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-blue-700">
+            <span>{scanIncludeLabel(scanInclude)}</span>
+            {scanInclude.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setScanInclude([])}
+                className="text-blue-600 underline hover:text-blue-800"
+              >
+                {zh('改为扫描整个目录', 'Scan the whole directory')}
+              </button>
+            )}
           </div>
           <div className="text-xs text-blue-700">{pathHelperText}</div>
           {error && <div className="text-sm text-red-600">{error}</div>}
@@ -804,6 +862,7 @@ export default function DirectoryManager({
               onClick={() => {
                 setAdding(false)
                 setPath('')
+                setScanInclude([])
                 setError('')
               }}
               className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
@@ -1053,10 +1112,19 @@ export default function DirectoryManager({
       {open && pickerTarget && (
         <DirectoryPickerModal
           initialPath={pickerTarget === 'edit' ? editPath : path}
+          initialInclude={pickerTarget === 'edit' ? editScanInclude : scanInclude}
+          selectSubdirectories
           onClose={() => setPickerTarget(null)}
-          onSelect={(selectedPath) => {
-            if (pickerTarget === 'edit') setEditPath(displayPath(selectedPath))
-            else setPath(displayPath(selectedPath))
+          onSelect={(selection) => {
+            const selectedPath = displayPath(selection.path)
+            const include = selection.include || []
+            if (pickerTarget === 'edit') {
+              setEditPath(selectedPath)
+              setEditScanInclude(include)
+            } else {
+              setPath(selectedPath)
+              setScanInclude(include)
+            }
             setPickerTarget(null)
           }}
         />
