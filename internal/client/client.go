@@ -18,6 +18,7 @@ import (
 
 	"javboss/internal/common/logging"
 	"javboss/internal/mpv"
+	"javboss/internal/update"
 )
 
 const maxClientRequestBody = 1 << 20
@@ -137,6 +138,8 @@ func (c *Client) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case r.URL.Path == "/__client/update" || strings.HasPrefix(r.URL.Path, "/__client/update/"):
+		update.ServeHTTP(w, r, "/__client/update")
 	case r.URL.Path == "/healthz":
 		c.handleHealth(w)
 	case strings.HasPrefix(r.URL.Path, "/__client/media/"):

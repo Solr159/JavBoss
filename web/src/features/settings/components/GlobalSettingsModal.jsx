@@ -12,6 +12,7 @@ import PlayerSettingsModal from '@/features/settings/components/PlayerSettingsMo
 import WebHotkeySettings from '@/features/settings/components/WebHotkeySettings'
 import ProviderAvailabilityPanel from '@/features/settings/components/ProviderAvailabilityPanel'
 import ResourceDashboard from '@/features/settings/components/ResourceDashboard'
+import AppUpdateSettings from '@/features/settings/components/AppUpdateSettings'
 import TitleTranslationToolSettings from '@/features/settings/components/TitleTranslationToolSettings'
 import { downloadFFmpeg, fetchTools } from '@/features/settings/api'
 import { parsePlayerHotkeys } from '@/utils/playerHotkeys'
@@ -19,6 +20,11 @@ import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
 const SETTINGS_SECTIONS = [
+  {
+    id: 'updates',
+    title: { zh: '程序更新', en: 'App Updates' },
+    summary: { zh: '检查和安装新版本', en: 'Check for and install new versions' },
+  },
   {
     id: 'directories',
     title: { zh: '目录管理', en: 'Directory Management' },
@@ -97,6 +103,7 @@ export default function GlobalSettingsModal({
   containerMode = false,
   serverOS = '',
   appVersion = '',
+  clientMode = false,
   mpvEnabled = true,
   onCreateDirectory,
   onUpdateDirectory,
@@ -1537,6 +1544,7 @@ export default function GlobalSettingsModal({
           }`}
         >
           {currentSection === 'display' && renderDisplayPanel()}
+          {currentSection === 'updates' && <AppUpdateSettings clientMode={clientMode} />}
           {currentSection === 'resources' && <ResourceDashboard />}
           {currentSection === 'network' && renderNetworkPanel()}
           {currentSection === 'jav-providers' && (

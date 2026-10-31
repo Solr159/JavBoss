@@ -50,3 +50,19 @@ export async function downloadFFmpeg() {
   if (!res.ok) throw await apiError(res)
   return parseJSONResponse(res)
 }
+
+export async function fetchAppUpdate({ local = false, signal } = {}) {
+  const res = await apiFetch(local ? '/__client/update' : '/system/update', {
+    signal,
+    cache: 'no-store',
+  })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
+export async function requestAppUpdate(action, { local = false } = {}) {
+  const prefix = local ? '/__client/update' : '/system/update'
+  const res = await apiFetch(`${prefix}/${action}`, { method: 'POST' })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
