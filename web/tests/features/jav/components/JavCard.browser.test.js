@@ -62,17 +62,17 @@ test(
     const mode = `document.querySelector('select[aria-label="Cover display mode"]')`
     const fullRating = `document.querySelector('[role="switch"][aria-label="Show full favorite-rating hearts"]')`
     await waitFor(mode)
-    await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     assert.equal(await evaluate(`Boolean(${fullRating})`), false)
     await evaluate(
       `${mode}.value = 'landscape'; ${mode}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
     await waitFor(fullRating)
     assert.equal(await evaluate(`${fullRating}.getAttribute('aria-checked')`), 'true')
-    await evaluate(
-      `[...document.querySelectorAll('[role="dialog"] button')].find(button => button.textContent === 'Cancel').click()`
-    )
-    await waitFor(`${mode}.matches(':disabled') && ${mode}.value === 'portrait'`)
+    await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+    await waitFor(`!${mode}`)
+    await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
+    await waitFor(mode)
+    await waitFor(`!${mode}.matches(':disabled') && ${mode}.value === 'portrait'`)
     await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
     await waitFor(`!${mode}`)
     await evaluate(
@@ -99,11 +99,10 @@ test(
     )
     const studio = `document.querySelector('.jav-card a[title="Test Studio"]')`
     const series = `document.querySelector('.jav-card a[title="Test Series"]')`
-    const toggle = `document.querySelector('[role="switch"][aria-label="Hide studio"]')`
+    const toggle = `document.querySelector('[role="switch"][aria-label="Show studio"]')`
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(toggle)
-      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const click = async (label) => {
       await evaluate(
@@ -116,20 +115,21 @@ test(
         `window.testStore.setState(state => ({config: {...state.config, jav_card_portrait: ${portrait}}}))`
       )
       await openSettings()
-      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
       await evaluate(`${toggle}.click()`)
       await click('Save')
       await waitFor(`!${toggle} && !${studio}`)
       assert.ok(await evaluate(`Boolean(${series})`))
       assert.equal(await evaluate('window.testStore.getState().config.jav_hide_studio'), true)
       await openSettings()
-      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
       await click('Restore defaults')
-      await click('Cancel')
-      await waitFor(`${toggle}.matches(':disabled')`)
-      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+      await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+      await waitFor(`!${toggle}`)
+      await openSettings()
+      await waitFor(`!${toggle}.matches(':disabled')`)
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'false')
       assert.equal(await evaluate(`Boolean(${studio})`), false)
-      await click('Edit')
       await click('Restore defaults')
       await click('Save')
       await waitFor(`!${toggle} && ${studio}`)
@@ -196,7 +196,6 @@ test(
     const openSettings = async () => {
       await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
       await waitFor(select)
-      await evaluate(`document.querySelector('[role="dialog"] footer button').click()`)
     }
     const clickDialogButton = async (text) => {
       await evaluate(
@@ -291,16 +290,17 @@ test(
     await waitFor(
       `!${cropDialog} && ${img} && getComputedStyle(${img}).objectPosition === '100% 50%'`
     )
-    // The setting is restored when reopening; cancelling a change keeps portrait mode.
+    // Closing without saving keeps portrait mode when the settings are reopened.
     await openSettings()
     assert.equal(await evaluate(`${select}.value`), 'portrait')
     await evaluate(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
-    await clickDialogButton('Cancel')
-    await waitFor(`${select}.matches(':disabled') && ${select}.value === 'portrait'`)
+    await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+    await waitFor(`!${select}`)
+    await openSettings()
+    await waitFor(`!${select}.matches(':disabled') && ${select}.value === 'portrait'`)
     assert.equal(await evaluate(`getComputedStyle(${img}).objectFit`), 'cover')
-    await clickDialogButton('Edit')
     await evaluate(
       `${select}.value = 'landscape'; ${select}.dispatchEvent(new Event('change', {bubbles: true}))`
     )
