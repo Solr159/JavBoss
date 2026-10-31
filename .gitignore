@@ -1,4 +1,5 @@
 .gocache/
+.updates/
 data/
 /cache/
 docker-data/

@@ -48,6 +48,7 @@ export default function GlobalSettings({ onToast, open, onClose }) {
       containerMode={containerMode}
       serverOS={config?.runtime_os}
       appVersion={config?.app_version}
+      clientMode={configFlag(config?.runtime_client)}
       mpvEnabled={mpvEnabled}
       onCreateDirectory={async (payload) => {
         const created = await createDirectory(payload)

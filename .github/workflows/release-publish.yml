@@ -1,0 +1,49 @@
+name: release-publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Draft tag to publish (v2.1.4 or browser-extension-v0.11.0)"
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: publish-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish draft with explicit Latest policy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RELEASE_TAG" =~ ^browser-extension-v[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            latest=false
+          elif [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            latest=true
+          else
+            echo "Unsupported release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+          release_json="$RUNNER_TEMP/javboss-release.json"
+          gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft,isPrerelease,assets > "$release_json"
+          jq -e '.isDraft == true and .isPrerelease == false' "$release_json" > /dev/null
+          if [[ "$latest" == true ]]; then
+            for platform in windows-x86_64 linux-x86_64 macos-x86_64 macos-arm64; do
+              jq -e --arg name "javboss-${RELEASE_TAG}-${platform}.zip" 'any(.assets[]; .name == $name)' "$release_json" > /dev/null
+            done
+          fi
+          gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest="$latest"
