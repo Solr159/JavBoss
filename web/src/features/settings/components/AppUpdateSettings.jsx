@@ -19,7 +19,9 @@ export default function AppUpdateSettings({ clientMode = false }) {
   const [target, setTarget] = useState(clientMode ? 'local' : 'server')
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-semibold text-zinc-900">{zh('程序更新', 'App Updates')}</h3>
+      <h3 className="text-base font-semibold text-zinc-900">
+        {zh('检查更新', 'Check for Updates')}
+      </h3>
       {clientMode && (
         <TextField
           select
@@ -140,12 +142,6 @@ function UpdateTarget({ local, remote }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-500">
-        {zh(
-          '正式版启动时及每 24 小时自动检查更新，安装前需要确认。',
-          'Release builds check at startup and every 24 hours. Installation requires confirmation.'
-        )}
-      </p>
       <div className="space-y-2 text-sm text-zinc-700">
         <p>
           {zh('当前版本', 'Current version')}：{status?.current_version || '—'}

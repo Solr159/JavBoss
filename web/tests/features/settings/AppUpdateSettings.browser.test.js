@@ -28,7 +28,7 @@ async function setup(t, clientMode = false) {
   }`)
   await waitFor(`document.querySelector('[aria-labelledby="global-settings-title"]')`)
   await evaluate(
-    `Array.from(document.querySelectorAll('aside button')).find(button => button.textContent === 'App Updates').click()`
+    `Array.from(document.querySelectorAll('aside button')).find(button => button.textContent === 'Check for Updates').click()`
   )
   await waitFor(`document.body.textContent.includes('v2.0.0')`)
   return browser

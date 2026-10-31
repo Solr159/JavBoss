@@ -21,11 +21,6 @@ import { getErrorMessage } from '@/utils/errors'
 
 const SETTINGS_SECTIONS = [
   {
-    id: 'updates',
-    title: { zh: '程序更新', en: 'App Updates' },
-    summary: { zh: '检查和安装新版本', en: 'Check for and install new versions' },
-  },
-  {
     id: 'directories',
     title: { zh: '目录管理', en: 'Directory Management' },
     summary: { zh: '管理扫描目录与路径', en: 'Manage watched folders and paths' },
@@ -72,6 +67,11 @@ const SETTINGS_SECTIONS = [
     id: 'resources',
     title: { zh: '资源监控', en: 'Resource Monitor' },
     summary: { zh: 'CPU、内存与磁盘占用', en: 'CPU, memory and disk usage' },
+  },
+  {
+    id: 'updates',
+    title: { zh: '检查更新', en: 'Check for Updates' },
+    summary: { zh: '检查和安装新版本', en: 'Check for and install new versions' },
   },
 ]
 
