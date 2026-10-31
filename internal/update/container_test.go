@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -181,17 +182,24 @@ func TestContainerRegistryFailures(t *testing.T) {
 	}
 }
 
-func TestContainerCheckUsesRegistryAndNeverInstalls(t *testing.T) {
+type containerTestTransport func(*http.Request) (*http.Response, error)
+
+func (f containerTestTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestContainerCheckUsesRegistryVersionForReleaseNotesAndNeverInstalls(t *testing.T) {
 	for _, tc := range []struct {
 		version, reason string
 		release, newer  bool
+		notesStatus     int
 	}{
-		{"v2.0.0", "container", true, true},
-		{"v2.1.3", "container", true, false},
-		{"v2.2.0", "container", true, false},
-		{"dev", "development", false, false},
+		{"v2.0.0", "container", true, true, http.StatusOK},
+		{"v2.1.3", "container", true, false, http.StatusOK},
+		{"v2.2.0", "container", true, false, http.StatusOK},
+		{"dev", "development", false, false, http.StatusOK},
+		{"v2.0.0", "container", true, true, http.StatusNotFound},
+		{"v2.0.0", "container", true, true, http.StatusForbidden},
 	} {
-		t.Run(tc.version, func(t *testing.T) {
+		t.Run(tc.version+"/"+http.StatusText(tc.notesStatus), func(t *testing.T) {
 			m := newManager(t.Context(), Options{BaseDir: t.TempDir(), Version: tc.version, Release: tc.release, Container: true, Stop: func() { t.Error("checking stopped app") }})
 			if m.endpoint != "https://ghcr.io" {
 				t.Fatalf("wrong container endpoint: %s", m.endpoint)
@@ -210,17 +218,45 @@ func TestContainerCheckUsesRegistryAndNeverInstalls(t *testing.T) {
 					fmt.Fprint(w, `{"token":"test"}`)
 				case "/v2/solr159/javboss/tags/list":
 					fmt.Fprint(w, `{"name":"solr159/javboss","tags":["latest","v2.2.0","v2.1.3"]}`)
+				case "/Solr159/JavBoss/releases/tag/v2.1.3":
+					if r.Method != http.MethodGet || r.Header.Get("Authorization") != "" {
+						t.Errorf("unexpected release notes request: %s %s", r.Method, r.URL)
+					}
+					w.WriteHeader(tc.notesStatus)
+					fmt.Fprint(w, `<div data-test-selector="body-content" class="markdown-body"><h2>更新说明</h2><p>修复 <strong>Docker 更新</strong></p></div>`)
 				default:
-					t.Errorf("container check requested a non-registry URL: %s", r.URL)
+					t.Errorf("unexpected container update request: %s", r.URL)
 					http.NotFound(w, r)
 				}
 			}))
 			defer server.Close()
 			m.endpoint, m.client = server.URL, server.Client()
+			// Keep the production GitHub URL in the request, but serve its page
+			// locally so the test checks the selected tag without network access.
+			serverURL, _ := url.Parse(server.URL)
+			transport := m.client.Transport
+			m.client.Transport = containerTestTransport(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Host == "github.com" {
+					if r.URL.Scheme != "https" {
+						t.Errorf("insecure release notes URL: %s", r.URL)
+					}
+					r = r.Clone(r.Context())
+					r.URL.Scheme, r.URL.Host = serverURL.Scheme, serverURL.Host
+				}
+				return transport.RoundTrip(r)
+			})
 			m.check()
 			status := m.Status()
-			if requests != 5 || status.Phase != "idle" || status.Error != "" || status.CheckedAt == 0 || status.LatestVersion != "v2.1.3" || status.ReleaseURL != containerPackageURL || status.Available != tc.newer || status.DisabledReason != tc.reason || status.CanInstall || status.Notes != "" || status.NotesHTML != "" {
+			if requests != 6 || status.Phase != "idle" || status.Error != "" || status.CheckedAt == 0 || status.LatestVersion != "v2.1.3" || status.ReleaseURL != containerPackageURL || status.Available != tc.newer || status.DisabledReason != tc.reason || status.CanInstall {
 				t.Fatalf("requests=%d status=%+v", requests, status)
+			}
+			wantNotes, wantHTML := "", ""
+			if tc.notesStatus == http.StatusOK {
+				wantNotes = "更新说明\n修复 Docker 更新"
+				wantHTML = "<h2>更新说明</h2><p>修复 <strong>Docker 更新</strong></p>"
+			}
+			if status.Notes != wantNotes || status.NotesHTML != wantHTML {
+				t.Fatalf("notes=%q HTML=%q", status.Notes, status.NotesHTML)
 			}
 			if m.selected != (asset{}) || m.StartInstall() == nil {
 				t.Fatal("container update must not install a desktop archive")

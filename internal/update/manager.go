@@ -143,10 +143,14 @@ func (m *Manager) check() {
 		r, err = latestRelease(ctx, m.client, m.endpoint)
 	}
 	var notes releaseNotes
-	if err == nil && r != nil && !m.options.Container {
+	if err == nil && r != nil {
+		notesURL := strings.TrimSuffix(m.endpoint, "/latest") + "/tag/" + r.Tag
+		if m.options.Container {
+			notesURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
+		}
 		notesCtx, notesCancel := context.WithTimeout(ctx, 10*time.Second)
 		var notesErr error
-		notes, notesErr = readReleaseNotes(notesCtx, m.client, strings.TrimSuffix(m.endpoint, "/latest")+"/tag/"+r.Tag)
+		notes, notesErr = readReleaseNotes(notesCtx, m.client, notesURL)
 		notesCancel()
 		if notesErr != nil {
 			logging.Error("read release notes for %s: %v", r.Tag, notesErr)
