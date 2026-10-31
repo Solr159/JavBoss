@@ -11,6 +11,8 @@ import {
   MenuItem,
   TextField,
 } from '@mui/material'
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import SystemUpdateAltRoundedIcon from '@mui/icons-material/SystemUpdateAltRounded'
 import { fetchAppUpdate, isAppUpdateTargetReady, requestAppUpdate } from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -221,33 +223,96 @@ function UpdateTarget({ local, remote }) {
       <Dialog
         open={confirming}
         onClose={() => !submitting && setConfirming(false)}
+        fullWidth
+        maxWidth="xs"
         aria-labelledby="app-update-confirm-title"
+        aria-describedby="app-update-confirm-description"
+        slotProps={{
+          paper: {
+            sx: { borderRadius: '20px', m: 2, width: 'calc(100% - 32px)' },
+          },
+        }}
       >
-        <DialogTitle id="app-update-confirm-title">{zh('确认更新', 'Confirm update')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {remote
-              ? zh(
-                  '更新将关闭并重新启动远程服务器上的 JavBoss，正在进行的操作可能中断。是否继续？',
-                  'This update will close and restart JavBoss on the remote server. Operations in progress may be interrupted. Continue?'
-                )
-              : zh(
-                  '更新将关闭并重新启动 JavBoss，正在进行的操作可能中断。是否继续？',
-                  'This update will close and restart JavBoss. Operations in progress may be interrupted. Continue?'
-                )}
-          </DialogContentText>
-          <DialogContentText sx={{ mt: 2 }}>
+        <DialogTitle id="app-update-confirm-title" sx={{ px: 3, pt: 3, pb: 2.5 }}>
+          <span className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+              <SystemUpdateAltRoundedIcon />
+            </span>
+            <span className="text-lg font-semibold text-zinc-900">
+              {zh('确认更新', 'Confirm update')}
+            </span>
+          </span>
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pb: 2.5 }}>
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-zinc-50 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs text-zinc-500">{zh('当前版本', 'Current version')}</p>
+              <p className="mt-1 break-all text-sm font-medium text-zinc-600">
+                {status?.current_version || '—'}
+              </p>
+            </div>
+            <ArrowForwardRoundedIcon className="shrink-0 text-zinc-400" fontSize="small" />
+            <div className="min-w-0 flex-1 text-right">
+              <p className="text-xs text-zinc-500">{zh('更新至', 'Update to')}</p>
+              <p className="mt-1 break-all text-sm font-semibold text-blue-600">
+                {status?.latest_version || '—'}
+              </p>
+            </div>
+          </div>
+          <Alert severity="warning" sx={{ borderRadius: '12px', alignItems: 'flex-start' }}>
+            <DialogContentText
+              id="app-update-confirm-description"
+              sx={{ color: 'inherit', fontSize: 13, lineHeight: 1.7 }}
+            >
+              {remote
+                ? zh(
+                    '更新将关闭并重新启动远程服务器上的 JavBoss，正在进行的操作可能中断。是否继续？',
+                    'This update will close and restart JavBoss on the remote server. Operations in progress may be interrupted. Continue?'
+                  )
+                : zh(
+                    '更新将关闭并重新启动 JavBoss，正在进行的操作可能中断。是否继续？',
+                    'This update will close and restart JavBoss. Operations in progress may be interrupted. Continue?'
+                  )}
+            </DialogContentText>
+          </Alert>
+          <DialogContentText sx={{ mt: 2, mb: 0, fontSize: 12, lineHeight: 1.7, color: '#71717a' }}>
             {zh(
               '更新包下载并校验成功后才会关闭程序。',
               'JavBoss will close only after the update has been downloaded and verified.'
             )}
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button disabled={submitting} onClick={() => setConfirming(false)}>
+        <DialogActions
+          sx={{
+            px: 3,
+            py: 2,
+            gap: 1,
+            borderTop: '1px solid #f4f4f5',
+            '& > :not(style) ~ :not(style)': { ml: 0 },
+            '& .MuiButton-root': {
+              borderRadius: '10px',
+              px: { xs: 1, sm: 2.5 },
+              py: 1,
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+              flex: { xs: 1, sm: 'initial' },
+            },
+          }}
+        >
+          <Button
+            variant="outlined"
+            disabled={submitting}
+            onClick={() => setConfirming(false)}
+            sx={{ color: '#52525b', borderColor: '#d4d4d8' }}
+          >
             {zh('取消', 'Cancel')}
           </Button>
-          <Button disabled={submitting} onClick={() => action('install')}>
+          <Button
+            variant="contained"
+            disableElevation
+            disabled={submitting}
+            onClick={() => action('install')}
+          >
             {zh('继续更新', 'Continue update')}
           </Button>
         </DialogActions>
