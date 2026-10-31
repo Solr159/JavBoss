@@ -188,10 +188,15 @@ export async function deleteVideoLocation(videoId, locationId) {
   }
 }
 
-// Indexed subdirectories include all ancestors and are grouped by library root.
+// Resolve root paths once at the API boundary so tree consumers keep the same shape.
 export async function fetchVideoDirectories({ signal } = {}) {
   const res = await apiFetch('/videos/directories', { signal })
   if (!res.ok) throw await apiError(res)
   const data = await res.json()
-  return Array.isArray(data?.items) ? data.items : []
+  return Array.isArray(data?.items)
+    ? data.items.map((item) => ({
+        ...item,
+        directory_path: data.directory_paths?.[item.directory_id] ?? item.directory_path,
+      }))
+    : []
 }

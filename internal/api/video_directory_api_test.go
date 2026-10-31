@@ -151,10 +151,25 @@ func TestVideoDirectoryFilter(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/videos/directories", nil))
 	var result struct {
-		Items []dbpkg.VideoDirectory `json:"items"`
+		Items          []dbpkg.VideoDirectory `json:"items"`
+		DirectoryPaths map[int64]string       `json:"directory_paths"`
 	}
 	if recorder.Code != http.StatusOK || json.Unmarshal(recorder.Body.Bytes(), &result) != nil {
 		t.Fatalf("directory response: %d %s", recorder.Code, recorder.Body.String())
+	}
+	if len(result.DirectoryPaths) != 2 || result.DirectoryPaths[roots[0].ID] != roots[0].Path || result.DirectoryPaths[roots[1].ID] != roots[1].Path {
+		t.Fatalf("unexpected root path mapping: %v", result.DirectoryPaths)
+	}
+	var wire struct {
+		Items []map[string]json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &wire); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range wire.Items {
+		if _, exists := item["directory_path"]; exists {
+			t.Fatal("directory_path must not be repeated on individual items")
+		}
 	}
 	seen := make(map[string]bool)
 	for _, item := range result.Items {
@@ -166,6 +181,14 @@ func TestVideoDirectoryFilter(t *testing.T) {
 			t.Fatalf("duplicate option: %s", key)
 		}
 		seen[key] = true
+		if item.DirectoryID == roots[0].ID && item.Path == "." {
+			if item.VideoCount != 1 || len(item.Videos) != 1 || item.Videos[0] != "root.mp4" {
+				t.Errorf("root preview includes descendants or omits files: %+v", item)
+			}
+		}
+		if item.DirectoryID == roots[1].ID && item.Path == "." && (item.VideoCount != 0 || len(item.Videos) != 0) {
+			t.Errorf("ancestor should have no direct videos: %+v", item)
+		}
 	}
 	for _, dir := range []string{".", "旅行", "旅行/2026", "旅行/2026/deeper", "100%_fun"} {
 		if !seen[fmt.Sprintf("%d:%s", roots[0].ID, dir)] {

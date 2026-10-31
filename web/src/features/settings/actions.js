@@ -27,6 +27,7 @@ export async function saveVideoSettings(draft, onWaterfallChange) {
     video_sort: normalizedSort,
     video_hide_jav: videoHideJavInput,
     video_waterfall_default: waterfallDefault,
+    video_show_directory_bar: draft.videoShowDirectoryBarInput ?? true,
   }
   const cfg = await updateConfig(payload)
   const prevPage = page

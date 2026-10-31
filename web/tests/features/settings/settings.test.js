@@ -7,6 +7,12 @@ test('settings drafts stay local and a reopened dialog reads persisted values', 
   const state = useStore.getState()
   const draft = model.createVideoSettingsDraft(state)
   assert.equal(draft.videoWatchTimeIconMinutesInput, 30)
+  assert.equal(draft.videoShowDirectoryBarInput, true)
+  assert.equal(
+    model.createVideoSettingsDraft({ ...state, config: { video_show_directory_bar: 'false' } })
+      .videoShowDirectoryBarInput,
+    false
+  )
   draft.videoPageSizeInput = 100
   draft.videoHideJavInput = true
   assert.equal(useStore.getState().pageSize, state.pageSize)
@@ -40,10 +46,16 @@ test('saving video settings persists normalized values and clamps the current pa
   draft.videoPageSizeInput = '40'
   draft.videoWatchTimeIconMinutesInput = '10'
   draft.videoWaterfallDefaultInput = true
+  draft.videoShowDirectoryBarInput = false
   const changes = []
   await actions.saveVideoSettings(draft, (...args) => changes.push(args))
   assert.equal(payload.video_page_size, 40)
   assert.equal(payload.video_watch_time_icon_minutes, 10)
+  assert.equal(payload.video_show_directory_bar, false)
+  assert.equal(
+    model.createVideoSettingsDraft(useStore.getState()).videoShowDirectoryBarInput,
+    false
+  )
   assert.equal(
     model.createVideoSettingsDraft(useStore.getState()).videoWatchTimeIconMinutesInput,
     10

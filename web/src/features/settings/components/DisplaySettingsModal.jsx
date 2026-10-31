@@ -397,6 +397,7 @@ export default function DisplaySettingsModal({
         videoSettings.onSortChange(VIDEO_SORT_OPTIONS[0].defaultValue)
         videoSettings.onHideJavChange(false)
         videoSettings.onWaterfallDefaultChange(false)
+        videoSettings.onShowDirectoryBarChange(true)
         videoSettings.onWatchTimeIconMinutesChange(30)
         break
       case 'idol':

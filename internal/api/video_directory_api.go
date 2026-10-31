@@ -35,6 +35,10 @@ func parseVideoDirectoryFilter(c *gin.Context) ([]int64, string, bool) {
 
 // GET /videos/directories returns indexed directories and their ancestors for
 // the video filter, grouped by enabled library root (directory_id).
+// directory_paths maps each root ID to its absolute path once; items reference it
+// through directory_id and retain their relative path in path.
+// Each item includes video_count (direct files only) and videos (up to twenty
+// filenames, ordered by name). Ancestors without direct files have an empty list.
 func listVideoDirectories(c *gin.Context) {
 	items, err := dbpkg.Default().ListVideoDirectories(c.Request.Context())
 	if err != nil {
@@ -42,5 +46,9 @@ func listVideoDirectories(c *gin.Context) {
 		respondLocalizedError(c, http.StatusInternalServerError, "加载子目录失败", "Failed to load subdirectories")
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	directoryPaths := make(map[int64]string)
+	for _, item := range items {
+		directoryPaths[item.DirectoryID] = item.DirectoryPath
+	}
+	c.JSON(http.StatusOK, gin.H{"directory_paths": directoryPaths, "items": items})
 }

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import BulkPlaybackMenu from '@/features/playback/components/BulkPlaybackMenu'
 import Pagination from '@/shared/ui/Pagination'
 import VideoGrid from '@/features/video/components/VideoGrid'
+import VideoDirectoryBreadcrumbs from '@/features/video/components/VideoDirectoryBreadcrumbs'
 import WaterfallLoader from '@/shared/ui/WaterfallLoader'
 import {
   VIDEO_SORT_OPTIONS,
@@ -11,7 +12,8 @@ import {
   reverseVideoSortValue,
   videoSortLabelParts,
 } from '@/constants/video'
-import { videoSelectionKey } from '@/store'
+import { useStore, videoSelectionKey } from '@/store'
+import { configFlag } from '@/utils/config'
 import { zh } from '@/utils/i18n'
 
 function SortText({ option, value, className = '' }) {
@@ -64,6 +66,9 @@ export default function VideoView({
   hasMore,
 }) {
   const [sortAnchorEl, setSortAnchorEl] = useState(null)
+  const showDirectoryBar = useStore((state) =>
+    configFlag(state.config?.video_show_directory_bar, true)
+  )
   const pageIds = videos.map((video) => videoSelectionKey(video)).filter(Boolean)
   const pageSelectable = pageIds.length > 0
   const hasVideos = Number(totalItems) > 0
@@ -230,6 +235,7 @@ export default function VideoView({
         loading={loadingMore}
         onLoadMore={onLoadMore}
       />
+      {showDirectoryBar && <VideoDirectoryBreadcrumbs />}
     </>
   )
 }

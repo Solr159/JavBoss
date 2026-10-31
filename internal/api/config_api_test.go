@@ -402,12 +402,12 @@ func TestIsRemoteRequest(t *testing.T) {
 	}
 }
 
-func TestJavCardDisplayConfigPersists(t *testing.T) {
+func TestDisplayConfigPersists(t *testing.T) {
 	deps := newTestDependencies()
 	testAuthService(deps, t)
 	router := gin.New()
 	RegisterRoutes(router)
-	for _, key := range []string{"jav_card_portrait", "jav_hide_studio"} {
+	for _, key := range []string{"jav_card_portrait", "jav_hide_studio", "video_show_directory_bar"} {
 		for _, value := range []string{"true", "false"} {
 			req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(`{"`+key+`":`+value+`}`))
 			req.Header.Set("Content-Type", "application/json")
