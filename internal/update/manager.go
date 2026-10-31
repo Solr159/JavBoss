@@ -227,15 +227,15 @@ func (m *Manager) prepare(a asset, version string) error {
 	if executable != filepath.Join(base, executableName()) {
 		return errors.New("updating a renamed or relocated executable is not supported")
 	}
-	updates := filepath.Join(base, ".updates")
-	if err := os.MkdirAll(updates, 0700); err != nil {
-		return fmt.Errorf("create update directory: %w", err)
-	}
-	lock, err := util.AcquireFileLock(filepath.Join(updates, "download.lock"))
+	lock, err := acquireUpdateLock(base)
 	if err != nil {
 		return fmt.Errorf("another updater is active: %w", err)
 	}
 	defer lock.Release()
+	updates := filepath.Join(base, ".updates")
+	if err := os.MkdirAll(updates, 0700); err != nil {
+		return fmt.Errorf("create update directory: %w", err)
+	}
 	stage, err := os.MkdirTemp(updates, "update-")
 	if err != nil {
 		return err

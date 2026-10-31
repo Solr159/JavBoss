@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"javboss/internal/common/logging"
 	"javboss/internal/util"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -46,23 +45,13 @@ func AcquireRuntimeLock(base string) (*util.FileLock, error) {
 	return util.AcquireFileLock(filepath.Join(base, "data", "update-runtime.lock"))
 }
 
-// AcknowledgeStartup is called only after the DB migrations and listener setup
-// succeed. The helper retains backups on timeout; it never restores a database
-// behind a running new process or discards new user writes.
-func AcknowledgeStartup(base, version string) {
-	marker := os.Getenv(readyEnvironment)
-	_ = os.Unsetenv(readyEnvironment)
-	if marker == "" {
-		return
+// The operation lock must outlive .updates so cleanup and a new download cannot
+// acquire different lock files while that directory is being removed.
+func acquireUpdateLock(base string) (*util.FileLock, error) {
+	if err := os.MkdirAll(filepath.Join(base, "data"), 0755); err != nil {
+		return nil, err
 	}
-	if resolved, err := filepath.EvalSymlinks(base); err == nil {
-		base = resolved
-	}
-	parent, err := filepath.Rel(filepath.Join(base, ".updates"), marker)
-	if err != nil || parent == ".." || strings.HasPrefix(parent, ".."+string(os.PathSeparator)) || filepath.IsAbs(parent) {
-		return
-	}
-	_ = os.WriteFile(marker, []byte(version), 0600)
+	return util.AcquireFileLock(filepath.Join(base, "data", "update-operation.lock"))
 }
 
 // RunHelper must be dispatched before flags, logging, tray setup, or DB access.
@@ -74,12 +63,25 @@ func RunHelper(planPath string) error {
 	if err := validatePlan(planPath, plan); err != nil {
 		return err
 	}
-	err := applyPlan(plan)
+	err := waitForParent(plan)
+	if err == nil {
+		var lock *util.FileLock
+		lock, err = acquireUpdateLock(plan.BaseDir)
+		if err == nil {
+			defer lock.Release()
+			err = applyPlan(plan)
+		}
+	}
 	result := Result{Version: plan.Version, FinishedAt: time.Now().UnixMilli()}
 	if err != nil {
 		result.Error = err.Error()
 	}
 	if writeErr := writeJSON(filepath.Join(plan.BaseDir, "data", "update-result.json"), result); writeErr != nil {
+		return errors.Join(err, writeErr)
+	}
+	// A stage-local result identifies exactly which workspace may be removed.
+	// The new application waits for this helper to exit before inspecting it.
+	if writeErr := writeJSON(filepath.Join(plan.StageDir, "result.json"), result); writeErr != nil {
 		return errors.Join(err, writeErr)
 	}
 	return err
@@ -99,13 +101,24 @@ func validatePlan(planPath string, plan installPlan) error {
 	return validatePayload(filepath.Join(plan.StageDir, "payload"))
 }
 
-func applyPlan(plan installPlan) error {
+func waitForParent(plan installPlan) error {
 	parent, err := process.NewProcess(int32(plan.ParentPID))
 	if err != nil {
 		return fmt.Errorf("find original application: %w", err)
 	}
 	// Cache creation time before telling the parent it can exit (PID reuse).
 	if _, err := parent.CreateTime(); err != nil {
+		return err
+	}
+	self, err := process.NewProcess(int32(os.Getpid()))
+	if err != nil {
+		return err
+	}
+	createdAt, err := self.CreateTime()
+	if err != nil {
+		return err
+	}
+	if err := writeJSON(filepath.Join(plan.StageDir, "helper.json"), helperIdentity{PID: self.Pid, CreatedAt: createdAt}); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(plan.StageDir, "helper-ready"), []byte("ready"), 0600); err != nil {
@@ -116,6 +129,10 @@ func applyPlan(plan installPlan) error {
 	if err := waitForExit(ctx, parent); err != nil {
 		return fmt.Errorf("application did not exit; no files changed: %w", err)
 	}
+	return nil
+}
+
+func applyPlan(plan installPlan) error {
 	lock, err := AcquireRuntimeLock(plan.BaseDir)
 	if err != nil {
 		return fmt.Errorf("another application instance started; no files changed: %w", err)
@@ -181,21 +198,6 @@ func applyPlan(plan installPlan) error {
 	defer startupCancel()
 	if err := waitFile(startupCtx, marker, plan.Version); err != nil {
 		return fmt.Errorf("new version did not confirm startup; backup retained in %s (database was not automatically restored): %w", backup, err)
-	}
-	// The new version is ready; its backup is no longer needed. Cleanup failure
-	// must not turn a successful update into a failed one.
-	if err := os.RemoveAll(backup); err != nil {
-		logging.Error("update succeeded but backup cleanup failed for %s: %v", backup, err)
-	}
-	// Discard previous successful update directories after startup is confirmed.
-	entries, _ := os.ReadDir(filepath.Dir(plan.StageDir))
-	for _, entry := range entries {
-		old := filepath.Join(filepath.Dir(plan.StageDir), entry.Name())
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), "update-") && old != plan.StageDir {
-			if _, err := os.Stat(filepath.Join(old, "application-ready")); err == nil {
-				_ = os.RemoveAll(old)
-			}
-		}
 	}
 	return nil
 }
