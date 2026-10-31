@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -131,6 +132,16 @@ func (m *Manager) check() {
 	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 	defer cancel()
 	r, err := latestRelease(ctx, m.client, m.endpoint)
+	var notes string
+	if err == nil && r != nil {
+		notesCtx, notesCancel := context.WithTimeout(ctx, 10*time.Second)
+		var notesErr error
+		notes, notesErr = readReleaseNotes(notesCtx, m.client, strings.TrimSuffix(m.endpoint, "/latest")+"/tag/"+r.Tag)
+		notesCancel()
+		if notesErr != nil {
+			logging.Error("read release notes for %s: %v", r.Tag, notesErr)
+		}
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.status.Phase = "idle"
@@ -146,7 +157,7 @@ func (m *Manager) check() {
 	if r == nil {
 		return
 	}
-	m.status.LatestVersion = r.Tag
+	m.status.LatestVersion, m.status.Notes = r.Tag, notes
 	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {

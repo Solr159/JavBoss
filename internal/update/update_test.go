@@ -286,6 +286,10 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 					w.WriteHeader(http.StatusFound)
 					return
 				}
+				if r.Method == http.MethodGet && r.URL.Path == "/releases/tag/v2.0.0" {
+					_, _ = w.Write([]byte(`<div data-test-selector="body-content" class="markdown-body"><p>更新说明</p></div>`))
+					return
+				}
 				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
 				http.NotFound(w, r)
 			}))
@@ -298,8 +302,8 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 			if status.DisabledReason != tc.reason || status.CanInstall != installable {
 				t.Fatalf("status=%+v", status)
 			}
-			if requests != 1 {
-				t.Fatalf("unexpected request count: %d", requests)
+			if requests != 2 || status.Notes != "更新说明" {
+				t.Fatalf("requests=%d notes=%q", requests, status.Notes)
 			}
 			if installable && m.selected.URL != "https://github.com/"+repository+"/releases/download/v2.0.0/"+name {
 				t.Fatalf("wrong download URL: %s", m.selected.URL)
