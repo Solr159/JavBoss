@@ -9,6 +9,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen'
 import ManageSearchIcon from '@mui/icons-material/ManageSearch'
 import { revealVideoLocation } from '@/features/video/api'
 import { useStore } from '@/store'
+import { buildVideoQueryLink } from '@/navigation/queryLinks'
 import { displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
 import {
   buildVideoFullPath,
@@ -57,8 +58,16 @@ export default function VideoCard({
       : ''
   const sizeText = formatBytes(meta.size || video?.size)
   const directoryPath = video?.directory?.path || video?.directory_path || ''
+  const directoryId = video?.directory_id || video?.directory?.id
   const videoPath = video?.path || ''
   const relativeDirectoryPath = videoPath.split(/[/\\]/).slice(0, -1).join('/') || '.'
+  const directoryHref = useStore((state) =>
+    buildVideoQueryLink(
+      state,
+      { directoryId, subdirectory: relativeDirectoryPath, page: 1, tempSort: '' },
+      window.location.pathname
+    )
+  )
   const fullPath = buildVideoFullPath(video)
   const displayPath = displayHostPath(fullPath, useHostPaths)
   const canOpen = Boolean(directoryPath && videoPath)
@@ -71,6 +80,16 @@ export default function VideoCard({
     [video?.cover_screenshot_name || '', video?.updated_at || ''].join('|')
   )
   const thumbnailSrc = `/videos/${video.id}/thumbnail${thumbnailVersion ? `?v=${thumbnailVersion}` : ''}`
+
+  const handleDirectoryClick = (event) => {
+    event.stopPropagation()
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0)
+      return
+    event.preventDefault()
+    const state = useStore.getState()
+    if (state.viewMode !== 'video') state.setViewMode('video')
+    state.setVideoDirectoryFilter({ directory_id: directoryId, path: relativeDirectoryPath })
+  }
 
   const handleOpenFile = async (event) => {
     event.stopPropagation()
@@ -288,7 +307,21 @@ export default function VideoCard({
             className="mt-1 truncate text-[10px] text-gray-500 sm:text-[11px]"
             title={relativeDirectoryPath}
           >
-            {relativeDirectoryPath}
+            {directoryId ? (
+              <a
+                href={directoryHref}
+                onClick={handleDirectoryClick}
+                className="hover:text-blue-700 hover:underline"
+                aria-label={zh(
+                  `跳转到目录 ${relativeDirectoryPath}`,
+                  `Go to directory ${relativeDirectoryPath}`
+                )}
+              >
+                {relativeDirectoryPath}
+              </a>
+            ) : (
+              relativeDirectoryPath
+            )}
           </div>
         ) : null}
         <div className="mt-2 flex min-w-0 items-start gap-2">
