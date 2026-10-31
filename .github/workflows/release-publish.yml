@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -83,7 +84,7 @@ jobs:
         with:
           ref: main
           path: main
-          # Set this secret to a token allowed to write to protected main.
+          # Optional: use a PAT if the README PR needs to trigger other workflows.
           token: ${{ secrets.RELEASE_PUBLISH_TOKEN || github.token }}
 
       - name: Setup Node
@@ -92,9 +93,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Update README download links on main
+      - name: Create or update README pull request
         if: steps.release.outputs.update_readme == 'true'
         working-directory: main
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN || github.token }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
@@ -104,11 +108,22 @@ jobs:
             exit 0
           fi
 
+          branch="release-readme/${RELEASE_TAG}"
+          remote_sha="$(git ls-remote --heads origin "refs/heads/$branch" | cut -f1)"
+          git checkout -b "$branch"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- README.md
           git commit -m "docs: update download links to $RELEASE_TAG"
-          if ! git push origin HEAD:main; then
-            echo "::error::Release $RELEASE_TAG is published, but README could not be pushed to main. Check branch protection and RELEASE_PUBLISH_TOKEN permissions, then rerun this workflow with the same tag. If main changed during this run, rerunning will use the latest main."
-            exit 1
+          # Only replace this workflow's branch, and reject concurrent changes.
+          git push --force-with-lease="refs/heads/$branch:$remote_sha" origin "HEAD:refs/heads/$branch"
+
+          title="docs: update download links for $RELEASE_TAG"
+          body_file="$RUNNER_TEMP/readme-pr-body.md"
+          printf 'Updates the applicable application and browser extension download links in README.md for [%s](https://github.com/%s/releases/tag/%s).\n\nGenerated after publishing the release. Merge this PR to update the links on main.\n' "$RELEASE_TAG" "$GH_REPO" "$RELEASE_TAG" > "$body_file"
+          pr_number="$(gh pr list --repo "$GH_REPO" --head "$branch" --base main --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$pr_number" ]]; then
+            gh pr edit "$pr_number" --repo "$GH_REPO" --title "$title" --body-file "$body_file"
+          else
+            gh pr create --repo "$GH_REPO" --head "$branch" --base main --title "$title" --body-file "$body_file"
           fi
