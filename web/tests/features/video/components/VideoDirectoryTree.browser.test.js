@@ -18,10 +18,10 @@ test(
     await evaluate(`(() => {
       const originalFetch=window.fetch;
       window.fetch=(input,init) => {
-        if(new URL(input,location.origin).pathname === '/videos/directories') return Promise.resolve(Response.json({items:[
-          {directory_id:1,directory_path:'/videos',path:'folder',video_count:23,videos:Array.from({length:20},(_,i)=>'clip-'+String(i+1).padStart(2,'0')+'.mp4')},
-          {directory_id:1,directory_path:'/videos',path:'.',video_count:1,videos:['root.mp4']},
-          {directory_id:2,directory_path:'/archive',path:'.',video_count:1,videos:['other-root.mp4']},
+        if(new URL(input,location.origin).pathname === '/videos/directories') return Promise.resolve(Response.json({directory_paths:{1:'/videos',2:'/archive'},items:[
+          {directory_id:1,path:'folder',video_count:23,videos:Array.from({length:20},(_,i)=>'clip-'+String(i+1).padStart(2,'0')+'.mp4')},
+          {directory_id:1,path:'.',video_count:1,videos:['root.mp4']},
+          {directory_id:2,path:'.',video_count:1,videos:['other-root.mp4']},
         ]}));
         return originalFetch(input,init);
       };

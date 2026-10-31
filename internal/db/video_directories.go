@@ -30,7 +30,7 @@ func applyVideoSubdirectoryFilter(query *gorm.DB, filters []VideoFilter) *gorm.D
 
 type VideoDirectory struct {
 	DirectoryID   int64    `json:"directory_id"`
-	DirectoryPath string   `json:"directory_path"`
+	DirectoryPath string   `json:"-"`
 	Path          string   `json:"path"`
 	Videos        []string `json:"videos"`
 	VideoCount    int      `json:"video_count"`
