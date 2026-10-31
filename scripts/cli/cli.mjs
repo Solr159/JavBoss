@@ -1473,9 +1473,10 @@ async function handleDownload(platformArg) {
 
 async function handleDocker(action, args = []) {
   if (action === "--help" || action === "-h" || args.includes("--help") || args.includes("-h")) {
-    console.log(`用法：scripts/cli.sh docker start [--build-only]
+    console.log(`用法：scripts/cli.sh docker start [version | --version version] [--build-only]
       scripts/cli.sh docker stop
 start 构建镜像并后台启动容器；--build-only 仅构建镜像。
+指定 version 时从当前源码构建 release 模式并写入版本号；不指定时构建开发版。
 容器固定使用 host 网络，直接监听宿主机端口。
 容器使用当前用户的 UID/GID，启动前自动创建数据目录。
 stop 停止容器，保留容器和数据。
@@ -1504,8 +1505,22 @@ stop 停止容器，保留容器和数据。
   if (action !== "start" && action !== "stop") {
     throw new Error(`不支持的 Docker 操作：${action}，请使用 start 或 stop`);
   }
-  for (const arg of args) {
-    if (action !== "start" || arg !== "--build-only") throw new Error(`未知参数：${arg}`);
+  let version;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (action !== "start") throw new Error(`未知参数：${arg}`);
+    if (arg === "--build-only") continue;
+    if (version !== undefined) throw new Error(`未知参数或重复版本：${arg}`);
+    if (arg === "--version") {
+      version = args[++i];
+    } else if (!arg.startsWith("-")) {
+      version = arg;
+    } else {
+      throw new Error(`未知参数：${arg}`);
+    }
+    if (!version || !/^[A-Za-z0-9][A-Za-z0-9._+-]*$/.test(version)) {
+      throw new Error("[docker] 请提供有效的版本号，例如 v1.2.3");
+    }
   }
   if (!(await commandExists("docker"))) {
     throw new Error("[docker] 未找到 Docker，请先安装 Docker 和 Docker Compose 插件");
@@ -1546,7 +1561,10 @@ stop 停止容器，保留容器和数据。
   console.log("[docker] 网络模式：host");
   console.log(`[docker] 容器用户：${uid}:${gid}`);
   console.log("[docker] 构建本地镜像");
-  await runCommand("docker", [...composeArgs, "build", "javboss"], dockerOptions);
+  const buildArgs = version === undefined ? [] : [
+    "--build-arg", "BUILD_MODE=release", "--build-arg", `APP_VERSION=${version}`,
+  ];
+  await runCommand("docker", [...composeArgs, "build", ...buildArgs, "javboss"], dockerOptions);
   if (args.includes("--build-only")) return;
 
   await fsp.mkdir(dataDir, { recursive: true });
