@@ -116,7 +116,7 @@ resolve_latest_release() {
 
   [[ "$release_url" == "$prefix"* ]] || die "invalid latest release redirect: $release_url"
   tag="${release_url#"$prefix"}"
-  [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]] || die "latest release is not a JavBoss application release: $tag"
+  compare_versions "$tag" "$tag" >/dev/null || die "latest release is not a JavBoss application release: $tag"
   filename="javboss-${tag}-${platform}.zip"
   url="https://github.com/${REPO}/releases/download/${tag}/${filename}"
 }
@@ -170,6 +170,50 @@ write_installed_version() {
   local install_dir="$1"
   local tag="$2"
   printf '%s\n' "$tag" >"$(version_file_path "$install_dir")"
+}
+
+compare_versions() {
+  # Print -1, 0 or 1. Use decimal strings to avoid integer overflow, and
+  # portable awk instead of sort -V (unavailable on stock macOS).
+  LC_ALL=C awk '
+    function valid(v, parts, n, i) {
+      if (v !~ /^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/) return 0
+      sub(/\+.*/, "", v)
+      if (v !~ /-/) return 1
+      sub(/^[^-]*-/, "", v)
+      n = split(v, parts, ".")
+      for (i = 1; i <= n; i++) if (parts[i] ~ /^0[0-9]+$/) return 0
+      return 1
+    }
+    function compare(a, b, numeric) {
+      if (numeric && length(a) != length(b)) return length(a) > length(b) ? 1 : -1
+      # Prefixes force string comparison even for long digit-only identifiers.
+      if ("x" a == "x" b) return 0
+      return "x" a > "x" b ? 1 : -1
+    }
+    BEGIN {
+      a = ARGV[1]; b = ARGV[2]
+      if (!valid(a) || !valid(b)) exit 2
+      sub(/^v/, "", a); sub(/^v/, "", b)
+      sub(/\+.*/, "", a); sub(/\+.*/, "", b)
+      ac = a; bc = b
+      sub(/-.*/, "", ac); sub(/-.*/, "", bc)
+      split(ac, av, "."); split(bc, bv, ".")
+      for (i = 1; i <= 3; i++) {
+        c = compare(av[i], bv[i], 1)
+        if (c) { print c; exit }
+      }
+      ap = index(a, "-"); bp = index(b, "-")
+      if (!ap || !bp) { print ap ? -1 : (bp ? 1 : 0); exit }
+      an = split(substr(a, ap + 1), av, "."); bn = split(substr(b, bp + 1), bv, ".")
+      for (i = 1; i <= an && i <= bn; i++) {
+        ad = av[i] ~ /^[0-9]+$/; bd = bv[i] ~ /^[0-9]+$/
+        c = ad != bd ? (ad ? -1 : 1) : compare(av[i], bv[i], ad)
+        if (c) { print c; exit }
+      }
+      print an == bn ? 0 : (an > bn ? 1 : -1)
+    }
+  ' "$1" "$2"
 }
 
 canonical_path() {
@@ -323,7 +367,7 @@ start_javboss() {
 main() {
   command_exists unzip || die "unzip is required"
 
-  local platform tag filename url zip_file extract_dir release_dir
+  local platform tag filename url zip_file extract_dir release_dir current_version comparison
   platform="$(detect_platform)"
   INSTALL_DIR="$(default_install_dir)"
 
@@ -332,11 +376,15 @@ main() {
 
   log "checking the latest JavBoss release"
   resolve_latest_release "$platform"
-  if [[ "$(installed_version "$INSTALL_DIR")" == "$tag" ]]; then
-    create_command_link "$INSTALL_DIR"
-    ensure_command_on_path
-    log "JavBoss $tag is already installed; no update needed"
-    return
+  if [[ -f "$INSTALL_DIR/javboss" ]]; then
+    current_version="$(installed_version "$INSTALL_DIR")"
+    comparison="$(compare_versions "$tag" "$current_version")" || die "cannot compare installed version '$current_version'; check $INSTALL_DIR/.version"
+    if [[ "$comparison" -le 0 ]]; then
+      create_command_link "$INSTALL_DIR"
+      ensure_command_on_path
+      log "JavBoss $current_version is already installed; latest is $tag, no update needed"
+      return
+    fi
   fi
 
   ensure_not_running "$INSTALL_DIR"

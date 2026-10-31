@@ -57,9 +57,7 @@ function Get-LatestReleaseAsset {
     Fail "invalid latest release redirect: $releaseUrl"
   }
   $tag = $releaseUrl.Substring($prefix.Length)
-  if ($tag -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$') {
-    Fail "latest release is not a JavBoss application release: $tag"
-  }
+  Compare-ReleaseVersions -Left $tag -Right $tag | Out-Null
   $fileName = "javboss-$tag-$Platform.zip"
   $url = "https://github.com/$Repo/releases/download/$tag/$fileName"
   return [PSCustomObject]@{ Tag = $tag; FileName = $fileName; Url = $url }
@@ -108,6 +106,58 @@ function Set-InstalledVersion {
   param([string]$InstallDir, [string]$Tag)
 
   Set-Content -LiteralPath (Get-VersionFilePath -InstallDir $InstallDir) -Value $Tag -Encoding UTF8
+}
+
+function Compare-VersionIdentifier {
+  param([string]$Left, [string]$Right, [bool]$Numeric)
+
+  if ($Numeric -and $Left.Length -ne $Right.Length) {
+    return [Math]::Sign($Left.Length - $Right.Length)
+  }
+  return [Math]::Sign([String]::CompareOrdinal($Left, $Right))
+}
+
+function Compare-ReleaseVersions {
+  param([string]$Left, [string]$Right)
+
+  $pattern = '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?\z'
+  foreach ($version in @($Left, $Right)) {
+    if ($version -cnotmatch $pattern) {
+      Fail "cannot compare invalid version '$version'; check the release tag and installed .version file"
+    }
+    $parts = ($version -split '\+', 2)[0] -split '-', 2
+    if ($parts.Count -eq 2) {
+      foreach ($identifier in ($parts[1] -split '\.')) {
+        if ($identifier -match '^0[0-9]+$') { Fail "invalid numeric prerelease identifier in '$version'" }
+      }
+    }
+  }
+
+  # Build metadata does not affect precedence; compare prereleases after the core.
+  $a = ($Left.Substring(1) -split '\+', 2)[0] -split '-', 2
+  $b = ($Right.Substring(1) -split '\+', 2)[0] -split '-', 2
+  $ac = $a[0] -split '\.'
+  $bc = $b[0] -split '\.'
+  for ($i = 0; $i -lt 3; $i++) {
+    $comparison = Compare-VersionIdentifier $ac[$i] $bc[$i] $true
+    if ($comparison -ne 0) { return $comparison }
+  }
+  if ($a.Count -eq 1 -or $b.Count -eq 1) {
+    return [Math]::Sign($b.Count - $a.Count)
+  }
+  $ap = $a[1] -split '\.'
+  $bp = $b[1] -split '\.'
+  for ($i = 0; $i -lt [Math]::Min($ap.Count, $bp.Count); $i++) {
+    $an = $ap[$i] -match '^[0-9]+$'
+    $bn = $bp[$i] -match '^[0-9]+$'
+    if ($an -ne $bn) {
+      if ($an) { return -1 }
+      return 1
+    }
+    $comparison = Compare-VersionIdentifier $ap[$i] $bp[$i] $an
+    if ($comparison -ne 0) { return $comparison }
+  }
+  return [Math]::Sign($ap.Count - $bp.Count)
 }
 
 function Copy-ReleaseFiles {
@@ -234,9 +284,12 @@ $tag = $asset.Tag
 $fileName = $asset.FileName
 $url = $asset.Url
 
-if ((Get-InstalledVersion -InstallDir $Dir) -eq $tag) {
-  Write-Log "JavBoss $tag is already installed; no update needed"
-  return
+if (Test-Path -LiteralPath (Join-Path $Dir "javboss.exe")) {
+  $currentVersion = Get-InstalledVersion -InstallDir $Dir
+  if ((Compare-ReleaseVersions -Left $tag -Right $currentVersion) -le 0) {
+    Write-Log "JavBoss $currentVersion is already installed; latest is $tag, no update needed"
+    return
+  }
 }
 
 Assert-JavBossNotRunning -InstallDir $Dir
