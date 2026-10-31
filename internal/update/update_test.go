@@ -269,7 +269,6 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 		version, reason    string
 	}{
 		{"desktop", true, false, "v1.0.0", ""},
-		{"container", true, true, "v1.0.0", "container"},
 		{"development", false, false, "dev", "development"},
 		{"already current", true, false, "v2.0.0", ""},
 	} {

@@ -68,6 +68,9 @@ func newManager(ctx context.Context, options Options) *Manager {
 	m := &Manager{ctx: ctx, options: options, client: util.NewHTTPClient(0),
 		endpoint: "https://github.com/" + repository + "/releases/latest", platform: platformName(runtime.GOOS, runtime.GOARCH),
 		status: Status{CurrentVersion: options.Version, Phase: "idle"}}
+	if options.Container {
+		m.endpoint = "https://ghcr.io"
+	}
 	switch {
 	case !options.Release || !releaseTag.MatchString(options.Version):
 		m.status.DisabledReason = "development"
@@ -132,9 +135,15 @@ func (m *Manager) StartCheck() error {
 func (m *Manager) check() {
 	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 	defer cancel()
-	r, err := latestRelease(ctx, m.client, m.endpoint)
+	var r *release
+	var err error
+	if m.options.Container {
+		r, err = latestContainerRelease(ctx, m.client, m.endpoint)
+	} else {
+		r, err = latestRelease(ctx, m.client, m.endpoint)
+	}
 	var notes releaseNotes
-	if err == nil && r != nil {
+	if err == nil && r != nil && !m.options.Container {
 		notesCtx, notesCancel := context.WithTimeout(ctx, 10*time.Second)
 		var notesErr error
 		notes, notesErr = readReleaseNotes(notesCtx, m.client, strings.TrimSuffix(m.endpoint, "/latest")+"/tag/"+r.Tag)
@@ -160,6 +169,9 @@ func (m *Manager) check() {
 	}
 	m.status.LatestVersion, m.status.Notes, m.status.NotesHTML = r.Tag, notes.Text, notes.HTML
 	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
+	if m.options.Container {
+		m.status.ReleaseURL = containerPackageURL
+	}
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {
 		return
