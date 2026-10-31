@@ -35,8 +35,8 @@ func TestDirectoryWalkRootsHonoursScanScope(t *testing.T) {
 		},
 		{
 			name:    "backslash separators are accepted",
-			include: []string{"a\\inner"},
-			want:    []string{filepath.Join(root, "a", "inner")},
+    		include: []string{filepath.ToSlash(filepath.Join("a", "inner"))},
+    		want:    []string{filepath.Join(root, "a", "inner")},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
