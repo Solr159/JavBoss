@@ -31,6 +31,7 @@ import (
 	"javboss/internal/jav/translation"
 	"javboss/internal/models"
 	"javboss/internal/mpv"
+	"javboss/internal/update"
 	"javboss/internal/util"
 
 	"javboss/internal/download"
@@ -54,6 +55,13 @@ const (
 )
 
 func main() {
+	if len(os.Args) == 3 && os.Args[1] == "--apply-update" {
+		if err := update.RunHelper(os.Args[2]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	os.Exit(run())
 }
 
@@ -93,6 +101,18 @@ func run() int {
 	}
 	if background {
 		return 0
+	}
+	if buildMode == "release" && !common.ContainerMode() {
+		lock, err := update.AcquireRuntimeLock(baseDir)
+		if err != nil {
+			if errors.Is(err, util.ErrLockHeld) {
+				notifyAlreadyRunning("JavBoss 已在运行或更新中。")
+				return 0
+			}
+			logger.Printf("acquire update runtime lock: %v", err)
+			return 1
+		}
+		defer lock.Release()
 	}
 
 	bootstrapCfg, err := clientpkg.LoadBootstrapConfig(baseDir)
@@ -185,6 +205,8 @@ func run() int {
 		logger.Printf("password reset applied; all existing sessions were revoked")
 	}
 	runtimeCfg := applyRuntimeConfig(ctx)
+	update.Init(ctx, update.Options{BaseDir: baseDir, DatabasePath: cfg.DatabasePath,
+		Version: common.Version, Release: buildMode == "release", Container: common.ContainerMode(), Stop: stop})
 	allowLANAccess := configBool(runtimeCfg["allow_lan_access"]) && !common.ContainerMode()
 
 	var activeDirs []models.Directory
@@ -268,6 +290,7 @@ func run() int {
 	actualPort := listener.Addr().(*net.TCPAddr).Port
 	displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 	logger.Printf("server listening on %s", listener.Addr().String())
+	update.AcknowledgeStartup(baseDir, common.Version)
 	if err := serveWithReleaseControls(ctx, stop, displayURL, "", logger, func() error {
 		return api.ServeHTTP(ctx, srv, listener, allowLANAccess, !common.ContainerMode())
 	}); err != nil {
@@ -289,6 +312,8 @@ func resolveClientServerURL(flagValue, configuredValue string) string {
 }
 
 func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, serverURL string, configuredPort int, logger *log.Logger) error {
+	update.Init(ctx, update.Options{BaseDir: baseDir, Version: common.Version,
+		Release: buildMode == "release", Container: common.ContainerMode(), Stop: stop})
 	port := configuredPort
 	if port == 0 {
 		if buildMode == "release" && !common.ContainerMode() {
@@ -330,6 +355,7 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 	defer listener.Close()
 	displayURL := fmt.Sprintf("http://localhost:%d", port)
 	logger.Printf("client mode listening on %s, remote server %s", listenAddr, strings.TrimSpace(serverURL))
+	update.AcknowledgeStartup(baseDir, common.Version)
 	if err := serveWithReleaseControls(ctx, stop, displayURL, serverURL, logger, func() error {
 		return api.ServeHTTP(ctx, srv, listener, false, false)
 	}); err != nil {
