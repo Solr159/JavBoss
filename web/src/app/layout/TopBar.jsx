@@ -431,19 +431,6 @@ export default function TopBar({
     }
   }, [favoriteEntityType])
 
-  const favoriteAllLabel = useMemo(() => {
-    switch (favoriteEntityType) {
-      case 'jav':
-        return zh('全部作品', 'All JAV')
-      case 'studio':
-        return zh('全部片商', 'All studios')
-      case 'series':
-        return zh('全部系列', 'All series')
-      default:
-        return zh('全部女优', 'All idols')
-    }
-  }, [favoriteEntityType])
-
   useEffect(() => {
     const updateHeight = () => {
       const height = headerRef.current?.getBoundingClientRect().height || 0
@@ -549,7 +536,6 @@ export default function TopBar({
               {favoriteMenuOpen ? (
                 <FavoriteGroupMenu
                   title={favoriteLabel}
-                  allLabel={favoriteAllLabel}
                   groups={favoriteGroups}
                   selectedGroupId={selectedFavoriteGroupId}
                   loading={favoriteGroupsLoading}
@@ -709,7 +695,6 @@ export default function TopBar({
 
 function FavoriteGroupMenu({
   title,
-  allLabel,
   groups,
   selectedGroupId,
   loading,
@@ -737,8 +722,18 @@ function FavoriteGroupMenu({
       />
       <div className="flex items-center justify-between gap-2 border-b bg-white px-3 py-2">
         <div className="min-w-0">
-          <div className="text-xs font-semibold text-gray-700">
-            {title || zh('女优收藏夹', 'Idol favorites')}
+          <div className="flex min-h-[21px] items-center gap-1 text-xs leading-4">
+            <span className="font-semibold text-gray-700">
+              {title || zh('女优收藏夹', 'Idol favorites')}
+            </span>
+            <button
+              type="button"
+              disabled={!selected}
+              onClick={() => onSelect?.(null)}
+              className="shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:text-gray-400 disabled:hover:bg-transparent"
+            >
+              {zh('取消筛选', 'Clear filter')}
+            </button>
           </div>
           <div className="truncate text-xs text-gray-500">
             {loading
@@ -764,12 +759,6 @@ function FavoriteGroupMenu({
           </div>
         ) : null}
         <div className="grid grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] gap-2">
-          <FavoriteGroupTile
-            active={!selected}
-            href={buildGroupUrl?.(null)}
-            label={allLabel || zh('全部女优', 'All idols')}
-            onClick={() => onSelect?.(null)}
-          />
           {list.map((group) => {
             const id = Number(group?.id)
             if (!Number.isFinite(id) || id <= 0) return null
