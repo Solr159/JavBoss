@@ -15,7 +15,6 @@ import (
 )
 
 const containerRepository = "solr159/javboss"
-const containerPackageURL = "https://github.com/" + repository + "/pkgs/container/javboss"
 
 var registryNextLink = regexp.MustCompile(`<([^>]+)>;\s*rel="?next"?(?:\s|,|$)`)
 var registryDigest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)

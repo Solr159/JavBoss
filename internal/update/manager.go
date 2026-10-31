@@ -172,10 +172,7 @@ func (m *Manager) check() {
 		return
 	}
 	m.status.LatestVersion, m.status.Notes, m.status.NotesHTML = r.Tag, notes.Text, notes.HTML
-	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
-	if m.options.Container {
-		m.status.ReleaseURL = containerPackageURL
-	}
+	m.status.ReleaseURL = "https://github.com/" + repository + "/releases"
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {
 		return

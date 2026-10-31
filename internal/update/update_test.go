@@ -298,7 +298,7 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 			m.check()
 			status := m.Status()
 			installable := tc.reason == "" && tc.version != "v2.0.0"
-			if status.DisabledReason != tc.reason || status.CanInstall != installable {
+			if status.DisabledReason != tc.reason || status.CanInstall != installable || status.ReleaseURL != "https://github.com/Solr159/JavBoss/releases" {
 				t.Fatalf("status=%+v", status)
 			}
 			if requests != 2 || status.Notes != "更新说明" || status.NotesHTML != "<p>更新说明</p>" {

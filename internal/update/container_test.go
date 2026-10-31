@@ -247,7 +247,7 @@ func TestContainerCheckUsesRegistryVersionForReleaseNotesAndNeverInstalls(t *tes
 			})
 			m.check()
 			status := m.Status()
-			if requests != 6 || status.Phase != "idle" || status.Error != "" || status.CheckedAt == 0 || status.LatestVersion != "v2.1.3" || status.ReleaseURL != containerPackageURL || status.Available != tc.newer || status.DisabledReason != tc.reason || status.CanInstall {
+			if requests != 6 || status.Phase != "idle" || status.Error != "" || status.CheckedAt == 0 || status.LatestVersion != "v2.1.3" || status.ReleaseURL != "https://github.com/Solr159/JavBoss/releases" || status.Available != tc.newer || status.DisabledReason != tc.reason || status.CanInstall {
 				t.Fatalf("requests=%d status=%+v", requests, status)
 			}
 			wantNotes, wantHTML := "", ""
