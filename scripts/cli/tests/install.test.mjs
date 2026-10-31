@@ -288,10 +288,18 @@ test("version update only changes README links", (t) => {
   for (const name of ["install.sh", "install.ps1"]) {
     fs.writeFileSync(path.join(dir, "scripts", name), "installer must stay unchanged\n");
   }
-  fs.writeFileSync(path.join(dir, "README.md"), "https://github.com/Solr159/JavBoss/releases/download/v1.0.0/javboss-v1.0.0-linux-x86_64.zip\n");
+  const platforms = ["windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-arm64"];
+  const extension = "https://github.com/Solr159/JavBoss/releases/download/v1.0.0/javboss-browser-extension-v0.14.1.zip";
+  const before = ["Release documentation", ...platforms.map(platform =>
+    `https://github.com/Solr159/JavBoss/releases/download/v1.0.0/javboss-v1.0.0-${platform}.zip`), extension].join("\n");
+  fs.writeFileSync(path.join(dir, "README.md"), before);
   const result = spawnSync(process.execPath, [path.join(dir, "scripts", "update-release-version.mjs"), "v9.8.7"], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(fs.readFileSync(path.join(dir, "README.md"), "utf8"), /download\/v9\.8\.7\/javboss-v9\.8\.7-linux-x86_64.zip/);
+  const expected = before.replaceAll(/download\/v1\.0\.0\/javboss-v1\.0\.0-/g, "download/v9.8.7/javboss-v9.8.7-");
+  assert.equal(fs.readFileSync(path.join(dir, "README.md"), "utf8"), expected);
+  const retry = spawnSync(process.execPath, [path.join(dir, "scripts", "update-release-version.mjs"), "v9.8.7"], { encoding: "utf8" });
+  assert.equal(retry.status, 0, retry.stderr);
+  assert.equal(fs.readFileSync(path.join(dir, "README.md"), "utf8"), expected);
   for (const name of ["install.sh", "install.ps1"]) {
     assert.equal(fs.readFileSync(path.join(dir, "scripts", name), "utf8"), "installer must stay unchanged\n");
   }

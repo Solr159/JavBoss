@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Draft tag to publish (v2.1.4 or browser-extension-v0.11.0)"
+        description: "Release tag to publish (v2.1.4 or browser-extension-v0.11.0); published tags can retry README sync"
         required: true
 
 permissions:
@@ -12,6 +12,8 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_VERSION: "24"
+  RELEASE_TAG: ${{ inputs.tag }}
 
 concurrency:
   group: publish-release
@@ -22,10 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Publish draft with explicit Latest policy
+        id: release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag }}
         shell: bash
         run: |
           set -euo pipefail
@@ -40,10 +42,73 @@ jobs:
 
           release_json="$RUNNER_TEMP/javboss-release.json"
           gh release view "$RELEASE_TAG" --repo "$GH_REPO" --json isDraft,isPrerelease,assets > "$release_json"
-          jq -e '.isDraft == true and .isPrerelease == false' "$release_json" > /dev/null
+          jq -e '.isPrerelease == false' "$release_json" > /dev/null
           if [[ "$latest" == true ]]; then
             for platform in windows-x86_64 linux-x86_64 macos-x86_64 macos-arm64; do
               jq -e --arg name "javboss-${RELEASE_TAG}-${platform}.zip" 'any(.assets[]; .name == $name)' "$release_json" > /dev/null
             done
+          else
+            jq -e --arg name "javboss-${RELEASE_TAG}.zip" 'any(.assets[]; .name == $name)' "$release_json" > /dev/null
           fi
-          gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest="$latest"
+          jq -e '[.assets[] | select(.name | test("^javboss-browser-extension-v[0-9]+(\\.[0-9]+){0,3}\\.zip$"))] | length <= 1' "$release_json" > /dev/null
+          if jq -e '.isDraft == true' "$release_json" > /dev/null; then
+            gh release edit "$RELEASE_TAG" --repo "$GH_REPO" --draft=false --latest="$latest"
+          else
+            echo "Release is already published; checking whether README sync is needed."
+          fi
+
+          # Retrying an older release must not replace the current Latest links.
+          update_readme=true
+          if [[ "$latest" == true ]]; then
+            latest_tag="$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)"
+            if [[ "$latest_tag" == "$RELEASE_TAG" ]]; then
+              echo "Updating README for the latest application release."
+            else
+              update_readme=false
+              echo "Latest is $latest_tag; leaving README unchanged."
+            fi
+          fi
+          echo "update_readme=$update_readme" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout publishing scripts
+        if: steps.release.outputs.update_readme == 'true'
+        uses: actions/checkout@v5
+        with:
+          path: release-tools
+          persist-credentials: false
+
+      - name: Checkout main for README update
+        if: steps.release.outputs.update_readme == 'true'
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          path: main
+          # Set this secret to a token allowed to write to protected main.
+          token: ${{ secrets.RELEASE_PUBLISH_TOKEN || github.token }}
+
+      - name: Setup Node
+        if: steps.release.outputs.update_readme == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Update README download links on main
+        if: steps.release.outputs.update_readme == 'true'
+        working-directory: main
+        shell: bash
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/release-tools/scripts/update-release-version.mjs" "$RELEASE_TAG" "$RUNNER_TEMP/javboss-release.json" README.md
+          if git diff --quiet -- README.md; then
+            echo "README download links already point to $RELEASE_TAG."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- README.md
+          git commit -m "docs: update download links to $RELEASE_TAG"
+          if ! git push origin HEAD:main; then
+            echo "::error::Release $RELEASE_TAG is published, but README could not be pushed to main. Check branch protection and RELEASE_PUBLISH_TOKEN permissions, then rerun this workflow with the same tag. If main changed during this run, rerunning will use the latest main."
+            exit 1
+          fi
