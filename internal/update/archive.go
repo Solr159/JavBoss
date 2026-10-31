@@ -3,8 +3,6 @@ package update
 import (
 	"archive/zip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,7 +28,7 @@ func (w *progressWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-func downloadArchive(ctx context.Context, client *http.Client, a asset, target string, progress func(int64)) error {
+func downloadArchive(ctx context.Context, client *http.Client, a asset, target string, progress func(int64, int64)) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.URL, nil)
 	if err != nil {
 		return err
@@ -43,22 +41,29 @@ func downloadArchive(ctx context.Context, client *http.Client, a asset, target s
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("download release: HTTP %d", resp.StatusCode)
 	}
+	if resp.ContentLength > maxArchiveSize {
+		return fmt.Errorf("release archive exceeds size limit")
+	}
+	total := resp.ContentLength
+	if total < 0 {
+		total = 0
+	}
+	progress(0, total)
 	f, err := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	hash := sha256.New()
-	w := &progressWriter{Writer: io.MultiWriter(f, hash), report: progress}
-	n, err := io.Copy(w, io.LimitReader(resp.Body, a.Size+1))
+	w := &progressWriter{Writer: f, report: func(n int64) { progress(n, total) }}
+	n, err := io.Copy(w, io.LimitReader(resp.Body, maxArchiveSize+1))
 	if err != nil {
 		return fmt.Errorf("download release: %w", err)
 	}
-	if n != a.Size {
-		return fmt.Errorf("release size mismatch: got %d, want %d", n, a.Size)
+	if n == 0 || n > maxArchiveSize {
+		return fmt.Errorf("invalid release archive size: %d", n)
 	}
-	if !strings.EqualFold(hex.EncodeToString(hash.Sum(nil)), strings.TrimPrefix(a.Digest, "sha256:")) {
-		return fmt.Errorf("release SHA256 mismatch")
+	if resp.ContentLength >= 0 && n != resp.ContentLength {
+		return fmt.Errorf("release size mismatch: got %d, want %d", n, resp.ContentLength)
 	}
 	return f.Sync()
 }

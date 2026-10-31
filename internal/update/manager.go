@@ -64,7 +64,7 @@ func platformOS() string { return runtime.GOOS }
 
 func newManager(ctx context.Context, options Options) *Manager {
 	m := &Manager{ctx: ctx, options: options, client: util.NewHTTPClient(0),
-		endpoint: "https://api.github.com/repos/" + repository + "/releases", platform: platformName(runtime.GOOS, runtime.GOARCH),
+		endpoint: "https://github.com/" + repository + "/releases/latest", platform: platformName(runtime.GOOS, runtime.GOARCH),
 		status: Status{CurrentVersion: options.Version, Phase: "idle"}}
 	switch {
 	case !options.Release || !releaseTag.MatchString(options.Version):
@@ -134,6 +134,8 @@ func (m *Manager) check() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.status.Phase = "idle"
+	m.status.CanInstall = false
+	m.selected = asset{}
 	if err != nil {
 		m.status.Phase, m.status.Error = "error", err.Error()
 		return
@@ -141,22 +143,21 @@ func (m *Manager) check() {
 	m.status.CheckedAt = time.Now().UnixMilli()
 	m.status.Available, m.status.CanInstall = false, false
 	m.status.LatestVersion, m.status.Notes, m.status.ReleaseURL = "", "", ""
-	m.selected = asset{}
 	if r == nil {
 		return
 	}
-	m.status.LatestVersion, m.status.Notes = r.Tag, r.Notes
+	m.status.LatestVersion = r.Tag
 	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {
 		return
 	}
-	a, err := releaseAsset(r, m.platform)
+	selected, err := releaseAsset(r, m.platform)
 	if err != nil {
 		m.status.Error = err.Error()
 		return
 	}
-	m.selected, m.status.CanInstall = a, true
+	m.selected, m.status.CanInstall = selected, true
 }
 
 func (m *Manager) StartInstall() error {
@@ -173,7 +174,7 @@ func (m *Manager) StartInstall() error {
 	}
 	a, version := m.selected, m.status.LatestVersion
 	m.status.Phase, m.status.Error = "downloading", ""
-	m.status.Downloaded, m.status.Total = 0, a.Size
+	m.status.Downloaded, m.status.Total = 0, 0
 	go func() {
 		if err := m.prepare(a, version); err != nil {
 			logging.Error("application update failed: %v", err)
@@ -223,9 +224,9 @@ func (m *Manager) prepare(a asset, version string) error {
 	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Minute)
 	defer cancel()
 	archive := filepath.Join(stage, "release.zip")
-	if err := downloadArchive(ctx, m.client, a, archive, func(n int64) {
+	if err := downloadArchive(ctx, m.client, a, archive, func(n, total int64) {
 		m.mu.Lock()
-		m.status.Downloaded = n
+		m.status.Downloaded, m.status.Total = n, total
 		m.mu.Unlock()
 	}); err != nil {
 		return err

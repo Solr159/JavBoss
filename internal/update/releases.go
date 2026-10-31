@@ -2,10 +2,7 @@ package update
 
 import (
 	"context"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -19,18 +16,12 @@ const repository = "Solr159/JavBoss"
 var releaseTag = regexp.MustCompile(`^v[0-9]+\.[0-9]+\.[0-9]+$`)
 
 type asset struct {
-	Name   string `json:"name"`
-	URL    string `json:"browser_download_url"`
-	Digest string `json:"digest"`
-	Size   int64  `json:"size"`
+	Name string
+	URL  string
 }
 
 type release struct {
-	Tag        string  `json:"tag_name"`
-	Notes      string  `json:"body"`
-	Draft      bool    `json:"draft"`
-	Prerelease bool    `json:"prerelease"`
-	Assets     []asset `json:"assets"`
+	Tag string
 }
 
 func platformName(goos, goarch string) string {
@@ -40,66 +31,59 @@ func platformName(goos, goarch string) string {
 	}[goos+"/"+goarch]
 }
 
-// Extensions have their own releases in the same repository. Select application
-// tags by semantic version, independently of GitHub's latest-release marker.
+// Read GitHub's Latest redirect without fetching its HTML or using the REST API.
+// Fail closed if Latest was accidentally assigned to a browser extension release.
 func latestRelease(ctx context.Context, client *http.Client, endpoint string) (*release, error) {
-	var latest *release
-	for page := 1; page <= 10; page++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s?per_page=100&page=%d", endpoint, page), nil)
-		if err != nil {
-			return nil, err
-		}
-		req.Header.Set("Accept", "application/vnd.github+json")
-		req.Header.Set("User-Agent", "JavBoss-Updater")
-		resp, err := client.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("check releases: %w", err)
-		}
-		if resp.StatusCode != http.StatusOK {
-			resp.Body.Close()
-			return nil, fmt.Errorf("check releases: HTTP %d", resp.StatusCode)
-		}
-		var releases []release
-		err = json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(&releases)
-		resp.Body.Close()
-		if err != nil {
-			return nil, fmt.Errorf("decode releases: %w", err)
-		}
-		for _, r := range releases {
-			if r.Draft || r.Prerelease || !releaseTag.MatchString(r.Tag) || !semver.IsValid(r.Tag) {
-				continue
-			}
-			if latest == nil || semver.Compare(r.Tag, latest.Tag) > 0 {
-				copy := r
-				latest = &copy
-			}
-		}
-		if len(releases) < 100 {
-			return latest, nil
-		}
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, endpoint, nil)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("release history exceeds pagination limit")
+	req.Header.Set("User-Agent", "JavBoss-Updater")
+	redirectClient := *client
+	redirectClient.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	resp, err := redirectClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("check latest release: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	switch resp.StatusCode {
+	case http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther, http.StatusTemporaryRedirect, http.StatusPermanentRedirect:
+	default:
+		return nil, fmt.Errorf("check latest release: expected a redirect, got HTTP %d", resp.StatusCode)
+	}
+	location, err := url.Parse(resp.Header.Get("Location"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid latest release redirect: %w", err)
+	}
+	// GitHub may return a relative Location. Resolve against the trusted website,
+	// not a caller-supplied Host or the redirected destination.
+	base, _ := url.Parse("https://github.com/" + repository + "/releases/latest")
+	location = base.ResolveReference(location)
+	prefix := "/" + repository + "/releases/tag/"
+	if location.Scheme != "https" || location.Host != "github.com" || location.User != nil ||
+		location.RawQuery != "" || location.Fragment != "" || !strings.HasPrefix(location.Path, prefix) {
+		return nil, fmt.Errorf("latest release does not point to an official application release")
+	}
+	tag := strings.TrimPrefix(location.Path, prefix)
+	if !releaseTag.MatchString(tag) || !semver.IsValid(tag) {
+		return nil, fmt.Errorf("latest release is not a stable application version: %s", tag)
+	}
+	return &release{Tag: tag}, nil
 }
 
+// Release archives have fixed names, so no API or manifest is needed.
 func releaseAsset(r *release, platform string) (asset, error) {
-	name := "javboss-" + r.Tag + "-" + platform + ".zip"
-	for _, a := range r.Assets {
-		if a.Name != name {
-			continue
-		}
-		u, err := url.Parse(a.URL)
-		if err != nil || u.Scheme != "https" || u.Host != "github.com" || u.User != nil ||
-			u.Path != "/"+repository+"/releases/download/"+r.Tag+"/"+name || u.RawQuery != "" || u.Fragment != "" {
-			return asset{}, fmt.Errorf("invalid release download URL")
-		}
-		digest, err := hex.DecodeString(strings.TrimPrefix(a.Digest, "sha256:"))
-		if !strings.HasPrefix(a.Digest, "sha256:") || err != nil || len(digest) != 32 {
-			return asset{}, fmt.Errorf("release asset has no valid SHA256 digest")
-		}
-		if a.Size <= 0 || a.Size > maxArchiveSize {
-			return asset{}, fmt.Errorf("invalid release asset size")
-		}
-		return a, nil
+	if r == nil || !releaseTag.MatchString(r.Tag) || !semver.IsValid(r.Tag) {
+		return asset{}, fmt.Errorf("invalid application release version")
 	}
-	return asset{}, fmt.Errorf("release has no package for %s", platform)
+	switch platform {
+	case "windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-arm64":
+	default:
+		return asset{}, fmt.Errorf("unsupported release platform: %s", platform)
+	}
+	name := "javboss-" + r.Tag + "-" + platform + ".zip"
+	return asset{Name: name, URL: "https://github.com/" + repository + "/releases/download/" + r.Tag + "/" + name}, nil
 }

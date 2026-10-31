@@ -11,7 +11,7 @@ import {
   MenuItem,
   TextField,
 } from '@mui/material'
-import { fetchAppUpdate, requestAppUpdate } from '@/features/settings/api'
+import { fetchAppUpdate, isAppUpdateTargetReady, requestAppUpdate } from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
@@ -70,8 +70,20 @@ function UpdateTarget({ local, remote }) {
         if (expectedVersion && next.phase === 'error') setExpectedVersion('')
       } catch (err) {
         if (controller.signal.aborted) return
-        if (expectedVersion) setReconnecting(true)
-        else setError(getErrorMessage(err))
+        if (expectedVersion) {
+          setReconnecting(true)
+          // Do not depend on the old page successfully reading the new update
+          // API forever. Once the target is reachable, load its current UI and
+          // let the normal login flow handle any expired session.
+          const ready = await isAppUpdateTargetReady({ local, signal: controller.signal }).catch(
+            () => false
+          )
+          if (controller.signal.aborted) return
+          if (ready) {
+            window.location.reload()
+            return
+          }
+        } else setError(getErrorMessage(err))
       }
       timer = window.setTimeout(refresh, 2000)
     }
@@ -105,7 +117,9 @@ function UpdateTarget({ local, remote }) {
     : 0
   const phaseText = {
     checking: zh('正在检查更新…', 'Checking for updates…'),
-    downloading: zh(`正在下载更新 ${progress}%`, `Downloading update ${progress}%`),
+    downloading: status?.total_bytes
+      ? zh(`正在下载更新 ${progress}%`, `Downloading update ${progress}%`)
+      : zh('正在下载更新…', 'Downloading update…'),
     preparing: zh('正在准备更新…', 'Preparing update…'),
     restarting: zh('正在关闭并重新启动 JavBoss…', 'Closing and restarting JavBoss…'),
   }[status?.phase]
@@ -161,7 +175,11 @@ function UpdateTarget({ local, remote }) {
               : phaseText}
           </p>
           <LinearProgress
-            variant={status?.phase === 'downloading' ? 'determinate' : 'indeterminate'}
+            variant={
+              status?.phase === 'downloading' && status?.total_bytes > 0
+                ? 'determinate'
+                : 'indeterminate'
+            }
             value={progress}
           />
         </div>
@@ -172,6 +190,11 @@ function UpdateTarget({ local, remote }) {
         </p>
       )}
       <div className="flex flex-wrap gap-3">
+        {reconnecting && (
+          <Button variant="outlined" onClick={() => window.location.reload()}>
+            {zh('刷新页面', 'Refresh page')}
+          </Button>
+        )}
         <Button variant="outlined" disabled={Boolean(busy)} onClick={() => action('check')}>
           {zh('检查更新', 'Check for updates')}
         </Button>

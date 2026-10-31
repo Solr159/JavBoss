@@ -4,10 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -41,80 +38,111 @@ func requireFile(t *testing.T, root, rel, value string) {
 	}
 }
 
-func TestLatestReleaseFiltersAndPaginates(t *testing.T) {
-	pages := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		pages++
-		if r.URL.Query().Get("page") == "1" {
-			items := make([]release, 100)
-			for i := range items {
-				items[i] = release{Tag: "browser-extension-v9.0.0"}
-			}
-			items[1] = release{Tag: "v9.0.0", Draft: true}
-			items[2] = release{Tag: "v8.0.0", Prerelease: true}
-			items[3] = release{Tag: "v2.9.0"}
-			items[4] = release{Tag: "v99.0.0-beta.1"}
-			_ = json.NewEncoder(w).Encode(items)
-		} else {
-			_ = json.NewEncoder(w).Encode([]release{{Tag: "v2.10.0"}, {Tag: "v2.1.0"}})
-		}
-	}))
-	defer server.Close()
-	r, err := latestRelease(t.Context(), server.Client(), server.URL)
-	if err != nil || r == nil || r.Tag != "v2.10.0" || pages != 2 {
-		t.Fatalf("release=%+v, pages=%d, err=%v", r, pages, err)
-	}
-}
-
-func TestReleaseAssetValidation(t *testing.T) {
-	a := asset{Name: "javboss-v2.0.0-linux-x86_64.zip", Size: 42, Digest: "sha256:" + strings.Repeat("a", 64)}
-	a.URL = "https://github.com/" + repository + "/releases/download/v2.0.0/" + a.Name
+func TestLatestReleaseUsesOnlyValidatedRedirect(t *testing.T) {
+	prefix := "https://github.com/" + repository + "/releases/tag/"
 	for _, tc := range []struct {
-		name   string
-		change func(*asset)
-		bad    bool
+		name, location, want string
+		status               int
+		bad                  bool
 	}{
-		{"valid", func(*asset) {}, false},
-		{"missing digest", func(a *asset) { a.Digest = "" }, true},
-		{"wrong repo", func(a *asset) { a.URL = strings.Replace(a.URL, repository, "other/repo", 1) }, true},
-		{"http", func(a *asset) { a.URL = strings.Replace(a.URL, "https:", "http:", 1) }, true},
-		{"wrong arch", func(a *asset) { a.Name = "javboss-v2.0.0-macos-arm64.zip" }, true},
-		{"unbounded size", func(a *asset) { a.Size = maxArchiveSize + 1 }, true},
+		{"stable", prefix + "v2.10.0", "v2.10.0", 302, false},
+		{"relative", "/" + repository + "/releases/tag/v2.10.0", "v2.10.0", 302, false},
+		{"extension", prefix + "browser-extension-v9.0.0", "", 302, true},
+		{"prerelease", prefix + "v2.10.0-rc.1", "", 302, true},
+		{"foreign host", "https://example.com/" + repository + "/releases/tag/v2.10.0", "", 302, true},
+		{"foreign repo", "https://github.com/other/repo/releases/tag/v2.10.0", "", 302, true},
+		{"insecure", strings.Replace(prefix, "https:", "http:", 1) + "v2.10.0", "", 302, true},
+		{"query", prefix + "v2.10.0?x=1", "", 302, true},
+		{"missing location", "", "", 302, true},
+		{"no release", "", "", 404, false},
+		{"forbidden", "", "", 403, true},
+		{"html instead of redirect", "", "", 200, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			copy := a
-			tc.change(&copy)
-			_, err := releaseAsset(&release{Tag: "v2.0.0", Assets: []asset{copy}}, "linux-x86_64")
-			if (err != nil) != tc.bad {
-				t.Fatalf("error=%v, want bad=%v", err, tc.bad)
+			requests := 0
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests++
+				if r.Method != http.MethodHead || r.URL.Path != "/releases/latest" || r.URL.RawQuery != "" {
+					t.Errorf("unexpected request %s %s", r.Method, r.URL)
+				}
+				w.Header().Set("Location", tc.location)
+				w.WriteHeader(tc.status)
+			}))
+			defer server.Close()
+			r, err := latestRelease(t.Context(), server.Client(), server.URL+"/releases/latest")
+			if (err != nil) != tc.bad || requests != 1 {
+				t.Fatalf("release=%+v requests=%d err=%v", r, requests, err)
+			}
+			if tc.want != "" && (r == nil || r.Tag != tc.want) {
+				t.Fatalf("release=%+v", r)
+			}
+			if tc.status == 404 && r != nil {
+				t.Fatalf("expected no release: %+v", r)
 			}
 		})
 	}
 }
 
-func TestDownloadRequiresSizeAndSHA256(t *testing.T) {
-	content := []byte("release bytes")
-	hash := sha256.Sum256(content)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write(content) }))
-	defer server.Close()
+func TestReleaseAssetUsesFixedOfficialURL(t *testing.T) {
+	for _, platform := range []string{"windows-x86_64", "linux-x86_64", "macos-x86_64", "macos-arm64"} {
+		a, err := releaseAsset(&release{Tag: "v2.0.0"}, platform)
+		name := "javboss-v2.0.0-" + platform + ".zip"
+		if err != nil || a.Name != name || a.URL != "https://github.com/"+repository+"/releases/download/v2.0.0/"+name {
+			t.Fatalf("asset=%+v err=%v", a, err)
+		}
+	}
+	for _, tag := range []string{"browser-extension-v2.0.0", "v2.0.0-rc.1", "v02.0.0", "../v2.0.0"} {
+		if _, err := releaseAsset(&release{Tag: tag}, "linux-x86_64"); err == nil {
+			t.Fatalf("accepted invalid version %s", tag)
+		}
+	}
+	if _, err := releaseAsset(&release{Tag: "v2.0.0"}, "../linux-x86_64"); err == nil {
+		t.Fatal("accepted unsupported platform")
+	}
+}
+
+func TestDownloadWithoutManifest(t *testing.T) {
+	content := "release bytes"
 	for _, tc := range []struct {
-		name, digest string
-		size         int64
-		bad          bool
+		name   string
+		length int64
+		status int
+		bad    bool
 	}{
-		{"valid", hex.EncodeToString(hash[:]), int64(len(content)), false},
-		{"corrupt", strings.Repeat("0", 64), int64(len(content)), true},
-		{"truncated", hex.EncodeToString(hash[:]), int64(len(content) + 1), true},
-		{"oversized", hex.EncodeToString(hash[:]), int64(len(content) - 1), true},
+		{"known size", int64(len(content)), 200, false},
+		{"chunked", -1, 200, false},
+		{"truncated", int64(len(content) + 1), 200, true},
+		{"over limit", maxArchiveSize + 1, 200, true},
+		{"empty", 0, 200, true},
+		{"missing asset", -1, 404, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			var progress int64
-			err := downloadArchive(t.Context(), server.Client(), asset{URL: server.URL, Size: tc.size, Digest: "sha256:" + tc.digest}, filepath.Join(t.TempDir(), "release.zip"), func(n int64) { progress = n })
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if tc.length >= 0 {
+					w.Header().Set("Content-Length", fmt.Sprint(tc.length))
+				}
+				w.WriteHeader(tc.status)
+				w.(http.Flusher).Flush()
+				if tc.length != 0 {
+					_, _ = w.Write([]byte(content))
+				}
+			}))
+			defer server.Close()
+			var downloaded, total int64
+			target := filepath.Join(t.TempDir(), "release.zip")
+			err := downloadArchive(t.Context(), server.Client(), asset{URL: server.URL}, target, func(n, size int64) { downloaded, total = n, size })
 			if (err != nil) != tc.bad {
 				t.Fatalf("err=%v", err)
 			}
-			if !tc.bad && progress != tc.size {
-				t.Fatalf("progress=%d", progress)
+			if !tc.bad {
+				wantTotal := tc.length
+				if wantTotal < 0 {
+					wantTotal = 0
+				}
+				if downloaded != int64(len(content)) || total != wantTotal {
+					t.Fatalf("downloaded=%d total=%d", downloaded, total)
+				}
+				requireFile(t, filepath.Dir(target), "release.zip", content)
 			}
 		})
 	}
@@ -243,22 +271,38 @@ func TestManagerCheckNeverStopsApplicationAndDisablesUnsupportedInstall(t *testi
 		{"desktop", true, false, "v1.0.0", ""},
 		{"container", true, true, "v1.0.0", "container"},
 		{"development", false, false, "dev", "development"},
+		{"already current", true, false, "v2.0.0", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var stops atomic.Int32
 			m := newManager(t.Context(), Options{BaseDir: t.TempDir(), Version: tc.version, Release: tc.release, Container: tc.container, Stop: func() { stops.Add(1) }})
 			m.platform = "linux-x86_64"
 			name := "javboss-v2.0.0-linux-x86_64.zip"
+			requests := 0
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_ = json.NewEncoder(w).Encode([]release{{Tag: "v2.0.0", Assets: []asset{{Name: name, URL: "https://github.com/" + repository + "/releases/download/v2.0.0/" + name, Digest: "sha256:" + strings.Repeat("a", 64), Size: 12}}}})
+				requests++
+				if r.Method == http.MethodHead && r.URL.Path == "/releases/latest" {
+					w.Header().Set("Location", "https://github.com/"+repository+"/releases/tag/v2.0.0")
+					w.WriteHeader(http.StatusFound)
+					return
+				}
+				t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+				http.NotFound(w, r)
 			}))
 			defer server.Close()
-			m.endpoint = server.URL
+			m.endpoint = server.URL + "/releases/latest"
 			m.client = server.Client()
 			m.check()
 			status := m.Status()
-			if status.DisabledReason != tc.reason || status.CanInstall != (tc.reason == "") {
+			installable := tc.reason == "" && tc.version != "v2.0.0"
+			if status.DisabledReason != tc.reason || status.CanInstall != installable {
 				t.Fatalf("status=%+v", status)
+			}
+			if requests != 1 {
+				t.Fatalf("unexpected request count: %d", requests)
+			}
+			if installable && m.selected.URL != "https://github.com/"+repository+"/releases/download/v2.0.0/"+name {
+				t.Fatalf("wrong download URL: %s", m.selected.URL)
 			}
 			if stops.Load() != 0 {
 				t.Fatal("checking stopped app")
