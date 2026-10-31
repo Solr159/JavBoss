@@ -726,14 +726,15 @@ function FavoriteGroupMenu({
             <span className="font-semibold text-gray-700">
               {title || zh('女优收藏夹', 'Idol favorites')}
             </span>
-            <button
-              type="button"
-              disabled={!selected}
-              onClick={() => onSelect?.(null)}
-              className="shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 disabled:text-gray-400 disabled:hover:bg-transparent"
-            >
-              {zh('取消筛选', 'Clear filter')}
-            </button>
+            {selected ? (
+              <button
+                type="button"
+                onClick={() => onSelect?.(null)}
+                className="relative top-px shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+              >
+                {zh('取消筛选', 'Clear filter')}
+              </button>
+            ) : null}
           </div>
           <div className="truncate text-xs text-gray-500">
             {loading
