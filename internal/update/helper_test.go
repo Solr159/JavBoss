@@ -80,7 +80,9 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	requireFile(t, base, "config.toml", "user settings")
 	requireFile(t, base, ".version", "v2.0.0\n")
 	requireFile(t, stage, "application-ready", "v2.0.0")
-	requireFile(t, stage, "backup/files/"+executableName(), "old executable")
+	if _, err := os.Stat(filepath.Join(stage, "backup")); !os.IsNotExist(err) {
+		t.Fatalf("backup remained after successful startup: %v", err)
+	}
 	var result Result
 	if err := readJSON(filepath.Join(base, "data/update-result.json"), &result); err != nil || result.Error != "" || result.Version != "v2.0.0" {
 		t.Fatalf("result=%+v err=%v", result, err)
@@ -130,5 +132,6 @@ func TestUpdateStartedSubprocess(t *testing.T) {
 	}
 	defer lock.Release()
 	requireFile(t, plan.BaseDir, "config.toml", "user settings")
+	requireFile(t, plan.StageDir, "backup/files/"+executableName(), "old executable")
 	AcknowledgeStartup(plan.BaseDir, "v2.0.0")
 }

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"javboss/internal/common/logging"
 	"javboss/internal/util"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -181,8 +182,12 @@ func applyPlan(plan installPlan) error {
 	if err := waitFile(startupCtx, marker, plan.Version); err != nil {
 		return fmt.Errorf("new version did not confirm startup; backup retained in %s (database was not automatically restored): %w", backup, err)
 	}
-	// Keep the current backup for manual recovery, but discard previous successful
-	// update backups only after the new version has acknowledged startup.
+	// The new version is ready; its backup is no longer needed. Cleanup failure
+	// must not turn a successful update into a failed one.
+	if err := os.RemoveAll(backup); err != nil {
+		logging.Error("update succeeded but backup cleanup failed for %s: %v", backup, err)
+	}
+	// Discard previous successful update directories after startup is confirmed.
 	entries, _ := os.ReadDir(filepath.Dir(plan.StageDir))
 	for _, entry := range entries {
 		old := filepath.Join(filepath.Dir(plan.StageDir), entry.Name())
