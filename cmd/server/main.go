@@ -290,7 +290,7 @@ func run() int {
 	actualPort := listener.Addr().(*net.TCPAddr).Port
 	displayURL := fmt.Sprintf("http://localhost:%d", actualPort)
 	logger.Printf("server listening on %s", listener.Addr().String())
-	update.AcknowledgeStartup(baseDir, common.Version)
+	update.AcknowledgeStartup(ctx, baseDir, common.Version)
 	if err := serveWithReleaseControls(ctx, stop, displayURL, "", logger, func() error {
 		return api.ServeHTTP(ctx, srv, listener, allowLANAccess, !common.ContainerMode())
 	}); err != nil {
@@ -355,7 +355,7 @@ func runClientMode(ctx context.Context, stop context.CancelFunc, baseDir, server
 	defer listener.Close()
 	displayURL := fmt.Sprintf("http://localhost:%d", port)
 	logger.Printf("client mode listening on %s, remote server %s", listenAddr, strings.TrimSpace(serverURL))
-	update.AcknowledgeStartup(baseDir, common.Version)
+	update.AcknowledgeStartup(ctx, baseDir, common.Version)
 	if err := serveWithReleaseControls(ctx, stop, displayURL, serverURL, logger, func() error {
 		return api.ServeHTTP(ctx, srv, listener, false, false)
 	}); err != nil {

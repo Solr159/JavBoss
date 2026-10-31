@@ -71,6 +71,42 @@ test("build-only does not start a container", (t) => {
   assert.equal(result.calls.at(-1).dataExists, false);
 });
 
+for (const versionArgs of [["v1.2.3"], ["--version", "v1.2.3"]]) {
+  test(`docker start accepts a release version via ${versionArgs.join(" ")}`, (t) => {
+    const result = invoke(t, ["docker", "start", ...versionArgs]);
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(result.calls[2].args, [
+      "compose", "-f", path.join(root, "compose.local.yaml"), "build",
+      "--build-arg", "BUILD_MODE=release", "--build-arg", "APP_VERSION=v1.2.3", "javboss",
+    ]);
+    assert.ok(result.calls.at(-1).args.includes("up"));
+  });
+}
+
+test("release version supports build-only and prerelease versions", (t) => {
+  const result = invoke(t, ["docker", "start", "--build-only", "--version", "v1.2.3-rc.1+build.2"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.calls.length, 3);
+  assert.ok(result.calls.at(-1).args.includes("APP_VERSION=v1.2.3-rc.1+build.2"));
+  assert.equal(result.calls.at(-1).dataExists, false);
+});
+
+test("invalid or duplicate versions fail before invoking Docker", (t) => {
+  for (const args of [
+    ["--version"], ["--version", ""], ["--version", "--build-only"],
+    ["--version", "v1.2.3 -X main.buildMode=development"],
+    ["v1.2.3", "v2.0.0"], ["v1.2.3", "--version", "v2.0.0"],
+    ["--version", "v1.2.3", "--version", "v2.0.0"],
+  ]) {
+    const result = invoke(t, ["docker", "start", ...args]);
+    assert.equal(result.status, 1);
+    assert.equal(result.calls.length, 0);
+  }
+  const result = invoke(t, ["docker", "stop", "--version", "v1.2.3"]);
+  assert.equal(result.status, 1);
+  assert.equal(result.calls.length, 0);
+});
+
 test("docker stop stops the service without rebuilding or removing data", (t) => {
   const result = invoke(t, ["docker", "stop"]);
   assert.equal(result.status, 0, result.stderr);
@@ -109,6 +145,7 @@ test("Docker help works without invoking Docker", (t) => {
   const result = invoke(t, ["docker", "--help"]);
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /--build-only/);
+  assert.match(result.stdout, /--version/);
   assert.equal(result.calls.length, 0);
 });
 

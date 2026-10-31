@@ -79,3 +79,54 @@ func TestExtractArchiveRejectsCorruptContents(t *testing.T) {
 		t.Fatalf("expected ZIP checksum failure, got %v", err)
 	}
 }
+
+func TestExtractArchiveAcceptsNewAndLegacyReleaseRoots(t *testing.T) {
+	const legacyRoot = "javboss-v2.1.4-linux-x86_64"
+	for _, tc := range []struct {
+		name    string
+		entries []string
+		bad     bool
+	}{
+		{"JavBoss directory", []string{"JavBoss/", "JavBoss/" + executableName(), "JavBoss/web/dist/index.html"}, false},
+		{"implicit JavBoss directory", []string{"JavBoss/" + executableName(), "JavBoss/web/dist/index.html"}, false},
+		{"legacy directory", []string{legacyRoot + "/", legacyRoot + "/" + executableName(), legacyRoot + "/web/dist/index.html"}, false},
+		{"mixed directories", []string{"JavBoss/" + executableName(), legacyRoot + "/web/dist/index.html"}, true},
+		{"mixed directories reversed", []string{legacyRoot + "/" + executableName(), "JavBoss/web/dist/index.html"}, true},
+		{"wrong case", []string{"javboss/" + executableName()}, true},
+		{"wrong version", []string{"javboss-v9.0.0-linux-x86_64/" + executableName()}, true},
+		{"traversal", []string{"JavBoss/../escaped"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buffer bytes.Buffer
+			writer := zip.NewWriter(&buffer)
+			for _, name := range tc.entries {
+				entry, err := writer.Create(name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if name[len(name)-1] != '/' {
+					if _, err := entry.Write([]byte("release content")); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			if err := writer.Close(); err != nil {
+				t.Fatal(err)
+			}
+			root := t.TempDir()
+			archive := putFile(t, root, "release.zip", buffer.String())
+			payload := filepath.Join(root, "payload")
+			err := extractArchive(t.Context(), archive, payload, "JavBoss", legacyRoot)
+			if (err != nil) != tc.bad {
+				t.Fatalf("extract archive: %v", err)
+			}
+			if !tc.bad {
+				if err := validatePayload(payload); err != nil {
+					t.Fatal(err)
+				}
+				requireFile(t, payload, executableName(), "release content")
+				requireFile(t, payload, "web/dist/index.html", "release content")
+			}
+		})
+	}
+}

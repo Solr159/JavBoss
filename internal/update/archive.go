@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -70,7 +71,7 @@ func downloadArchive(ctx context.Context, client *http.Client, a asset, target s
 
 // Never extract links or allow a ZIP entry to escape the staging directory.
 // Packaged config.toml is deliberately excluded from installation below.
-func extractArchive(ctx context.Context, archive, dest, root string) error {
+func extractArchive(ctx context.Context, archive, dest string, allowedRoots ...string) error {
 	r, err := zip.OpenReader(archive)
 	if err != nil {
 		return fmt.Errorf("open release archive: %w", err)
@@ -78,6 +79,14 @@ func extractArchive(ctx context.Context, archive, dest, root string) error {
 	defer r.Close()
 	if len(r.File) > 50000 {
 		return fmt.Errorf("too many archive entries")
+	}
+	// Accept either release layout, but never combine multiple roots in one ZIP.
+	var root string
+	if len(r.File) > 0 {
+		root, _, _ = strings.Cut(r.File[0].Name, "/")
+		if !slices.Contains(allowedRoots, root) {
+			return fmt.Errorf("invalid archive root %q", root)
+		}
 	}
 	seen := make(map[string]bool)
 	var expanded int64

@@ -68,6 +68,25 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go func() { done <- helper.Wait() }()
+	// The helper has recorded success, but is deliberately kept alive. The new
+	// process must not delete its executable, acknowledgement, or backups yet.
+	for {
+		var result Result
+		if readJSON(filepath.Join(stage, "result.json"), &result) == nil && result.FinishedAt > 0 {
+			if result.Error != "" {
+				t.Fatal(result.Error)
+			}
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+	requireFile(t, stage, "application-ready", "v2.0.0")
+	requireFile(t, stage, "backup/files/"+executableName(), "old executable")
+	putFile(t, stage, "allow-helper-exit", "exit")
 	select {
 	case err := <-done:
 		if err != nil {
@@ -76,13 +95,16 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
+	if err := waitFile(ctx, filepath.Join(base, "data", "cleanup-done"), "done"); err != nil {
+		t.Fatal(err)
+	}
 	requireFile(t, base, "web/dist/index.html", "new frontend")
 	requireFile(t, base, "config.toml", "user settings")
 	requireFile(t, base, ".version", "v2.0.0\n")
-	requireFile(t, stage, "application-ready", "v2.0.0")
-	if _, err := os.Stat(filepath.Join(stage, "backup")); !os.IsNotExist(err) {
-		t.Fatalf("backup remained after successful startup: %v", err)
+	if _, err := os.Stat(filepath.Join(base, ".updates")); !os.IsNotExist(err) {
+		t.Fatalf("update workspace remained after helper exit: %v", err)
 	}
+	requireFile(t, base, "data/update-operation.lock", "")
 	var result Result
 	if err := readJSON(filepath.Join(base, "data/update-result.json"), &result); err != nil || result.Error != "" || result.Version != "v2.0.0" {
 		t.Fatalf("result=%+v err=%v", result, err)
@@ -118,8 +140,13 @@ func TestUpdateParentSubprocess(t *testing.T) {
 }
 
 func TestUpdateHelperSubprocess(t *testing.T) {
-	path, _ := subprocessPlan(t)
+	path, plan := subprocessPlan(t)
 	if err := RunHelper(path); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	if err := waitFile(ctx, filepath.Join(plan.StageDir, "allow-helper-exit"), "exit"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -133,5 +160,18 @@ func TestUpdateStartedSubprocess(t *testing.T) {
 	defer lock.Release()
 	requireFile(t, plan.BaseDir, "config.toml", "user settings")
 	requireFile(t, plan.StageDir, "backup/files/"+executableName(), "old executable")
-	AcknowledgeStartup(plan.BaseDir, "v2.0.0")
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	AcknowledgeStartup(ctx, plan.BaseDir, "v2.0.0")
+	for {
+		if _, err := os.Stat(plan.StageDir); os.IsNotExist(err) {
+			putFile(t, plan.BaseDir, "data/cleanup-done", "done")
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatal(ctx.Err())
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
 }

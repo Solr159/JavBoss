@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
-	"javboss/internal/util"
 
 	"golang.org/x/mod/semver"
 )
@@ -65,9 +64,12 @@ var active atomic.Pointer[Manager]
 func platformOS() string { return runtime.GOOS }
 
 func newManager(ctx context.Context, options Options) *Manager {
-	m := &Manager{ctx: ctx, options: options, client: util.NewHTTPClient(0),
+	m := &Manager{ctx: ctx, options: options, client: newUpdateHTTPClient(),
 		endpoint: "https://github.com/" + repository + "/releases/latest", platform: platformName(runtime.GOOS, runtime.GOARCH),
 		status: Status{CurrentVersion: options.Version, Phase: "idle"}}
+	if options.Container {
+		m.endpoint = "https://ghcr.io"
+	}
 	switch {
 	case !options.Release || !releaseTag.MatchString(options.Version):
 		m.status.DisabledReason = "development"
@@ -132,12 +134,22 @@ func (m *Manager) StartCheck() error {
 func (m *Manager) check() {
 	ctx, cancel := context.WithTimeout(m.ctx, 30*time.Second)
 	defer cancel()
-	r, err := latestRelease(ctx, m.client, m.endpoint)
+	var r *release
+	var err error
+	if m.options.Container {
+		r, err = latestContainerRelease(ctx, m.client, m.endpoint)
+	} else {
+		r, err = latestRelease(ctx, m.client, m.endpoint)
+	}
 	var notes releaseNotes
 	if err == nil && r != nil {
+		notesURL := strings.TrimSuffix(m.endpoint, "/latest") + "/tag/" + r.Tag
+		if m.options.Container {
+			notesURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
+		}
 		notesCtx, notesCancel := context.WithTimeout(ctx, 10*time.Second)
 		var notesErr error
-		notes, notesErr = readReleaseNotes(notesCtx, m.client, strings.TrimSuffix(m.endpoint, "/latest")+"/tag/"+r.Tag)
+		notes, notesErr = readReleaseNotes(notesCtx, m.client, notesURL)
 		notesCancel()
 		if notesErr != nil {
 			logging.Error("read release notes for %s: %v", r.Tag, notesErr)
@@ -159,7 +171,7 @@ func (m *Manager) check() {
 		return
 	}
 	m.status.LatestVersion, m.status.Notes, m.status.NotesHTML = r.Tag, notes.Text, notes.HTML
-	m.status.ReleaseURL = "https://github.com/" + repository + "/releases/tag/" + r.Tag
+	m.status.ReleaseURL = "https://github.com/" + repository + "/releases"
 	m.status.Available = semver.IsValid(m.options.Version) && semver.Compare(r.Tag, m.options.Version) > 0
 	if !m.status.Available || m.status.DisabledReason != "" {
 		return
@@ -214,15 +226,15 @@ func (m *Manager) prepare(a asset, version string) error {
 	if executable != filepath.Join(base, executableName()) {
 		return errors.New("updating a renamed or relocated executable is not supported")
 	}
-	updates := filepath.Join(base, ".updates")
-	if err := os.MkdirAll(updates, 0700); err != nil {
-		return fmt.Errorf("create update directory: %w", err)
-	}
-	lock, err := util.AcquireFileLock(filepath.Join(updates, "download.lock"))
+	lock, err := acquireUpdateLock(base)
 	if err != nil {
 		return fmt.Errorf("another updater is active: %w", err)
 	}
 	defer lock.Release()
+	updates := filepath.Join(base, ".updates")
+	if err := os.MkdirAll(updates, 0700); err != nil {
+		return fmt.Errorf("create update directory: %w", err)
+	}
 	stage, err := os.MkdirTemp(updates, "update-")
 	if err != nil {
 		return err
@@ -247,7 +259,7 @@ func (m *Manager) prepare(a asset, version string) error {
 	m.status.Phase = "preparing"
 	m.mu.Unlock()
 	payload := filepath.Join(stage, "payload")
-	if err := extractArchive(ctx, archive, payload, "javboss-"+version+"-"+m.platform); err != nil {
+	if err := extractArchive(ctx, archive, payload, "JavBoss", "javboss-"+version+"-"+m.platform); err != nil {
 		return err
 	}
 	if err := validatePayload(payload); err != nil {

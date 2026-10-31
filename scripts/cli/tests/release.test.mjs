@@ -58,6 +58,20 @@ function releaseContext(t, goos) {
 }
 
 for (const goos of ["windows", "linux", "darwin"]) {
+  test(`${goos} release ZIP uses JavBoss without nesting the build output`, { skip: !hasZip }, async (t) => {
+    const ctx = releaseContext(t, goos);
+    await ctx.cli.runRelease(ctx.choice, "test");
+    assert.equal(ctx.process.exitCode, 0);
+    assert.equal(await fsp.readFile(path.join(ctx.outDir, "javboss"), "utf8"), "server");
+    assert.equal(fs.existsSync(path.join(ctx.outDir, "JavBoss")), false);
+    const result = spawnSync("unzip", ["-Z1", ctx.zipPath], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const entries = result.stdout.trim().split("\n");
+    assert.ok(entries.includes("JavBoss/javboss"));
+    assert.ok(entries.every((entry) => entry.startsWith("JavBoss/")));
+    assert.match(path.basename(ctx.zipPath), /^javboss-test-.+\.zip$/);
+  });
+
   test(`${goos} release selects the correct executable subsystem`, async (t) => {
     const ctx = releaseContext(t, goos);
     vm.runInContext(`
@@ -94,6 +108,7 @@ for (const goos of ["windows", "linux"]) {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /\/javboss\n/);
     assert.doesNotMatch(result.stdout, /\/ffmpeg(?:\.exe)?\n/);
+    assert.ok(result.stdout.trim().split("\n").every((entry) => entry.startsWith("JavBoss/")));
   });
 
   test(`${goos} dependency downloads skip FFmpeg`, async (t) => {
