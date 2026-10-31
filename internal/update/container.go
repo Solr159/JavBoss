@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 
 	"golang.org/x/mod/semver"
@@ -17,9 +18,12 @@ const containerRepository = "solr159/javboss"
 const containerPackageURL = "https://github.com/" + repository + "/pkgs/container/javboss"
 
 var registryNextLink = regexp.MustCompile(`<([^>]+)>;\s*rel="?next"?(?:\s|,|$)`)
+var registryDigest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
+
+const manifestAccept = "application/vnd.oci.image.index.v1+json, application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, application/vnd.docker.distribution.manifest.v2+json"
 
 // Docker releases are independent of desktop releases. Read the public registry
-// anonymously and select the highest stable version, ignoring aliases and test tags.
+// anonymously and resolve the stable tag pointing to the same image as latest.
 func latestContainerRelease(ctx context.Context, client *http.Client, endpoint string) (*release, error) {
 	// Registry metadata stays on this origin; do not forward the bearer token via redirects.
 	registryClient := *client
@@ -38,13 +42,18 @@ func latestContainerRelease(ctx context.Context, client *http.Client, endpoint s
 	if auth.Token == "" {
 		return nil, fmt.Errorf("container registry returned an empty token")
 	}
+	manifestURL := endpoint + "/v2/" + containerRepository + "/manifests/"
+	latestDigest, err := readRegistryManifestDigest(ctx, &registryClient, manifestURL+"latest", auth.Token)
+	if err != nil {
+		return nil, fmt.Errorf("resolve latest container image: %w", err)
+	}
 	base, err := url.Parse(endpoint + "/v2/" + containerRepository + "/tags/list?n=100")
 	if err != nil {
 		return nil, err
 	}
 	next := base.String()
 	seen := make(map[string]bool)
-	var latest *release
+	var tags []string
 	for next != "" {
 		if seen[next] || len(seen) >= 100 {
 			return nil, fmt.Errorf("container registry pagination did not complete")
@@ -62,8 +71,8 @@ func latestContainerRelease(ctx context.Context, client *http.Client, endpoint s
 			return nil, fmt.Errorf("container registry returned an unexpected repository")
 		}
 		for _, tag := range page.Tags {
-			if releaseTag.MatchString(tag) && semver.IsValid(tag) && (latest == nil || semver.Compare(tag, latest.Tag) > 0) {
-				latest = &release{Tag: tag}
+			if releaseTag.MatchString(tag) && semver.IsValid(tag) {
+				tags = append(tags, tag)
 			}
 		}
 		next = ""
@@ -81,7 +90,44 @@ func latestContainerRelease(ctx context.Context, client *http.Client, endpoint s
 		}
 		next = u.String()
 	}
-	return latest, nil
+	// Check newer tags first to avoid requesting every historical manifest. A
+	// newer published version is not an update until latest points to that image.
+	sort.Slice(tags, func(i, j int) bool { return semver.Compare(tags[i], tags[j]) > 0 })
+	for _, tag := range tags {
+		digest, err := readRegistryManifestDigest(ctx, &registryClient, manifestURL+tag, auth.Token)
+		if err != nil {
+			return nil, fmt.Errorf("resolve container image %s: %w", tag, err)
+		}
+		if digest == latestDigest {
+			return &release{Tag: tag}, nil
+		}
+	}
+	return nil, fmt.Errorf("latest container image has no matching stable version tag")
+}
+
+// Compare the complete multi-platform index, using identical content negotiation
+// for latest and version tags. No image layers or platform archives are downloaded.
+func readRegistryManifestDigest(ctx context.Context, client *http.Client, endpoint, token string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("User-Agent", "JavBoss-Updater")
+	req.Header.Set("Accept", manifestAccept)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("container manifest: HTTP %d", resp.StatusCode)
+	}
+	digest := resp.Header.Get("Docker-Content-Digest")
+	if !registryDigest.MatchString(digest) {
+		return "", fmt.Errorf("container manifest returned an invalid digest")
+	}
+	return digest, nil
 }
 
 func readRegistryJSON(ctx context.Context, client *http.Client, endpoint, token string, result any) (http.Header, error) {

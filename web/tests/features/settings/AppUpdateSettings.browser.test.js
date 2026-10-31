@@ -83,6 +83,51 @@ test(
 )
 
 test(
+  'Docker update opens Compose instructions without requesting an installation',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { evaluate, waitFor } = await setup(t)
+    await evaluate(`{
+      window.updateStatus.can_install = false;
+      window.updateStatus.disabled_reason = 'container';
+      Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Check for updates').click();
+    }`)
+    await waitFor(`document.body.textContent.includes('Update Docker by pulling')`)
+    const click = (text) =>
+      evaluate(
+        `Array.from(document.querySelectorAll('button')).find(button => button.textContent === '${text}').click()`
+      )
+    assert.equal(
+      await evaluate(
+        `Array.from(document.querySelectorAll('button')).find(b => b.textContent === 'Update and restart').disabled`
+      ),
+      false
+    )
+    await click('Update and restart')
+    await waitFor(`document.getElementById('app-update-confirm-title')`)
+    const content = await evaluate(
+      `document.querySelector('[aria-labelledby="app-update-confirm-title"]').textContent`
+    )
+    assert.match(content, /Docker update instructions/)
+    assert.match(content, /compose.yaml/)
+    assert.equal(
+      await evaluate(
+        `document.getElementById('app-update-confirm-description').querySelector('code').textContent`
+      ),
+      'docker compose pull\ndocker compose up -d'
+    )
+    assert.doesNotMatch(content, /Continue update/)
+    await click('Got it')
+    await waitFor(`!document.getElementById('app-update-confirm-title')`)
+    assert.equal(
+      await evaluate(`window.updateRequests.some(r => r.path.endsWith('/install'))`),
+      false
+    )
+    assert.deepEqual(await evaluate('window.appErrors'), [])
+  }
+)
+
+test(
   'client updates default to local and the remote target is explicit',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
