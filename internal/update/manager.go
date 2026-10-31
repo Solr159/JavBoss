@@ -260,7 +260,7 @@ func (m *Manager) prepare(a asset, version string) error {
 	m.status.Phase = "preparing"
 	m.mu.Unlock()
 	payload := filepath.Join(stage, "payload")
-	if err := extractArchive(ctx, archive, payload, "javboss-"+version+"-"+m.platform); err != nil {
+	if err := extractArchive(ctx, archive, payload, "JavBoss", "javboss-"+version+"-"+m.platform); err != nil {
 		return err
 	}
 	if err := validatePayload(payload); err != nil {

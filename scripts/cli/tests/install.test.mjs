@@ -35,11 +35,11 @@ function runInstaller(dir, tool, { installedTag = "v9.8.6", missingVersion = fal
     fs.writeFileSync(path.join(installDir, "javboss"), "old binary");
     if (!missingVersion) fs.writeFileSync(path.join(installDir, ".version"), installedTag + "\n");
   }
-  const packageDir = path.join(dir, "package");
+  const packageDir = path.join(dir, "JavBoss");
   fs.mkdirSync(packageDir);
   fs.writeFileSync(path.join(packageDir, "javboss"), "#!/bin/sh\nprintf started > started\n", { mode: 0o755 });
   fs.writeFileSync(path.join(packageDir, "config.toml"), "default config");
-  const zip = spawnSync("zip", ["-qr", path.join(dir, "release.zip"), "package"], { cwd: dir, encoding: "utf8" });
+  const zip = spawnSync("zip", ["-qr", path.join(dir, "release.zip"), "JavBoss"], { cwd: dir, encoding: "utf8" });
   assert.equal(zip.status, 0, zip.stderr);
 
   // Exercise both download clients, extraction and version tracking without

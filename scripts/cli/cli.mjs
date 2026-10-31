@@ -571,16 +571,26 @@ async function createReleaseConfig(outDir) {
   await fsp.writeFile(configPath, configContent);
 }
 
-async function createZip(outDir, zipPath) {
+async function createZip(outDir, zipPath, rootName = path.basename(outDir)) {
   const hasZip = await commandExists("zip");
   if (!hasZip) {
     throw new Error("需要 zip 命令，请先安装 zip");
   }
-  const baseDir = path.dirname(outDir);
-  const baseName = path.basename(outDir);
-  // zip updates existing archives and otherwise retains removed bundled files.
-  await fsp.rm(zipPath, { force: true });
-  await runCommand("zip", ["-rq", zipPath, baseName], { cwd: baseDir });
+  let stagingDir;
+  try {
+    let baseDir = path.dirname(outDir);
+    if (rootName !== path.basename(outDir)) {
+      // Rename only the archive root, keeping the build output layout intact.
+      stagingDir = await fsp.mkdtemp(path.join(os.tmpdir(), "javboss-zip-"));
+      await fsp.cp(outDir, path.join(stagingDir, rootName), { recursive: true });
+      baseDir = stagingDir;
+    }
+    // zip updates existing archives and otherwise retains removed bundled files.
+    await fsp.rm(zipPath, { force: true });
+    await runCommand("zip", ["-rq", path.resolve(zipPath), rootName], { cwd: baseDir });
+  } finally {
+    if (stagingDir) await fsp.rm(stagingDir, { recursive: true, force: true });
+  }
 }
 
 async function runRelease(choice, version) {
@@ -643,7 +653,7 @@ async function runRelease(choice, version) {
     `javboss-${version}-${choice.label}.zip`,
   );
   console.log("[release] 打包 zip");
-  await createZip(outDir, zipPath);
+  await createZip(outDir, zipPath, "JavBoss");
   console.log(`[release] 完成：${zipPath}`);
 }
 
