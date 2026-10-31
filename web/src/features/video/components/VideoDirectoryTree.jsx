@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import { zh } from '@/utils/i18n'
@@ -29,13 +30,21 @@ export function buildDirectoryTree(directories) {
   return Array.from(roots.values())
 }
 
-function DirectoryNode({ node, value, onSelect, onToggle }) {
-  const selected = value?.directory_id === node.directory_id && value.path === node.path
+function DirectoryNode({ node, value, showSelection, onSelect, onToggle }) {
+  const selected =
+    showSelection && value?.directory_id === node.directory_id && value.path === node.path
   const containsSelection =
     value?.directory_id === node.directory_id &&
     (node.path === '.' || value.path.startsWith(`${node.path}/`))
   const label = node.path === '.' ? node.directory_path : node.path.split('/').pop()
   const path = directoryLabel(node)
+  const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 ${selected ? 'bg-sky-50 font-semibold text-sky-700' : 'text-gray-700'}`
+  const name = (
+    <span className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5" title={path}>
+      <FolderOutlinedIcon className="shrink-0" fontSize="small" />
+      <span className="truncate">{label}</span>
+    </span>
+  )
   const selection = (
     <button
       type="button"
@@ -47,10 +56,9 @@ function DirectoryNode({ node, value, onSelect, onToggle }) {
       aria-label={zh(`选择目录 ${path}`, `Select directory ${path}`)}
       aria-pressed={selected}
       title={path}
-      className={`flex min-w-0 flex-1 items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-sky-50 ${selected ? 'bg-sky-50 font-semibold text-sky-700' : 'text-gray-700'}`}
+      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-blue-600 opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
     >
-      <FolderOutlinedIcon className="shrink-0" fontSize="small" />
-      <span className="truncate">{label}</span>
+      {zh('选择', 'Select')}
     </button>
   )
 
@@ -63,10 +71,11 @@ function DirectoryNode({ node, value, onSelect, onToggle }) {
           onToggle={onToggle}
         >
           <summary
-            className="flex cursor-pointer list-none items-center rounded focus-visible:outline-sky-500 [&::-webkit-details-marker]:hidden"
+            className={`${rowClassName} cursor-pointer list-none focus-visible:outline-sky-500 [&::-webkit-details-marker]:hidden`}
             aria-label={zh(`展开或收起目录 ${path}`, `Expand or collapse directory ${path}`)}
           >
             <ChevronRightIcon className="shrink-0 text-gray-500" fontSize="small" />
+            {name}
             {selection}
           </summary>
           <ul className="ml-2.5 border-l border-gray-200 pl-2.5">
@@ -75,6 +84,7 @@ function DirectoryNode({ node, value, onSelect, onToggle }) {
                 key={child.path}
                 node={child}
                 value={value}
+                showSelection={showSelection}
                 onSelect={onSelect}
                 onToggle={onToggle}
               />
@@ -82,20 +92,25 @@ function DirectoryNode({ node, value, onSelect, onToggle }) {
           </ul>
         </details>
       ) : (
-        <div className="flex pl-5">{selection}</div>
+        <div className={`${rowClassName} pl-5`}>
+          {name}
+          {selection}
+        </div>
       )}
     </li>
   )
 }
 
 export default function VideoDirectoryTree({ nodes, value, onSelect, onToggle }) {
+  const [showSelection, setShowSelection] = useState(true)
   return (
-    <ul aria-label={zh('目录树', 'Directory tree')}>
+    <ul aria-label={zh('目录树', 'Directory tree')} onClickCapture={() => setShowSelection(false)}>
       {nodes.map((node) => (
         <DirectoryNode
           key={`${node.directory_id}:${node.path}`}
           node={node}
           value={value}
+          showSelection={showSelection}
           onSelect={onSelect}
           onToggle={onToggle}
         />

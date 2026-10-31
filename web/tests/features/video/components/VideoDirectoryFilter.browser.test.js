@@ -8,7 +8,11 @@ test(
   async (t) => {
     const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t, {
       cacheDir: 'node_modules/.vite-video-directory-test',
+      chromeArgs: [
+        '--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4',
+      ],
     })
+
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=video` })
     await waitFor(
       `window.testStore && document.querySelector('aside') && window.requests.some(request => request.url.startsWith('/videos?')) && !window.testStore.getState().loading`
@@ -51,7 +55,7 @@ test(
       ),
       true
     )
-    await evaluate(`${root}.click()`)
+    await evaluate(`${root}.querySelector('span').click()`)
     await waitFor(`${branch}.checkVisibility()`)
     assert.equal(await evaluate(`${leaf}.checkVisibility()`), false)
     await evaluate(`${branch}.focus()`)
@@ -69,7 +73,42 @@ test(
     await evaluate(`${branch}.click()`)
     await waitFor(`!${leaf}.checkVisibility()`)
     await evaluate(`${branch}.click()`)
-    await evaluate(`${leaf}.click()`)
+    await evaluate(`${leaf}.previousElementSibling.click()`)
+    assert.equal(await evaluate('window.testStore.getState().videoDirectoryId'), null)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 })
+    await evaluate('document.activeElement?.blur()')
+    assert.equal(await evaluate(`matchMedia('(hover: hover)').matches`), true)
+    assert.equal(await evaluate(`getComputedStyle(${leaf}).opacity`), '0')
+    await evaluate(`${leaf}.scrollIntoView({block:'center'})`)
+    const point = await evaluate(`(() => {
+      const rect = ${leaf}.getBoundingClientRect();
+      return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
+    })()`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+    await waitFor(`getComputedStyle(${leaf}).opacity === '1'`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 })
+    await waitFor(`getComputedStyle(${leaf}).opacity === '0'`)
+    // Keyboard users can reveal and activate the same action by focusing it.
+    await evaluate(`${branch}.querySelector('button').focus()`)
+    for (const type of ['keyDown', 'keyUp']) {
+      await command('Input.dispatchKeyEvent', {
+        type,
+        key: 'Tab',
+        code: 'Tab',
+        windowsVirtualKeyCode: 9,
+      })
+    }
+    await waitFor(`document.activeElement === ${leaf}`)
+    await waitFor(`getComputedStyle(${leaf}).opacity === '1'`)
+    for (const type of ['keyDown', 'keyUp']) {
+      await command('Input.dispatchKeyEvent', {
+        type,
+        key: 'Enter',
+        code: 'Enter',
+        windowsVirtualKeyCode: 13,
+        ...(type === 'keyDown' ? { text: '\r', unmodifiedText: '\r' } : {}),
+      })
+    }
     await waitFor(
       `window.testStore.getState().videoSubdirectory === '旅行/100%_fun' && new URLSearchParams(location.search).get('subdirectory') === '旅行/100%_fun' && !window.testStore.getState().loading`
     )
@@ -102,6 +141,9 @@ test(
       return container.scrollTop > 0 && itemRect.top >= containerRect.top && itemRect.bottom <= containerRect.bottom;
     })()`)
     assert.equal(await evaluate('window.scrollY'), 0)
+    await evaluate(`${leaf}.previousElementSibling.click()`)
+    assert.equal(await evaluate(`${leaf}.getAttribute('aria-pressed')`), 'false')
+    assert.equal(await evaluate('window.testStore.getState().videoSubdirectory'), '旅行/100%_fun')
 
     await evaluate(`document.querySelector('[aria-label="Clear directory filter"]').click()`)
     await waitFor(

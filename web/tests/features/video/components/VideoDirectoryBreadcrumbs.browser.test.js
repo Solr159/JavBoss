@@ -8,7 +8,11 @@ test(
   async (t) => {
     const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t, {
       cacheDir: 'node_modules/.vite-video-directory-breadcrumbs-test',
+      chromeArgs: [
+        '--blink-settings=primaryHoverType=2,availableHoverTypes=2,primaryPointerType=4,availablePointerTypes=4',
+      ],
     })
+
     const initialQuery = new URLSearchParams({
       view: 'video',
       directory_id: '1',
@@ -56,21 +60,42 @@ test(
       await waitFor(menu)
       await waitFor(`!${menu}.textContent.includes('Loading...')`)
     }
+    const itemLabel = `(item) => item.hasAttribute('aria-pressed') ? item.previousElementSibling.textContent : item.textContent`
     const select = async (label) => {
       const expectedLabels = await menuLabels()
+      await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
+      const point = await evaluate(`(() => {
+        window.directoryChoice = [...${menu}.querySelectorAll('button')].find(item => (${itemLabel})(item) === ${JSON.stringify(label)});
+        window.directoryChoice.scrollIntoView({block:'nearest'});
+        const rect = window.directoryChoice.getBoundingClientRect();
+        return {x:rect.x + rect.width / 2, y:rect.y + rect.height / 2};
+      })()`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+      await waitFor(
+        `getComputedStyle(window.directoryChoice).opacity === '1' && getComputedStyle(window.directoryChoice).pointerEvents === 'auto'`
+      )
       await evaluate(`(() => {
         const list = ${menu};
         window.closingDirectoryMenuLabels = [];
         window.directoryMenuObserver = new MutationObserver(() => {
           if (list.isConnected) {
-            window.closingDirectoryMenuLabels.push([...list.querySelectorAll('button, [role="status"], [role="alert"]')].filter(item => item.checkVisibility()).map(item => item.textContent));
+            window.closingDirectoryMenuLabels.push([...list.querySelectorAll('button, [role="status"], [role="alert"]')].filter(item => item.checkVisibility()).map(${itemLabel}));
           }
         });
         window.directoryMenuObserver.observe(list, {childList:true, subtree:true, characterData:true});
       })()`)
-      await evaluate(
-        `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].find(b => b.textContent === ${JSON.stringify(label)}).click()`
-      )
+      await command('Input.dispatchMouseEvent', {
+        type: 'mousePressed',
+        ...point,
+        button: 'left',
+        clickCount: 1,
+      })
+      await command('Input.dispatchMouseEvent', {
+        type: 'mouseReleased',
+        ...point,
+        button: 'left',
+        clickCount: 1,
+      })
       await waitFor(`!${menu}`)
       await evaluate('window.directoryMenuObserver.disconnect()')
       const closingLabels = await evaluate('window.closingDirectoryMenuLabels')
@@ -80,12 +105,42 @@ test(
     }
     const menuLabels = () =>
       evaluate(
-        `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].filter(b => b.checkVisibility()).map(b => b.textContent)`
+        `[...${menu}.querySelectorAll('button, [role="status"], [role="alert"]')].filter(b => b.checkVisibility()).map(${itemLabel})`
       )
     assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026'])
     // Expand descendants without changing the filter, then select a deep directory.
     await openLevel('All directories')
     const disclosure = `${menu}.querySelector('summary[aria-label="Expand or collapse directory /videos/旅行/2026"]')`
+    const currentAction = `${disclosure}.querySelector('button')`
+    assert.equal(await evaluate(`${currentAction}.getAttribute('aria-pressed')`), 'true')
+    await waitFor(`getComputedStyle(${menu}).transform === 'none'`)
+    const disclosurePoint = await evaluate(`(() => {
+      const rect = ${disclosure}.querySelector('span').getBoundingClientRect();
+      return {x:rect.x + rect.width / 2,y:rect.y + rect.height / 2};
+    })()`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...disclosurePoint })
+    await command('Input.dispatchMouseEvent', {
+      type: 'mousePressed',
+      ...disclosurePoint,
+      button: 'left',
+      clickCount: 1,
+    })
+    await command('Input.dispatchMouseEvent', {
+      type: 'mouseReleased',
+      ...disclosurePoint,
+      button: 'left',
+      clickCount: 1,
+    })
+    await waitFor(`${disclosure}.parentElement.open`)
+    assert.equal(await evaluate(`${menu}.querySelector('[aria-pressed="true"]') !== null`), false)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 })
+    await waitFor(`getComputedStyle(${currentAction}).opacity === '0'`)
+    assert.equal(
+      await evaluate(`getComputedStyle(${disclosure}).backgroundColor`),
+      'rgba(0, 0, 0, 0)'
+    )
+    await evaluate(`${disclosure}.querySelector('span').click()`)
+    await waitFor(`!${disclosure}.parentElement.open`)
     await evaluate(`${disclosure}.focus()`)
     await command('Input.dispatchKeyEvent', {
       type: 'keyDown',
@@ -112,9 +167,10 @@ test(
         `${menu}.querySelector('button[aria-label="Select directory /videos/旅行/2026/deeper"]').checkVisibility()`
       )
     )
-    await evaluate(`${disclosure}.click()`)
+    await evaluate(`${disclosure}.querySelector('span').click()`)
     await waitFor(`!${disclosure}.parentElement.open`)
-    await evaluate(`${disclosure}.click()`)
+    await evaluate(`${disclosure}.querySelector('span').click()`)
+    assert.equal(await evaluate('window.testStore.getState().videoSubdirectory'), '旅行/2026')
     await select('deeper')
     await waitFor(`new URLSearchParams(location.search).get('subdirectory') === '旅行/2026/deeper'`)
     assert.deepEqual(await labels(), ['All directories', '/videos', '旅行', '2026', 'deeper'])
