@@ -183,6 +183,7 @@ export default function useLibraryRoute({ setJavSearchInput, setSearchInput, con
         page: video.random ? 1 : video.page,
       })
       setSearchInput(video.search)
+      pendingVideoTagIdsRef.current = null
       const names = mapTagIdsToNamesFromStore(video.tagIds)
       if (names.length || video.tagIds.length === 0) {
         useStore.getState().setSelectedTags(names, { resetPage: false, preserveTempSort: true })
@@ -308,6 +309,7 @@ export default function useLibraryRoute({ setJavSearchInput, setSearchInput, con
     pendingScrollRestoreRef,
     saveScrollBeforeUrlStateChange,
     schedulePendingScrollRestore,
+    switchLibraryTab,
   } = useUrlStateSync({
     applyUrlState,
     configLoaded,
@@ -358,6 +360,7 @@ export default function useLibraryRoute({ setJavSearchInput, setSearchInput, con
     pendingScrollRestoreRef,
     saveScrollBeforeUrlStateChange,
     schedulePendingScrollRestore,
+    switchLibraryTab,
     buildVideoUrl,
     buildJavUrl,
   }

@@ -21,6 +21,8 @@ import {
 } from '@/navigation/historyState'
 import { parseUrlState, buildUrlFromState } from '@/utils/urlState'
 
+const tabKey = (state) => (state.view === 'video' ? 'video' : state.jav.tab)
+
 export default function useUrlStateSync({
   applyUrlState,
   configLoaded,
@@ -47,6 +49,18 @@ export default function useUrlStateSync({
   const isPoppingRef = useRef(false)
   const lastUrlRef = useRef(currentRoute)
   const routeInitializedRef = useRef(false)
+  // Reuse URL state as each tab's snapshot so links and history restore the same filters.
+  const tabPagesRef = useRef(new Map())
+  const rememberTabPage = useCallback(
+    (route, scroll) => {
+      if (route !== withJavDetail(withStudioDetail(route, null), null)) return
+      const state = parseUrlState(new URL(route, window.location.origin).search, {
+        defaultView: initialViewMode,
+      })
+      tabPagesRef.current.set(tabKey(state), { state, scroll })
+    },
+    [initialViewMode]
+  )
 
   const {
     browserHistoryIndexRef,
@@ -63,7 +77,7 @@ export default function useUrlStateSync({
     handleBrowserForward,
     cancelScheduledScrollRestore,
     schedulePendingScrollRestore,
-  } = useBrowserHistory({ currentRoute })
+  } = useBrowserHistory({ currentRoute, onSaveScroll: rememberTabPage })
   const {
     javDetailId,
     javDetailCacheRef,
@@ -99,6 +113,46 @@ export default function useUrlStateSync({
     [saveCurrentScrollPosition]
   )
 
+  const switchLibraryTab = useCallback(
+    (tab) => {
+      if (tabKey(currentUrlState) === tab && currentRoute === pageRoute) return false
+      saveScrollBeforeUrlStateChange()
+      const saved = tabPagesRef.current.get(tab)
+      const state =
+        saved?.state || parseUrlState(tab === 'video' ? '?view=video' : `?view=jav&tab=${tab}`)
+      const nextUrl = buildUrlFromState(state, location.pathname)
+      const scroll = saved?.scroll || { x: 0, y: 0 }
+      const nextIndex = browserHistoryIndexRef.current + 1
+      cancelScheduledScrollRestore()
+      pendingScrollRestoreRef.current = { ...scroll, attempts: 0 }
+      // Commit the route and its filters together, before mounting the destination grid.
+      // The URL effect must not hydrate these same filters a second time.
+      lastAppliedPageRouteRef.current = nextUrl
+      leaveDetailRef.current = false
+      navigate(nextUrl, {
+        state: { [HISTORY_INDEX_KEY]: nextIndex, [HISTORY_SCROLL_KEY]: scroll },
+      })
+      applyUrlState(state)
+      setBrowserNavigationFromIndex(nextIndex, nextIndex)
+      if (scroll.y === 0) schedulePendingScrollRestore()
+      return true
+    },
+    [
+      applyUrlState,
+      browserHistoryIndexRef,
+      cancelScheduledScrollRestore,
+      currentRoute,
+      currentUrlState,
+      location.pathname,
+      navigate,
+      pageRoute,
+      pendingScrollRestoreRef,
+      saveScrollBeforeUrlStateChange,
+      schedulePendingScrollRestore,
+      setBrowserNavigationFromIndex,
+    ]
+  )
+
   useEffect(() => {
     if (!configLoaded) return
     ensureBrowserHistoryState()
@@ -124,6 +178,12 @@ export default function useUrlStateSync({
       applyUrlState(parsed, { fromPopstate: fromRouterPop, route: currentRoute })
       lastAppliedPageRouteRef.current = pageRoute
     }
+    rememberTabPage(
+      currentRoute,
+      normalizeHistoryScrollPosition(
+        getHistoryAppStateValue(window.history.state, HISTORY_SCROLL_KEY)
+      )
+    )
     routeInitializedRef.current = true
   }, [
     applyUrlState,
@@ -140,6 +200,7 @@ export default function useUrlStateSync({
     pageRoute,
     pendingScrollRestoreRef,
     readBrowserHistoryIndex,
+    rememberTabPage,
     setBrowserNavigationFromIndex,
   ])
 
@@ -175,7 +236,15 @@ export default function useUrlStateSync({
       saveCurrentScrollPosition()
     }
     const nextIndex = browserHistoryIndexRef.current + 1
-    const nextScroll = readWindowScrollPosition()
+    const previous = parseUrlState(location.search, { defaultView: initialViewMode })
+    const directoryChanged =
+      currentUrlState.view === 'video' &&
+      (previous.view !== 'video' ||
+        previous.video.directoryId !== currentUrlState.video.directoryId ||
+        previous.video.subdirectory !== currentUrlState.video.subdirectory)
+    const restoreScroll = directoryChanged ? { x: 0, y: 0 } : null
+    const nextScroll = restoreScroll || readWindowScrollPosition()
+    if (restoreScroll) pendingScrollRestoreRef.current = { ...restoreScroll, attempts: 0 }
     navigate(nextUrl, {
       state: {
         [HISTORY_INDEX_KEY]: nextIndex,
@@ -183,6 +252,7 @@ export default function useUrlStateSync({
       },
     })
     setBrowserNavigationFromIndex(nextIndex, nextIndex)
+    if (restoreScroll?.y === 0) schedulePendingScrollRestore()
     lastUrlRef.current = nextUrl
   }, [
     cancelScheduledScrollRestore,
@@ -198,6 +268,7 @@ export default function useUrlStateSync({
     javDetailId,
     navigate,
     saveCurrentScrollPosition,
+    schedulePendingScrollRestore,
     setBrowserNavigationFromIndex,
     pendingScrollRestoreRef,
     preNavigationScrollSaveUrlRef,
@@ -205,6 +276,7 @@ export default function useUrlStateSync({
   ])
 
   return {
+    switchLibraryTab,
     javDetailId,
     javDetailItem: javDetailCacheRef.current.get(javDetailId) || null,
     javDetailState: normalizeJavDetailState(

@@ -176,6 +176,7 @@ export default function App() {
     pendingScrollRestoreRef,
     saveScrollBeforeUrlStateChange,
     schedulePendingScrollRestore,
+    switchLibraryTab,
     buildVideoUrl,
     buildJavUrl,
   } = useLibraryRoute({ setJavSearchInput, setSearchInput, configLoaded })
@@ -445,6 +446,7 @@ export default function App() {
     forceReloadVideos,
     saveScrollBeforeUrlStateChange,
     applyJavTagFilter,
+    switchLibraryTab,
   })
 
   const handleOpenJavTagModal = useCallback(() => {
