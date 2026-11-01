@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"javboss/internal/models"
@@ -34,6 +35,82 @@ func normalizeDirectoryPath(p string) (string, error) {
 		return "", fmt.Errorf("path %q is not a directory", cleaned)
 	}
 	return cleaned, nil
+}
+
+// normalizeDirectoryScanScope validates requested subdirectory selections against
+// the directory root. Each entry must be a relative path inside root; absolute
+// paths, parent traversal, and missing or non-directory targets are rejected so a
+// broken scope can never widen a scan outside the chosen directory.
+func normalizeDirectoryScanScope(root string, include []string) (models.DirectoryScanScope, error) {
+	if len(include) == 0 {
+		return models.DirectoryScanScope{}, nil
+	}
+	cleanedRoot := filepath.Clean(root)
+	seen := make(map[string]struct{}, len(include))
+	normalized := make([]string, 0, len(include))
+	for _, raw := range include {
+		value := strings.TrimSpace(raw)
+		if value == "" {
+			continue
+		}
+		if strings.ContainsRune(value, 0) {
+			return models.DirectoryScanScope{}, fmt.Errorf("invalid scan scope %q", raw)
+		}
+		relativeToRoot := filepath.FromSlash(value)
+		if filepath.IsAbs(relativeToRoot) || filepath.VolumeName(relativeToRoot) != "" {
+			return models.DirectoryScanScope{}, fmt.Errorf("scan scope %q must be relative to the directory", raw)
+		}
+		relative := filepath.Clean(relativeToRoot)
+		if relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			return models.DirectoryScanScope{}, fmt.Errorf("scan scope %q must stay inside the directory", raw)
+		}
+		target := filepath.Join(cleanedRoot, relative)
+		info, err := os.Stat(target)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return models.DirectoryScanScope{}, fmt.Errorf("scan scope %q does not exist", raw)
+			}
+			return models.DirectoryScanScope{}, fmt.Errorf("stat scan scope %q: %w", raw, err)
+		}
+		if !info.IsDir() {
+			return models.DirectoryScanScope{}, fmt.Errorf("scan scope %q is not a directory", raw)
+		}
+		key := strings.ToLower(filepath.ToSlash(relative))
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		normalized = append(normalized, filepath.ToSlash(relative))
+	}
+	sort.Slice(normalized, func(i, j int) bool {
+		return strings.ToLower(normalized[i]) < strings.ToLower(normalized[j])
+	})
+	return models.DirectoryScanScope{Include: dropNestedScanScopes(normalized)}, nil
+}
+
+// dropNestedScanScopes removes selections already covered by an ancestor selection,
+// so overlapping picks do not scan the same files twice.
+func dropNestedScanScopes(include []string) []string {
+	if len(include) < 2 {
+		return include
+	}
+	kept := make([]string, 0, len(include))
+	for _, candidate := range include {
+		nested := false
+		for _, other := range include {
+			if other == candidate {
+				continue
+			}
+			if strings.HasPrefix(strings.ToLower(candidate), strings.ToLower(other)+"/") {
+				nested = true
+				break
+			}
+		}
+		if !nested {
+			kept = append(kept, candidate)
+		}
+	}
+	return kept
 }
 
 // ListDirectories returns all directories regardless of status.
@@ -83,7 +160,17 @@ func (store *Store) GetDirectory(ctx context.Context, id int64) (*models.Directo
 
 // CreateDirectory registers a new directory.
 func (store *Store) CreateDirectory(ctx context.Context, path string) (*models.Directory, error) {
+	return store.CreateDirectoryWithScope(ctx, path, nil)
+}
+
+// CreateDirectoryWithScope registers a new directory restricted to the given
+// subdirectories. A nil or empty include list keeps the whole directory in scope.
+func (store *Store) CreateDirectoryWithScope(ctx context.Context, path string, include []string) (*models.Directory, error) {
 	normalized, err := normalizeDirectoryPath(path)
+	if err != nil {
+		return nil, err
+	}
+	scope, err := normalizeDirectoryScanScope(normalized, include)
 	if err != nil {
 		return nil, err
 	}
@@ -102,6 +189,7 @@ func (store *Store) CreateDirectory(ctx context.Context, path string) (*models.D
 				dir.IsDelete = false
 				dir.Missing = false
 				dir.Enabled = true
+				dir.ScanScope = scope
 				return nil
 			})
 			if updErr != nil {
@@ -113,7 +201,8 @@ func (store *Store) CreateDirectory(ctx context.Context, path string) (*models.D
 	}
 
 	dir := models.Directory{
-		Path: normalized,
+		Path:      normalized,
+		ScanScope: scope,
 	}
 	if err := store.conn.WithContext(ctx).Create(&dir).Error; err != nil {
 		return nil, fmt.Errorf("create directory: %w", err)
@@ -123,6 +212,20 @@ func (store *Store) CreateDirectory(ctx context.Context, path string) (*models.D
 
 // UpdateDirectory updates a directory's attributes. Pass nil to leave a field untouched.
 func (store *Store) UpdateDirectory(ctx context.Context, id int64, path *string, isDelete *bool, enabled *bool) (*models.Directory, error) {
+	return store.UpdateDirectoryWithScope(ctx, id, path, isDelete, enabled, nil)
+}
+
+// UpdateDirectoryWithScope updates a directory like UpdateDirectory and replaces the
+// scanned subdirectory selection when include is non-nil. A non-nil empty slice
+// restores the default of scanning every subdirectory below the directory path.
+func (store *Store) UpdateDirectoryWithScope(
+	ctx context.Context,
+	id int64,
+	path *string,
+	isDelete *bool,
+	enabled *bool,
+	include *[]string,
+) (*models.Directory, error) {
 	var normalizedPath *string
 	if path != nil {
 		normalized, err := normalizeDirectoryPath(*path)
@@ -159,8 +262,24 @@ func (store *Store) UpdateDirectory(ctx context.Context, id int64, path *string,
 				if err := deleteVideoLocationsByDirectoryID(tx, dir.ID); err != nil {
 					return err
 				}
+				if include == nil {
+					// The previous selection described the old root; keep it only when it
+					// still resolves inside the new root, otherwise fall back to the whole directory.
+					if scope, err := normalizeDirectoryScanScope(dir.Path, dir.ScanScope.Includes()); err == nil {
+						dir.ScanScope = scope
+					} else {
+						dir.ScanScope = models.DirectoryScanScope{}
+					}
+				}
 			}
 			dir.Missing = false
+		}
+		if include != nil {
+			scope, err := normalizeDirectoryScanScope(dir.Path, *include)
+			if err != nil {
+				return err
+			}
+			dir.ScanScope = scope
 		}
 		if isDelete != nil {
 			dir.IsDelete = *isDelete

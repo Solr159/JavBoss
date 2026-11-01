@@ -15,11 +15,11 @@ export async function fetchDirectories() {
   return res.json()
 }
 
-export async function createDirectory({ path }) {
+export async function createDirectory({ path, scan_include }) {
   const res = await apiFetch('/directories', {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ path }),
+    body: JSON.stringify({ path, scan_include: scan_include || [] }),
   })
   if (!res.ok) {
     throw await apiError(res)

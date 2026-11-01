@@ -54,7 +54,8 @@ func listDirectories(c *gin.Context) {
 
 func createDirectory(c *gin.Context) {
 	var req struct {
-		Path string `json:"path"`
+		Path        string   `json:"path"`
+		ScanInclude []string `json:"scan_include"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "添加目录请求无效", "Invalid add-directory request")
@@ -65,10 +66,10 @@ func createDirectory(c *gin.Context) {
 		return
 	}
 
-	dir, err := dbpkg.Default().CreateDirectory(c.Request.Context(), req.Path)
+	dir, err := dbpkg.Default().CreateDirectoryWithScope(c.Request.Context(), req.Path, req.ScanInclude)
 	if err != nil {
 		logging.Error("create directory error: %v", err)
-		respondLocalizedError(c, http.StatusBadRequest, "添加目录失败，请检查路径是否有效或已存在", "Failed to add directory; check whether the path is valid or already exists")
+		respondLocalizedError(c, http.StatusBadRequest, "添加目录失败，请检查路径是否有效或已存在，所选子目录是否有效", "Failed to add directory; check whether the path is valid or already exists and the selected subdirectories are valid")
 		return
 	}
 	go func(created models.Directory) {
@@ -91,11 +92,12 @@ func updateDirectory(c *gin.Context) {
 	}
 
 	var req struct {
-		Path                    *string `json:"path"`
-		IsDelete                *bool   `json:"is_delete"`
-		Enabled                 *bool   `json:"enabled"`
-		AutoScanEnabled         *bool   `json:"auto_scan_enabled"`
-		AutoScanIntervalMinutes *int    `json:"auto_scan_interval_minutes"`
+		Path                    *string   `json:"path"`
+		IsDelete                *bool     `json:"is_delete"`
+		Enabled                 *bool     `json:"enabled"`
+		AutoScanEnabled         *bool     `json:"auto_scan_enabled"`
+		AutoScanIntervalMinutes *int      `json:"auto_scan_interval_minutes"`
+		ScanInclude             *[]string `json:"scan_include"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "修改目录请求无效", "Invalid directory update request")
@@ -112,7 +114,9 @@ func updateDirectory(c *gin.Context) {
 	}
 
 	var releaseScanReservation func()
-	if req.Path != nil || req.IsDelete != nil {
+	// Changing the scanned subdirectories rewrites this directory's scan results, so it
+	// waits for an in-flight scan just like a path change does.
+	if req.Path != nil || req.IsDelete != nil || req.ScanInclude != nil {
 		reserveCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 		release, err := directory.CancelAndReserveDirectoryScan(reserveCtx, id)
 		cancel()
@@ -130,14 +134,14 @@ func updateDirectory(c *gin.Context) {
 	}
 
 	var dir *models.Directory
-	if req.Path != nil || req.IsDelete != nil || req.Enabled != nil {
-		dir, err = dbpkg.Default().UpdateDirectory(c.Request.Context(), id, req.Path, req.IsDelete, req.Enabled)
+	if req.Path != nil || req.IsDelete != nil || req.Enabled != nil || req.ScanInclude != nil {
+		dir, err = dbpkg.Default().UpdateDirectoryWithScope(c.Request.Context(), id, req.Path, req.IsDelete, req.Enabled, req.ScanInclude)
 	} else {
 		dir, err = dbpkg.Default().GetDirectory(c.Request.Context(), id)
 	}
 	if err != nil {
 		logging.Error("update directory error: %v", err)
-		respondLocalizedError(c, http.StatusBadRequest, "修改目录失败，请检查路径是否有效或已存在", "Failed to update directory; check whether the path is valid or already exists")
+		respondLocalizedError(c, http.StatusBadRequest, "修改目录失败，请检查路径是否有效或已存在，所选子目录是否有效", "Failed to update directory; check whether the path is valid or already exists and the selected subdirectories are valid")
 		return
 	}
 	if dir == nil {
@@ -165,7 +169,7 @@ func updateDirectory(c *gin.Context) {
 		releaseScanReservation()
 		releaseScanReservation = nil
 	}
-	shouldScan := req.Path != nil || (req.IsDelete != nil && !*req.IsDelete)
+	shouldScan := req.Path != nil || req.ScanInclude != nil || (req.IsDelete != nil && !*req.IsDelete)
 	go func(updated models.Directory, scan bool) {
 		if updated.IsDelete || !scan {
 			return
