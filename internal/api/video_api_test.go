@@ -93,6 +93,61 @@ func TestListVideosIgnoresDirectoryIDsAndUsesEnabledDirectories(t *testing.T) {
 	}
 }
 
+func TestPlaybackPathsWithDoubleDotPrefixes(t *testing.T) {
+	deps := newTestDependencies()
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "playback.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deps.database = database
+	deps.bindDatabase(t)
+	conn, err := database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	dir := models.Directory{Path: filepath.Join(t.TempDir(), "library")}
+	if err := database.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		path    string
+		allowed bool
+	}{
+		{"..archive/video.mp4", true},
+		{"..movie.mp4", true},
+		{"../outside.mp4", false},
+		{"..", false},
+		{".", false},
+	} {
+		t.Run(tc.path, func(t *testing.T) {
+			video := models.Video{Fingerprint: tc.path}
+			if err := database.Create(&video).Error; err != nil {
+				t.Fatal(err)
+			}
+			location := models.VideoLocation{DirectoryID: dir.ID, VideoID: video.ID, RelativePath: tc.path}
+			if err := database.Create(&location).Error; err != nil {
+				t.Fatal(err)
+			}
+			fullPath := filepath.Join(dir.Path, filepath.FromSlash(tc.path))
+			wantID, wantCount := int64(0), int64(0)
+			if tc.allowed {
+				wantID, wantCount = video.ID, 1
+			}
+			if got := resolvePlaybackVideoID(t.Context(), 0, dir.Path, fullPath); got != wantID {
+				t.Fatalf("video ID = %d, want %d", got, wantID)
+			}
+			incrementPlayCountByPath(t.Context(), dir.Path, fullPath)
+			if err := database.First(&video, video.ID).Error; err != nil {
+				t.Fatal(err)
+			}
+			if video.PlayCount != wantCount {
+				t.Fatalf("play count = %d, want %d", video.PlayCount, wantCount)
+			}
+		})
+	}
+}
+
 func TestRevealVideoLocationRejectsRemoteRequest(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)

@@ -158,6 +158,10 @@ func (m *Manager) PreviewDirectoryCleanup(ctx context.Context, dir models.Direct
 		if indexed[name] {
 			return nil
 		}
+		if !validCleanupPath(name) {
+			preview.Issues = append(preview.Issues, CleanupIssue{Path: name, Reason: "invalid_path"})
+			return nil
+		}
 		info, err := entry.Info()
 		if err != nil {
 			preview.Issues = append(preview.Issues, CleanupIssue{Path: name, Reason: "unreadable"})
@@ -191,6 +195,13 @@ func CleanDirectoryFiles(ctx context.Context, dir models.Directory, rootPath str
 	return applicationTasks.Load().CleanDirectoryFiles(ctx, dir, rootPath, files)
 }
 
+func validCleanupPath(name string) bool {
+	// Preview paths use io/fs slash separators. Localize rejects traversal and
+	// OS-specific ambiguities while preserving literal backslashes on POSIX.
+	_, err := filepath.Localize(name)
+	return err == nil && name != "."
+}
+
 func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory, rootPath string, files []CleanupFile) (*CleanupResult, error) {
 	if rootPath != dir.Path || len(files) == 0 || len(files) > MaxCleanupFiles {
 		return nil, ErrInvalidCleanupRequest
@@ -199,8 +210,7 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 	options := CleanupOptions{IncludeSystem: true, IncludeMisc: true, IncludeTorrents: true, IncludeShortcuts: true, IncludeAdImages: true, IncludeDownloads: true}
 	// Validate the entire request before removing anything.
 	for _, file := range files {
-		if !fs.ValidPath(file.Path) || file.Path == "." || strings.Contains(file.Path, "\\") ||
-			!filepath.IsLocal(filepath.FromSlash(file.Path)) || cleanupReason(path.Base(file.Path), options) == "" ||
+		if !validCleanupPath(file.Path) || cleanupReason(path.Base(file.Path), options) == "" ||
 			file.Modified == "" || file.Size < 0 || seen[file.Path] {
 			return nil, ErrInvalidCleanupRequest
 		}

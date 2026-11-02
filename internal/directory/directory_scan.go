@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"javboss/internal/common/logging"
@@ -271,7 +270,7 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 		if err != nil {
 			return err
 		}
-		if strings.HasPrefix(relativePath, "..") {
+		if !filepath.IsLocal(relativePath) {
 			return nil
 		}
 

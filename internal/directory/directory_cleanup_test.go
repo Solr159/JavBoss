@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"javboss/internal/db"
@@ -92,7 +93,11 @@ func TestDirectoryCleanupRejectsInvalidSelectionBeforeDeleting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"../outside.txt", "/tmp/outside.txt", "nested/../../outside.txt", "nested\\ad.txt", "movie.mp4", "movie.nfo", directoryProcessReportName, ".", "ad.txt"} {
+	invalidNames := []string{"../outside.txt", "/tmp/outside.txt", "nested/../../outside.txt", "movie.mp4", "movie.nfo", directoryProcessReportName, ".", "ad.txt", "nested//ad.txt", "nested/./ad.txt", "bad\x00.txt"}
+	if runtime.GOOS == "windows" {
+		invalidNames = append(invalidNames, `nested\ad.txt`, `..\outside.txt`, `C:/outside.txt`)
+	}
+	for _, name := range invalidNames {
 		t.Run(name, func(t *testing.T) {
 			bad := preview.Files[0]
 			bad.Path = name
@@ -110,6 +115,36 @@ func TestDirectoryCleanupRejectsInvalidSelectionBeforeDeleting(t *testing.T) {
 	}
 	if _, err := m.CleanDirectoryFiles(ctx, dir, dir.Path, nil); !errors.Is(err, ErrInvalidCleanupRequest) {
 		t.Fatalf("empty selection accepted: %v", err)
+	}
+}
+
+func TestDirectoryCleanupAcceptsLiteralBackslashesOnPOSIX(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("backslashes are path separators on Windows")
+	}
+	m := newCleanupTestDependencies(t).Manager
+	parent := t.TempDir()
+	dir := models.Directory{ID: 1, Path: filepath.Join(parent, "library")}
+	names := []string{`ad\name.txt`, `nested\dir/ad.txt`, `..\outside.txt`, "ordinary.txt"}
+	for _, name := range names {
+		writeCleanupFixture(t, dir.Path, name)
+	}
+	writeCleanupFixture(t, parent, "outside.txt")
+	preview, err := m.PreviewDirectoryCleanup(t.Context(), dir, CleanupOptions{IncludeMisc: true})
+	if err != nil || len(preview.Files) != len(names) || len(preview.Issues) != 0 {
+		t.Fatalf("preview=%+v err=%v", preview, err)
+	}
+	result, err := m.CleanDirectoryFiles(t.Context(), dir, preview.RootPath, preview.Files)
+	if err != nil || len(result.Deleted) != len(names) || len(result.Issues) != 0 {
+		t.Fatalf("select-all cleanup=%+v err=%v", result, err)
+	}
+	for _, name := range names {
+		if _, err := os.Stat(filepath.Join(dir.Path, name)); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("selected file %q remains: %v", name, err)
+		}
+	}
+	if data, err := os.ReadFile(filepath.Join(parent, "outside.txt")); err != nil || string(data) != "fixture" {
+		t.Fatalf("file outside cleanup root changed: %q, %v", data, err)
 	}
 }
 

@@ -434,6 +434,7 @@ func TestDirectoryProcessTargetFolder(t *testing.T) {
 		valid bool
 	}{
 		{"", "JAV", true}, {"  ", "JAV", true}, {"JAV", "JAV", true},
+		{"..archive", "..archive", true},
 		{" 媒体库 ", "媒体库", true}, {"My Videos", "My Videos", true}, {"existing", "existing", true},
 		{".", "", false}, {"..", "", false}, {"../outside", "", false}, {`..\outside`, "", false},
 		{"/outside", "", false}, {`C:\Videos`, "", false}, {"a/b", "", false}, {"a\nb", "", false},

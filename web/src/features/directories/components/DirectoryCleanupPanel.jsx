@@ -62,6 +62,8 @@ const issueLabel = (reason) => {
       )
     case 'unreadable':
       return zh('无法读取，请检查权限', 'Cannot read; check permissions')
+    case 'invalid_path':
+      return zh('文件路径不受支持，已跳过', 'Unsupported file path; skipped')
     case 'cancelled':
       return zh('操作已中止', 'Operation cancelled')
     case 'indexed_video':
