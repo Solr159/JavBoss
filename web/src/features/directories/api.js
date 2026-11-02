@@ -61,7 +61,7 @@ export async function processDirectory(
   layout = 'prefix',
   overwriteNFO = false,
   targetFolder = 'JAV',
-  exportPortrait = false
+  exportFanart = false
 ) {
   const res = await apiFetch(`/directories/${id}/process`, {
     method: 'POST',
@@ -71,7 +71,7 @@ export async function processDirectory(
       layout,
       overwrite_nfo: overwriteNFO,
       target_folder: targetFolder,
-      export_portrait: exportPortrait,
+      export_fanart: exportFanart,
     }),
   })
   if (!res.ok) {

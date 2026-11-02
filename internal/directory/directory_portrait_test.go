@@ -62,7 +62,7 @@ func writePortraitTestCover(t *testing.T, dir, extension string) string {
 	return path
 }
 
-func TestDirectoryProcessingExportsPortraitOption(t *testing.T) {
+func TestDirectoryProcessingAlwaysExportsPortrait(t *testing.T) {
 	coverDir := t.TempDir()
 	writePortraitTestCover(t, coverDir, ".png")
 	for _, tc := range []struct {
@@ -72,11 +72,12 @@ func TestDirectoryProcessingExportsPortraitOption(t *testing.T) {
 		position float64
 		channel  int
 	}{
-		{"disabled", DirectoryProcessSidecar, false, 1, 2},
+		{"fanart disabled", DirectoryProcessSidecar, false, 1, 2},
 		{"right", DirectoryProcessSidecar, true, 1, 2},
 		{"left", DirectoryProcessSidecar, true, 0, 0},
 		{"center", DirectoryProcessSidecar, true, 0.5, 1},
 		{"organize and export", DirectoryProcessOrganizeWithSidecar, true, 1, 2},
+		{"organize and export without fanart", DirectoryProcessOrganizeWithSidecar, false, 1, 2},
 		{"organize ignores option", DirectoryProcessOrganize, true, 1, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -99,7 +100,7 @@ func TestDirectoryProcessingExportsPortraitOption(t *testing.T) {
 				t.Fatalf("existing cover changed: %q, %v", fanart, err)
 			}
 			data, err := os.ReadFile(filepath.Join(target, "video-poster.jpg"))
-			if !tc.enabled || tc.mode == DirectoryProcessOrganize {
+			if tc.mode == DirectoryProcessOrganize {
 				if !errors.Is(err, os.ErrNotExist) {
 					t.Fatalf("unexpected portrait export: %v", err)
 				}
@@ -125,12 +126,12 @@ func TestDirectoryProcessingExportsPortraitOption(t *testing.T) {
 
 func TestSidecarArtworkNamesAndContent(t *testing.T) {
 	for _, extension := range []string{".jpg", ".png"} {
-		for _, exportPortrait := range []bool{false, true} {
+		for _, exportFanart := range []bool{false, true} {
 			root, coverDir := t.TempDir(), t.TempDir()
 			coverPath := writePortraitTestCover(t, coverDir, extension)
 			video := filepath.Join(root, "video.mp4")
 			writeTestFile(t, video, []byte("video"))
-			if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", CoverCropPosition: 1}, coverDir, false, exportPortrait); err != nil {
+			if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", CoverCropPosition: 1}, coverDir, false, exportFanart); err != nil {
 				t.Fatal(err)
 			}
 			original, err := os.ReadFile(coverPath)
@@ -138,16 +139,16 @@ func TestSidecarArtworkNamesAndContent(t *testing.T) {
 				t.Fatal(err)
 			}
 			fanart, err := os.ReadFile(filepath.Join(root, "video-fanart"+extension))
-			if err != nil || !bytes.Equal(fanart, original) {
-				t.Fatalf("fanart must contain the unchanged full cover: %v", err)
+			if exportFanart {
+				if err != nil || !bytes.Equal(fanart, original) {
+					t.Fatalf("fanart must contain the unchanged full cover: %v", err)
+				}
+			} else {
+				if !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("fanart must not be exported when disabled: %v", err)
+				}
 			}
 			poster, err := os.ReadFile(filepath.Join(root, "video-poster.jpg"))
-			if !exportPortrait {
-				if !errors.Is(err, os.ErrNotExist) {
-					t.Fatalf("poster must not be exported when disabled: %v", err)
-				}
-				continue
-			}
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -170,7 +171,7 @@ func TestPortraitSidecarPreservesExistingFilesAndHandlesBadCover(t *testing.T) {
 		if managed {
 			writeTestFile(t, filepath.Join(root, "video.nfo"), []byte("<generator>JavBoss</generator>"))
 		}
-		if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", CoverCropPosition: 1}, coverDir, false, true); err != nil {
+		if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", CoverCropPosition: 1}, coverDir, false, false); err != nil {
 			t.Fatal(err)
 		}
 		data, err := os.ReadFile(portrait)

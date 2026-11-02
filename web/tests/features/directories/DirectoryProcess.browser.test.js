@@ -13,7 +13,7 @@ test(
     const button = (label) =>
       `[...${modal}.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(label)})`
     const overwrite = `document.querySelector('#directory-process-overwrite-nfo')`
-    const portrait = `document.querySelector('#directory-process-export-portrait')`
+    const fanart = `document.querySelector('#directory-process-export-fanart')`
     const folder = `document.querySelector('#directory-process-target-folder')`
     const setFolder = async (value) => {
       await evaluate(`
@@ -21,7 +21,7 @@ test(
         ${folder}.dispatchEvent(new Event('input', { bubbles: true }));
       `)
     }
-    for (const [mode, layout, optIn, targetFolder, exportPortrait] of [
+    for (const [mode, layout, optIn, targetFolder, exportFanart] of [
       ['sidecar', 'prefix', false, 'JAV', false],
       ['sidecar', 'prefix', false, 'JAV', true],
       ['sidecar', 'prefix', true, 'JAV', false],
@@ -38,7 +38,7 @@ test(
         true
       )
       assert.equal(await evaluate(`${overwrite} === null`), true)
-      assert.equal(await evaluate(`${portrait} === null`), true)
+      assert.equal(await evaluate(`${fanart} === null`), true)
       assert.equal(await evaluate(`${folder} === null`), true)
       assert.equal(await evaluate(`${button('Run')} === undefined`), true)
       await evaluate(`${button('Next')}.click()`)
@@ -70,12 +70,12 @@ test(
       }
       if (mode === 'organize') {
         assert.equal(await evaluate(`${overwrite} === null`), true)
-        assert.equal(await evaluate(`${portrait} === null`), true)
+        assert.equal(await evaluate(`${fanart} === null`), true)
       } else {
         assert.equal(await evaluate(`${overwrite}.checked`), false)
-        assert.equal(await evaluate(`${portrait}.checked`), false)
+        assert.equal(await evaluate(`${fanart}.checked`), false)
         if (optIn) await evaluate(`${overwrite}.click()`)
-        if (exportPortrait) await evaluate(`${portrait}.click()`)
+        if (exportFanart) await evaluate(`${fanart}.click()`)
       }
       await evaluate(`${button('Back')}.click()`)
       await waitFor(`${button('Next')}`)
@@ -90,7 +90,7 @@ test(
           layout,
           overwrite_nfo: optIn,
           target_folder: targetFolder || 'JAV',
-          export_portrait: exportPortrait,
+          export_fanart: exportFanart,
         },
       })
     }

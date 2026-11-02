@@ -162,7 +162,7 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 	coverDir := t.TempDir()
 	videoName := "original-name.mkv"
 	writeTestFile(t, filepath.Join(root, videoName), []byte("video"))
-	writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+	writePortraitTestCover(t, coverDir, ".jpg")
 
 	uncensored := true
 	item := models.Jav{
@@ -213,8 +213,8 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 			t.Fatalf("generated NFO missing %q:\n%s", expected, nfo)
 		}
 	}
-	if _, err := os.Stat(strings.TrimSuffix(targetVideo, ".mkv") + "-fanart.jpg"); err != nil {
-		t.Fatalf("generated fanart missing: %v", err)
+	if _, err := os.Stat(strings.TrimSuffix(targetVideo, ".mkv") + "-poster.jpg"); err != nil {
+		t.Fatalf("generated poster missing: %v", err)
 	}
 	if summary.Moved != 1 || summary.Sidecars != 1 || summary.Failed != 0 {
 		t.Fatalf("summary = %+v, want one move, one Sidecar, and no failures", summary)
@@ -465,7 +465,7 @@ func TestProcessJavItemUsesTargetFolder(t *testing.T) {
 				writeTestFile(t, filepath.Join(root, "incoming", "video.mp4"), []byte("video"))
 				writeTestFile(t, filepath.Join(root, "incoming", "video.zh.srt"), []byte("subtitle"))
 				writeTestFile(t, filepath.Join(root, "incoming", "other.txt"), []byte("keep"))
-				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+				writePortraitTestCover(t, coverDir, ".jpg")
 				item := models.Jav{Code: "IPX-001", Videos: []models.Video{{Path: "incoming/video.mp4"}}}
 				summary := &DirectoryProcessSummary{}
 				processJavItem(t.Context(), root, &item, mode, layout, coverDir, summary, false, "媒体库", false)
@@ -523,7 +523,7 @@ func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
 				writeTestFile(t, filepath.Join(root, "video.nfo"), []byte(original))
 				writeTestFile(t, filepath.Join(root, "movie.nfo"), []byte("other NFO"))
 				writeTestFile(t, filepath.Join(root, "video-fanart.jpg"), []byte("existing fanart"))
-				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+				writePortraitTestCover(t, coverDir, ".jpg")
 				item := models.Jav{Code: "IPX-001", Title: "Updated title", Videos: []models.Video{{Path: "video.mp4"}}}
 				summary := &DirectoryProcessSummary{}
 				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite, directoryOrganizeParent, false)
@@ -560,7 +560,7 @@ func TestWriteJavSidecarsUpdatesManagedNFOWithoutOptIn(t *testing.T) {
 	video := filepath.Join(root, "video.mp4")
 	writeTestFile(t, video, []byte("video"))
 	writeTestFile(t, filepath.Join(root, "video.nfo"), []byte("<movie><generator>JavBoss</generator><title>Old</title></movie>"))
-	writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+	writePortraitTestCover(t, coverDir, ".jpg")
 	if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", Title: "New title"}, coverDir, false, false); err != nil {
 		t.Fatal(err)
 	}
