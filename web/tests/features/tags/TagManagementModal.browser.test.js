@@ -21,9 +21,26 @@ test(
     await waitFor(
       `document.querySelectorAll('.tag-management-modal-list .skeuo-tag').length === 24`
     )
+    // Empty titles must not retain hover state that becomes visible on entering edit mode.
+    for (const index of [0, 1, 2, 3]) {
+      const point = await evaluate(`(() => {
+        const rect = document.querySelectorAll('.skeuo-tag-main')[${index}].getBoundingClientRect();
+        return {x: rect.x + rect.width / 2, y: rect.y + rect.height / 2};
+      })()`)
+      await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+      await evaluate('new Promise(resolve => setTimeout(resolve, 150))')
+    }
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 })
+    await evaluate('new Promise(resolve => setTimeout(resolve, 150))')
     await evaluate(`Array.from(document.querySelectorAll('[role="dialog"] button'))
       .find(button => button.textContent === 'Edit').click()`)
     await waitFor(`document.querySelector('.skeuo-tag--edit-mode')`)
+    await evaluate('new Promise(resolve => setTimeout(resolve, 400))')
+    assert.equal(
+      await evaluate(`document.querySelectorAll('[role="tooltip"]').length`),
+      0,
+      'entering edit mode must not show tooltips for previously hovered tags'
+    )
     assert.equal(
       await evaluate(
         `document.querySelectorAll('.tag-management-modal-list button[aria-label="Delete tag"]').length`

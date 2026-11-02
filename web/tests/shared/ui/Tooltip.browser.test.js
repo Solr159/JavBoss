@@ -38,6 +38,46 @@ async function assertNoTooltip(evaluate) {
 }
 
 test(
+  'empty titles discard hover state and clearing a visible title prevents stale reopening',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/tooltipFocus.html` })
+    await waitFor(`document.querySelector('#dynamic-trigger')`)
+    const setTitle = async (title) => {
+      await evaluate(`{
+        const select = document.querySelector('#tooltip-title');
+        select.value = ${JSON.stringify(title)};
+        select.dispatchEvent(new Event('change', {bubbles: true}));
+      }`)
+      await waitFor(`document.querySelector('#tooltip-title').value === ${JSON.stringify(title)}`)
+    }
+
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await assertNoTooltip(evaluate)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await setTitle('Dynamic hint')
+    await assertNoTooltip(evaluate)
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await waitFor(`document.querySelector('[role="tooltip"]')?.textContent === 'Dynamic hint'`)
+
+    // Clear the title while hovered, then move away before restoring it.
+    await setTitle('')
+    await assertNoTooltip(evaluate)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await setTitle('Dynamic hint')
+    await assertNoTooltip(evaluate)
+
+    // MUI treats numeric zero as a valid title.
+    await setTitle('0')
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await waitFor(`document.querySelector('[role="tooltip"]')?.textContent === '0'`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await assertNoTooltip(evaluate)
+  }
+)
+
+test(
   'JAV edit restores focus after Escape without reopening its tooltip',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
