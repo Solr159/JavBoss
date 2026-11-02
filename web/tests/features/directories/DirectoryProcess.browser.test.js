@@ -12,7 +12,8 @@ test(
     const modal = `document.querySelector('[aria-labelledby="directory-tools-title"]')`
     const button = (label) =>
       `[...${modal}.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(label)})`
-    const overwrite = `${modal}.querySelector('input[type="checkbox"]')`
+    const overwrite = `document.querySelector('#directory-process-overwrite-nfo')`
+    const portrait = `document.querySelector('#directory-process-export-portrait')`
     const folder = `document.querySelector('#directory-process-target-folder')`
     const setFolder = async (value) => {
       await evaluate(`
@@ -20,12 +21,13 @@ test(
         ${folder}.dispatchEvent(new Event('input', { bubbles: true }));
       `)
     }
-    for (const [mode, layout, optIn, targetFolder] of [
-      ['sidecar', 'prefix', false, 'JAV'],
-      ['sidecar', 'prefix', true, 'JAV'],
-      ['organize', 'code', false, '媒体库'],
-      ['organize_with_sidecar', 'idol', true, 'My Videos'],
-      ['organize', 'prefix', false, ''],
+    for (const [mode, layout, optIn, targetFolder, exportPortrait] of [
+      ['sidecar', 'prefix', false, 'JAV', false],
+      ['sidecar', 'prefix', false, 'JAV', true],
+      ['sidecar', 'prefix', true, 'JAV', false],
+      ['organize', 'code', false, '媒体库', false],
+      ['organize_with_sidecar', 'idol', true, 'My Videos', true],
+      ['organize', 'prefix', false, '', false],
     ]) {
       const before = await evaluate('window.cleanupRequests.length')
       await evaluate(`document.querySelector('button[aria-label="Tools"]').click()`)
@@ -36,6 +38,7 @@ test(
         true
       )
       assert.equal(await evaluate(`${overwrite} === null`), true)
+      assert.equal(await evaluate(`${portrait} === null`), true)
       assert.equal(await evaluate(`${folder} === null`), true)
       assert.equal(await evaluate(`${button('Run')} === undefined`), true)
       await evaluate(`${button('Next')}.click()`)
@@ -67,9 +70,12 @@ test(
       }
       if (mode === 'organize') {
         assert.equal(await evaluate(`${overwrite} === null`), true)
+        assert.equal(await evaluate(`${portrait} === null`), true)
       } else {
         assert.equal(await evaluate(`${overwrite}.checked`), false)
+        assert.equal(await evaluate(`${portrait}.checked`), false)
         if (optIn) await evaluate(`${overwrite}.click()`)
+        if (exportPortrait) await evaluate(`${portrait}.click()`)
       }
       await evaluate(`${button('Back')}.click()`)
       await waitFor(`${button('Next')}`)
@@ -79,7 +85,13 @@ test(
       await waitFor(`window.cleanupRequests.length === ${before + 1} && !${modal}`)
       assert.deepEqual(await evaluate('window.cleanupRequests.at(-1)'), {
         path: '/directories/1/process',
-        payload: { mode, layout, overwrite_nfo: optIn, target_folder: targetFolder || 'JAV' },
+        payload: {
+          mode,
+          layout,
+          overwrite_nfo: optIn,
+          target_folder: targetFolder || 'JAV',
+          export_portrait: exportPortrait,
+        },
       })
     }
   }

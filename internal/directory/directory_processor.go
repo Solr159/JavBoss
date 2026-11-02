@@ -97,7 +97,7 @@ func (m *Manager) setDirectoryProcessingStatus(id int64, status string) {
 }
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
-func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string, overwriteNFO bool, targetFolder string) error {
+func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string, overwriteNFO bool, targetFolder string, exportPortrait bool) error {
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
@@ -137,7 +137,7 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		defer release()
 
 		startedAt := time.Now()
-		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout, overwriteNFO, targetFolder)
+		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout, overwriteNFO, targetFolder, exportPortrait)
 		finishedAt := time.Now()
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
@@ -231,6 +231,7 @@ func ProcessDirectory(
 	layout string,
 	overwriteNFO bool,
 	targetFolder string,
+	exportPortrait bool,
 ) (*DirectoryProcessSummary, error) {
 	normalizedMode, _, ok := directoryProcessMode(mode)
 	if !ok {
@@ -262,7 +263,7 @@ func ProcessDirectory(
 			cleanupEmptySourceDirectories(directory.Path, summary)
 			return summary, err
 		}
-		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary, overwriteNFO, targetFolder)
+		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary, overwriteNFO, targetFolder, exportPortrait)
 	}
 	cleanupEmptySourceDirectories(directory.Path, summary)
 	if err := ctx.Err(); err != nil {
@@ -281,6 +282,7 @@ func processJavItem(
 	summary *DirectoryProcessSummary,
 	overwriteNFO bool,
 	targetFolder string,
+	exportPortrait bool,
 ) {
 	if item == nil || summary == nil {
 		return
@@ -366,7 +368,7 @@ func processJavItem(
 		}
 
 		if mode == DirectoryProcessSidecar || mode == DirectoryProcessOrganizeWithSidecar {
-			if err := writeJavSidecars(target, item, coverDir, overwriteNFO); err != nil {
+			if err := writeJavSidecars(target, item, coverDir, overwriteNFO, exportPortrait); err != nil {
 				summary.Failed++
 				summary.SidecarFailures = append(summary.SidecarFailures, DirectoryProcessIssue{
 					Code:       code,
@@ -916,7 +918,7 @@ func firstNonEmptyString(values ...string) string {
 	return ""
 }
 
-func writeJavSidecars(videoPath string, item *models.Jav, coverDir string, overwriteNFO bool) error {
+func writeJavSidecars(videoPath string, item *models.Jav, coverDir string, overwriteNFO, exportPortrait bool) error {
 	info, err := os.Stat(videoPath)
 	if err != nil {
 		return fmt.Errorf("inspect video: %w", err)
@@ -936,19 +938,43 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string, overw
 	}
 
 	if coverPath, ok := cover.FindPath(coverDir, item.Code); ok {
-		posterPath := base + "-poster" + strings.ToLower(filepath.Ext(coverPath))
-		if _, err := os.Stat(posterPath); err == nil && !owned {
-			return nil
-		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("inspect poster: %w", err)
+		fanartPath := base + "-fanart" + strings.ToLower(filepath.Ext(coverPath))
+		writeFanart, err := canWriteSidecarImage(fanartPath, owned)
+		if err != nil {
+			return err
 		}
-		if err := copyFileAtomically(coverPath, posterPath); err != nil {
-			return fmt.Errorf("write poster: %w", err)
+		if writeFanart {
+			if err := copyFileAtomically(coverPath, fanartPath); err != nil {
+				return fmt.Errorf("write fanart: %w", err)
+			}
+		}
+		if exportPortrait {
+			portraitPath := base + "-poster.jpg"
+			writePortrait, err := canWriteSidecarImage(portraitPath, owned)
+			if err != nil {
+				return err
+			}
+			if writePortrait {
+				if err := writePortraitSidecar(coverPath, portraitPath, item.CoverCropPosition); err != nil {
+					return fmt.Errorf("write portrait: %w", err)
+				}
+			}
 		}
 	} else {
 		cover.Enqueue(item.Code)
 	}
 	return nil
+}
+
+func canWriteSidecarImage(path string, owned bool) (bool, error) {
+	_, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inspect sidecar image: %w", err)
+	}
+	return owned, nil
 }
 
 func canWriteJavBossNFO(path string, overwriteNFO bool) (bool, error) {

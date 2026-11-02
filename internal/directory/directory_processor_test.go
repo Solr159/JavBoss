@@ -104,6 +104,7 @@ func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -141,6 +142,7 @@ func TestProcessJavItemOrganizesByCompleteCode(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	target := filepath.Join(root, "JAV", "IPX-001", videoName)
@@ -186,6 +188,7 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -210,8 +213,8 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 			t.Fatalf("generated NFO missing %q:\n%s", expected, nfo)
 		}
 	}
-	if _, err := os.Stat(strings.TrimSuffix(targetVideo, ".mkv") + "-poster.jpg"); err != nil {
-		t.Fatalf("generated poster missing: %v", err)
+	if _, err := os.Stat(strings.TrimSuffix(targetVideo, ".mkv") + "-fanart.jpg"); err != nil {
+		t.Fatalf("generated fanart missing: %v", err)
 	}
 	if summary.Moved != 1 || summary.Sidecars != 1 || summary.Failed != 0 {
 		t.Fatalf("summary = %+v, want one move, one Sidecar, and no failures", summary)
@@ -243,6 +246,7 @@ func TestProcessJavItemOrganizesBySortedIdols(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	target := filepath.Join(root, "JAV", "女优1，女优2，女优3", "IPX-001", videoName)
@@ -281,6 +285,7 @@ func TestCleanupEmptySourceDirectoriesOnlyRemovesMovedSourceAncestors(t *testing
 			summary,
 			false,
 			directoryOrganizeParent,
+			false,
 		)
 	}
 	cleanupEmptySourceDirectories(root, summary)
@@ -404,7 +409,7 @@ func TestWriteJavSidecarsDoesNotOverwriteUserNFO(t *testing.T) {
 	const original = "<movie><title>User metadata</title></movie>"
 	writeTestFile(t, nfoPath, []byte(original))
 
-	err := writeJavSidecars(videoPath, &models.Jav{Code: "IPX-001"}, "", false)
+	err := writeJavSidecars(videoPath, &models.Jav{Code: "IPX-001"}, "", false, false)
 	if err == nil {
 		t.Fatal("expected existing user NFO conflict")
 	}
@@ -463,7 +468,7 @@ func TestProcessJavItemUsesTargetFolder(t *testing.T) {
 				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
 				item := models.Jav{Code: "IPX-001", Videos: []models.Video{{Path: "incoming/video.mp4"}}}
 				summary := &DirectoryProcessSummary{}
-				processJavItem(t.Context(), root, &item, mode, layout, coverDir, summary, false, "媒体库")
+				processJavItem(t.Context(), root, &item, mode, layout, coverDir, summary, false, "媒体库", false)
 				group := "IPX"
 				if layout == DirectoryProcessLayoutCode {
 					group = ""
@@ -517,11 +522,11 @@ func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
 				writeTestFile(t, filepath.Join(root, "video.mp4"), []byte("video"))
 				writeTestFile(t, filepath.Join(root, "video.nfo"), []byte(original))
 				writeTestFile(t, filepath.Join(root, "movie.nfo"), []byte("other NFO"))
-				writeTestFile(t, filepath.Join(root, "video-poster.jpg"), []byte("existing poster"))
+				writeTestFile(t, filepath.Join(root, "video-fanart.jpg"), []byte("existing fanart"))
 				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
 				item := models.Jav{Code: "IPX-001", Title: "Updated title", Videos: []models.Video{{Path: "video.mp4"}}}
 				summary := &DirectoryProcessSummary{}
-				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite, directoryOrganizeParent)
+				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite, directoryOrganizeParent, false)
 				targetDir := root
 				if mode != DirectoryProcessSidecar {
 					targetDir = filepath.Join(root, "JAV", "IPX-001")
@@ -537,9 +542,9 @@ func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
 				} else if !strings.Contains(string(data), "<generator>JavBoss</generator>") || !strings.Contains(string(data), "Updated title") || summary.Sidecars != 1 || summary.Failed != 0 {
 					t.Fatalf("NFO not replaced: %s summary=%+v", data, summary)
 				}
-				poster, err := os.ReadFile(filepath.Join(targetDir, "video-poster.jpg"))
-				if err != nil || string(poster) != "existing poster" {
-					t.Fatalf("unmanaged poster changed: %s %v", poster, err)
+				poster, err := os.ReadFile(filepath.Join(targetDir, "video-fanart.jpg"))
+				if err != nil || string(poster) != "existing fanart" {
+					t.Fatalf("unmanaged fanart changed: %s %v", poster, err)
 				}
 				other, err := os.ReadFile(filepath.Join(root, "movie.nfo"))
 				if err != nil || string(other) != "other NFO" {
@@ -556,7 +561,7 @@ func TestWriteJavSidecarsUpdatesManagedNFOWithoutOptIn(t *testing.T) {
 	writeTestFile(t, video, []byte("video"))
 	writeTestFile(t, filepath.Join(root, "video.nfo"), []byte("<movie><generator>JavBoss</generator><title>Old</title></movie>"))
 	writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
-	if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", Title: "New title"}, coverDir, false); err != nil {
+	if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", Title: "New title"}, coverDir, false, false); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(root, "video.nfo"))
@@ -611,6 +616,7 @@ func TestProcessJavItemRecordsMoveFailureThatRemainsAtSource(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	if summary.Failed != 1 || len(summary.MoveFailures) != 1 || len(summary.SidecarFailures) != 0 {
@@ -652,6 +658,7 @@ func TestProcessJavItemSeparatesSidecarFailureFromMoveFailure(t *testing.T) {
 		summary,
 		false,
 		directoryOrganizeParent,
+		false,
 	)
 
 	if summary.Moved != 1 || summary.Failed != 1 || len(summary.MoveFailures) != 0 ||

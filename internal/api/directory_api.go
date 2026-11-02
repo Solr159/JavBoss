@@ -214,9 +214,10 @@ func scanDirectory(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"work_status": directory.DirectoryWorkScanning})
 }
 
-// POST /directories/:id/process accepts mode, layout, overwrite_nfo and target_folder.
+// POST /directories/:id/process accepts mode, layout, overwrite_nfo, target_folder and export_portrait.
 // target_folder is a folder name inside the selected directory and defaults to JAV.
 // overwrite_nfo defaults to false and only applies when generating same-name NFO files.
+// export_portrait defaults to false and adds a cropped <video>-poster.jpg alongside NFO and full-cover <video>-fanart images.
 func processDirectory(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -225,10 +226,11 @@ func processDirectory(c *gin.Context) {
 	}
 
 	var req struct {
-		Mode         string `json:"mode"`
-		Layout       string `json:"layout"`
-		OverwriteNFO bool   `json:"overwrite_nfo"`
-		TargetFolder string `json:"target_folder"`
+		Mode           string `json:"mode"`
+		Layout         string `json:"layout"`
+		OverwriteNFO   bool   `json:"overwrite_nfo"`
+		TargetFolder   string `json:"target_folder"`
+		ExportPortrait bool   `json:"export_portrait"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "目录处理请求无效", "Invalid directory processing request")
@@ -252,7 +254,7 @@ func processDirectory(c *gin.Context) {
 
 	startCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout, req.OverwriteNFO, req.TargetFolder); err != nil {
+	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout, req.OverwriteNFO, req.TargetFolder, req.ExportPortrait); err != nil {
 		switch {
 		case errors.Is(err, directory.ErrInvalidDirectoryProcessMode):
 			respondLocalizedError(c, http.StatusBadRequest, "目录处理模式无效", "Invalid directory processing mode")
