@@ -30,7 +30,7 @@
 
 这些约定来自创建 skill 时的仓库，执行时仍须读取目标 ref 的 workflow：
 
-- `.github/workflows/release-draft.yml`：手动触发，必填 `release`，可选布尔值 `publish_browser_extension` 默认 `true`。
+- `.github/workflows/release-draft.yml`：手动触发，必填 `release`，workflow 中布尔值 `publish_browser_extension` 默认 `true`。**本 skill 要求用户显式提供该选项，不使用 workflow 默认值**，每次 dispatch 都传入用户选择的 `true` 或 `false`。
 - 构建平台：`windows-x86_64`、`linux-x86_64`、`macos-x86_64`、`macos-arm64`。
 - 主程序资产：`javboss-VERSION-PLATFORM.zip`。
 - 扩展版本取构建 SHA 下 `browser-extension/manifest.json` 的 `version`，资产为 `javboss-browser-extension-vEXTENSION_VERSION.zip`，不要套用主程序版本号。
@@ -55,7 +55,12 @@ gh run list --repo "$release_repo" --workflow release-draft.yml \
   --event workflow_dispatch --branch "$release_ref" --limit 50 \
   --json databaseId,headSha,createdAt,status,conclusion,url,displayTitle
 
+# include_extension 必须来自用户本次明确的选择，不可设置默认值。
 # 仅在不存在可复用草稿或运行时，触发一次草稿构建。
+case "${include_extension-}" in
+  true|false) ;;
+  *) echo "必须先提供是否包含浏览器扩展（true/false）" >&2; exit 1 ;;
+esac
 gh workflow run release-draft.yml --repo "$release_repo" --ref "$release_ref" \
   -f "release=$release_version" -f "publish_browser_extension=$include_extension"
 
