@@ -214,7 +214,8 @@ func scanDirectory(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"work_status": directory.DirectoryWorkScanning})
 }
 
-// POST /directories/:id/process accepts mode, layout and overwrite_nfo.
+// POST /directories/:id/process accepts mode, layout, overwrite_nfo and target_folder.
+// target_folder is a folder name inside the selected directory and defaults to JAV.
 // overwrite_nfo defaults to false and only applies when generating same-name NFO files.
 func processDirectory(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -227,6 +228,7 @@ func processDirectory(c *gin.Context) {
 		Mode         string `json:"mode"`
 		Layout       string `json:"layout"`
 		OverwriteNFO bool   `json:"overwrite_nfo"`
+		TargetFolder string `json:"target_folder"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "目录处理请求无效", "Invalid directory processing request")
@@ -250,12 +252,14 @@ func processDirectory(c *gin.Context) {
 
 	startCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout, req.OverwriteNFO); err != nil {
+	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout, req.OverwriteNFO, req.TargetFolder); err != nil {
 		switch {
 		case errors.Is(err, directory.ErrInvalidDirectoryProcessMode):
 			respondLocalizedError(c, http.StatusBadRequest, "目录处理模式无效", "Invalid directory processing mode")
 		case errors.Is(err, directory.ErrInvalidDirectoryProcessLayout):
 			respondLocalizedError(c, http.StatusBadRequest, "目录整理方式无效", "Invalid directory organization layout")
+		case errors.Is(err, directory.ErrInvalidDirectoryTargetFolder):
+			respondLocalizedError(c, http.StatusBadRequest, "目标文件夹名称无效，请填写所选目录下的文件夹名", "Invalid target folder name; enter a folder name inside the selected directory")
 		case errors.Is(err, directory.ErrDirectoryWorkInProgress),
 			errors.Is(err, directory.ErrDirectoryScanInProgress),
 			errors.Is(err, context.DeadlineExceeded):

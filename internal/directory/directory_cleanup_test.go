@@ -160,7 +160,7 @@ func TestDirectoryCleanupTaskReservation(t *testing.T) {
 	if _, err := m.CancelAndReserveDirectoryScan(ctx, dir.ID); !errors.Is(err, ErrDirectoryScanInProgress) {
 		t.Fatalf("path update entered during cleanup: %v", err)
 	}
-	if err := m.StartDirectoryProcessing(ctx, dir, DirectoryProcessSidecar, "", false); !errors.Is(err, ErrDirectoryWorkInProgress) {
+	if err := m.StartDirectoryProcessing(ctx, dir, DirectoryProcessSidecar, "", false, ""); !errors.Is(err, ErrDirectoryWorkInProgress) {
 		t.Fatalf("organizing entered during cleanup: %v", err)
 	}
 	if m.DirectoryWorkStatus(dir.ID) != "cleaning_junk" {

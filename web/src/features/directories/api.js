@@ -55,11 +55,22 @@ export async function deleteDirectory(id) {
   return updateDirectory(id, { is_delete: true })
 }
 
-export async function processDirectory(id, mode, layout = 'prefix', overwriteNFO = false) {
+export async function processDirectory(
+  id,
+  mode,
+  layout = 'prefix',
+  overwriteNFO = false,
+  targetFolder = 'JAV'
+) {
   const res = await apiFetch(`/directories/${id}/process`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ mode, layout, overwrite_nfo: overwriteNFO }),
+    body: JSON.stringify({
+      mode,
+      layout,
+      overwrite_nfo: overwriteNFO,
+      target_folder: targetFolder,
+    }),
   })
   if (!res.ok) {
     throw await apiError(res)

@@ -42,8 +42,8 @@ func CancelAndReserveDirectoryScan(ctx context.Context, id int64) (func(), error
 	return applicationTasks.Load().CancelAndReserveDirectoryScan(ctx, id)
 }
 
-func StartDirectoryProcessing(ctx context.Context, dir models.Directory, mode, layout string, overwriteNFO bool) error {
-	return applicationTasks.Load().StartDirectoryProcessing(ctx, dir, mode, layout, overwriteNFO)
+func StartDirectoryProcessing(ctx context.Context, dir models.Directory, mode, layout string, overwriteNFO bool, targetFolder string) error {
+	return applicationTasks.Load().StartDirectoryProcessing(ctx, dir, mode, layout, overwriteNFO, targetFolder)
 }
 
 func StartAutomaticDirectoryScanScheduler(ctx context.Context, interval time.Duration) {

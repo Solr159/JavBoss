@@ -1,6 +1,7 @@
 package directory
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,6 +103,7 @@ func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 		"",
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -138,6 +140,7 @@ func TestProcessJavItemOrganizesByCompleteCode(t *testing.T) {
 		"",
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	target := filepath.Join(root, "JAV", "IPX-001", videoName)
@@ -182,6 +185,7 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 		coverDir,
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -238,6 +242,7 @@ func TestProcessJavItemOrganizesBySortedIdols(t *testing.T) {
 		"",
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	target := filepath.Join(root, "JAV", "女优1，女优2，女优3", "IPX-001", videoName)
@@ -275,6 +280,7 @@ func TestCleanupEmptySourceDirectoriesOnlyRemovesMovedSourceAncestors(t *testing
 			"",
 			summary,
 			false,
+			directoryOrganizeParent,
 		)
 	}
 	cleanupEmptySourceDirectories(root, summary)
@@ -411,6 +417,93 @@ func TestWriteJavSidecarsDoesNotOverwriteUserNFO(t *testing.T) {
 	}
 }
 
+func TestDirectoryProcessTargetFolder(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "existing"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(root, "file"), []byte("keep"))
+	for _, tc := range []struct {
+		input string
+		want  string
+		valid bool
+	}{
+		{"", "JAV", true}, {"  ", "JAV", true}, {"JAV", "JAV", true},
+		{" 媒体库 ", "媒体库", true}, {"My Videos", "My Videos", true}, {"existing", "existing", true},
+		{".", "", false}, {"..", "", false}, {"../outside", "", false}, {`..\outside`, "", false},
+		{"/outside", "", false}, {`C:\Videos`, "", false}, {"a/b", "", false}, {"a\nb", "", false},
+		{"a?b", "", false}, {"trailing.", "", false}, {"CON", "", false}, {"nul.txt", "", false},
+		{"file", "", false},
+	} {
+		t.Run(tc.input, func(t *testing.T) {
+			got, valid := directoryProcessTargetFolder(root, tc.input)
+			if got != tc.want || valid != tc.valid {
+				t.Fatalf("got %q, %v; want %q, %v", got, valid, tc.want, tc.valid)
+			}
+		})
+	}
+	t.Run("symlink", func(t *testing.T) {
+		if err := os.Symlink(t.TempDir(), filepath.Join(root, "linked")); err != nil {
+			t.Skipf("symlinks unavailable: %v", err)
+		}
+		if _, valid := directoryProcessTargetFolder(root, "linked"); valid {
+			t.Fatal("symbolic link must not be used as the target folder")
+		}
+	})
+}
+
+func TestProcessJavItemUsesTargetFolder(t *testing.T) {
+	for _, mode := range []string{DirectoryProcessOrganize, DirectoryProcessOrganizeWithSidecar} {
+		for _, layout := range []string{DirectoryProcessLayoutPrefix, DirectoryProcessLayoutCode, DirectoryProcessLayoutIdol} {
+			t.Run(mode+"/"+layout, func(t *testing.T) {
+				root, coverDir := t.TempDir(), t.TempDir()
+				writeTestFile(t, filepath.Join(root, "incoming", "video.mp4"), []byte("video"))
+				writeTestFile(t, filepath.Join(root, "incoming", "video.zh.srt"), []byte("subtitle"))
+				writeTestFile(t, filepath.Join(root, "incoming", "other.txt"), []byte("keep"))
+				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+				item := models.Jav{Code: "IPX-001", Videos: []models.Video{{Path: "incoming/video.mp4"}}}
+				summary := &DirectoryProcessSummary{}
+				processJavItem(t.Context(), root, &item, mode, layout, coverDir, summary, false, "媒体库")
+				group := "IPX"
+				if layout == DirectoryProcessLayoutCode {
+					group = ""
+				} else if layout == DirectoryProcessLayoutIdol {
+					group = directoryUnknownIdol
+				}
+				target := filepath.Join(root, "媒体库", group, "IPX-001")
+				for name, want := range map[string]string{"video.mp4": "video", "video.zh.srt": "subtitle"} {
+					data, err := os.ReadFile(filepath.Join(target, name))
+					if err != nil || string(data) != want {
+						t.Fatalf("moved %s: %q, %v", name, data, err)
+					}
+				}
+				if summary.Moved != 1 || summary.Failed != 0 {
+					t.Fatalf("unexpected summary: %+v", summary)
+				}
+				if _, err := os.Stat(filepath.Join(root, "JAV")); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("default target unexpectedly exists: %v", err)
+				}
+				if _, err := os.Stat(filepath.Join(root, "incoming", "video.mp4")); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("source was not moved: %v", err)
+				}
+				if _, err := os.Stat(filepath.Join(root, "incoming", "other.txt")); err != nil {
+					t.Fatal(err)
+				}
+				if mode == DirectoryProcessOrganizeWithSidecar && summary.Sidecars != 1 {
+					t.Fatal("NFO and cover were not generated at the target")
+				}
+				if err := writeDirectoryProcessReport(root, mode, layout, summary, nil, time.Now(), time.Now(), "媒体库"); err != nil {
+					t.Fatal(err)
+				}
+				report, err := os.ReadFile(filepath.Join(root, directoryProcessReportName))
+				if err != nil || !strings.Contains(string(report), "（媒体库/") || strings.Contains(string(report), "（JAV/") {
+					t.Fatalf("report uses wrong target: %s, %v", report, err)
+				}
+			})
+		}
+	}
+}
+
 func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
 	for _, mode := range []string{DirectoryProcessSidecar, DirectoryProcessOrganize, DirectoryProcessOrganizeWithSidecar} {
 		for _, overwrite := range []bool{false, true} {
@@ -428,7 +521,7 @@ func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
 				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
 				item := models.Jav{Code: "IPX-001", Title: "Updated title", Videos: []models.Video{{Path: "video.mp4"}}}
 				summary := &DirectoryProcessSummary{}
-				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite)
+				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite, directoryOrganizeParent)
 				targetDir := root
 				if mode != DirectoryProcessSidecar {
 					targetDir = filepath.Join(root, "JAV", "IPX-001")
@@ -517,6 +610,7 @@ func TestProcessJavItemRecordsMoveFailureThatRemainsAtSource(t *testing.T) {
 		"",
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	if summary.Failed != 1 || len(summary.MoveFailures) != 1 || len(summary.SidecarFailures) != 0 {
@@ -557,6 +651,7 @@ func TestProcessJavItemSeparatesSidecarFailureFromMoveFailure(t *testing.T) {
 		"",
 		summary,
 		false,
+		directoryOrganizeParent,
 	)
 
 	if summary.Moved != 1 || summary.Failed != 1 || len(summary.MoveFailures) != 0 ||
@@ -617,6 +712,7 @@ func TestWriteDirectoryProcessReportOverwritesPreviousReport(t *testing.T) {
 		nil,
 		startedAt,
 		finishedAt,
+		directoryOrganizeParent,
 	); err != nil {
 		t.Fatalf("write directory processing report: %v", err)
 	}

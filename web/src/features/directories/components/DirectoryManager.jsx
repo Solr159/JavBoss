@@ -60,21 +60,21 @@ const directoryProcessOptions = () => [
   },
 ]
 
-const directoryProcessLayoutOptions = () => [
+const directoryProcessLayoutOptions = (targetFolder) => [
   {
     layout: DIRECTORY_PROCESS_LAYOUT_PREFIX,
     title: zh('按番号前缀', 'By code prefix'),
-    example: 'JAV/IPX/IPX-001/...',
+    example: `${targetFolder}/IPX/IPX-001/...`,
   },
   {
     layout: DIRECTORY_PROCESS_LAYOUT_CODE,
     title: zh('按完整番号', 'By complete code'),
-    example: 'JAV/IPX-001/...',
+    example: `${targetFolder}/IPX-001/...`,
   },
   {
     layout: DIRECTORY_PROCESS_LAYOUT_IDOL,
     title: zh('按女优', 'By idol'),
-    example: zh('JAV/女优名/IPX-001/...', 'JAV/IDOL NAME/IPX-001/...'),
+    example: zh(`${targetFolder}/女优名/IPX-001/...`, `${targetFolder}/IDOL NAME/IPX-001/...`),
   },
 ]
 
@@ -246,6 +246,8 @@ export default function DirectoryManager({
   const [toolLayout, setToolLayout] = useState(DIRECTORY_PROCESS_LAYOUT_PREFIX)
   const [toolConfiguring, setToolConfiguring] = useState(false)
   const [toolOverwriteNFO, setToolOverwriteNFO] = useState(false)
+  const [toolTargetFolder, setToolTargetFolder] = useState('JAV')
+  const targetFolder = toolTargetFolder.trim() || 'JAV'
   const pathExample = {
     windows: 'D:\\Videos',
     darwin: '/Volumes/Videos',
@@ -281,6 +283,7 @@ export default function DirectoryManager({
       setToolDirectory(null)
       setCleanupDirectory(null)
       setToolMode(DIRECTORY_PROCESS_SIDECAR)
+      setToolTargetFolder('JAV')
       setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
       setToolConfiguring(false)
       setToolOverwriteNFO(false)
@@ -438,7 +441,8 @@ export default function DirectoryManager({
         dir.id,
         mode,
         layout,
-        mode !== DIRECTORY_PROCESS_ORGANIZE && toolOverwriteNFO
+        mode !== DIRECTORY_PROCESS_ORGANIZE && toolOverwriteNFO,
+        mode === DIRECTORY_PROCESS_SIDECAR ? 'JAV' : targetFolder
       )
     } catch (err) {
       setRowErrorId(dir.id)
@@ -737,6 +741,7 @@ export default function DirectoryManager({
                           onClick={() => {
                             setToolDirectory(d)
                             setToolMode(DIRECTORY_PROCESS_SIDECAR)
+                            setToolTargetFolder('JAV')
                             setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
                             setToolConfiguring(false)
                             setToolOverwriteNFO(false)
@@ -892,7 +897,14 @@ export default function DirectoryManager({
               <CloseRoundedIcon fontSize="small" />
             </IconButton>
           </header>
-          <div className="min-h-0 overflow-y-auto px-5 pb-4">
+          <form
+            id="directory-process-options"
+            className="min-h-0 overflow-y-auto px-5 pb-4"
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (toolConfiguring) handleProcess(toolDirectory, toolMode, toolLayout)
+            }}
+          >
             {!toolConfiguring && (
               <div className="space-y-2">
                 {directoryProcessOptions().map((option) => (
@@ -932,11 +944,38 @@ export default function DirectoryManager({
             )}
             {toolConfiguring && toolMode !== DIRECTORY_PROCESS_SIDECAR && (
               <div>
+                <div className="flex items-center justify-between gap-6">
+                  <label
+                    htmlFor="directory-process-target-folder"
+                    className="shrink-0 text-sm font-medium text-zinc-900"
+                  >
+                    {zh('目标文件夹', 'Target folder')}
+                  </label>
+                  <input
+                    id="directory-process-target-folder"
+                    type="text"
+                    value={toolTargetFolder}
+                    onChange={(event) => setToolTargetFolder(event.target.value)}
+                    placeholder="JAV"
+                    pattern={String.raw`[^<>:"\/\\\|?*\x00-\x1F]*`}
+                    title={zh(
+                      '请填写文件夹名称，不包含路径分隔符或特殊字符',
+                      'Enter a folder name without path separators or special characters'
+                    )}
+                    className="w-40 min-w-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-inset focus:ring-blue-500"
+                  />
+                </div>
+                <p className="mb-4 mt-1 text-xs text-zinc-500">
+                  {zh(
+                    '位于所选目录下，留空时使用 JAV。',
+                    'Inside the selected directory. Leave blank to use JAV.'
+                  )}
+                </p>
                 <div className="text-sm font-medium text-zinc-900">
                   {zh('整理方式', 'Organization layout')}
                 </div>
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  {directoryProcessLayoutOptions().map((option) => (
+                  {directoryProcessLayoutOptions(targetFolder).map((option) => (
                     <label
                       key={option.layout}
                       htmlFor={`directory-process-layout-${option.layout}`}
@@ -957,7 +996,7 @@ export default function DirectoryManager({
                         />
                         <span className="text-sm font-medium text-zinc-900">{option.title}</span>
                       </span>
-                      <span className="mt-1 block whitespace-nowrap text-[10px] text-zinc-500">
+                      <span className="mt-1 block break-all text-[10px] text-zinc-500">
                         {option.example}
                       </span>
                     </label>
@@ -995,12 +1034,12 @@ export default function DirectoryManager({
             {toolConfiguring && toolMode !== DIRECTORY_PROCESS_SIDECAR && (
               <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
                 {zh(
-                  '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
-                  'Organized files are stored in “selected directory/JAV”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.'
+                  `整理后的文件统一位于 “所选目录/${targetFolder}” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。`,
+                  `Organized files are stored in “selected directory/${targetFolder}”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.`
                 )}
               </div>
             )}
-          </div>
+          </form>
           <footer className="flex shrink-0 justify-end gap-2 border-t border-zinc-100 px-5 py-4">
             <button
               type="button"
@@ -1010,9 +1049,12 @@ export default function DirectoryManager({
               {toolConfiguring ? zh('上一步', 'Back') : zh('取消', 'Cancel')}
             </button>
             <button
-              type="button"
-              onClick={() => {
-                if (toolConfiguring || toolMode === DIRECTORY_PROCESS_CLEANUP) {
+              type={toolConfiguring ? 'submit' : 'button'}
+              form="directory-process-options"
+              onClick={(event) => {
+                if (toolConfiguring) return
+                event.preventDefault()
+                if (toolMode === DIRECTORY_PROCESS_CLEANUP) {
                   handleProcess(toolDirectory, toolMode, toolLayout)
                 } else {
                   setToolConfiguring(true)
