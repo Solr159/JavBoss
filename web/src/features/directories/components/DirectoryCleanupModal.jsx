@@ -120,8 +120,8 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
     if (
       !window.confirm(
         zh(
-          `将永久删除所选的 ${chosen.length} 个文件（${formatCleanupBytes(chosenBytes)}），不会移入回收站。确认清理？`,
-          `Permanently delete ${chosen.length} selected files (${formatCleanupBytes(chosenBytes)})? They will not be moved to the recycle bin.`
+          `确定删除所选的 ${chosen.length} 个文件（${formatCleanupBytes(chosenBytes)}）吗？`,
+          `Delete ${chosen.length} selected files (${formatCleanupBytes(chosenBytes)})?`
         )
       )
     )
@@ -279,8 +279,8 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
       {result && (
         <p role="status" className="mt-3 text-sm text-zinc-700">
           {zh(
-            `已删除 ${result.deleted.length} 个文件，释放 ${formatCleanupBytes(result.deleted_bytes)}；未删除 ${result.issues.length} 个。`,
-            `Deleted ${result.deleted.length} files, freed ${formatCleanupBytes(result.deleted_bytes)}; ${result.issues.length} files were not deleted.`
+            `已删除 ${result.deleted.length} 个文件，共 ${formatCleanupBytes(result.deleted_bytes)}；未删除 ${result.issues.length} 个。`,
+            `Deleted ${result.deleted.length} files, totaling ${formatCleanupBytes(result.deleted_bytes)}; ${result.issues.length} files were not deleted.`
           )}
         </p>
       )}

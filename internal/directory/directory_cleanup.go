@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"javboss/internal/models"
+	"javboss/internal/util"
 )
 
 const MaxCleanupFiles = 10000
@@ -255,7 +256,7 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 			}
 		}
 		// Open each parent separately and reject symlinks, including links within the root.
-		// Root handles keep deletion confined even if a parent is renamed concurrently.
+		// Use the same platform-specific deletion operation as video cards.
 		if reason := removeCleanupFile(root, file); reason != "" {
 			result.Issues = append(result.Issues, CleanupIssue{Path: file.Path, Reason: reason})
 			continue
@@ -287,7 +288,12 @@ func removeCleanupFile(root *os.Root, file CleanupFile) string {
 		info.ModTime().UTC().Format("2006-01-02T15:04:05.999999999Z") != file.Modified {
 		return "changed"
 	}
-	if err := parent.Remove(name); err != nil {
+	fullPath := filepath.Join(root.Name(), filepath.FromSlash(file.Path))
+	current, err := os.Lstat(fullPath)
+	if err != nil || !os.SameFile(info, current) {
+		return "changed"
+	}
+	if err := util.MoveFileToTrash(fullPath); err != nil {
 		return "delete_failed"
 	}
 	return ""
