@@ -126,6 +126,9 @@ func subprocessPlan(t *testing.T) (string, installPlan) {
 
 func TestUpdateParentSubprocess(t *testing.T) {
 	_, plan := subprocessPlan(t)
+	if RestartedAfterUpdate() {
+		t.Fatal("ordinary startup was treated as an update restart")
+	}
 	lock, err := AcquireRuntimeLock(plan.BaseDir)
 	if err != nil {
 		t.Fatal(err)
@@ -163,6 +166,12 @@ func TestUpdateStartedSubprocess(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
 	AcknowledgeStartup(ctx, plan.BaseDir, "v2.0.0")
+	if !RestartedAfterUpdate() {
+		t.Fatal("update restart must remain identifiable after startup acknowledgement")
+	}
+	if os.Getenv(readyEnvironment) != "" {
+		t.Fatal("startup marker was not consumed")
+	}
 	for {
 		if _, err := os.Stat(plan.StageDir); os.IsNotExist(err) {
 			putFile(t, plan.BaseDir, "data/cleanup-done", "done")
