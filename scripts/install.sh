@@ -211,7 +211,8 @@ compare_versions() {
         c = ad != bd ? (ad ? -1 : 1) : compare(av[i], bv[i], ad)
         if (c) { print c; exit }
       }
-      print an == bn ? 0 : (an > bn ? 1 : -1)
+      # Parenthesize the expression so awk cannot parse > as print redirection.
+      print (an == bn ? 0 : (an > bn ? 1 : -1))
     }
   ' "$1" "$2"
 }

@@ -203,7 +203,9 @@ const versionCases = [
   ["v2.1.3", "v2.1.3-rc.1", 1],
   ["v2.1.3-rc.1", "v2.1.3", -1],
   ["v2.1.3-rc.10", "v2.1.3-rc.9", 1],
+  ["v2.1.3-rc.1", "v2.1.3-rc.1", 0],
   ["v2.1.3-alpha", "v2.1.3-alpha.1", -1],
+  ["v2.1.3-alpha.1", "v2.1.3-alpha", 1],
   ["v2.1.3-alpha.1", "v2.1.3-alpha.beta", -1],
   ["v2.1.3-beta", "v2.1.3-alpha", 1],
   ["v2.1.3-RC", "v2.1.3-rc", -1],
@@ -214,10 +216,12 @@ const versionCases = [
 const invalidVersions = ["", "unknown", "v2.1", "v2.1.3.4", "v02.1.3", "v2.1.3-rc.01", "v2.1.3-", "v2.1.3+", "v2.1.3\n"];
 
 test("Bash compares numeric versions, prereleases and build metadata", { skip: !hasShellTools }, (t) => {
+  // Exercise stock macOS awk even when GNU awk is earlier in the developer's PATH.
+  const source = shellSource + (process.platform === "darwin" ? '\nawk() { /usr/bin/awk "$@"; }\n' : "\n");
   const dir = fixture(t);
   const cases = path.join(dir, "versions.tsv");
   fs.writeFileSync(cases, versionCases.map((row) => row.join("\t")).join("\n") + "\n");
-  const result = spawnSync("bash", ["-c", shellSource + `
+  const result = spawnSync("bash", ["-c", source + `
 while IFS=$'\\t' read -r left right expected; do
   actual="$(compare_versions "$left" "$right")"
   [[ "$actual" == "$expected" ]] || { printf '%s vs %s: expected %s, got %s\\n' "$left" "$right" "$expected" "$actual" >&2; exit 1; }
@@ -225,7 +229,7 @@ done < "$TEST_CASES"
 `], { encoding: "utf8", env: { ...process.env, TEST_CASES: cases } });
   assert.equal(result.status, 0, result.stderr);
   for (const version of invalidVersions) {
-    const invalid = spawnSync("bash", ["-c", shellSource + '\ncompare_versions "$INVALID_VERSION" v2.1.3'], {
+    const invalid = spawnSync("bash", ["-c", source + '\ncompare_versions "$INVALID_VERSION" v2.1.3'], {
       encoding: "utf8", env: { ...process.env, INVALID_VERSION: version },
     });
     assert.notEqual(invalid.status, 0, JSON.stringify(version));
