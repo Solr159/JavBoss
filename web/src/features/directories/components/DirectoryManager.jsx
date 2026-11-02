@@ -944,13 +944,21 @@ export default function DirectoryManager({
             )}
             {toolConfiguring && toolMode !== DIRECTORY_PROCESS_SIDECAR && (
               <div>
-                <div className="flex items-center justify-between gap-6">
-                  <label
-                    htmlFor="directory-process-target-folder"
-                    className="shrink-0 text-sm font-medium text-zinc-900"
-                  >
-                    {zh('目标文件夹', 'Target folder')}
-                  </label>
+                <div className="mb-4 flex items-center justify-between gap-6">
+                  <div className="min-w-0">
+                    <label
+                      htmlFor="directory-process-target-folder"
+                      className="block text-sm font-medium text-zinc-900"
+                    >
+                      {zh('目标文件夹', 'Target folder')}
+                    </label>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {zh(
+                        '位于所选目录下，留空时使用 JAV。',
+                        'Inside the selected directory. Leave blank to use JAV.'
+                      )}
+                    </p>
+                  </div>
                   <input
                     id="directory-process-target-folder"
                     type="text"
@@ -962,15 +970,9 @@ export default function DirectoryManager({
                       '请填写文件夹名称，不包含路径分隔符或特殊字符',
                       'Enter a folder name without path separators or special characters'
                     )}
-                    className="w-40 min-w-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-inset focus:ring-blue-500"
+                    className="w-40 min-w-0 max-w-[50%] shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-inset focus:ring-blue-500"
                   />
                 </div>
-                <p className="mb-4 mt-1 text-xs text-zinc-500">
-                  {zh(
-                    '位于所选目录下，留空时使用 JAV。',
-                    'Inside the selected directory. Leave blank to use JAV.'
-                  )}
-                </p>
                 <div className="text-sm font-medium text-zinc-900">
                   {zh('整理方式', 'Organization layout')}
                 </div>
