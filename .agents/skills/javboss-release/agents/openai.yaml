@@ -1,0 +1,4 @@
+interface:
+  display_name: "JavBoss 发布草稿"
+  short_description: "按版本总结中文更新日志并运行 JavBoss 草稿构建，不正式发布"
+  default_prompt: "使用 $javboss-release 准备 JavBoss 发布草稿；版本号和是否包含浏览器扩展均为必填，缺失时先询问。按 v2.1.2 风格总结更新日志，只运行 release-draft，不运行 release-publish。"
