@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { CircularProgress, IconButton } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { cleanDirectoryFiles, previewDirectoryCleanup } from '@/features/directories/api'
-import AppModal from '@/shared/ui/AppModal'
 import { formatBytes } from '@/utils/display'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -82,7 +81,14 @@ const issueLabel = (reason) => {
   }
 }
 
-export default function DirectoryCleanupModal({ directory, displayPath, onClose }) {
+export default function DirectoryCleanupPanel({
+  directory,
+  displayPath,
+  busy,
+  setBusy,
+  onBack,
+  onClose,
+}) {
   const [options, setOptions] = useState({
     include_system: true,
     include_misc: true,
@@ -93,7 +99,6 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
   })
   const [preview, setPreview] = useState(null)
   const [selected, setSelected] = useState(new Set())
-  const [busy, setBusy] = useState('')
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const files = preview?.files || []
@@ -150,14 +155,7 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
   }
 
   return (
-    <AppModal
-      ariaLabelledby="directory-cleanup-title"
-      className="p-4"
-      closeDisabled={Boolean(busy)}
-      contentClassName="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
-      onClose={onClose}
-      zIndex={1400}
-    >
+    <>
       <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
         <div className="min-w-0">
           <h2 id="directory-cleanup-title" className="text-base font-semibold text-zinc-900">
@@ -337,6 +335,14 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
         )}
         <button
           type="button"
+          onClick={onBack}
+          disabled={Boolean(busy)}
+          className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+        >
+          {zh('上一步', 'Back')}
+        </button>
+        <button
+          type="button"
           onClick={scan}
           disabled={Boolean(busy)}
           className="rounded border border-blue-600 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60"
@@ -352,6 +358,6 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
           {zh('清理所选文件', 'Clean selected files')}
         </button>
       </footer>
-    </AppModal>
+    </>
   )
 }

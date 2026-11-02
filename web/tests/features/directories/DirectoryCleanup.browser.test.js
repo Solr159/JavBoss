@@ -13,10 +13,38 @@ test(
     await waitFor(`document.querySelector('button[aria-label="Tools"]')`)
     await evaluate(`document.querySelector('button[aria-label="Tools"]').click()`)
     await waitFor(`document.querySelector('#directory-process-cleanup')`)
+    await evaluate(`
+      window.directoryToolsDialog = document.querySelector('[aria-labelledby="directory-tools-title"]');
+      window.directoryToolsBackdrop = window.directoryToolsDialog.closest('.MuiModal-root').querySelector('.MuiBackdrop-root');
+      true;
+    `)
+    const assertSameModal = async () => {
+      assert.equal(
+        await evaluate(`(() => {
+          const dialog = document.querySelector('[aria-labelledby="directory-cleanup-title"], [aria-labelledby="directory-tools-title"]');
+          return dialog === window.directoryToolsDialog &&
+            dialog.closest('.MuiModal-root').querySelector('.MuiBackdrop-root') === window.directoryToolsBackdrop;
+        })()`),
+        true,
+        'step changes must keep the dialog and backdrop mounted without restarting the fade'
+      )
+    }
     await evaluate(`document.querySelector('#directory-process-cleanup').click()`)
     await evaluate(`${button('Next')}.click()`)
     await waitFor(`document.querySelector('#directory-cleanup-title')`)
+    await assertSameModal()
     assert.equal(await evaluate('window.cleanupRequests.length'), 0)
+    await evaluate(`${button('Back')}.click()`)
+    await waitFor(`document.querySelector('#directory-process-cleanup')?.checked`)
+    await assertSameModal()
+    assert.equal(
+      await evaluate(`document.querySelector('#directory-cleanup-title') === null`),
+      true
+    )
+    assert.equal(await evaluate('window.cleanupRequests.length'), 0)
+    await evaluate(`${button('Next')}.click()`)
+    await waitFor(`document.querySelector('#directory-cleanup-title')`)
+    await assertSameModal()
     assert.equal(
       await evaluate(`document.querySelector('input[aria-label="System junk"]').checked`),
       true
@@ -24,6 +52,7 @@ test(
     assert.equal(await evaluate(`${button('Clean selected files')}.disabled`), true)
     await evaluate(`window.holdPreview = true; ${button('Scan junk files')}.click()`)
     await waitFor('window.finishPreview')
+    assert.equal(await evaluate(`${button('Back')}.disabled`), true)
     assert.deepEqual(await evaluate('window.cleanupRequests.at(-1).payload'), {
       include_misc: true,
       include_torrents: true,
@@ -176,6 +205,13 @@ test(
         `${width}x${height}`
       )
     }
+    const requestsBeforeBack = await evaluate('window.cleanupRequests.length')
+    await evaluate(`${button('Back')}.click()`)
+    await waitFor(`document.querySelector('#directory-process-cleanup')?.checked`)
+    assert.equal(await evaluate('window.cleanupRequests.length'), requestsBeforeBack)
+    await evaluate(`${button('Next')}.click()`)
+    await waitFor(`document.querySelector('#directory-cleanup-title')`)
+    assert.equal(await evaluate(`${button('Clean selected files')}.disabled`), true)
     await evaluate(`document.querySelector('button[aria-label="Close"]').click()`)
     await waitFor(`!document.querySelector('#directory-cleanup-title')`)
   }
