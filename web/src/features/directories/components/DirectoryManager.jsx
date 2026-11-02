@@ -36,26 +36,26 @@ const directoryProcessOptions = () => [
   },
   {
     mode: DIRECTORY_PROCESS_SIDECAR,
-    title: zh('仅生成 NFO 和封面', 'Generate NFO and covers only'),
+    title: zh('生成 NFO 和封面', 'Generate NFO and covers'),
     description: zh(
-      '在视频旁生成媒体库可用的 NFO 和封面，不移动视频。',
-      'Generate media-library-compatible NFO files and covers beside each video without moving it.'
+      '在视频旁生成媒体库可用的 NFO 和封面。',
+      'Generate media-library-compatible NFO files and covers beside each video.'
     ),
   },
   {
     mode: DIRECTORY_PROCESS_ORGANIZE,
-    title: zh('仅整理目录', 'Organize only'),
+    title: zh('整理目录', 'Organize directories'),
     description: zh(
-      '按照选择的整理方式移动视频，保留原文件名，不生成 NFO 和封面。',
-      'Move videos using the selected layout, preserve filenames, and do not generate NFO files or covers.'
+      '按照选择的整理方式移动视频和其同名附属文件。',
+      'Move videos and matching companion files using the selected layout.'
     ),
   },
   {
     mode: DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR,
     title: zh('整理目录并生成 NFO 和封面', 'Organize and generate NFO and covers'),
     description: zh(
-      '移动视频及同名附属文件，保留原文件名，然后生成媒体库可用的 NFO 和封面。',
-      'Move videos and matching companion files while preserving filenames, then generate media-library-compatible NFO files and covers.'
+      '按照选择的整理方式移动视频和其同名附属文件，并生成媒体库可用的 NFO 和封面。',
+      'Move videos and matching companion files using the selected layout, and generate media-library-compatible NFO files and covers.'
     ),
   },
 ]
