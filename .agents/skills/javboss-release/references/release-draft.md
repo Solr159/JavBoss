@@ -47,11 +47,13 @@
 ```bash
 release_repo=Solr159/JavBoss
 
-# 读取已发布版本候选；处理所有分页，再筛选主程序、正式版本及祖先关系。
-gh api --paginate --slurp "repos/$release_repo/releases?per_page=100"
+# 读取所有版本；处理所有分页，再筛选主程序、正式版本及祖先关系。
+# 用 jq 合并分页，兼容没有 --slurp 选项的旧版 gh。
+gh api --paginate "repos/$release_repo/releases?per_page=100" | jq -s 'add'
 
-# 读取目标 Release 原始元数据，包括 target_commitish 和资产状态。
-gh api "repos/$release_repo/releases/tags/$release_version"
+# 草稿从分页列表按 tag_name 精确匹配并确认唯一，记录其 ID 后读取。
+# 不依赖按 tag 查询的端点来发现尚未发布的草稿。
+gh api "repos/$release_repo/releases/$release_id"
 
 # 保存 dispatch 前的运行列表，并记录请求时间；之后用同样的条件查新运行。
 gh run list --repo "$release_repo" --workflow release-draft.yml \
@@ -71,16 +73,19 @@ gh workflow run release-draft.yml --repo "$release_repo" --ref "$release_ref" \
 gh run view "$release_run_id" --repo "$release_repo" \
   --json databaseId,headSha,status,conclusion,jobs,url
 
-# 仅在仍为草稿、构建与资产已核验、正文无未处理冲突后写入。
-gh release edit "$release_version" --repo "$release_repo" --notes-file "$release_notes_file"
+# release_prewrite_file 为刚核验的草稿 JSON；显式保留元数据。
+jq --rawfile body "$release_notes_file" \
+  '{tag_name, target_commitish, name, prerelease, draft: true, body: $body}' \
+  "$release_prewrite_file" > "$release_payload_file"
+gh api --method PATCH "repos/$release_repo/releases/$release_id" \
+  --input "$release_payload_file"
 
-# 回读核对正文和草稿状态。
-gh release view "$release_version" --repo "$release_repo" \
-  --json tagName,isDraft,isPrerelease,body,assets,url,targetCommitish
+# 按 ID 回读，并按 SKILL.md 核对正文和元数据。
+gh api "repos/$release_repo/releases/$release_id"
 ```
 
 `gh workflow run` 可能不返回运行 ID。用 dispatch 前后 ID 差集、workflow、event、ref、时间及 SHA 识别运行；必要时查看日志中的 `RELEASE` 和最终 Release 信息确认版本。并发导致无法唯一确认时不要猜测。网络超时后先查询是否已经派发。
 
 写日志文件时使用文件工具或带引号的 heredoc，保留真实换行；不要将日志插值到 shell 命令中。发布正文不需要另外创建 ChatGPT Page。
 
-CLI 文档：[workflow run](https://cli.github.com/manual/gh_workflow_run)、[run list](https://cli.github.com/manual/gh_run_list)、[release edit](https://cli.github.com/manual/gh_release_edit)。
+文档：[workflow run](https://cli.github.com/manual/gh_workflow_run)、[run list](https://cli.github.com/manual/gh_run_list)、[Update a release](https://docs.github.com/en/rest/releases/releases#update-a-release)。
