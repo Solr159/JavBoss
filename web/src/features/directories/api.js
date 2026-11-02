@@ -55,11 +55,24 @@ export async function deleteDirectory(id) {
   return updateDirectory(id, { is_delete: true })
 }
 
-export async function processDirectory(id, mode, layout = 'prefix') {
+export async function processDirectory(
+  id,
+  mode,
+  layout = 'prefix',
+  overwriteNFO = false,
+  targetFolder = 'JAV',
+  exportFanart = false
+) {
   const res = await apiFetch(`/directories/${id}/process`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ mode, layout }),
+    body: JSON.stringify({
+      mode,
+      layout,
+      overwrite_nfo: overwriteNFO,
+      target_folder: targetFolder,
+      export_fanart: exportFanart,
+    }),
   })
   if (!res.ok) {
     throw await apiError(res)
@@ -74,5 +87,25 @@ export async function scanDirectory(id) {
   if (!res.ok) {
     throw await apiError(res)
   }
+  return res.json()
+}
+
+export async function previewDirectoryCleanup(id, options) {
+  const res = await apiFetch(`/directories/${id}/cleanup/preview`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(options),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function cleanDirectoryFiles(id, rootPath, files) {
+  const res = await apiFetch(`/directories/${id}/cleanup`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ root_path: rootPath, files }),
+  })
+  if (!res.ok) throw await apiError(res)
   return res.json()
 }

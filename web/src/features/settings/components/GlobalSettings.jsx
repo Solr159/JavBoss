@@ -72,8 +72,15 @@ export default function GlobalSettings({ onToast, open, onClose }) {
         await loadDirectories()
         return deleted
       }}
-      onProcessDirectory={async (id, mode, layout) => {
-        const result = await processDirectory(id, mode, layout)
+      onProcessDirectory={async (id, mode, layout, overwriteNFO, targetFolder, exportFanart) => {
+        const result = await processDirectory(
+          id,
+          mode,
+          layout,
+          overwriteNFO,
+          targetFolder,
+          exportFanart
+        )
         await loadDirectories()
         onToast(zh('目录任务已启动', 'Directory task started'), 4000)
         return result

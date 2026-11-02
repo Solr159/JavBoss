@@ -272,6 +272,55 @@ func TestWalkAndReconcileVideoFilesHonorsCancellation(t *testing.T) {
 	}
 }
 
+func TestScanDirectoryRetainsVideosWithDoubleDotPrefixes(t *testing.T) {
+	deps := newTestDependencies()
+	gdb, err := db.Open(filepath.Join(t.TempDir(), "scan.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	deps.database = gdb
+	deps.bindDatabase(t)
+	conn, err := gdb.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	dir := models.Directory{Path: t.TempDir()}
+	if err := gdb.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	names := []string{"..archive/video.mp4", "..movie.mp4", "nested/..archive/video.mp4"}
+	for _, name := range names {
+		fullPath := filepath.Join(dir.Path, filepath.FromSlash(name))
+		writeTestFile(t, fullPath, []byte("unchanged video"))
+		info, err := os.Stat(fullPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		video := models.Video{Fingerprint: name, Size: info.Size()}
+		if err := gdb.Create(&video).Error; err != nil {
+			t.Fatal(err)
+		}
+		location := models.VideoLocation{DirectoryID: dir.ID, VideoID: video.ID, RelativePath: name, ModifiedAt: info.ModTime().UTC()}
+		if err := gdb.Create(&location).Error; err != nil {
+			t.Fatal(err)
+		}
+	}
+	summary, err := deps.ScanDirectory(t.Context(), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if summary.FilesSeen != len(names) || summary.Removed != 0 || summary.ReadErrors != 0 {
+		t.Fatalf("legitimate double-dot names were skipped: %+v", summary)
+	}
+	for _, name := range names {
+		var count int64
+		if err := gdb.Model(&models.VideoLocation{}).Where("directory_id = ? AND relative_path = ?", dir.ID, name).Count(&count).Error; err != nil || count != 1 {
+			t.Fatalf("location %q missing after scan: count=%d, err=%v", name, count, err)
+		}
+	}
+}
+
 func TestWalkAndReconcileVideoFilesReturnsTraversalError(t *testing.T) {
 	// A missing root deterministically exercises a WalkDir error on every platform.
 

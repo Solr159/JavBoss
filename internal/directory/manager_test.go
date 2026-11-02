@@ -22,7 +22,7 @@ func TestBackgroundJobsRejectCanceledApplication(t *testing.T) {
 	for name, start := range map[string]func() error{
 		"manual scan":                 func() error { return StartManualDirectoryScan(dir) },
 		"scan after directory update": func() error { _, err := ScanDirectory(Context(), dir); return err },
-		"directory processing":        func() error { return StartDirectoryProcessing(context.Background(), dir, "", "") },
+		"directory processing":        func() error { return StartDirectoryProcessing(context.Background(), dir, "", "", false, "", false) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			if err := start(); !errors.Is(err, context.Canceled) {

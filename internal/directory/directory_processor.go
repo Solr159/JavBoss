@@ -38,6 +38,7 @@ const (
 var (
 	ErrInvalidDirectoryProcessMode   = errors.New("invalid directory process mode")
 	ErrInvalidDirectoryProcessLayout = errors.New("invalid directory process layout")
+	ErrInvalidDirectoryTargetFolder  = errors.New("invalid directory target folder")
 	ErrDirectoryWorkInProgress       = errors.New("directory work in progress")
 )
 
@@ -96,7 +97,7 @@ func (m *Manager) setDirectoryProcessingStatus(id int64, status string) {
 }
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
-func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string) error {
+func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string, overwriteNFO bool, targetFolder string, exportFanart bool) error {
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
@@ -108,6 +109,12 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return ErrInvalidDirectoryProcessLayout
+	}
+	if mode != DirectoryProcessSidecar {
+		targetFolder, ok = directoryProcessTargetFolder(directory.Path, targetFolder)
+		if !ok {
+			return ErrInvalidDirectoryTargetFolder
+		}
 	}
 	if directory.ID <= 0 || directory.IsDelete {
 		return errors.New("invalid directory")
@@ -130,7 +137,7 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		defer release()
 
 		startedAt := time.Now()
-		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout)
+		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout, overwriteNFO, targetFolder, exportFanart)
 		finishedAt := time.Now()
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
@@ -157,6 +164,7 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 			processErr,
 			startedAt,
 			finishedAt,
+			targetFolder,
 		); err != nil {
 			logging.Error("write directory processing report failed id=%d path=%s err=%v", directory.ID, directory.Path, err)
 		}
@@ -172,6 +180,33 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		}
 	}()
 	return nil
+}
+
+// directoryProcessTargetFolder accepts a folder name inside the selected directory.
+func directoryProcessTargetFolder(root, value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		value = directoryOrganizeParent
+	}
+	if value == "." || value == ".." || strings.HasSuffix(value, ".") ||
+		strings.ContainsAny(value, `<>:"/\|?*`) || strings.ContainsFunc(value, unicode.IsControl) {
+		return "", false
+	}
+	// Windows device names are invalid even with an extension.
+	base, _, _ := strings.Cut(strings.ToUpper(value), ".")
+	switch base {
+	case "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
+		"LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9":
+		return "", false
+	}
+	info, err := os.Lstat(filepath.Join(root, value))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return "", false
+	}
+	if err == nil && !info.IsDir() {
+		return "", false
+	}
+	return value, true
 }
 
 func directoryProcessLayout(layout string) (string, bool) {
@@ -194,6 +229,9 @@ func ProcessDirectory(
 	directory models.Directory,
 	mode string,
 	layout string,
+	overwriteNFO bool,
+	targetFolder string,
+	exportFanart bool,
 ) (*DirectoryProcessSummary, error) {
 	normalizedMode, _, ok := directoryProcessMode(mode)
 	if !ok {
@@ -203,6 +241,12 @@ func ProcessDirectory(
 	layout, ok = directoryProcessLayout(layout)
 	if !ok {
 		return nil, ErrInvalidDirectoryProcessLayout
+	}
+	if mode != DirectoryProcessSidecar {
+		targetFolder, ok = directoryProcessTargetFolder(directory.Path, targetFolder)
+		if !ok {
+			return nil, ErrInvalidDirectoryTargetFolder
+		}
 	}
 	if strings.TrimSpace(directory.Path) == "" {
 		return nil, errors.New("directory path is empty")
@@ -219,7 +263,7 @@ func ProcessDirectory(
 			cleanupEmptySourceDirectories(directory.Path, summary)
 			return summary, err
 		}
-		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary)
+		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary, overwriteNFO, targetFolder, exportFanart)
 	}
 	cleanupEmptySourceDirectories(directory.Path, summary)
 	if err := ctx.Err(); err != nil {
@@ -236,6 +280,9 @@ func processJavItem(
 	layout string,
 	coverDir string,
 	summary *DirectoryProcessSummary,
+	overwriteNFO bool,
+	targetFolder string,
+	exportFanart bool,
 ) {
 	if item == nil || summary == nil {
 		return
@@ -276,7 +323,7 @@ func processJavItem(
 			if layout == DirectoryProcessLayoutCode {
 				target, err = safeDirectoryFilePath(
 					root,
-					filepath.Join(directoryOrganizeParent, code, filepath.Base(source)),
+					filepath.Join(targetFolder, code, filepath.Base(source)),
 				)
 			} else {
 				if layout == DirectoryProcessLayoutIdol {
@@ -284,7 +331,7 @@ func processJavItem(
 				}
 				target, err = safeDirectoryFilePath(
 					root,
-					filepath.Join(directoryOrganizeParent, group, code, filepath.Base(source)),
+					filepath.Join(targetFolder, group, code, filepath.Base(source)),
 				)
 			}
 			if err != nil {
@@ -321,7 +368,7 @@ func processJavItem(
 		}
 
 		if mode == DirectoryProcessSidecar || mode == DirectoryProcessOrganizeWithSidecar {
-			if err := writeJavSidecars(target, item, coverDir); err != nil {
+			if err := writeJavSidecars(target, item, coverDir, overwriteNFO, exportFanart); err != nil {
 				summary.Failed++
 				summary.SidecarFailures = append(summary.SidecarFailures, DirectoryProcessIssue{
 					Code:       code,
@@ -563,14 +610,14 @@ func directoryProcessModeDisplay(mode string) string {
 	}
 }
 
-func directoryProcessLayoutDisplay(layout string) string {
+func directoryProcessLayoutDisplay(layout, targetFolder string) string {
 	switch layout {
 	case DirectoryProcessLayoutCode:
-		return "按完整番号（JAV/番号）"
+		return fmt.Sprintf("按完整番号（%s/番号）", targetFolder)
 	case DirectoryProcessLayoutIdol:
-		return "按女优（JAV/女优/番号）"
+		return fmt.Sprintf("按女优（%s/女优/番号）", targetFolder)
 	default:
-		return "按番号前缀（JAV/前缀/番号）"
+		return fmt.Sprintf("按番号前缀（%s/前缀/番号）", targetFolder)
 	}
 }
 
@@ -611,6 +658,7 @@ func writeDirectoryProcessReport(
 	processErr error,
 	startedAt time.Time,
 	finishedAt time.Time,
+	targetFolder string,
 ) error {
 	root = filepath.Clean(strings.TrimSpace(root))
 	if root == "" || !filepath.IsAbs(root) {
@@ -626,7 +674,7 @@ func writeDirectoryProcessReport(
 	fmt.Fprintf(&builder, "完成时间：%s\n", finishedAt.Format("2006-01-02 15:04:05"))
 	fmt.Fprintf(&builder, "处理模式：%s\n", directoryProcessModeDisplay(mode))
 	if mode != DirectoryProcessSidecar {
-		fmt.Fprintf(&builder, "整理方式：%s\n", directoryProcessLayoutDisplay(layout))
+		fmt.Fprintf(&builder, "整理方式：%s\n", directoryProcessLayoutDisplay(layout, targetFolder))
 	}
 	if processErr != nil {
 		fmt.Fprintf(&builder, "任务结果：未完成（%s）\n", reportLineValue(directoryProcessFailureReason(processErr)))
@@ -870,7 +918,7 @@ func firstNonEmptyString(values ...string) string {
 	return ""
 }
 
-func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error {
+func writeJavSidecars(videoPath string, item *models.Jav, coverDir string, overwriteNFO, exportFanart bool) error {
 	info, err := os.Stat(videoPath)
 	if err != nil {
 		return fmt.Errorf("inspect video: %w", err)
@@ -881,7 +929,7 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error
 
 	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
 	nfoPath := base + ".nfo"
-	owned, err := canWriteJavBossNFO(nfoPath)
+	owned, err := canWriteJavBossNFO(nfoPath, overwriteNFO)
 	if err != nil {
 		return err
 	}
@@ -890,14 +938,27 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error
 	}
 
 	if coverPath, ok := cover.FindPath(coverDir, item.Code); ok {
-		posterPath := base + "-poster" + strings.ToLower(filepath.Ext(coverPath))
-		if _, err := os.Stat(posterPath); err == nil && !owned {
-			return nil
-		} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("inspect poster: %w", err)
+		portraitPath := base + "-poster.jpg"
+		writePortrait, err := canWriteSidecarImage(portraitPath, owned)
+		if err != nil {
+			return err
 		}
-		if err := copyFileAtomically(coverPath, posterPath); err != nil {
-			return fmt.Errorf("write poster: %w", err)
+		if writePortrait {
+			if err := writePortraitSidecar(coverPath, portraitPath, item.CoverCropPosition); err != nil {
+				return fmt.Errorf("write portrait: %w", err)
+			}
+		}
+		if exportFanart {
+			fanartPath := base + "-fanart" + strings.ToLower(filepath.Ext(coverPath))
+			writeFanart, err := canWriteSidecarImage(fanartPath, owned)
+			if err != nil {
+				return err
+			}
+			if writeFanart {
+				if err := copyFileAtomically(coverPath, fanartPath); err != nil {
+					return fmt.Errorf("write fanart: %w", err)
+				}
+			}
 		}
 	} else {
 		cover.Enqueue(item.Code)
@@ -905,7 +966,18 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error
 	return nil
 }
 
-func canWriteJavBossNFO(path string) (bool, error) {
+func canWriteSidecarImage(path string, owned bool) (bool, error) {
+	_, err := os.Stat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("inspect sidecar image: %w", err)
+	}
+	return owned, nil
+}
+
+func canWriteJavBossNFO(path string, overwriteNFO bool) (bool, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
@@ -913,10 +985,11 @@ func canWriteJavBossNFO(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("read existing NFO: %w", err)
 	}
-	if !strings.Contains(string(data), "<generator>JavBoss</generator>") {
+	owned := strings.Contains(string(data), "<generator>JavBoss</generator>")
+	if !owned && !overwriteNFO {
 		return false, errors.New("existing NFO is not managed by JavBoss")
 	}
-	return true, nil
+	return owned, nil
 }
 
 func writeNFOFile(path string, value jellyfinNFO) error {

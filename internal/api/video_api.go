@@ -1367,7 +1367,7 @@ func incrementPlayCountByPath(ctx context.Context, dirPath, fullPath string) {
 		return
 	}
 	relPath = filepath.ToSlash(filepath.Clean(relPath))
-	if relPath == "." || strings.HasPrefix(relPath, "..") {
+	if relPath == "." || relPath == ".." || strings.HasPrefix(relPath, "../") {
 		return
 	}
 	if err := dbpkg.Default().IncrementVideoPlayCountByPath(ctx, dirPath, relPath); err != nil {
@@ -1396,7 +1396,7 @@ func resolvePlaybackVideoID(ctx context.Context, requestedID int64, dirPath, ful
 		return 0
 	}
 	relPath = filepath.ToSlash(filepath.Clean(relPath))
-	if relPath == "." || strings.HasPrefix(relPath, "..") {
+	if relPath == "." || relPath == ".." || strings.HasPrefix(relPath, "../") {
 		return 0
 	}
 	videoID, err := dbpkg.Default().GetVideoIDByPath(ctx, dirPath, relPath)
