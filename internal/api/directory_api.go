@@ -214,6 +214,8 @@ func scanDirectory(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"work_status": directory.DirectoryWorkScanning})
 }
 
+// POST /directories/:id/process accepts mode, layout and overwrite_nfo.
+// overwrite_nfo defaults to false and only applies when generating same-name NFO files.
 func processDirectory(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
@@ -222,8 +224,9 @@ func processDirectory(c *gin.Context) {
 	}
 
 	var req struct {
-		Mode   string `json:"mode"`
-		Layout string `json:"layout"`
+		Mode         string `json:"mode"`
+		Layout       string `json:"layout"`
+		OverwriteNFO bool   `json:"overwrite_nfo"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "目录处理请求无效", "Invalid directory processing request")
@@ -247,7 +250,7 @@ func processDirectory(c *gin.Context) {
 
 	startCtx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
-	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout); err != nil {
+	if err := directory.StartDirectoryProcessing(startCtx, *dir, req.Mode, req.Layout, req.OverwriteNFO); err != nil {
 		switch {
 		case errors.Is(err, directory.ErrInvalidDirectoryProcessMode):
 			respondLocalizedError(c, http.StatusBadRequest, "目录处理模式无效", "Invalid directory processing mode")

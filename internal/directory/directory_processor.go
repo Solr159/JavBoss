@@ -96,7 +96,7 @@ func (m *Manager) setDirectoryProcessingStatus(id int64, status string) {
 }
 
 // StartDirectoryProcessing reserves the directory and starts an asynchronous filesystem job.
-func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string) error {
+func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models.Directory, mode, layout string, overwriteNFO bool) error {
 	if err := m.ctx.Err(); err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (m *Manager) StartDirectoryProcessing(ctx context.Context, directory models
 		defer release()
 
 		startedAt := time.Now()
-		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout)
+		summary, processErr := ProcessDirectory(m.ctx, m.coverDir, directory, mode, layout, overwriteNFO)
 		finishedAt := time.Now()
 		if processErr != nil {
 			logging.Error("directory processing failed id=%d mode=%s err=%v", directory.ID, mode, processErr)
@@ -194,6 +194,7 @@ func ProcessDirectory(
 	directory models.Directory,
 	mode string,
 	layout string,
+	overwriteNFO bool,
 ) (*DirectoryProcessSummary, error) {
 	normalizedMode, _, ok := directoryProcessMode(mode)
 	if !ok {
@@ -219,7 +220,7 @@ func ProcessDirectory(
 			cleanupEmptySourceDirectories(directory.Path, summary)
 			return summary, err
 		}
-		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary)
+		processJavItem(ctx, directory.Path, &items[i], mode, layout, coverDir, summary, overwriteNFO)
 	}
 	cleanupEmptySourceDirectories(directory.Path, summary)
 	if err := ctx.Err(); err != nil {
@@ -236,6 +237,7 @@ func processJavItem(
 	layout string,
 	coverDir string,
 	summary *DirectoryProcessSummary,
+	overwriteNFO bool,
 ) {
 	if item == nil || summary == nil {
 		return
@@ -321,7 +323,7 @@ func processJavItem(
 		}
 
 		if mode == DirectoryProcessSidecar || mode == DirectoryProcessOrganizeWithSidecar {
-			if err := writeJavSidecars(target, item, coverDir); err != nil {
+			if err := writeJavSidecars(target, item, coverDir, overwriteNFO); err != nil {
 				summary.Failed++
 				summary.SidecarFailures = append(summary.SidecarFailures, DirectoryProcessIssue{
 					Code:       code,
@@ -870,7 +872,7 @@ func firstNonEmptyString(values ...string) string {
 	return ""
 }
 
-func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error {
+func writeJavSidecars(videoPath string, item *models.Jav, coverDir string, overwriteNFO bool) error {
 	info, err := os.Stat(videoPath)
 	if err != nil {
 		return fmt.Errorf("inspect video: %w", err)
@@ -881,7 +883,7 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error
 
 	base := strings.TrimSuffix(videoPath, filepath.Ext(videoPath))
 	nfoPath := base + ".nfo"
-	owned, err := canWriteJavBossNFO(nfoPath)
+	owned, err := canWriteJavBossNFO(nfoPath, overwriteNFO)
 	if err != nil {
 		return err
 	}
@@ -905,7 +907,7 @@ func writeJavSidecars(videoPath string, item *models.Jav, coverDir string) error
 	return nil
 }
 
-func canWriteJavBossNFO(path string) (bool, error) {
+func canWriteJavBossNFO(path string, overwriteNFO bool) (bool, error) {
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil
@@ -913,10 +915,11 @@ func canWriteJavBossNFO(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("read existing NFO: %w", err)
 	}
-	if !strings.Contains(string(data), "<generator>JavBoss</generator>") {
+	owned := strings.Contains(string(data), "<generator>JavBoss</generator>")
+	if !owned && !overwriteNFO {
 		return false, errors.New("existing NFO is not managed by JavBoss")
 	}
-	return true, nil
+	return owned, nil
 }
 
 func writeNFOFile(path string, value jellyfinNFO) error {

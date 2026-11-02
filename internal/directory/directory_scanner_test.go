@@ -96,7 +96,7 @@ func TestDirectoryScanProgressCountsCurrentFilesAndSuccessfulLinks(t *testing.T)
 	// mask the scan session's live counters or allow another tool job to start.
 	deps.setDirectoryProcessingStatus(dir.ID, DirectoryWorkScanning)
 	defer deps.setDirectoryProcessingStatus(dir.ID, "")
-	if err := deps.StartDirectoryProcessing(t.Context(), dir, DirectoryProcessSidecar, DirectoryProcessLayoutPrefix); !errors.Is(err, ErrDirectoryWorkInProgress) {
+	if err := deps.StartDirectoryProcessing(t.Context(), dir, DirectoryProcessSidecar, DirectoryProcessLayoutPrefix, false); !errors.Is(err, ErrDirectoryWorkInProgress) {
 		t.Fatalf("follow-up scan should block another tool job: %v", err)
 	}
 	// Delay workers so the file-scan and metadata stages can be checked independently.

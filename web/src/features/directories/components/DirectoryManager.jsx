@@ -1,6 +1,7 @@
 import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useState } from 'react'
 import BuildRoundedIcon from '@mui/icons-material/BuildRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
@@ -243,6 +244,8 @@ export default function DirectoryManager({
   const [cleanupDirectory, setCleanupDirectory] = useState(null)
   const [toolMode, setToolMode] = useState(DIRECTORY_PROCESS_SIDECAR)
   const [toolLayout, setToolLayout] = useState(DIRECTORY_PROCESS_LAYOUT_PREFIX)
+  const [toolConfiguring, setToolConfiguring] = useState(false)
+  const [toolOverwriteNFO, setToolOverwriteNFO] = useState(false)
   const pathExample = {
     windows: 'D:\\Videos',
     darwin: '/Volumes/Videos',
@@ -279,6 +282,8 @@ export default function DirectoryManager({
       setCleanupDirectory(null)
       setToolMode(DIRECTORY_PROCESS_SIDECAR)
       setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
+      setToolConfiguring(false)
+      setToolOverwriteNFO(false)
     }
   }, [open])
 
@@ -429,7 +434,12 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
-      await onProcess?.(dir.id, mode, layout)
+      await onProcess?.(
+        dir.id,
+        mode,
+        layout,
+        mode !== DIRECTORY_PROCESS_ORGANIZE && toolOverwriteNFO
+      )
     } catch (err) {
       setRowErrorId(dir.id)
       setRowErrorMsg(getErrorMessage(err))
@@ -728,6 +738,8 @@ export default function DirectoryManager({
                             setToolDirectory(d)
                             setToolMode(DIRECTORY_PROCESS_SIDECAR)
                             setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
+                            setToolConfiguring(false)
+                            setToolOverwriteNFO(false)
                             setRowErrorId(null)
                             setRowErrorMsg('')
                           }}
@@ -854,114 +866,172 @@ export default function DirectoryManager({
           ariaLabelledby="directory-tools-title"
           className="p-4"
           closeDisabled={toolDirectoryWorking}
-          contentClassName="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"
+          contentClassName="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
           onClose={() => setToolDirectory(null)}
           zIndex={1400}
         >
-          <div id="directory-tools-title" className="text-base font-semibold text-zinc-900">
-            {zh('目录工具', 'Directory Tools')}
-          </div>
-          <div className="mt-1 truncate text-xs text-zinc-500">
-            {displayPath(toolDirectory.path)}
-          </div>
-          <div className="mt-4 space-y-2">
-            {directoryProcessOptions().map((option) => (
-              <label
-                key={option.mode}
-                htmlFor={`directory-process-${option.mode}`}
-                aria-label={option.title}
-                className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
-                  toolMode === option.mode
-                    ? 'border-blue-400 bg-blue-50'
-                    : 'border-zinc-200 hover:bg-zinc-50'
-                }`}
-              >
-                <input
-                  id={`directory-process-${option.mode}`}
-                  type="radio"
-                  name="directory-process-mode"
-                  value={option.mode}
-                  checked={toolMode === option.mode}
-                  onChange={() => setToolMode(option.mode)}
-                  className="mt-0.5"
-                />
-                <span>
-                  <span className="block text-sm font-medium text-zinc-900">{option.title}</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-zinc-600">
-                    {option.description}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_CLEANUP && (
-            <div className="mt-4">
-              <div className="text-sm font-medium text-zinc-900">
-                {zh('整理方式', 'Organization layout')}
+          <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
+            <div className="min-w-0">
+              <div id="directory-tools-title" className="text-base font-semibold text-zinc-900">
+                {toolConfiguring
+                  ? directoryProcessOptions().find((option) => option.mode === toolMode)?.title
+                  : zh('目录工具', 'Directory Tools')}
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                {directoryProcessLayoutOptions().map((option) => (
+              <div className="mt-1 truncate text-xs text-zinc-500">
+                {displayPath(toolDirectory.path)}
+              </div>
+            </div>
+            <IconButton
+              type="button"
+              aria-label={zh('关闭目录工具', 'Close directory tools')}
+              onClick={() => setToolDirectory(null)}
+              size="small"
+              disabled={toolDirectoryWorking}
+              className="!shrink-0"
+            >
+              <CloseRoundedIcon fontSize="small" />
+            </IconButton>
+          </header>
+          <div className="min-h-0 overflow-y-auto px-5 pb-4">
+            {!toolConfiguring && (
+              <div className="space-y-2">
+                {directoryProcessOptions().map((option) => (
                   <label
-                    key={option.layout}
-                    htmlFor={`directory-process-layout-${option.layout}`}
-                    className={`min-w-0 cursor-pointer rounded-xl border p-3 transition ${
-                      toolLayout === option.layout
+                    key={option.mode}
+                    htmlFor={`directory-process-${option.mode}`}
+                    aria-label={option.title}
+                    className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                      toolMode === option.mode
                         ? 'border-blue-400 bg-blue-50'
                         : 'border-zinc-200 hover:bg-zinc-50'
                     }`}
                   >
-                    <span className="flex items-center gap-2">
-                      <input
-                        id={`directory-process-layout-${option.layout}`}
-                        type="radio"
-                        name="directory-process-layout"
-                        value={option.layout}
-                        checked={toolLayout === option.layout}
-                        onChange={() => setToolLayout(option.layout)}
-                      />
-                      <span className="text-sm font-medium text-zinc-900">{option.title}</span>
-                    </span>
-                    <span className="mt-1 block whitespace-nowrap text-[10px] text-zinc-500">
-                      {option.example}
+                    <input
+                      id={`directory-process-${option.mode}`}
+                      type="radio"
+                      name="directory-process-mode"
+                      value={option.mode}
+                      checked={toolMode === option.mode}
+                      onChange={() => {
+                        setToolMode(option.mode)
+                        setToolOverwriteNFO(false)
+                      }}
+                      className="mt-0.5"
+                    />
+                    <span>
+                      <span className="block text-sm font-medium text-zinc-900">
+                        {option.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-5 text-zinc-600">
+                        {option.description}
+                      </span>
                     </span>
                   </label>
                 ))}
               </div>
-              {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
-                <div className="mt-2 text-xs leading-5 text-zinc-500">
-                  {zh(
-                    '最多拼接 3 位女优名；超过 3 位时统一归入“多女优”，没有女优信息时归入“未知女优”。',
-                    'Up to 3 sorted idol names are joined with "，". Works with more than 3 idols go under "多女优", and works without idol metadata go under "未知女优".'
-                  )}
+            )}
+            {toolConfiguring && toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+              <div>
+                <div className="text-sm font-medium text-zinc-900">
+                  {zh('整理方式', 'Organization layout')}
                 </div>
-              )}
-            </div>
-          )}
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_CLEANUP && (
-            <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-              {zh(
-                '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
-                'Organized files are stored in “selected directory/JAV”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.'
-              )}
-            </div>
-          )}
-          <div className="mt-5 flex justify-end gap-2">
+                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  {directoryProcessLayoutOptions().map((option) => (
+                    <label
+                      key={option.layout}
+                      htmlFor={`directory-process-layout-${option.layout}`}
+                      className={`min-w-0 cursor-pointer rounded-xl border p-3 transition ${
+                        toolLayout === option.layout
+                          ? 'border-blue-400 bg-blue-50'
+                          : 'border-zinc-200 hover:bg-zinc-50'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          id={`directory-process-layout-${option.layout}`}
+                          type="radio"
+                          name="directory-process-layout"
+                          value={option.layout}
+                          checked={toolLayout === option.layout}
+                          onChange={() => setToolLayout(option.layout)}
+                        />
+                        <span className="text-sm font-medium text-zinc-900">{option.title}</span>
+                      </span>
+                      <span className="mt-1 block whitespace-nowrap text-[10px] text-zinc-500">
+                        {option.example}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {toolLayout === DIRECTORY_PROCESS_LAYOUT_IDOL && (
+                  <div className="mt-2 text-xs leading-5 text-zinc-500">
+                    {zh(
+                      '最多拼接 3 位女优名；超过 3 位时统一归入“多女优”，没有女优信息时归入“未知女优”。',
+                      'Up to 3 sorted idol names are joined with "，". Works with more than 3 idols go under "多女优", and works without idol metadata go under "未知女优".'
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            {toolConfiguring && toolMode !== DIRECTORY_PROCESS_ORGANIZE && (
+              <div className={toolMode === DIRECTORY_PROCESS_SIDECAR ? '' : 'mt-4'}>
+                {toolMode === DIRECTORY_PROCESS_SIDECAR && (
+                  <p className="mb-3 text-sm text-zinc-600">
+                    {zh(
+                      '在视频旁生成 NFO 和封面，不移动视频。',
+                      'Generate NFO files and covers beside videos without moving them.'
+                    )}
+                  </p>
+                )}
+                <label className="flex items-start gap-2 text-sm font-medium text-zinc-900">
+                  <input
+                    type="checkbox"
+                    checked={toolOverwriteNFO}
+                    onChange={(event) => setToolOverwriteNFO(event.target.checked)}
+                    className="mt-1"
+                  />
+                  {zh('覆盖非 JavBoss 生成的 NFO', 'Overwrite NFO files not generated by JavBoss')}
+                </label>
+                <p className="mt-2 text-xs leading-5 text-zinc-500">
+                  {zh(
+                    '默认保留其他工具生成的 NFO；勾选后覆盖与视频同名的 NFO。JavBoss 生成的 NFO 始终更新，其他名称的 NFO 不受影响。',
+                    'Preserve NFO files from other tools by default. Enable to overwrite NFO files matching the video filename. JavBoss-generated NFO files are always updated; differently named NFO files are unaffected.'
+                  )}
+                </p>
+              </div>
+            )}
+            {toolConfiguring && toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+              <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                {zh(
+                  '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
+                  'Organized files are stored in “selected directory/JAV”. When the task finishes, “selected directory/JavBoss-整理报告.txt” is generated so you can review files that were not organized and the reasons.'
+                )}
+              </div>
+            )}
+          </div>
+          <footer className="flex shrink-0 justify-end gap-2 border-t border-zinc-100 px-5 py-4">
             <button
               type="button"
-              onClick={() => setToolDirectory(null)}
+              onClick={() => (toolConfiguring ? setToolConfiguring(false) : setToolDirectory(null))}
               className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
             >
-              {zh('取消', 'Cancel')}
+              {toolConfiguring ? zh('上一步', 'Back') : zh('取消', 'Cancel')}
             </button>
             <button
               type="button"
-              onClick={() => handleProcess(toolDirectory, toolMode, toolLayout)}
+              onClick={() => {
+                if (toolConfiguring || toolMode === DIRECTORY_PROCESS_CLEANUP) {
+                  handleProcess(toolDirectory, toolMode, toolLayout)
+                } else {
+                  setToolConfiguring(true)
+                }
+              }}
               disabled={toolDirectoryWorking}
               className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              {toolMode === DIRECTORY_PROCESS_CLEANUP ? zh('下一步', 'Next') : zh('执行', 'Run')}
+              {toolConfiguring ? zh('执行', 'Run') : zh('下一步', 'Next')}
             </button>
-          </div>
+          </footer>
         </AppModal>
       )}
       {cleanupDirectory && (

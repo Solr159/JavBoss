@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client'
 import DirectoryManager from '@/features/directories/components/DirectoryManager'
+import { processDirectory } from '@/features/directories/api'
 import '@/index.css'
 
 window.cleanupRequests = []
@@ -10,6 +11,8 @@ window.fetch = async (input, init = {}) => {
   const payload = init.body ? JSON.parse(init.body) : null
   window.cleanupRequests.push({ path, payload })
   if (window.failCleanup) return Response.json({ error_en: 'Directory is busy' }, { status: 409 })
+  if (path.endsWith('/process'))
+    return Response.json({ work_status: 'organizing' }, { status: 202 })
   if (path.endsWith('/cleanup/preview')) {
     const response = Response.json({
       root_path: '/videos',
@@ -46,5 +49,9 @@ window.fetch = async (input, init = {}) => {
 }
 
 createRoot(document.getElementById('root')).render(
-  <DirectoryManager open directories={[{ id: 1, path: '/videos', enabled: true }]} />
+  <DirectoryManager
+    open
+    directories={[{ id: 1, path: '/videos', enabled: true }]}
+    onProcess={processDirectory}
+  />
 )

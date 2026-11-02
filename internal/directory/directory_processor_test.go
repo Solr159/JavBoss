@@ -101,6 +101,7 @@ func TestProcessJavItemOrganizesMediaWithoutRenaming(t *testing.T) {
 		DirectoryProcessLayoutPrefix,
 		"",
 		summary,
+		false,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -136,6 +137,7 @@ func TestProcessJavItemOrganizesByCompleteCode(t *testing.T) {
 		DirectoryProcessLayoutCode,
 		"",
 		summary,
+		false,
 	)
 
 	target := filepath.Join(root, "JAV", "IPX-001", videoName)
@@ -179,6 +181,7 @@ func TestProcessJavItemOrganizesAndWritesJellyfinSidecars(t *testing.T) {
 		DirectoryProcessLayoutPrefix,
 		coverDir,
 		summary,
+		false,
 	)
 
 	targetDir := filepath.Join(root, "JAV", "IPX", "IPX-001")
@@ -234,6 +237,7 @@ func TestProcessJavItemOrganizesBySortedIdols(t *testing.T) {
 		DirectoryProcessLayoutIdol,
 		"",
 		summary,
+		false,
 	)
 
 	target := filepath.Join(root, "JAV", "女优1，女优2，女优3", "IPX-001", videoName)
@@ -270,6 +274,7 @@ func TestCleanupEmptySourceDirectoriesOnlyRemovesMovedSourceAncestors(t *testing
 			DirectoryProcessLayoutPrefix,
 			"",
 			summary,
+			false,
 		)
 	}
 	cleanupEmptySourceDirectories(root, summary)
@@ -393,7 +398,7 @@ func TestWriteJavSidecarsDoesNotOverwriteUserNFO(t *testing.T) {
 	const original = "<movie><title>User metadata</title></movie>"
 	writeTestFile(t, nfoPath, []byte(original))
 
-	err := writeJavSidecars(videoPath, &models.Jav{Code: "IPX-001"}, "")
+	err := writeJavSidecars(videoPath, &models.Jav{Code: "IPX-001"}, "", false)
 	if err == nil {
 		t.Fatal("expected existing user NFO conflict")
 	}
@@ -403,6 +408,67 @@ func TestWriteJavSidecarsDoesNotOverwriteUserNFO(t *testing.T) {
 	}
 	if string(data) != original {
 		t.Fatalf("user NFO was modified: %s", data)
+	}
+}
+
+func TestProcessJavItemNFOOverwriteChoice(t *testing.T) {
+	for _, mode := range []string{DirectoryProcessSidecar, DirectoryProcessOrganize, DirectoryProcessOrganizeWithSidecar} {
+		for _, overwrite := range []bool{false, true} {
+			name := mode + "/preserve"
+			if overwrite {
+				name = mode + "/overwrite"
+			}
+			t.Run(name, func(t *testing.T) {
+				root, coverDir := t.TempDir(), t.TempDir()
+				const original = "<movie><title>User metadata</title></movie>"
+				writeTestFile(t, filepath.Join(root, "video.mp4"), []byte("video"))
+				writeTestFile(t, filepath.Join(root, "video.nfo"), []byte(original))
+				writeTestFile(t, filepath.Join(root, "movie.nfo"), []byte("other NFO"))
+				writeTestFile(t, filepath.Join(root, "video-poster.jpg"), []byte("existing poster"))
+				writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+				item := models.Jav{Code: "IPX-001", Title: "Updated title", Videos: []models.Video{{Path: "video.mp4"}}}
+				summary := &DirectoryProcessSummary{}
+				processJavItem(t.Context(), root, &item, mode, DirectoryProcessLayoutCode, coverDir, summary, overwrite)
+				targetDir := root
+				if mode != DirectoryProcessSidecar {
+					targetDir = filepath.Join(root, "JAV", "IPX-001")
+				}
+				data, err := os.ReadFile(filepath.Join(targetDir, "video.nfo"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if mode == DirectoryProcessOrganize || !overwrite {
+					if string(data) != original {
+						t.Fatalf("NFO should be preserved: %s", data)
+					}
+				} else if !strings.Contains(string(data), "<generator>JavBoss</generator>") || !strings.Contains(string(data), "Updated title") || summary.Sidecars != 1 || summary.Failed != 0 {
+					t.Fatalf("NFO not replaced: %s summary=%+v", data, summary)
+				}
+				poster, err := os.ReadFile(filepath.Join(targetDir, "video-poster.jpg"))
+				if err != nil || string(poster) != "existing poster" {
+					t.Fatalf("unmanaged poster changed: %s %v", poster, err)
+				}
+				other, err := os.ReadFile(filepath.Join(root, "movie.nfo"))
+				if err != nil || string(other) != "other NFO" {
+					t.Fatalf("other NFO changed: %s %v", other, err)
+				}
+			})
+		}
+	}
+}
+
+func TestWriteJavSidecarsUpdatesManagedNFOWithoutOptIn(t *testing.T) {
+	root, coverDir := t.TempDir(), t.TempDir()
+	video := filepath.Join(root, "video.mp4")
+	writeTestFile(t, video, []byte("video"))
+	writeTestFile(t, filepath.Join(root, "video.nfo"), []byte("<movie><generator>JavBoss</generator><title>Old</title></movie>"))
+	writeTestFile(t, filepath.Join(coverDir, "ipx-001.jpg"), make([]byte, 31*1024))
+	if err := writeJavSidecars(video, &models.Jav{Code: "IPX-001", Title: "New title"}, coverDir, false); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(root, "video.nfo"))
+	if err != nil || !strings.Contains(string(data), "New title") {
+		t.Fatalf("managed NFO not updated: %s %v", data, err)
 	}
 }
 
@@ -450,6 +516,7 @@ func TestProcessJavItemRecordsMoveFailureThatRemainsAtSource(t *testing.T) {
 		DirectoryProcessLayoutPrefix,
 		"",
 		summary,
+		false,
 	)
 
 	if summary.Failed != 1 || len(summary.MoveFailures) != 1 || len(summary.SidecarFailures) != 0 {
@@ -489,6 +556,7 @@ func TestProcessJavItemSeparatesSidecarFailureFromMoveFailure(t *testing.T) {
 		DirectoryProcessLayoutPrefix,
 		"",
 		summary,
+		false,
 	)
 
 	if summary.Moved != 1 || summary.Failed != 1 || len(summary.MoveFailures) != 0 ||
