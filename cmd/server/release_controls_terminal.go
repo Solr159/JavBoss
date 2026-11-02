@@ -14,7 +14,7 @@ func runReleaseControls(ctx context.Context, stop context.CancelFunc, url, remot
 	} else {
 		printReleaseClientStartupHint(url, remoteURL)
 	}
-	openReleasePage(url, logger)
+	openReleasePageOnStartup(url, logger)
 	startReleaseKeyboardControls(ctx, stop, url, logger)
 	<-ctx.Done()
 }

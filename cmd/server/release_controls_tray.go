@@ -31,7 +31,7 @@ func runReleaseTray(ctx context.Context, stop context.CancelFunc, url, remoteURL
 		// callback to finish before displaying the menu.
 		go func() {
 			if ctx.Err() == nil {
-				openReleasePage(url, logger)
+				openReleasePageOnStartup(url, logger)
 			}
 			for {
 				select {

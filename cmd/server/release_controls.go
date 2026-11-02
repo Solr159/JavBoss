@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"javboss/internal/common"
+	"javboss/internal/update"
 	"javboss/internal/util"
 )
 
@@ -28,6 +29,12 @@ func serveWithControls(stop context.CancelFunc, serve func() error, controls fun
 	controls()
 	stop()
 	return <-done
+}
+
+func openReleasePageOnStartup(url string, logger *log.Logger) {
+	if !update.RestartedAfterUpdate() {
+		openReleasePage(url, logger)
+	}
 }
 
 func openReleasePage(url string, logger *log.Logger) {

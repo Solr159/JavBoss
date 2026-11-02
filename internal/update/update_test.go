@@ -189,18 +189,32 @@ func TestExtractArchiveRejectsUnsafeEntries(t *testing.T) {
 }
 
 func TestReplacementPreservesDataAndRollsBackFailures(t *testing.T) {
-	for _, failAt := range []int{0, 1, 2, 3, 4, 5, 6} {
+	shared := []string{executableName(), "web/dist/index.html", "internal/bin/ffmpeg", "modernz/file", ".version"}
+	oldOnly := []string{"obsolete/nested/file", ".obsolete"}
+	newOnly := []string{"plugins/plugin.js", "assets/icon.svg", "launch.sh"}
+	preserved := []string{"config.toml", "data/javboss.db", "data/client/settings.json", "data/tools/ffmpeg", "logs/javboss.log", ".updates/keep"}
+	// Each fixture path above has a distinct top-level entry within its group.
+	for failAt := 0; failAt <= 2*len(shared)+len(oldOnly)+len(newOnly); failAt++ {
 		t.Run(fmt.Sprint(failAt), func(t *testing.T) {
-			base, payload, backup := t.TempDir(), t.TempDir(), t.TempDir()
-			for _, rel := range []string{executableName(), "web/dist/index.html", "modernz/file"} {
+			base := t.TempDir()
+			stage := filepath.Join(base, ".updates", "update-test")
+			payload, backup := filepath.Join(stage, "payload"), filepath.Join(stage, "backup")
+			for _, rel := range shared {
 				putFile(t, base, rel, "old")
 				putFile(t, payload, rel, "new")
 			}
-			for _, rel := range []string{"config.toml", "data/javboss.db", "data/client/settings.json", "data/tools/ffmpeg"} {
+			for _, rel := range oldOnly {
+				putFile(t, base, rel, "obsolete")
+			}
+			for _, rel := range newOnly {
+				putFile(t, payload, rel, "added")
+			}
+			for _, rel := range preserved {
 				putFile(t, base, rel, "user")
 				putFile(t, payload, rel, "default")
 			}
 			putFile(t, base, "web/dist/obsolete.js", "old asset")
+			putFile(t, base, "internal/bin/obsolete-tool", "old tool")
 			calls := 0
 			tx := &replacement{journal: filepath.Join(backup, "files.json"), rename: func(a, b string) error {
 				calls++
@@ -213,20 +227,45 @@ func TestReplacementPreservesDataAndRollsBackFailures(t *testing.T) {
 			if (err != nil) != (failAt > 0) {
 				t.Fatalf("err=%v", err)
 			}
-			want := "new"
-			if failAt > 0 {
-				want = "old"
+			if tx.rollbackFailed {
+				t.Fatal("rollback failed")
 			}
-			for _, rel := range []string{executableName(), "web/dist/index.html", "modernz/file"} {
-				requireFile(t, base, rel, want)
-			}
-			for _, rel := range []string{"config.toml", "data/javboss.db", "data/client/settings.json", "data/tools/ffmpeg"} {
+			for _, rel := range preserved {
 				requireFile(t, base, rel, "user")
 			}
 			if failAt == 0 {
-				if _, err := os.Stat(filepath.Join(base, "web/dist/obsolete.js")); !os.IsNotExist(err) {
-					t.Fatal("obsolete frontend survived replacement")
+				for _, rel := range shared {
+					requireFile(t, base, rel, "new")
+					requireFile(t, filepath.Join(backup, "files"), rel, "old")
 				}
+				for _, rel := range newOnly {
+					requireFile(t, base, rel, "added")
+				}
+				for _, rel := range []string{"obsolete", ".obsolete", "web/dist/obsolete.js", "internal/bin/obsolete-tool"} {
+					if _, err := os.Lstat(filepath.Join(base, rel)); !os.IsNotExist(err) {
+						t.Fatalf("obsolete path %s survived replacement: %v", rel, err)
+					}
+				}
+				// A failed process start also rolls back after all files were installed.
+				if err := tx.rollback(); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, rel := range shared {
+				requireFile(t, base, rel, "old")
+			}
+			for _, rel := range oldOnly {
+				requireFile(t, base, rel, "obsolete")
+			}
+			requireFile(t, base, "web/dist/obsolete.js", "old asset")
+			requireFile(t, base, "internal/bin/obsolete-tool", "old tool")
+			for _, rel := range []string{"plugins", "assets", "launch.sh"} {
+				if _, err := os.Lstat(filepath.Join(base, rel)); !os.IsNotExist(err) {
+					t.Fatalf("new path %s survived rollback: %v", rel, err)
+				}
+			}
+			for _, rel := range preserved {
+				requireFile(t, base, rel, "user")
 			}
 		})
 	}

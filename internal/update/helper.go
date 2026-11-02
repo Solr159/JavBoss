@@ -21,6 +21,15 @@ import (
 
 const readyEnvironment = "JAVBOSS_UPDATE_READY"
 
+// Capture this before AcknowledgeStartup consumes the environment marker.
+var restartedAfterUpdate = os.Getenv(readyEnvironment) != ""
+
+// RestartedAfterUpdate reports whether the update helper started this process.
+// Desktop startup uses it to leave the existing browser page to reconnect.
+func RestartedAfterUpdate() bool {
+	return restartedAfterUpdate
+}
+
 type installPlan struct {
 	BaseDir      string   `json:"base_dir"`
 	StageDir     string   `json:"stage_dir"`
