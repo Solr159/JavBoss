@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type replacedFile struct {
@@ -34,42 +35,46 @@ func (t *replacement) apply(base, payload, backup string) (err error) {
 			err = errors.Join(err, rollbackErr)
 		}
 	}()
-	// Only release-owned paths are replaced. Never copy default configuration or
-	// touch data/tools (user-installed FFmpeg), covers, videos, or client settings.
-	paths := []string{executableName(), "web/dist", "internal/bin/ffprobe", "internal/bin/ffprobe.exe",
-		"internal/bin/ffmpeg", "internal/bin/ffmpeg.exe", "internal/bin/mpv", "modernz", "javboss.command", ".version"}
-	for _, rel := range paths {
-		rel = filepath.FromSlash(rel)
-		src := filepath.Join(payload, rel)
-		if _, err := os.Lstat(src); os.IsNotExist(err) {
+	oldEntries, err := os.ReadDir(base)
+	if err != nil {
+		return fmt.Errorf("read installation directory: %w", err)
+	}
+	newEntries, err := os.ReadDir(payload)
+	if err != nil {
+		return fmt.Errorf("read update payload: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Join(backup, "files"), 0700); err != nil {
+		return err
+	}
+	// Move all replaceable top-level entries out first, including obsolete files.
+	// Renaming directories and symlinks avoids following links outside the install.
+	for _, item := range oldEntries {
+		if preserveUpdateEntry(item.Name()) {
 			continue
-		} else if err != nil {
-			return err
 		}
-		if err := validateParents(base, rel); err != nil {
-			return err
+		entry := &replacedFile{
+			Target: filepath.Join(base, item.Name()),
+			Backup: filepath.Join(backup, "files", item.Name()),
 		}
-		target, saved := filepath.Join(base, rel), filepath.Join(backup, "files", rel)
-		if err := os.MkdirAll(filepath.Dir(saved), 0700); err != nil {
-			return err
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return err
-		}
-		entry := &replacedFile{Target: target, Backup: saved}
 		t.files = append(t.files, entry)
-		if _, err := os.Lstat(target); err == nil {
-			if err := t.rename(target, saved); err != nil {
-				return err
-			}
-			entry.Old = true
-		} else if !os.IsNotExist(err) {
+		if err := t.rename(entry.Target, entry.Backup); err != nil {
 			return err
 		}
+		entry.Old = true
 		if err := writeJSON(t.journal, t.files); err != nil {
 			return err
 		}
-		if err := t.rename(src, target); err != nil {
+	}
+	// Install the complete package except persistent user state and updater state.
+	// Separate journal entries let rollback remove every new entry before restoring
+	// the old tree, even if a path changed type or capitalization between versions.
+	for _, item := range newEntries {
+		if preserveUpdateEntry(item.Name()) {
+			continue
+		}
+		entry := &replacedFile{Target: filepath.Join(base, item.Name())}
+		t.files = append(t.files, entry)
+		if err := t.rename(filepath.Join(payload, item.Name()), entry.Target); err != nil {
 			return err
 		}
 		entry.Installed = true
@@ -80,20 +85,16 @@ func (t *replacement) apply(base, payload, backup string) (err error) {
 	return nil
 }
 
-func validateParents(base, rel string) error {
-	for parent := filepath.Dir(rel); parent != "."; parent = filepath.Dir(parent) {
-		info, err := os.Lstat(filepath.Join(base, parent))
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return fmt.Errorf("update parent is not a regular directory: %s", parent)
-		}
+func preserveUpdateEntry(name string) bool {
+	// Protect aliases on case-insensitive macOS and Windows filesystems as well.
+	// .updates contains the running helper, payload and rollback backups. Successful
+	// workspaces are removed by cleanupUpdate only after the helper exits.
+	switch strings.ToLower(name) {
+	case "data", "config.toml", "logs", ".updates":
+		return true
+	default:
+		return false
 	}
-	return nil
 }
 
 func (t *replacement) rollback() error {
