@@ -975,14 +975,6 @@ export default function DirectoryManager({
             )}
             {toolConfiguring && toolMode !== DIRECTORY_PROCESS_ORGANIZE && (
               <div className={toolMode === DIRECTORY_PROCESS_SIDECAR ? '' : 'mt-4'}>
-                {toolMode === DIRECTORY_PROCESS_SIDECAR && (
-                  <p className="mb-3 text-sm text-zinc-600">
-                    {zh(
-                      '在视频旁生成 NFO 和封面，不移动视频。',
-                      'Generate NFO files and covers beside videos without moving them.'
-                    )}
-                  </p>
-                )}
                 <label className="flex items-start gap-2 text-sm font-medium text-zinc-900">
                   <input
                     type="checkbox"
