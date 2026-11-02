@@ -18,6 +18,10 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	putFile(t, payload, "web/dist/index.html", "new frontend")
 	putFile(t, base, "web/dist/index.html", "old frontend")
 	putFile(t, base, "config.toml", "user settings")
+	putFile(t, payload, "config.toml", "default settings")
+	putFile(t, base, "logs/previous.log", "previous log")
+	putFile(t, payload, "plugins/new-plugin.js", "new plugin")
+	putFile(t, base, "obsolete/old-file", "obsolete file")
 	putFile(t, base, executableName(), "old executable")
 	self, err := os.Executable()
 	if err != nil {
@@ -86,6 +90,7 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	}
 	requireFile(t, stage, "application-ready", "v2.0.0")
 	requireFile(t, stage, "backup/files/"+executableName(), "old executable")
+	requireFile(t, stage, "backup/files/obsolete/old-file", "obsolete file")
 	putFile(t, stage, "allow-helper-exit", "exit")
 	select {
 	case err := <-done:
@@ -100,6 +105,11 @@ func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
 	}
 	requireFile(t, base, "web/dist/index.html", "new frontend")
 	requireFile(t, base, "config.toml", "user settings")
+	requireFile(t, base, "logs/previous.log", "previous log")
+	requireFile(t, base, "plugins/new-plugin.js", "new plugin")
+	if _, err := os.Stat(filepath.Join(base, "obsolete")); !os.IsNotExist(err) {
+		t.Fatalf("obsolete directory survived update: %v", err)
+	}
 	requireFile(t, base, ".version", "v2.0.0\n")
 	if _, err := os.Stat(filepath.Join(base, ".updates")); !os.IsNotExist(err) {
 		t.Fatalf("update workspace remained after helper exit: %v", err)
