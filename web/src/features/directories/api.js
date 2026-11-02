@@ -76,3 +76,23 @@ export async function scanDirectory(id) {
   }
   return res.json()
 }
+
+export async function previewDirectoryCleanup(id, options) {
+  const res = await apiFetch(`/directories/${id}/cleanup/preview`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify(options),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}
+
+export async function cleanDirectoryFiles(id, rootPath, files) {
+  const res = await apiFetch(`/directories/${id}/cleanup`, {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ root_path: rootPath, files }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return res.json()
+}

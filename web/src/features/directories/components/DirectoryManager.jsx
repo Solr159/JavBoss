@@ -9,6 +9,7 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import { CircularProgress, IconButton, Switch } from '@mui/material'
 
 import DirectoryPickerModal from '@/features/directories/components/DirectoryPickerModal'
+import DirectoryCleanupModal from '@/features/directories/components/DirectoryCleanupModal'
 import AppModal from '@/shared/ui/AppModal'
 import { useStore } from '@/store'
 import { apiHostPath, displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
@@ -16,6 +17,7 @@ import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 
 const DIRECTORY_PROCESS_SIDECAR = 'sidecar'
+const DIRECTORY_PROCESS_CLEANUP = 'cleanup'
 const DIRECTORY_PROCESS_ORGANIZE = 'organize'
 const DIRECTORY_PROCESS_ORGANIZE_WITH_SIDECAR = 'organize_with_sidecar'
 const DIRECTORY_PROCESS_LAYOUT_PREFIX = 'prefix'
@@ -23,6 +25,14 @@ const DIRECTORY_PROCESS_LAYOUT_CODE = 'code'
 const DIRECTORY_PROCESS_LAYOUT_IDOL = 'idol'
 
 const directoryProcessOptions = () => [
+  {
+    mode: DIRECTORY_PROCESS_CLEANUP,
+    title: zh('垃圾文件清理', 'Clean junk files'),
+    description: zh(
+      '扫描广告、杂项和系统垃圾文件，预览并勾选后清理，保留视频、字幕、NFO 和封面。',
+      'Find ads, miscellaneous files and system junk, then preview and select files to clean. Preserve videos, subtitles, NFO files and covers.'
+    ),
+  },
   {
     mode: DIRECTORY_PROCESS_SIDECAR,
     title: zh('仅生成 NFO 和封面', 'Generate NFO and covers only'),
@@ -115,6 +125,16 @@ const directoryWorkStatus = (directory) =>
 
 const directoryWorkStatusDisplay = (status) => {
   switch (status) {
+    case 'scanning_junk':
+    case 'cleaning_junk':
+      return {
+        label:
+          status === 'scanning_junk'
+            ? zh('当前状态：扫描垃圾文件中', 'Status: Scanning junk files')
+            : zh('当前状态：清理垃圾文件中', 'Status: Cleaning junk files'),
+        badge: 'bg-amber-50 text-amber-700',
+        dot: 'animate-pulse bg-amber-500',
+      }
     case 'scanning':
       return {
         label: zh('当前状态：扫描中', 'Status: Scanning'),
@@ -220,6 +240,7 @@ export default function DirectoryManager({
   const [savingScanSettingsId, setSavingScanSettingsId] = useState(null)
   const [scanSettingsError, setScanSettingsError] = useState('')
   const [toolDirectory, setToolDirectory] = useState(null)
+  const [cleanupDirectory, setCleanupDirectory] = useState(null)
   const [toolMode, setToolMode] = useState(DIRECTORY_PROCESS_SIDECAR)
   const [toolLayout, setToolLayout] = useState(DIRECTORY_PROCESS_LAYOUT_PREFIX)
   const pathExample = {
@@ -255,21 +276,11 @@ export default function DirectoryManager({
       setScanSettingsDirectory(null)
       setScanSettingsError('')
       setToolDirectory(null)
+      setCleanupDirectory(null)
       setToolMode(DIRECTORY_PROCESS_SIDECAR)
       setToolLayout(DIRECTORY_PROCESS_LAYOUT_PREFIX)
     }
   }, [open])
-
-  useEffect(() => {
-    if (!toolDirectory) return undefined
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setToolDirectory(null)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toolDirectory])
 
   useEffect(() => {
     if (!scanSettingsDirectory) return undefined
@@ -410,6 +421,10 @@ export default function DirectoryManager({
     if (!dir?.id || directoryWorkStatus(dir) !== 'idle') return
 
     setToolDirectory(null)
+    if (mode === DIRECTORY_PROCESS_CLEANUP) {
+      setCleanupDirectory(dir)
+      return
+    }
     setProcessingId(dir.id)
     setRowErrorId(null)
     setRowErrorMsg('')
@@ -879,7 +894,7 @@ export default function DirectoryManager({
               </label>
             ))}
           </div>
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_CLEANUP && (
             <div className="mt-4">
               <div className="text-sm font-medium text-zinc-900">
                 {zh('整理方式', 'Organization layout')}
@@ -922,7 +937,7 @@ export default function DirectoryManager({
               )}
             </div>
           )}
-          {toolMode !== DIRECTORY_PROCESS_SIDECAR && (
+          {toolMode !== DIRECTORY_PROCESS_SIDECAR && toolMode !== DIRECTORY_PROCESS_CLEANUP && (
             <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
               {zh(
                 '整理后的文件统一位于 “所选目录/JAV” 中。任务完成后，会生成 “所选目录/JavBoss-整理报告.txt”，可查看未整理文件及失败原因。',
@@ -944,10 +959,17 @@ export default function DirectoryManager({
               disabled={toolDirectoryWorking}
               className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
             >
-              {zh('执行', 'Run')}
+              {toolMode === DIRECTORY_PROCESS_CLEANUP ? zh('下一步', 'Next') : zh('执行', 'Run')}
             </button>
           </div>
         </AppModal>
+      )}
+      {cleanupDirectory && (
+        <DirectoryCleanupModal
+          directory={cleanupDirectory}
+          displayPath={displayPath(cleanupDirectory.path)}
+          onClose={() => setCleanupDirectory(null)}
+        />
       )}
       {scanSettingsDirectory && (
         <AppModal
