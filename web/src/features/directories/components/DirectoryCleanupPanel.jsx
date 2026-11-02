@@ -177,13 +177,7 @@ export default function DirectoryCleanupPanel({
         </IconButton>
       </header>
       <div className="min-h-0 overflow-y-auto px-5 pb-4">
-        <p className="text-sm leading-6 text-zinc-600">
-          {zh(
-            '递归扫描当前目录及子目录，跳过符号链接。默认保留视频、字幕、NFO、普通图片和整理报告。广告图片仅按文件名推断，请检查候选后再勾选。',
-            'Scan this folder and its subfolders, skipping symbolic links. Preserve videos, subtitles, NFO files, ordinary images and organization reports by default. Ad images are inferred from filenames; review candidates before selecting.'
-          )}
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {categories
             .filter((category) => category.option)
             .map((category) => (
