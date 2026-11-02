@@ -24,6 +24,7 @@ window.fetch = async (input, init = {}) => {
         ...(payload.include_downloads
           ? [{ path: 'unfinished.xltd', size: 500, modified: 'snapshot-4', reason: 'download' }]
           : []),
+        ...(window.extraCleanupFiles || []),
       ],
       issues: [{ path: 'restricted', reason: 'unreadable' }],
     })

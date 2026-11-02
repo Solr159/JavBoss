@@ -32,7 +32,10 @@ test(
       include_downloads: false,
       include_system: true,
     })
-    assert.equal(await evaluate(`${button('Close')}.disabled`), true)
+    assert.equal(
+      await evaluate(`document.querySelector('button[aria-label="Close"]').disabled`),
+      true
+    )
     await command('Input.dispatchKeyEvent', {
       type: 'keyDown',
       key: 'Escape',
@@ -114,5 +117,66 @@ test(
     await evaluate(`window.failCleanup = true; ${button('Scan again')}.click()`)
     await waitFor(`document.querySelector('[role="alert"]')?.textContent === 'Directory is busy'`)
     assert.equal(await evaluate(`${button('Clean selected files')}.disabled`), true)
+
+    // A large result set must scroll inside the body without moving the header/footer.
+    await evaluate(`window.failCleanup = false;
+      window.extraCleanupFiles = Array.from({length: 100}, (_, index) => ({
+        path: 'nested/long-directory-name-' + index + '/advertisement.txt',
+        size: 12, modified: 'snapshot-extra-' + index, reason: 'misc'
+      }));
+      ${button('Scan junk files')}.click()`)
+    await waitFor(
+      `document.querySelector('input[aria-label="nested/long-directory-name-99/advertisement.txt"]')`
+    )
+    for (const [width, height] of [
+      [1280, 720],
+      [390, 640],
+      [1024, 480],
+    ]) {
+      await command('Emulation.setDeviceMetricsOverride', {
+        width,
+        height,
+        deviceScaleFactor: 1,
+        mobile: false,
+      })
+      const layout = await evaluate(`(() => {
+        const dialog = document.querySelector('[aria-labelledby="directory-cleanup-title"]');
+        const close = dialog.querySelector('button[aria-label="Close"]');
+        const header = dialog.querySelector('header');
+        const footer = dialog.querySelector('footer');
+        const bounds = dialog.getBoundingClientRect();
+        const closeBounds = close.getBoundingClientRect();
+        const scrollers = [...dialog.querySelectorAll('*')].filter(el =>
+          ['auto', 'scroll'].includes(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1);
+        const before = [header.getBoundingClientRect().top, footer.getBoundingClientRect().bottom];
+        scrollers[0].scrollTop = scrollers[0].scrollHeight;
+        return {
+          contained: bounds.top >= 15 && bounds.bottom <= innerHeight - 15 && bounds.left >= 15 && bounds.right <= innerWidth - 15,
+          dialogOverflow: dialog.scrollHeight > dialog.clientHeight + 1,
+          horizontalOverflow: dialog.scrollWidth > dialog.clientWidth + 1,
+          scrollers: scrollers.length,
+          scrolled: scrollers[0].scrollTop > 0,
+          fixed: before[0] === header.getBoundingClientRect().top && before[1] === footer.getBoundingClientRect().bottom,
+          closeAtTopRight: header.contains(close) && closeBounds.right > bounds.right - 50 && closeBounds.top < bounds.top + 30,
+          footerClose: footer.querySelector('button[aria-label="Close"]') !== null,
+        };
+      })()`)
+      assert.deepEqual(
+        layout,
+        {
+          contained: true,
+          dialogOverflow: false,
+          horizontalOverflow: false,
+          scrollers: 1,
+          scrolled: true,
+          fixed: true,
+          closeAtTopRight: true,
+          footerClose: false,
+        },
+        `${width}x${height}`
+      )
+    }
+    await evaluate(`document.querySelector('button[aria-label="Close"]').click()`)
+    await waitFor(`!document.querySelector('#directory-cleanup-title')`)
   }
 )

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { CircularProgress } from '@mui/material'
+import { CircularProgress, IconButton } from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { cleanDirectoryFiles, previewDirectoryCleanup } from '@/features/directories/api'
 import AppModal from '@/shared/ui/AppModal'
 import { formatBytes } from '@/utils/display'
@@ -153,172 +154,187 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
       ariaLabelledby="directory-cleanup-title"
       className="p-4"
       closeDisabled={Boolean(busy)}
-      contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-y-auto rounded-2xl bg-white p-5 shadow-xl"
+      contentClassName="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
       onClose={onClose}
       zIndex={1400}
     >
-      <h2 id="directory-cleanup-title" className="text-base font-semibold text-zinc-900">
-        {zh('垃圾文件清理', 'Clean junk files')}
-      </h2>
-      <div className="mt-1 break-all text-xs text-zinc-500">{displayPath}</div>
-      <p className="mt-3 text-sm leading-6 text-zinc-600">
-        {zh(
-          '递归扫描当前目录及子目录，跳过符号链接。默认保留视频、字幕、NFO、普通图片和整理报告。广告图片仅按文件名推断，请检查候选后再勾选。',
-          'Scan this folder and its subfolders, skipping symbolic links. Preserve videos, subtitles, NFO files, ordinary images and organization reports by default. Ad images are inferred from filenames; review candidates before selecting.'
-        )}
-      </p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {categories
-          .filter((category) => category.option)
-          .map((category) => (
-            <label key={category.option} className="flex items-start gap-2 text-sm text-zinc-800">
-              <input
-                type="checkbox"
-                aria-label={category.label}
-                checked={options[category.option]}
-                disabled={Boolean(busy)}
-                className="mt-1"
-                onChange={(event) => {
-                  setOptions((current) => ({ ...current, [category.option]: event.target.checked }))
-                  setPreview(null)
-                  setSelected(new Set())
-                  setResult(null)
-                  setError('')
-                }}
-              />
-              <span>
-                <span className="block">{category.label}</span>
-                <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
-                  {category.description}
-                </span>
-              </span>
-            </label>
-          ))}
-      </div>
-      {preview && (
-        <div className="mt-5 border-t border-zinc-200 pt-4">
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm">
-            <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-blue-600"
-                aria-label={zh('全选', 'Select all')}
-                disabled={Boolean(busy) || !files.length}
-                checked={files.length > 0 && files.every((file) => selected.has(file.path))}
-                onChange={(event) =>
-                  setSelected(new Set(event.target.checked ? files.map((file) => file.path) : []))
-                }
-              />
-              {zh('全选', 'Select all')}
-            </label>
-            <span className="text-xs tabular-nums text-blue-700">
-              {zh(`已选 ${chosen.length} 个`, `${chosen.length} selected`)} ·{' '}
-              {formatCleanupBytes(chosenBytes)}
-            </span>
+      <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
+        <div className="min-w-0">
+          <h2 id="directory-cleanup-title" className="text-base font-semibold text-zinc-900">
+            {zh('垃圾文件清理', 'Clean junk files')}
+          </h2>
+          <div title={displayPath} className="mt-1 truncate text-xs text-zinc-500">
+            {displayPath}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            {zh(`找到 ${files.length} 个文件`, `${files.length} files found`)}
-          </p>
-          {files.length ? (
-            <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-zinc-200">
-              {categories.map((category) => {
-                const group = files.filter((file) => file.reason === category.reason)
-                if (!group.length) return null
-                return (
-                  <div key={category.reason}>
-                    <div className="bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600">
-                      {category.label} · {group.length} ·{' '}
-                      {formatCleanupBytes(group.reduce((sum, file) => sum + file.size, 0))}
-                    </div>
-                    {group.map((file) => (
-                      <label
-                        key={file.path}
-                        className="flex items-start gap-3 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50"
-                      >
-                        <input
-                          type="checkbox"
-                          aria-label={file.path}
-                          checked={selected.has(file.path)}
-                          disabled={Boolean(busy)}
-                          className="mt-1"
-                          onChange={(event) =>
-                            setSelected((current) => {
-                              const next = new Set(current)
-                              if (event.target.checked) next.add(file.path)
-                              else next.delete(file.path)
-                              return next
-                            })
-                          }
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block break-all text-sm text-zinc-800">{file.path}</span>
-                          <span className="text-xs text-zinc-500">
-                            {formatCleanupBytes(file.size)} · {category.label}
-                          </span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-500">
-              {zh('没有待清理的匹配文件。', 'No matching files to clean.')}
-            </p>
-          )}
-          {preview.truncated && (
-            <p className="mt-2 text-xs text-amber-700">
-              {zh(
-                '本次最多显示 10000 个文件，清理后请再次扫描。',
-                'Showing up to 10,000 files. Scan again after cleaning.'
-              )}
-            </p>
-          )}
         </div>
-      )}
-      {result && (
-        <p role="status" className="mt-3 text-sm text-zinc-700">
+        <IconButton
+          type="button"
+          aria-label={zh('关闭', 'Close')}
+          onClick={onClose}
+          disabled={Boolean(busy)}
+          size="small"
+          className="!shrink-0"
+        >
+          <CloseRoundedIcon fontSize="small" />
+        </IconButton>
+      </header>
+      <div className="min-h-0 overflow-y-auto px-5 pb-4">
+        <p className="text-sm leading-6 text-zinc-600">
           {zh(
-            `已删除 ${result.deleted.length} 个文件，共 ${formatCleanupBytes(result.deleted_bytes)}；未删除 ${result.issues.length} 个。`,
-            `Deleted ${result.deleted.length} files, totaling ${formatCleanupBytes(result.deleted_bytes)}; ${result.issues.length} files were not deleted.`
+            '递归扫描当前目录及子目录，跳过符号链接。默认保留视频、字幕、NFO、普通图片和整理报告。广告图片仅按文件名推断，请检查候选后再勾选。',
+            'Scan this folder and its subfolders, skipping symbolic links. Preserve videos, subtitles, NFO files, ordinary images and organization reports by default. Ad images are inferred from filenames; review candidates before selecting.'
           )}
         </p>
-      )}
-      {(result?.issues.length > 0 || preview?.issues.length > 0) && (
-        <details className="mt-3 text-sm text-amber-800">
-          <summary className="cursor-pointer">
-            {zh('查看跳过或失败的项目', 'View skipped or failed items')}
-          </summary>
-          <ul className="mt-2 max-h-32 space-y-1 overflow-auto text-xs">
-            {[...(preview?.issues || []), ...(result?.issues || [])].map((issue, index) => (
-              <li key={`${issue.path}-${index}`} className="break-all">
-                {issue.path}：{issueLabel(issue.reason)}
-              </li>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {categories
+            .filter((category) => category.option)
+            .map((category) => (
+              <label key={category.option} className="flex items-start gap-2 text-sm text-zinc-800">
+                <input
+                  type="checkbox"
+                  aria-label={category.label}
+                  checked={options[category.option]}
+                  disabled={Boolean(busy)}
+                  className="mt-1"
+                  onChange={(event) => {
+                    setOptions((current) => ({
+                      ...current,
+                      [category.option]: event.target.checked,
+                    }))
+                    setPreview(null)
+                    setSelected(new Set())
+                    setResult(null)
+                    setError('')
+                  }}
+                />
+                <span>
+                  <span className="block">{category.label}</span>
+                  <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                    {category.description}
+                  </span>
+                </span>
+              </label>
             ))}
-          </ul>
-        </details>
-      )}
-      {error && (
-        <p role="alert" className="mt-3 text-sm text-red-600">
-          {error}
-        </p>
-      )}
-      <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+        </div>
+        {preview && (
+          <div className="mt-5 border-t border-zinc-200 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm">
+              <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-blue-600"
+                  aria-label={zh('全选', 'Select all')}
+                  disabled={Boolean(busy) || !files.length}
+                  checked={files.length > 0 && files.every((file) => selected.has(file.path))}
+                  onChange={(event) =>
+                    setSelected(new Set(event.target.checked ? files.map((file) => file.path) : []))
+                  }
+                />
+                {zh('全选', 'Select all')}
+              </label>
+              <span className="text-xs tabular-nums text-blue-700">
+                {zh(`已选 ${chosen.length} 个`, `${chosen.length} selected`)} ·{' '}
+                {formatCleanupBytes(chosenBytes)}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-zinc-500">
+              {zh(`找到 ${files.length} 个文件`, `${files.length} files found`)}
+            </p>
+            {files.length ? (
+              <div className="mt-2 overflow-clip rounded-lg border border-zinc-200">
+                {categories.map((category) => {
+                  const group = files.filter((file) => file.reason === category.reason)
+                  if (!group.length) return null
+                  return (
+                    <div key={category.reason}>
+                      <div className="bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600">
+                        {category.label} · {group.length} ·{' '}
+                        {formatCleanupBytes(group.reduce((sum, file) => sum + file.size, 0))}
+                      </div>
+                      {group.map((file) => (
+                        <label
+                          key={file.path}
+                          className="flex items-start gap-3 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50"
+                        >
+                          <input
+                            type="checkbox"
+                            aria-label={file.path}
+                            checked={selected.has(file.path)}
+                            disabled={Boolean(busy)}
+                            className="mt-1"
+                            onChange={(event) =>
+                              setSelected((current) => {
+                                const next = new Set(current)
+                                if (event.target.checked) next.add(file.path)
+                                else next.delete(file.path)
+                                return next
+                              })
+                            }
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block break-all text-sm text-zinc-800">
+                              {file.path}
+                            </span>
+                            <span className="text-xs text-zinc-500">
+                              {formatCleanupBytes(file.size)} · {category.label}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-zinc-500">
+                {zh('没有待清理的匹配文件。', 'No matching files to clean.')}
+              </p>
+            )}
+            {preview.truncated && (
+              <p className="mt-2 text-xs text-amber-700">
+                {zh(
+                  '本次最多显示 10000 个文件，清理后请再次扫描。',
+                  'Showing up to 10,000 files. Scan again after cleaning.'
+                )}
+              </p>
+            )}
+          </div>
+        )}
+        {result && (
+          <p role="status" className="mt-3 text-sm text-zinc-700">
+            {zh(
+              `已删除 ${result.deleted.length} 个文件，共 ${formatCleanupBytes(result.deleted_bytes)}；未删除 ${result.issues.length} 个。`,
+              `Deleted ${result.deleted.length} files, totaling ${formatCleanupBytes(result.deleted_bytes)}; ${result.issues.length} files were not deleted.`
+            )}
+          </p>
+        )}
+        {(result?.issues.length > 0 || preview?.issues.length > 0) && (
+          <details className="mt-3 text-sm text-amber-800">
+            <summary className="cursor-pointer">
+              {zh('查看跳过或失败的项目', 'View skipped or failed items')}
+            </summary>
+            <ul className="mt-2 space-y-1 text-xs">
+              {[...(preview?.issues || []), ...(result?.issues || [])].map((issue, index) => (
+                <li key={`${issue.path}-${index}`} className="break-all">
+                  {issue.path}：{issueLabel(issue.reason)}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600">
+            {error}
+          </p>
+        )}
+      </div>
+      <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4">
         {busy && (
           <span role="status" className="mr-auto flex items-center gap-2 text-sm text-zinc-500">
             <CircularProgress size={16} />
             {busy === 'scan' ? zh('扫描中…', 'Scanning…') : zh('清理中…', 'Cleaning…')}
           </span>
         )}
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={Boolean(busy)}
-          className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-        >
-          {zh('关闭', 'Close')}
-        </button>
         <button
           type="button"
           onClick={scan}
@@ -335,7 +351,7 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
         >
           {zh('清理所选文件', 'Clean selected files')}
         </button>
-      </div>
+      </footer>
     </AppModal>
   )
 }
