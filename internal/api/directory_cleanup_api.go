@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"javboss/internal/common/logging"
@@ -34,12 +35,26 @@ func cleanupDirectory(c *gin.Context) *models.Directory {
 	return dir
 }
 
+func disableCleanupWriteDeadline(c *gin.Context) bool {
+	// Recursive scans and sequential probes can outlast the server's 30s write
+	// timeout. Keep the request context so client disconnects still cancel work.
+	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		logging.Error("disable directory cleanup write deadline: %v", err)
+		respondLocalizedError(c, http.StatusInternalServerError, "无法启动清理请求，请稍后重试", "Unable to start cleanup request; please try again")
+		return false
+	}
+	return true
+}
+
 // POST /directories/:id/cleanup/preview accepts CleanupOptions category flags.
 // include_system controls system junk. Paths in the response are relative to root_path.
 func previewDirectoryCleanup(c *gin.Context) {
 	var req directory.CleanupOptions
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "清理扫描请求无效", "Invalid cleanup preview request")
+		return
+	}
+	if !disableCleanupWriteDeadline(c) {
 		return
 	}
 	dir := cleanupDirectory(c)
@@ -65,6 +80,9 @@ func cleanDirectoryFiles(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "清理请求无效或过大", "Invalid or oversized cleanup request")
+		return
+	}
+	if !disableCleanupWriteDeadline(c) {
 		return
 	}
 	dir := cleanupDirectory(c)

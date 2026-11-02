@@ -135,12 +135,9 @@ func (m *Manager) PreviewDirectoryCleanup(ctx context.Context, dir models.Direct
 		return nil, fmt.Errorf("open cleanup directory: %w", err)
 	}
 	defer root.Close()
-	var indexed map[string]bool
-	if options.IncludeDownloads {
-		indexed, err = cleanupIndexedPaths(ctx, dir.Path)
-		if err != nil {
-			return nil, err
-		}
+	indexed, err := cleanupIndexedPaths(ctx, dir.Path)
+	if err != nil {
+		return nil, err
 	}
 	preview := &CleanupPreview{RootPath: dir.Path, Files: []CleanupFile{}, Issues: []CleanupIssue{}}
 	err = fs.WalkDir(root.FS(), ".", func(name string, entry fs.DirEntry, walkErr error) error {
@@ -158,6 +155,9 @@ func (m *Manager) PreviewDirectoryCleanup(ctx context.Context, dir models.Direct
 		if reason == "" {
 			return nil
 		}
+		if indexed[name] {
+			return nil
+		}
 		info, err := entry.Info()
 		if err != nil {
 			preview.Issues = append(preview.Issues, CleanupIssue{Path: name, Reason: "unreadable"})
@@ -167,9 +167,6 @@ func (m *Manager) PreviewDirectoryCleanup(ctx context.Context, dir models.Direct
 			return nil
 		}
 		if reason == "download" {
-			if indexed[name] {
-				return nil
-			}
 			eligible, issue := checkCleanupMedia(ctx, filepath.Join(dir.Path, filepath.FromSlash(name)))
 			if issue != "" {
 				preview.Issues = append(preview.Issues, CleanupIssue{Path: name, Reason: issue})
@@ -200,7 +197,6 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 	}
 	seen := make(map[string]bool, len(files))
 	options := CleanupOptions{IncludeSystem: true, IncludeMisc: true, IncludeTorrents: true, IncludeShortcuts: true, IncludeAdImages: true, IncludeDownloads: true}
-	needsMediaCheck := false
 	// Validate the entire request before removing anything.
 	for _, file := range files {
 		if !fs.ValidPath(file.Path) || file.Path == "." || strings.Contains(file.Path, "\\") ||
@@ -213,7 +209,6 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 			if file.Reason != reason {
 				return nil, ErrInvalidCleanupRequest
 			}
-			needsMediaCheck = true
 		}
 		seen[file.Path] = true
 	}
@@ -227,12 +222,10 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 		return nil, fmt.Errorf("open cleanup directory: %w", err)
 	}
 	defer root.Close()
-	var indexed map[string]bool
-	if needsMediaCheck {
-		indexed, err = cleanupIndexedPaths(ctx, dir.Path)
-		if err != nil {
-			return nil, err
-		}
+	// Refresh the index after preview, for every category, before deleting anything.
+	indexed, err := cleanupIndexedPaths(ctx, dir.Path)
+	if err != nil {
+		return nil, err
 	}
 	result := &CleanupResult{Deleted: []string{}, Issues: []CleanupIssue{}}
 	for _, file := range files {
@@ -240,12 +233,12 @@ func (m *Manager) CleanDirectoryFiles(ctx context.Context, dir models.Directory,
 			result.Issues = append(result.Issues, CleanupIssue{Path: file.Path, Reason: "cancelled"})
 			continue
 		}
+		if indexed[file.Path] {
+			result.Issues = append(result.Issues, CleanupIssue{Path: file.Path, Reason: "indexed_video"})
+			continue
+		}
 		reason := cleanupReason(path.Base(file.Path), options)
 		if reason == "download" {
-			if indexed[file.Path] {
-				result.Issues = append(result.Issues, CleanupIssue{Path: file.Path, Reason: "indexed_video"})
-				continue
-			}
 			eligible, issue := checkCleanupMedia(ctx, filepath.Join(dir.Path, filepath.FromSlash(file.Path)))
 			if !eligible {
 				if issue == "" {

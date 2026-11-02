@@ -7,9 +7,12 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	dbpkg "javboss/internal/db"
 	"javboss/internal/directory"
 	"javboss/internal/models"
@@ -134,5 +137,94 @@ func TestDirectoryCleanupRequiresAuthentication(t *testing.T) {
 		if response.Code != http.StatusUnauthorized {
 			t.Fatalf("unauthenticated %s: %d", route, response.Code)
 		}
+	}
+}
+
+func TestDirectoryCleanupResponsesOutlastServerWriteTimeout(t *testing.T) {
+	deps := newTestDependencies()
+	database, err := dbpkg.Open(filepath.Join(t.TempDir(), "cleanup.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	deps.database = database
+	deps.bindDatabase(t)
+	dir := models.Directory{ID: 1, Path: t.TempDir()}
+	if err := database.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	filename := filepath.Join(dir.Path, "ad.txt")
+	if err := os.WriteFile(filename, []byte("junk"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Delay a real cleanup operation without requiring slow disks or FFprobe.
+	// Both endpoints read video locations before walking/deleting files.
+	var delayedQueries atomic.Int32
+	if err := database.Callback().Query().Before("gorm:query").Register("test:slow_cleanup_index", func(tx *gorm.DB) {
+		if tx.Statement.Table != "video_location" {
+			return
+		}
+		delayedQueries.Add(1)
+		timer := time.NewTimer(150 * time.Millisecond)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-tx.Statement.Context.Done():
+			tx.AddError(tx.Statement.Context.Err())
+		}
+	}); err != nil {
+		t.Fatal(err)
+	}
+	router := gin.New()
+	RegisterRoutes(router)
+	server := httptest.NewUnstartedServer(router)
+	server.Config.WriteTimeout = 50 * time.Millisecond
+	server.Start()
+	defer server.Close()
+	client := server.Client()
+	client.Timeout = 5 * time.Second
+	request := func(route string, payload, result any) {
+		t.Helper()
+		body, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		response, err := client.Post(server.URL+route, "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("long cleanup request lost its response: %v", err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("%s status: %d", route, response.StatusCode)
+		}
+		if err := json.NewDecoder(response.Body).Decode(result); err != nil {
+			t.Fatalf("%s returned incomplete JSON: %v", route, err)
+		}
+	}
+	var preview directory.CleanupPreview
+	request("/directories/1/cleanup/preview", gin.H{"include_misc": true}, &preview)
+	if len(preview.Files) != 1 || preview.Files[0].Path != "ad.txt" {
+		t.Fatalf("unexpected preview: %+v", preview)
+	}
+	if _, err := os.Stat(filename); err != nil {
+		t.Fatalf("preview changed the file: %v", err)
+	}
+	var result directory.CleanupResult
+	request("/directories/1/cleanup", gin.H{"root_path": dir.Path, "files": preview.Files}, &result)
+	if len(result.Deleted) != 1 || result.Deleted[0] != "ad.txt" || result.DeletedBytes != 4 || len(result.Issues) != 0 {
+		t.Fatalf("unexpected cleanup result: %+v", result)
+	}
+	if _, err := os.Stat(filename); !os.IsNotExist(err) {
+		t.Fatalf("cleanup result does not match filesystem: %v", err)
+	}
+	if delayedQueries.Load() != 2 {
+		t.Fatalf("expected both requests to exceed the write timeout, got %d delays", delayedQueries.Load())
+	}
+	if directory.DirectoryWorkStatus(dir.ID) != directory.DirectoryWorkIdle {
+		t.Fatal("cleanup request leaked the directory reservation")
 	}
 }

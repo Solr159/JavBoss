@@ -72,7 +72,7 @@ func TestCleanupMediaRequiresSpecificEvidence(t *testing.T) {
 
 func TestExpandedCleanupPreviewAndDelete(t *testing.T) {
 	dir := models.Directory{ID: 1, Path: t.TempDir()}
-	m := New(Options{})
+	m := newCleanupTestDependencies(t).Manager
 	for _, name := range []string{"a.torrent", "b.lnk", "c.mht", "二维码.png", "movie.nfo", "poster.jpg", "001.jpg", "archive.zip"} {
 		writeCleanupFixture(t, dir.Path, name)
 	}

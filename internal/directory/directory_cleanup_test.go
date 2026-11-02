@@ -7,8 +7,26 @@ import (
 	"path/filepath"
 	"testing"
 
+	"javboss/internal/db"
 	"javboss/internal/models"
 )
+
+func newCleanupTestDependencies(t *testing.T) *testDependencies {
+	t.Helper()
+	deps := newTestDependencies()
+	var err error
+	deps.database, err = db.Open(filepath.Join(t.TempDir(), "cleanup.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := deps.database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	deps.bindDatabase(t)
+	return deps
+}
 
 func writeCleanupFixture(t *testing.T, root, name string) {
 	t.Helper()
@@ -24,7 +42,7 @@ func writeCleanupFixture(t *testing.T, root, name string) {
 func TestDirectoryCleanupPreviewAndSelection(t *testing.T) {
 	ctx := context.Background()
 	dir := models.Directory{ID: 1, Path: t.TempDir()}
-	m := New(Options{})
+	m := newCleanupTestDependencies(t).Manager
 	garbage := []string{".DS_Store", "nested/Thumbs.db", "nested/AD.TXT", "ad.url", "ad.html", "ad.htm"}
 	protected := []string{"movie.mp4", "movie.mkv", "movie.srt", "movie.ass", "movie.nfo", "poster.jpg", "cover.png", directoryProcessReportName, "download.part"}
 	for _, name := range append(garbage, protected...) {
@@ -68,7 +86,7 @@ func TestDirectoryCleanupPreviewAndSelection(t *testing.T) {
 func TestDirectoryCleanupRejectsInvalidSelectionBeforeDeleting(t *testing.T) {
 	ctx := context.Background()
 	dir := models.Directory{ID: 1, Path: t.TempDir()}
-	m := New(Options{})
+	m := newCleanupTestDependencies(t).Manager
 	writeCleanupFixture(t, dir.Path, "ad.txt")
 	preview, err := m.PreviewDirectoryCleanup(ctx, dir, CleanupOptions{IncludeSystem: true, IncludeMisc: true})
 	if err != nil {
@@ -98,7 +116,7 @@ func TestDirectoryCleanupRejectsInvalidSelectionBeforeDeleting(t *testing.T) {
 func TestDirectoryCleanupSkipsChangedFilesAndSymlinks(t *testing.T) {
 	ctx := context.Background()
 	dir := models.Directory{ID: 1, Path: t.TempDir()}
-	m := New(Options{})
+	m := newCleanupTestDependencies(t).Manager
 	for _, name := range []string{"changed.txt", "gone.url", "replaced.txt", "folder/ad.txt", "good.txt"} {
 		writeCleanupFixture(t, dir.Path, name)
 	}
@@ -140,7 +158,7 @@ func TestDirectoryCleanupSkipsChangedFilesAndSymlinks(t *testing.T) {
 func TestDirectoryCleanupTaskReservation(t *testing.T) {
 	ctx := context.Background()
 	dir := models.Directory{ID: 1, Path: t.TempDir()}
-	m := New(Options{})
+	m := newCleanupTestDependencies(t).Manager
 	_, finishScan, err := m.acquireDirectoryScanSession(ctx, dir.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -174,5 +192,117 @@ func TestDirectoryCleanupTaskReservation(t *testing.T) {
 	}
 	if _, err := m.PreviewDirectoryCleanup(ctx, dir, CleanupOptions{IncludeSystem: true, IncludeMisc: true}); err != nil {
 		t.Fatalf("reservation leaked: %v", err)
+	}
+}
+
+func TestCleanupProtectsIndexedVideosInEveryCategory(t *testing.T) {
+	for _, overlapping := range []bool{false, true} {
+		name := "selected root"
+		if overlapping {
+			name = "overlapping root"
+		}
+		t.Run(name, func(t *testing.T) {
+			deps := newCleanupTestDependencies(t)
+			dir := models.Directory{Path: t.TempDir()}
+			if err := deps.database.Create(&dir).Error; err != nil {
+				t.Fatal(err)
+			}
+			indexedDir := dir
+			prefix := ""
+			if overlapping {
+				indexedDir = models.Directory{Path: filepath.Join(dir.Path, "nested")}
+				if err := os.Mkdir(indexedDir.Path, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := deps.database.Create(&indexedDir).Error; err != nil {
+					t.Fatal(err)
+				}
+				prefix = "nested/"
+			}
+			names := []string{"Thumbs.db", "video.txt", "video.torrent", "video.lnk", "qr-video.png", "video.aria2"}
+			for _, filename := range names {
+				writeCleanupFixture(t, indexedDir.Path, filename)
+			}
+			writeCleanupFixture(t, dir.Path, "real-junk.txt")
+			options := CleanupOptions{IncludeSystem: true, IncludeMisc: true, IncludeTorrents: true, IncludeShortcuts: true, IncludeAdImages: true, IncludeDownloads: true}
+			preview, err := deps.PreviewDirectoryCleanup(t.Context(), dir, options)
+			if err != nil || len(preview.Files) != len(names)+1 {
+				t.Fatalf("preview before indexing: %+v, %v", preview, err)
+			}
+			// Index after preview: deletion must refresh its snapshot, not trust the selection.
+			video := models.Video{Fingerprint: "indexed-misleading-extensions"}
+			if err := deps.database.Create(&video).Error; err != nil {
+				t.Fatal(err)
+			}
+			for _, filename := range names {
+				loc := models.VideoLocation{VideoID: video.ID, DirectoryID: indexedDir.ID, RelativePath: filename, Filename: filename}
+				if err := deps.database.Create(&loc).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, downloads := range []bool{false, true} {
+				options.IncludeDownloads = downloads
+				protected, err := deps.PreviewDirectoryCleanup(t.Context(), dir, options)
+				if err != nil || len(protected.Files) != 1 || protected.Files[0].Path != "real-junk.txt" {
+					t.Fatalf("indexed files offered for cleanup (downloads=%v): %+v, %v", downloads, protected, err)
+				}
+			}
+			// Ordinary categories must be protected even when no download is selected.
+			var downloads, ordinary []CleanupFile
+			for _, file := range preview.Files {
+				if file.Reason == "download" {
+					downloads = append(downloads, file)
+				} else {
+					ordinary = append(ordinary, file)
+				}
+			}
+			result, err := deps.CleanDirectoryFiles(t.Context(), dir, dir.Path, ordinary)
+			if err != nil || len(result.Deleted) != 1 || result.Deleted[0] != "real-junk.txt" || len(result.Issues) != len(names)-1 {
+				t.Fatalf("ordinary cleanup: %+v, %v", result, err)
+			}
+			for _, issue := range result.Issues {
+				if issue.Reason != "indexed_video" {
+					t.Fatalf("wrong protection reason: %+v", issue)
+				}
+			}
+			result, err = deps.CleanDirectoryFiles(t.Context(), dir, dir.Path, downloads)
+			if err != nil || len(result.Deleted) != 0 || len(result.Issues) != 1 || result.Issues[0].Reason != "indexed_video" {
+				t.Fatalf("download cleanup: %+v, %v", result, err)
+			}
+			for _, filename := range names {
+				if _, err := os.Stat(filepath.Join(dir.Path, filepath.FromSlash(prefix+filename))); err != nil {
+					t.Fatalf("indexed video was removed: %s: %v", filename, err)
+				}
+			}
+		})
+	}
+}
+
+func TestCleanupIndexFailureDoesNotDeleteFiles(t *testing.T) {
+	deps := newCleanupTestDependencies(t)
+	dir := models.Directory{ID: 1, Path: t.TempDir()}
+	writeCleanupFixture(t, dir.Path, "ad.txt")
+	preview, err := deps.PreviewDirectoryCleanup(t.Context(), dir, CleanupOptions{IncludeMisc: true})
+	if err != nil || len(preview.Files) != 1 {
+		t.Fatalf("preview: %+v, %v", preview, err)
+	}
+	conn, err := deps.database.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := deps.PreviewDirectoryCleanup(t.Context(), dir, CleanupOptions{IncludeMisc: true}); err == nil {
+		t.Fatal("preview must fail if the index is unavailable")
+	}
+	if _, err := deps.CleanDirectoryFiles(t.Context(), dir, dir.Path, preview.Files); err == nil {
+		t.Fatal("cleanup must fail if the index is unavailable")
+	}
+	if _, err := os.Stat(filepath.Join(dir.Path, "ad.txt")); err != nil {
+		t.Fatalf("file removed without checking index: %v", err)
+	}
+	if deps.DirectoryWorkStatus(dir.ID) != DirectoryWorkIdle {
+		t.Fatal("failed index lookup leaked the directory reservation")
 	}
 }
