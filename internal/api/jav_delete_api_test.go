@@ -21,7 +21,12 @@ func TestDeleteJavVideos(t *testing.T) {
 	deps := newTestDependencies()
 	for _, scenario := range []string{"all copies", "missing file", "no videos", "missing directory", "traversal", "symlink", "shared video", "invalid id", "not found"} {
 		t.Run(scenario, func(t *testing.T) {
-			root := t.TempDir()
+			// macOS's temporary directory may start with the /var symlink. Use
+			// its physical path so this fixture contains only the symlinks under test.
+			root, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
 			if err := os.MkdirAll(filepath.Join(root, "data"), 0755); err != nil {
 				t.Fatal(err)
 			}

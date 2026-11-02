@@ -64,6 +64,13 @@ export async function openBrowser(
       pending.set(id, resolve)
       socket.send(JSON.stringify({ id, method, params }))
     })
+  // Fixtures assert English UI text. Pin the browser language instead of
+  // inheriting the developer's OS language (Chrome on macOS ignores --lang).
+  const { result: browserVersion } = await command('Browser.getVersion')
+  await command('Emulation.setUserAgentOverride', {
+    userAgent: browserVersion.userAgent,
+    acceptLanguage: 'en-US,en',
+  })
   const evaluate = async (expression) => {
     const reply = await command('Runtime.evaluate', {
       expression,

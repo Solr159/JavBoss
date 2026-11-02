@@ -12,7 +12,12 @@ import (
 // Exercise real process handoff, lock release, replacement, restart arguments,
 // and readiness without downloading or replacing the developer's installation.
 func TestHelperReplacesOnlyAfterParentExitAndRestarts(t *testing.T) {
-	base := t.TempDir()
+	// Executable and startup paths are canonicalized by the OS and updater.
+	// Keep the plan consistent when the temporary directory has symlink ancestors.
+	base, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	stage := filepath.Join(base, ".updates", "update-test")
 	payload := filepath.Join(stage, "payload")
 	putFile(t, payload, "web/dist/index.html", "new frontend")
