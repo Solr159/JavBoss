@@ -231,28 +231,59 @@ func TestDirectoryCleanupTaskReservation(t *testing.T) {
 }
 
 func TestCleanupProtectsIndexedVideosInEveryCategory(t *testing.T) {
-	for _, overlapping := range []bool{false, true} {
-		name := "selected root"
-		if overlapping {
-			name = "overlapping root"
-		}
-		t.Run(name, func(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		overlapping  bool
+		cleanupAlias bool
+		indexedAlias bool
+	}{
+		{name: "selected root"},
+		{name: "overlapping root", overlapping: true},
+		{name: "cleanup alias", cleanupAlias: true},
+		{name: "indexed alias", indexedAlias: true},
+		{name: "different aliases", cleanupAlias: true, indexedAlias: true},
+		{name: "cleanup alias with overlapping root", overlapping: true, cleanupAlias: true},
+		{name: "indexed alias with overlapping root", overlapping: true, indexedAlias: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			deps := newCleanupTestDependencies(t)
-			dir := models.Directory{Path: t.TempDir()}
-			if err := deps.database.Create(&dir).Error; err != nil {
+			realRoot := t.TempDir()
+			alias := func(target string) string {
+				t.Helper()
+				link := filepath.Join(t.TempDir(), "library")
+				if err := os.Symlink(target, link); err != nil {
+					t.Skipf("directory symlinks unavailable: %v", err)
+				}
+				return link
+			}
+			cleanupRoot := realRoot
+			if tc.cleanupAlias {
+				cleanupRoot = alias(realRoot)
+			}
+			registered, err := db.Default().CreateDirectory(t.Context(), cleanupRoot)
+			if err != nil {
 				t.Fatal(err)
 			}
+			dir := *registered
 			indexedDir := dir
+			indexedRoot := realRoot
 			prefix := ""
-			if overlapping {
-				indexedDir = models.Directory{Path: filepath.Join(dir.Path, "nested")}
-				if err := os.Mkdir(indexedDir.Path, 0o755); err != nil {
-					t.Fatal(err)
-				}
-				if err := deps.database.Create(&indexedDir).Error; err != nil {
+			if tc.overlapping {
+				indexedRoot = filepath.Join(realRoot, "nested")
+				if err := os.Mkdir(indexedRoot, 0o755); err != nil {
 					t.Fatal(err)
 				}
 				prefix = "nested/"
+			}
+			if tc.indexedAlias {
+				indexedRoot = alias(indexedRoot)
+			}
+			if indexedRoot != dir.Path {
+				registered, err := db.Default().CreateDirectory(t.Context(), indexedRoot)
+				if err != nil {
+					t.Fatal(err)
+				}
+				indexedDir = *registered
 			}
 			names := []string{"Thumbs.db", "video.txt", "video.torrent", "video.lnk", "qr-video.png", "video.aria2"}
 			for _, filename := range names {
@@ -339,5 +370,57 @@ func TestCleanupIndexFailureDoesNotDeleteFiles(t *testing.T) {
 	}
 	if deps.DirectoryWorkStatus(dir.ID) != DirectoryWorkIdle {
 		t.Fatal("failed index lookup leaked the directory reservation")
+	}
+}
+
+func TestCleanupUnresolvableIndexedRootDoesNotDeleteFiles(t *testing.T) {
+	for _, indexed := range []bool{false, true} {
+		name := "unused missing root"
+		if indexed {
+			name = "indexed missing root"
+		}
+		t.Run(name, func(t *testing.T) {
+			deps := newCleanupTestDependencies(t)
+			dir := models.Directory{Path: t.TempDir()}
+			other := models.Directory{Path: t.TempDir()}
+			for _, row := range []any{&dir, &other} {
+				if err := deps.database.Create(row).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			if indexed {
+				video := models.Video{Fingerprint: "unavailable-root"}
+				if err := deps.database.Create(&video).Error; err != nil {
+					t.Fatal(err)
+				}
+				loc := models.VideoLocation{VideoID: video.ID, DirectoryID: other.ID, RelativePath: "video.txt"}
+				if err := deps.database.Create(&loc).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeCleanupFixture(t, dir.Path, "ad.txt")
+			preview, err := deps.PreviewDirectoryCleanup(t.Context(), dir, CleanupOptions{IncludeMisc: true})
+			if err != nil || len(preview.Files) != 1 {
+				t.Fatalf("preview before root disappears: %+v, %v", preview, err)
+			}
+			if err := os.Remove(other.Path); err != nil {
+				t.Fatal(err)
+			}
+			_, previewErr := deps.PreviewDirectoryCleanup(t.Context(), dir, CleanupOptions{IncludeMisc: true})
+			result, cleanupErr := deps.CleanDirectoryFiles(t.Context(), dir, dir.Path, preview.Files)
+			if indexed {
+				if !errors.Is(previewErr, os.ErrNotExist) || !errors.Is(cleanupErr, os.ErrNotExist) {
+					t.Fatalf("unresolvable indexed root must stop cleanup: preview=%v, cleanup=%v", previewErr, cleanupErr)
+				}
+				if data, err := os.ReadFile(filepath.Join(dir.Path, "ad.txt")); err != nil || string(data) != "fixture" {
+					t.Fatalf("file changed without checking index: %q, %v", data, err)
+				}
+			} else if previewErr != nil || cleanupErr != nil || len(result.Deleted) != 1 || len(result.Issues) != 0 {
+				t.Fatalf("unused missing root blocked cleanup: preview=%v, cleanup=%v, result=%+v", previewErr, cleanupErr, result)
+			}
+			if deps.DirectoryWorkStatus(dir.ID) != DirectoryWorkIdle {
+				t.Fatal("root resolution failure leaked the directory reservation")
+			}
+		})
 	}
 }

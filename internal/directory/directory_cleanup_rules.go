@@ -2,6 +2,7 @@ package directory
 
 import (
 	"context"
+	"fmt"
 	"path"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ func isCleanupDownload(name string) bool {
 	}
 }
 
-// Protect indexed paths in overlapping library roots as well as the selected root.
+// Protect indexed paths in overlapping library roots, including symlink aliases.
 func cleanupIndexedPaths(ctx context.Context, root string) (map[string]bool, error) {
 	dirs, err := db.Default().ListDirectories(ctx)
 	if err != nil {
@@ -51,17 +52,34 @@ func cleanupIndexedPaths(ctx context.Context, root string) (map[string]bool, err
 	if err != nil {
 		return nil, err
 	}
+	root, err = filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, fmt.Errorf("resolve cleanup root: %w", err)
+	}
 	roots := make(map[int64]string, len(dirs))
 	for _, dir := range dirs {
 		roots[dir.ID] = dir.Path
 	}
+	resolvedRoots := make(map[int64]string)
 	indexed := make(map[string]bool)
 	for _, loc := range locations {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		base, ok := roots[loc.DirectoryID]
 		if !ok {
 			continue
 		}
-		rel, err := filepath.Rel(root, filepath.Join(base, filepath.FromSlash(loc.RelativePath)))
+		resolvedBase, ok := resolvedRoots[loc.DirectoryID]
+		if !ok {
+			resolvedBase, err = filepath.EvalSymlinks(base)
+			if err != nil {
+				// Never silently omit indexed files when their root cannot be resolved.
+				return nil, fmt.Errorf("resolve indexed directory %q: %w", base, err)
+			}
+			resolvedRoots[loc.DirectoryID] = resolvedBase
+		}
+		rel, err := filepath.Rel(root, filepath.Join(resolvedBase, filepath.FromSlash(loc.RelativePath)))
 		if err == nil && filepath.IsLocal(rel) {
 			indexed[filepath.ToSlash(rel)] = true
 		}
