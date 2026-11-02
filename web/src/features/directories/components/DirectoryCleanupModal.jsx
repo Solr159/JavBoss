@@ -217,8 +217,8 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
             ))}
         </div>
         {preview && (
-          <div className="mt-5 border-t border-zinc-200 pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-sm">
+          <div className="mt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900">
                 <input
                   type="checkbox"
@@ -232,7 +232,7 @@ export default function DirectoryCleanupModal({ directory, displayPath, onClose 
                 />
                 {zh('全选', 'Select all')}
               </label>
-              <span className="text-xs tabular-nums text-blue-700">
+              <span className="text-zinc-500">
                 {zh(`已选 ${chosen.length} 个`, `${chosen.length} selected`)} ·{' '}
                 {formatCleanupBytes(chosenBytes)}
               </span>
