@@ -164,7 +164,24 @@ jobs:
         working-directory: scripts/cli
         run: npm run build
 
+      # Branded Chrome no longer supports --load-extension. Use the testing
+      # build explicitly so these tests actually load the unpacked extension.
+      - name: Setup Chrome for extension tests
+        id: extension-chrome
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+
+      - name: Verify extension browser test prerequisites
+        env:
+          CHROME_BIN: ${{ steps.extension-chrome.outputs.chrome-path }}
+        run: |
+          "$CHROME_BIN" --version
+          node -e "const assert = require('node:assert/strict'); assert.ok(require('node:fs').existsSync(process.env.CHROME_BIN)); assert.equal(typeof WebSocket, 'function');"
+
       - name: Test browser extension
+        env:
+          CHROME_BIN: ${{ steps.extension-chrome.outputs.chrome-path }}
         run: node --test browser-extension/tests/*.test.js
 
   merge-check:

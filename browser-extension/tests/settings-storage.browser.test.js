@@ -75,14 +75,19 @@ async function openExtension(t, mode) {
     }
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
-  t.after(() => new Promise((resolve) => server.close(resolve)));
+  t.after(
+    () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        // Chrome may leave speculative connections open until the browser exits.
+        server.closeAllConnections();
+      }),
+  );
   const serverUrl = `http://127.0.0.1:${server.address().port}`;
   const { startChrome } = await import("../../web/tests/helpers/chrome.js");
   const { port } = await startChrome(t, {
-    args: [
-      "--disable-features=DisableLoadExtensionCommandLineSwitch",
-      `--load-extension=${extensionDir}`,
-    ],
+    executablePath: chromePath,
+    args: [`--load-extension=${extensionDir}`],
   });
   const target = await (
     await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, {
@@ -109,6 +114,10 @@ async function openExtension(t, mode) {
       pending.set(id, resolve);
       socket.send(JSON.stringify({ id, method, params }));
     });
+  const { result: browserVersion } = await command("Browser.getVersion");
+  const browserDiagnostic =
+    `Browser: ${browserVersion.product}; executable: ${chromePath}. ` +
+    "Extension tests require Chrome for Testing or Chromium with --load-extension support; set CHROME_BIN accordingly.";
   const evaluate = async (expression) => {
     const reply = await command("Runtime.evaluate", {
       expression,
@@ -127,14 +136,20 @@ async function openExtension(t, mode) {
       if (await evaluate(`(async () => Boolean(${expression}))()`)) return;
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
-    assert.fail(`Timed out: ${expression}`);
+    assert.fail(
+      `Timed out: ${expression}; URL: ${await evaluate("location.href")}\n${browserDiagnostic}`,
+    );
   };
   await command("Page.enable");
   const openPopup = async () => {
     const previous = await evaluate("performance.timeOrigin");
-    await command("Page.navigate", {
+    const navigation = await command("Page.navigate", {
       url: `chrome-extension://${EXTENSION_ID}/popup.html`,
     });
+    assert.ok(
+      !navigation.error && !navigation.result?.errorText,
+      `Could not open the extension popup: ${JSON.stringify(navigation)}\n${browserDiagnostic}`,
+    );
     await waitFor(
       `performance.timeOrigin !== ${previous} && typeof JavBossSettings !== 'undefined'`,
     );
