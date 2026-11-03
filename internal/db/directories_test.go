@@ -111,7 +111,7 @@ func TestDirectorySchemaIncludesLastScanSummary(t *testing.T) {
 	gdb := openTestDB(deps, t)
 	assertTableColumns(t, gdb, "directory", []string{
 		"id", "path", "missing", "is_delete", "created_at", "updated_at", "last_scan_summary",
-		"auto_scan_enabled", "auto_scan_interval_minutes", "enabled",
+		"auto_scan_enabled", "auto_scan_interval_minutes", "enabled", "scan_scope",
 	})
 }
 
