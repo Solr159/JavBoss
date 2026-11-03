@@ -1,3 +1,5 @@
+importScripts("settings-storage.js");
+
 const SCRAPE_ORIGINS = new Set([
   "https://www.javbus.com",
   "https://www.javlibrary.com",
@@ -16,17 +18,13 @@ const LEGACY_RELAY_KEY_PREFIX = "javboss:javbus-relay:";
 const LEGACY_RELAY_SESSION_KEY_PREFIX = "javboss:javbus-session:";
 const MAGNET_DOWNLOAD_SETTINGS_KEY = "javboss:magnet-download-settings";
 const CONNECTION_SETTINGS_KEY = "javboss:connection-settings";
+const CONNECTION_CHANGED_KEY = "javboss:connection-changed";
 const OWNERSHIP_SETTINGS_KEY = "javboss:ownership-settings";
-const storageReady = chrome.storage.local
-  .setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
-  .then(
-    () => true,
-    () => false,
-  );
+const storageReady = JavBossSettings.ready;
 
 async function requirePrivateStorage() {
   if (!(await storageReady))
-    throw new Error("无法安全访问扩展凭据，请重新加载扩展");
+    throw new Error("无法访问扩展凭据存储，请重新加载扩展或更换浏览器");
 }
 
 const JAVDB_SETTINGS_KEY = "javboss:javdb-settings";
@@ -108,7 +106,7 @@ function normalizedServerURL(value) {
 
 async function magnetDownloadSettings() {
   await requirePrivateStorage();
-  const stored = await chrome.storage.local.get([
+  const stored = await JavBossSettings.get([
     MAGNET_DOWNLOAD_SETTINGS_KEY,
     CONNECTION_SETTINGS_KEY,
   ]);
@@ -124,7 +122,7 @@ async function magnetDownloadSettings() {
 
 async function javDBAutoRedirectEnabled() {
   await requirePrivateStorage();
-  const stored = await chrome.storage.local.get(JAVDB_SETTINGS_KEY);
+  const stored = await JavBossSettings.get(JAVDB_SETTINGS_KEY);
   return stored[JAVDB_SETTINGS_KEY]?.autoRedirect !== false;
 }
 
@@ -153,7 +151,7 @@ async function lookupJavOwnership(message, sender) {
     return { ok: false, error: "invalid movie codes" };
   }
   await requirePrivateStorage();
-  const stored = await chrome.storage.local.get([
+  const stored = await JavBossSettings.get([
     CONNECTION_SETTINGS_KEY,
     OWNERSHIP_SETTINGS_KEY,
   ]);
@@ -588,7 +586,7 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (
     areaName === "local" &&
-    (changes[CONNECTION_SETTINGS_KEY] || changes[OWNERSHIP_SETTINGS_KEY])
+    (changes[CONNECTION_CHANGED_KEY] || changes[OWNERSHIP_SETTINGS_KEY])
   ) {
     const message = changes[OWNERSHIP_SETTINGS_KEY]
       ? {
@@ -607,8 +605,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
   if (
     areaName !== "local" ||
-    (!changes[MAGNET_DOWNLOAD_SETTINGS_KEY] &&
-      !changes[CONNECTION_SETTINGS_KEY])
+    (!changes[MAGNET_DOWNLOAD_SETTINGS_KEY] && !changes[CONNECTION_CHANGED_KEY])
   )
     return;
   magnetDownloadSettings()
