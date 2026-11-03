@@ -13,7 +13,7 @@ function Fixture() {
   return (
     <main className="flex gap-6 p-20">
       <button id="before">Before</button>
-      <Tooltip title="Open editor" arrow>
+      <Tooltip title="Open editor" placement="top" arrow>
         <Button id="editor-trigger" onClick={() => setDialog(true)}>
           Edit
         </Button>
