@@ -13,7 +13,7 @@ function createHarness({
   javDBSettings = null,
   ownershipSettings = null,
   connectionSettings = {},
-  storageFailure = false,
+  privateStorageFailure = false,
   saveFailure = false,
   permissionGranted = true,
   fetchResponse = { status: 200, body: { authenticated: true } },
@@ -59,10 +59,6 @@ function createHarness({
     },
     storage: {
       local: {
-        async setAccessLevel(value) {
-          assert.equal(value.accessLevel, "TRUSTED_CONTEXTS");
-          if (storageFailure) throw new Error("storage denied");
-        },
         async get(keys) {
           const stored = {};
           if (connectionSettings)
@@ -109,6 +105,11 @@ function createHarness({
   };
   vm.runInNewContext(source, {
     chrome,
+    JavBossSettings: {
+      ready: Promise.resolve(!privateStorageFailure),
+      get: chrome.storage.local.get,
+      set: chrome.storage.local.set,
+    },
     document,
     URL,
     fetch,
@@ -257,8 +258,8 @@ test("changing the address preserves the single current API token", async () => 
   }
 });
 
-test("storage isolation failure prevents saving credentials", async () => {
-  const harness = createHarness({ storageFailure: true });
+test("private storage failure prevents saving credentials", async () => {
+  const harness = createHarness({ privateStorageFailure: true });
   await new Promise((resolve) => setImmediate(resolve));
   harness.elements.get("server-url").value = "https://boss.example";
   harness.elements.get("server-token").value = TEST_TOKEN;
@@ -373,7 +374,11 @@ test("connection test rejects invalid input and permission or storage failures b
       token: TEST_TOKEN,
       permissionGranted: false,
     },
-    { url: "https://boss.example", token: TEST_TOKEN, storageFailure: true },
+    {
+      url: "https://boss.example",
+      token: TEST_TOKEN,
+      privateStorageFailure: true,
+    },
   ]) {
     const harness = createHarness(scenario);
     await new Promise((resolve) => setImmediate(resolve));

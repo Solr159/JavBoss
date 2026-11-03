@@ -1,11 +1,24 @@
-import { cloneElement, forwardRef, useRef, useState } from 'react'
-import { Tooltip as MuiTooltip } from '@mui/material'
+import { cloneElement, forwardRef, useEffect, useRef, useState } from 'react'
+import { Fade, Tooltip as MuiTooltip } from '@mui/material'
 
-const Tooltip = forwardRef(function Tooltip({ children, open, onOpen, onClose, ...props }, ref) {
+const Tooltip = forwardRef(function Tooltip(
+  { children, open, onOpen, onClose, slots, ...props },
+  ref
+) {
   const [visible, setVisible] = useState(false)
   const interaction = useRef({ dismissed: false, pending: null })
+  const hasTitle = Boolean(props.title) || props.title === 0
+
+  useEffect(() => {
+    if (!hasTitle) {
+      // MUI hides empty titles without calling onClose; discard our retained state too.
+      interaction.current.pending = null
+      setVisible(false)
+    }
+  }, [hasTitle, visible])
 
   const handleOpen = (event) => {
+    if (!hasTitle) return
     if (interaction.current.dismissed) {
       interaction.current.pending = event
       return
@@ -32,6 +45,8 @@ const Tooltip = forwardRef(function Tooltip({ children, open, onOpen, onClose, .
     <MuiTooltip
       arrow
       {...props}
+      // Keep the bubble and arrow geometry stable throughout the entrance animation.
+      slots={{ transition: Fade, ...slots }}
       ref={ref}
       open={open ?? visible}
       onOpen={handleOpen}

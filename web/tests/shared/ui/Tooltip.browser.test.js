@@ -38,6 +38,98 @@ async function assertNoTooltip(evaluate) {
 }
 
 test(
+  'tooltip entrance keeps the bubble and arrow at their final size and attached',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/tooltipFocus.html` })
+    await waitFor(`document.querySelector('#editor-trigger')`)
+    // Leave room above the trigger so Popper does not flip the requested top placement.
+    await evaluate(`document.querySelector('main').style.padding = '150px'`)
+    await evaluate(`window.tooltipAnimation = new Promise(resolve => {
+      const samples = [];
+      const started = performance.now();
+      const sample = () => {
+        const tooltip = document.querySelector('.MuiTooltip-tooltip');
+        const arrow = document.querySelector('.MuiTooltip-arrow');
+        if (tooltip && arrow) {
+          const bubbleRect = tooltip.getBoundingClientRect();
+          const arrowRect = arrow.getBoundingClientRect();
+          samples.push({
+            placement: tooltip.closest('[data-popper-placement]').dataset.popperPlacement,
+            opacity: Number(getComputedStyle(tooltip).opacity),
+            width: bubbleRect.width, height: bubbleRect.height,
+            arrowWidth: arrowRect.width, arrowHeight: arrowRect.height,
+            gap: arrowRect.top - bubbleRect.bottom
+          });
+        }
+        if (performance.now() - started < 700) requestAnimationFrame(sample);
+        else resolve(samples);
+      };
+      requestAnimationFrame(sample);
+    }); undefined`)
+    await pointAt(evaluate, command, '#editor-trigger')
+    const samples = await evaluate('window.tooltipAnimation')
+    const final = samples.at(-1)
+    assert.ok(
+      samples.some(({ opacity }) => opacity > 0 && opacity < 1),
+      'entrance is animated'
+    )
+    assert.equal(final.opacity, 1, 'entrance completes')
+    for (const sample of samples) {
+      assert.equal(sample.placement, 'top')
+      assert.ok(Math.abs(sample.gap) <= 0.5, 'arrow stays attached throughout entrance')
+      for (const dimension of ['width', 'height', 'arrowWidth', 'arrowHeight']) {
+        assert.ok(
+          Math.abs(sample[dimension] - final[dimension]) <= 0.5,
+          `${dimension} stays stable throughout entrance`
+        )
+      }
+    }
+  }
+)
+
+test(
+  'empty titles discard hover state and clearing a visible title prevents stale reopening',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t)
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/tooltipFocus.html` })
+    await waitFor(`document.querySelector('#dynamic-trigger')`)
+    const setTitle = async (title) => {
+      await evaluate(`{
+        const select = document.querySelector('#tooltip-title');
+        select.value = ${JSON.stringify(title)};
+        select.dispatchEvent(new Event('change', {bubbles: true}));
+      }`)
+      await waitFor(`document.querySelector('#tooltip-title').value === ${JSON.stringify(title)}`)
+    }
+
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await assertNoTooltip(evaluate)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await setTitle('Dynamic hint')
+    await assertNoTooltip(evaluate)
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await waitFor(`document.querySelector('[role="tooltip"]')?.textContent === 'Dynamic hint'`)
+
+    // Clear the title while hovered, then move away before restoring it.
+    await setTitle('')
+    await assertNoTooltip(evaluate)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await setTitle('Dynamic hint')
+    await assertNoTooltip(evaluate)
+
+    // MUI treats numeric zero as a valid title.
+    await setTitle('0')
+    await pointAt(evaluate, command, '#dynamic-trigger')
+    await waitFor(`document.querySelector('[role="tooltip"]')?.textContent === '0'`)
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 5, y: 5 })
+    await assertNoTooltip(evaluate)
+  }
+)
+
+test(
   'JAV edit restores focus after Escape without reopening its tooltip',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

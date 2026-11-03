@@ -57,6 +57,25 @@ function releaseContext(t, goos) {
   return context;
 }
 
+test("extension release includes private storage and loads it before the popup", { skip: !hasZip }, async (t) => {
+  const ctx = releaseContext(t, "linux");
+  const root = vm.runInContext("ROOT_DIR", ctx);
+  await fsp.cp(new URL("../../../browser-extension", import.meta.url), path.join(root, "browser-extension"), { recursive: true });
+  await vm.runInContext(`
+    copyDir = (source, destination) => fsp.cp(source, destination, { recursive: true });
+    runBrowserExtensionRelease();
+  `, ctx);
+  const manifest = JSON.parse(await fsp.readFile(path.join(root, "browser-extension", "manifest.json"), "utf8"));
+  const name = `javboss-browser-extension-v${manifest.version}`;
+  const archive = path.join(root, "release", `${name}.zip`);
+  const entries = spawnSync("unzip", ["-Z1", archive], { encoding: "utf8" });
+  assert.equal(entries.status, 0, entries.stderr);
+  assert.ok(entries.stdout.split("\n").includes(`${name}/settings-storage.js`));
+  const popup = spawnSync("unzip", ["-p", archive, `${name}/popup.html`], { encoding: "utf8" });
+  assert.match(popup.stdout, /settings-storage\.js[\s\S]*popup\.js/);
+  assert.ok(!entries.stdout.includes("/tests/"));
+});
+
 for (const goos of ["windows", "linux", "darwin"]) {
   test(`${goos} release ZIP uses JavBoss without nesting the build output`, { skip: !hasZip }, async (t) => {
     const ctx = releaseContext(t, goos);

@@ -24,19 +24,22 @@ function createHarness(options = {}) {
     [`${RELAY_PREFIX}1`, { sessionId: SESSION_ID }],
     [`${SESSION_PREFIX}${SESSION_ID}`, { sessionId: SESSION_ID }],
   ]);
-  const localData = new Map();
-  localData.set(
+  const settingsData = new Map();
+  settingsData.set(
     "javboss:connection-settings",
     options.connectionSettings || {},
   );
   if (options.magnetSettings) {
-    localData.set("javboss:magnet-download-settings", options.magnetSettings);
+    settingsData.set(
+      "javboss:magnet-download-settings",
+      options.magnetSettings,
+    );
   }
   if (options.javDBSettings) {
-    localData.set("javboss:javdb-settings", options.javDBSettings);
+    settingsData.set("javboss:javdb-settings", options.javDBSettings);
   }
   if (options.ownershipSettings) {
-    localData.set("javboss:ownership-settings", options.ownershipSettings);
+    settingsData.set("javboss:ownership-settings", options.ownershipSettings);
   }
   const listeners = {};
   const sentMessages = [];
@@ -63,18 +66,13 @@ function createHarness(options = {}) {
     },
   };
 
-  const accessLevels = [];
   const localStorage = {
-    async setAccessLevel(value) {
-      accessLevels.push(value);
-      if (options.storageFailure) throw new Error("storage denied");
-    },
     async get(keys) {
       const requested = Array.isArray(keys) ? keys : [keys];
       return Object.fromEntries(
         requested
-          .filter((key) => localData.has(key))
-          .map((key) => [key, localData.get(key)]),
+          .filter((key) => settingsData.has(key))
+          .map((key) => [key, settingsData.get(key)]),
       );
     },
   };
@@ -131,6 +129,13 @@ function createHarness(options = {}) {
 
   vm.runInNewContext(source, {
     chrome,
+    importScripts(file) {
+      assert.equal(file, "settings-storage.js");
+    },
+    JavBossSettings: {
+      ready: Promise.resolve(!options.privateStorageFailure),
+      get: localStorage.get,
+    },
     fetch,
     URL,
     AbortController,
@@ -150,8 +155,7 @@ function createHarness(options = {}) {
   }
 
   return {
-    accessLevels,
-    localData,
+    settingsData,
     createdTabs,
     data,
     fetchCalls,
@@ -194,9 +198,6 @@ test("a clicked magnet link is submitted to the configured JavBoss server", asyn
   );
   assert.equal(harness.fetchCalls[0].options.credentials, "omit");
   assert.equal(harness.fetchCalls[0].options.redirect, "error");
-  assert.deepEqual(plain(harness.accessLevels), [
-    { accessLevel: "TRUSTED_CONTEXTS" },
-  ]);
   assert.deepEqual(JSON.parse(harness.fetchCalls[0].options.body), {
     magnet_url: magnetUrl,
   });
@@ -570,10 +571,10 @@ test("an expired token produces a reauthorization message", async () => {
   assert.equal(response.error.includes(TEST_TOKEN), false);
 });
 
-test("unsupported protocols and failure to isolate storage fail closed", async () => {
+test("unsupported protocols and unavailable private storage fail closed", async () => {
   for (const options of [
     { serverUrl: "ftp://boss.example" },
-    { serverUrl: "https://boss.example", storageFailure: true },
+    { serverUrl: "https://boss.example", privateStorageFailure: true },
   ]) {
     const harness = createHarness({
       ...options,
@@ -636,11 +637,11 @@ test("downloads use the latest connection pair and never expose it in change not
     },
   });
   const nextToken = "jbe_" + "b".repeat(43);
-  harness.localData.set("javboss:connection-settings", {
+  harness.settingsData.set("javboss:connection-settings", {
     serverUrl: "https://current.example",
     apiToken: nextToken,
   });
-  harness.listeners.storage({ "javboss:connection-settings": {} }, "local");
+  harness.listeners.storage({ "javboss:connection-changed": {} }, "local");
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(plain(harness.sentMessages), [
     {
@@ -767,7 +768,7 @@ test("ownership accepts JavBus and JavLibrary and refreshes all supported sites"
       items: [{ code: "IPX-228", owned: true }],
     });
   }
-  harness.listeners.storage({ "javboss:connection-settings": {} }, "local");
+  harness.listeners.storage({ "javboss:connection-changed": {} }, "local");
   await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(plain(harness.tabQueries.find((query) => query.url)?.url), [
     "https://javdb.com/*",
@@ -785,7 +786,7 @@ test("ownership never turns missing configuration, server errors or incomplete r
     { responsePayload: {} },
     { responsePayload: { items: [{ code: "ABC-123", owned: "false" }] } },
     { responsePayload: { items: [{ code: "ABC-124", owned: true }] } },
-    { storageFailure: true },
+    { privateStorageFailure: true },
   ]) {
     const harness = createHarness({
       connectionSettings: {
@@ -838,7 +839,7 @@ test("disabled ownership skips server requests and broadcasts only the preferenc
     "https://www.javbus.com/*",
     "https://www.javlibrary.com/*",
   ]);
-  harness.localData.set("javboss:ownership-settings", { enabled: true });
+  harness.settingsData.set("javboss:ownership-settings", { enabled: true });
   assert.equal((await harness.send(message, sender)).items[0].owned, true);
   assert.equal(harness.fetchCalls.length, 1);
   harness.listeners.storage(

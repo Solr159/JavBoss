@@ -688,6 +688,7 @@ async function runBrowserExtensionRelease() {
     "popup.css",
     "popup.js",
     "service-worker.js",
+    "settings-storage.js",
     "README.md",
   ]) {
     await fsp.copyFile(path.join(sourceDir, name), path.join(outDir, name));

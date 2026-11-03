@@ -2,12 +2,7 @@
   const MAGNET_DOWNLOAD_SETTINGS_KEY = "javboss:magnet-download-settings";
   const CONNECTION_SETTINGS_KEY = "javboss:connection-settings";
   const OWNERSHIP_SETTINGS_KEY = "javboss:ownership-settings";
-  const storageReady = chrome.storage.local
-    .setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" })
-    .then(
-      () => true,
-      () => false,
-    );
+  const storageReady = JavBossSettings.ready;
   const tokenInput = document.getElementById("server-token");
   let saveQueue = Promise.resolve();
   let connectionVersion = 0;
@@ -77,7 +72,7 @@
     let timedOut = false;
     try {
       if (!(await storageReady))
-        throw new Error("无法安全访问扩展凭据，请重新加载扩展");
+        throw new Error("无法访问扩展凭据存储，请重新加载扩展或更换浏览器");
       const granted = await chrome.permissions.request({
         origins: [hostPermission(serverUrl)],
       });
@@ -141,8 +136,8 @@
 
   async function loadSettings() {
     if (!(await storageReady))
-      throw new Error("无法安全访问扩展凭据，请重新加载扩展");
-    const stored = await chrome.storage.local.get([
+      throw new Error("无法访问扩展凭据存储，请重新加载扩展或更换浏览器");
+    const stored = await JavBossSettings.get([
       MAGNET_DOWNLOAD_SETTINGS_KEY,
       CONNECTION_SETTINGS_KEY,
       JAVDB_SETTINGS_KEY,
@@ -162,8 +157,8 @@
   function persistSettings(values) {
     const save = saveQueue.then(async () => {
       if (!(await storageReady))
-        throw new Error("无法安全保存扩展凭据，请重新加载扩展");
-      await chrome.storage.local.set(values);
+        throw new Error("无法访问扩展凭据存储，请重新加载扩展或更换浏览器");
+      await JavBossSettings.set(values);
     });
     saveQueue = save.catch(() => {});
     return save.then(
@@ -203,7 +198,7 @@
       if (!serverUrl || !/^jbe_[A-Za-z0-9_-]{43}$/.test(token))
         throw new Error("请先填写有效的 Server 地址和 API 令牌");
       if (!(await storageReady))
-        throw new Error("无法安全保存扩展凭据，请重新加载扩展");
+        throw new Error("无法访问扩展凭据存储，请重新加载扩展或更换浏览器");
       const granted = await chrome.permissions.request({
         origins: [hostPermission(serverUrl)],
       });
