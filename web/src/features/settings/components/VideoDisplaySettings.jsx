@@ -13,8 +13,8 @@ function SortText({ option, value }) {
   return (
     <span className="truncate text-xs font-semibold sm:text-sm">
       <span>{parts.label}</span>
-      <span className="font-normal text-gray-500">{parts.separator}</span>
-      <span className="font-normal text-gray-500">{parts.direction}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.separator}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.direction}</span>
     </span>
   )
 }
@@ -28,8 +28,8 @@ function SortOptionRow({ option, inputValue, onChange }) {
     <div
       className={`flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 transition ${
         active
-          ? 'border-blue-500 bg-blue-50/40 ring-1 ring-blue-100'
-          : 'border-slate-200 bg-white hover:border-blue-300'
+          ? 'border-blue-500 bg-blue-50/40 ring-1 ring-blue-100 dark:bg-ui-blue-surface dark:ring-ui-blue-border'
+          : 'border-slate-200 bg-white hover:border-blue-300 dark:border-ui-border dark:bg-ui-surface dark:hover:border-blue-400'
       }`}
     >
       <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
@@ -47,7 +47,7 @@ function SortOptionRow({ option, inputValue, onChange }) {
       <button
         type="button"
         onClick={() => onChange?.(reverseVideoSortValue(displayValue, option.defaultValue))}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
         title={zh('反转排序', 'Reverse sort')}
         aria-label={zh(`反转${option.label[0]}排序`, `Reverse ${option.label[1]} sort`)}
       >
@@ -66,11 +66,11 @@ function SettingsSwitch({ label, checked, onChange }) {
       aria-checked={Boolean(checked)}
       onClick={() => onChange?.(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none ${
-        checked ? 'bg-blue-600' : 'bg-slate-200'
+        checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-ui-hover'
       }`}
     >
       <span
-        className={`mt-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+        className={`mt-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform dark:bg-ui-surface ${
           checked ? 'translate-x-6' : 'translate-x-1'
         }`}
       />
@@ -79,9 +79,9 @@ function SettingsSwitch({ label, checked, onChange }) {
 }
 
 const rowClassName =
-  'flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm font-medium text-slate-700'
+  'flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm font-medium text-slate-700 dark:text-ui-secondary'
 const controlClassName =
-  'h-9 w-24 shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-32'
+  'h-9 w-24 shrink-0 rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 text-sm text-slate-700 dark:text-ui-secondary outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-ui-blue-border sm:w-32'
 
 export default function VideoDisplaySettings({
   pageSizeInput,
@@ -98,7 +98,7 @@ export default function VideoDisplaySettings({
   onWatchTimeIconMinutesChange,
 }) {
   return (
-    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
+    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70 dark:divide-ui-border dark:border-ui-border dark:bg-ui-surface dark:shadow-black/20">
       <label className={rowClassName}>
         <span>{zh('每页视频数量', 'Videos per page')}</span>
         <input
@@ -145,7 +145,9 @@ export default function VideoDisplaySettings({
         />
       </div>
       <div className="space-y-2 pt-3">
-        <div className="text-sm font-medium text-slate-700">{zh('默认排序', 'Default sort')}</div>
+        <div className="text-sm font-medium text-slate-700 dark:text-ui-secondary">
+          {zh('默认排序', 'Default sort')}
+        </div>
         <div className="space-y-2">
           {VIDEO_SORT_OPTIONS.map((option) => (
             <SortOptionRow

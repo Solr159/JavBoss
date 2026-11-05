@@ -93,7 +93,7 @@ export default function JavGrid({
 
   if (!hasItems) {
     return (
-      <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
+      <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500 dark:border-ui-border dark:text-ui-faint">
         {zh('暂无 JAV 数据', 'No JAV data')}
       </div>
     )
@@ -107,7 +107,7 @@ export default function JavGrid({
             <div
               key={index}
               role="alert"
-              className="mb-3 flex items-center gap-3 text-sm text-red-600"
+              className="mb-3 flex items-center gap-3 text-sm text-red-600 dark:text-red-300"
             >
               <span>{status.error}</span>
               <button type="button" className="shrink-0 underline" onClick={status.retry}>

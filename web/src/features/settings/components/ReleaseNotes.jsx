@@ -57,10 +57,12 @@ export default function ReleaseNotes({ html, text }) {
   const markup = useMemo(() => (html ? purifier.sanitize(html, policy) : ''), [html])
   return markup ? (
     <div
-      className="release-notes text-sm text-zinc-600"
+      className="release-notes text-sm text-zinc-600 dark:text-ui-secondary"
       dangerouslySetInnerHTML={{ __html: markup }}
     />
   ) : (
-    <p className="whitespace-pre-wrap break-words text-sm text-zinc-600">{text}</p>
+    <p className="whitespace-pre-wrap break-words text-sm text-zinc-600 dark:text-ui-secondary">
+      {text}
+    </p>
   )
 }

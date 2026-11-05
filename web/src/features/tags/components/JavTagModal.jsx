@@ -23,11 +23,12 @@ export default function JavTagModal(props) {
       tagLegend={[
         {
           label: zh('自定义标签', 'Custom tags'),
-          className: 'border-emerald-200 bg-emerald-100',
+          className:
+            'border-emerald-200 dark:border-emerald-300 bg-emerald-100 dark:bg-emerald-300',
         },
         {
           label: zh('刮削标签', 'Scraped tags'),
-          className: 'border-orange-200 bg-orange-100',
+          className: 'border-orange-200 dark:border-orange-300 bg-orange-100 dark:bg-orange-300',
         },
       ]}
       categoryEnglishLabels={categoryEnglishLabels}

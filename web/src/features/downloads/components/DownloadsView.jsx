@@ -277,14 +277,17 @@ export default function DownloadsView({ onToast }) {
         className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 pb-4 pt-2 sm:px-5 sm:pb-5 sm:pt-3"
       >
         {error ? (
-          <div role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div
+            role="alert"
+            className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+          >
             {error}
           </div>
         ) : null}
 
         <section>
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-ui-faint">
               {zh(
                 `进行中 ${counts.active} · 已完成 ${counts.completed} · 失败 ${counts.failed}`,
                 `${counts.active} active · ${counts.completed} completed · ${counts.failed} failed`
@@ -296,7 +299,7 @@ export default function DownloadsView({ onToast }) {
                 onClick={openCreateModal}
                 aria-label={zh('新建下载任务', 'Create download job')}
                 title={zh('新建下载任务', 'Create download job')}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text"
               >
                 <AddOutlinedIcon fontSize="inherit" />
               </button>
@@ -305,7 +308,7 @@ export default function DownloadsView({ onToast }) {
                 onClick={refreshJobs}
                 aria-label={zh('刷新下载队列', 'Refresh download queue')}
                 title={zh('刷新下载队列', 'Refresh download queue')}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text"
               >
                 <RefreshOutlinedIcon fontSize="inherit" />
               </button>
@@ -313,11 +316,11 @@ export default function DownloadsView({ onToast }) {
           </div>
 
           {loading ? (
-            <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400">
+            <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint">
               {zh('加载下载队列…', 'Loading download queue...')}
             </div>
           ) : jobs.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400">
+            <div className="mt-4 rounded-xl border border-dashed border-gray-200 bg-white p-10 text-center text-sm text-gray-400 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint">
               {zh(
                 '队列为空，请点击上方的新建按钮创建任务',
                 'The queue is empty. Use the create button above to add a job.'
@@ -340,25 +343,25 @@ export default function DownloadsView({ onToast }) {
                 return (
                   <article
                     key={job.id}
-                    className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm"
+                    className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-ui-border dark:bg-ui-surface"
                   >
                     <div className="flex flex-wrap items-start gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-semibold text-gray-900">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-ui-text">
                             {job.magnet_name || zh('未命名磁力任务', 'Unnamed magnet download')}
                           </span>
                           <span
                             className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold leading-4 ${
                               completedWithSkips
-                                ? 'bg-amber-100 text-amber-700'
+                                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
                                 : job.status === 'completed'
-                                  ? 'bg-emerald-100 text-emerald-700'
+                                  ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
                                   : job.status === 'failed'
-                                    ? 'bg-red-100 text-red-700'
+                                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                                     : job.status === 'canceled'
-                                      ? 'bg-gray-100 text-gray-500'
-                                      : 'bg-blue-100 text-blue-700'
+                                      ? 'bg-gray-100 text-gray-500 dark:bg-ui-muted dark:text-ui-faint'
+                                      : 'bg-blue-100 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
                             }`}
                           >
                             {completedWithSkips
@@ -384,12 +387,12 @@ export default function DownloadsView({ onToast }) {
                               </Tooltip>
                             ) : null}
                           </span>
-                          <span className="text-[10px] font-medium text-gray-500">
+                          <span className="text-[10px] font-medium text-gray-500 dark:text-ui-faint">
                             {formatTime(job.created_at)}
                           </span>
                         </div>
                         <div
-                          className="mt-0.5 truncate text-[11px] text-gray-400"
+                          className="mt-0.5 truncate text-[11px] text-gray-400 dark:text-ui-faint"
                           title={localLocation}
                         >
                           {zh('下载位置：', 'Download location: ')}
@@ -404,7 +407,7 @@ export default function DownloadsView({ onToast }) {
                             onClick={() => runJobAction(job, revealDownloadLocation)}
                             aria-label={zh('打开所在位置', 'Reveal in folder')}
                             title={zh('打开所在位置', 'Reveal in folder')}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
                           >
                             <FolderOpenOutlinedIcon fontSize="inherit" />
                           </button>
@@ -414,7 +417,7 @@ export default function DownloadsView({ onToast }) {
                           onClick={() => handleCopyMagnet(job)}
                           aria-label={zh('复制磁力链接', 'Copy magnet link')}
                           title={zh('复制磁力链接', 'Copy magnet link')}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50"
+                          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
                         >
                           <ContentCopyOutlinedIcon fontSize="inherit" />
                         </button>
@@ -425,7 +428,7 @@ export default function DownloadsView({ onToast }) {
                             onClick={() => runJobAction(job, retryDownloadJob)}
                             aria-label={zh('重试下载任务', 'Retry download job')}
                             title={zh('重试下载任务', 'Retry download job')}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-[16px] text-blue-700 disabled:opacity-50"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-[16px] text-blue-700 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300"
                           >
                             <ReplayOutlinedIcon fontSize="inherit" />
                           </button>
@@ -437,7 +440,7 @@ export default function DownloadsView({ onToast }) {
                             onClick={() => runJobAction(job, cancelDownloadJob)}
                             aria-label={zh('取消下载任务', 'Cancel download job')}
                             title={zh('取消下载任务', 'Cancel download job')}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-[16px] text-amber-700 disabled:opacity-50"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-[16px] text-amber-700 disabled:opacity-50 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
                           >
                             <CancelOutlinedIcon fontSize="inherit" />
                           </button>
@@ -449,7 +452,7 @@ export default function DownloadsView({ onToast }) {
                             onClick={() => runJobAction(job, deleteDownloadJob)}
                             aria-label={zh('移除下载记录', 'Remove download record')}
                             title={zh('移除下载记录', 'Remove download record')}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-gray-200 bg-white text-[16px] text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
                           >
                             <DeleteOutlineOutlinedIcon fontSize="inherit" />
                           </button>
@@ -458,13 +461,13 @@ export default function DownloadsView({ onToast }) {
                     </div>
                     {showLocalProgress ? (
                       <>
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-ui-muted">
                           <div
                             className="h-full rounded-full bg-blue-600 transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
-                        <div className="mt-0.5 flex justify-between text-[11px] text-gray-400">
+                        <div className="mt-0.5 flex justify-between text-[11px] text-gray-400 dark:text-ui-faint">
                           <span>{progress.toFixed(1)}%</span>
                           <span>
                             {formatBytes(job.bytes_downloaded)} / {formatBytes(job.bytes_total)}
@@ -479,7 +482,7 @@ export default function DownloadsView({ onToast }) {
           )}
         </section>
       </div>
-      <footer className="flex shrink-0 items-center justify-center border-t border-slate-200 bg-white px-4 py-3">
+      <footer className="flex shrink-0 items-center justify-center border-t border-slate-200 bg-white px-4 py-3 dark:border-ui-border dark:bg-ui-surface">
         <Pagination
           page={page}
           count={lastPage}
@@ -510,12 +513,12 @@ export default function DownloadsView({ onToast }) {
           ariaLabel={zh('新建下载任务', 'Create download job')}
           className="px-4"
           closeDisabled={submitting}
-          contentClassName="w-full max-w-xl rounded-xl bg-white p-5 shadow-xl"
+          contentClassName="w-full max-w-xl rounded-xl bg-white dark:bg-ui-surface p-5 shadow-xl"
           onClose={closeCreateModal}
         >
           <form onSubmit={handleSubmit}>
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-xl font-bold text-gray-900">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-ui-text">
                 {zh('新建下载任务', 'Create download job')}
               </h2>
               <button
@@ -524,12 +527,12 @@ export default function DownloadsView({ onToast }) {
                 onClick={closeCreateModal}
                 aria-label={zh('关闭弹窗', 'Close dialog')}
                 title={zh('关闭', 'Close')}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 hover:bg-gray-100 disabled:opacity-50 dark:text-ui-faint dark:hover:bg-ui-hover"
               >
                 <CloseOutlinedIcon fontSize="small" />
               </button>
             </div>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-500 dark:text-ui-faint">
               {zh(
                 '输入磁力链接后，通过 CloudDrive2 创建离线下载任务并下载到本地。',
                 'Enter a magnet link to create an offline download through CloudDrive2 and download the files locally.'
@@ -538,19 +541,19 @@ export default function DownloadsView({ onToast }) {
             {createError ? (
               <div
                 role="alert"
-                className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
               >
                 {createError}
               </div>
             ) : null}
-            <label className="mt-4 block text-sm font-medium text-gray-700">
+            <label className="mt-4 block text-sm font-medium text-gray-700 dark:text-ui-secondary">
               {zh('磁力链接', 'Magnet link')}
               <textarea
                 rows="4"
                 value={magnetUrl}
                 onChange={(event) => setMagnetUrl(event.target.value)}
                 placeholder="magnet:?xt=urn:btih:..."
-                className="mt-1 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500"
+                className="mt-1 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500 dark:border-ui-border"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
@@ -558,7 +561,7 @@ export default function DownloadsView({ onToast }) {
                 type="button"
                 disabled={submitting}
                 onClick={closeCreateModal}
-                className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
               >
                 {zh('取消', 'Cancel')}
               </button>

@@ -92,12 +92,12 @@ export default function ExtensionTokenSettings({ onToast }) {
   }
 
   return (
-    <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4">
+    <section className="space-y-4 rounded-xl border border-zinc-200 bg-white p-4 dark:border-ui-border dark:bg-ui-surface">
       <div>
-        <h3 className="text-sm font-semibold text-zinc-900">
+        <h3 className="text-sm font-semibold text-zinc-900 dark:text-ui-text">
           {zh('浏览器扩展 API 令牌', 'Browser extension API tokens')}
         </h3>
-        <p className="mt-1 text-xs leading-5 text-zinc-500">
+        <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
           {zh(
             'API 令牌用于浏览器扩展访问 JavBoss 的凭证',
             'API tokens serve as credentials for browser extensions to access JavBoss.'
@@ -105,41 +105,45 @@ export default function ExtensionTokenSettings({ onToast }) {
         </p>
       </div>
       {error && !pending && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 dark:text-red-300">
           {error}
         </p>
       )}
       {loading ? (
-        <p className="text-sm text-zinc-500">{zh('加载中…', 'Loading...')}</p>
+        <p className="text-sm text-zinc-500 dark:text-ui-faint">{zh('加载中…', 'Loading...')}</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-zinc-500">{zh('暂无 API 令牌', 'No API tokens')}</p>
+        <p className="text-sm text-zinc-500 dark:text-ui-faint">
+          {zh('暂无 API 令牌', 'No API tokens')}
+        </p>
       ) : (
-        <ul className="divide-y divide-zinc-100">
+        <ul className="divide-y divide-zinc-100 dark:divide-ui-border">
           {items.map((item) => {
             const neverExpires = item.expires_at === '0001-01-01T00:00:00Z'
             return (
               <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm font-medium text-zinc-800">{item.name}</p>
+                  <p className="break-words text-sm font-medium text-zinc-800 dark:text-ui-text">
+                    {item.name}
+                  </p>
                   <div className="relative mt-2">
                     <input
                       aria-label={zh(`${item.name} 的 Token`, `Token for ${item.name}`)}
                       readOnly
                       value={item.token}
                       onFocus={(event) => event.target.select()}
-                      className="w-full min-w-0 rounded border border-zinc-200 bg-zinc-50 py-2 pl-2 pr-10 font-mono text-xs"
+                      className="w-full min-w-0 rounded border border-zinc-200 bg-zinc-50 py-2 pl-2 pr-10 font-mono text-xs dark:border-ui-border dark:bg-ui-canvas"
                     />
                     <button
                       type="button"
                       onClick={() => copy(item)}
                       title={zh('复制', 'Copy')}
                       aria-label={zh('复制', 'Copy')}
-                      className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900"
+                      className="absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded text-zinc-600 hover:bg-zinc-200 hover:text-zinc-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text"
                     >
                       <ContentCopyOutlinedIcon sx={{ fontSize: 16 }} />
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-zinc-500 dark:text-ui-faint">
                     {!neverExpires && new Date(item.expires_at) <= new Date()
                       ? zh('已过期', 'Expired')
                       : zh('有效', 'Active')}{' '}
@@ -154,7 +158,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                     type="button"
                     disabled={busy}
                     onClick={() => openDialog('rotate', item)}
-                    className="text-blue-700 disabled:opacity-50"
+                    className="text-blue-700 disabled:opacity-50 dark:text-blue-300"
                   >
                     {zh('重新生成', 'Regenerate')}
                   </button>
@@ -162,7 +166,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                     type="button"
                     disabled={busy}
                     onClick={() => openDialog('delete', item)}
-                    className="text-red-600 disabled:opacity-50"
+                    className="text-red-600 disabled:opacity-50 dark:text-red-300"
                   >
                     {zh('删除', 'Delete')}
                   </button>
@@ -186,7 +190,7 @@ export default function ExtensionTokenSettings({ onToast }) {
         <AppModal
           ariaLabelledby="extension-token-dialog-title"
           className="p-4"
-          contentClassName="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-xl"
+          contentClassName="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-white dark:bg-ui-surface shadow-xl"
           contentComponent="form"
           contentProps={{ onSubmit: applyPending }}
           closeDisabled={busy}
@@ -195,7 +199,7 @@ export default function ExtensionTokenSettings({ onToast }) {
         >
           <h3
             id="extension-token-dialog-title"
-            className="border-b px-5 py-4 text-lg font-semibold text-zinc-900"
+            className="border-b px-5 py-4 text-lg font-semibold text-zinc-900 dark:text-ui-text"
           >
             {pending.action === 'create'
               ? zh('新建 API 令牌', 'New API token')
@@ -205,7 +209,7 @@ export default function ExtensionTokenSettings({ onToast }) {
           </h3>
           <div className="space-y-4 px-5 py-4">
             {pending.action === 'create' ? (
-              <label className="block text-sm text-zinc-600">
+              <label className="block text-sm text-zinc-600 dark:text-ui-secondary">
                 {zh('API 令牌名称', 'Name')}
                 <input
                   required
@@ -214,11 +218,11 @@ export default function ExtensionTokenSettings({ onToast }) {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder={zh('例如：笔记本 Chrome', 'e.g. Laptop Chrome')}
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-ui-border"
                 />
               </label>
             ) : (
-              <p className="break-words text-sm text-zinc-600">
+              <p className="break-words text-sm text-zinc-600 dark:text-ui-secondary">
                 {pending.item.name}：
                 {pending.action === 'rotate'
                   ? zh(
@@ -232,13 +236,13 @@ export default function ExtensionTokenSettings({ onToast }) {
               </p>
             )}
             {pending.action !== 'delete' && (
-              <label className="block text-sm text-zinc-600">
+              <label className="block text-sm text-zinc-600 dark:text-ui-secondary">
                 {zh('有效期', 'Lifetime')}
                 <select
                   disabled={busy}
                   value={days}
                   onChange={(event) => setDays(Number(event.target.value))}
-                  className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-ui-border"
                 >
                   {[30, 90, 365, 0].map((value) => (
                     <option key={value} value={value}>
@@ -251,7 +255,7 @@ export default function ExtensionTokenSettings({ onToast }) {
               </label>
             )}
             {error && (
-              <p role="alert" className="text-sm text-red-600">
+              <p role="alert" className="text-sm text-red-600 dark:text-red-300">
                 {error}
               </p>
             )}
@@ -261,7 +265,7 @@ export default function ExtensionTokenSettings({ onToast }) {
               type="button"
               disabled={busy}
               onClick={closeDialog}
-              className="rounded border border-zinc-300 px-3 py-2 text-sm disabled:opacity-50"
+              className="rounded border border-zinc-300 px-3 py-2 text-sm disabled:opacity-50 dark:border-ui-border"
             >
               {zh('取消', 'Cancel')}
             </button>

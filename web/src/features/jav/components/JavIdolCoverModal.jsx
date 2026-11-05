@@ -175,19 +175,19 @@ export default function JavIdolCoverModal({
       ariaLabel={zh('女优封面', 'Idol cover')}
       className="px-4 py-6"
       closeDisabled={saving}
-      contentClassName="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+      contentClassName="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white dark:bg-ui-surface shadow-2xl"
       onClose={onClose}
     >
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-ui-border">
         <div className="min-w-0">
-          <div className="truncate text-base font-semibold text-slate-950">
+          <div className="truncate text-base font-semibold text-slate-950 dark:text-ui-text">
             {getIdolDisplayName(item, preferChineseName)}
           </div>
-          <div className="text-xs text-slate-500">{zh('封面', 'Cover')}</div>
+          <div className="text-xs text-slate-500 dark:text-ui-faint">{zh('封面', 'Cover')}</div>
         </div>
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:text-ui-faint dark:hover:bg-ui-hover"
           onClick={onClose}
           aria-label={zh('关闭', 'Close')}
         >
@@ -196,11 +196,13 @@ export default function JavIdolCoverModal({
       </div>
 
       <div className="grid min-h-0 flex-1 gap-0 overflow-hidden md:grid-cols-[18rem_minmax(0,1fr)]">
-        <div className="min-h-[12rem] overflow-y-auto border-b border-slate-200 md:border-b-0 md:border-r">
+        <div className="min-h-[12rem] overflow-y-auto border-b border-slate-200 dark:border-ui-border md:border-b-0 md:border-r">
           <button
             type="button"
             className={`flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm ${
-              selectedJavId === 0 ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
+              selectedJavId === 0
+                ? 'bg-slate-900 text-white'
+                : 'hover:bg-slate-50 dark:hover:bg-ui-hover'
             }`}
             onClick={() => {
               setSelectedJavId(0)
@@ -211,7 +213,9 @@ export default function JavIdolCoverModal({
             <span className="min-w-0 flex-1 truncate">{zh('自动选择', 'Auto')}</span>
           </button>
           {loading ? (
-            <div className="px-3 py-4 text-sm text-slate-500">{zh('加载中…', 'Loading...')}</div>
+            <div className="px-3 py-4 text-sm text-slate-500 dark:text-ui-faint">
+              {zh('加载中…', 'Loading...')}
+            </div>
           ) : options.length > 0 ? (
             options.map((option) => {
               const active = Number(option.id) === Number(selectedJavId)
@@ -221,7 +225,7 @@ export default function JavIdolCoverModal({
                   key={option.id}
                   type="button"
                   className={`flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left text-sm ${
-                    active ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
+                    active ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 dark:hover:bg-ui-hover'
                   }`}
                   onClick={() => {
                     setSelectedJavId(Number(option.id))
@@ -233,7 +237,9 @@ export default function JavIdolCoverModal({
                     {option.solo ? (
                       <span
                         className={`rounded px-1.5 py-0.5 text-[10px] ${
-                          active ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'
+                          active
+                            ? 'bg-white/20 text-white'
+                            : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                         }`}
                       >
                         {zh('单人', 'Solo')}
@@ -247,7 +253,7 @@ export default function JavIdolCoverModal({
               )
             })
           ) : (
-            <div className="px-3 py-4 text-sm text-slate-500">
+            <div className="px-3 py-4 text-sm text-slate-500 dark:text-ui-faint">
               {zh('暂无可用作品', 'No available works')}
             </div>
           )}
@@ -257,21 +263,21 @@ export default function JavIdolCoverModal({
           <div className="mx-auto max-w-3xl">
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-slate-900">
+                <div className="truncate text-sm font-semibold text-slate-900 dark:text-ui-text">
                   {previewCode || zh('无封面', 'No cover')}
                 </div>
                 {title && title !== previewCode ? (
-                  <div className="truncate text-xs text-slate-500">{title}</div>
+                  <div className="truncate text-xs text-slate-500 dark:text-ui-faint">{title}</div>
                 ) : null}
               </div>
-              <div className="text-xs tabular-nums text-slate-500">
+              <div className="text-xs tabular-nums text-slate-500 dark:text-ui-faint">
                 {Math.round(displayCropLeft * 100)}%
               </div>
             </div>
 
             <div
               ref={previewRef}
-              className="relative w-full select-none overflow-hidden rounded bg-slate-100"
+              className="relative w-full select-none overflow-hidden rounded bg-slate-100 dark:bg-ui-muted"
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={handlePointerUp}
@@ -293,7 +299,7 @@ export default function JavIdolCoverModal({
                   }}
                 />
               ) : (
-                <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500">
+                <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500 dark:text-ui-faint">
                   {zh('封面待下载', 'Cover pending')}
                 </div>
               )}
@@ -311,7 +317,7 @@ export default function JavIdolCoverModal({
               ) : null}
             </div>
 
-            <label className="mt-4 flex items-center gap-3 text-sm text-slate-700">
+            <label className="mt-4 flex items-center gap-3 text-sm text-slate-700 dark:text-ui-secondary">
               <span className="w-10 shrink-0">{zh('起点', 'Start')}</span>
               <input
                 type="range"
@@ -322,19 +328,21 @@ export default function JavIdolCoverModal({
                 onChange={(event) =>
                   setCropLeft(normalizeDynamicCropLeft(event.target.value, maxCropLeft))
                 }
-                className="min-w-0 flex-1 accent-slate-900"
+                className="min-w-0 flex-1 accent-slate-900 dark:accent-blue-400"
               />
             </label>
 
-            {error ? <div className="mt-3 text-sm text-rose-600">{error}</div> : null}
+            {error ? (
+              <div className="mt-3 text-sm text-rose-600 dark:text-rose-300">{error}</div>
+            ) : null}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-4 py-3 dark:border-ui-border">
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+          className="inline-flex items-center gap-1.5 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
           onClick={() => {
             setSelectedJavId(0)
             setCropLeft(IDOL_COVER_DEFAULT_CROP_LEFT)
@@ -347,7 +355,7 @@ export default function JavIdolCoverModal({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
             onClick={onClose}
           >
             {zh('取消', 'Cancel')}

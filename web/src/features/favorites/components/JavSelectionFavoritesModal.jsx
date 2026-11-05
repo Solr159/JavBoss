@@ -69,16 +69,16 @@ export default function JavSelectionFavoritesModal({
       ariaLabel={zh('选择收藏夹', 'Choose favorite groups')}
       className="px-4"
       closeDisabled={busy}
-      contentClassName="flex max-h-[82vh] w-full max-w-md flex-col rounded-lg bg-white shadow-xl"
+      contentClassName="flex max-h-[82vh] w-full max-w-md flex-col rounded-lg bg-white dark:bg-ui-surface shadow-xl"
       onClose={onClose}
       zIndex={1800}
     >
       <div className="flex items-start justify-between gap-3 border-b px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-950">
+          <h2 className="truncate text-base font-semibold text-gray-950 dark:text-ui-text">
             {zh('选择收藏夹', 'Choose favorite groups')}
           </h2>
-          <div className="mt-0.5 truncate text-sm text-gray-500">
+          <div className="mt-0.5 truncate text-sm text-gray-500 dark:text-ui-faint">
             {zh(`已选择 ${selectedCount} 部 JAV`, `${selectedCount} JAV items selected`)}
           </div>
         </div>
@@ -97,7 +97,7 @@ export default function JavSelectionFavoritesModal({
         {loadError || error ? (
           <div
             role="alert"
-            className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
           >
             {loadError || error}
             {loadError ? (
@@ -114,7 +114,7 @@ export default function JavSelectionFavoritesModal({
             onChange={(event) => setNewGroupName(event.target.value)}
             placeholder={zh('新建作品收藏夹', 'New JAV favorite group')}
             aria-label={zh('新建作品收藏夹', 'New JAV favorite group')}
-            className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
             disabled={loading || busy}
           />
           <Button
@@ -127,18 +127,18 @@ export default function JavSelectionFavoritesModal({
           </Button>
         </form>
         {createError ? (
-          <div role="alert" className="text-sm text-red-600">
+          <div role="alert" className="text-sm text-red-600 dark:text-red-300">
             {createError}
           </div>
         ) : null}
 
-        <div className="rounded border border-gray-200">
+        <div className="rounded border border-gray-200 dark:border-ui-border">
           {loading ? (
-            <div className="px-3 py-8 text-center text-sm text-gray-500">
+            <div className="px-3 py-8 text-center text-sm text-gray-500 dark:text-ui-faint">
               {zh('加载中…', 'Loading...')}
             </div>
           ) : groupList.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-gray-500">
+            <div className="px-3 py-8 text-center text-sm text-gray-500 dark:text-ui-faint">
               {zh('暂无收藏夹', 'No favorite groups')}
             </div>
           ) : (
@@ -146,7 +146,7 @@ export default function JavSelectionFavoritesModal({
               {groupList.map((group) => (
                 <label
                   key={group.id}
-                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-gray-50"
+                  className="flex cursor-pointer items-center gap-3 rounded px-3 py-2 hover:bg-gray-50 dark:hover:bg-ui-hover"
                 >
                   <input
                     type="checkbox"
@@ -155,10 +155,10 @@ export default function JavSelectionFavoritesModal({
                     onChange={(event) => onToggleChoice(group.id, event.target.checked)}
                     aria-label={group.name || zh('未命名收藏夹', 'Untitled favorite group')}
                   />
-                  <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                  <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-ui-text">
                     {group.name || zh('未命名收藏夹', 'Untitled favorite group')}
                   </span>
-                  <span className="shrink-0 text-xs text-gray-500">
+                  <span className="shrink-0 text-xs text-gray-500 dark:text-ui-faint">
                     {Number.isFinite(group.count) ? group.count : 0}
                   </span>
                 </label>

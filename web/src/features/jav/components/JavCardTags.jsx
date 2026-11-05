@@ -184,7 +184,7 @@ export function IdolTagList({
           <a
             key={idol.id || idol.name}
             href={buildIdolFilterHref(idol)}
-            className={`rounded-full bg-purple-100 font-medium text-purple-700 transition hover:bg-purple-200 ${tagSizeClassName}`}
+            className={`rounded-full bg-purple-100 font-medium text-purple-700 transition hover:bg-purple-200 dark:bg-purple-900 dark:text-purple-300 dark:hover:bg-purple-900 ${tagSizeClassName}`}
             onMouseEnter={(event) => onIdolHoverStart(idol, event)}
             onMouseLeave={onIdolHoverEnd}
             onClick={(event) => onFilterLinkClick(event, () => onIdolClick?.(idol))}
@@ -197,8 +197,8 @@ export function IdolTagList({
             expanded={expanded}
             count={idols.length}
             title={toggleTitle}
-            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100 ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
-            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-purple-300 bg-white font-semibold text-purple-700 shadow-sm transition hover:border-purple-500 hover:bg-purple-50 ${toggleSizeClassName}`}
+            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 dark:border-ui-border bg-gray-50 dark:bg-ui-canvas text-gray-600 dark:text-ui-secondary shadow-sm transition hover:border-gray-400 dark:hover:border-ui-faint hover:bg-gray-100 dark:hover:bg-ui-hover ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-purple-300 dark:border-purple-800 bg-white dark:bg-ui-surface font-semibold text-purple-700 dark:text-purple-300 shadow-sm transition hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-950 ${toggleSizeClassName}`}
             onToggle={() => setExpanded((current) => !current)}
           />
         ) : null}
@@ -213,7 +213,7 @@ export function IdolTagList({
             <span
               key={idol.id || idol.name}
               data-idol-tag-measure
-              className={`rounded-full bg-purple-100 font-medium ${tagSizeClassName}`}
+              className={`rounded-full bg-purple-100 font-medium dark:bg-purple-900 ${tagSizeClassName}`}
             >
               {getIdolDisplayName(idol, preferChineseName)}
             </span>
@@ -347,8 +347,8 @@ export function JavTagList({
             expanded={expanded}
             count={tags.length}
             title={toggleTitle}
-            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 bg-gray-50 text-gray-600 shadow-sm transition hover:border-gray-400 hover:bg-gray-100 ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
-            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-orange-300 bg-white font-semibold text-orange-700 shadow-sm transition hover:border-orange-500 hover:bg-orange-50 ${toggleSizeClassName}`}
+            expandedClassName={`inline-flex shrink-0 items-center justify-center rounded border border-gray-300 dark:border-ui-border bg-gray-50 dark:bg-ui-canvas text-gray-600 dark:text-ui-secondary shadow-sm transition hover:border-gray-400 dark:hover:border-ui-faint hover:bg-gray-100 dark:hover:bg-ui-hover ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
+            collapsedClassName={`inline-flex shrink-0 items-center rounded-md border border-orange-300 dark:border-orange-800 bg-white dark:bg-ui-surface font-semibold text-orange-700 dark:text-orange-300 shadow-sm transition hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950 ${toggleSizeClassName}`}
             onToggle={() => setExpanded((current) => !current)}
           />
         ) : null}

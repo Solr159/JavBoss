@@ -42,20 +42,20 @@ export default function JavCoverCropModal({ item, src, onClose }) {
       ariaLabel={zh('调整封面', 'Adjust cover')}
       onClose={onClose}
       closeDisabled={saving}
-      contentClassName="mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white shadow-xl"
+      contentClassName="mx-4 flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-white dark:bg-ui-surface shadow-xl"
     >
       <div className="border-b px-4 py-3 text-base font-semibold">
         {zh('调整封面', 'Adjust cover')} · {item.code}
       </div>
       <div className="min-h-0 overflow-y-auto p-4">
-        <p className="mb-3 text-sm text-slate-500">
+        <p className="mb-3 text-sm text-slate-500 dark:text-ui-faint">
           {zh(
             '拖动裁切区域或使用滑块调整竖版封面。',
             'Drag the crop area or use the slider to adjust the portrait cover.'
           )}
         </p>
         <div
-          className="relative touch-none select-none overflow-hidden rounded bg-slate-100"
+          className="relative touch-none select-none overflow-hidden rounded bg-slate-100 dark:bg-ui-muted"
           onPointerDown={(event) => {
             if (!canMove || event.button !== 0) return
             event.preventDefault()
@@ -67,7 +67,7 @@ export default function JavCoverCropModal({ item, src, onClose }) {
           }}
         >
           {imageFailed ? (
-            <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500">
+            <div className="flex aspect-[800/538] items-center justify-center text-sm text-slate-500 dark:text-ui-faint">
               {zh('封面加载失败', 'Cover failed to load')}
             </div>
           ) : (
@@ -100,7 +100,7 @@ export default function JavCoverCropModal({ item, src, onClose }) {
             />
           ) : null}
         </div>
-        <label className="mt-4 flex items-center gap-3 text-sm text-slate-700">
+        <label className="mt-4 flex items-center gap-3 text-sm text-slate-700 dark:text-ui-secondary">
           <span>{zh('位置', 'Position')}</span>
           <input
             type="range"
@@ -110,12 +110,12 @@ export default function JavCoverCropModal({ item, src, onClose }) {
             value={position}
             disabled={!canMove}
             onChange={(event) => setPosition(Number(event.target.value))}
-            className="min-w-0 flex-1 accent-slate-900"
+            className="min-w-0 flex-1 accent-slate-900 dark:accent-blue-400"
           />
           <span className="w-10 text-right tabular-nums">{Math.round(position * 100)}%</span>
         </label>
         {error ? (
-          <div role="alert" className="mt-3 text-sm text-rose-600">
+          <div role="alert" className="mt-3 text-sm text-rose-600 dark:text-rose-300">
             {error}
           </div>
         ) : null}
@@ -125,7 +125,7 @@ export default function JavCoverCropModal({ item, src, onClose }) {
           type="button"
           disabled={saving}
           onClick={() => setPosition(1)}
-          className="rounded border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className="rounded border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:text-ui-secondary dark:hover:bg-ui-hover"
         >
           {zh('重置', 'Reset')}
         </button>
@@ -134,7 +134,7 @@ export default function JavCoverCropModal({ item, src, onClose }) {
             type="button"
             disabled={saving}
             onClick={onClose}
-            className="rounded border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            className="rounded border px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:text-ui-secondary dark:hover:bg-ui-hover"
           >
             {zh('取消', 'Cancel')}
           </button>

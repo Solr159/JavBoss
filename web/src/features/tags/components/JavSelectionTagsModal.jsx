@@ -21,14 +21,14 @@ export default function JavSelectionTagsModal({
       ariaLabel={zh('添加 JAV 标签', 'Add JAV Tags')}
       className="px-4"
       closeDisabled={saving}
-      contentClassName="flex max-h-[85vh] w-full max-w-sm flex-col rounded-lg bg-white p-4 shadow-xl"
+      contentClassName="flex max-h-[85vh] w-full max-w-sm flex-col rounded-lg bg-white dark:bg-ui-surface p-4 shadow-xl"
       onClose={onClose}
       zIndex={1600}
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold">{zh('添加 JAV 标签', 'Add JAV Tags')}</h2>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
             {zh(
               `为已选的 ${selectedCount} 部 JAV 添加自定义标签`,
               `Add custom tags to ${selectedCount} selected JAV items`
@@ -39,7 +39,7 @@ export default function JavSelectionTagsModal({
           type="button"
           onClick={onClose}
           disabled={saving}
-          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-ui-faint dark:hover:bg-ui-hover"
           aria-label={zh('关闭标签选择', 'Close Tag Picker')}
         >
           ✕
@@ -47,14 +47,14 @@ export default function JavSelectionTagsModal({
       </div>
       <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded border p-2">
         {list.length === 0 ? (
-          <p className="px-2 py-1 text-sm text-gray-500">
+          <p className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
             {zh('暂无自定义标签', 'No custom tags')}
           </p>
         ) : (
           list.map((tag) => (
             <label
               key={tag.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50 dark:hover:bg-ui-hover"
             >
               <input
                 type="checkbox"
@@ -63,8 +63,10 @@ export default function JavSelectionTagsModal({
                 onChange={(event) => onToggleChoice(tag.id, event.target.checked)}
                 aria-label={tag.name}
               />
-              <span className="min-w-0 flex-1 break-words text-sm text-gray-800">{tag.name}</span>
-              <span className="text-xs tabular-nums text-gray-400">
+              <span className="min-w-0 flex-1 break-words text-sm text-gray-800 dark:text-ui-text">
+                {tag.name}
+              </span>
+              <span className="text-xs tabular-nums text-gray-400 dark:text-ui-faint">
                 {Math.max(0, Number(tag.count) || 0)}
               </span>
             </label>
@@ -72,7 +74,7 @@ export default function JavSelectionTagsModal({
         )}
       </div>
       <div className="mt-3 flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-gray-500 dark:text-ui-faint">
           {zh(`已选 ${selected.size} 个标签`, `${selected.size} tags selected`)}
         </span>
         <div className="flex gap-2">

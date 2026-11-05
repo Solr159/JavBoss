@@ -160,10 +160,16 @@ export default function DirectoryCleanupPanel({
     <>
       <header className="flex shrink-0 items-start justify-between gap-3 px-5 pb-3 pt-5">
         <div className="min-w-0">
-          <h2 id="directory-cleanup-title" className="text-base font-semibold text-zinc-900">
+          <h2
+            id="directory-cleanup-title"
+            className="text-base font-semibold text-zinc-900 dark:text-ui-text"
+          >
             {zh('垃圾文件清理', 'Clean junk files')}
           </h2>
-          <div title={displayPath} className="mt-1 truncate text-xs text-zinc-500">
+          <div
+            title={displayPath}
+            className="mt-1 truncate text-xs text-zinc-500 dark:text-ui-faint"
+          >
             {displayPath}
           </div>
         </div>
@@ -183,7 +189,10 @@ export default function DirectoryCleanupPanel({
           {categories
             .filter((category) => category.option)
             .map((category) => (
-              <label key={category.option} className="flex items-start gap-2 text-sm text-zinc-800">
+              <label
+                key={category.option}
+                className="flex items-start gap-2 text-sm text-zinc-800 dark:text-ui-text"
+              >
                 <input
                   type="checkbox"
                   aria-label={category.label}
@@ -203,7 +212,7 @@ export default function DirectoryCleanupPanel({
                 />
                 <span>
                   <span className="block">{category.label}</span>
-                  <span className="mt-0.5 block text-xs leading-5 text-zinc-500">
+                  <span className="mt-0.5 block text-xs leading-5 text-zinc-500 dark:text-ui-faint">
                     {category.description}
                   </span>
                 </span>
@@ -213,7 +222,7 @@ export default function DirectoryCleanupPanel({
         {preview && (
           <div className="mt-4">
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900">
+              <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900 dark:text-blue-300">
                 <input
                   type="checkbox"
                   className="h-4 w-4 accent-blue-600"
@@ -226,29 +235,29 @@ export default function DirectoryCleanupPanel({
                 />
                 {zh('全选', 'Select all')}
               </label>
-              <span className="text-zinc-500">
+              <span className="text-zinc-500 dark:text-ui-faint">
                 {zh(`已选 ${chosen.length} 个`, `${chosen.length} selected`)} ·{' '}
                 {formatCleanupBytes(chosenBytes)}
               </span>
             </div>
-            <p className="mt-2 text-xs text-zinc-500">
+            <p className="mt-2 text-xs text-zinc-500 dark:text-ui-faint">
               {zh(`找到 ${files.length} 个文件`, `${files.length} files found`)}
             </p>
             {files.length ? (
-              <div className="mt-2 overflow-clip rounded-lg border border-zinc-200">
+              <div className="mt-2 overflow-clip rounded-lg border border-zinc-200 dark:border-ui-border">
                 {categories.map((category) => {
                   const group = files.filter((file) => file.reason === category.reason)
                   if (!group.length) return null
                   return (
                     <div key={category.reason}>
-                      <div className="bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600">
+                      <div className="bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-600 dark:bg-ui-canvas dark:text-ui-secondary">
                         {category.label} · {group.length} ·{' '}
                         {formatCleanupBytes(group.reduce((sum, file) => sum + file.size, 0))}
                       </div>
                       {group.map((file) => (
                         <label
                           key={file.path}
-                          className="flex items-start gap-3 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50"
+                          className="flex items-start gap-3 border-b border-zinc-100 px-3 py-2 last:border-0 hover:bg-zinc-50 dark:border-ui-border dark:hover:bg-ui-hover"
                         >
                           <input
                             type="checkbox"
@@ -266,10 +275,10 @@ export default function DirectoryCleanupPanel({
                             }
                           />
                           <span className="min-w-0 flex-1">
-                            <span className="block break-all text-sm text-zinc-800">
+                            <span className="block break-all text-sm text-zinc-800 dark:text-ui-text">
                               {file.path}
                             </span>
-                            <span className="text-xs text-zinc-500">
+                            <span className="text-xs text-zinc-500 dark:text-ui-faint">
                               {formatCleanupBytes(file.size)} · {category.label}
                             </span>
                           </span>
@@ -280,12 +289,12 @@ export default function DirectoryCleanupPanel({
                 })}
               </div>
             ) : (
-              <p className="mt-3 text-sm text-zinc-500">
+              <p className="mt-3 text-sm text-zinc-500 dark:text-ui-faint">
                 {zh('没有待清理的匹配文件。', 'No matching files to clean.')}
               </p>
             )}
             {preview.truncated && (
-              <p className="mt-2 text-xs text-amber-700">
+              <p className="mt-2 text-xs text-amber-700 dark:text-amber-300">
                 {zh(
                   '本次最多显示 10000 个文件，清理后请再次扫描。',
                   'Showing up to 10,000 files. Scan again after cleaning.'
@@ -295,7 +304,7 @@ export default function DirectoryCleanupPanel({
           </div>
         )}
         {result && (
-          <p role="status" className="mt-3 text-sm text-zinc-700">
+          <p role="status" className="mt-3 text-sm text-zinc-700 dark:text-ui-secondary">
             {zh(
               `已删除 ${result.deleted.length} 个文件，共 ${formatCleanupBytes(result.deleted_bytes)}；未删除 ${result.issues.length} 个。`,
               `Deleted ${result.deleted.length} files, totaling ${formatCleanupBytes(result.deleted_bytes)}; ${result.issues.length} files were not deleted.`
@@ -303,7 +312,7 @@ export default function DirectoryCleanupPanel({
           </p>
         )}
         {(result?.issues.length > 0 || preview?.issues.length > 0) && (
-          <details className="mt-3 text-sm text-amber-800">
+          <details className="mt-3 text-sm text-amber-800 dark:text-amber-300">
             <summary className="cursor-pointer">
               {zh('查看跳过或失败的项目', 'View skipped or failed items')}
             </summary>
@@ -317,14 +326,17 @@ export default function DirectoryCleanupPanel({
           </details>
         )}
         {error && (
-          <p role="alert" className="mt-3 text-sm text-red-600">
+          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-300">
             {error}
           </p>
         )}
       </div>
-      <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4">
+      <footer className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-ui-border">
         {busy && (
-          <span role="status" className="mr-auto flex items-center gap-2 text-sm text-zinc-500">
+          <span
+            role="status"
+            className="mr-auto flex items-center gap-2 text-sm text-zinc-500 dark:text-ui-faint"
+          >
             <CircularProgress size={16} />
             {busy === 'scan' ? zh('扫描中…', 'Scanning…') : zh('清理中…', 'Cleaning…')}
           </span>
@@ -333,7 +345,7 @@ export default function DirectoryCleanupPanel({
           type="button"
           onClick={onBack}
           disabled={Boolean(busy)}
-          className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+          className="rounded border px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:text-ui-secondary dark:hover:bg-ui-hover"
         >
           {zh('上一步', 'Back')}
         </button>
@@ -341,7 +353,7 @@ export default function DirectoryCleanupPanel({
           type="button"
           onClick={scan}
           disabled={Boolean(busy)}
-          className="rounded border border-blue-600 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60"
+          className="rounded border border-blue-600 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60 dark:text-blue-300 dark:hover:bg-ui-blue-hover"
         >
           {preview ? zh('重新扫描', 'Scan again') : zh('扫描垃圾文件', 'Scan junk files')}
         </button>

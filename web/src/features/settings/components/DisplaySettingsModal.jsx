@@ -22,8 +22,8 @@ function SortText({ option, value }) {
   return (
     <span className="truncate text-xs font-semibold sm:text-sm">
       <span>{parts.label}</span>
-      <span className="font-normal text-gray-500">{parts.separator}</span>
-      <span className="font-normal text-gray-500">{parts.direction}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.separator}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.direction}</span>
     </span>
   )
 }
@@ -37,8 +37,8 @@ function SortOptionRow({ option, name, inputValue, onChange }) {
     <div
       className={`flex items-center gap-2 rounded-lg border bg-white px-3 py-2 transition ${
         active
-          ? 'border-blue-500 bg-blue-50/40 ring-1 ring-blue-100'
-          : 'border-slate-200 hover:border-blue-300'
+          ? 'border-blue-500 bg-blue-50/40 ring-1 ring-blue-100 dark:bg-ui-blue-surface dark:ring-ui-blue-border'
+          : 'border-slate-200 hover:border-blue-300 dark:border-ui-border dark:bg-ui-surface dark:hover:border-blue-400'
       }`}
     >
       <label htmlFor={id} className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
@@ -56,7 +56,7 @@ function SortOptionRow({ option, name, inputValue, onChange }) {
       <button
         type="button"
         onClick={() => onChange?.(reverseSortValue([option], displayValue, option.defaultValue))}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
         title={zh('反转排序', 'Reverse sort')}
         aria-label={zh(`反转${option.label[0]}排序`, `Reverse ${option.label[1]} sort`)}
       >
@@ -68,7 +68,7 @@ function SortOptionRow({ option, name, inputValue, onChange }) {
 
 function SectionTitle({ children }) {
   return (
-    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+    <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-ui-text">
       <span className="h-4 w-1 rounded-full bg-blue-600" aria-hidden="true" />
       <span>{children}</span>
     </div>
@@ -77,7 +77,7 @@ function SectionTitle({ children }) {
 
 function SettingsSection({ title, children }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70">
+    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm shadow-slate-100/70 dark:border-ui-border dark:bg-ui-surface dark:shadow-black/20">
       <SectionTitle>{title}</SectionTitle>
       {children}
     </section>
@@ -86,11 +86,13 @@ function SettingsSection({ title, children }) {
 
 function SettingsRow({ label, hint, children }) {
   return (
-    <div className="flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm text-slate-700">
+    <div className="flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm text-slate-700 dark:text-ui-secondary">
       <span className="font-medium">
         {label}
         {hint && (
-          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">{hint}</span>
+          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500 dark:text-ui-faint">
+            {hint}
+          </span>
         )}
       </span>
       {children}
@@ -107,7 +109,7 @@ function SettingsSwitch({ label, checked, onChange }) {
       aria-checked={Boolean(checked)}
       onClick={() => onChange?.(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none ${
-        checked ? 'bg-blue-600' : 'bg-slate-200'
+        checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-ui-hover'
       }`}
     >
       <span
@@ -182,16 +184,16 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+    <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-ui-border dark:bg-ui-canvas/70">
       <div className="flex items-center gap-2">
-        <span className="min-w-0 text-sm font-semibold text-slate-700">
+        <span className="min-w-0 text-sm font-semibold text-slate-700 dark:text-ui-secondary">
           {zh(`规则 ${index + 1}`, `Rule ${index + 1}`)}
         </span>
         <span className="group relative">
           <button
             type="button"
             aria-label={zh(`查看规则 ${index + 1} 的当前效果`, `View rule ${index + 1} effect`)}
-            className="inline-flex h-7 w-7 items-center justify-center text-amber-500 transition hover:text-amber-600 focus:outline-none"
+            className="inline-flex h-7 w-7 items-center justify-center text-amber-500 transition hover:text-amber-600 focus:outline-none dark:hover:text-amber-300"
           >
             <InfoOutlinedIcon sx={{ fontSize: 18 }} />
           </button>
@@ -202,7 +204,9 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
             {javSortRuleDescription(rule)}
           </span>
         </span>
-        <span className="ml-auto text-xs text-slate-500">{zh('启用', 'Enable')}</span>
+        <span className="ml-auto text-xs text-slate-500 dark:text-ui-faint">
+          {zh('启用', 'Enable')}
+        </span>
         <SettingsSwitch
           label={zh(`启用排序规则 ${index + 1}`, `Enable sort rule ${index + 1}`)}
           checked={rule.enabled}
@@ -212,7 +216,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           type="button"
           disabled={index === 0}
           onClick={() => onMove?.(-1)}
-          className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-600 disabled:opacity-30"
+          className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-600 disabled:opacity-30 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary"
           aria-label={zh('上移规则', 'Move rule up')}
         >
           ↑
@@ -221,7 +225,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           type="button"
           disabled={index >= total - 1}
           onClick={() => onMove?.(1)}
-          className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-600 disabled:opacity-30"
+          className="h-8 w-8 rounded-md border border-slate-200 bg-white text-slate-600 disabled:opacity-30 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary"
           aria-label={zh('下移规则', 'Move rule down')}
         >
           ↓
@@ -229,19 +233,19 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
         <button
           type="button"
           onClick={onRemove}
-          className="h-8 rounded-md border border-red-200 bg-white px-2 text-xs text-red-600 hover:bg-red-50"
+          className="h-8 rounded-md border border-red-200 bg-white px-2 text-xs text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-ui-surface dark:text-red-300 dark:hover:bg-red-950"
         >
           {zh('删除', 'Delete')}
         </button>
       </div>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs font-medium text-slate-600">
+        <label className="text-xs font-medium text-slate-600 dark:text-ui-secondary">
           {zh('匹配条件', 'Match condition')}
           <select
             value={rule.mode}
             onChange={(event) => update({ mode: event.target.value })}
-            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-ui-border dark:bg-ui-surface"
           >
             <option value="all">
               {zh(
@@ -257,12 +261,12 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
             </option>
           </select>
         </label>
-        <label className="text-xs font-medium text-slate-600">
+        <label className="text-xs font-medium text-slate-600 dark:text-ui-secondary">
           {zh('命中后排序', 'Sort when matched')}
           <select
             value={rule.sort}
             onChange={(event) => update({ sort: event.target.value })}
-            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
+            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-ui-border dark:bg-ui-surface"
           >
             {javSortChoices.map((choice) => (
               <option key={choice.value} value={choice.value}>
@@ -282,8 +286,8 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
                 key={filter.key}
                 className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs transition ${
                   checked
-                    ? 'border-blue-500 bg-blue-50 text-blue-700'
-                    : 'border-slate-200 bg-white text-slate-600'
+                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'border-slate-200 bg-white text-slate-600 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary'
                 }`}
               >
                 <input
@@ -298,7 +302,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           })}
         </div>
         {(rule.active || []).length === 0 ? (
-          <p className="mt-1.5 text-xs text-amber-600">
+          <p className="mt-1.5 text-xs text-amber-600 dark:text-amber-300">
             {zh('请选择至少一种筛选', 'Select at least one filter')}
           </p>
         ) : null}
@@ -308,7 +312,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
 }
 
 const controlClassName =
-  'h-9 w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+  'h-9 w-32 rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 text-sm text-slate-700 dark:text-ui-secondary outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-ui-blue-border'
 
 function normalizeSettingsTab(tab) {
   return ['video', 'jav', 'idol', 'studio', 'series', 'tag'].includes(tab) ? tab : 'jav'
@@ -438,17 +442,20 @@ export default function DisplaySettingsModal({
     <AppModal
       ariaLabelledby="display-settings-title"
       className="px-4 py-4"
-      contentClassName="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 shadow-2xl shadow-slate-900/20"
+      contentClassName="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 dark:bg-ui-canvas shadow-2xl shadow-slate-900/20"
       onClose={onClose}
     >
       <header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
-        <h2 id="display-settings-title" className="text-xl font-bold tracking-tight text-slate-900">
+        <h2
+          id="display-settings-title"
+          className="text-xl font-bold tracking-tight text-slate-900 dark:text-ui-text"
+        >
           {zh('显示设置', 'Display settings')}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200/70 hover:text-slate-800 focus:outline-none"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-200/70 hover:text-slate-800 focus:outline-none dark:text-ui-faint dark:hover:bg-ui-hover/70 dark:hover:text-ui-text"
           aria-label={zh('关闭设置', 'Close settings')}
         >
           <CloseRoundedIcon sx={{ fontSize: 22 }} />
@@ -467,8 +474,8 @@ export default function DisplaySettingsModal({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full border px-4 py-1.5 text-sm font-medium transition focus:outline-none ${
                 active
-                  ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700'
+                  ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-black/20'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
               }`}
             >
               {tab.label}
@@ -486,7 +493,7 @@ export default function DisplaySettingsModal({
           {activeTab === 'jav' ? (
             <div className="space-y-3">
               <SettingsSection title={zh('布局设置', 'Layout')}>
-                <div className="divide-y divide-slate-100 px-1">
+                <div className="divide-y divide-slate-100 px-1 dark:divide-ui-border">
                   <SettingsRow label={zh('每页 JAV 数量', 'JAVs per page')}>
                     <input
                       type="number"
@@ -521,7 +528,7 @@ export default function DisplaySettingsModal({
               </SettingsSection>
 
               <SettingsSection title={zh('卡片设置', 'Card settings')}>
-                <div className="divide-y divide-slate-100 px-1">
+                <div className="divide-y divide-slate-100 px-1 dark:divide-ui-border">
                   <SettingsRow label={zh('封面显示模式', 'Cover display mode')}>
                     <select
                       aria-label={zh('封面显示模式', 'Cover display mode')}
@@ -637,7 +644,7 @@ export default function DisplaySettingsModal({
 
               <SettingsSection title={zh('排序规则', 'Sort rules')}>
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs leading-5 text-slate-500">
+                  <p className="text-xs leading-5 text-slate-500 dark:text-ui-faint">
                     {zh(
                       '规则从上到下匹配，第一条命中的规则生效。',
                       'Rules match top to bottom; the first match wins.'
@@ -659,7 +666,7 @@ export default function DisplaySettingsModal({
                           },
                         ])
                       }
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-default disabled:opacity-40"
+                      className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 disabled:cursor-default disabled:opacity-40 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400"
                     >
                       {zh('添加规则', 'Add rule')}
                     </button>
@@ -694,18 +701,18 @@ export default function DisplaySettingsModal({
                     />
                   ))}
                   {(javSortRulesInput || []).length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-500">
+                    <div className="rounded-lg border border-dashed border-slate-300 px-3 py-5 text-center text-xs text-slate-500 dark:border-ui-border dark:text-ui-faint">
                       {zh('暂无排序规则', 'No sort rules')}
                     </div>
                   ) : null}
                 </div>
-                <div className="mt-4 border-t border-slate-200 pt-4">
+                <div className="mt-4 border-t border-slate-200 pt-4 dark:border-ui-border">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-slate-700">
+                      <div className="text-sm font-semibold text-slate-700 dark:text-ui-secondary">
                         {zh('默认排序（兜底）', 'Default sort (fallback)')}
                       </div>
-                      <div className="mt-1 text-xs font-normal leading-5 text-slate-500">
+                      <div className="mt-1 text-xs font-normal leading-5 text-slate-500 dark:text-ui-faint">
                         {zh('当所有规则都不满足时使用。', 'Used when none of the rules match.')}
                       </div>
                     </div>
@@ -713,7 +720,7 @@ export default function DisplaySettingsModal({
                       aria-label={zh('默认排序（兜底）', 'Default sort (fallback)')}
                       value={javSortInput}
                       onChange={(event) => onJavSortChange?.(event.target.value)}
-                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-64"
+                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-ui-faint dark:focus:ring-ui-blue-border sm:w-64"
                     >
                       {javSortChoices.map((choice) => (
                         <option key={choice.value} value={choice.value}>
@@ -730,7 +737,7 @@ export default function DisplaySettingsModal({
           {activeTab === 'idol' ? (
             <div className="space-y-3">
               <SettingsSection title={zh('布局设置', 'Layout')}>
-                <div className="divide-y divide-slate-100 px-1">
+                <div className="divide-y divide-slate-100 px-1 dark:divide-ui-border">
                   <SettingsRow label={zh('每页 女优 数量', 'Idols per page')}>
                     <input
                       type="number"
@@ -776,7 +783,7 @@ export default function DisplaySettingsModal({
 
           {activeTab === 'studio' ? (
             <SettingsSection title={zh('布局设置', 'Layout')}>
-              <div className="divide-y divide-slate-100 px-1">
+              <div className="divide-y divide-slate-100 px-1 dark:divide-ui-border">
                 <SettingsRow label={zh('每页 片商 数量', 'Studios per page')}>
                   <input
                     type="number"
@@ -799,7 +806,7 @@ export default function DisplaySettingsModal({
 
           {activeTab === 'series' ? (
             <SettingsSection title={zh('布局设置', 'Layout')}>
-              <div className="divide-y divide-slate-100 px-1">
+              <div className="divide-y divide-slate-100 px-1 dark:divide-ui-border">
                 <SettingsRow label={zh('每页 系列 数量', 'Series per page')}>
                   <input
                     type="number"
@@ -840,12 +847,12 @@ export default function DisplaySettingsModal({
         </fieldset>
       </div>
 
-      <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4">
+      <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 bg-white px-5 py-4 dark:border-ui-border dark:bg-ui-surface">
         <button
           type="button"
           onClick={resetActiveTab}
           disabled={saving}
-          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none disabled:opacity-50"
+          className="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 focus:outline-none disabled:opacity-50 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
         >
           {zh('恢复默认', 'Restore defaults')}
         </button>
@@ -853,7 +860,7 @@ export default function DisplaySettingsModal({
           type="button"
           onClick={() => onSave?.(activeTab)}
           disabled={saving}
-          className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+          className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50 dark:shadow-black/20"
         >
           {zh('保存', 'Save')}
         </button>

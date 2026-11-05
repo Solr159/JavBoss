@@ -503,14 +503,14 @@ export default function TopBar({
         </button>
         <div className="filter-topbar__controls">
           {!isJavMode ? (
-            <div className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4">
+            <div className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4 dark:border-ui-border">
               <VideoDirectoryFilter />
             </div>
           ) : null}
           {isJavMode && !isJavDownload ? (
             <div
               ref={favoriteMenuRef}
-              className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4"
+              className="relative -ml-1 mr-4 shrink-0 border-r border-slate-200 pr-4 dark:border-ui-border"
             >
               <button
                 type="button"
@@ -653,7 +653,7 @@ export default function TopBar({
               <div
                 role="group"
                 aria-label={zh('多选', 'Multiple selection')}
-                className="inline-flex flex-wrap items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-1.5 py-1"
+                className="inline-flex flex-wrap items-center gap-1 rounded-full border border-sky-100 bg-sky-50 px-1.5 py-1 dark:border-sky-800 dark:bg-sky-950"
               >
                 <SelectionMenu
                   onSelectPage={onSelectPage}
@@ -664,7 +664,7 @@ export default function TopBar({
                   allAvailable={selectionAllAvailable}
                   busy={selectionBusy}
                 />
-                <span className="whitespace-nowrap px-1.5 text-xs font-medium text-sky-700">
+                <span className="whitespace-nowrap px-1.5 text-xs font-medium text-sky-700 dark:text-sky-300">
                   {zh(`已选 ${activeSelectedCount} 项`, `${activeSelectedCount} selected`)}
                 </span>
                 <Button
@@ -710,33 +710,33 @@ function FavoriteGroupMenu({
     <div
       role="dialog"
       aria-label={title || zh('女优收藏夹', 'Idol favorites')}
-      className="absolute left-0 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-8rem)] flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl"
+      className="absolute left-0 top-full z-50 mt-2.5 flex max-h-[70vh] w-[34rem] max-w-[calc(100vw-8rem)] flex-col overflow-visible rounded border border-gray-200 bg-white text-left shadow-xl dark:border-ui-border dark:bg-ui-surface"
     >
       <span
-        className="absolute left-4 top-0 h-0 w-0 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200"
+        className="absolute left-4 top-0 h-0 w-0 -translate-y-full border-x-[10px] border-b-[10px] border-x-transparent border-b-gray-200 dark:border-b-ui-border"
         aria-hidden="true"
       />
       <span
-        className="absolute left-[17px] top-px h-0 w-0 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-white"
+        className="absolute left-[17px] top-px h-0 w-0 -translate-y-full border-x-[9px] border-b-[9px] border-x-transparent border-b-white dark:border-b-ui-surface"
         aria-hidden="true"
       />
-      <div className="flex items-center justify-between gap-2 border-b bg-white px-3 py-2">
+      <div className="flex items-center justify-between gap-2 border-b bg-white px-3 py-2 dark:bg-ui-surface">
         <div className="min-w-0">
           <div className="flex min-h-[21px] items-center gap-1 text-xs leading-4">
-            <span className="font-semibold text-gray-700">
+            <span className="font-semibold text-gray-700 dark:text-ui-secondary">
               {title || zh('女优收藏夹', 'Idol favorites')}
             </span>
             {selected ? (
               <button
                 type="button"
                 onClick={() => onSelect?.(null)}
-                className="relative top-px shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600"
+                className="relative top-px shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-blue-300 dark:hover:bg-ui-blue-hover"
               >
                 {zh('取消筛选', 'Clear filter')}
               </button>
             ) : null}
           </div>
-          <div className="truncate text-xs text-gray-500">
+          <div className="truncate text-xs text-gray-500 dark:text-ui-faint">
             {loading
               ? zh('加载中…', 'Loading...')
               : zh(`${list.length} 个收藏夹`, `${list.length} favorites`)}
@@ -753,9 +753,9 @@ function FavoriteGroupMenu({
           <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto bg-white p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-white p-2 dark:bg-ui-surface">
         {error ? (
-          <div className="mb-2 rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700">
+          <div className="mb-2 rounded border border-red-200 bg-red-50 px-2 py-1.5 text-xs text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
             {String(error)}
           </div>
         ) : null}
@@ -779,7 +779,7 @@ function FavoriteGroupMenu({
           })}
         </div>
         {!loading && !error && list.length === 0 ? (
-          <div className="px-3 py-4 text-center text-sm text-gray-500">
+          <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-ui-faint">
             {zh('暂无收藏夹', 'No favorites')}
           </div>
         ) : null}
@@ -792,7 +792,9 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
   return (
     <div
       className={`group relative block aspect-square overflow-hidden rounded-lg border focus:outline-none ${
-        active ? 'border-blue-300 bg-blue-50 shadow-md' : 'border-transparent bg-transparent'
+        active
+          ? 'border-blue-300 bg-blue-50 shadow-md dark:border-blue-500 dark:bg-ui-hover'
+          : 'border-transparent bg-transparent'
       }`}
     >
       <a
@@ -805,28 +807,31 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         className="relative block h-full focus:outline-none"
       >
         <span
-          className="absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300"
+          className="absolute left-2 top-1.5 h-3 w-10 rounded-t-md border border-b-0 border-blue-300 bg-gradient-to-b from-blue-200 to-blue-300 dark:border-blue-500 dark:bg-blue-500 dark:bg-none"
           aria-hidden="true"
         />
         <span
-          className="absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)]"
+          className="absolute inset-x-1.5 bottom-1.5 top-3.5 rounded-md border border-blue-300 bg-gradient-to-br from-blue-100 via-blue-200 to-blue-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_6px_10px_rgba(15,23,42,0.11)] dark:border-blue-500 dark:bg-blue-500 dark:bg-none dark:shadow-none"
           aria-hidden="true"
         />
         <span
-          className="absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md bg-blue-300/45"
+          className="absolute inset-x-2 bottom-0.5 h-1.5 rounded-b-md bg-blue-300/45 dark:hidden"
           aria-hidden="true"
         />
         <span className="relative flex h-full px-2 pt-5">
           <span className="flex items-start gap-1">
-            <FolderRoundedIcon sx={{ fontSize: 14 }} className="shrink-0 text-blue-700" />
-            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 text-blue-950">
+            <FolderRoundedIcon
+              sx={{ fontSize: 14 }}
+              className="shrink-0 text-blue-700 dark:text-blue-300"
+            />
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 text-blue-950 dark:text-ui-text">
               {label}
             </span>
           </span>
         </span>
       </a>
       {Number.isFinite(count) ? (
-        <span className="absolute right-1.5 top-1.5 rounded-full border border-blue-200 bg-white/80 px-1.5 text-[10px] leading-4 text-blue-700 shadow-sm">
+        <span className="absolute right-1.5 top-1.5 rounded-full border border-blue-200 bg-white/80 px-1.5 text-[10px] leading-4 text-blue-700 shadow-sm dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300">
           {count}
         </span>
       ) : null}
@@ -838,7 +843,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
             event.stopPropagation()
             onEdit?.()
           }}
-          className="absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border border-blue-200 bg-white/85 text-blue-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-blue-50"
+          className="absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border border-blue-200 bg-white/85 text-blue-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-blue-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
           aria-label={zh(`编辑收藏夹 ${label}`, `Edit favorite ${label}`)}
         >
           <EditRoundedIcon sx={{ fontSize: 14 }} />

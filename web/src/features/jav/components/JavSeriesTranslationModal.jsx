@@ -53,16 +53,16 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
       ariaLabel={zh('编辑系列译名', 'Edit series translation')}
       className="p-4"
       zIndex={1700}
-      contentClassName="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl"
+      contentClassName="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white dark:bg-ui-surface shadow-2xl"
       closeDisabled={busy}
       onClose={onClose}
     >
       <form onSubmit={save} className="flex min-h-0 flex-col">
-        <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-5 dark:border-ui-border">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-ui-blue-surface dark:text-blue-300">
             <TranslateRoundedIcon sx={{ fontSize: 22 }} />
           </div>
-          <h3 className="flex-1 text-base font-semibold text-gray-900">
+          <h3 className="flex-1 text-base font-semibold text-gray-900 dark:text-ui-text">
             {zh('编辑系列译名', 'Edit series translation')}
           </h3>
           <IconButton
@@ -75,21 +75,21 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
           </IconButton>
         </div>
         <div className="min-h-0 space-y-5 overflow-y-auto px-6 py-5">
-          <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-            <div className="text-xs font-medium text-gray-500">
+          <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 dark:border-ui-border dark:bg-ui-canvas">
+            <div className="text-xs font-medium text-gray-500 dark:text-ui-faint">
               {zh('原系列名称', 'Original series name')}
             </div>
-            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700">
+            <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-700 dark:text-ui-secondary">
               {item.name}
             </p>
           </div>
           <div className="space-y-3">
             <label className="block space-y-2 text-sm">
-              <span className="font-semibold text-gray-900">
+              <span className="font-semibold text-gray-900 dark:text-ui-text">
                 {zh('中文系列名称', 'Chinese series name')}
               </span>
               <textarea
-                className="block w-full resize-y rounded-lg border border-gray-300 px-3 py-3 text-sm leading-relaxed text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
+                className="block w-full resize-y rounded-lg border border-gray-300 px-3 py-3 text-sm leading-relaxed text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border dark:disabled:bg-ui-canvas dark:disabled:text-ui-faint"
                 value={name}
                 maxLength={8192}
                 rows={3}
@@ -105,7 +105,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
                     type="button"
                     disabled={busy || !item.name?.trim() || (!thinking && reasoning === 'always')}
                     onClick={() => void translate(thinking)}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
                   >
                     {thinking ? (
                       <AutoAwesomeOutlinedIcon sx={{ fontSize: 16 }} />
@@ -119,7 +119,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
                 ))}
               </div>
             )}
-            <p className="text-xs leading-relaxed text-gray-500">
+            <p className="text-xs leading-relaxed text-gray-500 dark:text-ui-faint">
               {zh(
                 '翻译结果可修改，点击保存后生效。',
                 'Review or edit the translation, then save to apply it.'
@@ -129,18 +129,18 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
           {error && (
             <p
               role="alert"
-              className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-700"
+              className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm leading-relaxed text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
             >
               {error}
             </p>
           )}
         </div>
-        <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+        <div className="flex shrink-0 justify-end gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 dark:border-ui-border dark:bg-ui-canvas">
           <button
             type="button"
             disabled={busy}
             onClick={onClose}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50"
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
           >
             {zh('取消', 'Cancel')}
           </button>

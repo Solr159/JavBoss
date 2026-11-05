@@ -60,7 +60,7 @@ export default function JavSeriesView({
         />
       </div>
       {loading ? (
-        <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
+        <div className="mt-4 flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500 dark:border-ui-border dark:text-ui-faint">
           {zh('加载中…', 'Loading...')}
         </div>
       ) : (
@@ -87,7 +87,7 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites,
   const hasItems = Array.isArray(items) && items.length > 0
   if (!hasItems) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
+      <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500 dark:border-ui-border dark:text-ui-faint">
         {zh('暂无系列数据', 'No series data')}
       </div>
     )
@@ -96,7 +96,7 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites,
   return (
     <>
       {translation.error && (
-        <div role="alert" className="mb-3 text-sm text-amber-700">
+        <div role="alert" className="mb-3 text-sm text-amber-700 dark:text-amber-300">
           {translation.error}{' '}
           <button type="button" className="underline" onClick={translation.retry}>
             {zh('重试', 'Retry')}
@@ -104,7 +104,7 @@ function JavSeriesGrid({ items, onSelectSeries, onSelectStudio, onOpenFavorites,
         </div>
       )}
       <div
-        className="grid gap-4 bg-white"
+        className="grid gap-4 bg-white dark:bg-ui-surface"
         style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))' }}
       >
         {items.map((item) => (
@@ -203,7 +203,7 @@ export function SeriesCard({
       )}
       <a
         href={href || '#'}
-        className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
+        className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg dark:bg-ui-surface"
         onClick={handleClick}
         onKeyDown={(e) => {
           if (e.target === e.currentTarget && e.key === ' ') {
@@ -212,7 +212,7 @@ export function SeriesCard({
           }
         }}
       >
-        <div className="relative aspect-[800/538] w-full overflow-hidden bg-gray-100">
+        <div className="relative aspect-[800/538] w-full overflow-hidden bg-gray-100 dark:bg-ui-muted">
           <button
             type="button"
             className="card-hover-focus-visible absolute bottom-2 right-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-white opacity-0 group-hover:opacity-100"
@@ -235,7 +235,7 @@ export function SeriesCard({
               loading="lazy"
             />
           ) : (
-            <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4 text-center text-lg font-semibold text-gray-600">
+            <div className="absolute inset-0 flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4 text-center text-lg font-semibold text-gray-600 dark:from-ui-muted dark:to-ui-hover dark:text-ui-secondary">
               {name}
             </div>
           )}
@@ -248,7 +248,7 @@ export function SeriesCard({
             type="button"
             className={`card-hover-focus-visible absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
-                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300 dark:text-amber-300 dark:hover:bg-amber-900'
                 : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
             }`}
             title={zh('加入系列收藏夹', 'Add to series favorite groups')}
@@ -278,18 +278,23 @@ export function SeriesCard({
           <div className="line-clamp-2 text-sm font-semibold leading-tight" title={item.name}>
             {name}
           </div>
-          <div className="flex min-w-0 items-center gap-2 text-xs text-gray-500">
+          <div className="flex min-w-0 items-center gap-2 text-xs text-gray-500 dark:text-ui-faint">
             {studioName ? (
               <span className="inline-flex min-w-0 items-center gap-1">
                 <Tooltip title={zh('片商', 'Studio')} arrow>
                   <span className="inline-flex">
-                    <VideocamOutlinedIcon sx={{ fontSize: 16 }} className="shrink-0 text-sky-600" />
+                    <VideocamOutlinedIcon
+                      sx={{ fontSize: 16 }}
+                      className="shrink-0 text-sky-600 dark:text-sky-300"
+                    />
                   </span>
                 </Tooltip>
                 <button
                   type="button"
                   className={`min-w-0 truncate text-left ${
-                    canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                    canFilterStudio
+                      ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+                      : ''
                   }`}
                   onClick={handleStudioClick}
                   disabled={!canFilterStudio}

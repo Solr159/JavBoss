@@ -87,7 +87,7 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
     }
   }
   const buttonClass =
-    'shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50'
+    'shrink-0 rounded-lg border border-zinc-300 dark:border-ui-border bg-white dark:bg-ui-surface px-3 py-2 text-sm disabled:opacity-50'
   return (
     <details
       data-translation-batch={target}
@@ -97,10 +97,10 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 [&::-webkit-details-marker]:hidden">
         <span>
-          <span className="block text-sm font-medium text-zinc-700">
+          <span className="block text-sm font-medium text-zinc-700 dark:text-ui-secondary">
             {zh('批量翻译', 'Batch translation')}
           </span>
-          <span className="mt-1 block text-xs leading-5 text-zinc-500">
+          <span className="mt-1 block text-xs leading-5 text-zinc-500 dark:text-ui-faint">
             {running
               ? zh(
                   `翻译中 · ${batch.processed}/${batch.total}`,
@@ -115,15 +115,15 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
           </span>
         </span>
         <span
-          className="text-zinc-400 transition-transform group-open:rotate-180"
+          className="text-zinc-400 transition-transform group-open:rotate-180 dark:text-ui-faint"
           aria-hidden="true"
         >
           ⌄
         </span>
       </summary>
-      <div className="mx-5 mb-5 space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+      <div className="mx-5 mb-5 space-y-4 rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-ui-border dark:bg-ui-canvas">
         {dirty && (
-          <p className="text-xs text-amber-700">
+          <p className="text-xs text-amber-700 dark:text-amber-300">
             {zh(
               '请先保存或取消服务商配置的修改，再开始批量翻译。',
               'Save or cancel your provider changes before starting a batch.'
@@ -134,11 +134,11 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
           <fieldset disabled={busy || dirty} className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block min-w-0 flex-1 space-y-2">
-                <span className="text-xs font-medium text-zinc-600">
+                <span className="text-xs font-medium text-zinc-600 dark:text-ui-secondary">
                   {zh('翻译范围', 'Translation scope')}
                 </span>
                 <select
-                  className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
+                  className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text"
                   value={scope}
                   onChange={(e) => {
                     setScope(e.target.value)
@@ -170,13 +170,13 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
               </label>
             </div>
             {previewLoading && (
-              <p role="status" className="text-sm text-zinc-500">
+              <p role="status" className="text-sm text-zinc-500 dark:text-ui-faint">
                 {zh('正在加载任务详情…', 'Loading batch details…')}
               </p>
             )}
             {previewError && (
               <div className="space-y-2">
-                <p role="alert" className="break-words text-sm text-red-600">
+                <p role="alert" className="break-words text-sm text-red-600 dark:text-red-300">
                   {previewError}
                 </p>
                 <button
@@ -189,8 +189,8 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
               </div>
             )}
             {!previewLoading && preview?.scope === scope && (
-              <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3">
-                <p role="status" className="text-sm text-zinc-700">
+              <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3 dark:border-ui-border dark:bg-ui-surface">
+                <p role="status" className="text-sm text-zinc-700 dark:text-ui-secondary">
                   {zh(
                     series
                       ? `将翻译 ${preview.total} 个系列，其中 ${preview.existing} 个已有中文名称。`
@@ -198,14 +198,14 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
                     `Translate ${preview.total} ${series ? 'series names' : 'titles'}; ${preview.existing} already have translations.`
                   )}
                 </p>
-                <p className="text-xs text-zinc-500">
+                <p className="text-xs text-zinc-500 dark:text-ui-faint">
                   {zh(
                     '实际处理数量以启动时为准，服务商可能按用量收费。',
                     'The count is checked again when starting; provider usage charges may apply.'
                   )}
                 </p>
                 {scope === 'all' && (
-                  <label className="flex items-start gap-2 text-sm text-amber-800">
+                  <label className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
                     <input
                       type="checkbox"
                       className="mt-1"
@@ -240,7 +240,7 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
           </fieldset>
         )}
         {batch?.total > 0 && (
-          <p role="status" className="text-sm text-zinc-600">
+          <p role="status" className="text-sm text-zinc-600 dark:text-ui-secondary">
             {zh(
               `${batch.running ? (batch.stopping ? '正在停止' : '翻译中') : batch.stopping ? '已停止' : batch.error_zh ? '翻译失败' : '已完成'}：${batch.processed}/${batch.total}，已翻译 ${batch.translated}，跳过 ${batch.skipped}`,
               `${batch.running ? (batch.stopping ? 'Stopping' : 'Translating') : batch.stopping ? 'Stopped' : batch.error_en ? 'Failed' : 'Finished'}: ${batch.processed}/${batch.total}; translated ${batch.translated}, skipped ${batch.skipped}`
@@ -262,7 +262,7 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
           </button>
         )}
         {(error || batch?.error_zh) && (
-          <p role="alert" className="break-words text-sm text-red-600">
+          <p role="alert" className="break-words text-sm text-red-600 dark:text-red-300">
             {error || zh(batch.error_zh, batch.error_en)}
           </p>
         )}

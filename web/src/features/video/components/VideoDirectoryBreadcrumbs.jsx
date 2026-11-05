@@ -84,7 +84,7 @@ export default function VideoDirectoryBreadcrumbs() {
       <div className="h-[calc(2rem+env(safe-area-inset-bottom))]" aria-hidden="true" />
       <nav
         aria-label={zh('当前视频目录', 'Current video directory')}
-        className="fixed bottom-0 left-[var(--side-tabs-width)] right-0 z-40 border-t border-gray-200 bg-white pl-3 pr-[var(--page-right-padding)] shadow-[0_-2px_8px_rgba(15,23,42,0.04)]"
+        className="fixed bottom-0 left-[var(--side-tabs-width)] right-0 z-40 border-t border-gray-200 bg-white pl-3 pr-[var(--page-right-padding)] shadow-[0_-2px_8px_rgba(15,23,42,0.04)] dark:border-ui-border dark:bg-ui-navigation"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <ol className="flex h-8 items-center gap-0.5 overflow-x-auto whitespace-nowrap text-[11px]">
@@ -94,7 +94,10 @@ export default function VideoDirectoryBreadcrumbs() {
             return (
               <li key={index} className="flex shrink-0 items-center gap-0.5">
                 {index > 0 ? (
-                  <ChevronRightIcon className="text-gray-400" sx={{ fontSize: 16 }} />
+                  <ChevronRightIcon
+                    className="text-gray-400 dark:text-ui-faint"
+                    sx={{ fontSize: 16 }}
+                  />
                 ) : null}
                 <button
                   ref={current ? currentRef : undefined}
@@ -114,7 +117,7 @@ export default function VideoDirectoryBreadcrumbs() {
                     setMenuOpen(true)
                   }}
                   title={title(crumb)}
-                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 ${active ? 'bg-blue-50 font-medium text-blue-700' : 'text-gray-600'}`}
+                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300 ${active ? 'bg-blue-50 font-medium text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300' : 'text-gray-600 dark:text-ui-secondary'}`}
                 >
                   {index === 0 ? <FolderOutlinedIcon sx={{ fontSize: 16 }} /> : null}
                   <span className="max-w-48 truncate">{crumb.label}</span>
@@ -152,15 +155,19 @@ export default function VideoDirectoryBreadcrumbs() {
       >
         <div ref={treeContainerRef} className="min-h-0 overflow-y-auto p-1">
           {loading ? (
-            <div role="status" className="px-3 py-2 text-xs text-gray-500">
+            <div role="status" className="px-3 py-2 text-xs text-gray-500 dark:text-ui-faint">
               {zh('加载中…', 'Loading...')}
             </div>
           ) : error ? (
             <>
-              <div role="alert" className="px-3 py-2 text-xs text-red-600">
+              <div role="alert" className="px-3 py-2 text-xs text-red-600 dark:text-red-300">
                 {error}
               </div>
-              <button type="button" onClick={retry} className="px-3 py-2 text-xs text-blue-600">
+              <button
+                type="button"
+                onClick={retry}
+                className="px-3 py-2 text-xs text-blue-600 dark:text-blue-300"
+              >
                 {zh('重试', 'Retry')}
               </button>
             </>
@@ -175,7 +182,7 @@ export default function VideoDirectoryBreadcrumbs() {
               onToggle={() => popoverRef.current?.updatePosition()}
             />
           ) : (
-            <div role="status" className="px-3 py-2 text-xs text-gray-500">
+            <div role="status" className="px-3 py-2 text-xs text-gray-500 dark:text-ui-faint">
               {zh('暂无视频目录', 'No video directories')}
             </div>
           )}
@@ -184,7 +191,7 @@ export default function VideoDirectoryBreadcrumbs() {
           <button
             type="button"
             onClick={() => selectDirectory(null)}
-            className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100"
+            className="shrink-0 border-t border-gray-200 bg-white px-4 py-2 text-left text-xs hover:bg-gray-100 focus-visible:bg-gray-100 dark:border-ui-border dark:bg-ui-surface dark:hover:bg-ui-hover dark:focus-visible:bg-ui-hover"
           >
             {zh('查看全部视频', 'View all videos')}
           </button>

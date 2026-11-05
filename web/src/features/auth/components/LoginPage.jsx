@@ -27,17 +27,19 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-zinc-200 px-4">
-      <section className="w-full max-w-md rounded-[28px] border border-white/80 bg-white/90 p-8 shadow-2xl shadow-zinc-300/50 backdrop-blur">
+    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-zinc-100 via-white to-zinc-200 px-4 dark:from-ui-muted dark:via-ui-surface dark:to-ui-hover">
+      <section className="w-full max-w-md rounded-[28px] border border-white/80 bg-white/90 p-8 shadow-2xl shadow-zinc-300/50 backdrop-blur dark:border-ui-border dark:bg-ui-surface/90 dark:shadow-black/20">
         <div className="mb-8 text-center">
-          <div className="text-3xl font-bold tracking-tight text-zinc-900">JavBoss</div>
-          <p className="mt-2 text-sm text-zinc-500">
+          <div className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-ui-text">
+            JavBoss
+          </div>
+          <p className="mt-2 text-sm text-zinc-500 dark:text-ui-faint">
             {zh('请输入密码继续', 'Enter your password to continue')}
           </p>
         </div>
 
         {checkError ? (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
             <div>{checkError}</div>
             <button type="button" onClick={onRetry} className="mt-2 font-medium underline">
               {zh('重新连接', 'Retry')}
@@ -49,7 +51,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
           <div>
             <label
               htmlFor="login-password"
-              className="mb-1.5 block text-sm font-medium text-zinc-700"
+              className="mb-1.5 block text-sm font-medium text-zinc-700 dark:text-ui-secondary"
             >
               {zh('密码', 'Password')}
             </label>
@@ -63,12 +65,12 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
                   setPassword(event.target.value)
                   setError('')
                 }}
-                className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-3 pr-11 text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-3 pr-11 text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus:ring-ui-blue-border"
               />
               <button
                 type="button"
                 onClick={() => setPasswordVisible((visible) => !visible)}
-                className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center justify-center rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-secondary"
                 aria-label={
                   passwordVisible
                     ? zh('隐藏密码', 'Hide password')
@@ -83,7 +85,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
               </button>
             </div>
           </div>
-          {error ? <div className="text-sm text-red-600">{error}</div> : null}
+          {error ? <div className="text-sm text-red-600 dark:text-red-300">{error}</div> : null}
           <button
             type="submit"
             disabled={submitting || !password}
@@ -93,23 +95,23 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
           </button>
         </form>
 
-        <div className="mt-5 border-t border-zinc-200 pt-4">
+        <div className="mt-5 border-t border-zinc-200 pt-4 dark:border-ui-border">
           <button
             type="button"
             aria-expanded={recoveryOpen}
             aria-controls="password-recovery-help"
             onClick={() => setRecoveryOpen((value) => !value)}
-            className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-600 hover:text-zinc-900"
+            className="flex w-full items-center justify-between text-left text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-ui-secondary dark:hover:text-ui-text"
           >
             <span>{zh('忘记密码？', 'Forgot your password?')}</span>
-            <span aria-hidden="true" className="text-xs text-zinc-400">
+            <span aria-hidden="true" className="text-xs text-zinc-400 dark:text-ui-faint">
               {recoveryOpen ? '▲' : '▼'}
             </span>
           </button>
           {recoveryOpen ? (
             <div
               id="password-recovery-help"
-              className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"
+              className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300"
             >
               <ol className="list-decimal space-y-2 pl-5">
                 <li>{zh('先停止 JavBoss。', 'Stop JavBoss first.')}</li>
@@ -136,7 +138,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
           ) : null}
         </div>
 
-        <p className="mt-5 text-center text-xs text-zinc-400">
+        <p className="mt-5 text-center text-xs text-zinc-400 dark:text-ui-faint">
           {zh(
             '默认密码：admin，登陆后可在全局设置中修改',
             'Default password: admin. You can change it in Global Settings after signing in.'

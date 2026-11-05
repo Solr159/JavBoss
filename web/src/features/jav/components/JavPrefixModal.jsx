@@ -157,22 +157,25 @@ export default function JavPrefixModal({
     <AppModal
       ariaLabelledby="jav-prefix-modal-title"
       className="p-4"
-      contentClassName="flex h-[86vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl"
+      contentClassName="flex h-[86vh] w-full max-w-4xl flex-col rounded-lg bg-white dark:bg-ui-surface shadow-xl"
       onClose={onClose}
     >
       <div className="flex items-center justify-between border-b px-5 py-4">
         <div>
-          <h2 id="jav-prefix-modal-title" className="text-lg font-semibold text-gray-900">
+          <h2
+            id="jav-prefix-modal-title"
+            className="text-lg font-semibold text-gray-900 dark:text-ui-text"
+          >
             {zh('番号', 'JAV codes')}
           </h2>
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
             {zh('点击番号查询对应影片', 'Select a code to filter matching works')}
           </p>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-secondary"
           aria-label={zh('关闭', 'Close')}
         >
           <CloseRoundedIcon fontSize="small" />
@@ -184,19 +187,21 @@ export default function JavPrefixModal({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-9 min-w-0 flex-1 rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            className="h-9 min-w-0 flex-1 rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:border-blue-400 dark:focus:ring-ui-blue-border"
             placeholder={zh('搜索番号或片商', 'Search code or studio')}
             aria-label={zh('搜索番号', 'Search JAV codes')}
           />
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="text-xs font-semibold text-gray-900">{zh('类型', 'Type')}</span>
-            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
+            <span className="text-xs font-semibold text-gray-900 dark:text-ui-text">
+              {zh('类型', 'Type')}
+            </span>
+            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs dark:border-ui-border dark:bg-ui-surface">
               <button
                 type="button"
                 className={`px-3 py-2 font-medium ${
                   censorMode === 'all'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('all')}
               >
@@ -204,10 +209,10 @@ export default function JavPrefixModal({
               </button>
               <button
                 type="button"
-                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   censorMode === 'censored'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('censored')}
               >
@@ -215,10 +220,10 @@ export default function JavPrefixModal({
               </button>
               <button
                 type="button"
-                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   censorMode === 'uncensored'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('uncensored')}
               >
@@ -227,14 +232,16 @@ export default function JavPrefixModal({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <span className="text-xs font-semibold text-gray-900">{zh('排序', 'Sort')}</span>
-            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs">
+            <span className="text-xs font-semibold text-gray-900 dark:text-ui-text">
+              {zh('排序', 'Sort')}
+            </span>
+            <div className="inline-flex overflow-hidden rounded border border-gray-200 bg-white text-xs dark:border-ui-border dark:bg-ui-surface">
               <button
                 type="button"
                 className={`px-3 py-2 font-medium ${
                   sortMode === 'count'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setSortMode('count')}
               >
@@ -242,10 +249,10 @@ export default function JavPrefixModal({
               </button>
               <button
                 type="button"
-                className={`border-l border-gray-200 px-3 py-2 font-medium ${
+                className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   sortMode === 'az'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setSortMode('az')}
               >
@@ -271,8 +278,8 @@ export default function JavPrefixModal({
                     active
                       ? 'border-blue-600 bg-blue-600 text-white'
                       : !available
-                        ? 'border-gray-100 bg-gray-50 text-gray-300'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700'
+                        ? 'border-gray-100 bg-gray-50 text-gray-300 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-border'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
                   }`}
                   disabled={!available}
                   aria-pressed={active}
@@ -292,20 +299,20 @@ export default function JavPrefixModal({
 
       <div className="min-h-[260px] flex-1 overflow-auto">
         {loading ? (
-          <div className="flex min-h-[260px] items-center justify-center text-sm text-gray-500">
+          <div className="flex min-h-[260px] items-center justify-center text-sm text-gray-500 dark:text-ui-faint">
             {zh('加载中…', 'Loading...')}
           </div>
         ) : error ? (
-          <div className="m-5 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="m-5 rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
             {error}
           </div>
         ) : filteredItems.length === 0 ? (
-          <div className="flex min-h-[260px] items-center justify-center text-sm text-gray-500">
+          <div className="flex min-h-[260px] items-center justify-center text-sm text-gray-500 dark:text-ui-faint">
             {zh('暂无番号', 'No codes')}
           </div>
         ) : (
           <table className="w-full border-collapse text-left text-sm">
-            <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+            <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500 dark:bg-ui-canvas dark:text-ui-faint">
               <tr>
                 <th className="px-5 py-3 font-semibold">{zh('番号', 'Code')}</th>
                 <th className="px-5 py-3 font-semibold">{zh('片商', 'Studio')}</th>
@@ -313,7 +320,7 @@ export default function JavPrefixModal({
                 <th className="px-5 py-3 text-right font-semibold">{zh('影片数量', 'Works')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-100 dark:divide-ui-border">
               {filteredItems.map((item) => {
                 const prefix = String(item?.prefix || '').trim()
                 const active = prefix && prefix === activePrefix
@@ -321,12 +328,16 @@ export default function JavPrefixModal({
                 return (
                   <tr
                     key={`${prefix}-${item?.studio_id || 'none'}-${String(item?.is_uncensored)}`}
-                    className={active ? 'bg-blue-50' : 'hover:bg-gray-50'}
+                    className={
+                      active
+                        ? 'bg-blue-50 dark:bg-ui-blue-surface'
+                        : 'hover:bg-gray-50 dark:hover:bg-ui-hover'
+                    }
                   >
                     <td className="px-5 py-3">
                       <a
                         href={href}
-                        className="font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+                        className="font-semibold text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-300 dark:hover:text-blue-300"
                         onClick={(event) => {
                           if (isModifiedClick(event)) return
                           event.preventDefault()
@@ -336,7 +347,7 @@ export default function JavPrefixModal({
                         {prefix}
                       </a>
                     </td>
-                    <td className="px-5 py-3 text-gray-700">
+                    <td className="px-5 py-3 text-gray-700 dark:text-ui-secondary">
                       <div className="flex flex-wrap gap-y-1">
                         {(item?.studioItems || []).length > 0 ? (
                           item.studioItems.map((studio, index) => {
@@ -357,7 +368,7 @@ export default function JavPrefixModal({
                               >
                                 <a
                                   href={buildPrefixUrl?.(studioFilterItem) || '#'}
-                                  className="text-gray-700 hover:text-gray-900 hover:underline"
+                                  className="text-gray-700 hover:text-gray-900 hover:underline dark:text-ui-secondary dark:hover:text-ui-text"
                                   title={zh(
                                     `搜索 ${prefix} + ${studioFilterItem.studio_name}`,
                                     `Search ${prefix} + ${studioFilterItem.studio_name}`
@@ -371,7 +382,9 @@ export default function JavPrefixModal({
                                   {studioFilterItem.studio_name}
                                 </a>
                                 {index < studios.length - 1 ? (
-                                  <span className="text-gray-500">{studioListSeparator()}</span>
+                                  <span className="text-gray-500 dark:text-ui-faint">
+                                    {studioListSeparator()}
+                                  </span>
                                 ) : null}
                               </span>
                             )
@@ -386,7 +399,7 @@ export default function JavPrefixModal({
                                 include_studio_filter: true,
                               }) || '#'
                             }
-                            className="text-gray-700 hover:text-gray-900 hover:underline"
+                            className="text-gray-700 hover:text-gray-900 hover:underline dark:text-ui-secondary dark:hover:text-ui-text"
                             title={zh(
                               `搜索 ${prefix} + ${unknownStudioLabel()}`,
                               `Search ${prefix} + ${unknownStudioLabel()}`
@@ -407,8 +420,10 @@ export default function JavPrefixModal({
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-gray-700">{censorLabel(item?.is_uncensored)}</td>
-                    <td className="px-5 py-3 text-right font-medium text-gray-900">
+                    <td className="px-5 py-3 text-gray-700 dark:text-ui-secondary">
+                      {censorLabel(item?.is_uncensored)}
+                    </td>
+                    <td className="px-5 py-3 text-right font-medium text-gray-900 dark:text-ui-text">
                       {Number(item?.work_count || 0).toLocaleString()}
                     </td>
                   </tr>

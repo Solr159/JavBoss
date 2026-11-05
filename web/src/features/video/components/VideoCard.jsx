@@ -156,11 +156,13 @@ export default function VideoCard({
 
   return (
     <div
-      className={`video-card relative flex flex-col overflow-hidden rounded-lg border bg-white shadow transition-all ${
-        checked ? 'border-sky-400 ring-2 ring-sky-200' : 'border-gray-200 hover:border-gray-300'
+      className={`video-card relative flex flex-col overflow-hidden rounded-lg border bg-white shadow transition-all dark:bg-ui-surface ${
+        checked
+          ? 'border-sky-400 ring-2 ring-sky-200 dark:border-sky-400 dark:ring-sky-800'
+          : 'border-gray-200 hover:border-gray-300 dark:border-ui-border dark:hover:border-ui-faint'
       }`}
     >
-      <div className="card-hover-scope video-card-cover group/cover relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200">
+      <div className="card-hover-scope video-card-cover group/cover relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200 dark:bg-ui-hover">
         {showSelection ? (
           <div className={`video-card-select ${checked ? 'is-visible' : ''}`}>
             <input
@@ -312,14 +314,14 @@ export default function VideoCard({
         </div>
         {videoPath ? (
           <div
-            className="mt-1 truncate text-[10px] text-gray-500 sm:text-[11px]"
+            className="mt-1 truncate text-[10px] text-gray-500 dark:text-ui-faint sm:text-[11px]"
             title={relativeDirectoryPath}
           >
             {directoryId ? (
               <a
                 href={directoryHref}
                 onClick={handleDirectoryClick}
-                className="hover:text-blue-700 hover:underline"
+                className="hover:text-blue-700 hover:underline dark:hover:text-blue-300"
                 aria-label={zh(
                   `跳转到目录 ${relativeDirectoryPath}`,
                   `Go to directory ${relativeDirectoryPath}`
@@ -334,18 +336,18 @@ export default function VideoCard({
         ) : null}
         <div className="mt-2 flex min-w-0 items-start gap-2">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-            <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
+            <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700 dark:bg-ui-muted dark:text-ui-secondary">
               {durationMinutes
                 ? zh(`${durationMinutes} 分钟`, `${durationMinutes} min`)
                 : zh('时长未知', 'Unknown duration')}
             </span>
             {resolution ? (
-              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
+              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700 dark:bg-ui-muted dark:text-ui-secondary">
                 {resolution}
               </span>
             ) : null}
             {sizeText ? (
-              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700">
+              <span className="inline-flex h-4 items-center rounded bg-gray-100 px-1 text-[10px] font-medium text-gray-700 dark:bg-ui-muted dark:text-ui-secondary">
                 {sizeText}
               </span>
             ) : null}
@@ -358,7 +360,7 @@ export default function VideoCard({
               <button
                 key={t.id}
                 type="button"
-                className="inline-flex h-4 items-center justify-center rounded bg-orange-300 px-1 text-[10px] font-semibold text-black"
+                className="inline-flex h-4 items-center justify-center rounded bg-orange-300 px-1 text-[10px] font-semibold text-black dark:bg-orange-900 dark:text-ui-text"
                 onClick={(e) => {
                   e.stopPropagation()
                   onTagClick?.(t.name)
@@ -382,7 +384,7 @@ export default function VideoCard({
           <button
             type="button"
             onClick={handleRename}
-            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 dark:text-ui-secondary dark:hover:bg-ui-hover"
           >
             <DriveFileRenameOutlineIcon className="h-4 w-4" fontSize="inherit" />
             <span>{zh('重命名', 'Rename')}</span>
@@ -390,7 +392,7 @@ export default function VideoCard({
           <button
             type="button"
             onClick={handleDelete}
-            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50"
+            className="inline-flex items-center gap-2 rounded px-2 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
           >
             <DeleteOutlineIcon className="h-4 w-4" fontSize="inherit" />
             <span>{zh('删除', 'Delete')}</span>

@@ -37,7 +37,7 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId, compac
       <span
         role="img"
         aria-label={label}
-        className={`watch-time-icons inline-flex shrink-0 items-center text-teal-600 ${compact ? 'gap-px' : 'gap-0.5'}`}
+        className={`watch-time-icons inline-flex shrink-0 items-center text-teal-600 dark:text-teal-300 ${compact ? 'gap-px' : 'gap-0.5'}`}
       >
         {[0, 1, 2].map((index) => {
           const progress = Math.min(1, Math.max(0, totalMs / (minutesPerIcon * 60000) - index))
@@ -57,7 +57,7 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId, compac
               />
               <PlayCircleFilledIcon
                 viewBox="2 2 20 20"
-                className="absolute inset-0 text-teal-600"
+                className="absolute inset-0 text-teal-600 dark:text-teal-300"
                 sx={{ fontSize: iconSize }}
                 style={{ clipPath: `inset(0 ${100 - progress * 100}% 0 0)` }}
               />

@@ -26,17 +26,21 @@ export default function WaterfallLoader({ enabled, hasMore, loading, onLoadMore 
   return (
     <div ref={sentinelRef} className="flex min-h-16 items-center justify-center py-4 text-sm">
       {loading ? (
-        <span className="text-gray-500">{zh('加载更多…', 'Loading more...')}</span>
+        <span className="text-gray-500 dark:text-ui-faint">
+          {zh('加载更多…', 'Loading more...')}
+        </span>
       ) : hasMore ? (
         <button
           type="button"
           onClick={onLoadMore}
-          className="rounded border border-gray-300 bg-white px-3 py-1 text-gray-600 shadow-sm hover:border-gray-400"
+          className="rounded border border-gray-300 bg-white px-3 py-1 text-gray-600 shadow-sm hover:border-gray-400 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-ui-faint"
         >
           {zh('加载更多', 'Load more')}
         </button>
       ) : (
-        <span className="text-gray-400">{zh('没有更多了', 'No more items')}</span>
+        <span className="text-gray-400 dark:text-ui-faint">
+          {zh('没有更多了', 'No more items')}
+        </span>
       )}
     </div>
   )

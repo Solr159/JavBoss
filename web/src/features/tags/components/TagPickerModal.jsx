@@ -53,7 +53,7 @@ export default function TagPickerModal({
       ariaLabel={zh('选择标签', 'Choose Tags')}
       className="px-4"
       closeDisabled={creating}
-      contentClassName="w-full max-w-xs rounded-lg bg-white p-4 shadow-xl"
+      contentClassName="w-full max-w-xs rounded-lg bg-white dark:bg-ui-surface p-4 shadow-xl"
       onClose={onClose}
     >
       <div className="mb-3 flex items-center justify-between">
@@ -61,7 +61,7 @@ export default function TagPickerModal({
         <button
           onClick={onClose}
           disabled={creating}
-          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-ui-faint dark:hover:bg-ui-hover"
           aria-label={zh('关闭标签选择', 'Close Tag Picker')}
         >
           ✕
@@ -72,7 +72,7 @@ export default function TagPickerModal({
           value={newTagName}
           onChange={(event) => setNewTagName(event.target.value)}
           placeholder={zh('新建标签', 'New tag')}
-          className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
           disabled={creating}
         />
         <Button
@@ -84,14 +84,16 @@ export default function TagPickerModal({
           {zh('新建', 'Create')}
         </Button>
       </form>
-      {createError ? <div className="mb-3 text-sm text-red-600">{createError}</div> : null}
+      {createError ? (
+        <div className="mb-3 text-sm text-red-600 dark:text-red-300">{createError}</div>
+      ) : null}
       <div className="max-h-64 space-y-1 overflow-y-auto rounded border p-2">
         {list.map((tag) => {
           const checked = selected.includes(String(tag.id))
           return (
             <label
               key={`${tag.id}-${tag.provider || 0}`}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-ui-hover"
             >
               <input
                 type="checkbox"
@@ -99,7 +101,7 @@ export default function TagPickerModal({
                 disabled={creating}
                 onChange={(e) => onToggleChoice?.(tag.id, e.target.checked)}
               />
-              <span className="text-sm text-gray-800">{tag.name}</span>
+              <span className="text-sm text-gray-800 dark:text-ui-text">{tag.name}</span>
             </label>
           )
         })}
@@ -108,7 +110,7 @@ export default function TagPickerModal({
         <button
           onClick={onClose}
           disabled={creating}
-          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50 dark:hover:bg-ui-hover"
         >
           {zh('取消', 'Cancel')}
         </button>

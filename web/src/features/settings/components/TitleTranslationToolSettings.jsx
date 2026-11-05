@@ -126,17 +126,17 @@ export default function TitleTranslationToolSettings() {
           <section
             key={target}
             aria-label={label}
-            className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+            className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-ui-border dark:bg-ui-surface"
           >
             <header className="flex items-center justify-between gap-6 px-5 py-4">
               <div>
                 <label
                   htmlFor={`${target}-translation-enabled`}
-                  className="cursor-pointer text-sm font-semibold text-zinc-900"
+                  className="cursor-pointer text-sm font-semibold text-zinc-900 dark:text-ui-text"
                 >
                   {label}
                 </label>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">
+                <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
                   {zh(
                     '开启后优先展示已有中文译文，没有译文时显示原文。',
                     'Show Chinese translations when enabled, falling back to the original text.'
@@ -152,16 +152,16 @@ export default function TitleTranslationToolSettings() {
               />
             </header>
             {enabled && (
-              <div className="divide-y divide-zinc-100 border-t border-zinc-100">
+              <div className="divide-y divide-zinc-100 border-t border-zinc-100 dark:divide-ui-border dark:border-ui-border">
                 <div className="flex items-center justify-between gap-6 px-5 py-4">
                   <div>
                     <label
                       htmlFor={`${target}-translation-auto-enabled`}
-                      className="cursor-pointer text-sm font-medium text-zinc-700"
+                      className="cursor-pointer text-sm font-medium text-zinc-700 dark:text-ui-secondary"
                     >
                       {zh('自动翻译', 'Automatic translation')}
                     </label>
-                    <p className="mt-1 text-xs leading-5 text-zinc-500">
+                    <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
                       {zh(
                         '自动补齐当前页缺失的中文译文。',
                         'Automatically fill missing Chinese translations on the current page.'
@@ -188,21 +188,24 @@ export default function TitleTranslationToolSettings() {
         )
       })}
       {autoError && (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600 dark:text-red-300">
           {autoError}
         </p>
       )}
       <form onSubmit={handleSave}>
         <section
           aria-labelledby="translation-service-heading"
-          className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+          className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-ui-border dark:bg-ui-surface"
         >
-          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4">
+          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-100 px-5 py-4 dark:border-ui-border">
             <div className="min-w-0 flex-1">
-              <h4 id="translation-service-heading" className="text-sm font-semibold text-zinc-900">
+              <h4
+                id="translation-service-heading"
+                className="text-sm font-semibold text-zinc-900 dark:text-ui-text"
+              >
                 {zh('服务商配置', 'Provider configuration')}
               </h4>
-              <p className="mt-1 text-xs leading-5 text-zinc-500">
+              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
                 {zh(
                   '配置服务商、密钥和模型，可先测试再保存。',
                   'Choose a provider and model, enter your key, then test before saving.'
@@ -211,7 +214,7 @@ export default function TitleTranslationToolSettings() {
               {editing && (error || dirty) && (
                 <p
                   role={error ? 'alert' : 'status'}
-                  className={`mt-2 text-xs ${error ? 'text-red-600' : 'text-zinc-500'}`}
+                  className={`mt-2 text-xs ${error ? 'text-red-600 dark:text-red-300' : 'text-zinc-500 dark:text-ui-faint'}`}
                 >
                   {error || zh('有未保存的修改', 'Unsaved changes')}
                 </p>
@@ -226,7 +229,7 @@ export default function TitleTranslationToolSettings() {
                     resetEditor()
                     setEditing(false)
                   }}
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm disabled:opacity-50"
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface"
                 >
                   {zh('取消', 'Cancel')}
                 </button>
@@ -246,7 +249,7 @@ export default function TitleTranslationToolSettings() {
                   resetEditor()
                   setEditing(true)
                 }}
-                className="ml-auto shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+                className="ml-auto shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface"
               >
                 {zh('编辑', 'Edit')}
               </button>
@@ -263,23 +266,26 @@ export default function TitleTranslationToolSettings() {
               readOnly={!editing}
               savedCapabilities={config?.jav_title_translation_capabilities}
             />
-            <details data-translation-test className="group border-t border-zinc-100 pt-4">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
+            <details
+              data-translation-test
+              className="group border-t border-zinc-100 pt-4 dark:border-ui-border"
+            >
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-medium text-zinc-700 dark:text-ui-secondary [&::-webkit-details-marker]:hidden">
                 <span>{zh('测试翻译', 'Test translation')}</span>
                 <span
-                  className="text-zinc-400 transition-transform group-open:rotate-180"
+                  className="text-zinc-400 transition-transform group-open:rotate-180 dark:text-ui-faint"
                   aria-hidden="true"
                 >
                   ⌄
                 </span>
               </summary>
-              <div className="mt-4 space-y-3 rounded-xl bg-zinc-50 p-4">
+              <div className="mt-4 space-y-3 rounded-xl bg-zinc-50 p-4 dark:bg-ui-canvas">
                 <label className="block space-y-2 text-sm">
-                  <span className="font-medium text-zinc-700">
+                  <span className="font-medium text-zinc-700 dark:text-ui-secondary">
                     {zh('测试标题', 'Sample title')}
                   </span>
                   <input
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2"
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-ui-border dark:bg-ui-surface"
                     value={sample}
                     maxLength={8192}
                     onChange={(e) => {
@@ -290,7 +296,7 @@ export default function TitleTranslationToolSettings() {
                   />
                 </label>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="max-w-md text-xs leading-5 text-zinc-500">
+                  <p className="max-w-md text-xs leading-5 text-zinc-500 dark:text-ui-faint">
                     {zh(
                       '使用当前配置试译，不写入影片库；按服务商规则计费。',
                       'Test the current settings without updating the library. Provider charges apply.'
@@ -300,7 +306,7 @@ export default function TitleTranslationToolSettings() {
                     type="button"
                     disabled={!sample.trim() || !draft.model.trim()}
                     onClick={() => void handleTest()}
-                    className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50"
+                    className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface"
                   >
                     {testing ? zh('测试中…', 'Testing…') : zh('测试翻译', 'Test translation')}
                   </button>
@@ -308,13 +314,13 @@ export default function TitleTranslationToolSettings() {
                 {result && (
                   <p
                     role="status"
-                    className="break-words rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700"
+                    className="break-words rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                   >
                     {result}
                   </p>
                 )}
                 {testError && (
-                  <p role="alert" className="break-words text-sm text-red-600">
+                  <p role="alert" className="break-words text-sm text-red-600 dark:text-red-300">
                     {testError}
                   </p>
                 )}
@@ -322,7 +328,7 @@ export default function TitleTranslationToolSettings() {
             </details>
           </fieldset>
           {!editing && saved && (
-            <p role="status" className="px-5 pb-4 text-xs text-emerald-700">
+            <p role="status" className="px-5 pb-4 text-xs text-emerald-700 dark:text-emerald-300">
               {zh('已保存', 'Saved')}
             </p>
           )}

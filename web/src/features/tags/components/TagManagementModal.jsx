@@ -33,26 +33,30 @@ const compactButtonSx = {
 
 const footerButtonSx = {
   ...compactButtonSx,
-  color: '#475569',
-  backgroundColor: '#fff',
-  borderColor: '#cbd5e1',
+  color: 'var(--theme-secondary, #475569)',
+  backgroundColor: 'var(--theme-surface, #fff)',
+  borderColor: 'var(--theme-border, #cbd5e1)',
   '&:hover': {
-    color: '#1e293b',
-    backgroundColor: '#f8fafc',
-    borderColor: '#94a3b8',
+    color: 'var(--theme-text, #1e293b)',
+    backgroundColor: 'var(--theme-canvas, #f8fafc)',
+    borderColor: 'var(--theme-border, #94a3b8)',
   },
 }
 
 const editButtonSx = {
   ...compactButtonSx,
-  backgroundColor: '#334155',
-  '&:hover': { backgroundColor: '#1e293b' },
+  color: '#fff',
+  backgroundColor: 'var(--theme-hover, #334155)',
+  '&:hover': { backgroundColor: 'var(--theme-border, #1e293b)' },
 }
 
 const exitButtonSx = {
   ...compactButtonSx,
-  color: '#64748b',
-  '&:hover': { backgroundColor: '#e2e8f0', color: '#334155' },
+  color: 'var(--theme-faint, #64748b)',
+  '&:hover': {
+    backgroundColor: 'var(--theme-muted, #e2e8f0)',
+    color: 'var(--theme-secondary, #334155)',
+  },
 }
 
 const DEFAULT_CATEGORY_ID = 0
@@ -470,11 +474,13 @@ export default function TagManagementModal({
   return (
     <AppModal
       ariaLabel={zh('标签管理', 'Tag Management')}
-      contentClassName="mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200/70"
+      contentClassName="mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white dark:bg-ui-surface shadow-2xl ring-1 ring-slate-200/70 dark:ring-ui-border/70"
       onClose={onClose}
     >
-      <div className="flex shrink-0 items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-6 py-4">
-        <h2 className="text-lg font-semibold text-slate-900">{zh('标签管理', 'Tag Management')}</h2>
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-200/70 bg-slate-50/80 px-6 py-4 dark:border-ui-border/70 dark:bg-ui-canvas/80">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-ui-text">
+          {zh('标签管理', 'Tag Management')}
+        </h2>
         <IconButton
           type="button"
           size="small"
@@ -487,7 +493,7 @@ export default function TagManagementModal({
       </div>
       <div className="tag-management-modal-list min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {tagLegend.length > 0 && (
-          <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+          <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-ui-faint">
             {tagLegend.map((item) => (
               <span key={item.label} className="inline-flex items-center gap-1.5">
                 <span className={`h-2.5 w-2.5 rounded-full border ${item.className || ''}`} />
@@ -500,7 +506,7 @@ export default function TagManagementModal({
           <div className="space-y-6">
             {categoryGroups.map((group) => (
               <div key={group.category || DEFAULT_CATEGORY_VALUE} className="space-y-2">
-                <div className="text-base font-semibold text-slate-800">
+                <div className="text-base font-semibold text-slate-800 dark:text-ui-text">
                   <span>
                     {group.category
                       ? zh(group.category, categoryEnglishLabels[group.category] || group.category)
@@ -512,14 +518,20 @@ export default function TagManagementModal({
             ))}
           </div>
         ) : (
-          <div className="text-sm text-slate-400">{zh('暂无标签', 'No tags')}</div>
+          <div className="text-sm text-slate-400 dark:text-ui-faint">
+            {zh('暂无标签', 'No tags')}
+          </div>
         )}
       </div>
-      <div className="shrink-0 border-t border-slate-200/70 bg-slate-50/80 px-6 py-4">
+      <div className="shrink-0 border-t border-slate-200/70 bg-slate-50/80 px-6 py-4 dark:border-ui-border/70 dark:bg-ui-canvas/80">
         {(actionMessage || batchError) && (
           <div className="mb-3 space-y-1">
-            {actionMessage && <div className="text-sm text-emerald-700">{actionMessage}</div>}
-            {batchError && <div className="text-sm text-rose-600">{batchError}</div>}
+            {actionMessage && (
+              <div className="text-sm text-emerald-700 dark:text-emerald-300">{actionMessage}</div>
+            )}
+            {batchError && (
+              <div className="text-sm text-rose-600 dark:text-rose-300">{batchError}</div>
+            )}
           </div>
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -641,7 +653,7 @@ export default function TagManagementModal({
           ariaLabel={zh('调整标签分类', 'Move tags to category')}
           className="px-4"
           closeDisabled={assigningCategory}
-          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          contentClassName="w-full max-w-sm rounded-2xl bg-white dark:bg-ui-surface p-5 shadow-xl"
           onClose={() => {
             setBatchCategoryOpen(false)
             setBatchError('')
@@ -650,10 +662,10 @@ export default function TagManagementModal({
         >
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-base font-semibold text-slate-900">
+              <h3 className="text-base font-semibold text-slate-900 dark:text-ui-text">
                 {zh('调整标签分类', 'Move tags to category')}
               </h3>
-              <div className="mt-1 text-xs text-slate-400">
+              <div className="mt-1 text-xs text-slate-400 dark:text-ui-faint">
                 {zh(`已选择 ${selectedIds.length} 个标签`, `${selectedIds.length} tags selected`)}
               </div>
             </div>
@@ -682,8 +694,8 @@ export default function TagManagementModal({
                   key={category.id}
                   className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${
                     selected
-                      ? 'border-slate-700 bg-slate-50 text-slate-900'
-                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                      ? 'border-slate-700 bg-slate-50 text-slate-900 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-text'
+                      : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-ui-border dark:text-ui-secondary dark:hover:border-ui-faint dark:hover:bg-ui-hover'
                   }`}
                 >
                   <input
@@ -692,14 +704,16 @@ export default function TagManagementModal({
                     value={value}
                     checked={selected}
                     onChange={(event) => setBatchCategoryValue(event.target.value)}
-                    className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400"
+                    className="h-4 w-4 border-slate-300 text-slate-900 focus:ring-slate-400 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-border"
                   />
                   <span className="truncate">{categoryDisplayName(category)}</span>
                 </label>
               )
             })}
           </div>
-          {batchError && <div className="mt-2 text-sm text-rose-600">{batchError}</div>}
+          {batchError && (
+            <div className="mt-2 text-sm text-rose-600 dark:text-rose-300">{batchError}</div>
+          )}
           <div className="mt-5 flex items-center justify-between gap-2">
             <Button
               size="small"
@@ -745,12 +759,12 @@ export default function TagManagementModal({
           ariaLabel={zh('新建分类', 'New category')}
           className="px-4"
           closeDisabled={batchCreatingCategory}
-          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          contentClassName="w-full max-w-sm rounded-2xl bg-white dark:bg-ui-surface p-5 shadow-xl"
           onClose={() => setBatchCreateCategoryOpen(false)}
           zIndex={1500}
         >
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-ui-text">
               {zh('新建分类', 'New category')}
             </h3>
             <IconButton
@@ -770,7 +784,9 @@ export default function TagManagementModal({
             placeholder={zh('请输入分类名称', 'Enter category name')}
           />
           {batchCreateCategoryError && (
-            <div className="mt-2 text-sm text-rose-600">{batchCreateCategoryError}</div>
+            <div className="mt-2 text-sm text-rose-600 dark:text-rose-300">
+              {batchCreateCategoryError}
+            </div>
           )}
           <div className="mt-5 flex justify-end gap-2">
             <Button
@@ -818,12 +834,12 @@ export default function TagManagementModal({
           ariaLabel={zh('分类管理', 'Category management')}
           className="px-4"
           closeDisabled={categoryBusyId !== null}
-          contentClassName="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+          contentClassName="flex max-h-[75vh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white dark:bg-ui-surface shadow-xl"
           onClose={() => setCategoryManageOpen(false)}
           zIndex={1400}
         >
-          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4">
-            <h3 className="text-base font-semibold text-slate-900">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-ui-border">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-ui-text">
               {zh('分类管理', 'Category management')}
             </h3>
             <IconButton
@@ -835,7 +851,7 @@ export default function TagManagementModal({
               <CloseOutlinedIcon fontSize="small" />
             </IconButton>
           </div>
-          <div className="shrink-0 border-b border-slate-100 p-4">
+          <div className="shrink-0 border-b border-slate-100 p-4 dark:border-ui-border">
             <div className="flex gap-2">
               <TextField
                 size="small"
@@ -867,7 +883,9 @@ export default function TagManagementModal({
                 {zh('新增', 'Add')}
               </Button>
             </div>
-            {categoryError && <div className="mt-2 text-sm text-rose-600">{categoryError}</div>}
+            {categoryError && (
+              <div className="mt-2 text-sm text-rose-600 dark:text-rose-300">{categoryError}</div>
+            )}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {localCategories.length > 0 ? (
@@ -893,7 +911,7 @@ export default function TagManagementModal({
                       onChange={(event) => setCategoryEditingName(event.target.value)}
                     />
                   ) : (
-                    <div className="truncate text-sm font-medium text-slate-700">
+                    <div className="truncate text-sm font-medium text-slate-700 dark:text-ui-secondary">
                       {categoryDisplayName(category)}
                     </div>
                   )
@@ -986,7 +1004,7 @@ export default function TagManagementModal({
                 disabled={categoryBusyId !== null || categoryEditingId !== null}
               />
             ) : (
-              <div className="py-6 text-center text-sm text-slate-400">
+              <div className="py-6 text-center text-sm text-slate-400 dark:text-ui-faint">
                 {zh('暂无分类', 'No categories')}
               </div>
             )}
@@ -998,12 +1016,14 @@ export default function TagManagementModal({
           ariaLabel={zh('新增标签', 'New tag')}
           className="px-4"
           closeDisabled={creating}
-          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          contentClassName="w-full max-w-sm rounded-2xl bg-white dark:bg-ui-surface p-5 shadow-xl"
           onClose={() => setCreateOpen(false)}
           zIndex={1400}
         >
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900">{zh('新增标签', 'New tag')}</h3>
+            <h3 className="text-base font-semibold text-slate-900 dark:text-ui-text">
+              {zh('新增标签', 'New tag')}
+            </h3>
             <IconButton
               size="small"
               onClick={() => setCreateOpen(false)}
@@ -1042,7 +1062,9 @@ export default function TagManagementModal({
                 </MenuItem>
               ))}
             </TextField>
-            {createError && <div className="text-sm text-red-600">{createError}</div>}
+            {createError && (
+              <div className="text-sm text-red-600 dark:text-red-300">{createError}</div>
+            )}
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button
@@ -1092,12 +1114,12 @@ export default function TagManagementModal({
           ariaLabel={zh('重命名标签', 'Rename tag')}
           className="px-4"
           closeDisabled={renaming}
-          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+          contentClassName="w-full max-w-sm rounded-2xl bg-white dark:bg-ui-surface p-5 shadow-xl"
           onClose={handleCloseRename}
           zIndex={1400}
         >
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-slate-900">
+            <h3 className="text-base font-semibold text-slate-900 dark:text-ui-text">
               {zh('重命名标签', 'Rename tag')}
             </h3>
             <IconButton
@@ -1121,7 +1143,9 @@ export default function TagManagementModal({
                 }
               }}
             />
-            {renameError && <div className="text-sm text-red-600">{renameError}</div>}
+            {renameError && (
+              <div className="text-sm text-red-600 dark:text-red-300">{renameError}</div>
+            )}
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <Button

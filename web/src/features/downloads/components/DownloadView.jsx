@@ -24,9 +24,9 @@ export default function DownloadView({ open, onClose, onToast }) {
       onClose={onClose}
       ariaLabel={zh('下载', 'Downloads')}
       className="p-3 sm:p-6"
-      contentClassName="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-slate-50 shadow-2xl"
+      contentClassName="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-slate-50 dark:bg-ui-canvas shadow-2xl"
     >
-      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 dark:border-ui-border dark:bg-ui-surface sm:px-6">
         <div
           className="flex min-w-0 gap-1 overflow-x-auto"
           role="tablist"
@@ -44,8 +44,8 @@ export default function DownloadView({ open, onClose, onToast }) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`min-w-max rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   selected
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
               >
                 {tab.label}
@@ -58,7 +58,7 @@ export default function DownloadView({ open, onClose, onToast }) {
           onClick={onClose}
           aria-label={zh('关闭下载弹窗', 'Close downloads dialog')}
           title={zh('关闭', 'Close')}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
         >
           <CloseRoundedIcon fontSize="small" />
         </button>

@@ -109,7 +109,7 @@ export default function SortableList({
   return (
     <div
       ref={containerRef}
-      className={`rounded border border-gray-200 p-1 ${drag ? 'select-none' : ''}`}
+      className={`rounded border border-gray-200 p-1 dark:border-ui-border ${drag ? 'select-none' : ''}`}
     >
       {items.map((item) => renderRow(item))}
       {drag ? (
@@ -149,25 +149,33 @@ function SortableRow({
     <div
       ref={refCallback}
       className={`mb-1 flex items-center gap-2 rounded border px-2 py-1.5 last:mb-0 ${
-        floating ? 'shadow-lg ring-1 ring-blue-200' : 'transition-[background-color,opacity]'
+        floating
+          ? 'shadow-lg ring-1 ring-blue-200 dark:ring-ui-blue-border'
+          : 'transition-[background-color,opacity]'
       } ${dragging ? 'opacity-0' : 'opacity-100'} ${
-        active ? 'border-blue-200 bg-blue-50' : 'border-transparent bg-gray-50'
+        active
+          ? 'border-blue-200 bg-blue-50 dark:border-ui-blue-border dark:bg-ui-blue-surface'
+          : 'border-transparent bg-gray-50 dark:bg-ui-canvas'
       }`}
       data-sortable-id={item.id}
     >
       {leading}
       {typeof label === 'string' ? (
-        <span className="min-w-0 flex-1 truncate text-sm text-gray-900">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-gray-900 dark:text-ui-text">
+          {label}
+        </span>
       ) : (
         <div className="min-w-0 flex-1">{label}</div>
       )}
-      {meta ? <span className="shrink-0 text-xs text-gray-500">{meta}</span> : null}
+      {meta ? (
+        <span className="shrink-0 text-xs text-gray-500 dark:text-ui-faint">{meta}</span>
+      ) : null}
       {actions}
       <button
         type="button"
         onPointerDown={onHandlePointerDown}
         disabled={disabled}
-        className="inline-flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded border border-gray-200 bg-white text-gray-500 active:cursor-grabbing disabled:cursor-not-allowed disabled:text-gray-300"
+        className="inline-flex h-7 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded border border-gray-200 bg-white text-gray-500 active:cursor-grabbing disabled:cursor-not-allowed disabled:text-gray-300 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:disabled:text-ui-border"
         aria-label={zh('拖动排序', 'Drag to reorder')}
         title={zh('拖动排序', 'Drag to reorder')}
       >

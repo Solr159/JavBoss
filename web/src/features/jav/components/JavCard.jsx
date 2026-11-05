@@ -136,7 +136,7 @@ export default function JavCard(props) {
         <span className="inline-flex shrink-0">
           <VideocamOutlinedIcon
             sx={{ fontSize: portrait ? 12 : 16 }}
-            className="shrink-0 text-sky-600"
+            className="shrink-0 text-sky-600 dark:text-sky-300"
           />
         </span>
       </Tooltip>
@@ -144,7 +144,9 @@ export default function JavCard(props) {
         href={buildStudioFilterHref(item.studio)}
         title={studioText}
         className={`block min-w-0 truncate text-left ${
-          canFilterStudio ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+          canFilterStudio
+            ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+            : ''
         }`}
         onClick={(event) =>
           handleFilterLinkClick(event, () => {
@@ -161,11 +163,11 @@ export default function JavCard(props) {
   return (
     <>
       <div
-        className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg ${checked ? 'border-sky-400 ring-2 ring-sky-200' : ''}`}
+        className={`jav-card flex flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg dark:bg-ui-surface ${checked ? 'border-sky-400 ring-2 ring-sky-200 dark:border-sky-400 dark:ring-sky-800' : ''}`}
         style={portrait ? { containerType: 'inline-size' } : undefined}
       >
         <div
-          className="card-hover-scope group relative shrink-0 overflow-hidden bg-white"
+          className="card-hover-scope group relative shrink-0 overflow-hidden bg-white dark:bg-ui-surface"
           style={{ aspectRatio: portrait ? `100 / ${coverAspectPercent}` : '800 / 538' }}
         >
           {cover ? (
@@ -176,7 +178,7 @@ export default function JavCard(props) {
               cropPosition={item?.cover_crop_position}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 text-lg font-semibold text-gray-600 dark:from-ui-muted dark:to-ui-hover dark:text-ui-secondary">
               {item?.code || zh('未知番号', 'Unknown code')}
             </div>
           )}
@@ -389,7 +391,7 @@ export default function JavCard(props) {
             type="button"
             className={`card-modal-trigger card-hover-focus-visible absolute right-2 top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
-                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
+                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300 dark:text-amber-300 dark:hover:bg-amber-900'
                 : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
             }`}
             title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}
@@ -455,12 +457,14 @@ export default function JavCard(props) {
             title={titleText}
             style={titleClampStyle}
           >
-            {codeText ? <span className="font-semibold text-gray-800">{codeText}</span> : null}
+            {codeText ? (
+              <span className="font-semibold text-gray-800 dark:text-ui-text">{codeText}</span>
+            ) : null}
             {codeText ? ' ' : null}
-            <span className="font-medium text-gray-800">{mainTitle}</span>
+            <span className="font-medium text-gray-800 dark:text-ui-text">{mainTitle}</span>
           </div>
           <div
-            className={`flex min-w-0 items-center text-gray-600 ${metadataTextClassName} ${portrait ? '-my-0.5 gap-px' : 'gap-2'}`}
+            className={`flex min-w-0 items-center text-gray-600 dark:text-ui-secondary ${metadataTextClassName} ${portrait ? '-my-0.5 gap-px' : 'gap-2'}`}
           >
             <div
               className={`flex min-w-0 flex-1 flex-nowrap items-center overflow-hidden ${portrait ? 'gap-x-1.5' : 'gap-x-3'}`}
@@ -498,7 +502,7 @@ export default function JavCard(props) {
           </div>
           {(portrait && showStudio) || showSeries ? (
             <div
-              className={`flex min-w-0 items-center text-gray-600 ${metadataTextClassName} ${portrait ? '-my-0.5 gap-2' : 'gap-3'}`}
+              className={`flex min-w-0 items-center text-gray-600 dark:text-ui-secondary ${metadataTextClassName} ${portrait ? '-my-0.5 gap-2' : 'gap-3'}`}
             >
               {portrait ? studioMetadata : null}
               {showSeries ? (
@@ -509,7 +513,7 @@ export default function JavCard(props) {
                     <span className="inline-flex shrink-0">
                       <CollectionsBookmarkOutlinedIcon
                         sx={{ fontSize: portrait ? 12 : 14 }}
-                        className="shrink-0 text-emerald-600"
+                        className="shrink-0 text-emerald-600 dark:text-emerald-300"
                       />
                     </span>
                   </Tooltip>
@@ -517,7 +521,9 @@ export default function JavCard(props) {
                     href={buildSeriesFilterHref(preferredSeries)}
                     title={seriesText}
                     className={`min-w-0 text-left ${portrait ? 'truncate leading-4' : 'whitespace-normal break-words leading-snug'} ${
-                      canFilterSeries ? 'cursor-pointer hover:text-blue-700 hover:underline' : ''
+                      canFilterSeries
+                        ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+                        : ''
                     }`}
                     onClick={(event) =>
                       handleFilterLinkClick(event, () => {
@@ -690,7 +696,7 @@ export default function JavCard(props) {
                     </IconButton>
                   </Tooltip>
                   {videoCount > 1 ? (
-                    <span className="text-xs text-gray-500">({videoCount})</span>
+                    <span className="text-xs text-gray-500 dark:text-ui-faint">({videoCount})</span>
                   ) : null}
                 </div>
               </div>
