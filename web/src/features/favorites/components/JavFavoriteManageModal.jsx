@@ -544,7 +544,7 @@ function IdolOrderList({
           type="checkbox"
           checked={selectedIds.includes(Number(idol.id))}
           onChange={(event) => onToggleSelected?.(idol.id, event.target.checked)}
-          className="h-4 w-4 shrink-0 accent-blue-600"
+          className="h-4 w-4 shrink-0 accent-ui-primary"
           aria-label={labels.selectAria}
         />
       )}

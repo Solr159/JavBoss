@@ -89,7 +89,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
           <button
             type="submit"
             disabled={submitting || !password}
-            className="w-full rounded-xl bg-blue-600 px-4 py-2.5 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="w-full rounded-xl bg-ui-primary px-4 py-2.5 font-medium text-white transition hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
           >
             {submitting ? zh('登录中…', 'Signing in...') : zh('登录', 'Sign in')}
           </button>

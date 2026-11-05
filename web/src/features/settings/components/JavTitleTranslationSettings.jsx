@@ -531,7 +531,7 @@ export default function JavTitleTranslationSettings({
           )}
           <button
             type="button"
-            className="text-xs text-blue-600 underline dark:text-blue-300"
+            className="text-xs text-ui-primary underline dark:text-blue-300"
             onClick={() => onChange({ prompt: value.defaultPrompt })}
           >
             {zh('恢复默认提示词', 'Restore default prompt')}

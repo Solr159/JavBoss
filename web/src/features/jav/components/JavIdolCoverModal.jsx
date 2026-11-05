@@ -364,7 +364,7 @@ export default function JavIdolCoverModal({
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
             disabled={saving || loading}
             onClick={handleSave}
           >

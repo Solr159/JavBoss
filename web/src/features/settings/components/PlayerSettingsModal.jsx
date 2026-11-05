@@ -248,7 +248,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+          className="rounded-lg bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-60"
         >
           {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
         </button>

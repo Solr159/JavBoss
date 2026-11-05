@@ -158,7 +158,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                     type="button"
                     disabled={busy}
                     onClick={() => openDialog('rotate', item)}
-                    className="text-blue-700 disabled:opacity-50 dark:text-blue-300"
+                    className="text-ui-primary-hover disabled:opacity-50 dark:text-blue-300"
                   >
                     {zh('重新生成', 'Regenerate')}
                   </button>
@@ -181,7 +181,7 @@ export default function ExtensionTokenSettings({ onToast }) {
           type="button"
           disabled={loading || busy}
           onClick={() => openDialog('create')}
-          className="rounded bg-blue-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+          className="rounded bg-ui-primary px-3 py-2 text-sm text-white disabled:opacity-50"
         >
           {zh('新建 API 令牌', 'New API token')}
         </button>
@@ -272,7 +272,7 @@ export default function ExtensionTokenSettings({ onToast }) {
             <button
               type="submit"
               disabled={busy || (pending.action === 'create' && !name.trim())}
-              className={`rounded px-3 py-2 text-sm text-white disabled:opacity-50 ${pending.action === 'delete' ? 'bg-red-600' : 'bg-blue-600'}`}
+              className={`rounded px-3 py-2 text-sm text-white disabled:opacity-50 ${pending.action === 'delete' ? 'bg-red-600' : 'bg-ui-primary'}`}
             >
               {busy
                 ? zh('处理中…', 'Saving...')

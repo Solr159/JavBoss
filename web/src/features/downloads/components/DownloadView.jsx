@@ -44,7 +44,7 @@ export default function DownloadView({ open, onClose, onToast }) {
                 onClick={() => setActiveTab(tab.id)}
                 className={`min-w-max rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
                   selected
-                    ? 'bg-blue-100 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-100 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
               >

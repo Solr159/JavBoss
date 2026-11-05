@@ -40,14 +40,14 @@ function SortOptionRow({ option, inputValue, onChange }) {
           value={displayValue}
           checked={active}
           onChange={() => onChange?.(displayValue)}
-          className="h-4 w-4 shrink-0 accent-blue-600"
+          className="h-4 w-4 shrink-0 accent-ui-primary"
         />
         <SortText option={option} value={displayValue} />
       </label>
       <button
         type="button"
         onClick={() => onChange?.(reverseVideoSortValue(displayValue, option.defaultValue))}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
         title={zh('反转排序', 'Reverse sort')}
         aria-label={zh(`反转${option.label[0]}排序`, `Reverse ${option.label[1]} sort`)}
       >
@@ -66,7 +66,7 @@ function SettingsSwitch({ label, checked, onChange }) {
       aria-checked={Boolean(checked)}
       onClick={() => onChange?.(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none ${
-        checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-ui-hover'
+        checked ? 'bg-ui-primary' : 'bg-slate-200 dark:bg-ui-hover'
       }`}
     >
       <span

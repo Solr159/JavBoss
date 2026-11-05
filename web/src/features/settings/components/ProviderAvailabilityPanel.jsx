@@ -180,7 +180,7 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
             type="button"
             onClick={() => startChecks(providers)}
             disabled={disabled || loading || providers.length === 0 || Boolean(loadError)}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="rounded-lg bg-ui-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ui-primary-hover disabled:opacity-60"
           >
             {zh('检测全部', 'Check all')}
           </button>

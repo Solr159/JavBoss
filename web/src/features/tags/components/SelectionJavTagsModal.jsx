@@ -218,7 +218,7 @@ export default function SelectionJavTagsModal({
                 {search.trim() ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void handleAddTag()}
                     disabled={disabled}
                   >

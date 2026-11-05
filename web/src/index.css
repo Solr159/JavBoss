@@ -104,10 +104,14 @@ body.has-page-scroll .sticky-pagination {
   overflow-y: auto;
   overscroll-behavior-y: contain;
   border-right: 1px solid var(--theme-border, #dbe2ea);
-  background: var(--theme-navigation, linear-gradient(180deg, #f8fafc 0%, #fff 46%, #f8fafc 100%));
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 46%, #f8fafc 100%);
   box-shadow: 4px 0 12px -11px rgba(15, 23, 42, 0.32);
   scrollbar-width: thin;
   scrollbar-color: var(--theme-border, #cbd5e1) transparent;
+}
+
+:where(.dark) .side-tabs {
+  background: var(--theme-navigation);
 }
 
 .side-tabs__history {
@@ -258,7 +262,7 @@ body.has-page-scroll .sticky-pagination {
   z-index: 40;
   width: 100%;
   border-bottom: 1px solid var(--theme-border, #e2e8f0);
-  background: var(--theme-navigation, rgb(var(--ui-surface) / 0.92));
+  background: var(--theme-navigation, rgba(255, 255, 255, 0.92));
   backdrop-filter: blur(14px);
 }
 
@@ -1321,7 +1325,7 @@ body.has-page-scroll .sticky-pagination {
   height: 1.25rem;
   padding: 0 0.35rem;
   border-radius: 9999px;
-  background: var(--theme-tag-count, rgb(var(--ui-surface) / 0.82));
+  background: var(--theme-tag-count, rgba(255, 255, 255, 0.82));
   box-shadow: none;
   font-size: 0.62rem;
   font-weight: 700;

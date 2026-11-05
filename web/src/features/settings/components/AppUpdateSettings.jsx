@@ -236,7 +236,7 @@ function UpdateTarget({ local, remote }) {
       >
         <DialogTitle id="app-update-confirm-title" sx={{ px: 3, pt: 3, pb: 2.5 }}>
           <span className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-ui-blue-surface dark:text-blue-300">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-ui-primary dark:bg-ui-blue-surface dark:text-blue-300">
               <SystemUpdateAltRoundedIcon />
             </span>
             <span className="text-lg font-semibold text-zinc-900 dark:text-ui-text">
@@ -264,7 +264,7 @@ function UpdateTarget({ local, remote }) {
               <p className="text-xs text-zinc-500 dark:text-ui-faint">
                 {zh('更新至', 'Update to')}
               </p>
-              <p className="mt-1 break-all text-sm font-semibold text-blue-600 dark:text-blue-300">
+              <p className="mt-1 break-all text-sm font-semibold text-ui-primary dark:text-blue-300">
                 {status?.latest_version || '—'}
               </p>
             </div>

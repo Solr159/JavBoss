@@ -90,7 +90,7 @@ export default function DirectoryPickerModal({ initialPath = '', onSelect, onClo
             id={titleId}
             className="flex items-center gap-2 text-lg font-semibold text-gray-900 dark:text-ui-text"
           >
-            <FolderOpenOutlinedIcon className="text-blue-600 dark:text-blue-300" />
+            <FolderOpenOutlinedIcon className="text-ui-primary dark:text-blue-300" />
             {zh('选择目录', 'Choose directory')}
           </h2>
         </div>
@@ -234,7 +234,7 @@ export default function DirectoryPickerModal({ initialPath = '', onSelect, onClo
             type="button"
             disabled={loading || !listing || !!error || inputChanged}
             onClick={() => onSelect(listing.path)}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+            className="rounded-lg bg-ui-primary px-4 py-2 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-50"
           >
             {zh('选择此目录', 'Select this directory')}
           </button>

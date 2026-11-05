@@ -131,7 +131,7 @@ export default function JavIdolView({
                   }}
                   className={`pagination-sort-option rounded font-semibold ${
                     isFavoriteOrder
-                      ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                      ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                       : 'text-gray-700 hover:bg-gray-50 dark:text-ui-secondary dark:hover:bg-ui-hover'
                   }`}
                 >
@@ -146,7 +146,7 @@ export default function JavIdolView({
                     key={option.base}
                     className={`pagination-sort-row ${
                       active
-                        ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                        ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                         : 'text-gray-700 hover:bg-gray-50 dark:text-ui-secondary dark:hover:bg-ui-hover'
                     }`}
                   >

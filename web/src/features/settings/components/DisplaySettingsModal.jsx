@@ -49,14 +49,14 @@ function SortOptionRow({ option, name, inputValue, onChange }) {
           value={displayValue}
           checked={Boolean(active)}
           onChange={() => onChange?.(displayValue)}
-          className="h-4 w-4 accent-blue-600"
+          className="h-4 w-4 accent-ui-primary"
         />
         <SortText option={option} value={displayValue} />
       </label>
       <button
         type="button"
         onClick={() => onChange?.(reverseSortValue([option], displayValue, option.defaultValue))}
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-surface dark:text-ui-faint dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
         title={zh('反转排序', 'Reverse sort')}
         aria-label={zh(`反转${option.label[0]}排序`, `Reverse ${option.label[1]} sort`)}
       >
@@ -69,7 +69,7 @@ function SortOptionRow({ option, name, inputValue, onChange }) {
 function SectionTitle({ children }) {
   return (
     <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-ui-text">
-      <span className="h-4 w-1 rounded-full bg-blue-600" aria-hidden="true" />
+      <span className="h-4 w-1 rounded-full bg-ui-primary" aria-hidden="true" />
       <span>{children}</span>
     </div>
   )
@@ -109,7 +109,7 @@ function SettingsSwitch({ label, checked, onChange }) {
       aria-checked={Boolean(checked)}
       onClick={() => onChange?.(!checked)}
       className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition focus:outline-none ${
-        checked ? 'bg-blue-600' : 'bg-slate-200 dark:bg-ui-hover'
+        checked ? 'bg-ui-primary' : 'bg-slate-200 dark:bg-ui-hover'
       }`}
     >
       <span
@@ -286,7 +286,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
                 key={filter.key}
                 className={`cursor-pointer rounded-full border px-2.5 py-1 text-xs transition ${
                   checked
-                    ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'border-blue-500 bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'border-slate-200 bg-white text-slate-600 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary'
                 }`}
               >
@@ -474,8 +474,8 @@ export default function DisplaySettingsModal({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full border px-4 py-1.5 text-sm font-medium transition focus:outline-none ${
                 active
-                  ? 'border-blue-600 bg-blue-600 text-white shadow-md shadow-blue-200 dark:shadow-black/20'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
+                  ? 'border-ui-primary bg-ui-primary text-white shadow-md shadow-blue-200 dark:shadow-black/20'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
               }`}
             >
               {tab.label}
@@ -860,7 +860,7 @@ export default function DisplaySettingsModal({
           type="button"
           onClick={() => onSave?.(activeTab)}
           disabled={saving}
-          className="min-w-24 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-blue-700 focus:outline-none disabled:opacity-50 dark:shadow-black/20"
+          className="min-w-24 rounded-lg bg-ui-primary px-5 py-2 text-sm font-medium text-white shadow-md shadow-blue-200 transition hover:bg-ui-primary-hover focus:outline-none disabled:opacity-50 dark:shadow-black/20"
         >
           {zh('保存', 'Save')}
         </button>

@@ -64,7 +64,7 @@ function buildStudioSearchText(studio) {
 function SelectedIdolChip({ idol, preferChineseName, onRemove }) {
   const displayName = getIdolDisplayName(idol, preferChineseName)
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300">
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300">
       <span className="truncate">{displayName}</span>
       <button
         type="button"
@@ -547,7 +547,7 @@ export default function JavQueryEditorModal({
           className={`ml-auto min-w-0 rounded-lg border px-3.5 py-2 text-[13px] ${
             filterOptionsError
               ? 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300'
-              : 'border-blue-100 bg-blue-50 text-blue-700 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300'
+              : 'border-blue-100 bg-blue-50 text-ui-primary-hover dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300'
           }`}
         >
           <div className="truncate">
@@ -581,7 +581,7 @@ export default function JavQueryEditorModal({
               type="checkbox"
               checked={selectedSoloOnly}
               onChange={(event) => setSelectedSoloOnly(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+              className="h-4 w-4 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
             />
             <span className="min-w-0 flex-1">{zh('只看单体作品', 'Solo works only')}</span>
             {!selectedSoloOnly ? (
@@ -601,7 +601,7 @@ export default function JavQueryEditorModal({
               type="checkbox"
               checked={selectedFavoriteRatingEnabled}
               onChange={(event) => setSelectedFavoriteRatingEnabled(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+              className="h-4 w-4 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
             />
             <span>{zh('按喜爱度范围筛选', 'Filter by favorite rating range')}</span>
           </label>
@@ -749,7 +749,7 @@ export default function JavQueryEditorModal({
                             checked={checked}
                             readOnly
                             tabIndex={-1}
-                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate font-medium text-slate-800 dark:text-ui-text">
@@ -833,7 +833,7 @@ export default function JavQueryEditorModal({
                             checked={checked}
                             readOnly
                             tabIndex={-1}
-                            className="pointer-events-none h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+                            className="pointer-events-none h-4 w-4 shrink-0 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-ui-text">
@@ -928,7 +928,7 @@ export default function JavQueryEditorModal({
                             checked={checked}
                             readOnly
                             tabIndex={-1}
-                            className="pointer-events-none h-4 w-4 shrink-0 rounded border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+                            className="pointer-events-none h-4 w-4 shrink-0 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-ui-text">
@@ -1029,7 +1029,7 @@ export default function JavQueryEditorModal({
                             checked={checked}
                             readOnly
                             tabIndex={-1}
-                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-ui-text">
@@ -1123,7 +1123,7 @@ export default function JavQueryEditorModal({
                             checked={checked}
                             readOnly
                             tabIndex={-1}
-                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-blue-600 dark:border-ui-border dark:text-blue-300"
+                            className="pointer-events-none h-4 w-4 shrink-0 border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
                             aria-hidden="true"
                           />
                           <span className="min-w-0 flex-1 truncate text-slate-800 dark:text-ui-text">
@@ -1166,7 +1166,7 @@ export default function JavQueryEditorModal({
           <button
             type="button"
             onClick={applyQuery}
-            className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            className="rounded bg-ui-primary px-4 py-2 text-sm font-medium text-white hover:bg-ui-primary-hover"
           >
             {zh('应用查询', 'Apply Query')}
           </button>

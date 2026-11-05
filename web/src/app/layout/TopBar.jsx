@@ -730,7 +730,7 @@ function FavoriteGroupMenu({
               <button
                 type="button"
                 onClick={() => onSelect?.(null)}
-                className="relative top-px shrink-0 rounded px-1.5 font-medium text-blue-600 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                className="relative top-px shrink-0 rounded px-1.5 font-medium text-ui-primary hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ui-primary dark:text-blue-300 dark:hover:bg-ui-blue-hover"
               >
                 {zh('取消筛选', 'Clear filter')}
               </button>
@@ -822,7 +822,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
           <span className="flex items-start gap-1">
             <FolderRoundedIcon
               sx={{ fontSize: 14 }}
-              className="shrink-0 text-blue-700 dark:text-blue-300"
+              className="shrink-0 text-ui-primary-hover dark:text-blue-300"
             />
             <span className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-4 text-blue-950 dark:text-ui-text">
               {label}
@@ -831,7 +831,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
         </span>
       </a>
       {Number.isFinite(count) ? (
-        <span className="absolute right-1.5 top-1.5 rounded-full border border-blue-200 bg-white/80 px-1.5 text-[10px] leading-4 text-blue-700 shadow-sm dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300">
+        <span className="absolute right-1.5 top-1.5 rounded-full border border-blue-200 bg-white/80 px-1.5 text-[10px] leading-4 text-ui-primary-hover shadow-sm dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300">
           {count}
         </span>
       ) : null}
@@ -843,7 +843,7 @@ function FavoriteGroupTile({ active, href, group = null, label, count, onClick, 
             event.stopPropagation()
             onEdit?.()
           }}
-          className="absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border border-blue-200 bg-white/85 text-blue-700 shadow-sm backdrop-blur-sm transition-colors hover:bg-blue-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+          className="absolute bottom-1.5 right-1.5 inline-flex h-5 w-5 items-center justify-center rounded border border-blue-200 bg-white/85 text-ui-primary-hover shadow-sm backdrop-blur-sm transition-colors hover:bg-blue-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
           aria-label={zh(`编辑收藏夹 ${label}`, `Edit favorite ${label}`)}
         >
           <EditRoundedIcon sx={{ fontSize: 14 }} />

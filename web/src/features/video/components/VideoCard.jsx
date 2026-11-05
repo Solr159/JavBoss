@@ -321,7 +321,7 @@ export default function VideoCard({
               <a
                 href={directoryHref}
                 onClick={handleDirectoryClick}
-                className="hover:text-blue-700 hover:underline dark:hover:text-blue-300"
+                className="hover:text-ui-primary-hover hover:underline dark:hover:text-blue-300"
                 aria-label={zh(
                   `跳转到目录 ${relativeDirectoryPath}`,
                   `Go to directory ${relativeDirectoryPath}`

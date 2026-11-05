@@ -117,7 +117,7 @@ export default function VideoDirectoryBreadcrumbs() {
                     setMenuOpen(true)
                   }}
                   title={title(crumb)}
-                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300 ${active ? 'bg-blue-50 font-medium text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300' : 'text-gray-600 dark:text-ui-secondary'}`}
+                  className={`inline-flex h-6 items-center gap-1 rounded px-1.5 hover:bg-blue-50 hover:text-ui-primary-hover dark:hover:bg-ui-blue-hover dark:hover:text-blue-300 ${active ? 'bg-blue-50 font-medium text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300' : 'text-gray-600 dark:text-ui-secondary'}`}
                 >
                   {index === 0 ? <FolderOutlinedIcon sx={{ fontSize: 16 }} /> : null}
                   <span className="max-w-48 truncate">{crumb.label}</span>
@@ -166,7 +166,7 @@ export default function VideoDirectoryBreadcrumbs() {
               <button
                 type="button"
                 onClick={retry}
-                className="px-3 py-2 text-xs text-blue-600 dark:text-blue-300"
+                className="px-3 py-2 text-xs text-ui-primary dark:text-blue-300"
               >
                 {zh('重试', 'Retry')}
               </button>

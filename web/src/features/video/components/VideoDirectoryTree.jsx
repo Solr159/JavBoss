@@ -86,7 +86,7 @@ function DirectoryNode({
       aria-label={zh(`选择目录 ${path}`, `Select directory ${path}`)}
       aria-pressed={selected}
       title={path}
-      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-blue-600 opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-ui-primary opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 dark:text-blue-300 dark:hover:bg-ui-primary dark:hover:text-white [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
     >
       {zh('选择', 'Select')}
     </button>

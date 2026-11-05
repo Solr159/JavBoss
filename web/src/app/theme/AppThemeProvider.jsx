@@ -53,9 +53,9 @@ export default function AppThemeProvider({ children }) {
             : {}),
         },
         components: {
-          MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
           ...(mode === 'dark'
             ? {
+                MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
                 MuiAlert: {
                   styleOverrides: {
                     standardInfo: {

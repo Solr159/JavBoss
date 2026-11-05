@@ -236,7 +236,7 @@ export default function TitleTranslationToolSettings() {
                 <button
                   disabled={busy || toggling}
                   type="submit"
-                  className="ml-auto shrink-0 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="ml-auto shrink-0 rounded-lg bg-ui-primary px-4 py-2 text-sm font-medium text-white hover:bg-ui-primary-hover disabled:opacity-50"
                 >
                   {saving ? zh('保存中…', 'Saving…') : zh('保存配置', 'Save configuration')}
                 </button>

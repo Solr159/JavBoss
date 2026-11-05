@@ -200,7 +200,7 @@ export default function JavPrefixModal({
                 type="button"
                 className={`px-3 py-2 font-medium ${
                   censorMode === 'all'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('all')}
@@ -211,7 +211,7 @@ export default function JavPrefixModal({
                 type="button"
                 className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   censorMode === 'censored'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('censored')}
@@ -222,7 +222,7 @@ export default function JavPrefixModal({
                 type="button"
                 className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   censorMode === 'uncensored'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setCensorMode('uncensored')}
@@ -240,7 +240,7 @@ export default function JavPrefixModal({
                 type="button"
                 className={`px-3 py-2 font-medium ${
                   sortMode === 'count'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setSortMode('count')}
@@ -251,7 +251,7 @@ export default function JavPrefixModal({
                 type="button"
                 className={`border-l border-gray-200 px-3 py-2 font-medium dark:border-ui-border ${
                   sortMode === 'az'
-                    ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                    ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-ui-secondary dark:hover:bg-ui-hover dark:hover:text-ui-text'
                 }`}
                 onClick={() => setSortMode('az')}
@@ -276,10 +276,10 @@ export default function JavPrefixModal({
                   type="button"
                   className={`inline-flex h-6 min-w-0 flex-1 items-center justify-center rounded border text-[10px] font-semibold transition-colors ${
                     active
-                      ? 'border-blue-600 bg-blue-600 text-white'
+                      ? 'border-ui-primary bg-ui-primary text-white'
                       : !available
                         ? 'border-gray-100 bg-gray-50 text-gray-300 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-border'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
                   }`}
                   disabled={!available}
                   aria-pressed={active}
@@ -337,7 +337,7 @@ export default function JavPrefixModal({
                     <td className="px-5 py-3">
                       <a
                         href={href}
-                        className="font-semibold text-blue-700 hover:text-blue-800 hover:underline dark:text-blue-300 dark:hover:text-blue-300"
+                        className="font-semibold text-ui-primary-hover hover:text-blue-800 hover:underline dark:text-blue-300 dark:hover:text-blue-300"
                         onClick={(event) => {
                           if (isModifiedClick(event)) return
                           event.preventDefault()

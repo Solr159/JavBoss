@@ -116,7 +116,7 @@ export default function TagPickerModal({
         </button>
         <button
           onClick={onSave}
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
+          className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-50"
           disabled={saveDisabled || creating}
         >
           {zh('保存', 'Save')}

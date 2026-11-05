@@ -175,7 +175,7 @@ export function JavEditDropdown({
               className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
                 selectedId
                   ? 'text-gray-700 dark:text-ui-secondary'
-                  : 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                  : 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
               }`}
               onClick={() => {
                 onSelect?.('')
@@ -192,7 +192,7 @@ export function JavEditDropdown({
                   type="button"
                   className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
                     active
-                      ? 'bg-blue-50 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                      ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                       : 'text-gray-800 dark:text-ui-text'
                   }`}
                   onClick={() => {

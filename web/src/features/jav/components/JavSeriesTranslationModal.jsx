@@ -59,7 +59,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
     >
       <form onSubmit={save} className="flex min-h-0 flex-col">
         <div className="flex items-center gap-3 border-b border-gray-100 px-6 py-5 dark:border-ui-border">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-ui-blue-surface dark:text-blue-300">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-ui-primary dark:bg-ui-blue-surface dark:text-blue-300">
             <TranslateRoundedIcon sx={{ fontSize: 22 }} />
           </div>
           <h3 className="flex-1 text-base font-semibold text-gray-900 dark:text-ui-text">
@@ -105,7 +105,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
                     type="button"
                     disabled={busy || !item.name?.trim() || (!thinking && reasoning === 'always')}
                     onClick={() => void translate(thinking)}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
                   >
                     {thinking ? (
                       <AutoAwesomeOutlinedIcon sx={{ fontSize: 16 }} />
@@ -147,7 +147,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50"
+            className="rounded-lg bg-ui-primary px-5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-ui-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-50"
           >
             {busy ? zh('处理中…', 'Working…') : zh('保存', 'Save')}
           </button>

@@ -145,7 +145,7 @@ export default function JavCard(props) {
         title={studioText}
         className={`block min-w-0 truncate text-left ${
           canFilterStudio
-            ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+            ? 'cursor-pointer hover:text-ui-primary-hover hover:underline dark:hover:text-blue-300'
             : ''
         }`}
         onClick={(event) =>
@@ -522,7 +522,7 @@ export default function JavCard(props) {
                     title={seriesText}
                     className={`min-w-0 text-left ${portrait ? 'truncate leading-4' : 'whitespace-normal break-words leading-snug'} ${
                       canFilterSeries
-                        ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+                        ? 'cursor-pointer hover:text-ui-primary-hover hover:underline dark:hover:text-blue-300'
                         : ''
                     }`}
                     onClick={(event) =>

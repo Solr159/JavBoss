@@ -663,7 +663,7 @@ export default function JavDetailModal({
         <a
           href={buildStudioUrl?.(studio) || '#'}
           onClick={(event) => handleFilterClick(event, onSelectStudio, studio)}
-          className="text-left font-medium text-blue-700 hover:underline dark:text-blue-300"
+          className="text-left font-medium text-ui-primary-hover hover:underline dark:text-blue-300"
           onMouseEnter={(event) => handleHoverStart('studio', studio, event)}
           onMouseLeave={scheduleHoverClose}
         >
@@ -679,7 +679,7 @@ export default function JavDetailModal({
         <a
           href={buildSeriesUrl?.(series) || '#'}
           onClick={(event) => handleFilterClick(event, onSelectSeries, series)}
-          className="text-left font-medium text-blue-700 hover:underline dark:text-blue-300"
+          className="text-left font-medium text-ui-primary-hover hover:underline dark:text-blue-300"
           onMouseEnter={(event) => handleHoverStart('series', series, event)}
           onMouseLeave={scheduleHoverClose}
         >

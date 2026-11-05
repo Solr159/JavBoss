@@ -180,7 +180,7 @@ export default function Pagination({
                   paginationDisabled
                     ? 'pointer-events-none opacity-50'
                     : p === page
-                      ? 'border-blue-600 bg-blue-600 text-white'
+                      ? 'border-ui-primary bg-ui-primary text-white'
                       : 'bg-white dark:bg-ui-surface'
                 }`}
                 aria-disabled={paginationDisabled}
@@ -293,8 +293,8 @@ export default function Pagination({
                       }}
                       className={`pagination-jump-button border text-center ${
                         optionPage === page
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'bg-white hover:border-blue-300 hover:text-blue-600 dark:bg-ui-surface dark:hover:border-blue-400 dark:hover:text-blue-300'
+                          ? 'border-ui-primary bg-ui-primary text-white'
+                          : 'bg-white hover:border-blue-300 hover:text-ui-primary dark:bg-ui-surface dark:hover:border-blue-400 dark:hover:text-blue-300'
                       }`}
                       aria-current={optionPage === page ? 'page' : undefined}
                     >

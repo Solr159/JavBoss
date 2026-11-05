@@ -225,7 +225,7 @@ export default function DirectoryCleanupPanel({
               <label className="flex cursor-pointer items-center gap-2 font-semibold text-blue-900 dark:text-blue-300">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-blue-600"
+                  className="h-4 w-4 accent-ui-primary"
                   aria-label={zh('全选', 'Select all')}
                   disabled={Boolean(busy) || !files.length}
                   checked={files.length > 0 && files.every((file) => selected.has(file.path))}
@@ -353,7 +353,7 @@ export default function DirectoryCleanupPanel({
           type="button"
           onClick={scan}
           disabled={Boolean(busy)}
-          className="rounded border border-blue-600 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-50 disabled:opacity-60 dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+          className="rounded border border-ui-primary px-3 py-1.5 text-sm text-ui-primary-hover hover:bg-blue-50 disabled:opacity-60 dark:text-blue-300 dark:hover:bg-ui-blue-hover"
         >
           {preview ? zh('重新扫描', 'Scan again') : zh('扫描垃圾文件', 'Scan junk files')}
         </button>

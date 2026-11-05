@@ -794,7 +794,7 @@ function JavEditForm({
                 {!optionsLoading && idolSearch.trim() && !matchingIdolOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addIdol()}
                     disabled={saving || creatingIdol}
                   >
@@ -912,7 +912,7 @@ function JavEditForm({
                 {!tagOptionsLoading && scrapedTagSearch.trim() && !matchingScrapedTagOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addScrapedTag()}
                     disabled={saving || creatingScrapedTag}
                   >
@@ -1022,7 +1022,7 @@ function JavEditForm({
                 {tagSearch.trim() && !matchingUserTagOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addCustomTag()}
                     disabled={saving || creatingUserTag}
                   >
@@ -1078,7 +1078,7 @@ function JavEditForm({
         <button
           type="button"
           className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-            saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            saving ? 'cursor-wait bg-blue-400' : 'bg-ui-primary hover:bg-ui-primary-hover'
           }`}
           onClick={handleSave}
           disabled={saving || creatingOption}

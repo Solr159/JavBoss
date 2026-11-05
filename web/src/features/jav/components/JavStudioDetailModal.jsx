@@ -162,7 +162,7 @@ export default function JavStudioDetailModal({
             <a
               href={href || '#'}
               onClick={handleStudioClick}
-              className="min-w-0 break-words text-lg font-semibold text-gray-900 hover:text-blue-700 hover:underline dark:text-ui-text dark:hover:text-blue-300"
+              className="min-w-0 break-words text-lg font-semibold text-gray-900 hover:text-ui-primary-hover hover:underline dark:text-ui-text dark:hover:text-blue-300"
             >
               {name}
             </a>
@@ -218,7 +218,7 @@ export default function JavStudioDetailModal({
                     <button
                       type="button"
                       key={prefixItem.prefix}
-                      className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
+                      className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-canvas dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
                       onClick={(event) => handlePrefixClick(prefixItem, event)}
                       title={zh(
                         `查看 ${prefixItem.prefix} 的全部作品`,
@@ -306,7 +306,7 @@ function StudioDetailSectionHeader({ title, count, sort, onSortChange }) {
           `${title}排序：${sort === 'name_asc' ? '名称升序，点击切换为作品数降序' : '作品数降序，点击切换为名称升序'}`,
           `Sort ${title.toLowerCase()}: ${sort === 'name_asc' ? 'name ascending; click for most works first' : 'most works first; click for name ascending'}`
         )}
-        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-blue-700 ring-1 ring-inset ring-blue-100 hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-ui-blue-border dark:hover:bg-ui-blue-hover"
+        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-ui-primary-hover ring-1 ring-inset ring-blue-100 hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-ui-blue-border dark:hover:bg-ui-blue-hover"
       >
         <SortRoundedIcon sx={{ fontSize: 13 }} />
         {sort === 'name_asc' ? zh('名称', 'Name') : zh('作品数', 'Works')}

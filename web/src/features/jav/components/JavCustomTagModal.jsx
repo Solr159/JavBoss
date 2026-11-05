@@ -175,7 +175,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
           {search.trim() ? (
             <button
               type="button"
-              className="shrink-0 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+              className="shrink-0 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-ui-primary-hover hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
               onClick={() => void addCustomTag()}
               disabled={saving || creating}
             >
@@ -208,7 +208,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
                     aria-hidden="true"
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px] ${
                       checked
-                        ? 'border-blue-600 bg-blue-600 text-white'
+                        ? 'border-ui-primary bg-ui-primary text-white'
                         : 'border-gray-300 bg-white text-transparent dark:border-ui-border dark:bg-ui-surface'
                     }`}
                   >
@@ -243,7 +243,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
         <button
           type="button"
           className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-            saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            saving ? 'cursor-wait bg-blue-400' : 'bg-ui-primary hover:bg-ui-primary-hover'
           }`}
           onClick={() => void handleSave()}
           disabled={saving || creating}

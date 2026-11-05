@@ -595,7 +595,7 @@ export function JavIdolEditModal({
           </button>
           <button
             type="submit"
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
             disabled={saving || !String(form.name || '').trim()}
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
@@ -876,7 +876,7 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
         </button>
         <button
           type="submit"
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+          className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
           disabled={!canSubmit || saving}
         >
           {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}

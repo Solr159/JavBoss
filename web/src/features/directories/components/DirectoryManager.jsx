@@ -139,7 +139,7 @@ const directoryWorkStatusDisplay = (status) => {
     case 'scanning':
       return {
         label: zh('当前状态：扫描中', 'Status: Scanning'),
-        badge: 'bg-blue-50 dark:bg-ui-blue-surface text-blue-700 dark:text-blue-300',
+        badge: 'bg-blue-50 dark:bg-ui-blue-surface text-ui-primary-hover dark:text-blue-300',
         dot: 'animate-pulse bg-blue-500',
       }
     case 'organizing':
@@ -585,7 +585,7 @@ export default function DirectoryManager({
                             : zh('选择目录', 'Choose directory')}
                         </button>
                       </div>
-                      <div className="text-xs text-blue-700 dark:text-blue-300">
+                      <div className="text-xs text-ui-primary-hover dark:text-blue-300">
                         {pathHelperText}
                       </div>
                     </form>
@@ -793,7 +793,7 @@ export default function DirectoryManager({
                           type="button"
                           onClick={handleEditSubmit}
                           disabled={working}
-                          className="rounded bg-blue-600 px-3 py-1.5 text-xs text-white disabled:opacity-60"
+                          className="rounded bg-ui-primary px-3 py-1.5 text-xs text-white disabled:opacity-60"
                         >
                           {savingId === d.id ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
                         </button>
@@ -839,7 +839,7 @@ export default function DirectoryManager({
               {picking ? zh('选择中…', 'Picking...') : zh('选择目录', 'Choose directory')}
             </button>
           </div>
-          <div className="text-xs text-blue-700 dark:text-blue-300">{pathHelperText}</div>
+          <div className="text-xs text-ui-primary-hover dark:text-blue-300">{pathHelperText}</div>
           {error && <div className="text-sm text-red-600 dark:text-red-300">{error}</div>}
           <div className="flex justify-end gap-2">
             <button
@@ -856,7 +856,7 @@ export default function DirectoryManager({
             <button
               type="submit"
               disabled={submitting || picking}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+              className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white disabled:opacity-60"
             >
               {submitting ? zh('创建中…', 'Creating...') : zh('保存', 'Save')}
             </button>
@@ -1121,7 +1121,7 @@ export default function DirectoryManager({
                     }
                   }}
                   disabled={toolDirectoryWorking}
-                  className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-60"
                 >
                   {toolConfiguring ? zh('执行', 'Run') : zh('下一步', 'Next')}
                 </button>
@@ -1180,7 +1180,7 @@ export default function DirectoryManager({
                 onChange={(event) => setScanSettingsEnabled(event.target.checked)}
                 className="peer sr-only"
               />
-              <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-blue-600 peer-checked:after:translate-x-5 dark:bg-ui-hover" />
+              <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-ui-primary peer-checked:after:translate-x-5 dark:bg-ui-hover" />
             </label>
             {scanSettingsEnabled && (
               <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700 dark:border-ui-border dark:text-ui-secondary">
@@ -1199,7 +1199,7 @@ export default function DirectoryManager({
             )}
           </div>
           {scanSettingsRunning && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+            <div className="mt-3 flex items-center gap-2 text-xs text-ui-primary-hover dark:text-blue-300">
               <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-500" />
               <span>
                 {zh(
@@ -1227,7 +1227,7 @@ export default function DirectoryManager({
             <button
               type="submit"
               disabled={savingScanSettingsId != null}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+              className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-60"
             >
               {savingScanSettingsId != null ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
             </button>

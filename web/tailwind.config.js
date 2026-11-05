@@ -5,10 +5,8 @@ export default {
   theme: {
     extend: {
       colors: {
-        blue: {
-          600: 'rgb(var(--theme-action-blue, 37 99 235) / <alpha-value>)',
-          700: 'rgb(var(--theme-action-blue-hover, 29 78 216) / <alpha-value>)',
-        },
+        'ui-primary': 'var(--ui-primary)',
+        'ui-primary-hover': 'var(--ui-primary-hover)',
         'ui-canvas': 'rgb(var(--ui-canvas) / <alpha-value>)',
         'ui-navigation': 'rgb(var(--ui-navigation) / <alpha-value>)',
         'ui-surface': 'rgb(var(--ui-surface) / <alpha-value>)',

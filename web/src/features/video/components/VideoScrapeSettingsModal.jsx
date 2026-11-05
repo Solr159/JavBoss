@@ -741,7 +741,7 @@ export default function VideoScrapeSettingsModal({
                           type="button"
                           onClick={() => void linkExistingJav()}
                           disabled={!codeValid || saving || linkLoading || !onLinkExistingJav}
-                          className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                          className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                         >
                           {linkLoading
                             ? zh('关联中…', 'Linking...')
@@ -785,7 +785,7 @@ export default function VideoScrapeSettingsModal({
                               browserScrapeOpening ||
                               (providerConfig.requiresCode && !codeValid)
                             }
-                            className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-blue-700 hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                            className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                           >
                             {browserScrapeOpening &&
                             browserScrapeProviderRef.current === providerConfig.name
@@ -799,7 +799,7 @@ export default function VideoScrapeSettingsModal({
                       <div
                         className={`mt-2 text-xs leading-5 ${
                           browserScrapeExtensionReady
-                            ? 'text-blue-700 dark:text-blue-300'
+                            ? 'text-ui-primary-hover dark:text-blue-300'
                             : 'text-amber-700 dark:text-amber-300'
                         }`}
                       >
@@ -999,7 +999,7 @@ export default function VideoScrapeSettingsModal({
             type="button"
             onClick={submit}
             disabled={!canSave}
-            className="ml-2 rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="ml-2 rounded bg-ui-primary px-3 py-1 text-sm text-white hover:bg-ui-primary-hover disabled:bg-gray-300 dark:disabled:bg-ui-hover"
           >
             {saving
               ? zh('保存中…', 'Saving...')
@@ -1070,7 +1070,7 @@ export default function VideoScrapeSettingsModal({
             <button
               type="button"
               onClick={() => setPossibleCodesOpen(false)}
-              className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700"
+              className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover"
             >
               {zh('知道了', 'OK')}
             </button>

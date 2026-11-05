@@ -400,7 +400,7 @@ export function StudioCard({
             <a
               href={href || '#'}
               onClick={handleStudioClick}
-              className={`min-w-0 truncate text-sm font-semibold hover:text-blue-700 hover:underline dark:hover:text-blue-300 ${
+              className={`min-w-0 truncate text-sm font-semibold hover:text-ui-primary-hover hover:underline dark:hover:text-blue-300 ${
                 aliases.length > 0 ? 'max-w-[65%]' : 'flex-1'
               }`}
               title={name}
@@ -432,7 +432,7 @@ export function StudioCard({
                 <button
                   type="button"
                   key={prefixItem.prefix}
-                  className="mr-0.5 inline-block max-w-full truncate rounded border border-gray-200 bg-gray-50 px-1 py-0.5 align-middle text-[9px] font-medium leading-3 text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
+                  className="mr-0.5 inline-block max-w-full truncate rounded border border-gray-200 bg-gray-50 px-1 py-0.5 align-middle text-[9px] font-medium leading-3 text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-canvas dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
                   title={zh(
                     `查看 ${prefixItem.prefix} 的全部作品`,
                     `Show all ${prefixItem.prefix} works`
@@ -637,7 +637,7 @@ function JavStudioEditModal({ open, item, onClose, onSaved, onMerged }) {
           </button>
           <button
             type="submit"
-            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
             disabled={saving || !String(form.name || '').trim()}
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
@@ -882,7 +882,7 @@ function JavStudioMergeModal({ open, item, onClose, onMerged }) {
         </button>
         <button
           type="submit"
-          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+          className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
           disabled={!canSubmit || saving}
         >
           {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}

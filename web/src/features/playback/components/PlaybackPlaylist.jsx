@@ -49,7 +49,7 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
                   aria-current={active ? 'true' : undefined}
                   title={title}
                   onClick={() => onSelect?.(index)}
-                  className={`flex w-full items-center gap-2 rounded py-1 pl-1 pr-2 text-left text-[11px] leading-4 ${active ? 'bg-blue-100 font-semibold text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300' : 'text-zinc-700 hover:bg-zinc-200 dark:text-ui-secondary dark:hover:bg-ui-hover'}`}
+                  className={`flex w-full items-center gap-2 rounded py-1 pl-1 pr-2 text-left text-[11px] leading-4 ${active ? 'bg-blue-100 font-semibold text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300' : 'text-zinc-700 hover:bg-zinc-200 dark:text-ui-secondary dark:hover:bg-ui-hover'}`}
                 >
                   <span
                     className="min-w-5 shrink-0 whitespace-nowrap text-center tabular-nums"

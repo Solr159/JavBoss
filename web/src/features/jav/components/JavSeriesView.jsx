@@ -293,7 +293,7 @@ export function SeriesCard({
                   type="button"
                   className={`min-w-0 truncate text-left ${
                     canFilterStudio
-                      ? 'cursor-pointer hover:text-blue-700 hover:underline dark:hover:text-blue-300'
+                      ? 'cursor-pointer hover:text-ui-primary-hover hover:underline dark:hover:text-blue-300'
                       : ''
                   }`}
                   onClick={handleStudioClick}

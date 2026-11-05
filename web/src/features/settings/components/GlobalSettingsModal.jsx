@@ -615,7 +615,7 @@ export default function GlobalSettingsModal({
                 type="button"
                 onClick={handleSaveProxy}
                 disabled={savingProxy || proxyUnchanged || proxyHostMissing || proxyInputMissing}
-                className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                className="rounded-xl bg-ui-primary px-3 py-1.5 text-sm text-white disabled:opacity-60"
               >
                 {savingProxy ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
               </button>
@@ -886,7 +886,7 @@ export default function GlobalSettingsModal({
                     }
                   }}
                   disabled={savingBrowserPlayer}
-                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                  className="rounded-xl bg-ui-primary px-3 py-1.5 text-sm text-white disabled:opacity-60"
                 >
                   {savingBrowserPlayer ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
                 </button>
@@ -1134,7 +1134,7 @@ export default function GlobalSettingsModal({
                     }
                   }}
                   disabled={savingPlayerBasic}
-                  className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+                  className="rounded-xl bg-ui-primary px-3 py-1.5 text-sm text-white disabled:opacity-60"
                 >
                   {savingPlayerBasic ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
                 </button>
@@ -1234,7 +1234,7 @@ export default function GlobalSettingsModal({
                 disabled={
                   toolsLoading || startingFFmpegDownload || downloading || installed || !supported
                 }
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+                className="rounded-xl bg-ui-primary px-4 py-2 text-sm font-medium text-white hover:bg-ui-primary-hover disabled:opacity-60"
               >
                 {toolsLoading
                   ? zh('检查中…', 'Checking...')
@@ -1251,7 +1251,7 @@ export default function GlobalSettingsModal({
             </div>
 
             {upgradeAvailable && !downloading ? (
-              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300">
+              <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-ui-primary-hover dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300">
                 {zh(
                   '检测到 FFmpeg 有新版本，可以立即更新。',
                   'A new FFmpeg version is available. You can update now.'
@@ -1263,7 +1263,7 @@ export default function GlobalSettingsModal({
               <div>
                 <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-ui-muted">
                   <div
-                    className="h-full rounded-full bg-blue-600 transition-[width] duration-300"
+                    className="h-full rounded-full bg-ui-primary transition-[width] duration-300"
                     style={{ width: `${Math.max(1, Math.min(100, progress))}%` }}
                   />
                 </div>
@@ -1486,7 +1486,7 @@ export default function GlobalSettingsModal({
               <button
                 type="submit"
                 disabled={savingPassword || !currentPassword || !newPassword || !confirmPassword}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+                className="rounded-xl bg-ui-primary px-4 py-2 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-60"
               >
                 {savingPassword ? zh('保存中…', 'Saving...') : zh('确认修改', 'Change password')}
               </button>

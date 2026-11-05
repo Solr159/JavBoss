@@ -361,7 +361,7 @@ export default function DownloadsView({ onToast }) {
                                     ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                                     : job.status === 'canceled'
                                       ? 'bg-gray-100 text-gray-500 dark:bg-ui-muted dark:text-ui-faint'
-                                      : 'bg-blue-100 text-blue-700 dark:bg-ui-blue-surface dark:text-blue-300'
+                                      : 'bg-blue-100 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
                             }`}
                           >
                             {completedWithSkips
@@ -428,7 +428,7 @@ export default function DownloadsView({ onToast }) {
                             onClick={() => runJobAction(job, retryDownloadJob)}
                             aria-label={zh('重试下载任务', 'Retry download job')}
                             title={zh('重试下载任务', 'Retry download job')}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-[16px] text-blue-700 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-[16px] text-ui-primary-hover disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300"
                           >
                             <ReplayOutlinedIcon fontSize="inherit" />
                           </button>
@@ -463,7 +463,7 @@ export default function DownloadsView({ onToast }) {
                       <>
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-ui-muted">
                           <div
-                            className="h-full rounded-full bg-blue-600 transition-all"
+                            className="h-full rounded-full bg-ui-primary transition-all"
                             style={{ width: `${progress}%` }}
                           />
                         </div>
@@ -568,7 +568,7 @@ export default function DownloadsView({ onToast }) {
               <button
                 type="submit"
                 disabled={submitting || !magnetUrl.trim()}
-                className="h-10 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="h-10 rounded-lg bg-ui-primary px-5 text-sm font-semibold text-white hover:bg-ui-primary-hover disabled:opacity-50"
               >
                 {submitting ? zh('创建中…', 'Creating...') : zh('创建任务', 'Create job')}
               </button>

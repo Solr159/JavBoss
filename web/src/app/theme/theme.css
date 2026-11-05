@@ -1,5 +1,7 @@
 @layer base {
   :root {
+    --ui-primary: #2563eb;
+    --ui-primary-hover: #1d4ed8;
     --ui-canvas: 249 250 251;
     --ui-navigation: 255 255 255;
     --ui-surface: 255 255 255;
@@ -20,6 +22,8 @@
   }
 
   :root.dark {
+    --ui-primary: #3b82f6;
+    --ui-primary-hover: #2563eb;
     --ui-canvas: 24 24 24;
     --ui-navigation: 32 32 32;
     --ui-surface: 38 38 38;
