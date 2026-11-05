@@ -603,7 +603,7 @@ function JavStudioEditModal({ open, item, onClose, onSaved, onMerged }) {
               value={form.name}
               required
               onChange={(event) => setField('name', event.target.value)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-ui-border"
+              className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-blue-400"
             />
           </label>
           <StudioAliasEditor
@@ -666,7 +666,7 @@ function StudioAliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd
           {zh('输入后按 Enter 添加', 'Press Enter to add')}
         </span>
       </div>
-      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus-within:border-ui-border">
+      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus-within:border-blue-400">
         {aliases.map((alias) => (
           <span
             key={alias}
@@ -820,7 +820,7 @@ function JavStudioMergeModal({ open, item, onClose, onMerged }) {
               setSearch(event.target.value)
               setSelectedId(0)
             }}
-            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-ui-border"
+            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-blue-400"
             placeholder={zh('搜索要合并到的目标片商', 'Search target studio to merge into')}
           />
         </label>
