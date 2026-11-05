@@ -1542,7 +1542,7 @@ export default function GlobalSettingsModal({
                   className={`min-w-[220px] shrink-0 rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
                     selected
                       ? 'border-zinc-200 bg-white shadow-sm dark:border-ui-border dark:bg-ui-surface'
-                      : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80 dark:hover:border-ui-faint dark:hover:bg-ui-surface/80'
+                      : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80 dark:hover:border-ui-border dark:hover:bg-ui-surface/80'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
