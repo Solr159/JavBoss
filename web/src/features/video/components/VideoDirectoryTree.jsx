@@ -68,7 +68,7 @@ function DirectoryNode({
   const path = directoryLabel(node, useHostPaths)
   const videos = node.videos || []
   const remainingVideos = Math.max(0, (node.video_count || 0) - videos.length)
-  const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 dark:hover:bg-sky-950 ${selected ? 'bg-sky-50 dark:bg-sky-950 font-semibold text-sky-700 dark:text-sky-300' : 'text-gray-700 dark:text-ui-secondary'}`
+  const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 dark:hover:bg-ui-blue-hover ${selected ? 'bg-sky-50 dark:bg-ui-blue-surface font-semibold text-sky-700 dark:text-blue-300' : 'text-gray-700 dark:text-ui-secondary'}`
   const name = (
     <span className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5" title={path}>
       <FolderOutlinedIcon className="shrink-0" fontSize="small" />
@@ -86,7 +86,7 @@ function DirectoryNode({
       aria-label={zh(`选择目录 ${path}`, `Select directory ${path}`)}
       aria-pressed={selected}
       title={path}
-      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-blue-600 opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 dark:text-blue-300 dark:hover:bg-ui-blue-hover [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-blue-600 opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
     >
       {zh('选择', 'Select')}
     </button>

@@ -595,7 +595,7 @@ export function JavIdolEditModal({
           </button>
           <button
             type="submit"
-            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 dark:bg-blue-600 dark:enabled:hover:bg-blue-700 dark:disabled:bg-ui-hover"
             disabled={saving || !String(form.name || '').trim()}
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
