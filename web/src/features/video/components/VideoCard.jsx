@@ -360,7 +360,7 @@ export default function VideoCard({
               <button
                 key={t.id}
                 type="button"
-                className="inline-flex h-4 items-center justify-center rounded bg-orange-300 px-1 text-[10px] font-semibold text-black dark:bg-orange-900 dark:text-ui-text"
+                className="video-card-tag inline-flex h-4 items-center justify-center rounded px-1 text-[10px] font-semibold"
                 onClick={(e) => {
                   e.stopPropagation()
                   onTagClick?.(t.name)

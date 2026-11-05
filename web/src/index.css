@@ -1153,6 +1153,15 @@ body.has-page-scroll .sticky-pagination {
   transform: none;
 }
 
+.video-card-tag {
+  background: var(--theme-video-tag-surface, #fdba74);
+  color: var(--theme-video-tag-text, #000);
+}
+
+.video-card-tag:hover {
+  background: var(--theme-video-tag-hover, #fdba74);
+}
+
 .skeuo-tag {
   display: inline-flex;
   align-items: center;
@@ -1179,6 +1188,25 @@ body.has-page-scroll .sticky-pagination {
 .skeuo-tag--active,
 .skeuo-tag--editing {
   cursor: pointer;
+}
+
+.skeuo-tag--video {
+  background: var(--theme-video-tag-surface, #f8fafc);
+  border-color: var(--theme-video-tag-surface, #d6dbe4);
+}
+
+.skeuo-tag--video:hover {
+  background: var(--theme-video-tag-hover, #f1f5f9);
+  border-color: var(--theme-video-tag-hover, #cbd5e1);
+}
+
+.skeuo-tag--video .skeuo-tag-label {
+  color: var(--theme-video-tag-text, #334155);
+}
+
+.skeuo-tag--video.skeuo-tag--active {
+  background: var(--theme-blue-surface, #dbeafe);
+  border-color: var(--theme-blue-focus, #60a5fa);
 }
 
 .skeuo-tag--user {
