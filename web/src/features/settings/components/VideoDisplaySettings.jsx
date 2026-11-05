@@ -70,7 +70,7 @@ function SettingsSwitch({ label, checked, onChange }) {
       }`}
     >
       <span
-        className={`mt-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform dark:bg-ui-surface ${
+        className={`mt-1 h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
           checked ? 'translate-x-6' : 'translate-x-1'
         }`}
       />

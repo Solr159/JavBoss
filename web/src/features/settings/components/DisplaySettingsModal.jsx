@@ -442,7 +442,7 @@ export default function DisplaySettingsModal({
     <AppModal
       ariaLabelledby="display-settings-title"
       className="px-4 py-4"
-      contentClassName="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/80 bg-slate-50 dark:bg-ui-canvas shadow-2xl shadow-slate-900/20"
+      contentClassName="flex h-[860px] max-h-[94vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-slate-50 dark:bg-ui-canvas shadow-2xl shadow-slate-900/20"
       onClose={onClose}
     >
       <header className="flex shrink-0 items-center justify-between px-5 pb-3 pt-5">
@@ -474,7 +474,7 @@ export default function DisplaySettingsModal({
               onClick={() => setActiveTab(tab.key)}
               className={`rounded-full border px-4 py-1.5 text-sm font-medium transition focus:outline-none ${
                 active
-                  ? 'border-ui-primary bg-ui-primary text-white shadow-md shadow-blue-200 dark:shadow-black/20'
+                  ? 'border-ui-primary bg-ui-primary text-white shadow-md shadow-blue-200 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300 dark:shadow-none'
                   : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300'
               }`}
             >
