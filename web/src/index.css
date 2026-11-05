@@ -1207,8 +1207,8 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .skeuo-tag--video.skeuo-tag--active {
-  background: var(--theme-blue-surface, #dbeafe);
-  border-color: var(--theme-blue-focus, #60a5fa);
+  background: var(--theme-video-tag-selected);
+  border-color: var(--theme-video-tag-selected-border);
 }
 
 .skeuo-tag--user {
@@ -1251,21 +1251,24 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .skeuo-tag--video.skeuo-tag--selected {
-  background: var(--theme-blue-surface, #dbeafe);
-  border-color: var(--theme-accent, #60a5fa);
+  background: var(--theme-video-tag-selected);
+  border-color: var(--theme-video-tag-selected-border);
 }
 
+.skeuo-tag--video.skeuo-tag--active .skeuo-tag-label,
+.skeuo-tag--video.skeuo-tag--active .skeuo-tag-count,
 .skeuo-tag--video.skeuo-tag--selected .skeuo-tag-label,
 .skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
-  color: var(--theme-blue-text, #1e40af);
+  color: var(--theme-video-tag-text);
 }
 
+.skeuo-tag--video.skeuo-tag--active .skeuo-tag-count,
 .skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
-  background: var(--theme-blue-hover, #bfdbfe);
+  background: var(--theme-video-tag-selected-count);
 }
 
 .skeuo-tag--video .skeuo-tag-check {
-  accent-color: var(--theme-accent, #3b82f6);
+  accent-color: #f97316;
 }
 
 .skeuo-tag-label {

@@ -13,6 +13,9 @@
     --theme-video-tag-border: #fed7aa;
     --theme-video-tag-hover: #fed7aa;
     --theme-video-tag-text: #9a3412;
+    --theme-video-tag-selected: #fed7aa;
+    --theme-video-tag-selected-border: #f97316;
+    --theme-video-tag-selected-count: #ffedd5;
     color-scheme: light;
   }
 
@@ -41,6 +44,9 @@
     --theme-video-tag-border: #f97316;
     --theme-video-tag-hover: #ea580c;
     --theme-video-tag-text: #fff;
+    --theme-video-tag-selected: #c2410c;
+    --theme-video-tag-selected-border: #fdba74;
+    --theme-video-tag-selected-count: #9a3412;
     --theme-tag-user-surface: #10b981;
     --theme-tag-user-border: #10b981;
     --theme-tag-user-hover: #059669;
