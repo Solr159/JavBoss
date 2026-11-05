@@ -9,6 +9,10 @@
     --ui-text: 17 24 39;
     --ui-secondary: 75 85 99;
     --ui-faint: 107 114 128;
+    --theme-video-tag-surface: #ffedd5;
+    --theme-video-tag-border: #fed7aa;
+    --theme-video-tag-hover: #fed7aa;
+    --theme-video-tag-text: #9a3412;
     color-scheme: light;
   }
 
@@ -34,6 +38,7 @@
     --theme-tag-surface: rgb(var(--ui-navigation));
     --theme-tag-count: rgb(var(--ui-muted));
     --theme-video-tag-surface: #f97316;
+    --theme-video-tag-border: #f97316;
     --theme-video-tag-hover: #ea580c;
     --theme-video-tag-text: #fff;
     --theme-tag-user-surface: #10b981;

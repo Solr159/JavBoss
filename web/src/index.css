@@ -1154,12 +1154,14 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .video-card-tag {
-  background: var(--theme-video-tag-surface, #fdba74);
-  color: var(--theme-video-tag-text, #000);
+  border: 1px solid var(--theme-video-tag-border);
+  background: var(--theme-video-tag-surface);
+  color: var(--theme-video-tag-text);
 }
 
 .video-card-tag:hover {
-  background: var(--theme-video-tag-hover, #fdba74);
+  background: var(--theme-video-tag-hover);
+  border-color: var(--theme-video-tag-hover);
 }
 
 .skeuo-tag {
@@ -1191,17 +1193,17 @@ body.has-page-scroll .sticky-pagination {
 }
 
 .skeuo-tag--video {
-  background: var(--theme-video-tag-surface, #f8fafc);
-  border-color: var(--theme-video-tag-surface, #d6dbe4);
+  background: var(--theme-video-tag-surface);
+  border-color: var(--theme-video-tag-border);
 }
 
 .skeuo-tag--video:hover {
-  background: var(--theme-video-tag-hover, #f1f5f9);
-  border-color: var(--theme-video-tag-hover, #cbd5e1);
+  background: var(--theme-video-tag-hover);
+  border-color: var(--theme-video-tag-hover);
 }
 
 .skeuo-tag--video .skeuo-tag-label {
-  color: var(--theme-video-tag-text, #334155);
+  color: var(--theme-video-tag-text);
 }
 
 .skeuo-tag--video.skeuo-tag--active {
@@ -1246,6 +1248,24 @@ body.has-page-scroll .sticky-pagination {
 .skeuo-tag--selected:hover {
   background: var(--theme-blue-surface, #f59e0b);
   border-color: var(--theme-accent, #d97706);
+}
+
+.skeuo-tag--video.skeuo-tag--selected {
+  background: var(--theme-blue-surface, #dbeafe);
+  border-color: var(--theme-accent, #60a5fa);
+}
+
+.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-label,
+.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
+  color: var(--theme-blue-text, #1e40af);
+}
+
+.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
+  background: var(--theme-blue-hover, #bfdbfe);
+}
+
+.skeuo-tag--video .skeuo-tag-check {
+  accent-color: var(--theme-accent, #3b82f6);
 }
 
 .skeuo-tag-label {
