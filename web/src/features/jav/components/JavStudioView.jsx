@@ -637,7 +637,7 @@ function JavStudioEditModal({ open, item, onClose, onSaved, onMerged }) {
           </button>
           <button
             type="submit"
-            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
             disabled={saving || !String(form.name || '').trim()}
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
@@ -882,7 +882,7 @@ function JavStudioMergeModal({ open, item, onClose, onMerged }) {
         </button>
         <button
           type="submit"
-          className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+          className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
           disabled={!canSubmit || saving}
         >
           {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}

@@ -142,7 +142,7 @@ export default function JavCoverCropModal({ item, src, onClose }) {
             type="button"
             disabled={saving || !crop}
             onClick={save}
-            className="rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+            className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white enabled:hover:bg-blue-700 disabled:opacity-50"
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
           </button>
