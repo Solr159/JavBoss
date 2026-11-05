@@ -22,7 +22,7 @@ export default function AppUpdateSettings({ clientMode = false }) {
   const [target, setTarget] = useState(clientMode ? 'local' : 'server')
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-semibold text-zinc-900">
+      <h3 className="text-base font-semibold text-zinc-900 dark:text-ui-text">
         {zh('检查更新', 'Check for Updates')}
       </h3>
       {clientMode && (
@@ -146,7 +146,7 @@ function UpdateTarget({ local, remote }) {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2 text-sm text-zinc-700">
+      <div className="space-y-2 text-sm text-zinc-700 dark:text-ui-secondary">
         <p>
           {zh('当前版本', 'Current version')}：{status?.current_version || '—'}
         </p>
@@ -169,7 +169,7 @@ function UpdateTarget({ local, remote }) {
       )}
       {(phaseText || reconnecting) && (
         <div className="space-y-2" role="status">
-          <p className="text-sm text-zinc-600">
+          <p className="text-sm text-zinc-600 dark:text-ui-secondary">
             {reconnecting
               ? zh('JavBoss 暂时断开，正在重新连接…', 'JavBoss is disconnected. Reconnecting…')
               : phaseText}
@@ -185,7 +185,7 @@ function UpdateTarget({ local, remote }) {
         </div>
       )}
       {!busy && status?.checked_at > 0 && !status.available && !status.error && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-500 dark:text-ui-faint">
           {zh('没有可用的新版本。', 'No newer version is available.')}
         </p>
       )}
@@ -214,7 +214,7 @@ function UpdateTarget({ local, remote }) {
         )}
       </div>
       {(status?.notes_html || status?.notes) && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-ui-border dark:bg-ui-surface">
           {status.latest_version && (
             <h4 className="mb-2 text-sm font-medium">{status.latest_version}</h4>
           )}
@@ -236,10 +236,10 @@ function UpdateTarget({ local, remote }) {
       >
         <DialogTitle id="app-update-confirm-title" sx={{ px: 3, pt: 3, pb: 2.5 }}>
           <span className="flex items-center gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-ui-primary dark:bg-ui-blue-surface dark:text-blue-300">
               <SystemUpdateAltRoundedIcon />
             </span>
-            <span className="text-lg font-semibold text-zinc-900">
+            <span className="text-lg font-semibold text-zinc-900 dark:text-ui-text">
               {containerUpdate
                 ? zh('Docker 更新指引', 'Docker update instructions')
                 : zh('确认更新', 'Confirm update')}
@@ -247,17 +247,24 @@ function UpdateTarget({ local, remote }) {
           </span>
         </DialogTitle>
         <DialogContent sx={{ px: 3, pb: 2.5 }}>
-          <div className="mb-4 flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-zinc-50 px-4 py-3">
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-zinc-200/70 bg-zinc-50 px-4 py-3 dark:border-ui-border/70 dark:bg-ui-canvas">
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-zinc-500">{zh('当前版本', 'Current version')}</p>
-              <p className="mt-1 break-all text-sm font-medium text-zinc-600">
+              <p className="text-xs text-zinc-500 dark:text-ui-faint">
+                {zh('当前版本', 'Current version')}
+              </p>
+              <p className="mt-1 break-all text-sm font-medium text-zinc-600 dark:text-ui-secondary">
                 {status?.current_version || '—'}
               </p>
             </div>
-            <ArrowForwardRoundedIcon className="shrink-0 text-zinc-400" fontSize="small" />
+            <ArrowForwardRoundedIcon
+              className="shrink-0 text-zinc-400 dark:text-ui-faint"
+              fontSize="small"
+            />
             <div className="min-w-0 flex-1 text-right">
-              <p className="text-xs text-zinc-500">{zh('更新至', 'Update to')}</p>
-              <p className="mt-1 break-all text-sm font-semibold text-blue-600">
+              <p className="text-xs text-zinc-500 dark:text-ui-faint">
+                {zh('更新至', 'Update to')}
+              </p>
+              <p className="mt-1 break-all text-sm font-semibold text-ui-primary dark:text-blue-300">
                 {status?.latest_version || '—'}
               </p>
             </div>
@@ -283,7 +290,13 @@ function UpdateTarget({ local, remote }) {
                 </DialogContentText>
               </Alert>
               <DialogContentText
-                sx={{ mt: 2, mb: 0, fontSize: 12, lineHeight: 1.7, color: '#71717a' }}
+                sx={{
+                  mt: 2,
+                  mb: 0,
+                  fontSize: 12,
+                  lineHeight: 1.7,
+                  color: 'var(--theme-faint, #71717a)',
+                }}
               >
                 {zh(
                   '更新包下载并校验成功后才会关闭程序。',
@@ -298,7 +311,7 @@ function UpdateTarget({ local, remote }) {
             px: 3,
             py: 2,
             gap: 1,
-            borderTop: '1px solid #f4f4f5',
+            borderTop: '1px solid var(--theme-border, #f4f4f5)',
             '& > :not(style) ~ :not(style)': { ml: 0 },
             '& .MuiButton-root': {
               borderRadius: '10px',
@@ -320,7 +333,10 @@ function UpdateTarget({ local, remote }) {
                 variant="outlined"
                 disabled={submitting}
                 onClick={() => setConfirming(false)}
-                sx={{ color: '#52525b', borderColor: '#d4d4d8' }}
+                sx={{
+                  color: 'var(--theme-secondary, #52525b)',
+                  borderColor: 'var(--theme-border, #d4d4d8)',
+                }}
               >
                 {zh('取消', 'Cancel')}
               </Button>
@@ -342,14 +358,17 @@ function UpdateTarget({ local, remote }) {
 
 function DockerUpdateInstructions() {
   return (
-    <div id="app-update-confirm-description" className="space-y-4 text-sm text-zinc-700">
+    <div
+      id="app-update-confirm-description"
+      className="space-y-4 text-sm text-zinc-700 dark:text-ui-secondary"
+    >
       <p>
         {zh(
           '进入 compose.yaml 所在目录，执行以下命令拉取新镜像并重启：',
           'Enter the directory containing compose.yaml and run the following commands to pull the new image and restart:'
         )}
       </p>
-      <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs">
+      <pre className="overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-ui-muted">
         <code>{'docker compose pull\ndocker compose up -d'}</code>
       </pre>
     </div>

@@ -143,10 +143,10 @@ export function JavEditDropdown({
 
   return (
     <div ref={rootRef} className="relative">
-      <div className="block text-[13px] font-semibold text-black">{label}</div>
+      <div className="block text-[13px] font-semibold text-black dark:text-ui-text">{label}</div>
       <button
         type="button"
-        className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500"
+        className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:hover:border-ui-faint dark:focus:ring-ui-blue-border dark:disabled:bg-ui-canvas dark:disabled:text-ui-faint"
         onClick={() => onOpenChange?.(!open)}
         disabled={disabled}
         aria-haspopup="listbox"
@@ -155,25 +155,27 @@ export function JavEditDropdown({
         <span className="min-w-0 truncate">{getOptionLabel(selected) || emptyLabel}</span>
         <span
           aria-hidden="true"
-          className={`ml-2 h-1.5 w-1.5 shrink-0 rotate-45 border-b border-r border-gray-400 transition-transform ${
+          className={`ml-2 h-1.5 w-1.5 shrink-0 rotate-45 border-b border-r border-gray-400 transition-transform dark:border-ui-secondary ${
             open ? 'rotate-[225deg]' : ''
           }`}
         />
       </button>
       {open ? (
-        <div className="absolute left-0 right-0 z-20 mt-1 rounded-md border border-gray-200 bg-white p-2 shadow-xl">
+        <div className="absolute left-0 right-0 z-20 mt-1 rounded-md border border-gray-200 bg-white p-2 shadow-xl dark:border-ui-border dark:bg-ui-surface">
           <input
             type="search"
             value={search}
             onChange={(event) => onSearchChange?.(event.target.value)}
             placeholder={searchPlaceholder}
-            className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
           />
           <div className="max-h-52 overflow-y-auto" role="listbox">
             <button
               type="button"
-              className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 ${
-                selectedId ? 'text-gray-700' : 'bg-blue-50 text-blue-700'
+              className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
+                selectedId
+                  ? 'text-gray-700 dark:text-ui-secondary'
+                  : 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
               }`}
               onClick={() => {
                 onSelect?.('')
@@ -188,8 +190,10 @@ export function JavEditDropdown({
                 <button
                   key={option.id}
                   type="button"
-                  className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 ${
-                    active ? 'bg-blue-50 text-blue-700' : 'text-gray-800'
+                  className={`block w-full rounded px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
+                    active
+                      ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
+                      : 'text-gray-800 dark:text-ui-text'
                   }`}
                   onClick={() => {
                     onSelect?.(String(option.id))
@@ -203,7 +207,7 @@ export function JavEditDropdown({
               )
             })}
             {options.length === 0 ? (
-              <div className="px-2 py-1.5 text-sm text-gray-500">
+              <div className="px-2 py-1.5 text-sm text-gray-500 dark:text-ui-faint">
                 {zh('没有匹配结果', 'No matches')}
               </div>
             ) : null}
@@ -217,14 +221,14 @@ export function JavEditDropdown({
 export function SelectedChip({ label, onRemove, disabled, compact = false }) {
   return (
     <span
-      className={`inline-flex min-w-0 items-center rounded-full bg-gray-100 text-gray-800 ${
+      className={`inline-flex min-w-0 items-center rounded-full bg-gray-100 text-gray-800 dark:bg-ui-muted dark:text-ui-text ${
         compact ? 'gap-0.5 px-1.5 py-0.5 text-xs' : 'gap-1 px-2 py-1 text-sm'
       }`}
     >
       <span className="truncate">{label}</span>
       <button
         type="button"
-        className={`inline-flex shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 ${
+        className={`inline-flex shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text ${
           compact ? 'h-3.5 w-3.5' : 'h-4 w-4'
         }`}
         onClick={onRemove}

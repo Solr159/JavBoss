@@ -85,10 +85,12 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
   }
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ui-border dark:bg-ui-surface">
       <div>
-        <h4 className="text-sm font-semibold text-zinc-900">{zh('网页快捷键', 'Web Shortcuts')}</h4>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h4 className="text-sm font-semibold text-zinc-900 dark:text-ui-text">
+          {zh('网页快捷键', 'Web Shortcuts')}
+        </h4>
+        <p className="mt-1 text-sm text-zinc-500 dark:text-ui-faint">
           {zh(
             '点击按键框后直接按下新按键，支持 Shift 组合键。',
             'Select a key field and press the new key. Shift combinations are supported.'
@@ -96,14 +98,16 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
         </p>
       </div>
 
-      <div className="mt-4 divide-y divide-zinc-100">
+      <div className="mt-4 divide-y divide-zinc-100 dark:divide-ui-border">
         {WEB_HOTKEY_ACTIONS.map(({ action }) => {
           const item = items.find((entry) => entry.action === action)
           const label = ACTION_LABELS[action]
           const capturing = capturingAction === action
           return (
             <div key={action} className="flex items-center justify-between gap-3 py-2">
-              <span className="text-sm text-zinc-700">{zh(label.zh, label.en)}</span>
+              <span className="text-sm text-zinc-700 dark:text-ui-secondary">
+                {zh(label.zh, label.en)}
+              </span>
               <input
                 id={`web-hotkey-${action}`}
                 readOnly
@@ -127,10 +131,10 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
                     event.currentTarget.blur()
                   }
                 }}
-                className={`w-32 cursor-pointer rounded-lg border bg-white px-2.5 py-1.5 text-center text-sm font-medium outline-none ${
+                className={`w-32 cursor-pointer rounded-lg border bg-white px-2.5 py-1.5 text-center text-sm font-medium outline-none dark:bg-ui-surface ${
                   capturing
-                    ? 'border-blue-500 ring-2 ring-blue-100'
-                    : 'border-zinc-200 text-zinc-800'
+                    ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-ui-blue-border'
+                    : 'border-zinc-200 text-zinc-800 dark:border-ui-border dark:text-ui-text'
                 }`}
                 aria-label={zh(`修改${label.zh}快捷键`, `Change ${label.en} shortcut`)}
               />
@@ -139,8 +143,10 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
         })}
       </div>
 
-      {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
-      {success ? <div className="mt-3 text-sm text-emerald-600">{success}</div> : null}
+      {error ? <div className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</div> : null}
+      {success ? (
+        <div className="mt-3 text-sm text-emerald-600 dark:text-emerald-300">{success}</div>
+      ) : null}
 
       <div className="mt-5 flex justify-end gap-2">
         <button
@@ -152,7 +158,7 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
             setSuccess('')
           }}
           disabled={saving || webHotkeysEqual(items, defaultWebHotkeys())}
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
         >
           {zh('恢复默认', 'Restore Defaults')}
         </button>
@@ -160,7 +166,7 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
           type="button"
           onClick={handleSave}
           disabled={saving || webHotkeysEqual(items, savedHotkeys)}
-          className="rounded-xl bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-60"
+          className="rounded-xl bg-ui-primary px-3 py-1.5 text-sm text-white disabled:opacity-60"
         >
           {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
         </button>

@@ -146,20 +146,20 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
   }
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ui-border dark:bg-ui-surface">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h4 className="text-[13px] font-semibold text-zinc-800">
+          <h4 className="text-[13px] font-semibold text-zinc-800 dark:text-ui-text">
             {zh('可用性检测', 'Availability Check')}
           </h4>
-          <p className="mt-1 text-xs leading-5 text-zinc-500">
+          <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
             {zh(
               '使用当前代理设置执行真实查询，成功获取并解析数据后视为可用',
               'Run a real lookup using the current proxy settings; success requires parsed data'
             )}
           </p>
           {disabled && (
-            <p className="mt-1 text-sm text-amber-700">
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
               {zh(
                 '请先在“网络与代理”中保存或取消代理编辑，再进行检测。',
                 'Save or cancel proxy edits in Network & Proxy before checking.'
@@ -171,7 +171,7 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
           <button
             type="button"
             onClick={cancelChecks}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700"
+            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700 dark:border-ui-border dark:text-ui-secondary"
           >
             {zh('取消检测', 'Cancel checks')}
           </button>
@@ -180,15 +180,22 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
             type="button"
             onClick={() => startChecks(providers)}
             disabled={disabled || loading || providers.length === 0 || Boolean(loadError)}
-            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+            className="rounded-lg bg-ui-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-ui-primary-hover disabled:opacity-60"
           >
             {zh('检测全部', 'Check all')}
           </button>
         )}
       </div>
-      {loading && <p className="mt-4 text-sm text-zinc-500">{zh('加载中…', 'Loading...')}</p>}
+      {loading && (
+        <p className="mt-4 text-sm text-zinc-500 dark:text-ui-faint">
+          {zh('加载中…', 'Loading...')}
+        </p>
+      )}
       {loadError && (
-        <div className="mt-4 flex items-center gap-3 text-sm text-red-600" role="alert">
+        <div
+          className="mt-4 flex items-center gap-3 text-sm text-red-600 dark:text-red-300"
+          role="alert"
+        >
           <span>{loadError}</span>
           <button
             type="button"
@@ -207,12 +214,12 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
           const result = results[provider.id]
           const pending = !result || ['queued', 'checking', 'canceled'].includes(result.status)
           const color = pending
-            ? 'bg-zinc-100 text-zinc-500'
+            ? 'bg-zinc-100 dark:bg-ui-muted text-zinc-500 dark:text-ui-faint'
             : result.status === 'ok'
-              ? 'bg-emerald-50 text-emerald-700'
+              ? 'bg-emerald-50 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
               : ['http_error', 'not_found', 'invalid_response'].includes(result.status)
-                ? 'bg-amber-50 text-amber-700'
-                : 'bg-red-50 text-red-600'
+                ? 'bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                : 'bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-300'
           const name = providerNames[provider.name] || provider.name
           const checkLabel =
             result?.status === 'checking'
@@ -222,15 +229,17 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
           return (
             <li
               key={provider.id}
-              className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 transition hover:border-zinc-300 hover:shadow-sm"
+              className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 transition hover:border-zinc-300 hover:shadow-sm dark:border-ui-border/80 dark:bg-ui-surface dark:hover:border-ui-faint"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-[13px] font-semibold leading-5 text-zinc-800">{name}</div>
-                  <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500">
+                  <div className="text-[13px] font-semibold leading-5 text-zinc-800 dark:text-ui-text">
+                    {name}
+                  </div>
+                  <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
                     {provider.domain}
                   </div>
-                  <div className="mt-1 text-[11px] text-zinc-500">
+                  <div className="mt-1 text-[11px] text-zinc-500 dark:text-ui-faint">
                     {zh('测试查询：', 'Test lookup: ')}
                     {provider.sample}
                   </div>
@@ -247,8 +256,11 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                         width: 28,
                         height: 28,
                         borderRadius: '8px',
-                        color: '#71717a',
-                        '&:hover': { color: '#2563eb', backgroundColor: '#eff6ff' },
+                        color: 'var(--theme-faint, #71717a)',
+                        '&:hover': {
+                          color: 'var(--theme-blue-text, #2563eb)',
+                          backgroundColor: 'var(--theme-blue-surface, #eff6ff)',
+                        },
                       }}
                     >
                       <RefreshRoundedIcon
@@ -270,13 +282,13 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                   <span className="break-words">{resultLabel(result)}</span>
                 </span>
                 {Number.isFinite(result?.elapsed_ms) && (
-                  <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+                  <span className="shrink-0 text-[11px] tabular-nums text-zinc-500 dark:text-ui-faint">
                     {result.elapsed_ms} ms
                   </span>
                 )}
               </div>
               {(result?.http_status > 0 || checkedAt) && (
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2.5 text-[10px] tabular-nums leading-4 text-zinc-500">
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2.5 text-[10px] tabular-nums leading-4 text-zinc-500 dark:border-ui-border dark:text-ui-faint">
                   {result?.http_status > 0 && <span>HTTP {result.http_status}</span>}
                   {checkedAt && (
                     <span

@@ -165,15 +165,15 @@ export default function VideoScreenshotsModal({
     <AppModal
       ariaLabel={zh('视频截图', 'Video Screenshots')}
       className="px-4 py-6"
-      contentClassName="flex max-h-full w-full max-w-5xl flex-col rounded-lg bg-white shadow-xl"
+      contentClassName="flex max-h-full w-full max-w-5xl flex-col rounded-lg bg-white dark:bg-ui-surface shadow-xl"
       onClose={onClose}
     >
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="min-w-0">
-          <h2 className="truncate text-base font-semibold text-gray-900">
+          <h2 className="truncate text-base font-semibold text-gray-900 dark:text-ui-text">
             {zh('视频截图', 'Video Screenshots')}
           </h2>
-          <div className="truncate text-xs text-gray-500" title={title}>
+          <div className="truncate text-xs text-gray-500 dark:text-ui-faint" title={title}>
             {title}
           </div>
         </div>
@@ -225,15 +225,15 @@ export default function VideoScreenshotsModal({
 
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         {loading ? (
-          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
+          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500 dark:border-ui-border dark:text-ui-faint">
             {zh('加载中...', 'Loading...')}
           </div>
         ) : error ? (
-          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
             {error}
           </div>
         ) : items.length === 0 ? (
-          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 px-4 text-center text-sm text-gray-500">
+          <div className="flex min-h-48 items-center justify-center rounded border border-dashed border-gray-200 px-4 text-center text-sm text-gray-500 dark:border-ui-border dark:text-ui-faint">
             {zh(
               `暂无截图。使用 MPV播放器 或 网页播放器 播放时按 ${screenshotKey} 键截图，会显示在此处。`,
               `No screenshots yet. Press ${screenshotKey} while playing with the MPV player or web player to capture one, and it will appear here.`
@@ -247,10 +247,10 @@ export default function VideoScreenshotsModal({
               return (
                 <div
                   key={item.name}
-                  className="group overflow-hidden rounded border border-gray-200 bg-white"
+                  className="group overflow-hidden rounded border border-gray-200 bg-white dark:border-ui-border dark:bg-ui-surface"
                 >
                   <div
-                    className="relative aspect-video cursor-pointer bg-gray-100"
+                    className="relative aspect-video cursor-pointer bg-gray-100 dark:bg-ui-muted"
                     role="button"
                     tabIndex={0}
                     onClick={() => setPreviewItem(item)}
@@ -282,7 +282,7 @@ export default function VideoScreenshotsModal({
                         }}
                         disabled={deletingName === item.name}
                         aria-label={zh('删除截图', 'Delete screenshot')}
-                        className="!absolute !right-2 !top-2 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100"
+                        className="!absolute !right-2 !top-2 !z-10 !bg-white/90 !text-red-600 !opacity-0 hover:!bg-white disabled:!opacity-50 group-hover:!opacity-100 dark:bg-ui-surface dark:bg-ui-surface/90 dark:text-red-300"
                       >
                         <DeleteOutlineIcon fontSize="small" />
                       </IconButton>
@@ -297,7 +297,7 @@ export default function VideoScreenshotsModal({
                             }}
                             disabled={startTime == null}
                             aria-label={zh('从此处播放', 'Play from here')}
-                            className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                            className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50 dark:bg-ui-surface dark:bg-ui-surface/90 dark:text-ui-text"
                           >
                             <PlayArrowIcon fontSize="medium" />
                           </IconButton>
@@ -323,7 +323,7 @@ export default function VideoScreenshotsModal({
                                   ? zh('当前封面', 'Current cover')
                                   : zh('设为封面', 'Set as cover')
                               }
-                              className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50"
+                              className="!h-12 !w-12 !bg-white/90 !text-gray-900 hover:!bg-white disabled:!opacity-50 dark:bg-ui-surface dark:bg-ui-surface/90 dark:text-ui-text"
                             >
                               {item.is_cover ? (
                                 <CheckCircleOutlineIcon fontSize="medium" />
@@ -336,7 +336,9 @@ export default function VideoScreenshotsModal({
                       ) : null}
                     </div>
                   </div>
-                  <div className="truncate px-2 py-1 text-xs text-gray-600">{displayName}</div>
+                  <div className="truncate px-2 py-1 text-xs text-gray-600 dark:text-ui-secondary">
+                    {displayName}
+                  </div>
                 </div>
               )
             })}
@@ -363,11 +365,11 @@ function DefaultCoverPreview({ src }) {
   }, [src])
 
   return (
-    <span className="pointer-events-none invisible absolute left-1/2 top-full z-[2000] mt-2 w-72 -translate-x-1/2 overflow-hidden rounded border border-gray-200 bg-white text-gray-900 opacity-0 shadow-lg transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-      <div className="border-b border-gray-100 px-3 py-2 text-xs font-medium">
+    <span className="pointer-events-none invisible absolute left-1/2 top-full z-[2000] mt-2 w-72 -translate-x-1/2 overflow-hidden rounded border border-gray-200 bg-white text-gray-900 opacity-0 shadow-lg transition group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text">
+      <div className="border-b border-gray-100 px-3 py-2 text-xs font-medium dark:border-ui-border">
         {zh('默认封面预览', 'Default cover preview')}
       </div>
-      <div className="flex aspect-video items-center justify-center bg-gray-100">
+      <div className="flex aspect-video items-center justify-center bg-gray-100 dark:bg-ui-muted">
         {src && !imageFailed ? (
           <VideoThumbnail
             src={src}
@@ -376,7 +378,7 @@ function DefaultCoverPreview({ src }) {
             onError={() => setImageFailed(true)}
           />
         ) : (
-          <div className="px-3 text-center text-xs text-gray-500">
+          <div className="px-3 text-center text-xs text-gray-500 dark:text-ui-faint">
             {zh('默认封面待生成', 'Default cover pending')}
           </div>
         )}

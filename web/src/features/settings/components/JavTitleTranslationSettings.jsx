@@ -10,7 +10,7 @@ import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
+  'w-full rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
 const emptyCaps = { reasoning: 'unknown', efforts: [] }
 
 export default function JavTitleTranslationSettings({
@@ -108,7 +108,7 @@ export default function JavTitleTranslationSettings({
   const temperatureSupported = caps.temperature && (!thinking || caps.temperature_with_thinking)
   const field = (label, content) => (
     <label className="block space-y-1.5">
-      <span className="font-medium text-slate-700">{label}</span>
+      <span className="font-medium text-slate-700 dark:text-ui-secondary">{label}</span>
       {content}
     </label>
   )
@@ -207,7 +207,10 @@ export default function JavTitleTranslationSettings({
         )}
         <div className="flex min-w-0 items-end gap-2">
           <div {...getRootProps()} className="min-w-0 flex-1 space-y-1.5">
-            <label {...getInputLabelProps()} className="block font-medium text-slate-700">
+            <label
+              {...getInputLabelProps()}
+              className="block font-medium text-slate-700 dark:text-ui-secondary"
+            >
               {zh('模型', 'Model')}
             </label>
             <div ref={setAnchorEl} className="relative">
@@ -223,7 +226,7 @@ export default function JavTitleTranslationSettings({
                 {...getPopupIndicatorProps()}
                 type="button"
                 aria-label={zh('选择模型', 'Choose model')}
-                className="absolute inset-y-0 right-0 w-9 text-slate-500"
+                className="absolute inset-y-0 right-0 w-9 text-slate-500 dark:text-ui-faint"
               >
                 <span aria-hidden="true">{popupOpen ? '▴' : '▾'}</span>
               </button>
@@ -234,7 +237,7 @@ export default function JavTitleTranslationSettings({
               placement="bottom-start"
               style={{ width: anchorEl?.clientWidth, zIndex: 1500 }}
             >
-              <div className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg">
+              <div className="mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white text-sm shadow-lg dark:border-ui-border dark:bg-ui-surface">
                 {groupedOptions.length ? (
                   <ul {...getListboxProps()} className="max-h-60 overflow-auto py-1">
                     {groupedOptions.map((option, index) => {
@@ -243,7 +246,7 @@ export default function JavTitleTranslationSettings({
                         <li
                           key={key}
                           {...props}
-                          className="cursor-pointer break-all px-3 py-2 aria-selected:bg-blue-50 [&.Mui-focused]:bg-slate-100"
+                          className="cursor-pointer break-all px-3 py-2 aria-selected:bg-blue-50 dark:aria-selected:bg-ui-blue-surface dark:aria-selected:text-blue-300 [&.Mui-focused]:bg-slate-100 dark:[&.Mui-focused]:bg-ui-blue-hover"
                         >
                           {option}
                         </li>
@@ -251,7 +254,7 @@ export default function JavTitleTranslationSettings({
                     })}
                   </ul>
                 ) : (
-                  <p role="status" className="px-3 py-2 text-slate-500">
+                  <p role="status" className="px-3 py-2 text-slate-500 dark:text-ui-faint">
                     {loading
                       ? zh('正在加载模型列表…', 'Loading models…')
                       : !apiKey && !value.hasApiKey && !custom
@@ -273,7 +276,7 @@ export default function JavTitleTranslationSettings({
             disabled={loading || (!apiKey && !value.hasApiKey && !custom)}
             aria-label={zh('刷新模型列表', 'Refresh model list')}
             title={zh('刷新模型列表', 'Refresh model list')}
-            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+            className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50 dark:border-ui-border dark:text-ui-faint dark:hover:bg-ui-hover"
             onClick={() => setRevision((current) => current + 1)}
           >
             <RefreshOutlinedIcon className={loading ? 'animate-spin' : ''} sx={{ fontSize: 18 }} />
@@ -302,7 +305,7 @@ export default function JavTitleTranslationSettings({
           <button
             type="button"
             aria-label={zh('清除密钥', 'Clear key')}
-            className="absolute right-0 top-0 text-xs text-zinc-500 hover:text-red-600"
+            className="absolute right-0 top-0 text-xs text-zinc-500 hover:text-red-600 dark:text-ui-faint dark:hover:text-red-300"
             onClick={() => onChange({ apiKey: '', hasApiKey: false, clearApiKey: true })}
           >
             {zh('清除密钥', 'Clear key')}
@@ -311,7 +314,7 @@ export default function JavTitleTranslationSettings({
       </div>
       {custom && endpointField}
       {error && (
-        <p role="alert" className="break-words text-xs text-amber-700">
+        <p role="alert" className="break-words text-xs text-amber-700 dark:text-amber-300">
           {error}{' '}
           {zh(
             '也可以直接输入模型名称，再测试翻译。',
@@ -320,7 +323,7 @@ export default function JavTitleTranslationSettings({
         </p>
       )}
       {(readOnly || !checkingCaps) && caps.reasoning === 'unknown' && value.model && (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-amber-700 dark:text-amber-300">
           {zh(
             '尚未识别此模型的能力。可使用自定义服务商的接口预设，再测试翻译。',
             'Model capabilities are unknown. Try a custom provider preset, then test translation.'
@@ -328,7 +331,7 @@ export default function JavTitleTranslationSettings({
         </p>
       )}
       {custom && (
-        <div className="space-y-2 rounded-lg bg-slate-50 p-3">
+        <div className="space-y-2 rounded-lg bg-slate-50 p-3 dark:bg-ui-canvas">
           {field(
             zh('应用接口预设', 'Apply an API preset'),
             <select className={inputClass} value="" onChange={(e) => applyPreset(e.target.value)}>
@@ -342,7 +345,7 @@ export default function JavTitleTranslationSettings({
               ))}
             </select>
           )}
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-ui-faint">
             {zh(
               '新配置默认使用 OpenAI Chat Completions。预设不发送模型专用推理参数；特殊接口可在下方高级设置中调整。',
               'New configurations use OpenAI Chat Completions. Presets omit model-specific reasoning parameters; adjust special APIs in advanced settings below.'
@@ -350,20 +353,23 @@ export default function JavTitleTranslationSettings({
           </p>
         </div>
       )}
-      <details data-translation-advanced className="group border-t border-zinc-100 pt-4">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
+      <details
+        data-translation-advanced
+        className="group border-t border-zinc-100 pt-4 dark:border-ui-border"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-medium text-zinc-700 dark:text-ui-secondary [&::-webkit-details-marker]:hidden">
           <span>{zh('高级设置', 'Advanced settings')}</span>
           <span
-            className="text-zinc-400 transition-transform group-open:rotate-180"
+            className="text-zinc-400 transition-transform group-open:rotate-180 dark:text-ui-faint"
             aria-hidden="true"
           >
             ⌄
           </span>
         </summary>
-        <div className="mt-4 space-y-4 rounded-xl bg-zinc-50 p-4">
+        <div className="mt-4 space-y-4 rounded-xl bg-zinc-50 p-4 dark:bg-ui-canvas">
           {!custom && (
             <div className="space-y-2">
-              <label className="flex items-center gap-2 text-slate-600">
+              <label className="flex items-center gap-2 text-slate-600 dark:text-ui-secondary">
                 <input
                   type="checkbox"
                   checked={value.customAddress}
@@ -407,7 +413,7 @@ export default function JavTitleTranslationSettings({
             </label>
           )}
           {caps.reasoning === 'always' && (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-ui-faint">
               {zh('此模型始终开启推理。', 'This model always uses reasoning.')}
             </p>
           )}
@@ -443,7 +449,7 @@ export default function JavTitleTranslationSettings({
               />
             )}
           {custom && (
-            <details className="rounded-lg bg-slate-50 p-3">
+            <details className="rounded-lg bg-slate-50 p-3 dark:bg-ui-canvas">
               <summary className="cursor-pointer font-medium">
                 {zh('高级自定义接口', 'Advanced custom API')}
               </summary>
@@ -498,13 +504,13 @@ export default function JavTitleTranslationSettings({
                     )}
                   </div>
                 ))}
-                <p className="text-xs leading-5 text-slate-500">
+                <p className="text-xs leading-5 text-slate-500 dark:text-ui-faint">
                   {zh(
                     '模板字段：url、method、headers、body、response_path（JSON Pointer）。占位符：{{base_url}}、{{api_key}}、{{model}}、{{prompt}}、{{title}}、{{temperature}}、{{thinking}}、{{effort}}。密钥请使用占位符。请求覆盖中的 null 删除字段。可切换推理时需分别填写两种模式的覆盖参数。',
                     'Template fields: url, method, headers, body, response_path (JSON Pointer). Placeholders: {{base_url}}, {{api_key}}, {{model}}, {{prompt}}, {{title}}, {{temperature}}, {{thinking}}, {{effort}}. Use placeholders for keys. null deletes a field in overrides. Toggleable reasoning requires overrides for both modes.'
                   )}
                 </p>
-                <p className="text-xs leading-5 text-slate-500">
+                <p className="text-xs leading-5 text-slate-500 dark:text-ui-faint">
                   {zh(
                     '标准响应可省略 response_path，自动提取译文并检查完整性。其他 JSON 格式需填写 response_path、completion_path 和 completion_value。',
                     'Omit response_path for standard responses to extract the translation and check completion automatically. Other JSON formats require response_path, completion_path and completion_value.'
@@ -525,7 +531,7 @@ export default function JavTitleTranslationSettings({
           )}
           <button
             type="button"
-            className="text-xs text-blue-600 underline"
+            className="text-xs text-ui-primary underline dark:text-blue-300"
             onClick={() => onChange({ prompt: value.defaultPrompt })}
           >
             {zh('恢复默认提示词', 'Restore default prompt')}
@@ -533,7 +539,7 @@ export default function JavTitleTranslationSettings({
         </div>
       </details>
       {paramsError && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-red-600 dark:text-red-300">
           {paramsError}
         </p>
       )}

@@ -47,13 +47,13 @@ export function JavVideoManagerModal({
     <AppModal
       ariaLabel={zh('视频管理', 'Manage videos')}
       className="px-4"
-      contentClassName="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-lg bg-white p-4 shadow-xl"
+      contentClassName="flex max-h-[90vh] w-full max-w-6xl flex-col rounded-lg bg-white dark:bg-ui-surface p-4 shadow-xl"
       onClose={onClose}
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate text-base font-semibold">{zh('视频管理', 'Manage videos')}</h2>
-          <div className="mt-1 truncate text-xs text-gray-500">
+          <div className="mt-1 truncate text-xs text-gray-500 dark:text-ui-faint">
             {item?.code || zh('未知番号', 'Unknown code')}
             {title && title !== item?.code ? ` · ${title}` : ''}
           </div>
@@ -61,7 +61,7 @@ export function JavVideoManagerModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-ui-faint dark:hover:bg-ui-hover"
           aria-label={zh('关闭视频管理', 'Close video manager')}
         >
           ✕
@@ -87,7 +87,7 @@ export function JavVideoManagerModal({
             onTagClick={onTagClick}
           />
         ) : (
-          <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500">
+          <div className="flex min-h-[160px] items-center justify-center rounded border border-dashed border-gray-200 text-sm text-gray-500 dark:border-ui-border dark:text-ui-faint">
             {zh('暂无关联视频', 'No linked videos')}
           </div>
         )}
@@ -96,7 +96,7 @@ export function JavVideoManagerModal({
         <button
           type="button"
           onClick={onClose}
-          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50"
+          className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-ui-hover"
         >
           {zh('关闭', 'Close')}
         </button>

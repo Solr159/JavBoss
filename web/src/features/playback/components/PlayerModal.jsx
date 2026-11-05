@@ -403,7 +403,7 @@ export default function PlayerModal({
     <AppModal
       ariaLabel={displayName || zh('视频播放', 'Video playback')}
       backdropColor="rgba(0, 0, 0, 0.7)"
-      contentClassName="player-window rounded-lg bg-white shadow-lg"
+      contentClassName="player-window rounded-lg bg-white dark:bg-ui-surface shadow-lg"
       contentProps={{ style: playerWindow.style, ...playerWindow.pointerProps }}
       onClose={onClose}
       zIndex={1700}
@@ -428,11 +428,11 @@ export default function PlayerModal({
                 title={zh('上一个视频', 'Previous video')}
                 disabled={currentIndex === 0}
                 onClick={() => onSelectVideo?.(currentIndex - 1)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 dark:text-ui-secondary dark:hover:bg-ui-hover"
               >
                 <SkipPreviousRoundedIcon fontSize="small" />
               </button>
-              <span className="shrink-0 text-xs text-zinc-500">
+              <span className="shrink-0 text-xs text-zinc-500 dark:text-ui-faint">
                 {currentIndex + 1} / {playlist.length}
               </span>
               <button
@@ -441,7 +441,7 @@ export default function PlayerModal({
                 title={zh('下一个视频', 'Next video')}
                 disabled={currentIndex === playlist.length - 1}
                 onClick={() => onSelectVideo?.(currentIndex + 1)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 dark:text-ui-secondary dark:hover:bg-ui-hover"
               >
                 <SkipNextRoundedIcon fontSize="small" />
               </button>
@@ -452,7 +452,7 @@ export default function PlayerModal({
                 aria-expanded={playlistVisible}
                 aria-controls="browser-playlist"
                 onClick={() => setPlaylistVisible((visible) => !visible)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100"
+                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 dark:text-ui-secondary dark:hover:bg-ui-hover"
               >
                 <QueuePlayNextRoundedIcon sx={{ fontSize: 18 }} />
               </button>
@@ -463,7 +463,7 @@ export default function PlayerModal({
             aria-label={zh('关闭', 'Close')}
             title={zh('关闭', 'Close')}
             onClick={onClose}
-            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
           >
             <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>

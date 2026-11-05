@@ -82,7 +82,7 @@ export default function JavDetailRoute({
         ariaLabel={zh('JAV 详情', 'JAV details')}
         onClose={onClose}
         zIndex={1300}
-        contentClassName="w-full max-w-xl rounded-lg bg-white p-6 shadow-xl"
+        contentClassName="w-full max-w-xl rounded-lg bg-white dark:bg-ui-surface p-6 shadow-xl"
       >
         <p role={error ? 'alert' : 'status'}>{error || zh('加载中…', 'Loading…')}</p>
         <button type="button" onClick={onClose} className="mt-4 rounded border px-3 py-1">

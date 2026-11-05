@@ -537,20 +537,24 @@ function JavEditForm({
       ariaLabel={zh('编辑 JAV 信息', 'Edit JAV info')}
       className="p-4"
       closeDisabled={saving || creatingOption}
-      contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-2xl"
+      contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white dark:bg-ui-surface shadow-2xl"
       onClose={onClose}
       zIndex={1600}
     >
       <div className="mb-4 flex items-center gap-2 px-5 pt-5">
         <div className="shrink-0">
-          <div className="text-base font-semibold text-gray-900">{zh('编辑 JAV', 'Edit JAV')}</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-ui-text">
+            {zh('编辑 JAV', 'Edit JAV')}
+          </div>
         </div>
         {code ? (
-          <div className="max-w-[50%] truncate text-xs font-medium text-gray-700">{code}</div>
+          <div className="max-w-[50%] truncate text-xs font-medium text-gray-700 dark:text-ui-secondary">
+            {code}
+          </div>
         ) : null}
         <button
           type="button"
-          className="ml-auto rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="ml-auto rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
           onClick={onClose}
           disabled={saving || creatingOption}
           aria-label={zh('关闭', 'Close')}
@@ -561,7 +565,7 @@ function JavEditForm({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
         <div>
           <label
-            className="block text-[13px] font-semibold text-black"
+            className="block text-[13px] font-semibold text-black dark:text-ui-text"
             htmlFor={`jav-title-${item?.id || 'new'}`}
           >
             {zh('标题', 'Title')}
@@ -579,14 +583,14 @@ function JavEditForm({
               }
               if (error) setError('')
             }}
-            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
             disabled={saving || translating}
           />
         </div>
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <label
-              className="block text-[13px] font-semibold text-black"
+              className="block text-[13px] font-semibold text-black dark:text-ui-text"
               htmlFor={`jav-zh-title-${item?.id || 'new'}`}
             >
               {zh('中文标题', 'Chinese title')}
@@ -617,7 +621,7 @@ function JavEditForm({
                             )
                           : undefined
                     }
-                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                    className="inline-flex items-center gap-1 rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
                   >
                     <RefreshOutlinedIcon
                       className={active ? 'animate-spin' : ''}
@@ -638,10 +642,10 @@ function JavEditForm({
               setRefreshedTitle(null)
               if (error) setError('')
             }}
-            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
             disabled={saving || translating}
           />
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
             {zh(
               '使用当前原标题重新翻译，保存后生效。',
               'Translate the current original title again; save to apply.'
@@ -650,7 +654,7 @@ function JavEditForm({
         </div>
         <div>
           <label
-            className="block text-[13px] font-semibold text-black"
+            className="block text-[13px] font-semibold text-black dark:text-ui-text"
             htmlFor={`jav-cover-url-${item?.id || 'new'}`}
           >
             {zh('封面链接', 'Cover URL')}
@@ -664,10 +668,10 @@ function JavEditForm({
               if (error) setError('')
             }}
             placeholder="https://..."
-            className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
             disabled={saving}
           />
-          <div className="mt-1 text-xs text-gray-500">
+          <div className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
             {zh(
               '当封面缺失或显示错误时，可手动输入封面图片链接；保存后会自动下载到本地并完成更新。',
               'If the cover is missing or incorrect, enter an image URL; saving downloads it locally and updates the cover.'
@@ -675,17 +679,17 @@ function JavEditForm({
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-[13px] font-semibold text-black">
+          <label className="block text-[13px] font-semibold text-black dark:text-ui-text">
             {zh('发行日期', 'Release date')}
             <input
               type="date"
               value={releaseDate}
               onChange={(event) => setReleaseDate(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
               disabled={saving}
             />
           </label>
-          <label className="block text-[13px] font-semibold text-black">
+          <label className="block text-[13px] font-semibold text-black dark:text-ui-text">
             {zh('时长（分钟）', 'Duration (min)')}
             <input
               type="number"
@@ -693,7 +697,7 @@ function JavEditForm({
               step="1"
               value={durationMin}
               onChange={(event) => setDurationMin(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
               disabled={saving}
             />
           </label>
@@ -728,7 +732,9 @@ function JavEditForm({
           />
         </div>
         <div ref={idolPickerRef}>
-          <div className="text-[13px] font-semibold text-black">{zh('女优', 'Idols')}</div>
+          <div className="text-[13px] font-semibold text-black dark:text-ui-text">
+            {zh('女优', 'Idols')}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             {selectedIdolOptions.map((idol) => (
               <SelectedChip
@@ -741,7 +747,7 @@ function JavEditForm({
             ))}
             <button
               type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
               onClick={() => {
                 setIdolPickerOpen((current) => !current)
                 setScrapedTagPickerOpen(false)
@@ -757,7 +763,7 @@ function JavEditForm({
             </button>
           </div>
           {idolPickerOpen ? (
-            <div className="mt-2 rounded-md border border-gray-200 p-2">
+            <div className="mt-2 rounded-md border border-gray-200 p-2 dark:border-ui-border">
               <div className="mb-2 flex items-center gap-2">
                 <input
                   type="text"
@@ -769,12 +775,12 @@ function JavEditForm({
                     void addIdol()
                   }}
                   placeholder={zh('搜索或输入女优名称', 'Search or enter an idol name')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
                   disabled={saving || creatingIdol || optionsLoading}
                 />
                 <button
                   type="button"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
                   onClick={() => {
                     setIdolSearch('')
                     setIdolPickerOpen(false)
@@ -788,7 +794,7 @@ function JavEditForm({
                 {!optionsLoading && idolSearch.trim() && !matchingIdolOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addIdol()}
                     disabled={saving || creatingIdol}
                   >
@@ -799,11 +805,11 @@ function JavEditForm({
                   </button>
                 ) : null}
                 {optionsLoading ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
+                  <div className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
                     {zh('加载中...', 'Loading...')}
                   </div>
                 ) : availableIdolOptions.length === 0 && !idolSearch.trim() ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
+                  <div className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
                     {zh('暂无可添加女优', 'No idols to add')}
                   </div>
                 ) : (
@@ -813,17 +819,19 @@ function JavEditForm({
                       <button
                         key={idol.id}
                         type="button"
-                        className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                        className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50 dark:text-ui-text dark:hover:bg-ui-hover"
                         onClick={() => toggleIdol(idol.id, true)}
                         disabled={saving}
                       >
                         <span className="flex min-w-0 flex-1 items-baseline gap-2">
                           <span className="truncate">{primaryName}</span>
                           {secondaryName ? (
-                            <span className="truncate text-xs text-gray-500">{secondaryName}</span>
+                            <span className="truncate text-xs text-gray-500 dark:text-ui-faint">
+                              {secondaryName}
+                            </span>
                           ) : null}
                         </span>
-                        <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                        <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-ui-faint">
                           {javEditWorkCountLabel(idol?.work_count)}
                         </span>
                       </button>
@@ -834,9 +842,11 @@ function JavEditForm({
             </div>
           ) : null}
         </div>
-        {optionsError ? <div className="text-sm text-red-600">{optionsError}</div> : null}
+        {optionsError ? (
+          <div className="text-sm text-red-600 dark:text-red-300">{optionsError}</div>
+        ) : null}
         <div ref={scrapedTagPickerRef}>
-          <div className="text-[13px] font-semibold text-black">
+          <div className="text-[13px] font-semibold text-black dark:text-ui-text">
             {zh('刮削标签', 'Scraped tags')}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -855,7 +865,7 @@ function JavEditForm({
             ))}
             <button
               type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
               onClick={() => {
                 setScrapedTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -871,7 +881,7 @@ function JavEditForm({
             </button>
           </div>
           {scrapedTagPickerOpen ? (
-            <div className="mt-2 rounded-md border border-gray-200 p-2">
+            <div className="mt-2 rounded-md border border-gray-200 p-2 dark:border-ui-border">
               <div className="mb-2 flex items-center gap-2">
                 <input
                   type="text"
@@ -883,12 +893,12 @@ function JavEditForm({
                     void addScrapedTag()
                   }}
                   placeholder={zh('搜索或输入刮削标签', 'Search or enter a scraped tag')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
                   disabled={saving || creatingScrapedTag || tagOptionsLoading}
                 />
                 <button
                   type="button"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
                   onClick={() => {
                     setScrapedTagSearch('')
                     setScrapedTagPickerOpen(false)
@@ -902,7 +912,7 @@ function JavEditForm({
                 {!tagOptionsLoading && scrapedTagSearch.trim() && !matchingScrapedTagOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addScrapedTag()}
                     disabled={saving || creatingScrapedTag}
                   >
@@ -916,11 +926,11 @@ function JavEditForm({
                   </button>
                 ) : null}
                 {tagOptionsLoading ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
+                  <div className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
                     {zh('加载中...', 'Loading...')}
                   </div>
                 ) : availableScrapedTagOptions.length === 0 && !scrapedTagSearch.trim() ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
+                  <div className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
                     {zh('暂无可添加刮削标签', 'No scraped tags to add')}
                   </div>
                 ) : (
@@ -928,7 +938,7 @@ function JavEditForm({
                     <button
                       key={`${tag.id}-${tag.name}`}
                       type="button"
-                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50 dark:text-ui-text dark:hover:bg-ui-hover"
                       onClick={() =>
                         setSelectedScrapedTagIds((current) =>
                           Array.from(new Set([...current, String(tag.id)]))
@@ -939,7 +949,7 @@ function JavEditForm({
                       <span className="min-w-0 flex-1 truncate">
                         {getJavTagDisplayName(tag, showSimplifiedTags)}
                       </span>
-                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-ui-faint">
                         {javEditWorkCountLabel(tag?.count)}
                       </span>
                     </button>
@@ -950,7 +960,7 @@ function JavEditForm({
           ) : null}
         </div>
         <div ref={tagPickerRef}>
-          <div className="text-[13px] font-semibold text-black">
+          <div className="text-[13px] font-semibold text-black dark:text-ui-text">
             {zh('自定义标签', 'Custom tags')}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -965,7 +975,7 @@ function JavEditForm({
             ))}
             <button
               type="button"
-              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
               onClick={() => {
                 setTagPickerOpen((current) => !current)
                 setIdolPickerOpen(false)
@@ -981,7 +991,7 @@ function JavEditForm({
             </button>
           </div>
           {tagPickerOpen ? (
-            <div className="mt-2 rounded-md border border-gray-200 p-2">
+            <div className="mt-2 rounded-md border border-gray-200 p-2 dark:border-ui-border">
               <div className="mb-2 flex items-center gap-2">
                 <input
                   type="text"
@@ -993,12 +1003,12 @@ function JavEditForm({
                     void addCustomTag()
                   }}
                   placeholder={zh('搜索或输入自定义标签', 'Search or enter a custom tag')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
                   disabled={saving || creatingUserTag}
                 />
                 <button
                   type="button"
-                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  className="inline-flex shrink-0 items-center gap-1 rounded-md border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
                   onClick={() => {
                     setTagSearch('')
                     setTagPickerOpen(false)
@@ -1012,7 +1022,7 @@ function JavEditForm({
                 {tagSearch.trim() && !matchingUserTagOption ? (
                   <button
                     type="button"
-                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"
+                    className="mb-1 flex w-full items-center gap-1 rounded bg-blue-50 px-2 py-1.5 text-left text-sm text-ui-primary-hover hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                     onClick={() => void addCustomTag()}
                     disabled={saving || creatingUserTag}
                   >
@@ -1023,7 +1033,7 @@ function JavEditForm({
                   </button>
                 ) : null}
                 {availableTagOptions.length === 0 && !tagSearch.trim() ? (
-                  <div className="px-2 py-1 text-sm text-gray-500">
+                  <div className="px-2 py-1 text-sm text-gray-500 dark:text-ui-faint">
                     {zh('暂无可添加标签', 'No tags to add')}
                   </div>
                 ) : (
@@ -1031,12 +1041,12 @@ function JavEditForm({
                     <button
                       key={`${tag.id}-${tag.provider || 0}`}
                       type="button"
-                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50"
+                      className="flex w-full items-center gap-3 rounded px-2 py-1.5 text-left text-sm text-gray-800 hover:bg-gray-50 dark:text-ui-text dark:hover:bg-ui-hover"
                       onClick={() => toggleTag(tag.id, true)}
                       disabled={saving}
                     >
                       <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                      <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                      <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-ui-faint">
                         {javEditWorkCountLabel(tag?.count)}
                       </span>
                     </button>
@@ -1046,12 +1056,12 @@ function JavEditForm({
             </div>
           ) : null}
         </div>
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {error ? <div className="text-sm text-red-600 dark:text-red-300">{error}</div> : null}
       </div>
-      <div className="flex justify-end gap-2 border-t border-gray-200 p-5">
+      <div className="flex justify-end gap-2 border-t border-gray-200 p-5 dark:border-ui-border">
         <button
           type="button"
-          className="mr-auto rounded-md border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mr-auto rounded-md border border-red-300 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950"
           onClick={handleDelete}
           disabled={!item?.id || saving || creatingOption}
         >
@@ -1059,7 +1069,7 @@ function JavEditForm({
         </button>
         <button
           type="button"
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
           onClick={onClose}
           disabled={saving || creatingOption}
         >
@@ -1068,7 +1078,7 @@ function JavEditForm({
         <button
           type="button"
           className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-            saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            saving ? 'cursor-wait bg-blue-400' : 'bg-ui-primary hover:bg-ui-primary-hover'
           }`}
           onClick={handleSave}
           disabled={saving || creatingOption}

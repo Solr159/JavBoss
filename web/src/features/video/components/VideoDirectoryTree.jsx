@@ -68,7 +68,7 @@ function DirectoryNode({
   const path = directoryLabel(node, useHostPaths)
   const videos = node.videos || []
   const remainingVideos = Math.max(0, (node.video_count || 0) - videos.length)
-  const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 ${selected ? 'bg-sky-50 font-semibold text-sky-700' : 'text-gray-700'}`
+  const rowClassName = `group/directory flex min-w-0 items-center rounded text-xs hover:bg-sky-50 dark:hover:bg-ui-blue-hover ${selected ? 'bg-sky-50 dark:bg-ui-blue-surface font-semibold text-sky-700 dark:text-blue-300' : 'text-gray-700 dark:text-ui-secondary'}`
   const name = (
     <span className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1.5" title={path}>
       <FolderOutlinedIcon className="shrink-0" fontSize="small" />
@@ -86,7 +86,7 @@ function DirectoryNode({
       aria-label={zh(`选择目录 ${path}`, `Select directory ${path}`)}
       aria-pressed={selected}
       title={path}
-      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-blue-600 opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
+      className="pointer-events-none mr-1 shrink-0 rounded px-2 py-1 text-[11px] font-medium text-ui-primary opacity-0 hover:bg-blue-100 focus-visible:pointer-events-auto focus-visible:opacity-100 focus-visible:outline-blue-500 group-hover/directory:pointer-events-auto group-hover/directory:opacity-100 dark:text-blue-300 dark:hover:bg-ui-primary dark:hover:text-white [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
     >
       {zh('选择', 'Select')}
     </button>
@@ -104,11 +104,14 @@ function DirectoryNode({
             className={`${rowClassName} cursor-pointer list-none focus-visible:outline-sky-500 [&::-webkit-details-marker]:hidden`}
             aria-label={zh(`展开或收起目录 ${path}`, `Expand or collapse directory ${path}`)}
           >
-            <ChevronRightIcon className="shrink-0 text-gray-500" fontSize="small" />
+            <ChevronRightIcon
+              className="shrink-0 text-gray-500 dark:text-ui-faint"
+              fontSize="small"
+            />
             {name}
             {selection}
           </summary>
-          <ul className="ml-2.5 border-l border-gray-200 pl-2.5">
+          <ul className="ml-2.5 border-l border-gray-200 pl-2.5 dark:border-ui-border">
             {Array.from(node.children.values()).map((child) => (
               <DirectoryNode
                 key={child.path}
@@ -125,14 +128,14 @@ function DirectoryNode({
               <li
                 key={filename}
                 title={filename}
-                className="flex min-w-0 cursor-default items-center gap-2 py-1 pl-7 pr-2 text-xs text-gray-400"
+                className="flex min-w-0 cursor-default items-center gap-2 py-1 pl-7 pr-2 text-xs text-gray-400 dark:text-ui-faint"
               >
                 <VideoFileOutlinedIcon className="shrink-0" sx={{ fontSize: 16 }} />
                 <span className="truncate">{filename}</span>
               </li>
             ))}
             {remainingVideos > 0 && (
-              <li className="cursor-default py-1 pl-7 pr-2 text-xs text-gray-400">
+              <li className="cursor-default py-1 pl-7 pr-2 text-xs text-gray-400 dark:text-ui-faint">
                 {zh(`……还有 ${remainingVideos} 个视频`, `… ${remainingVideos} more videos`)}
               </li>
             )}

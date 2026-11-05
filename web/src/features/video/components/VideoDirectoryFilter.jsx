@@ -91,8 +91,8 @@ export default function VideoDirectoryFilter() {
         }}
       >
         <div className="w-96 max-w-[calc(100vw-2rem)]">
-          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-2">
-            <span className="text-xs text-gray-500">
+          <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-3 py-2 dark:border-ui-border">
+            <span className="text-xs text-gray-500 dark:text-ui-faint">
               {zh('包含所有下级目录', 'Includes all descendant directories')}
             </span>
             <Button
@@ -105,11 +105,14 @@ export default function VideoDirectoryFilter() {
           </div>
           <div ref={treeContainerRef} className="max-h-[60vh] overflow-y-auto p-2">
             {loading ? (
-              <div role="status" className="p-3 text-center text-sm text-gray-500">
+              <div
+                role="status"
+                className="p-3 text-center text-sm text-gray-500 dark:text-ui-faint"
+              >
                 {zh('加载中…', 'Loading...')}
               </div>
             ) : error ? (
-              <div role="alert" className="p-3 text-sm text-red-600">
+              <div role="alert" className="p-3 text-sm text-red-600 dark:text-red-300">
                 {error}
                 <Button size="small" onClick={retry}>
                   {zh('重试', 'Retry')}
@@ -123,7 +126,7 @@ export default function VideoDirectoryFilter() {
                 onSelect={selectDirectory}
               />
             ) : (
-              <div className="p-3 text-center text-sm text-gray-500">
+              <div className="p-3 text-center text-sm text-gray-500 dark:text-ui-faint">
                 {zh('暂无视频目录', 'No video directories')}
               </div>
             )}

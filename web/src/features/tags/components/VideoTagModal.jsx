@@ -18,5 +18,12 @@ export default function VideoTagModal({ tags, onToggleFilter, onApplyTagFilter, 
     [onApplyTagFilter, onToggleFilter, tags]
   )
 
-  return <TagManagementModal {...props} tags={tags} onApplyTagFilter={handleApplyTagFilter} />
+  return (
+    <TagManagementModal
+      {...props}
+      tags={tags}
+      tagClassName={() => 'skeuo-tag--video'}
+      onApplyTagFilter={handleApplyTagFilter}
+    />
+  )
 }

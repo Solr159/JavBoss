@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from '@/App'
+import AppThemeProvider from '@/app/theme/AppThemeProvider'
 import { AuthProvider } from '@/features/auth/components/AuthProvider'
 import { useStore } from '@/store'
 import '@/index.css'
@@ -30,7 +31,8 @@ const jav = { id: 1, code: 'ABC-001', title: 'Test JAV', videos: [], tags: [], i
 window.fetch = async (input, init = {}) => {
   const url = new URL(input, location.origin)
   window.requests.push({ url: url.pathname + url.search, method: init.method || 'GET' })
-  if (url.pathname === '/auth/status') return Response.json({ authenticated: true })
+  if (url.pathname === '/auth/status')
+    return Response.json({ authenticated: !new URLSearchParams(location.search).has('login') })
   if (url.pathname === '/config') {
     if (init.body) Object.assign(config, JSON.parse(init.body))
     return Response.json(config)
@@ -55,10 +57,12 @@ window.fetch = async (input, init = {}) => {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </BrowserRouter>
+    <AppThemeProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </BrowserRouter>
+    </AppThemeProvider>
   </StrictMode>
 )

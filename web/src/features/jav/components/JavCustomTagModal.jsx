@@ -119,20 +119,22 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
       ariaLabel={zh('编辑自定义标签', 'Edit custom tags')}
       className="p-4"
       closeDisabled={saving || creating}
-      contentClassName="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg bg-white shadow-2xl"
+      contentClassName="flex max-h-[80vh] w-full max-w-lg flex-col rounded-lg bg-white dark:bg-ui-surface shadow-2xl"
       onClose={onClose}
       zIndex={1600}
     >
       <div className="flex items-start justify-between gap-3 p-5 pb-3">
         <div className="min-w-0">
-          <div className="text-base font-semibold text-gray-900">
+          <div className="text-base font-semibold text-gray-900 dark:text-ui-text">
             {zh('编辑自定义标签', 'Edit custom tags')}
           </div>
-          {code ? <div className="mt-1 truncate text-xs text-gray-500">{code}</div> : null}
+          {code ? (
+            <div className="mt-1 truncate text-xs text-gray-500 dark:text-ui-faint">{code}</div>
+          ) : null}
         </div>
         <button
           type="button"
-          className="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="rounded px-2 py-1 text-xl leading-none text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
           onClick={onClose}
           disabled={saving || creating}
           aria-label={zh('关闭', 'Close')}
@@ -167,13 +169,13 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
               void addCustomTag()
             }}
             placeholder={zh('搜索或输入新的自定义标签', 'Search or enter a new custom tag')}
-            className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
             disabled={saving || creating}
           />
           {search.trim() ? (
             <button
               type="button"
-              className="shrink-0 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60"
+              className="shrink-0 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-ui-primary-hover hover:bg-blue-100 disabled:cursor-wait disabled:opacity-60 dark:border-ui-blue-border dark:bg-ui-blue-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
               onClick={() => void addCustomTag()}
               disabled={saving || creating}
             >
@@ -185,7 +187,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
             </button>
           ) : null}
         </div>
-        <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200 p-1">
+        <div className="max-h-64 overflow-y-auto rounded-md border border-gray-200 p-1 dark:border-ui-border">
           {visibleTagOptions.length > 0 ? (
             visibleTagOptions.map((tag) => {
               const checked = selectedTagIds.includes(String(tag.id))
@@ -193,8 +195,10 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
                 <button
                   key={tag.id}
                   type="button"
-                  className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-gray-50 ${
-                    checked ? 'bg-blue-50 text-blue-800' : 'text-gray-800'
+                  className={`flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
+                    checked
+                      ? 'bg-blue-50 text-blue-800 dark:bg-ui-blue-surface dark:text-blue-300'
+                      : 'text-gray-800 dark:text-ui-text'
                   }`}
                   onClick={() => toggleTag(tag.id)}
                   disabled={saving || creating}
@@ -204,33 +208,33 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
                     aria-hidden="true"
                     className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border text-[11px] ${
                       checked
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-300 bg-white text-transparent'
+                        ? 'border-ui-primary bg-ui-primary text-white'
+                        : 'border-gray-300 bg-white text-transparent dark:border-ui-border dark:bg-ui-surface'
                     }`}
                   >
                     ✓
                   </span>
                   <span className="min-w-0 flex-1 truncate">{tag.name}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-gray-400">
+                  <span className="shrink-0 text-xs tabular-nums text-gray-400 dark:text-ui-faint">
                     {Math.max(0, Number(tag?.count) || 0)}
                   </span>
                 </button>
               )
             })
           ) : (
-            <div className="px-2 py-4 text-center text-sm text-gray-500">
+            <div className="px-2 py-4 text-center text-sm text-gray-500 dark:text-ui-faint">
               {search.trim()
                 ? zh('没有匹配标签，可直接创建', 'No matching tags; create it directly')
                 : zh('暂无自定义标签', 'No custom tags')}
             </div>
           )}
         </div>
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {error ? <div className="text-sm text-red-600 dark:text-red-300">{error}</div> : null}
       </div>
-      <div className="flex justify-end gap-2 border-t border-gray-200 p-5">
+      <div className="flex justify-end gap-2 border-t border-gray-200 p-5 dark:border-ui-border">
         <button
           type="button"
-          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
           onClick={onClose}
           disabled={saving || creating}
         >
@@ -239,7 +243,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
         <button
           type="button"
           className={`rounded-md px-4 py-2 text-sm font-medium text-white ${
-            saving ? 'cursor-wait bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+            saving ? 'cursor-wait bg-blue-400' : 'bg-ui-primary hover:bg-ui-primary-hover'
           }`}
           onClick={() => void handleSave()}
           disabled={saving || creating}

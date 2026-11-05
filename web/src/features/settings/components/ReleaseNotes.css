@@ -6,7 +6,7 @@
 
 .release-notes :is(h1, h2, h3, h4, h5, h6) {
   margin: 1.25rem 0 0.5rem;
-  color: #18181b;
+  color: var(--theme-text, #18181b);
   font-weight: 600;
   line-height: 1.4;
 }
@@ -52,14 +52,14 @@
 }
 
 .release-notes a {
-  color: #2563eb;
+  color: var(--theme-blue-text, #2563eb);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .release-notes :is(code, kbd) {
   border-radius: 0.25rem;
-  background: #f4f4f5;
+  background: var(--theme-muted, #f4f4f5);
   padding: 0.125rem 0.25rem;
   font-size: 0.875em;
 }
@@ -67,7 +67,7 @@
 .release-notes pre {
   overflow-x: auto;
   border-radius: 0.5rem;
-  background: #f4f4f5;
+  background: var(--theme-muted, #f4f4f5);
   padding: 0.75rem;
 }
 
@@ -76,18 +76,18 @@
 }
 
 .release-notes blockquote {
-  border-left: 3px solid #d4d4d8;
+  border-left: 3px solid var(--theme-border, #d4d4d8);
   padding-left: 1rem;
-  color: #71717a;
+  color: var(--theme-faint, #71717a);
 }
 
 .release-notes :is(th, td) {
-  border: 1px solid #e4e4e7;
+  border: 1px solid var(--theme-border, #e4e4e7);
   padding: 0.375rem 0.75rem;
 }
 
 .release-notes th {
-  background: #f4f4f5;
+  background: var(--theme-muted, #f4f4f5);
   font-weight: 600;
 }
 
@@ -98,5 +98,5 @@
 
 .release-notes hr {
   margin: 1rem 0;
-  border-color: #e4e4e7;
+  border-color: var(--theme-border, #e4e4e7);
 }

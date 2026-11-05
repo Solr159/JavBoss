@@ -56,7 +56,7 @@ export default function JavIdolGrid({
   const hasItems = displayItems.length > 0
   if (!hasItems) {
     return (
-      <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
+      <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500 dark:border-ui-border dark:text-ui-faint">
         {zh('暂无女优数据', 'No idol data')}
       </div>
     )
@@ -65,7 +65,7 @@ export default function JavIdolGrid({
   return (
     <>
       <div
-        className="grid gap-3 bg-white"
+        className="grid gap-3 bg-white dark:bg-ui-surface"
         style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(11rem, 1fr))' }}
       >
         {displayItems.map((item) => (
@@ -261,7 +261,7 @@ export function IdolCard({
   return (
     <a
       href={href || '#'}
-      className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg"
+      className="card-hover-scope group flex cursor-pointer flex-col overflow-hidden rounded-lg border bg-white shadow-sm transition hover:shadow-lg dark:bg-ui-surface"
       draggable={false}
       onClick={handleClick}
       onKeyDown={(e) => {
@@ -273,7 +273,7 @@ export function IdolCard({
     >
       <div
         ref={coverFrameRef}
-        className="relative w-full overflow-hidden bg-gray-100"
+        className="relative w-full overflow-hidden bg-gray-100 dark:bg-ui-muted"
         style={{ paddingTop: `${coverAspectPercent}%` }} // 维持可见区域的原始纵横比，避免压扁
       >
         {cover && coverReady ? (
@@ -288,7 +288,7 @@ export function IdolCard({
             draggable={false}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-3 text-center text-lg font-semibold text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 px-3 text-center text-lg font-semibold text-gray-600 dark:from-ui-muted dark:to-ui-hover dark:text-ui-secondary">
             {primaryName}
           </div>
         )}
@@ -348,14 +348,14 @@ export function IdolCard({
       <div className="flex flex-1 select-text flex-col gap-2 p-3">
         <div className="flex min-w-0 items-baseline gap-1.5 leading-tight">
           <span
-            className="min-w-0 max-w-[70%] truncate text-sm font-semibold text-gray-950"
+            className="min-w-0 max-w-[70%] truncate text-sm font-semibold text-gray-950 dark:text-ui-text"
             title={primaryName}
           >
             {primaryName}
           </span>
           {secondaryName ? (
             <span
-              className="min-w-0 flex-1 truncate text-[11px] font-normal text-gray-500"
+              className="min-w-0 flex-1 truncate text-[11px] font-normal text-gray-500 dark:text-ui-faint"
               title={secondaryName}
             >
               {secondaryName}
@@ -363,7 +363,7 @@ export function IdolCard({
           ) : null}
         </div>
         {metaRows.length > 0 ? (
-          <div className="flex flex-col gap-1.5 text-[10px] text-gray-900">
+          <div className="flex flex-col gap-1.5 text-[10px] text-gray-900 dark:text-ui-text">
             {metaRows.map((row) => (
               <div
                 key={row.key}
@@ -381,7 +381,9 @@ export function IdolCard({
             ))}
           </div>
         ) : (
-          <div className="text-xs text-gray-400">{zh('信息待补充', 'More info coming')}</div>
+          <div className="text-xs text-gray-400 dark:text-ui-faint">
+            {zh('信息待补充', 'More info coming')}
+          </div>
         )}
       </div>
     </a>
@@ -462,7 +464,7 @@ export function JavIdolEditModal({
         ariaLabel={zh('编辑女优信息', 'Edit idol info')}
         className="p-4"
         closeDisabled={saving}
-        contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+        contentClassName="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg bg-white dark:bg-ui-surface shadow-2xl"
         contentComponent="form"
         contentProps={{ onSubmit: handleSubmit }}
         onClose={onClose}
@@ -470,14 +472,14 @@ export function JavIdolEditModal({
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
           <div className="min-w-0">
-            <div className="text-base font-semibold text-gray-950">
+            <div className="text-base font-semibold text-gray-950 dark:text-ui-text">
               {zh('编辑女优信息', 'Edit idol info')}
             </div>
-            <div className="truncate text-xs text-gray-500">{displayName}</div>
+            <div className="truncate text-xs text-gray-500 dark:text-ui-faint">{displayName}</div>
           </div>
           <button
             type="button"
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
             aria-label={zh('关闭', 'Close')}
             onClick={onClose}
           >
@@ -542,12 +544,12 @@ export function JavIdolEditModal({
               min="1"
               onChange={(value) => setField('hips', value)}
             />
-            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+            <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 dark:text-ui-secondary">
               <span>{zh('罩杯', 'Cup')}</span>
               <select
                 value={form.cup}
                 onChange={(event) => setField('cup', event.target.value)}
-                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
+                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus:border-blue-400"
               >
                 <option value="">{zh('未设置', 'Unset')}</option>
                 {Array.from({ length: 26 }, (_, index) => index + 1).map((value) => (
@@ -570,20 +572,22 @@ export function JavIdolEditModal({
           <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
             <button
               type="button"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+              className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
               onClick={() => setMergeOpen(true)}
             >
               {zh('合并到其它女优', 'Merge into another idol')}
             </button>
           </div>
 
-          {error ? <div className="mt-3 text-sm text-red-600">{error}</div> : null}
+          {error ? (
+            <div className="mt-3 text-sm text-red-600 dark:text-red-300">{error}</div>
+          ) : null}
         </div>
 
         <div className="flex justify-end gap-2 border-t px-4 py-3">
           <button
             type="button"
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
             onClick={onClose}
             disabled={saving}
           >
@@ -591,7 +595,7 @@ export function JavIdolEditModal({
           </button>
           <button
             type="submit"
-            className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+            className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
             disabled={saving || !String(form.name || '').trim()}
           >
             {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
@@ -611,7 +615,7 @@ export function JavIdolEditModal({
 
 function TextField({ label, value, onChange, type = 'text', required = false, min }) {
   return (
-    <label className="flex flex-col gap-1 text-sm font-medium text-gray-700">
+    <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 dark:text-ui-secondary">
       <span>{label}</span>
       <input
         value={value}
@@ -619,7 +623,7 @@ function TextField({ label, value, onChange, type = 'text', required = false, mi
         required={required}
         min={min}
         onChange={(event) => onChange?.(event.target.value)}
-        className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
+        className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus-within:border-blue-400"
       />
     </label>
   )
@@ -633,23 +637,23 @@ function AliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd, onRe
   }
 
   return (
-    <div className="mt-3 flex flex-col gap-1 text-sm font-medium text-gray-700">
+    <div className="mt-3 flex flex-col gap-1 text-sm font-medium text-gray-700 dark:text-ui-secondary">
       <div className="flex flex-wrap items-center gap-2">
         <span>{zh('别名：', 'Aliases:')}</span>
-        <span className="text-xs font-normal text-gray-400">
+        <span className="text-xs font-normal text-gray-400 dark:text-ui-faint">
           {zh('输入后按 Enter 添加', 'Press Enter to add')}
         </span>
       </div>
-      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900">
+      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus-within:border-blue-400">
         {aliases.map((alias) => (
           <span
             key={alias}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800"
+            className="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:border-ui-border dark:bg-ui-muted dark:text-ui-text"
           >
             <span className="max-w-[12rem] truncate">{alias}</span>
             <button
               type="button"
-              className="flex h-4 w-4 items-center justify-center rounded-full text-gray-500 hover:bg-gray-300 hover:text-gray-900"
+              className="flex h-4 w-4 items-center justify-center rounded-full text-gray-500 hover:bg-gray-300 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
               aria-label={zh(`移除别名 ${alias}`, `Remove alias ${alias}`)}
               onClick={() => onRemove?.(alias)}
             >
@@ -759,7 +763,7 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
       ariaLabel={zh('合并女优', 'Merge idol')}
       className="p-4"
       closeDisabled={saving}
-      contentClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white shadow-2xl"
+      contentClassName="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg bg-white dark:bg-ui-surface shadow-2xl"
       contentComponent="form"
       contentProps={{ onSubmit: handleSubmit }}
       onClose={onClose}
@@ -767,16 +771,16 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
     >
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="min-w-0">
-          <div className="text-base font-semibold text-gray-950">
+          <div className="text-base font-semibold text-gray-950 dark:text-ui-text">
             {zh('合并女优', 'Merge idol')}
           </div>
-          <div className="truncate text-xs text-gray-500">
+          <div className="truncate text-xs text-gray-500 dark:text-ui-faint">
             {zh(`将 ${sourceName} 合并到目标女优`, `Merge ${sourceName} into target idol`)}
           </div>
         </div>
         <button
           type="button"
-          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
           aria-label={zh('关闭', 'Close')}
           onClick={onClose}
         >
@@ -787,7 +791,7 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
       <div className="flex flex-1 flex-col gap-3 overflow-hidden p-4">
         <label className="relative block">
           <SearchRoundedIcon
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-ui-faint"
             sx={{ fontSize: 18 }}
           />
           <input
@@ -796,18 +800,18 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
               setSearch(event.target.value)
               setSelectedId(0)
             }}
-            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
+            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-blue-400"
             placeholder={zh('搜索要合并到的目标女优', 'Search target idol to merge into')}
           />
         </label>
 
-        <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200">
+        <div className="min-h-[12rem] overflow-y-auto rounded border border-gray-200 dark:border-ui-border">
           {loading ? (
-            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500 dark:text-ui-faint">
               {zh('加载中…', 'Loading...')}
             </div>
           ) : options.length > 0 ? (
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100 dark:divide-ui-border">
               {options.map((option) => {
                 const id = Number(option?.id)
                 const { primaryName: optionName, secondaryName: optionSecondaryName } =
@@ -818,35 +822,39 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
                   <button
                     key={option.id}
                     type="button"
-                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                      checked ? 'bg-gray-100 text-gray-950' : 'text-gray-800'
+                    className={`flex w-full flex-col gap-1 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-ui-hover ${
+                      checked
+                        ? 'bg-gray-100 text-gray-950 dark:bg-ui-muted dark:text-ui-text'
+                        : 'text-gray-800 dark:text-ui-text'
                     }`}
                     onClick={() => setSelectedId(id)}
                   >
                     <span className="flex w-full min-w-0 items-center gap-2">
                       <span className="min-w-0 truncate font-medium">{optionName}</span>
                       {optionSecondaryName ? (
-                        <span className="shrink-0 truncate text-xs text-gray-500">
+                        <span className="shrink-0 truncate text-xs text-gray-500 dark:text-ui-faint">
                           {optionSecondaryName}
                         </span>
                       ) : null}
                     </span>
                     {optionMeta ? (
-                      <span className="w-full truncate text-xs text-gray-500">{optionMeta}</span>
+                      <span className="w-full truncate text-xs text-gray-500 dark:text-ui-faint">
+                        {optionMeta}
+                      </span>
                     ) : null}
                   </button>
                 )
               })}
             </div>
           ) : (
-            <div className="flex h-32 items-center justify-center text-sm text-gray-500">
+            <div className="flex h-32 items-center justify-center text-sm text-gray-500 dark:text-ui-faint">
               {zh('没有可合并的目标女优', 'No target idol found')}
             </div>
           )}
         </div>
 
         {selected ? (
-          <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          <div className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
             {zh(
               `"${sourceName}" 将作为 "${selectedName}" 的别名存在，当前女优记录会被删除，相关数据迁移会自动完成。此操作无法撤回，请仔细核实后操作。`,
               `"${sourceName}" will exist as an alias of "${selectedName}". The current idol record will be deleted, and related data migration will be completed automatically. This action cannot be undone; verify carefully before continuing.`
@@ -854,13 +862,13 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
           </div>
         ) : null}
 
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {error ? <div className="text-sm text-red-600 dark:text-red-300">{error}</div> : null}
       </div>
 
       <div className="flex justify-end gap-2 border-t px-4 py-3">
         <button
           type="button"
-          className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+          className="rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-ui-border dark:text-ui-secondary dark:hover:bg-ui-hover"
           onClick={onClose}
           disabled={saving}
         >
@@ -868,7 +876,7 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
         </button>
         <button
           type="submit"
-          className="rounded bg-gray-950 px-3 py-1.5 text-sm text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
+          className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white enabled:hover:bg-ui-primary-hover disabled:cursor-not-allowed disabled:bg-gray-300 dark:disabled:bg-ui-hover"
           disabled={!canSubmit || saving}
         >
           {saving ? zh('合并中…', 'Merging...') : zh('确认合并', 'Merge')}

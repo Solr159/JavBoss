@@ -90,7 +90,7 @@ export default function Pagination({
   return (
     <div className="pagination-root relative flex w-full flex-col items-center">
       {onWaterfallModeChange ? (
-        <div className="pagination-waterfall fixed z-30 inline-flex shrink-0 -translate-y-1/2 items-center text-gray-600">
+        <div className="pagination-waterfall fixed z-30 inline-flex shrink-0 -translate-y-1/2 items-center text-gray-600 dark:text-ui-secondary">
           <span>{zh('瀑布流', 'Waterfall')}</span>
           <Switch
             className="pagination-waterfall-switch"
@@ -100,7 +100,7 @@ export default function Pagination({
             inputProps={{ 'aria-label': zh('切换瀑布流模式', 'Toggle waterfall mode') }}
           />
           {totalItemsLabel ? (
-            <span className="pagination-waterfall-total whitespace-nowrap text-gray-500">
+            <span className="pagination-waterfall-total whitespace-nowrap text-gray-500 dark:text-ui-faint">
               {totalItemsLabel}
             </span>
           ) : null}
@@ -180,8 +180,8 @@ export default function Pagination({
                   paginationDisabled
                     ? 'pointer-events-none opacity-50'
                     : p === page
-                      ? 'border-blue-600 bg-blue-600 text-white'
-                      : 'bg-white'
+                      ? 'border-ui-primary bg-ui-primary text-white'
+                      : 'bg-white dark:bg-ui-surface'
                 }`}
                 aria-disabled={paginationDisabled}
                 aria-current={p === page ? 'page' : undefined}
@@ -249,7 +249,9 @@ export default function Pagination({
               data-page-jump-trigger="true"
               onClick={toggleJumpPicker}
               className={`pagination-button border ${
-                paginationDisabled || !canJump ? 'cursor-not-allowed opacity-50' : 'bg-white'
+                paginationDisabled || !canJump
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'bg-white dark:bg-ui-surface'
               }`}
               disabled={paginationDisabled || !canJump}
               aria-haspopup="dialog"
@@ -272,7 +274,7 @@ export default function Pagination({
                 className="pagination-jump-panel flex flex-col"
                 style={{ width: jumpPanelWidth }}
               >
-                <div className="pagination-jump-title text-gray-500">
+                <div className="pagination-jump-title text-gray-500 dark:text-ui-faint">
                   {zh('选择页码', 'Select page')}
                 </div>
                 <div
@@ -291,8 +293,8 @@ export default function Pagination({
                       }}
                       className={`pagination-jump-button border text-center ${
                         optionPage === page
-                          ? 'border-blue-600 bg-blue-600 text-white'
-                          : 'bg-white hover:border-blue-300 hover:text-blue-600'
+                          ? 'border-ui-primary bg-ui-primary text-white'
+                          : 'bg-white hover:border-blue-300 hover:text-ui-primary dark:bg-ui-surface dark:hover:border-blue-400 dark:hover:text-blue-300'
                       }`}
                       aria-current={optionPage === page ? 'page' : undefined}
                     >

@@ -20,11 +20,11 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         aria-controls="browser-playlist"
         data-playlist-resize
         title={zh('左右拖动调整播放列表宽度', 'Drag left or right to resize the playlist')}
-        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center hover:bg-blue-50 ${resize.dragging ? 'bg-blue-50' : ''}`}
+        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center hover:bg-blue-50 dark:hover:bg-ui-blue-hover ${resize.dragging ? 'bg-blue-50 dark:bg-ui-blue-surface' : ''}`}
         {...resize.separatorProps}
       >
         <span
-          className={`h-8 w-0.5 rounded-full group-hover:bg-blue-400 ${resize.dragging ? 'bg-blue-400' : 'bg-zinc-300'}`}
+          className={`h-8 w-0.5 rounded-full group-hover:bg-blue-400 ${resize.dragging ? 'bg-blue-400' : 'bg-zinc-300 dark:bg-ui-hover'}`}
         />
       </div>
       <aside
@@ -32,9 +32,9 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         style={{ width: resize.width }}
         id="browser-playlist"
         aria-label={zh('播放列表', 'Playlist')}
-        className="flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded bg-zinc-100"
+        className="flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded bg-zinc-100 dark:bg-ui-muted"
       >
-        <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold">
+        <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold dark:border-ui-border">
           {zh('播放列表', 'Playlist')} ({items.length})
         </h3>
         <ol className="min-h-0 flex-1 overflow-y-auto p-1">
@@ -49,7 +49,7 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
                   aria-current={active ? 'true' : undefined}
                   title={title}
                   onClick={() => onSelect?.(index)}
-                  className={`flex w-full items-center gap-2 rounded py-1 pl-1 pr-2 text-left text-[11px] leading-4 ${active ? 'bg-blue-100 font-semibold text-blue-700' : 'text-zinc-700 hover:bg-zinc-200'}`}
+                  className={`flex w-full items-center gap-2 rounded py-1 pl-1 pr-2 text-left text-[11px] leading-4 ${active ? 'bg-blue-100 font-semibold text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300' : 'text-zinc-700 hover:bg-zinc-200 dark:text-ui-secondary dark:hover:bg-ui-hover'}`}
                 >
                   <span
                     className="min-w-5 shrink-0 whitespace-nowrap text-center tabular-nums"

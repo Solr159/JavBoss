@@ -132,7 +132,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] gap-2 px-1 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-ui-faint">
         <div>{zh('按键', 'Key')}</div>
         <div>{zh('动作', 'Action')}</div>
         <div>{zh('变化值', 'Amount')}</div>
@@ -140,14 +140,14 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded border border-dashed px-4 py-5 text-center text-sm text-gray-500">
+        <div className="rounded border border-dashed px-4 py-5 text-center text-sm text-gray-500 dark:text-ui-faint">
           {zh('当前没有自定义快捷键', 'No custom shortcuts')}
         </div>
       ) : (
         rows.map((row) => (
           <div
             key={row.id}
-            className="grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-white p-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]"
+            className="grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-white p-2 dark:border-ui-border dark:bg-ui-surface md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto]"
           >
             <input
               value={formatPlayerHotkeyKey(row.key)}
@@ -163,7 +163,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
               }}
               onFocus={() => setError('')}
               placeholder={zh('聚焦后按键', 'Press a key')}
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-ui-border dark:bg-ui-surface"
             />
             <select
               value={row.action}
@@ -181,7 +181,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
                 setError('')
                 setSuccess('')
               }}
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
+              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
             >
               <option value={PLAYER_HOTKEY_ACTIONS.SEEK}>{zh('调节进度', 'Seek')}</option>
               <option value={PLAYER_HOTKEY_ACTIONS.VOLUME}>{zh('调节音量', 'Volume')}</option>
@@ -198,14 +198,14 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
                     setError('')
                     setSuccess('')
                   }}
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
                 />
-                <span className="shrink-0 text-sm text-gray-500">
+                <span className="shrink-0 text-sm text-gray-500 dark:text-ui-faint">
                   {row.action === PLAYER_HOTKEY_ACTIONS.VOLUME ? '%' : zh('秒', 'sec')}
                 </span>
               </div>
             ) : (
-              <div className="flex items-center rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2 text-sm text-zinc-400">
+              <div className="flex items-center rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-2 text-sm text-zinc-400 dark:border-ui-border dark:bg-ui-canvas dark:text-ui-faint">
                 -
               </div>
             )}
@@ -216,7 +216,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
                 setError('')
                 setSuccess('')
               }}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+              className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:border-ui-border dark:bg-ui-surface dark:text-red-300 dark:hover:bg-red-950"
             >
               {zh('删除', 'Delete')}
             </button>
@@ -224,22 +224,22 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
         ))
       )}
 
-      {error && <div className="text-sm text-red-600">{error}</div>}
-      {success && <div className="text-sm text-emerald-600">{success}</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-300">{error}</div>}
+      {success && <div className="text-sm text-emerald-600 dark:text-emerald-300">{success}</div>}
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={handleAdd}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:hover:bg-ui-hover"
           >
             {zh('新增快捷键', 'Add shortcut')}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:hover:bg-ui-hover"
           >
             {zh('恢复默认', 'Restore defaults')}
           </button>
@@ -248,7 +248,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-700 disabled:opacity-60"
+          className="rounded-lg bg-ui-primary px-3 py-1.5 text-sm text-white hover:bg-ui-primary-hover disabled:opacity-60"
         >
           {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
         </button>

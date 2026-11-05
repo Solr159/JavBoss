@@ -642,7 +642,7 @@ export default function App() {
             {activeError && (
               <div
                 role="alert"
-                className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700"
+                className="mb-4 rounded border border-red-200 bg-red-50 p-3 text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300"
               >
                 {String(activeError)}
               </div>

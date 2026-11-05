@@ -21,9 +21,9 @@ function uptime(seconds) {
 
 function MetricCard({ title, value, detail, usage }) {
   return (
-    <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-4">
-      <h4 className="text-sm font-medium text-zinc-500">{title}</h4>
-      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900">
+    <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white p-4 dark:border-ui-border dark:bg-ui-surface">
+      <h4 className="text-sm font-medium text-zinc-500 dark:text-ui-faint">{title}</h4>
+      <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-ui-text">
         {value}
       </div>
       {usage != null && (
@@ -33,7 +33,7 @@ function MetricCard({ title, value, detail, usage }) {
           aria-valuenow={Math.round(usage)}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100"
+          className="mt-3 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-ui-muted"
         >
           <div
             className={`h-full rounded-full transition-[width] ${usage >= 90 ? 'bg-amber-500' : 'bg-blue-500'}`}
@@ -41,7 +41,7 @@ function MetricCard({ title, value, detail, usage }) {
           />
         </div>
       )}
-      <p className="mt-2 text-xs leading-5 text-zinc-500">{detail}</p>
+      <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-ui-faint">{detail}</p>
     </div>
   )
 }
@@ -55,11 +55,15 @@ function IOCard({ title, read, write, detail }) {
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-lg">
           <span>
             {rate(read)}{' '}
-            <span className="text-xs font-normal text-zinc-400">{zh('读', 'read')}</span>
+            <span className="text-xs font-normal text-zinc-400 dark:text-ui-faint">
+              {zh('读', 'read')}
+            </span>
           </span>
           <span>
             {rate(write)}{' '}
-            <span className="text-xs font-normal text-zinc-400">{zh('写', 'write')}</span>
+            <span className="text-xs font-normal text-zinc-400 dark:text-ui-faint">
+              {zh('写', 'write')}
+            </span>
           </span>
         </div>
       }
@@ -75,16 +79,16 @@ export default function ResourceDashboard() {
   const disk = snapshot?.data_disk
   return (
     <div className="space-y-5">
-      <h3 className="text-base font-semibold text-zinc-900">
+      <h3 className="text-base font-semibold text-zinc-900 dark:text-ui-text">
         {zh('资源监控', 'Resource Monitor')}
       </h3>
       <div
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-zinc-500 dark:text-ui-faint"
         role="status"
       >
         <span className="inline-flex items-center gap-1.5">
           <span
-            className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-500' : refreshing ? 'bg-emerald-500' : 'bg-zinc-400'}`}
+            className={`h-1.5 w-1.5 rounded-full ${error ? 'bg-amber-500' : refreshing ? 'bg-emerald-500' : 'bg-zinc-400 dark:bg-ui-hover'}`}
           />
           {error
             ? zh('更新失败', 'Update failed')
@@ -107,7 +111,10 @@ export default function ResourceDashboard() {
         )}
       </div>
       {error && (
-        <div role="alert" className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div
+          role="alert"
+          className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+        >
           {error}
           {snapshot && (
             <span className="ml-2">
@@ -117,7 +124,7 @@ export default function ResourceDashboard() {
         </div>
       )}
       {!snapshot && !error && (
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-zinc-500 dark:text-ui-faint">
           {zh('正在读取资源信息…', 'Loading resource metrics…')}
         </p>
       )}
@@ -194,7 +201,7 @@ export default function ResourceDashboard() {
               }
             />
           </div>
-          <div className="space-y-1 text-xs leading-5 text-zinc-500">
+          <div className="space-y-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
             <p>
               {zh(
                 '系统指标包含所有程序；— 表示待采样或不可用。',

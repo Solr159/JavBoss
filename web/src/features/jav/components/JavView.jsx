@@ -14,8 +14,8 @@ function SortText({ option, value, className = '' }) {
   return (
     <span className={`truncate font-semibold ${className}`}>
       <span>{parts.label}</span>
-      <span className="font-normal text-gray-500">{parts.separator}</span>
-      <span className="font-normal text-gray-500">{parts.direction}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.separator}</span>
+      <span className="font-normal text-gray-500 dark:text-ui-faint">{parts.direction}</span>
     </span>
   )
 }
@@ -134,7 +134,9 @@ export default function JavView({
         <div className="flex justify-end">
           {!javRandomMode && (
             <div className="pagination-sort-group flex items-center">
-              <span className="pagination-sort-label text-gray-500">{zh('排序', 'Sort')}</span>
+              <span className="pagination-sort-label text-gray-500 dark:text-ui-faint">
+                {zh('排序', 'Sort')}
+              </span>
               <button
                 type="button"
                 onClick={openSortMenu}
@@ -164,7 +166,7 @@ export default function JavView({
                     closeSortMenu()
                     setJavTempSort?.('')
                   }}
-                  className="w-full border-b border-slate-100 px-3 py-2 text-left text-xs font-medium text-blue-700 hover:bg-blue-50"
+                  className="w-full border-b border-slate-100 px-3 py-2 text-left text-xs font-medium text-ui-primary-hover hover:bg-blue-50 dark:border-ui-border dark:text-blue-300 dark:hover:bg-ui-blue-hover"
                 >
                   {zh('恢复自动排序', 'Restore automatic sort')}
                 </button>
@@ -176,7 +178,9 @@ export default function JavView({
                   <div
                     key={option.base}
                     className={`pagination-sort-row ${
-                      active ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-50'
+                      active
+                        ? 'bg-blue-50 text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300'
+                        : 'text-gray-700 hover:bg-gray-50 dark:text-ui-secondary dark:hover:bg-ui-hover'
                     }`}
                   >
                     <button
@@ -214,7 +218,7 @@ export default function JavView({
         </div>
       </div>
       {javLoading ? (
-        <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500">
+        <div className="flex min-h-[200px] items-center justify-center rounded border border-dashed border-gray-200 text-gray-500 dark:border-ui-border dark:text-ui-faint">
           {zh('加载中…', 'Loading...')}
         </div>
       ) : (

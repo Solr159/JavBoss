@@ -28,7 +28,7 @@ export default function JavSelectionOpsModal({
       ariaLabel={zh('已选择 JAV', 'Selected JAV items')}
       className="px-4"
       closeDisabled={disabled}
-      contentClassName="w-full max-w-lg rounded-lg bg-white p-4 shadow-xl"
+      contentClassName="w-full max-w-lg rounded-lg bg-white dark:bg-ui-surface p-4 shadow-xl"
       onClose={onClose}
     >
       <div className="mb-3 flex items-center justify-between">
@@ -39,16 +39,19 @@ export default function JavSelectionOpsModal({
           type="button"
           onClick={onClose}
           disabled={disabled}
-          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100"
+          className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-ui-faint dark:hover:bg-ui-hover"
           aria-label={zh('关闭', 'Close')}
         >
           ✕
         </button>
       </div>
-      <ul className="max-h-[60vh] space-y-1 overflow-y-auto rounded border bg-gray-50 p-2 text-sm">
+      <ul className="max-h-[60vh] space-y-1 overflow-y-auto rounded border bg-gray-50 p-2 text-sm dark:bg-ui-canvas">
         {list.map((item) => (
           <li key={item.id} className="flex min-w-0 items-center gap-2 rounded px-2 py-1">
-            <span className="min-w-0 flex-1 truncate text-gray-800" title={item.label}>
+            <span
+              className="min-w-0 flex-1 truncate text-gray-800 dark:text-ui-text"
+              title={item.label}
+            >
               {item.jav_code ? <span className="mr-2 font-medium">{item.jav_code}</span> : null}
               {item.label !== item.jav_code ? item.label : null}
             </span>

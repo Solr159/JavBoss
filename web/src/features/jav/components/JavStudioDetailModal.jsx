@@ -148,7 +148,7 @@ export default function JavStudioDetailModal({
     <AppModal
       ariaLabel={zh('片商详情', 'Studio details')}
       className="p-4"
-      contentClassName="flex h-[92vh] w-[min(84rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
+      contentClassName="flex h-[92vh] w-[min(84rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg border border-gray-200 dark:border-ui-border bg-white dark:bg-ui-surface shadow-xl"
       contentProps={{ onClick: (event) => event.stopPropagation() }}
       onClose={(event) => {
         event?.stopPropagation()
@@ -156,31 +156,31 @@ export default function JavStudioDetailModal({
       }}
       zIndex={1600}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-5 py-2">
+      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 px-5 py-2 dark:border-ui-border">
         <div className="min-w-0">
           <div className="flex items-baseline gap-3">
             <a
               href={href || '#'}
               onClick={handleStudioClick}
-              className="min-w-0 break-words text-lg font-semibold text-gray-900 hover:text-blue-700 hover:underline"
+              className="min-w-0 break-words text-lg font-semibold text-gray-900 hover:text-ui-primary-hover hover:underline dark:text-ui-text dark:hover:text-blue-300"
             >
               {name}
             </a>
             {showWorkCount ? (
-              <span className="shrink-0 text-xs text-gray-500">
+              <span className="shrink-0 text-xs text-gray-500 dark:text-ui-faint">
                 {zh(`作品 ${workCount}`, `${workCount} works`)}
               </span>
             ) : null}
           </div>
           {aliases.length > 0 ? (
-            <p className="mt-1 break-words text-sm text-gray-500">
+            <p className="mt-1 break-words text-sm text-gray-500 dark:text-ui-faint">
               {zh(aliases.join('、'), aliases.join(', '))}
             </p>
           ) : null}
         </div>
         <button
           type="button"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
           aria-label={zh('关闭片商详情', 'Close studio details')}
           onClick={() => onClose()}
         >
@@ -193,9 +193,11 @@ export default function JavStudioDetailModal({
         className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5"
       >
         {loading && !item ? (
-          <p className="py-8 text-center text-sm text-gray-500">{zh('加载中…', 'Loading...')}</p>
+          <p className="py-8 text-center text-sm text-gray-500 dark:text-ui-faint">
+            {zh('加载中…', 'Loading...')}
+          </p>
         ) : error && !item ? (
-          <div role="alert" className="py-8 text-center text-sm text-red-600">
+          <div role="alert" className="py-8 text-center text-sm text-red-600 dark:text-red-300">
             {error}
           </div>
         ) : (
@@ -216,7 +218,7 @@ export default function JavStudioDetailModal({
                     <button
                       type="button"
                       key={prefixItem.prefix}
-                      className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700"
+                      className="rounded border border-gray-200 bg-gray-50 px-2 py-1 text-sm text-gray-700 hover:border-blue-200 hover:bg-blue-50 hover:text-ui-primary-hover dark:border-ui-border dark:bg-ui-canvas dark:text-ui-secondary dark:hover:border-blue-400 dark:hover:bg-ui-blue-hover dark:hover:text-blue-300"
                       onClick={(event) => handlePrefixClick(prefixItem, event)}
                       title={zh(
                         `查看 ${prefixItem.prefix} 的全部作品`,
@@ -225,13 +227,17 @@ export default function JavStudioDetailModal({
                     >
                       {prefixItem.prefix}
                       {prefixItem.work_count ? (
-                        <span className="ml-2 text-xs text-gray-500">{prefixItem.work_count}</span>
+                        <span className="ml-2 text-xs text-gray-500 dark:text-ui-faint">
+                          {prefixItem.work_count}
+                        </span>
                       ) : null}
                     </button>
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">{zh('暂无番号', 'No codes')}</p>
+                <p className="text-sm text-gray-400 dark:text-ui-faint">
+                  {zh('暂无番号', 'No codes')}
+                </p>
               )}
             </section>
             <section>
@@ -245,7 +251,7 @@ export default function JavStudioDetailModal({
                 }}
               />
               {translation.error && (
-                <div role="alert" className="mb-3 text-sm text-amber-700">
+                <div role="alert" className="mb-3 text-sm text-amber-700 dark:text-amber-300">
                   {translation.error}{' '}
                   <button type="button" className="underline" onClick={translation.retry}>
                     {zh('重试', 'Retry')}
@@ -270,7 +276,9 @@ export default function JavStudioDetailModal({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-gray-400">{zh('暂无系列', 'No series')}</p>
+                <p className="text-sm text-gray-400 dark:text-ui-faint">
+                  {zh('暂无系列', 'No series')}
+                </p>
               )}
             </section>
           </>
@@ -283,7 +291,7 @@ export default function JavStudioDetailModal({
 function StudioDetailSectionHeader({ title, count, sort, onSortChange }) {
   return (
     <div className="mb-2 flex flex-wrap items-center gap-1.5">
-      <h3 className="text-sm font-semibold text-gray-700">
+      <h3 className="text-sm font-semibold text-gray-700 dark:text-ui-secondary">
         {title} ({count})
       </h3>
       <button
@@ -298,7 +306,7 @@ function StudioDetailSectionHeader({ title, count, sort, onSortChange }) {
           `${title}排序：${sort === 'name_asc' ? '名称升序，点击切换为作品数降序' : '作品数降序，点击切换为名称升序'}`,
           `Sort ${title.toLowerCase()}: ${sort === 'name_asc' ? 'name ascending; click for most works first' : 'most works first; click for name ascending'}`
         )}
-        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-blue-700 ring-1 ring-inset ring-blue-100 hover:bg-blue-100"
+        className="inline-flex items-center gap-0.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium leading-3 text-ui-primary-hover ring-1 ring-inset ring-blue-100 hover:bg-blue-100 dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-ui-blue-border dark:hover:bg-ui-blue-hover"
       >
         <SortRoundedIcon sx={{ fontSize: 13 }} />
         {sort === 'name_asc' ? zh('名称', 'Name') : zh('作品数', 'Works')}
