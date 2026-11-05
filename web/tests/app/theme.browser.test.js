@@ -466,7 +466,7 @@ test(
     }
     await hover('.video-card')
     await waitFor(
-      `getComputedStyle(document.querySelector('.video-card')).borderTopColor === 'rgb(82, 82, 82)'`
+      `getComputedStyle(document.querySelector('.video-card')).borderTopColor === 'rgb(56, 56, 56)'`
     )
     await evaluate(`document.querySelector('aside button[aria-label="JAV"]').click()`)
     await waitFor(`document.querySelector('.jav-card')`)

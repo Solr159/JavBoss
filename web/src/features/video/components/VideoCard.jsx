@@ -159,7 +159,7 @@ export default function VideoCard({
       className={`video-card relative flex flex-col overflow-hidden rounded-lg border bg-white shadow transition-all dark:bg-ui-surface ${
         checked
           ? 'border-sky-400 ring-2 ring-sky-200 dark:border-sky-400 dark:ring-sky-800'
-          : 'border-gray-200 hover:border-gray-300 dark:border-ui-border dark:hover:border-neutral-600'
+          : 'border-gray-200 hover:border-gray-300 dark:border-ui-border dark:hover:border-ui-border'
       }`}
     >
       <div className="card-hover-scope video-card-cover group/cover relative aspect-video w-full shrink-0 overflow-hidden bg-gray-200 dark:bg-ui-hover">
