@@ -56,6 +56,15 @@ export default function AppThemeProvider({ children }) {
           MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
           ...(mode === 'dark'
             ? {
+                MuiAlert: {
+                  styleOverrides: {
+                    standardInfo: {
+                      backgroundColor: 'var(--theme-blue-surface)',
+                      color: 'var(--theme-blue-text)',
+                      '& .MuiAlert-icon': { color: 'inherit', opacity: 1 },
+                    },
+                  },
+                },
                 MuiButton: {
                   styleOverrides: {
                     root: ({ ownerState }) =>

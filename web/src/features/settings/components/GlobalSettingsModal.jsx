@@ -750,7 +750,7 @@ export default function GlobalSettingsModal({
             onClick={() => setPlayerTab('basic')}
             className={`rounded-xl px-3 py-1.5 text-sm ${
               currentPlayerTab === 'basic'
-                ? 'bg-zinc-900 text-white'
+                ? 'bg-zinc-900 text-white dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-1 dark:ring-ui-blue-border'
                 : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover'
             }`}
           >
@@ -761,7 +761,7 @@ export default function GlobalSettingsModal({
             onClick={() => setPlayerTab('browser')}
             className={`rounded-xl px-3 py-1.5 text-sm ${
               currentPlayerTab === 'browser'
-                ? 'bg-zinc-900 text-white'
+                ? 'bg-zinc-900 text-white dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-1 dark:ring-ui-blue-border'
                 : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover'
             }`}
           >
@@ -773,7 +773,7 @@ export default function GlobalSettingsModal({
               onClick={() => setPlayerTab('mpv')}
               className={`rounded-xl px-3 py-1.5 text-sm ${
                 currentPlayerTab === 'mpv'
-                  ? 'bg-zinc-900 text-white'
+                  ? 'bg-zinc-900 text-white dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-1 dark:ring-ui-blue-border'
                   : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover'
               }`}
             >
@@ -785,7 +785,7 @@ export default function GlobalSettingsModal({
             onClick={() => setPlayerTab('hotkeys')}
             className={`rounded-xl px-3 py-1.5 text-sm ${
               currentPlayerTab === 'hotkeys'
-                ? 'bg-zinc-900 text-white'
+                ? 'bg-zinc-900 text-white dark:bg-ui-blue-surface dark:text-blue-300 dark:ring-1 dark:ring-ui-blue-border'
                 : 'border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover'
             }`}
           >

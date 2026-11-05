@@ -257,7 +257,7 @@ export default function TitleTranslationToolSettings() {
           </header>
           <fieldset
             disabled={!editing || busy}
-            className="min-w-0 space-y-5 p-5 [&_:disabled]:cursor-not-allowed [&_:disabled]:text-zinc-400 [&_button:disabled]:opacity-50 [&_input:disabled]:bg-zinc-100 [&_select:disabled]:bg-zinc-100 [&_textarea:disabled]:bg-zinc-100"
+            className="min-w-0 space-y-5 p-5 [&_:disabled]:cursor-not-allowed [&_:disabled]:text-zinc-400 dark:[&_:disabled]:text-ui-secondary [&_button:disabled]:opacity-50 [&_input:disabled]:bg-zinc-100 dark:[&_input:disabled]:bg-ui-canvas [&_select:disabled]:bg-zinc-100 dark:[&_select:disabled]:bg-ui-canvas [&_textarea:disabled]:bg-zinc-100 dark:[&_textarea:disabled]:bg-ui-canvas"
           >
             <JavTitleTranslationSettings
               value={draft}

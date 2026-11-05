@@ -50,6 +50,10 @@
     --theme-tag-user-surface: #10b981;
     --theme-tag-user-border: #10b981;
     --theme-tag-user-hover: #059669;
+    --theme-tag-user-selected: #047857;
+    --theme-tag-user-selected-border: #6ee7b7;
+    --theme-tag-user-selected-text: #fff;
+    --theme-tag-user-selected-count: #065f46;
     --theme-tag-scraped-surface: #f97316;
     --theme-tag-scraped-border: #f97316;
     --theme-tag-scraped-hover: #ea580c;

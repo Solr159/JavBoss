@@ -201,7 +201,7 @@ export default function JavIdolCoverModal({
             type="button"
             className={`flex w-full items-center gap-2 border-b px-3 py-2 text-left text-sm ${
               selectedJavId === 0
-                ? 'bg-slate-900 text-white'
+                ? 'bg-slate-900 text-white dark:bg-ui-blue-surface dark:text-blue-300'
                 : 'hover:bg-slate-50 dark:hover:bg-ui-hover'
             }`}
             onClick={() => {
@@ -225,7 +225,9 @@ export default function JavIdolCoverModal({
                   key={option.id}
                   type="button"
                   className={`flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left text-sm ${
-                    active ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 dark:hover:bg-ui-hover'
+                    active
+                      ? 'bg-slate-900 text-white dark:bg-ui-blue-surface dark:text-blue-300'
+                      : 'hover:bg-slate-50 dark:hover:bg-ui-hover'
                   }`}
                   onClick={() => {
                     setSelectedJavId(Number(option.id))
@@ -362,7 +364,7 @@ export default function JavIdolCoverModal({
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-700"
             disabled={saving || loading}
             onClick={handleSave}
           >

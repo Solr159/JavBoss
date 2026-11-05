@@ -487,7 +487,7 @@ export default function DisplaySettingsModal({
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pb-4">
         <fieldset
           disabled={saving}
-          className="min-w-0 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 [&_select:disabled]:bg-slate-100"
+          className="min-w-0 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 dark:[&_input:disabled]:bg-ui-canvas [&_select:disabled]:bg-slate-100 dark:[&_select:disabled]:bg-ui-canvas"
         >
           {activeTab === 'video' ? <VideoDisplaySettings {...videoSettings} /> : null}
           {activeTab === 'jav' ? (

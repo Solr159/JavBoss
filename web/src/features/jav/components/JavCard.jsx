@@ -391,7 +391,7 @@ export default function JavCard(props) {
             type="button"
             className={`card-modal-trigger card-hover-focus-visible absolute right-2 top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
-                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300 dark:text-amber-300 dark:hover:bg-amber-900'
+                ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                 : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
             }`}
             title={zh('加入作品收藏夹', 'Add to JAV favorite groups')}

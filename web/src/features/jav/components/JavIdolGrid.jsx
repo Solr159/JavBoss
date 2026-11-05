@@ -301,7 +301,7 @@ export function IdolCard({
           type="button"
           className={`card-hover-focus-visible absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
             favoriteCount > 0
-              ? 'bg-amber-400 text-amber-950 hover:bg-amber-300 dark:text-amber-300 dark:hover:bg-amber-900'
+              ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
               : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
           }`}
           title={zh('加入女优收藏夹', 'Add to idol favorite groups')}

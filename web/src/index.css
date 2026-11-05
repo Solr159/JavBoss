@@ -1206,7 +1206,7 @@ body.has-page-scroll .sticky-pagination {
   color: var(--theme-video-tag-text);
 }
 
-.skeuo-tag--video.skeuo-tag--active {
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--active {
   background: var(--theme-video-tag-selected);
   border-color: var(--theme-video-tag-selected-border);
 }
@@ -1250,25 +1250,43 @@ body.has-page-scroll .sticky-pagination {
   border-color: var(--theme-accent, #d97706);
 }
 
-.skeuo-tag--video.skeuo-tag--selected {
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--selected {
   background: var(--theme-video-tag-selected);
   border-color: var(--theme-video-tag-selected-border);
 }
 
-.skeuo-tag--video.skeuo-tag--active .skeuo-tag-label,
-.skeuo-tag--video.skeuo-tag--active .skeuo-tag-count,
-.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-label,
-.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--active .skeuo-tag-label,
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--active .skeuo-tag-count,
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--selected .skeuo-tag-label,
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--selected .skeuo-tag-count {
   color: var(--theme-video-tag-text);
 }
 
-.skeuo-tag--video.skeuo-tag--active .skeuo-tag-count,
-.skeuo-tag--video.skeuo-tag--selected .skeuo-tag-count {
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--active .skeuo-tag-count,
+:is(.skeuo-tag--video, .skeuo-tag--scraped).skeuo-tag--selected .skeuo-tag-count {
   background: var(--theme-video-tag-selected-count);
 }
 
-.skeuo-tag--video .skeuo-tag-check {
+:is(.skeuo-tag--video, .skeuo-tag--scraped) .skeuo-tag-check {
   accent-color: #f97316;
+}
+
+.skeuo-tag--user:is(.skeuo-tag--selected, .skeuo-tag--active) {
+  background: var(--theme-tag-user-selected, #a7f3d0);
+  border-color: var(--theme-tag-user-selected-border, #10b981);
+}
+
+.skeuo-tag--user:is(.skeuo-tag--selected, .skeuo-tag--active) .skeuo-tag-label,
+.skeuo-tag--user:is(.skeuo-tag--selected, .skeuo-tag--active) .skeuo-tag-count {
+  color: var(--theme-tag-user-selected-text, #065f46);
+}
+
+.skeuo-tag--user:is(.skeuo-tag--selected, .skeuo-tag--active) .skeuo-tag-count {
+  background: var(--theme-tag-user-selected-count, #d1fae5);
+}
+
+.skeuo-tag--user .skeuo-tag-check {
+  accent-color: #10b981;
 }
 
 .skeuo-tag-label {
