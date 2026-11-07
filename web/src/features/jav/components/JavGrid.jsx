@@ -52,6 +52,7 @@ export default function JavGrid({
   const seriesTranslation = useJavSeriesTranslation(seriesItems)
   const {
     portrait,
+    highSaturationTags,
     preferChineseName,
     hideStudio,
     hideSeries,
@@ -121,6 +122,7 @@ export default function JavGrid({
           <JavCard
             key={item.id || item.code}
             portrait={portrait}
+            highSaturationTags={highSaturationTags}
             item={item}
             checked={selectedIds?.has(Number(item.id)) || false}
             onToggleSelect={onToggleSelect}

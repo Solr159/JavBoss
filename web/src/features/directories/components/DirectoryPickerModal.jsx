@@ -151,7 +151,7 @@ export default function DirectoryPickerModal({ initialPath = '', onSelect, onClo
             value={pathInput}
             onChange={(event) => setPathInput(event.target.value)}
             placeholder={zh('输入完整目录路径', 'Enter an absolute directory path')}
-            className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
+            className="form-field min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm outline-none focus:border-blue-500"
           />
           <button
             type="submit"

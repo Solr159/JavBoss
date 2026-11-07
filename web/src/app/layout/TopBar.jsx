@@ -551,8 +551,9 @@ export default function TopBar({
             </div>
           ) : null}
           {!isJavDownload ? (
-            <form onSubmit={onSubmitSearch} className="filter-search">
+            <form onSubmit={onSubmitSearch} className="filter-search form-field-group">
               <input
+                className="form-field-input"
                 value={activeSearchInput}
                 onChange={(event) => onSearchInputChange?.(event.target.value)}
                 placeholder={placeholder}

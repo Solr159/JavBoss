@@ -132,6 +132,7 @@ export async function saveJavSettings(draft, onWaterfallChange, tab) {
         jav_page_size: javSize,
         jav_grid_columns: javColumns,
         jav_card_portrait: Boolean(draft.javCardPortraitInput),
+        jav_high_saturation_tags: Boolean(draft.javHighSaturationTagsInput),
         jav_title_max_rows: javTitleRows,
         jav_idol_tag_max_rows: javIdolTagRows,
         jav_tag_max_rows: javTagRows,

@@ -3,6 +3,95 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../../helpers/browser.js'
 
 test(
+  'high-saturation tags persist through display settings without changing actress colors',
+  { skip: browserUnavailable, timeout: 60000 },
+  async (t) => {
+    const { origin, command, evaluate, waitFor } = await openBrowser(t, {
+      cacheDir: 'node_modules/.vite-jav-card-test',
+    })
+    await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
+    await waitFor('document.querySelector(".jav-card")')
+    await evaluate(`(async () => {
+      const response = await fetch('/jav/items/1', {method: 'PUT', body: JSON.stringify({
+        tags: [{id: 1, name: 'Scraped Tag', provider: 1}, {id: 2, name: 'Custom Tag', provider: 3}],
+        idols: [{id: 1, name: 'Test Actress'}]
+      })});
+      window.testStore.getState().patchJavItem(await response.json());
+      document.documentElement.classList.remove('dark');
+    })()`)
+    const tag = (name) =>
+      `[...document.querySelectorAll('.jav-card a')].find(node => node.textContent === '${name}')`
+    const colors = (name) => `(() => {
+      const style = getComputedStyle(${tag(name)});
+      return [style.backgroundColor, style.color];
+    })()`
+    await waitFor(tag('Custom Tag'))
+    assert.deepEqual(await evaluate(colors('Scraped Tag')), [
+      'rgb(249, 115, 22)',
+      'rgb(255, 255, 255)',
+    ])
+    assert.deepEqual(await evaluate(colors('Custom Tag')), [
+      'rgb(16, 185, 129)',
+      'rgb(255, 255, 255)',
+    ])
+    const actressColors = await evaluate(colors('Test Actress'))
+    const toggle = `document.querySelector('[role="switch"][aria-label="Use high-saturation tags in light mode"]')`
+    const openSettings = async () => {
+      await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
+      await waitFor(toggle)
+    }
+    const save = async () => {
+      await evaluate(
+        `[...document.querySelectorAll('[role="dialog"] button')].find(node => node.textContent === 'Save').click()`
+      )
+      await waitFor(`!${toggle}`)
+    }
+    for (const enabled of [false, true]) {
+      await openSettings()
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), String(!enabled))
+      if (enabled) {
+        await evaluate(
+          `[...document.querySelectorAll('[role="dialog"] button')].find(node => node.textContent === 'Restore defaults').click()`
+        )
+        assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), 'true')
+      } else {
+        await evaluate(`${toggle}.click()`)
+      }
+      await save()
+      await waitFor(`window.testStore.getState().config.jav_high_saturation_tags === ${enabled}`)
+      const expected = enabled
+        ? {
+            'Scraped Tag': ['rgb(249, 115, 22)', 'rgb(255, 255, 255)'],
+            'Custom Tag': ['rgb(16, 185, 129)', 'rgb(255, 255, 255)'],
+          }
+        : {
+            'Scraped Tag': ['rgb(254, 215, 170)', 'rgb(194, 65, 12)'],
+            'Custom Tag': ['rgb(167, 243, 208)', 'rgb(4, 120, 87)'],
+          }
+      for (const [name, value] of Object.entries(expected)) {
+        await waitFor(`JSON.stringify(${colors(name)}) === '${JSON.stringify(value)}'`)
+      }
+      assert.deepEqual(await evaluate(colors('Test Actress')), actressColors)
+      assert.equal(
+        await evaluate(
+          `fetch('/config').then(response => response.json()).then(config => config.jav_high_saturation_tags)`
+        ),
+        enabled
+      )
+      await openSettings()
+      assert.equal(await evaluate(`${toggle}.getAttribute('aria-checked')`), String(enabled))
+      await evaluate(`${toggle}.click()`)
+      await evaluate(`document.querySelector('[aria-label="Close settings"]').click()`)
+      await waitFor(`!${toggle}`)
+      assert.equal(
+        await evaluate('window.testStore.getState().config.jav_high_saturation_tags'),
+        enabled
+      )
+    }
+  }
+)
+
+test(
   'portrait cards ignore full rating display and keep selection clickable',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {

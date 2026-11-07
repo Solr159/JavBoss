@@ -187,7 +187,7 @@ export default function JavPrefixModal({
           <input
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="h-9 min-w-0 flex-1 rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:border-blue-400 dark:focus:ring-ui-blue-border"
+            className="form-field h-9 min-w-0 flex-1 rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             placeholder={zh('搜索番号或片商', 'Search code or studio')}
             aria-label={zh('搜索番号', 'Search JAV codes')}
           />

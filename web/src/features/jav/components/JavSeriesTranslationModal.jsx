@@ -89,7 +89,7 @@ export default function JavSeriesTranslationModal({ item: initialItem, onClose, 
                 {zh('中文系列名称', 'Chinese series name')}
               </span>
               <textarea
-                className="block w-full resize-y rounded-lg border border-gray-300 px-3 py-3 text-sm leading-relaxed text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border dark:disabled:bg-ui-canvas dark:disabled:text-ui-faint"
+                className="form-field block w-full resize-y rounded-lg border border-gray-300 px-3 py-3 text-sm leading-relaxed text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-gray-50 disabled:text-gray-500"
                 value={name}
                 maxLength={8192}
                 rows={3}

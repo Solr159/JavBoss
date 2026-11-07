@@ -1,0 +1,44 @@
+/* Color-only styles: each caller keeps its existing size, layout and light theme. */
+.dark :is(.form-field, .form-field-group) {
+  border-color: rgb(var(--ui-border));
+  background-color: rgb(var(--ui-canvas));
+  color: rgb(var(--ui-text));
+}
+
+/* Compound fields draw their background and focus indicator on the outer group. */
+.dark .form-field-input {
+  background-color: transparent;
+  color: rgb(var(--ui-text));
+}
+
+.dark :is(.form-field, .form-field-input)::placeholder {
+  color: rgb(var(--ui-faint));
+  opacity: 1;
+}
+
+.dark .form-field:focus,
+.dark .form-field-group:focus-within {
+  border-color: var(--ui-primary);
+  --tw-ring-color: rgb(59 130 246 / 0.25);
+}
+
+.dark .form-field-group:focus-within {
+  box-shadow: 0 0 0 1px var(--tw-ring-color);
+}
+
+.dark .form-field:disabled,
+.dark .form-field-group[aria-disabled='true'] {
+  background-color: rgb(var(--ui-muted));
+  color: rgb(var(--ui-faint));
+}
+
+.dark .form-field-input:disabled {
+  color: rgb(var(--ui-faint));
+}
+
+/* Explicit validation wins over the normal focus colors, including while focused. */
+.dark .form-field[aria-invalid='true'],
+.dark .form-field[aria-invalid='true']:focus {
+  border-color: #f87171;
+  --tw-ring-color: rgb(248 113 113 / 0.25);
+}

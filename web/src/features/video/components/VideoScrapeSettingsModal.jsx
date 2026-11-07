@@ -93,8 +93,9 @@ function ManualListEditor({
 }) {
   return (
     <div
-      className={`min-h-24 rounded border px-2 py-2 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${
-        disabled ? 'bg-gray-50 dark:bg-ui-canvas' : 'bg-white dark:bg-ui-surface'
+      aria-disabled={disabled}
+      className={`form-field-group min-h-24 rounded border px-2 py-2 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 ${
+        disabled ? 'bg-gray-50' : 'bg-white'
       }`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -126,7 +127,7 @@ function ManualListEditor({
           }}
           disabled={disabled}
           placeholder={values.length === 0 ? placeholder : ''}
-          className="min-w-40 flex-1 bg-transparent px-1 py-1 text-sm outline-none disabled:cursor-not-allowed"
+          className="form-field-input min-w-40 flex-1 bg-transparent px-1 py-1 text-sm outline-none disabled:cursor-not-allowed"
         />
       </div>
     </div>
@@ -598,6 +599,7 @@ export default function VideoScrapeSettingsModal({
             <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800 dark:text-ui-text">
               <input
                 type="radio"
+                className="accent-ui-primary"
                 name="video-scrape-mode"
                 value="auto"
                 checked={mode === 'auto'}
@@ -613,11 +615,12 @@ export default function VideoScrapeSettingsModal({
               </span>
             </label>
             {mode === 'auto' ? (
-              <div className="space-y-2 border-t border-blue-100 px-3 py-3 dark:border-ui-blue-border">
+              <div className="space-y-2 border-t border-blue-100 px-3 py-3 dark:border-ui-border dark:bg-ui-canvas">
                 <div className="flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary">
                   <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 font-medium">
                     <input
                       type="radio"
+                      className="accent-ui-primary"
                       name="video-auto-scrape-source"
                       value={AUTO_SOURCE_FILENAME}
                       checked={autoSource === AUTO_SOURCE_FILENAME}
@@ -646,6 +649,7 @@ export default function VideoScrapeSettingsModal({
                     <label className="flex flex-1 cursor-pointer items-center gap-2 font-medium">
                       <input
                         type="radio"
+                        className="accent-ui-primary"
                         name="video-auto-scrape-source"
                         value={AUTO_SOURCE_CODE}
                         checked={autoSource === AUTO_SOURCE_CODE}
@@ -664,7 +668,7 @@ export default function VideoScrapeSettingsModal({
                       pattern={CODE_INPUT_PATTERN}
                       aria-label={zh('指定番号', 'Specified code')}
                       aria-invalid={autoSource === AUTO_SOURCE_CODE && codeInvalid}
-                      className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 dark:disabled:bg-ui-canvas sm:w-44 ${
+                      className={`form-field w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 sm:w-44 ${
                         autoSource === AUTO_SOURCE_CODE && codeInvalid
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                           : 'focus:border-blue-500 focus:ring-blue-500'
@@ -694,6 +698,7 @@ export default function VideoScrapeSettingsModal({
             <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-semibold text-gray-800 dark:text-ui-text">
               <input
                 type="radio"
+                className="accent-ui-primary"
                 name="video-scrape-mode"
                 value="manual"
                 checked={mode === 'manual'}
@@ -709,7 +714,7 @@ export default function VideoScrapeSettingsModal({
               </span>
             </label>
             {mode === 'manual' ? (
-              <div className="grid gap-3 border-t border-blue-100 px-3 py-3 dark:border-ui-blue-border md:grid-cols-2">
+              <div className="grid gap-3 border-t border-blue-100 px-3 py-3 dark:border-ui-border dark:bg-ui-canvas md:grid-cols-2">
                 <div className="md:col-span-2">
                   <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-ui-faint">
                     {zh('番号', 'Code')}
@@ -722,7 +727,7 @@ export default function VideoScrapeSettingsModal({
                     placeholder="IPX-001"
                     pattern={CODE_INPUT_PATTERN}
                     aria-invalid={codeInvalid}
-                    className={`w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 dark:disabled:bg-ui-canvas ${
+                    className={`form-field w-full rounded border px-3 py-1.5 text-sm uppercase focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
                       codeInvalid
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                         : 'focus:border-blue-500 focus:ring-blue-500'
@@ -741,7 +746,7 @@ export default function VideoScrapeSettingsModal({
                           type="button"
                           onClick={() => void linkExistingJav()}
                           disabled={!codeValid || saving || linkLoading || !onLinkExistingJav}
-                          className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                          className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-blue-300 dark:hover:border-blue-500 dark:hover:bg-ui-blue-hover"
                         >
                           {linkLoading
                             ? zh('关联中…', 'Linking...')
@@ -763,7 +768,7 @@ export default function VideoScrapeSettingsModal({
                       )}
                     </div>
                   ) : null}
-                  <div className="mt-3 rounded border border-dashed border-blue-200 bg-blue-50/60 p-3 dark:border-ui-blue-border dark:bg-ui-blue-surface">
+                  <div className="mt-3 rounded border border-dashed border-blue-200 bg-blue-50/60 p-3 dark:border-ui-border dark:bg-ui-surface">
                     <div className="text-xs font-medium text-gray-700 dark:text-ui-secondary">
                       {zh('浏览器扩展辅助刮削', 'Browser extension-assisted scrape')}
                     </div>
@@ -785,7 +790,7 @@ export default function VideoScrapeSettingsModal({
                               browserScrapeOpening ||
                               (providerConfig.requiresCode && !codeValid)
                             }
-                            className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-blue-border dark:bg-ui-surface dark:text-blue-300 dark:hover:bg-ui-blue-hover"
+                            className="rounded border border-blue-300 bg-white px-3 py-1 text-xs font-medium text-ui-primary-hover hover:border-blue-500 hover:bg-blue-50 disabled:opacity-50 dark:border-ui-border dark:bg-ui-surface dark:text-blue-300 dark:hover:border-blue-500 dark:hover:bg-ui-blue-hover"
                           >
                             {browserScrapeOpening &&
                             browserScrapeProviderRef.current === providerConfig.name
@@ -826,7 +831,7 @@ export default function VideoScrapeSettingsModal({
                     onChange={(event) => updateManual({ title: event.target.value })}
                     disabled={saving}
                     required
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -839,7 +844,7 @@ export default function VideoScrapeSettingsModal({
                     onChange={(event) => updateManual({ studio: event.target.value })}
                     disabled={saving}
                     placeholder={zh('优先填写英文名称', 'English name preferred')}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -851,7 +856,7 @@ export default function VideoScrapeSettingsModal({
                     value={manualInfo.series}
                     onChange={(event) => updateManual({ series: event.target.value })}
                     disabled={saving}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -864,7 +869,7 @@ export default function VideoScrapeSettingsModal({
                     onChange={(event) => updateManual({ release_date: event.target.value })}
                     disabled={saving}
                     required
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -879,7 +884,7 @@ export default function VideoScrapeSettingsModal({
                     onChange={(event) => updateManual({ duration_min: event.target.value })}
                     disabled={saving}
                     required
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -922,7 +927,7 @@ export default function VideoScrapeSettingsModal({
                     value={manualInfo.cover_url}
                     onChange={(event) => updateManual({ cover_url: event.target.value })}
                     disabled={saving}
-                    className="w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50 dark:disabled:bg-ui-canvas"
+                    className="form-field w-full rounded border px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                 </div>
                 <div>
@@ -938,7 +943,7 @@ export default function VideoScrapeSettingsModal({
                     disabled={saving}
                     required
                     aria-invalid={manualCensorError}
-                    className={`w-full rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 disabled:bg-gray-50 dark:disabled:bg-ui-canvas ${
+                    className={`form-field w-full rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 disabled:bg-gray-50 ${
                       manualCensorError
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                         : 'focus:border-blue-500 focus:ring-blue-500'
@@ -969,6 +974,7 @@ export default function VideoScrapeSettingsModal({
           >
             <input
               type="radio"
+              className="accent-ui-primary"
               name="video-scrape-mode"
               value="skip"
               checked={mode === 'skip'}
@@ -999,7 +1005,7 @@ export default function VideoScrapeSettingsModal({
             type="button"
             onClick={submit}
             disabled={!canSave}
-            className="ml-2 rounded bg-ui-primary px-3 py-1 text-sm text-white hover:bg-ui-primary-hover disabled:bg-gray-300 dark:disabled:bg-ui-hover"
+            className="ml-2 rounded bg-ui-primary px-3 py-1 text-sm text-white hover:bg-ui-primary-hover disabled:bg-gray-300 dark:disabled:bg-ui-hover dark:disabled:text-ui-faint"
           >
             {saving
               ? zh('保存中…', 'Saving...')

@@ -169,7 +169,7 @@ export function JavCustomTagModal({ open, item, onClose, onSaved }) {
               void addCustomTag()
             }}
             placeholder={zh('搜索或输入新的自定义标签', 'Search or enter a new custom tag')}
-            className="min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+            className="form-field min-w-0 flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             disabled={saving || creating}
           />
           {search.trim() ? (

@@ -67,6 +67,10 @@ export default function DisplaySettings({ onClose, onError, onWaterfallChange, i
         setDraft((current) => ({ ...current, javIdolTagMaxRowsInput: value }))
       }
       javTagMaxRowsInput={draft.javTagMaxRowsInput}
+      javHighSaturationTagsInput={draft.javHighSaturationTagsInput}
+      onJavHighSaturationTagsChange={(value) =>
+        setDraft((current) => ({ ...current, javHighSaturationTagsInput: value }))
+      }
       onJavTagMaxRowsChange={(value) =>
         setDraft((current) => ({ ...current, javTagMaxRowsInput: value }))
       }

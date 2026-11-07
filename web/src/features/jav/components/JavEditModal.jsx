@@ -583,7 +583,7 @@ function JavEditForm({
               }
               if (error) setError('')
             }}
-            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+            className="form-field mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             disabled={saving || translating}
           />
         </div>
@@ -642,7 +642,7 @@ function JavEditForm({
               setRefreshedTitle(null)
               if (error) setError('')
             }}
-            className="mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+            className="form-field mt-2 w-full resize-y rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             disabled={saving || translating}
           />
           <p className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
@@ -668,7 +668,7 @@ function JavEditForm({
               if (error) setError('')
             }}
             placeholder="https://..."
-            className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+            className="form-field mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             disabled={saving}
           />
           <div className="mt-1 text-xs text-gray-500 dark:text-ui-faint">
@@ -685,7 +685,7 @@ function JavEditForm({
               type="date"
               value={releaseDate}
               onChange={(event) => setReleaseDate(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+              className="form-field mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
           </label>
@@ -697,7 +697,7 @@ function JavEditForm({
               step="1"
               value={durationMin}
               onChange={(event) => setDurationMin(event.target.value)}
-              className="mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+              className="form-field mt-2 w-full rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               disabled={saving}
             />
           </label>
@@ -775,7 +775,7 @@ function JavEditForm({
                     void addIdol()
                   }}
                   placeholder={zh('搜索或输入女优名称', 'Search or enter an idol name')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+                  className="form-field min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   disabled={saving || creatingIdol || optionsLoading}
                 />
                 <button
@@ -893,7 +893,7 @@ function JavEditForm({
                     void addScrapedTag()
                   }}
                   placeholder={zh('搜索或输入刮削标签', 'Search or enter a scraped tag')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+                  className="form-field min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   disabled={saving || creatingScrapedTag || tagOptionsLoading}
                 />
                 <button
@@ -1003,7 +1003,7 @@ function JavEditForm({
                     void addCustomTag()
                   }}
                   placeholder={zh('搜索或输入自定义标签', 'Search or enter a custom tag')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+                  className="form-field min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   disabled={saving || creatingUserTag}
                 />
                 <button

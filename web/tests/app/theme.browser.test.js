@@ -59,7 +59,7 @@ test(
       await evaluate(`getComputedStyle(document.body).backgroundColor`),
       'rgb(24, 24, 24)'
     )
-    assert.equal(await evaluate(`getComputedStyle(${selector}).backgroundColor`), 'rgb(38, 38, 38)')
+    assert.equal(await evaluate(`getComputedStyle(${selector}).backgroundColor`), 'rgb(24, 24, 24)')
     assert.equal(await evaluate(`getComputedStyle(${selector}).color`), 'rgb(242, 242, 242)')
     assert.equal(await evaluate(`getComputedStyle(document.documentElement).colorScheme`), 'dark')
     assert.equal(
@@ -84,10 +84,6 @@ test(
         `getComputedStyle(document.querySelector('.side-tabs__button--active'), '::before').backgroundColor`
       ),
       'rgb(59, 130, 246)'
-    )
-    assert.equal(
-      await evaluate(`getComputedStyle(document.getElementById('appearance-theme-hint')).color`),
-      'rgb(163, 163, 163)'
     )
     assert.equal(await evaluate(`getComputedStyle(${selector}).borderTopColor`), 'rgb(56, 56, 56)')
 
@@ -231,7 +227,7 @@ test('the saved theme also applies before sign-in', options, async (t) => {
     await evaluate(
       `getComputedStyle(document.querySelector('input[type="password"]')).backgroundColor`
     ),
-    'rgb(38, 38, 38)'
+    'rgb(24, 24, 24)'
   )
   assert.equal(
     await evaluate(`getComputedStyle(document.querySelector('input[type="password"]')).color`),
@@ -253,12 +249,12 @@ test(
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
     await waitFor(`document.querySelector('.pagination-sort-caret')`)
     const activeTab = `document.querySelector('.side-tabs__button--active')`
-    await waitFor(`getComputedStyle(${activeTab}).backgroundColor === 'rgb(48, 48, 48)'`)
+    await waitFor(`getComputedStyle(${activeTab}).backgroundColor === 'rgb(30, 58, 95)'`)
     assert.equal(
       await evaluate(`getComputedStyle(${activeTab}).backgroundColor`),
-      'rgb(48, 48, 48)'
+      'rgb(30, 58, 95)'
     )
-    assert.equal(await evaluate(`getComputedStyle(${activeTab}).color`), 'rgb(242, 242, 242)')
+    assert.equal(await evaluate(`getComputedStyle(${activeTab}).color`), 'rgb(147, 197, 253)')
     assert.equal(await evaluate(`getComputedStyle(${activeTab}).boxShadow`), 'none')
     assert.equal(
       await evaluate(
@@ -408,7 +404,7 @@ test(
       assert.equal(await evaluate(`${control}.matches(':disabled')`), true)
       assert.equal(
         await evaluate(`getComputedStyle(${control}).backgroundColor`),
-        'rgb(24, 24, 24)'
+        'rgb(48, 48, 48)'
       )
     }
     await evaluate(`${section}.querySelector('header button').click()`)
@@ -417,7 +413,7 @@ test(
       await waitFor(`!${control}.matches(':disabled')`)
       assert.equal(
         await evaluate(`getComputedStyle(${control}).backgroundColor`),
-        'rgb(38, 38, 38)'
+        'rgb(24, 24, 24)'
       )
     }
     await evaluate(`${button('Check for Updates')}.click()`)

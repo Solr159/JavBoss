@@ -72,7 +72,7 @@ export default function TagPickerModal({
           value={newTagName}
           onChange={(event) => setNewTagName(event.target.value)}
           placeholder={zh('新建标签', 'New tag')}
-          className="min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+          className="form-field min-w-0 flex-1 rounded border border-gray-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           disabled={creating}
         />
         <Button

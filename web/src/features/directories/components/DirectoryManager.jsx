@@ -167,7 +167,7 @@ const directoryWorkStatusDisplay = (status) => {
       return {
         label: zh('当前状态：空闲', 'Status: Idle'),
         badge: 'bg-zinc-100 dark:bg-ui-muted text-zinc-600 dark:text-ui-secondary',
-        dot: 'bg-zinc-400 dark:bg-ui-hover',
+        dot: 'bg-zinc-400 dark:bg-ui-faint',
       }
   }
 }
@@ -567,7 +567,7 @@ export default function DirectoryManager({
                         <input
                           value={editPath}
                           onChange={(e) => setEditPath(e.target.value)}
-                          className="w-full rounded border px-3 py-2 text-sm sm:min-w-[420px] sm:flex-1"
+                          className="form-field w-full rounded border px-3 py-2 text-sm sm:min-w-[420px] sm:flex-1"
                           placeholder={pathPlaceholder}
                         />
                         <button
@@ -673,7 +673,7 @@ export default function DirectoryManager({
                             type="button"
                             size="small"
                             aria-label={zh('上次扫描详情', 'Last scan details')}
-                            className="!-ml-1.5 !h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 dark:bg-ui-muted dark:text-ui-faint dark:text-ui-text"
+                            className="!-ml-1.5 !h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 dark:!text-ui-faint dark:hover:!bg-ui-hover dark:hover:!text-ui-secondary"
                           >
                             <InfoOutlinedIcon sx={{ fontSize: 15 }} />
                           </IconButton>
@@ -689,7 +689,7 @@ export default function DirectoryManager({
                               onClick={() => openScanSettings(d)}
                               disabled={d.is_delete || savingScanSettingsId === d.id}
                               aria-label={zh('编辑扫描设置', 'Edit scan settings')}
-                              className="!h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 disabled:!opacity-60 dark:bg-ui-muted dark:text-ui-faint dark:text-ui-text"
+                              className="!h-6 !w-6 !p-0.5 !text-zinc-500 hover:!bg-zinc-100 hover:!text-zinc-900 disabled:!opacity-60 dark:!text-ui-faint dark:hover:!bg-ui-hover dark:hover:!text-ui-secondary"
                             >
                               {savingScanSettingsId === d.id ? (
                                 <CircularProgress size={13} color="inherit" />
@@ -825,7 +825,7 @@ export default function DirectoryManager({
               value={path}
               onChange={(e) => setPath(e.target.value)}
               placeholder={pathPlaceholder}
-              className="flex-1 rounded border px-3 py-2"
+              className="form-field flex-1 rounded border px-3 py-2"
             />
             <button
               type="button"
@@ -1004,7 +1004,7 @@ export default function DirectoryManager({
                           '请填写文件夹名称，不包含路径分隔符或特殊字符',
                           'Enter a folder name without path separators or special characters'
                         )}
-                        className="w-40 min-w-0 max-w-[50%] shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-inset focus:ring-blue-500 dark:border-ui-border"
+                        className="form-field w-40 min-w-0 max-w-[50%] shrink-0 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-inset focus:ring-blue-500"
                       />
                     </div>
                     <div className="text-sm font-medium text-zinc-900 dark:text-ui-text">
@@ -1158,6 +1158,7 @@ export default function DirectoryManager({
           </div>
           <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-ui-border">
             <label
+              htmlFor="directory-auto-scan"
               aria-label={zh('自动扫描', 'Automatic scan')}
               className="flex cursor-pointer items-center justify-between gap-4 px-4 py-3"
             >
@@ -1174,13 +1175,16 @@ export default function DirectoryManager({
                     : zh('已关闭，可使用手动扫描', 'Off; manual scans remain available')}
                 </span>
               </span>
-              <input
-                type="checkbox"
+              <Switch
+                size="small"
                 checked={scanSettingsEnabled}
                 onChange={(event) => setScanSettingsEnabled(event.target.checked)}
-                className="peer sr-only"
+                inputProps={{
+                  role: 'switch',
+                  id: 'directory-auto-scan',
+                  'aria-label': zh('自动扫描', 'Automatic scan'),
+                }}
               />
-              <span className="relative h-6 w-11 shrink-0 rounded-full bg-zinc-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-transform peer-checked:bg-ui-primary peer-checked:after:translate-x-5 dark:bg-ui-hover" />
             </label>
             {scanSettingsEnabled && (
               <label className="flex items-center gap-2 border-t border-zinc-200 px-4 py-3 text-sm text-zinc-700 dark:border-ui-border dark:text-ui-secondary">
@@ -1192,7 +1196,7 @@ export default function DirectoryManager({
                   step="1"
                   value={scanSettingsIntervalMinutes}
                   onChange={(event) => setScanSettingsIntervalMinutes(event.target.value)}
-                  className="w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:text-ui-text dark:focus:ring-ui-blue-border"
+                  className="form-field w-24 rounded-lg border border-zinc-300 px-3 py-1.5 text-center font-medium tabular-nums text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
                 <span>{zh('分钟', 'minutes')}</span>
               </label>

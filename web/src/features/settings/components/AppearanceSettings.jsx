@@ -16,20 +16,13 @@ export default function AppearanceSettings() {
           >
             {zh('外观主题', 'Appearance theme')}
           </label>
-          <p id="appearance-theme-hint" className="mt-1 text-xs text-zinc-500 dark:text-ui-faint">
-            {zh(
-              '立即生效，仅保存在当前浏览器。',
-              'Applies immediately and is saved in this browser.'
-            )}
-          </p>
         </div>
         <select
           id="appearance-theme"
-          aria-describedby="appearance-theme-hint"
           value={preference}
           disabled={!setPreference}
           onChange={(event) => setStorageError(!setPreference(event.target.value))}
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus-visible:border-blue-400 dark:focus-visible:ring-ui-blue-border"
+          className="form-field rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
         >
           <option value="light">{zh('浅色', 'Light')}</option>
           <option value="dark">{zh('深色', 'Dark')}</option>

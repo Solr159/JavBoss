@@ -232,7 +232,7 @@ function CreateGroupModal({ open, name, creating, onNameChange, onClose, onSubmi
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           placeholder={zh('收藏夹名称', 'Favorite name')}
-          className="h-9 w-full rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+          className="form-field h-9 w-full rounded border border-gray-200 px-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           disabled={creating}
         />
       </div>
@@ -460,7 +460,7 @@ function FavoriteGroupEditModal({
           <input
             value={groupName}
             onChange={(event) => setGroupName(event.target.value)}
-            className="h-8 min-w-0 flex-1 rounded border border-gray-200 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+            className="form-field h-8 min-w-0 flex-1 rounded border border-gray-200 px-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             disabled={saving}
           />
           <Button

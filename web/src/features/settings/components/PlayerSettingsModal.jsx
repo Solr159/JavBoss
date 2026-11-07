@@ -163,7 +163,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
               }}
               onFocus={() => setError('')}
               placeholder={zh('聚焦后按键', 'Press a key')}
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-ui-border dark:bg-ui-surface"
+              className="form-field rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
             <select
               value={row.action}
@@ -181,7 +181,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
                 setError('')
                 setSuccess('')
               }}
-              className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+              className="form-field rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
             >
               <option value={PLAYER_HOTKEY_ACTIONS.SEEK}>{zh('调节进度', 'Seek')}</option>
               <option value={PLAYER_HOTKEY_ACTIONS.VOLUME}>{zh('调节音量', 'Volume')}</option>
@@ -198,7 +198,7 @@ export default function PlayerSettingsModal({ hotkeys, onSave }) {
                     setError('')
                     setSuccess('')
                   }}
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+                  className="form-field w-full rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-sm"
                 />
                 <span className="shrink-0 text-sm text-gray-500 dark:text-ui-faint">
                   {row.action === PLAYER_HOTKEY_ACTIONS.VOLUME ? '%' : zh('秒', 'sec')}

@@ -131,7 +131,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                       readOnly
                       value={item.token}
                       onFocus={(event) => event.target.select()}
-                      className="w-full min-w-0 rounded border border-zinc-200 bg-zinc-50 py-2 pl-2 pr-10 font-mono text-xs dark:border-ui-border dark:bg-ui-canvas"
+                      className="form-field w-full min-w-0 rounded border border-zinc-200 bg-zinc-50 py-2 pl-2 pr-10 font-mono text-xs"
                     />
                     <button
                       type="button"
@@ -218,7 +218,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder={zh('例如：笔记本 Chrome', 'e.g. Laptop Chrome')}
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-ui-border"
+                  className="form-field mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
                 />
               </label>
             ) : (
@@ -242,7 +242,7 @@ export default function ExtensionTokenSettings({ onToast }) {
                   disabled={busy}
                   value={days}
                   onChange={(event) => setDays(Number(event.target.value))}
-                  className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm dark:border-ui-border"
+                  className="form-field mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm"
                 >
                   {[30, 90, 365, 0].map((value) => (
                     <option key={value} value={value}>

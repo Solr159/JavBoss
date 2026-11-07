@@ -138,7 +138,7 @@ export default function TitleTranslationBatchSettings({ dirty, target = 'title' 
                   {zh('翻译范围', 'Translation scope')}
                 </span>
                 <select
-                  className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text"
+                  className="form-field block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                   value={scope}
                   onChange={(e) => {
                     setScope(e.target.value)

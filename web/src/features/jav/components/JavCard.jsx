@@ -29,7 +29,7 @@ import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
 import WatchTimeIcons from '@/features/playback/components/WatchTimeIcons'
 
 export default function JavCard(props) {
-  const { portrait = false } = props
+  const { portrait = false, highSaturationTags = true } = props
   const [coverCropEditorOpen, setCoverCropEditorOpen] = useState(false)
   const coverButtonSizeClassName = portrait ? 'h-7 w-7' : 'h-8 w-8'
   const coverSmallButtonSizeClassName = portrait ? 'h-6 w-6' : 'h-7 w-7'
@@ -654,6 +654,7 @@ export default function JavCard(props) {
           )}
           {!hideTags && tags.length > 0 && (
             <JavTagList
+              highSaturation={highSaturationTags}
               compact={portrait}
               tags={tags}
               maxRows={tagMaxRows}
