@@ -198,9 +198,10 @@ body.has-page-scroll .sticky-pagination {
   color: var(--theme-blue-text, #1e3a8a);
 }
 
-.side-tabs__button--active {
-  background: var(--theme-hover, #dbeafe);
-  color: var(--theme-text, #1e40af);
+.side-tabs__button--active,
+.side-tabs__button--active:hover {
+  background: var(--theme-blue-surface, #dbeafe);
+  color: var(--theme-blue-text, #1e40af);
   box-shadow: inset 0 0 0 1px var(--theme-blue-border, #bfdbfe);
 }
 

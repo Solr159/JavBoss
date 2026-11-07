@@ -253,12 +253,12 @@ test(
     await command('Page.navigate', { url: `${origin}/tests/fixtures/app.html?view=jav` })
     await waitFor(`document.querySelector('.pagination-sort-caret')`)
     const activeTab = `document.querySelector('.side-tabs__button--active')`
-    await waitFor(`getComputedStyle(${activeTab}).backgroundColor === 'rgb(48, 48, 48)'`)
+    await waitFor(`getComputedStyle(${activeTab}).backgroundColor === 'rgb(30, 58, 95)'`)
     assert.equal(
       await evaluate(`getComputedStyle(${activeTab}).backgroundColor`),
-      'rgb(48, 48, 48)'
+      'rgb(30, 58, 95)'
     )
-    assert.equal(await evaluate(`getComputedStyle(${activeTab}).color`), 'rgb(242, 242, 242)')
+    assert.equal(await evaluate(`getComputedStyle(${activeTab}).color`), 'rgb(147, 197, 253)')
     assert.equal(await evaluate(`getComputedStyle(${activeTab}).boxShadow`), 'none')
     assert.equal(
       await evaluate(
