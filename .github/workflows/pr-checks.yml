@@ -87,9 +87,13 @@ jobs:
         run: go test -count=1 -timeout=2m -ldflags="-H windowsgui" ./internal/api ./cmd/server -run '^Test(HTTPShutdownEndsWatchedTimeStreams|RunClientErrorCleansUpPlayers)$'
 
   frontend:
-    name: Frontend checks
+    name: Frontend checks (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     env:
       CHROME_BIN: /usr/bin/google-chrome
     defaults:
@@ -117,16 +121,19 @@ jobs:
           node --input-type=module -e "import assert from 'node:assert/strict'; assert.equal(typeof WebSocket, 'function');"
 
       - name: Lint frontend
+        if: matrix.shard == 1
         run: npm run lint
 
       - name: Check frontend formatting
+        if: matrix.shard == 1
         run: npm run format:check
 
       - name: Test frontend, including browser tests
-        # Avoid starting several Chrome/Vite instances at once on the runner.
-        run: npm test -- --test-concurrency=1 --test-reporter=tap
+        # Run shards on separate runners; keep Chrome/Vite serial within each shard.
+        run: npm test -- --test-shard=${{ matrix.shard }}/2 --test-concurrency=1 --test-reporter=tap
 
       - name: Build frontend
+        if: matrix.shard == 1
         run: npm run build
 
   tooling:
