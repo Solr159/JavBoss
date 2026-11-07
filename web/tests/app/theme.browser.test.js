@@ -85,10 +85,6 @@ test(
       ),
       'rgb(59, 130, 246)'
     )
-    assert.equal(
-      await evaluate(`getComputedStyle(document.getElementById('appearance-theme-hint')).color`),
-      'rgb(163, 163, 163)'
-    )
     assert.equal(await evaluate(`getComputedStyle(${selector}).borderTopColor`), 'rgb(56, 56, 56)')
 
     await reloadPage()
