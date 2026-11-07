@@ -78,10 +78,10 @@ curl -fsSL https://raw.githubusercontent.com/Solr159/JavBoss/main/scripts/instal
 
 点击下载对应系统的最新版发布包并解压：
 
-- [Windows](https://github.com/Solr159/JavBoss/releases/download/v2.1.4/javboss-v2.1.4-windows-x86_64.zip)
-- [Linux](https://github.com/Solr159/JavBoss/releases/download/v2.1.4/javboss-v2.1.4-linux-x86_64.zip)
-- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v2.1.4/javboss-v2.1.4-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
-- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v2.1.4/javboss-v2.1.4-macos-arm64.zip)（适用于 M 芯片的 macOS）
+- [Windows](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-v2.1.5-windows-x86_64.zip)
+- [Linux](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-v2.1.5-linux-x86_64.zip)
+- [macOS-x86_64](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-v2.1.5-macos-x86_64.zip)（适用于 Intel 芯片的 macOS）
+- [macOS-arm64](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-v2.1.5-macos-arm64.zip)（适用于 M 芯片的 macOS）
 
 也可以前往 [Releases](https://github.com/Solr159/JavBoss/releases) 页面查看所有版本。
 
@@ -176,7 +176,7 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 JavBoss 访问地址和 API 令牌，点击“测试连接”确认可用。
 3. 按需开启功能，设置修改后自动保存。
 
-扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.1/javboss-browser-extension-v0.14.1.zip)下载。
+扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-browser-extension-v0.14.2.zip)下载。
 
 
 ## 如何升级版本
