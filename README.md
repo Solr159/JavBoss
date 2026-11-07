@@ -161,6 +161,34 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 
 **请注意一次扫描并不能保证所有可刮削的视频都被成功刮削，原因是每次扫描过程中每个视频只会尝试一次刮削，可能会因为网络抖动或者网站风控等原因导致部分请求失败，个人实测每次扫描约1%左右的视频会刮削失败，需要再扫描一次。**
 
+## 如何升级版本
+
+从 **v2.1.4** 起，可在应用内通过 `设置` → `检查更新` 直接升级到新版本（Docker 部署除外）。以下旧更新方式仍然可用：
+
+<details>
+<summary>旧版本及 Docker 更新说明（点击展开）</summary>
+
+<br>
+
+**一键安装用户**
+
+先退出正在运行的 JavBoss，然后重新执行一键安装命令即可升级。
+
+**手动下载用户**
+
+下载并解压新版本后，将旧版本目录中的 `data/` 文件夹复制到新版本目录，然后启动新版本。
+
+**Docker 用户**
+
+进入 `docker-compose.yaml` 所在目录，拉取新镜像并重启：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+</details>
+
 ## Chrome 扩展说明
 
 `JavBoss 助手` 是随程序包一起发布的可选 Chrome 扩展，目前支持以下功能：
@@ -177,26 +205,6 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 3. 按需开启功能，设置修改后自动保存。
 
 扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-browser-extension-v0.14.2.zip)下载。
-
-
-## 如何升级版本
-
-#### 一键安装用户
-
-先退出正在运行的 JavBoss，然后重新执行一键安装命令即可升级。
-
-#### 手动下载用户
-
-下载并解压新版本后，将旧版本目录中的 `data/` 文件夹复制到新版本目录，然后启动新版本。
-
-#### Docker 用户
-
-进入 `docker-compose.yaml` 所在目录，拉取新镜像并重启：
-
-```bash
-docker compose pull
-docker compose up -d
-```
 
 
 ## Client 模式
