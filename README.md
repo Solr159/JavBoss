@@ -181,6 +181,10 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 
 ## 如何升级版本
 
+从 **v2.1.4** 起，可直接在应用内通过 `设置` → `检查更新` 直接升级到新版本（Docker 部署除外）。以下旧更新方式仍然可用：
+<details>
+<summary>旧版本及 Docker 更新说明（点击展开）</summary>
+
 #### 一键安装用户
 
 先退出正在运行的 JavBoss，然后重新执行一键安装命令即可升级。
@@ -198,6 +202,7 @@ docker compose pull
 docker compose up -d
 ```
 
+</details>
 
 ## Client 模式
 
