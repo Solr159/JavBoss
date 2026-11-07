@@ -125,7 +125,7 @@ docker compose up -d
 
 添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
-Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[Client 模式](#client-模式)。
+Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[Client 模式](#client-mode)。
 
 
 </dd>
@@ -149,7 +149,9 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
   - 你可以随时关闭应用程序，下次打开所有任务会自动重启。
   - JAV 模式下的女优详情、厂商、系列等信息会逐渐补齐，请耐心等待（补齐速度：女优≈厂商>系列）。
 
-## 目录扫描和 JAV 刮削说明
+<a name="目录扫描和-jav-刮削说明"></a>
+<details>
+<summary><strong>目录扫描和 JAV 刮削说明</strong></summary>
 
 程序默认会自动持续对目录进行扫描，扫描过程中同步进行 JAV 刮削，相邻两次扫描间隔为1分钟。
 
@@ -161,29 +163,13 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 
 **请注意一次扫描并不能保证所有可刮削的视频都被成功刮削，原因是每次扫描过程中每个视频只会尝试一次刮削，可能会因为网络抖动或者网站风控等原因导致部分请求失败，个人实测每次扫描约1%左右的视频会刮削失败，需要再扫描一次。**
 
-## Chrome 扩展说明
+</details>
 
-`JavBoss 助手` 是随程序包一起发布的可选 Chrome 扩展，目前支持以下功能：
-
-- **手动刮削辅助回填**：手动刮削时可点击跳转外部网站，进入影片详情页后，点击页面右下角的“回填到 JavBoss”，即可自动提取影片信息，返回 JavBoss 检查并保存。
-- **JavDB 辅助跳转**：在各个卡片中点击 JavDB 图标，可直接跳转到对应详情页。此功能默认开启，关闭后跳转到搜索页。
-- **显示已拥有状态**：在外部网站的影片列表和详情页标记“已拥有”，此功能默认开启，可在扩展中关闭。
-- **磁力下载**：开启扩展中的“启用磁力下载”后，在任意网页点击磁力链接，确认即可提交到 JavBoss 下载队列，通过 CloudDrive2 创建云端离线任务并下载到本地。使用前需在 JavBoss 的“下载”→“下载设置”中配置 CloudDrive2 和本地下载目录。
-
-**连接设置：**`显示已拥有状态`和`磁力下载`需要先连接 JavBoss：
-
-1. 在 JavBoss 的“全局设置”→“安全”→“浏览器扩展 API 令牌”中新建令牌并复制。
-2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 JavBoss 访问地址和 API 令牌，点击“测试连接”确认可用。
-3. 按需开启功能，设置修改后自动保存。
-
-扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-browser-extension-v0.14.2.zip)下载。
-
-
-## 如何升级版本
+<a name="如何升级版本"></a>
+<details>
+<summary><strong>如何升级版本</strong></summary>
 
 从 **v2.1.4** 起，可直接在应用内通过 `设置` → `检查更新` 直接升级到新版本（Docker 部署除外）。以下旧更新方式仍然可用：
-<details>
-<summary>旧版本及 Docker 更新说明（点击展开）</summary>
 
 #### 一键安装用户
 
@@ -204,7 +190,30 @@ docker compose up -d
 
 </details>
 
-## Client 模式
+<a name="chrome-扩展说明"></a>
+<details>
+<summary><strong>Chrome 扩展说明</strong></summary>
+
+`JavBoss 助手` 是随程序包一起发布的可选 Chrome 扩展，目前支持以下功能：
+
+- **手动刮削辅助回填**：手动刮削时可点击跳转外部网站，进入影片详情页后，点击页面右下角的“回填到 JavBoss”，即可自动提取影片信息，返回 JavBoss 检查并保存。
+- **JavDB 辅助跳转**：在各个卡片中点击 JavDB 图标，可直接跳转到对应详情页。此功能默认开启，关闭后跳转到搜索页。
+- **显示已拥有状态**：在外部网站的影片列表和详情页标记“已拥有”，此功能默认开启，可在扩展中关闭。
+- **磁力下载**：开启扩展中的“启用磁力下载”后，在任意网页点击磁力链接，确认即可提交到 JavBoss 下载队列，通过 CloudDrive2 创建云端离线任务并下载到本地。使用前需在 JavBoss 的“下载”→“下载设置”中配置 CloudDrive2 和本地下载目录。
+
+**连接设置：**`显示已拥有状态`和`磁力下载`需要先连接 JavBoss：
+
+1. 在 JavBoss 的“全局设置”→“安全”→“浏览器扩展 API 令牌”中新建令牌并复制。
+2. 点击浏览器工具栏中的“JavBoss 助手”，在“连接设置”中填写 JavBoss 访问地址和 API 令牌，点击“测试连接”确认可用。
+3. 按需开启功能，设置修改后自动保存。
+
+扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-browser-extension-v0.14.2.zip)下载。
+
+</details>
+
+<a id="client-mode" name="client-mode"></a>
+<details>
+<summary><strong>Client 模式</strong></summary>
 
 **备注：此模式的目的是让用户在远程访问 JavBoss 时，可以使用本地的 MPV 播放器（比如 JavBoss 通过 docker 部署在 NAS 中，在某个局域网 PC 里访问）。**
 
@@ -218,7 +227,11 @@ server_url = "http://192.168.1.100:8655"
 
 也可以通过加上命令行临时参数 `--server-url http://192.168.1.100:8655` 启动。
 
-## Q&A
+</details>
+
+<a name="qa"></a>
+<details>
+<summary><strong>Q&amp;A</strong></summary>
 
 - Q: 使用时要一直确保外网访问通畅吗？
 - A: JavBoss 所有的信息读取来源于 `data/` 目录，已经看到的信息都是永远离线可用的。无法访问外网意味着 JavBoss 无法做后续的 JAV 信息的抓取和更新，已入库的信息不受影响。
@@ -242,6 +255,8 @@ server_url = "http://192.168.1.100:8655"
 
 - Q: 怎么修改启动端口？
 - A: 找到程序目录里的 `config.toml` 文件，修改其中 port 的值更换启动端口。
+
+</details>
 
 ## 开发者文档
 
