@@ -125,7 +125,7 @@ docker compose up -d
 
 添加目录时直接填写宿主机路径，例如 `/mnt/disk1/videos`，程序会自动映射到容器内可访问路径。
 
-Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[Client 模式](#client-mode)。
+Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[Client 模式](#client-模式)。
 
 
 </dd>
@@ -161,11 +161,14 @@ Docker 部署下默认只能使用网页播放器，如需使用 MPV 可参考[C
 
 **请注意一次扫描并不能保证所有可刮削的视频都被成功刮削，原因是每次扫描过程中每个视频只会尝试一次刮削，可能会因为网络抖动或者网站风控等原因导致部分请求失败，个人实测每次扫描约1%左右的视频会刮削失败，需要再扫描一次。**
 
-<a name="如何升级版本"></a>
-<details>
-<summary><strong>如何升级版本</strong></summary>
+## 如何升级版本
 
-从 **v2.1.4** 起，可直接在应用内通过 `设置` → `检查更新` 直接升级到新版本（Docker 部署除外）。以下旧更新方式仍然可用：
+从 **v2.1.4** 起，可在应用内通过 `设置` → `检查更新` 直接升级到新版本（Docker 部署除外）。以下旧更新方式仍然可用：
+
+<details>
+<summary>旧版本及 Docker 更新说明（点击展开）</summary>
+
+<br>
 
 **一键安装用户**
 
@@ -186,9 +189,7 @@ docker compose up -d
 
 </details>
 
-<a name="chrome-扩展说明"></a>
-<details>
-<summary><strong>Chrome 扩展说明</strong></summary>
+## Chrome 扩展说明
 
 `JavBoss 助手` 是随程序包一起发布的可选 Chrome 扩展，目前支持以下功能：
 
@@ -205,11 +206,8 @@ docker compose up -d
 
 扩展不是必须的，有以上需要的可[点击此处](https://github.com/Solr159/JavBoss/releases/download/v2.1.5/javboss-browser-extension-v0.14.2.zip)下载。
 
-</details>
 
-<a id="client-mode" name="client-mode"></a>
-<details>
-<summary><strong>Client 模式</strong></summary>
+## Client 模式
 
 **备注：此模式的目的是让用户在远程访问 JavBoss 时，可以使用本地的 MPV 播放器（比如 JavBoss 通过 docker 部署在 NAS 中，在某个局域网 PC 里访问）。**
 
@@ -223,11 +221,7 @@ server_url = "http://192.168.1.100:8655"
 
 也可以通过加上命令行临时参数 `--server-url http://192.168.1.100:8655` 启动。
 
-</details>
-
-<a name="qa"></a>
-<details>
-<summary><strong>Q&amp;A</strong></summary>
+## Q&A
 
 - Q: 使用时要一直确保外网访问通畅吗？
 - A: JavBoss 所有的信息读取来源于 `data/` 目录，已经看到的信息都是永远离线可用的。无法访问外网意味着 JavBoss 无法做后续的 JAV 信息的抓取和更新，已入库的信息不受影响。
@@ -251,8 +245,6 @@ server_url = "http://192.168.1.100:8655"
 
 - Q: 怎么修改启动端口？
 - A: 找到程序目录里的 `config.toml` 文件，修改其中 port 的值更换启动端口。
-
-</details>
 
 ## 开发者文档
 
