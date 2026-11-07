@@ -26,7 +26,7 @@ env:
 
 jobs:
   build:
-    runs-on: ${{ fromJson('{"windows-x86_64":"ubuntu-latest","linux-x86_64":"ubuntu-latest","macos-x86_64":"macos-15-intel","macos-arm64":"macos-14"}')[inputs.platform] }}
+    runs-on: ${{ fromJson('{"windows-x86_64":"ubuntu-latest","linux-x86_64":"ubuntu-latest","macos-x86_64":"macos-15-intel","macos-arm64":"macos-15"}')[inputs.platform] }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
