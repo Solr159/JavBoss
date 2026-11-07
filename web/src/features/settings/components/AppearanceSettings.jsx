@@ -16,16 +16,9 @@ export default function AppearanceSettings() {
           >
             {zh('外观主题', 'Appearance theme')}
           </label>
-          <p id="appearance-theme-hint" className="mt-1 text-xs text-zinc-500 dark:text-ui-faint">
-            {zh(
-              '立即生效，仅保存在当前浏览器。',
-              'Applies immediately and is saved in this browser.'
-            )}
-          </p>
         </div>
         <select
           id="appearance-theme"
-          aria-describedby="appearance-theme-hint"
           value={preference}
           disabled={!setPreference}
           onChange={(event) => setStorageError(!setPreference(event.target.value))}
