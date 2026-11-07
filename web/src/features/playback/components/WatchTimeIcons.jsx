@@ -52,7 +52,7 @@ export default function WatchTimeIcons({ watchedMs, entityType, entityId, compac
             >
               <PlayCircleFilledIcon
                 viewBox="2 2 20 20"
-                className="text-teal-100"
+                className="text-teal-100 dark:text-teal-900"
                 sx={{ fontSize: iconSize }}
               />
               <PlayCircleFilledIcon

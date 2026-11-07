@@ -407,7 +407,7 @@ func TestDisplayConfigPersists(t *testing.T) {
 	testAuthService(deps, t)
 	router := gin.New()
 	RegisterRoutes(router)
-	for _, key := range []string{"jav_card_portrait", "jav_hide_studio", "video_show_directory_bar"} {
+	for _, key := range []string{"jav_card_portrait", "jav_high_saturation_tags", "jav_hide_studio", "video_show_directory_bar"} {
 		for _, value := range []string{"true", "false"} {
 			req := httptest.NewRequest(http.MethodPatch, "/config", strings.NewReader(`{"`+key+`":`+value+`}`))
 			req.Header.Set("Content-Type", "application/json")

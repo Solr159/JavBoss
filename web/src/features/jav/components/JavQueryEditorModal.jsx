@@ -649,13 +649,13 @@ export default function JavQueryEditorModal({
             >
               {zh('关键词', 'Keyword')}
             </label>
-            <div className="flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 dark:border-ui-border dark:bg-ui-surface">
+            <div className="form-field-group flex items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2">
               <SearchIcon fontSize="small" className="text-slate-400 dark:text-ui-faint" />
               <input
                 id="jav-query-keyword"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                className="min-w-0 flex-1 border-0 text-sm outline-none"
+                className="form-field-input min-w-0 flex-1 border-0 bg-transparent text-sm outline-none"
                 placeholder={zh('番号或标题关键词', 'Code or title keyword')}
               />
               {keyword ? (
@@ -717,7 +717,7 @@ export default function JavQueryEditorModal({
                   setPrefixPickerOpen(true)
                   setSelectedPrefix(null)
                 }}
-                className="w-full rounded border border-slate-200 px-3 py-2 text-sm uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-ui-border"
+                className="form-field w-full rounded border border-slate-200 px-3 py-2 text-sm uppercase outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder={zh('搜索并选择番号', 'Search and choose a code')}
               />
               {prefixPickerOpen ? (
@@ -801,7 +801,7 @@ export default function JavQueryEditorModal({
                   setIdolSearch(event.target.value)
                   setIdolPickerOpen(true)
                 }}
-                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-ui-border"
+                className="form-field w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder={zh('搜索女优', 'Search idols')}
               />
               {idolPickerOpen ? (
@@ -895,7 +895,7 @@ export default function JavQueryEditorModal({
                   setTagSearch(event.target.value)
                   setTagPickerOpen(true)
                 }}
-                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-ui-border"
+                className="form-field w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder={zh('搜索标签', 'Search tags')}
               />
               {tagPickerOpen ? (
@@ -997,7 +997,7 @@ export default function JavQueryEditorModal({
                   setStudioPickerOpen(true)
                   setSelectedStudio(null)
                 }}
-                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-ui-border"
+                className="form-field w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder={zh('搜索并选择片商', 'Search and choose a studio')}
               />
               {studioPickerOpen ? (
@@ -1087,7 +1087,7 @@ export default function JavQueryEditorModal({
                   setSeriesPickerOpen(true)
                   setSelectedSeries(null)
                 }}
-                className="w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:border-ui-border"
+                className="form-field w-full rounded border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 placeholder={zh('搜索并选择系列', 'Search and choose a series')}
               />
               {seriesPickerOpen ? (

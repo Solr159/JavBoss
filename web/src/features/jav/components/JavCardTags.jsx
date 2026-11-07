@@ -235,6 +235,7 @@ export function JavTagList({
   tags,
   maxRows,
   compact = false,
+  highSaturation = true,
   buildTagFilterHref,
   onTagClick,
   onFilterLinkClick,
@@ -329,13 +330,17 @@ export function JavTagList({
         {renderedTags.map((tag) => {
           const isUser = isUserJavTag(tag)
           const tagClass = isUser
-            ? 'bg-emerald-500 hover:bg-emerald-600'
-            : 'bg-orange-500 hover:bg-orange-600'
+            ? highSaturation
+              ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+              : 'bg-emerald-200 text-emerald-700 hover:bg-emerald-300 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-600'
+            : highSaturation
+              ? 'bg-orange-500 text-white hover:bg-orange-600'
+              : 'bg-orange-200 text-orange-700 hover:bg-orange-300 dark:bg-orange-500 dark:text-white dark:hover:bg-orange-600'
           return (
             <a
               key={`${tag.id || tag.name}-${tag.provider || 0}`}
               href={buildTagFilterHref(tag)}
-              className={`rounded-full font-medium text-white transition ${tagClass} ${tagSizeClassName}`}
+              className={`rounded-full font-medium transition ${tagClass} ${tagSizeClassName}`}
               onClick={(event) => onFilterLinkClick(event, () => onTagClick?.(tag))}
             >
               {tag.name}

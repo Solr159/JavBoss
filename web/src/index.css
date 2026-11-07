@@ -1,4 +1,5 @@
 @import './app/theme/theme.css';
+@import './shared/ui/formFields.css';
 
 @tailwind base;
 @tailwind components;

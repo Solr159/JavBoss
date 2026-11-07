@@ -198,7 +198,7 @@ export default function SelectionJavTagsModal({
                     void handleAddTag()
                   }}
                   placeholder={zh('搜索或输入自定义标签', 'Search or enter a custom tag')}
-                  className="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+                  className="form-field min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   disabled={disabled}
                 />
                 <button

@@ -29,7 +29,7 @@ export default function AppearanceSettings() {
           value={preference}
           disabled={!setPreference}
           onChange={(event) => setStorageError(!setPreference(event.target.value))}
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus-visible:border-blue-400 dark:focus-visible:ring-ui-blue-border"
+          className="form-field rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm text-zinc-800 focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100"
         >
           <option value="light">{zh('浅色', 'Light')}</option>
           <option value="dark">{zh('深色', 'Dark')}</option>

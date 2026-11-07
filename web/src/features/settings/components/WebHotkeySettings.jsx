@@ -131,10 +131,10 @@ export default function WebHotkeySettings({ hotkeys, onSave }) {
                     event.currentTarget.blur()
                   }
                 }}
-                className={`w-32 cursor-pointer rounded-lg border bg-white px-2.5 py-1.5 text-center text-sm font-medium outline-none dark:bg-ui-surface ${
+                className={`form-field w-32 cursor-pointer rounded-lg border bg-white px-2.5 py-1.5 text-center text-sm font-medium outline-none ${
                   capturing
-                    ? 'border-blue-500 ring-2 ring-blue-100 dark:ring-ui-blue-border'
-                    : 'border-zinc-200 text-zinc-800 dark:border-ui-border dark:text-ui-text'
+                    ? 'border-blue-500 ring-2 ring-blue-100'
+                    : 'border-zinc-200 text-zinc-800'
                 }`}
                 aria-label={zh(`修改${label.zh}快捷键`, `Change ${label.en} shortcut`)}
               />

@@ -10,7 +10,7 @@ export default function BulkTagActions({ tags, disabled, onAdd, onRemove, onClea
       <select
         value={tagId}
         onChange={(e) => setTagId(e.target.value)}
-        className="rounded border px-2 py-1"
+        className="form-field rounded border px-2 py-1"
         aria-label={zh('选择标签', 'Choose Tag')}
       >
         <option value="">{zh('选择标签…', 'Choose a tag...')}</option>

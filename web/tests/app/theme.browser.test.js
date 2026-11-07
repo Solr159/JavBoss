@@ -59,7 +59,7 @@ test(
       await evaluate(`getComputedStyle(document.body).backgroundColor`),
       'rgb(24, 24, 24)'
     )
-    assert.equal(await evaluate(`getComputedStyle(${selector}).backgroundColor`), 'rgb(38, 38, 38)')
+    assert.equal(await evaluate(`getComputedStyle(${selector}).backgroundColor`), 'rgb(24, 24, 24)')
     assert.equal(await evaluate(`getComputedStyle(${selector}).color`), 'rgb(242, 242, 242)')
     assert.equal(await evaluate(`getComputedStyle(document.documentElement).colorScheme`), 'dark')
     assert.equal(
@@ -231,7 +231,7 @@ test('the saved theme also applies before sign-in', options, async (t) => {
     await evaluate(
       `getComputedStyle(document.querySelector('input[type="password"]')).backgroundColor`
     ),
-    'rgb(38, 38, 38)'
+    'rgb(24, 24, 24)'
   )
   assert.equal(
     await evaluate(`getComputedStyle(document.querySelector('input[type="password"]')).color`),
@@ -408,7 +408,7 @@ test(
       assert.equal(await evaluate(`${control}.matches(':disabled')`), true)
       assert.equal(
         await evaluate(`getComputedStyle(${control}).backgroundColor`),
-        'rgb(24, 24, 24)'
+        'rgb(48, 48, 48)'
       )
     }
     await evaluate(`${section}.querySelector('header button').click()`)
@@ -417,7 +417,7 @@ test(
       await waitFor(`!${control}.matches(':disabled')`)
       assert.equal(
         await evaluate(`getComputedStyle(${control}).backgroundColor`),
-        'rgb(38, 38, 38)'
+        'rgb(24, 24, 24)'
       )
     }
     await evaluate(`${button('Check for Updates')}.click()`)

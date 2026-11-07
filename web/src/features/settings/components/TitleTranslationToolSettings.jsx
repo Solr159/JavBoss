@@ -257,7 +257,7 @@ export default function TitleTranslationToolSettings() {
           </header>
           <fieldset
             disabled={!editing || busy}
-            className="min-w-0 space-y-5 p-5 [&_:disabled]:cursor-not-allowed [&_:disabled]:text-zinc-400 dark:[&_:disabled]:text-ui-secondary [&_button:disabled]:opacity-50 [&_input:disabled]:bg-zinc-100 dark:[&_input:disabled]:bg-ui-canvas [&_select:disabled]:bg-zinc-100 dark:[&_select:disabled]:bg-ui-canvas [&_textarea:disabled]:bg-zinc-100 dark:[&_textarea:disabled]:bg-ui-canvas"
+            className="min-w-0 space-y-5 p-5 [&_:disabled]:cursor-not-allowed [&_:disabled]:text-zinc-400 dark:[&_:disabled]:text-ui-secondary [&_button:disabled]:opacity-50 [&_input:disabled]:bg-zinc-100 dark:[&_input:disabled]:bg-ui-muted [&_select:disabled]:bg-zinc-100 dark:[&_select:disabled]:bg-ui-muted [&_textarea:disabled]:bg-zinc-100 dark:[&_textarea:disabled]:bg-ui-muted"
           >
             <JavTitleTranslationSettings
               value={draft}
@@ -285,7 +285,7 @@ export default function TitleTranslationToolSettings() {
                     {zh('测试标题', 'Sample title')}
                   </span>
                   <input
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-ui-border dark:bg-ui-surface"
+                    className="form-field w-full rounded-lg border border-zinc-200 bg-white px-3 py-2"
                     value={sample}
                     maxLength={8192}
                     onChange={(e) => {

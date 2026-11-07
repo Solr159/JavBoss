@@ -553,7 +553,7 @@ export default function DownloadsView({ onToast }) {
                 value={magnetUrl}
                 onChange={(event) => setMagnetUrl(event.target.value)}
                 placeholder="magnet:?xt=urn:btih:..."
-                className="mt-1 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500 dark:border-ui-border"
+                className="form-field mt-1 w-full resize-y rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm outline-none focus:border-blue-500"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">

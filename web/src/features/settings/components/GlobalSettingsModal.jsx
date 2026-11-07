@@ -440,7 +440,7 @@ export default function GlobalSettingsModal({
                   value={defaultPlayerInput}
                   onChange={(event) => handleChangeDefaultPlayer(event.target.value)}
                   disabled={savingDefaultPlayer || !onSaveDefaultPlayer}
-                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus:border-ui-border"
+                  className="form-field w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0"
                 >
                   <option value="mpv">MPV</option>
                   <option value="browser">{zh('网页播放器', 'Web Player')}</option>
@@ -574,7 +574,7 @@ export default function GlobalSettingsModal({
                   onChange={(e) => setProxyHostInput(e.target.value)}
                   disabled={!proxyEditing || savingProxy}
                   placeholder={DEFAULT_PROXY_HOST}
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+                  className="form-field w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
                 />
               </div>
               <div>
@@ -587,7 +587,7 @@ export default function GlobalSettingsModal({
                   disabled={!proxyEditing || savingProxy}
                   placeholder={zh('输入 1-65535', 'Enter 1-65535')}
                   inputMode="numeric"
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+                  className="form-field w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
                 />
               </div>
             </div>
@@ -708,7 +708,7 @@ export default function GlobalSettingsModal({
                   value={initialViewModeInput}
                   onChange={(event) => handleChangeInitialViewMode(event.target.value)}
                   disabled={savingInitialViewMode || !onSaveInitialViewMode}
-                  className="w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus:border-ui-border"
+                  className="form-field w-auto appearance-none rounded-xl border border-zinc-200 bg-white py-1.5 pl-3 pr-7 text-sm text-zinc-800 outline-none focus:border-zinc-200 focus:outline-none focus:ring-0"
                 >
                   <option value="video">{zh('视频', 'Video')}</option>
                   <option value="jav">JAV</option>
@@ -912,7 +912,7 @@ export default function GlobalSettingsModal({
                               setPlayerBasicSuccess('')
                             }}
                             inputMode="numeric"
-                            className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text"
+                            className="form-field w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                           />
                           <span className="text-sm text-zinc-500 dark:text-ui-faint">%</span>
                         </div>
@@ -929,7 +929,7 @@ export default function GlobalSettingsModal({
                               setPlayerBasicSuccess('')
                             }}
                             inputMode="numeric"
-                            className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text"
+                            className="form-field w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                           />
                           <span className="text-sm text-zinc-500 dark:text-ui-faint">%</span>
                         </div>
@@ -959,7 +959,7 @@ export default function GlobalSettingsModal({
                           setPlayerBasicSuccess('')
                         }}
                         inputMode="numeric"
-                        className="w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text"
+                        className="form-field w-28 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800"
                       />
                       <span className="text-sm text-zinc-500 dark:text-ui-faint">%</span>
                     </div>
@@ -1442,7 +1442,7 @@ export default function GlobalSettingsModal({
                         field.setter(event.target.value)
                         setPasswordError('')
                       }}
-                      className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-16 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus:ring-ui-blue-border"
+                      className="form-field w-full rounded-xl border border-zinc-200 bg-white py-2 pl-3 pr-16 text-sm text-zinc-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                     />
                     <button
                       type="button"
@@ -1541,13 +1541,15 @@ export default function GlobalSettingsModal({
                   onClick={() => setActiveSection(section.id)}
                   className={`min-w-[220px] shrink-0 rounded-2xl border px-4 py-3 text-left transition md:min-w-0 ${
                     selected
-                      ? 'border-zinc-200 bg-white shadow-sm dark:border-ui-border dark:bg-ui-surface'
+                      ? 'border-zinc-200 bg-white shadow-sm dark:border-blue-500/70 dark:bg-blue-500/20'
                       : 'border-transparent bg-transparent hover:border-zinc-200 hover:bg-white/80 dark:hover:border-ui-border dark:hover:bg-ui-surface/80'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-zinc-900 dark:text-ui-text">
+                      <div
+                        className={`text-sm font-semibold text-zinc-900 ${selected ? 'dark:text-blue-200' : 'dark:text-ui-text'}`}
+                      >
                         {zh(section.title.zh, section.title.en)}
                       </div>
                     </div>

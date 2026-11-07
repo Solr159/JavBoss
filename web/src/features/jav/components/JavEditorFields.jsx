@@ -146,7 +146,7 @@ export function JavEditDropdown({
       <div className="block text-[13px] font-semibold text-black dark:text-ui-text">{label}</div>
       <button
         type="button"
-        className="mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:hover:border-ui-faint dark:focus:ring-ui-blue-border dark:disabled:bg-ui-canvas dark:disabled:text-ui-faint"
+        className="form-field mt-2 flex w-full items-center justify-between rounded-md border border-gray-300 bg-white px-3 py-2 text-left text-sm text-gray-900 outline-none hover:border-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 dark:hover:border-ui-faint"
         onClick={() => onOpenChange?.(!open)}
         disabled={disabled}
         aria-haspopup="listbox"
@@ -167,7 +167,7 @@ export function JavEditDropdown({
             value={search}
             onChange={(event) => onSearchChange?.(event.target.value)}
             placeholder={searchPlaceholder}
-            className="mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:focus:ring-ui-blue-border"
+            className="form-field mb-2 w-full rounded border border-gray-300 px-2 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
           <div className="max-h-52 overflow-y-auto" role="listbox">
             <button

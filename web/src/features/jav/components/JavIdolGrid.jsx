@@ -549,7 +549,7 @@ export function JavIdolEditModal({
               <select
                 value={form.cup}
                 onChange={(event) => setField('cup', event.target.value)}
-                className="rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus:border-blue-400"
+                className="form-field rounded border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-gray-900"
               >
                 <option value="">{zh('未设置', 'Unset')}</option>
                 {Array.from({ length: 26 }, (_, index) => index + 1).map((value) => (
@@ -623,7 +623,7 @@ function TextField({ label, value, onChange, type = 'text', required = false, mi
         required={required}
         min={min}
         onChange={(event) => onChange?.(event.target.value)}
-        className="rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus-within:border-blue-400"
+        className="form-field rounded border border-gray-300 px-3 py-2 text-sm outline-none focus:border-gray-900"
       />
     </label>
   )
@@ -644,7 +644,7 @@ function AliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd, onRe
           {zh('输入后按 Enter 添加', 'Press Enter to add')}
         </span>
       </div>
-      <div className="flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900 dark:border-ui-border dark:bg-ui-surface dark:focus-within:border-blue-400">
+      <div className="form-field-group flex min-h-[2.75rem] flex-wrap items-center gap-2 rounded border border-gray-300 bg-white px-2 py-2 focus-within:border-gray-900">
         {aliases.map((alias) => (
           <span
             key={alias}
@@ -681,7 +681,7 @@ function AliasEditor({ aliases = [], inputValue = '', onInputChange, onAdd, onRe
             }
           }}
           onBlur={commitInput}
-          className="min-w-[9rem] flex-1 border-0 bg-transparent px-1 py-1 text-sm outline-none"
+          className="form-field-input min-w-[9rem] flex-1 border-0 bg-transparent px-1 py-1 text-sm outline-none"
         />
       </div>
     </div>
@@ -800,7 +800,7 @@ function JavIdolMergeModal({ open, item, preferChineseName = false, onClose, onM
               setSearch(event.target.value)
               setSelectedId(0)
             }}
-            className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900 dark:border-ui-border dark:focus:border-blue-400"
+            className="form-field w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm outline-none focus:border-gray-900"
             placeholder={zh('搜索要合并到的目标女优', 'Search target idol to merge into')}
           />
         </label>

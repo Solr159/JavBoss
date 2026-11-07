@@ -65,7 +65,7 @@ export default function LoginPage({ onLogin, checkError = '', onRetry }) {
                   setPassword(event.target.value)
                   setError('')
                 }}
-                className="w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-3 pr-11 text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:focus:ring-ui-blue-border"
+                className="form-field w-full rounded-xl border border-zinc-200 bg-white py-2.5 pl-3 pr-11 text-zinc-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
               <button
                 type="button"

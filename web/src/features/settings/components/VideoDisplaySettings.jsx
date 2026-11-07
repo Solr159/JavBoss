@@ -81,7 +81,7 @@ function SettingsSwitch({ label, checked, onChange }) {
 const rowClassName =
   'flex min-h-11 items-center justify-between gap-4 py-1.5 text-sm font-medium text-slate-700 dark:text-ui-secondary'
 const controlClassName =
-  'h-9 w-24 shrink-0 rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 text-sm text-slate-700 dark:text-ui-secondary outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-ui-blue-border sm:w-32'
+  'form-field h-9 w-24 shrink-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:w-32'
 
 export default function VideoDisplaySettings({
   pageSizeInput,

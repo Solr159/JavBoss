@@ -10,7 +10,7 @@ import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 
 const inputClass =
-  'w-full rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
+  'form-field w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none'
 const emptyCaps = { reasoning: 'unknown', efforts: [] }
 
 export default function JavTitleTranslationSettings({

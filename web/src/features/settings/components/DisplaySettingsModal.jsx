@@ -245,7 +245,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           <select
             value={rule.mode}
             onChange={(event) => update({ mode: event.target.value })}
-            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+            className="form-field mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
           >
             <option value="all">
               {zh(
@@ -266,7 +266,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
           <select
             value={rule.sort}
             onChange={(event) => update({ sort: event.target.value })}
-            className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm dark:border-ui-border dark:bg-ui-surface"
+            className="form-field mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-2 text-sm"
           >
             {javSortChoices.map((choice) => (
               <option key={choice.value} value={choice.value}>
@@ -312,7 +312,7 @@ function JavSortRuleEditor({ rule, index, total, onChange, onMove, onRemove }) {
 }
 
 const controlClassName =
-  'h-9 w-32 rounded-lg border border-slate-200 dark:border-ui-border bg-white dark:bg-ui-surface px-3 text-sm text-slate-700 dark:text-ui-secondary outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-ui-blue-border'
+  'form-field h-9 w-32 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none transition hover:border-slate-300 dark:hover:border-ui-faint focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
 
 function normalizeSettingsTab(tab) {
   return ['video', 'jav', 'idol', 'studio', 'series', 'tag'].includes(tab) ? tab : 'jav'
@@ -336,6 +336,8 @@ export default function DisplaySettingsModal({
   onJavIdolTagMaxRowsChange,
   javTagMaxRowsInput,
   onJavTagMaxRowsChange,
+  javHighSaturationTagsInput = true,
+  onJavHighSaturationTagsChange,
   javHideStudioInput = false,
   onJavHideStudioChange,
   javHideSeriesInput = false,
@@ -423,6 +425,7 @@ export default function DisplaySettingsModal({
         onJavWaterfallDefaultChange?.(false)
         onJavGridColumnsChange?.(0)
         onJavCardPortraitChange?.(true)
+        onJavHighSaturationTagsChange?.(true)
         onJavTitleMaxRowsChange?.(2)
         onJavIdolTagMaxRowsChange?.(2)
         onJavTagMaxRowsChange?.(2)
@@ -487,7 +490,7 @@ export default function DisplaySettingsModal({
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-5 pb-4">
         <fieldset
           disabled={saving}
-          className="min-w-0 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 dark:[&_input:disabled]:bg-ui-canvas [&_select:disabled]:bg-slate-100 dark:[&_select:disabled]:bg-ui-canvas"
+          className="min-w-0 [&_:disabled]:cursor-default [&_button:disabled]:opacity-50 [&_input:disabled]:bg-slate-100 dark:[&_input:disabled]:bg-ui-muted [&_select:disabled]:bg-slate-100 dark:[&_select:disabled]:bg-ui-muted"
         >
           {activeTab === 'video' ? <VideoDisplaySettings {...videoSettings} /> : null}
           {activeTab === 'jav' ? (
@@ -607,6 +610,21 @@ export default function DisplaySettingsModal({
                       ))}
                     </select>
                   </SettingsRow>
+                  <SettingsRow
+                    label={zh(
+                      '浅色模式下使用高饱和度标签',
+                      'Use high-saturation tags in light mode'
+                    )}
+                  >
+                    <SettingsSwitch
+                      label={zh(
+                        '浅色模式下使用高饱和度标签',
+                        'Use high-saturation tags in light mode'
+                      )}
+                      checked={javHighSaturationTagsInput}
+                      onChange={onJavHighSaturationTagsChange}
+                    />
+                  </SettingsRow>
                   <SettingsRow label={zh('显示片商', 'Show studio')}>
                     <SettingsSwitch
                       label={zh('显示片商', 'Show studio')}
@@ -720,7 +738,7 @@ export default function DisplaySettingsModal({
                       aria-label={zh('默认排序（兜底）', 'Default sort (fallback)')}
                       value={javSortInput}
                       onChange={(event) => onJavSortChange?.(event.target.value)}
-                      className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:border-ui-faint dark:focus:ring-ui-blue-border sm:w-64"
+                      className="form-field h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-normal text-slate-700 outline-none transition hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:hover:border-ui-faint sm:w-64"
                     >
                       {javSortChoices.map((choice) => (
                         <option key={choice.value} value={choice.value}>
