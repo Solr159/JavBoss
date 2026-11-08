@@ -1,3 +1,4 @@
+import SubtitleSettings from '@/features/settings/components/SubtitleSettings'
 import { useEffect, useState } from 'react'
 import { Switch } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
@@ -120,6 +121,9 @@ export default function GlobalSettingsModal({
   onSaveAllowLANAccess,
   defaultPlayer,
   onSaveDefaultPlayer,
+  subtitleEnabled = false,
+  subtitleLanguage = 'zh-CN',
+  onSaveSubtitleSettings,
   initialViewMode,
   onSaveInitialViewMode,
   playerWindowWidth,
@@ -1157,6 +1161,13 @@ export default function GlobalSettingsModal({
             </>
           )}
         </section>
+        {currentPlayerTab === 'basic' && (
+          <SubtitleSettings
+            enabled={subtitleEnabled}
+            language={subtitleLanguage}
+            onSave={onSaveSubtitleSettings}
+          />
+        )}
       </div>
     )
   }

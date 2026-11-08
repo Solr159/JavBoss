@@ -39,6 +39,7 @@ function Fixture() {
         onSelectVideo={setIndex}
         onClose={() => setOpen(false)}
         showHotkeyHint={false}
+        subtitleEnabled={params.has('subtitles')}
         resumePlayback={params.get('resume') !== 'false'}
         startTime={params.has('start') ? Number(params.get('start')) : null}
       />

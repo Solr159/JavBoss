@@ -504,7 +504,7 @@ func (store *Store) SaveVideo(ctx context.Context, video *models.Video) error {
 	if video == nil {
 		return errors.New("video is nil")
 	}
-	if err := store.conn.WithContext(ctx).Omit("watched_ms").Save(video).Error; err != nil {
+	if err := store.conn.WithContext(ctx).Omit("watched_ms", "subtitle_settings").Save(video).Error; err != nil {
 		return fmt.Errorf("save video %d: %w", video.ID, err)
 	}
 	return nil

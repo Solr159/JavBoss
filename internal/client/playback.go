@@ -93,6 +93,9 @@ func (c *Client) handlePlay(w http.ResponseWriter, r *http.Request) {
 	dataDir := c.clientDataDir()
 	if err := c.playVideo(mediaURL, mpv.PlayOptions{
 		NewWatchReporter:       c.playbackReporter(request.VideoID, request.LocationID, cookie, request.Path, request.DirPath),
+		ResolveSubtitle:        c.subtitleResolver(request.VideoID, request.LocationID, cookie, request.Path, request.DirPath),
+		SaveSubtitleOffset:     c.subtitleOffsetSaver(request.VideoID, cookie),
+		SaveSubtitleSelection:  c.subtitleSelectionSaver(request.VideoID, cookie),
 		DataDir:                dataDir,
 		VideoID:                request.VideoID,
 		StartTimeSec:           request.StartTimeSec,

@@ -2,6 +2,7 @@ package mpv
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,20 +18,29 @@ type playlistEvent struct {
 	EntryID int64           `json:"playlist_entry_id"`
 	Name    string          `json:"name"`
 	Data    json.RawMessage `json:"data"`
+	Args    []string        `json:"args"`
 }
 
 type playlistEvents struct {
-	conn      io.ReadWriteCloser
-	mu        sync.Mutex
-	callbacks map[int64]func()
-	current   func()
-	loaded    bool
-	counted   bool
-	watch     watchClock
-	reporters map[int64]func() *playback.Reporter
-	reporter  *playback.Reporter
-	finished  []*playback.Reporter
-	done      chan struct{}
+	endpoint                string
+	entryID                 int64
+	subtitles               map[int64]SubtitleResolver
+	subtitleSavers          map[int64]SubtitleOffsetSaver
+	subtitleSelectionSavers map[int64]SubtitleSelectionSaver
+	subtitleSaveDone        chan struct{}
+	subtitleCancel          context.CancelFunc
+	subtitleContext         context.Context
+	conn                    io.ReadWriteCloser
+	mu                      sync.Mutex
+	callbacks               map[int64]func()
+	current                 func()
+	loaded                  bool
+	counted                 bool
+	watch                   watchClock
+	reporters               map[int64]func() *playback.Reporter
+	reporter                *playback.Reporter
+	finished                []*playback.Reporter
+	done                    chan struct{}
 }
 
 var playlistWatchers sync.WaitGroup
@@ -71,7 +81,7 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 			return nil, err
 		}
 	}
-	events := &playlistEvents{conn: conn, done: make(chan struct{})}
+	events := &playlistEvents{conn: conn, done: make(chan struct{}), endpoint: endpoint}
 	playlistWatchers.Add(1)
 	go func() {
 		ticker := time.NewTicker(time.Second)
@@ -96,12 +106,19 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 		defer conn.Close()
 		defer func() {
 			events.mu.Lock()
+			if events.subtitleCancel != nil {
+				events.subtitleCancel()
+			}
 			events.watch.advance(time.Now())
 			events.checkpoint(true)
 			finished := events.finished
+			savesDone := events.subtitleSaveDone
 			events.mu.Unlock()
 			for _, reporter := range finished {
 				reporter.Wait()
+			}
+			if savesDone != nil {
+				<-savesDone
 			}
 		}()
 		for {
@@ -177,7 +194,20 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 	e.watch.advance(now)
 	wasActive := e.watch.active()
 	switch event.Event {
+	case "client-message":
+		if len(event.Args) > 0 && event.Args[0] == "javboss-subtitle-selection" {
+			return e.subtitleSelectionCallback(event.Args)
+		}
+		if len(event.Args) > 0 && event.Args[0] == "javboss-subtitle-load" {
+			return e.subtitleLoadRequest(event.Args)
+		}
+		return e.subtitleSaveCallback(event.Args)
 	case "start-file":
+		if e.subtitleCancel != nil {
+			e.subtitleCancel()
+			e.subtitleCancel = nil
+		}
+		e.entryID = event.EntryID
 		e.checkpoint(true)
 		e.watch.total = 0
 		e.watch.ready = false
@@ -188,6 +218,7 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 		e.loaded, e.counted = false, false
 	case "file-loaded":
 		e.loaded = true
+		return e.subtitleCallback()
 	case "playback-restart":
 		e.watch.ready = e.loaded
 		// This event also occurs on seeks and buffering recovery. Only count
@@ -197,6 +228,10 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 			return e.current
 		}
 	case "end-file":
+		if e.subtitleCancel != nil {
+			e.subtitleCancel()
+			e.subtitleCancel = nil
+		}
 		e.checkpoint(true)
 		e.watch.ready = false
 		e.current = nil
@@ -216,4 +251,12 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 		e.checkpoint(false)
 	}
 	return nil
+}
+
+func (e *playlistEvents) setSubtitles(resolvers map[int64]SubtitleResolver, savers map[int64]SubtitleOffsetSaver, enabledSavers map[int64]SubtitleSelectionSaver) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.subtitles = resolvers
+	e.subtitleSavers = savers
+	e.subtitleSelectionSavers = enabledSavers
 }

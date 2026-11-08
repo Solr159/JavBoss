@@ -85,6 +85,8 @@ func updateConfig(c *gin.Context) {
 	}
 
 	var req struct {
+		SubtitleAutoDownload      *bool                      `json:"subtitle_auto_download"`
+		SubtitleLanguage          *string                    `json:"subtitle_language"`
 		VideoPageSize             *int                       `json:"video_page_size"`
 		VideoWaterfallDefault     *bool                      `json:"video_waterfall_default"`
 		VideoShowDirectoryBar     *bool                      `json:"video_show_directory_bar"`
@@ -149,6 +151,16 @@ func updateConfig(c *gin.Context) {
 	}
 
 	entries := make(map[string]string)
+	if req.SubtitleAutoDownload != nil {
+		entries["subtitle_auto_download"] = strconv.FormatBool(*req.SubtitleAutoDownload)
+	}
+	if req.SubtitleLanguage != nil {
+		if *req.SubtitleLanguage != "zh-CN" && *req.SubtitleLanguage != "zh-TW" {
+			respondLocalizedError(c, http.StatusBadRequest, "字幕语言无效", "Invalid subtitle language")
+			return
+		}
+		entries["subtitle_language"] = *req.SubtitleLanguage
+	}
 	clampSize := func(n int) (string, bool) {
 		if n <= 0 {
 			return "", false

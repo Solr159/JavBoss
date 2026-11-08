@@ -82,8 +82,11 @@ func (c *Client) handlePlaylist(w http.ResponseWriter, r *http.Request) {
 				}
 			},
 			Options: mpv.PlayOptions{
-				NewWatchReporter: c.playbackReporter(item.VideoID, item.LocationID, cookie),
-				DataDir:          dataDir, VideoID: item.VideoID,
+				NewWatchReporter:      c.playbackReporter(item.VideoID, item.LocationID, cookie),
+				ResolveSubtitle:       c.subtitleResolver(item.VideoID, item.LocationID, cookie),
+				SaveSubtitleOffset:    c.subtitleOffsetSaver(item.VideoID, cookie),
+				SaveSubtitleSelection: c.subtitleSelectionSaver(item.VideoID, cookie),
+				DataDir:               dataDir, VideoID: item.VideoID,
 				StartTimeSec: item.StartTimeSec, EnableNetworkThumbnail: true,
 			},
 		})

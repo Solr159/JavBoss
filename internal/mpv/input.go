@@ -168,6 +168,7 @@ func buildInputConfContent() (string, error) {
 	}
 
 	lines = append(lines, "SPACE cycle pause")
+	lines = append(lines, "F9 script-message javboss-subtitle-offset")
 	lines = append(lines, "MBTN_LEFT_DBL cycle fullscreen")
 	lines = append(lines, buildEscapeHotkeyBinding())
 	return strings.Join(lines, "\n") + "\n", nil
@@ -202,7 +203,7 @@ func buildStartupHotkeyHint() (string, error) {
 		return "", err
 	}
 
-	parts := make([]string, 0, len(hotkeys)+2)
+	parts := make([]string, 0, len(hotkeys)+3)
 	for _, item := range hotkeys {
 		keyName, ok := keyName(item.Key)
 		if !ok {
@@ -218,6 +219,7 @@ func buildStartupHotkeyHint() (string, error) {
 		}
 	}
 	parts = append(parts, "空格：暂停/继续")
+	parts = append(parts, "F9：设置字幕偏移（字幕立即偏移）")
 	parts = append(parts, buildEscapeHotkeyHint())
 	parts = append(parts, "你可在「设置 → 播放器 → MPV播放器」里关闭此信息显示")
 	return strings.Join(parts, "\n"), nil

@@ -1159,6 +1159,70 @@ body.has-page-scroll .sticky-pagination {
   transform: none;
 }
 
+.player-shell .video-js.vjs-fullscreen .player-subtitle-status {
+  bottom: calc(var(--player-controls-height) + 0.5rem);
+}
+
+/* Video.js clears mouse-focus backgrounds after its hover rule. Keep subtitle
+   actions highlighted under the pointer, including the initially focused item. */
+.player-shell .vjs-subs-caps-button .vjs-menu li.vjs-menu-item:not(.vjs-selected):hover {
+  background-color: rgb(115 133 159 / 50%);
+}
+
+.player-shell .player-subtitle-offset-settings-host {
+  grid-column: 1 / -1;
+}
+
+.player-shell .player-subtitle-offset-settings {
+  margin: 10px;
+  padding: 12px 0;
+  border-top: 1px solid rgb(255 255 255 / 25%);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.player-shell .vjs-text-track-settings select {
+  color: #18181b;
+  background-color: #fff;
+}
+
+.player-shell .vjs-text-track-settings .vjs-modal-dialog-content {
+  grid-template-rows: auto auto auto;
+  align-content: start;
+}
+
+.player-shell .vjs-text-track-settings .vjs-track-settings-controls {
+  display: flex;
+  align-items: center;
+  align-self: start;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 10px 12px;
+}
+
+.player-shell .vjs-track-settings-controls .vjs-default-button {
+  margin: 0;
+}
+
+.player-shell .vjs-track-settings-controls button {
+  flex: none;
+  height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.player-shell .player-subtitle-offset-settings button {
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: #fff;
+  background: #2563eb;
+}
+
+.player-shell .player-subtitle-offset-settings button:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
 .video-card-tag {
   border: 1px solid var(--theme-video-tag-border);
   background: var(--theme-video-tag-surface);

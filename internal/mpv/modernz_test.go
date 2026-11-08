@@ -9,14 +9,16 @@ import (
 
 func TestEnsureModernZAssetsCopiesScriptOptionsAndFont(t *testing.T) {
 	files := map[string]string{
-		"modernz.lua":           "-- test lua\n",
-		"modernz.conf":          "layout=modern\n",
-		"modernz-icons.ttf":     "test font",
-		"thumbfast.lua":         "-- thumbfast lua\n",
-		"thumbfast.conf":        "max_height=200\n",
-		"playlist_sidebar.lua":  "-- playlist sidebar lua\n",
-		"playlist_sidebar.conf": "width=280\n",
-		"window_geometry.lua":   "-- window geometry lua\n",
+		"modernz.lua":               "-- test lua\n",
+		"modernz.conf":              "layout=modern\n",
+		"modernz-icons.ttf":         "test font",
+		"thumbfast.lua":             "-- thumbfast lua\n",
+		"thumbfast.conf":            "max_height=200\n",
+		"playlist_sidebar.lua":      "-- playlist sidebar lua\n",
+		"playlist_sidebar.conf":     "width=280\n",
+		"window_geometry.lua":       "-- window geometry lua\n",
+		"subtitles.lua":             "-- subtitles lua\n",
+		"subtitle_offset_input.lua": "-- subtitle offset input lua\n",
 	}
 	sourceDir := writeModernZTestAssets(t)
 
@@ -35,6 +37,8 @@ func TestEnsureModernZAssetsCopiesScriptOptionsAndFont(t *testing.T) {
 		filepath.Join(assets.ConfigDir, "script-opts", "thumbfast.conf"):        files["thumbfast.conf"],
 		filepath.Join(assets.ConfigDir, "scripts", "playlist_sidebar.lua"):      files["playlist_sidebar.lua"],
 		filepath.Join(assets.ConfigDir, "script-opts", "playlist_sidebar.conf"): files["playlist_sidebar.conf"],
+		assets.SubtitleScriptPath: files["subtitles.lua"],
+		filepath.Join(assets.ConfigDir, "scripts", "subtitle_offset_input.lua"): files["subtitle_offset_input.lua"],
 		assets.ScriptPath:               files["modernz.lua"],
 		assets.ThumbfastScriptPath:      files["thumbfast.lua"],
 		assets.PlaylistScriptPath:       files["playlist_sidebar.lua"],
@@ -197,7 +201,7 @@ func TestSessionPathsSharePerProcessRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sessionDir returned error: %v", err)
 	}
-	expected := []string{inputPath, configPath, modernZ.ConfigDir, modernZ.ScriptPath, modernZ.ThumbfastScriptPath, modernZ.PlaylistScriptPath}
+	expected := []string{inputPath, configPath, modernZ.ConfigDir, modernZ.SubtitleScriptPath, modernZ.ScriptPath, modernZ.ThumbfastScriptPath, modernZ.PlaylistScriptPath}
 	for _, path := range expected {
 		if !strings.HasPrefix(path, root+string(os.PathSeparator)) {
 			t.Fatalf("expected %s to be under isolated mpv session dir %s", path, root)
@@ -210,14 +214,16 @@ func writeModernZTestAssets(t *testing.T) string {
 
 	sourceDir := t.TempDir()
 	files := map[string]string{
-		"modernz.lua":           "-- test lua\n",
-		"modernz.conf":          "layout=modern\n",
-		"modernz-icons.ttf":     "test font",
-		"thumbfast.lua":         "-- thumbfast lua\n",
-		"thumbfast.conf":        "max_height=200\n",
-		"playlist_sidebar.lua":  "-- playlist sidebar lua\n",
-		"playlist_sidebar.conf": "width=280\n",
-		"window_geometry.lua":   "-- window geometry lua\n",
+		"modernz.lua":               "-- test lua\n",
+		"modernz.conf":              "layout=modern\n",
+		"modernz-icons.ttf":         "test font",
+		"thumbfast.lua":             "-- thumbfast lua\n",
+		"thumbfast.conf":            "max_height=200\n",
+		"playlist_sidebar.lua":      "-- playlist sidebar lua\n",
+		"playlist_sidebar.conf":     "width=280\n",
+		"window_geometry.lua":       "-- window geometry lua\n",
+		"subtitles.lua":             "-- subtitles lua\n",
+		"subtitle_offset_input.lua": "-- subtitle offset input lua\n",
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(sourceDir, name), []byte(content), 0o644); err != nil {
