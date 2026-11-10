@@ -30,6 +30,7 @@ test('downloaded subtitles load once and cleanup removes the track and blob URL'
   t.mock.method(URL, 'revokeObjectURL', (url) => revoked.push(url))
   const statuses = []
   const stop = startSubtitleLoading(player, {
+    autoDownload: true,
     resolve: async () => subtitle(),
     onStatus: (status) => statuses.push(status),
   })
@@ -49,6 +50,7 @@ test('a late response from the previous video never loads into the next video', 
   let finish, signal
   const statuses = []
   const stop = startSubtitleLoading(player, {
+    autoDownload: true,
     resolve: (value) => {
       signal = value
       return new Promise((resolve) => {
@@ -98,6 +100,7 @@ test('provider failures leave playback intact and expose an error status', async
   const player = fakePlayer()
   const statuses = []
   const stop = startSubtitleLoading(player, {
+    autoDownload: true,
     resolve: async () => {
       throw new Error('offline')
     },
@@ -127,6 +130,7 @@ test('playback checks existing subtitles and manual download can retry without d
     onStatus: (status) => statuses.push(status),
   })
   player.emit('loadedmetadata')
+  assert.deepEqual(statuses, [], 'cache lookup must not announce an online search')
   await settle()
   assert.equal(calls, 1)
   assert.equal(requests[0].manual, false)
@@ -141,14 +145,7 @@ test('playback checks existing subtitles and manual download can retry without d
   finish(subtitle())
   await settle()
   assert.equal(player.added.length, 1)
-  assert.deepEqual(statuses, [
-    'searching',
-    'disabled',
-    'searching',
-    'not_found',
-    'searching',
-    'ready',
-  ])
+  assert.deepEqual(statuses, ['disabled', 'searching', 'not_found', 'searching', 'ready'])
   stop()
   player.emit('javbossloadsubtitles')
   assert.equal(calls, 3)

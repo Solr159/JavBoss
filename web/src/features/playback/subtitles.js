@@ -2,7 +2,13 @@
 // recreation; startup, cleanup and offset reloads never overwrite a user choice.
 export function startSubtitleLoading(
   player,
-  { resolve, getSettings, saveSelection = async () => {}, onStatus = () => {} }
+  {
+    resolve,
+    getSettings,
+    autoDownload = false,
+    saveSelection = async () => {},
+    onStatus = () => {},
+  }
 ) {
   const controller = new AbortController()
   const trackList = player.textTracks()
@@ -132,7 +138,7 @@ export function startSubtitleLoading(
       }
       const cacheOptions = { download_only: true, cache_only: true }
       const hadTracks = tracks().length > 0
-      if (manual || !hadTracks) onStatus('searching')
+      if (manual || (autoDownload && !hadTracks)) onStatus('searching')
       const result = await resolve(
         controller.signal,
         manual,

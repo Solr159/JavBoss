@@ -20,6 +20,7 @@ test(
       text(36, 'data'); header.setUint32(40, wav.length - 44, true);
       const mediaURL = URL.createObjectURL(new Blob([wav], {type:'audio/wav'}));
       window.subtitleRequests = [];
+      window.holdSubtitleLookup = true;
       window.cachedSubtitles = false;
       window.subtitleSettings = {offset_ms: 0};
       window.settingsWrites = [];
@@ -46,6 +47,7 @@ test(
         if (url.pathname.endsWith('/subtitles/resolve')) {
           const request = JSON.parse(init.body);
           window.subtitleRequests.push(request);
+          if (window.holdSubtitleLookup) await new Promise(resolve => { window.finishSubtitleLookup = resolve; });
           if (url.pathname.includes('/2/')) return new Response(null, {status:204,headers:{'X-Subtitle-Status':request.manual ? 'not_found' : 'disabled'}});
           const source = window.localSubtitles && !request.manual && !request.download_only ? 'local' : 'test';
           if (source !== 'local' && !window.cachedSubtitles && (request.cache_only || (!request.manual && !window.freshDownload))) return new Response(null, {status:204,headers:{'X-Subtitle-Status':'disabled'}});
@@ -66,6 +68,12 @@ test(
     assert.deepEqual(await evaluate(`window.subtitleRequests`), [
       { location_id: 11, format: 'vtt', manual: false },
     ])
+    await waitFor(`window.finishSubtitleLookup`)
+    assert.equal(
+      await evaluate(`Boolean(document.querySelector('.player-subtitle-status'))`),
+      false
+    )
+    await evaluate(`window.holdSubtitleLookup = false; window.finishSubtitleLookup()`)
     const pointAt = async (element) => {
       const point = await evaluate(`(() => {
         const rect = (${element}).getBoundingClientRect();
@@ -119,7 +127,12 @@ test(
         `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('test')).click()`
       )
     }
+    await evaluate(`window.holdSubtitleLookup = true; window.finishSubtitleLookup = null`)
     await loadSubtitle()
+    await waitFor(
+      `window.finishSubtitleLookup && document.querySelector('.player-subtitle-status')?.textContent.includes('Finding subtitles')`
+    )
+    await evaluate(`window.holdSubtitleLookup = false; window.finishSubtitleLookup()`)
     await waitFor(`${subtitles}.some(t => t.mode === 'showing' && t.cues?.length === 1)`)
     assert.equal(await evaluate(`Boolean(${findItem})`), false)
     assert.deepEqual(await evaluate(`window.subtitleRequests`), [

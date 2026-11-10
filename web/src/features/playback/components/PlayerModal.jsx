@@ -442,6 +442,7 @@ export default function PlayerModal({
     if (!playback || playback.video !== video || player?.isDisposed()) return
     let resultTimer = null
     const stopLoading = startSubtitleLoading(player, {
+      autoDownload: subtitleEnabled,
       getSettings: (signal) => fetchVideoSubtitleSettings(video.id, signal),
       saveSelection: (track) => updateVideoSubtitleSelection(video.id, track),
       // Always ask for existing subtitles; the server gates online downloads.
