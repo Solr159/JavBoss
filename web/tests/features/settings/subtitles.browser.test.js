@@ -32,13 +32,28 @@ test(
       true
     )
     assert.equal(await evaluate(`${checkbox}.checked`), false)
+    assert.equal(await evaluate(`${checkbox}.getAttribute('role')`), 'switch')
+    const language = `${checkbox}.form.querySelector('select[name="language"]')`
+    assert.equal(await evaluate(`${language}.getClientRects().length`), 0)
+    await evaluate(`${checkbox}.click()`)
+    await waitFor(`${language}.getClientRects().length > 0`)
     await evaluate(`{
-      const checkbox = ${checkbox}; checkbox.click();
+      const checkbox = ${checkbox};
       checkbox.form.querySelector('select').value = 'zh-TW';
       checkbox.form.querySelector('button[type="submit"]').click();
     }`)
     await waitFor(`window.testStore.getState().config.subtitle_auto_download === true`)
     assert.equal(await evaluate(`window.testStore.getState().config.subtitle_language`), 'zh-TW')
+    await waitFor(`!${checkbox}.disabled`)
+    await evaluate(`${checkbox}.click()`)
+    assert.equal(await evaluate(`${language}.getClientRects().length`), 0)
+    await evaluate(`${checkbox}.form.querySelector('button[type="submit"]').click()`)
+    await waitFor(`window.testStore.getState().config.subtitle_auto_download === false`)
+    assert.equal(await evaluate(`window.testStore.getState().config.subtitle_language`), 'zh-TW')
+    await waitFor(`!${checkbox}.disabled`)
+    await evaluate(`${checkbox}.click()`)
+    await waitFor(`${language}.getClientRects().length > 0`)
+    assert.equal(await evaluate(`${language}.value`), 'zh-TW')
     assert.deepEqual(await evaluate(`window.appErrors`), [])
   }
 )
