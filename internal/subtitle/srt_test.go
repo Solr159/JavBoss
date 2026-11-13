@@ -100,3 +100,44 @@ func TestNegativeOffsetClipsOrOmitsCuesBeforeZero(t *testing.T) {
 		t.Fatalf("all cues before zero = %q, error = %v", got, err)
 	}
 }
+
+func TestSanitizedCueLinesRemainValidSRT(t *testing.T) {
+	for _, tc := range []struct {
+		name, text, want string
+	}{
+		{"separate tags", "<i>\nHello\n</i>", "Hello"},
+		{"whitespace around tags", "  <i>\nHello\n\t</i> ", "Hello"},
+		{"interior tag lines", "First\n<b>\nSecond\n</b>\nThird", "First\nSecond\nThird"},
+		{"control markup lines", "{\\an8}\nHello\n{\\i0}", "Hello"},
+		{"escaped markup", "&lt;i&gt;\nHello\n&lt;/i&gt;", "Hello"},
+		{"ordinary multiline", "First\nSecond", "First\nSecond"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := []byte("7\n00:00:01,000 --> 00:00:02,000\n" + tc.text + "\n\n")
+			want := "1\n00:00:01,000 --> 00:00:02,000\n" + tc.want + "\n\n"
+			normalized, err := NormalizeSRT(raw)
+			if err != nil || string(normalized) != want {
+				t.Fatalf("normalized = %q, error = %v", normalized, err)
+			}
+			again, err := NormalizeSRT(normalized)
+			if err != nil || string(again) != want {
+				t.Fatalf("normalizing cached SRT changed it: %q, error = %v", again, err)
+			}
+			for _, input := range [][]byte{raw, normalized} {
+				vtt, err := WebVTTWithOffset(input, 500)
+				wantVTT := "WEBVTT\n\n1\n00:00:01.500 --> 00:00:02.500\n" + tc.want + "\n\n"
+				if err != nil || string(vtt) != wantVTT {
+					t.Fatalf("VTT = %q, error = %v", vtt, err)
+				}
+			}
+		})
+	}
+	// A cue with no visible text is omitted without losing adjacent valid cues.
+	raw := []byte("1\n00:00:00,000 --> 00:00:00,500\n<i>\n</i>\n\n" + sampleSRT)
+	if got, err := NormalizeSRT(raw); err != nil || string(got) != sampleSRT {
+		t.Fatalf("empty sanitized cue: %q, error = %v", got, err)
+	}
+	if _, err := WebVTT([]byte("1\n00:00:01,000 --> 00:00:02,000\n<i>\n</i>\n")); err == nil {
+		t.Fatal("accepted a track containing only markup")
+	}
+}

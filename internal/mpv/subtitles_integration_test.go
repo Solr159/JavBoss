@@ -276,14 +276,14 @@ func testLiveSubtitleEditing(t *testing.T, endpoint string, saved <-chan int64, 
 		t.Helper()
 		deadline := time.Now().Add(5 * time.Second)
 		for time.Now().Before(deadline) {
-			command("keypress", "F9")
+			command("script-message", "javboss-subtitle-offset")
 			time.Sleep(25 * time.Millisecond)
 			data, err := queryIPCCommand(endpoint, []any{"get_property", "user-data/javboss/subtitle-offset-open"})
 			if err == nil && string(data) == "true" {
 				return
 			}
 		}
-		t.Fatal("F9 did not open the subtitle offset dialog")
+		t.Fatal("subtitle offset action did not open the dialog")
 	}
 	typeText := func(text string) {
 		t.Helper()

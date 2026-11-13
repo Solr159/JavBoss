@@ -6,7 +6,22 @@ test(
   'browser loads cache automatically with downloads off and supports manual downloads and offset editing',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
-    const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t)
+    const { origin, command, evaluate, waitFor, reloadPage } = await openBrowser(t, {
+      plugins: [
+        {
+          name: 'subtitle-fallback-playlist',
+          configureServer(server) {
+            server.middlewares.use((request, response, next) => {
+              if (request.url !== '/subtitle-fallback.m3u8') return next()
+              // Hold HLS loading so the test can inspect tracks after the actual
+              // source-handler switch without depending on a media encoder.
+              response.writeHead(200, { 'Content-Type': 'application/vnd.apple.mpegurl' })
+              response.write('#EXTM3U\n')
+            })
+          },
+        },
+      ],
+    })
     await command('Page.navigate', { url: `${origin}/tests/fixtures/playerWindow.html` })
     await waitFor(`document.querySelector('#root > button')`)
     await evaluate(`{
@@ -31,8 +46,10 @@ test(
         if (url.pathname.endsWith('/streams')) {
           window.streamRequests++;
           return Response.json({location_id:11,
-            preferred_kind:'direct', sources:[{kind:'direct',src:mediaURL,mime_type:'audio/wav'}]});
+            preferred_kind:'direct', sources:[{kind:'direct',src:mediaURL,mime_type:'audio/wav'},
+              {kind:'hls',src:'/subtitle-fallback.m3u8',mime_type:'application/vnd.apple.mpegurl'}]});
         }
+        if (url.pathname === '/tools') return Response.json({ffmpeg:{installed:true}});
         if (url.pathname.endsWith('/subtitle-settings')) {
           if (init.method === 'PATCH') {
             if (window.holdSettingsSave) await new Promise(resolve => { window.finishSettingsSave = resolve; });
@@ -405,6 +422,39 @@ test(
     await waitFor(`${findItem}`)
     await loadSubtitle()
     await waitFor(`${subtitles}.length === 2 && !(${findItem})`)
+
+    // Direct playback fails after local and downloaded tracks have loaded.
+    // Switching to the HLS source must preserve both the tracks and selection.
+    const beforeFallback = await evaluate('window.subtitleRequests.length')
+    await evaluate(`{
+      window.tracksBeforeFallback = ${subtitles};
+      window.selectedBeforeFallback = window.tracksBeforeFallback.find(t => t.mode === 'showing');
+      ${player}.error({code: 3, message: 'Simulated late decode failure'});
+    }`)
+    await waitFor(
+      `${player}.currentSrc().endsWith('/subtitle-fallback.m3u8') && ${player}.tech_.vhs`
+    )
+    assert.equal(await evaluate(`${subtitles}.length`), 2)
+    assert.equal(
+      await evaluate(`window.tracksBeforeFallback.every(t => ${subtitles}.includes(t))`),
+      true
+    )
+    assert.equal(await evaluate(`window.selectedBeforeFallback.mode`), 'showing')
+    assert.equal(await evaluate('window.subtitleRequests.length'), beforeFallback)
+    await evaluate(`{
+      ${subtitles}.forEach(t => { t.mode = 'disabled'; });
+      ${player}.trigger('javbossloadsubtitles');
+    }`)
+    await waitFor(
+      `${subtitles}.some(t => t.id === 'javboss:download:zh-CN' && t.mode === 'showing')`
+    )
+    assert.equal(await evaluate('window.subtitleRequests.length'), beforeFallback)
+    await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
+    await waitFor(`${subtitles}.length === 0`)
+    assert.equal(
+      await evaluate(`window.tracksBeforeFallback.some(t => ${subtitles}.includes(t))`),
+      false
+    )
 
     // A fresh player after a page reload restores the global style.
     await reloadPage()

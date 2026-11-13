@@ -53,9 +53,17 @@ func NormalizeSRT(data []byte) ([]byte, error) {
 		}
 		text := markup.ReplaceAllString(html.UnescapeString(strings.Join(lines[2:], "\n")), "")
 		text = strings.ReplaceAll(text, "\\", "")
-		if strings.TrimSpace(text) == "" {
+		// Tag-only lines must not become SRT cue separators after sanitizing.
+		var textLines []string
+		for _, line := range strings.Split(text, "\n") {
+			if strings.TrimSpace(line) != "" {
+				textLines = append(textLines, line)
+			}
+		}
+		if len(textLines) == 0 {
 			continue
 		}
+		text = strings.Join(textLines, "\n")
 		count++
 		fmt.Fprintf(&out, "%d\n%s:%s:%s,%s --> %s:%s:%s,%s\n%s\n\n", count, m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8], text)
 	}
@@ -86,7 +94,13 @@ func WebVTTWithOffset(data []byte, offsetMS int64) ([]byte, error) {
 	count := 0
 	for _, block := range strings.Split(strings.TrimSpace(string(normalized)), "\n\n") {
 		lines := strings.Split(block, "\n")
+		if len(lines) < 3 {
+			continue
+		}
 		match := timing.FindStringSubmatch(lines[1])
+		if match == nil {
+			continue
+		}
 		start, end := timestampMS(match[1:5])+offsetMS, timestampMS(match[5:9])+offsetMS
 		// WebVTT timestamps cannot be negative. Cues already finished before
 		// playback starts are omitted; cues crossing zero start at zero.

@@ -352,6 +352,6 @@ mp.register_script_message('javboss-subtitle-saved', function(expected, entry, e
     if status == 'saved' then
         mp.osd_message(string.format('字幕偏移已保存：%+.3f 秒', mp.get_property_number('sub-delay', 0)), 3)
     else
-        mp.osd_message('字幕偏移已生效，但保存失败。请按 F9 重试。', 5)
+        mp.osd_message('字幕偏移已生效，但保存失败。请从字幕菜单重新设置。', 5)
     end
 end)
