@@ -227,14 +227,21 @@ test(
     )
     await evaluate(`window.previousPlayer = ${player}; window.previousContainer = document.querySelector('[data-vjs-player]');
       ${player}.volume(0.6); ${player}.muted(true); ${player}.playbackRate(1.5)`)
+    // Exercise the background-tab condition that rejects fullscreen in CI.
+    const background = await command('Target.createTarget', { url: 'about:blank' })
+    assert.ok(!background.error && background.result?.targetId, JSON.stringify(background))
+    // A user gesture alone cannot authorize fullscreen from an inactive tab.
+    const activated = await command('Page.bringToFront')
+    assert.ok(!activated.error, JSON.stringify(activated))
     const fullscreen = await command('Runtime.evaluate', {
       expression: "document.querySelector('.video-js').requestFullscreen()",
       userGesture: true,
       awaitPromise: true,
       returnByValue: true,
     })
-    assert.ok(!fullscreen.result?.exceptionDetails, JSON.stringify(fullscreen))
+    assert.ok(!fullscreen.error && !fullscreen.result?.exceptionDetails, JSON.stringify(fullscreen))
     await waitFor('document.fullscreenElement')
+    await command('Target.closeTarget', { targetId: background.result.targetId })
     const assertPlayerState = async () => {
       assert.deepEqual(
         await evaluate(`({

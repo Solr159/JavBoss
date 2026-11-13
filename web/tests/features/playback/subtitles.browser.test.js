@@ -233,10 +233,16 @@ test(
     assert.equal(await evaluate(`${savedStyle}.fontPercent`), 2)
     assert.deepEqual(await evaluate(`window.settingsWrites`), [{ offset_ms: 30500 }])
 
-    await command('Runtime.evaluate', {
+    // Headless Chrome can reject fullscreen when the test tab is not active.
+    const activated = await command('Page.bringToFront')
+    assert.ok(!activated.error, JSON.stringify(activated))
+    const fullscreen = await command('Runtime.evaluate', {
       expression: `${player}.requestFullscreen()`,
       userGesture: true,
+      awaitPromise: true,
+      returnByValue: true,
     })
+    assert.ok(!fullscreen.error && !fullscreen.result?.exceptionDetails, JSON.stringify(fullscreen))
     await waitFor(`document.fullscreenElement?.classList.contains('video-js')`)
     await openSettings()
     await waitFor(`${form}?.querySelector('input')?.value === '30.5'`)
