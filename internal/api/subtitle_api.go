@@ -195,17 +195,24 @@ func resolveVideoSubtitle(ctx context.Context, video *models.Video, request mpv.
 		CacheDir:  filepath.Join(filepath.Dir(appConfig.DatabasePath), "subtitles"),
 		Languages: languages,
 	}
-	result, err := subtitleService.Cached(ctx, req)
-	if err == nil {
-		return result, "ready", nil
+	cached, err := subtitleService.Cached(ctx, req)
+	// A fallback cache must not bypass the preferred language when downloads
+	// are allowed. Resolve checks each language's cache before its providers.
+	if err == nil && (!allowDownload || cached.Language == languages[0]) {
+		return cached, "ready", nil
 	}
-	if !errors.Is(err, subtitle.ErrNotFound) {
+	if err != nil && !errors.Is(err, subtitle.ErrNotFound) {
 		return nil, "", err
 	}
 	if !allowDownload {
 		return nil, "disabled", nil
 	}
-	result, err = subtitleService.Resolve(ctx, req)
+	result, err := subtitleService.Resolve(ctx, req)
+	// Keep an existing subtitle usable even if the preferred lookup times out.
+	// A cancelled playback request must still stop instead of returning a track.
+	if err != nil && cached != nil && ctx.Err() == nil {
+		return cached, "ready", nil
+	}
 	if errors.Is(err, subtitle.ErrNotFound) {
 		return nil, "not_found", nil
 	}

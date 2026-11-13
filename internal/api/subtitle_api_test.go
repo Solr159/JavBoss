@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http/httptest"
 	"os"
@@ -17,15 +18,26 @@ import (
 	"javboss/internal/subtitle"
 )
 
-type apiSubtitleProvider struct{ codes []string }
+type apiSubtitleProvider struct {
+	codes    []string
+	language string
+	err      error
+}
 
 func (p *apiSubtitleProvider) ID() string { return "test" }
 func (p *apiSubtitleProvider) Search(_ context.Context, q subtitle.Query) ([]subtitle.Candidate, error) {
 	p.codes = append(p.codes, q.Code)
+	if p.err != nil {
+		return nil, p.err
+	}
 	return []subtitle.Candidate{{ID: q.Code, Code: q.Code}}, nil
 }
 func (p *apiSubtitleProvider) Tracks(context.Context, subtitle.Candidate) ([]subtitle.Track, error) {
-	return []subtitle.Track{{ID: "file", Language: "zh-CN", Format: "srt"}}, nil
+	language := p.language
+	if language == "" {
+		language = "zh-CN"
+	}
+	return []subtitle.Track{{ID: "file", Language: language, Format: "srt"}}, nil
 }
 func (p *apiSubtitleProvider) Download(context.Context, subtitle.Track) ([]byte, error) {
 	return []byte("1\n00:00:01,000 --> 00:00:02,000\nTest\n"), nil
@@ -225,7 +237,7 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	}
 	before := len(provider.codes)
 	call(path, body, 200)
-	// A cached alternative language beats a new download for the preferred one.
+	// With downloads disabled, accept a cached alternative without going online.
 	call("/config", `{"subtitle_language":"zh-TW"}`, 200)
 	call(path, body, 200)
 	if len(provider.codes) != before {
@@ -308,4 +320,108 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	}
 	call(settingsPath, `{"track":12}`, 400)
 	call(settingsPath, fmt.Sprintf(`{"track":%q}`, strings.Repeat("x", 1025)), 400)
+}
+
+func TestSubtitleEndpointLanguageChangeWithCachedFallback(t *testing.T) {
+	for _, tt := range []struct {
+		name            string
+		autoDownload    bool
+		manual          bool
+		cacheOnly       bool
+		preferredCached bool
+		providerMissing bool
+		providerError   error
+		wantLanguage    string
+		wantDownloaded  bool
+		wantLookups     int
+	}{
+		{name: "automatic download prefers new language", autoDownload: true, wantLanguage: "zh-TW", wantDownloaded: true, wantLookups: 1},
+		{name: "manual lookup overrides downloads disabled", manual: true, wantLanguage: "zh-TW", wantDownloaded: true, wantLookups: 1},
+		{name: "downloads disabled reuses fallback", wantLanguage: "zh-CN"},
+		{name: "cache only reuses fallback", autoDownload: true, cacheOnly: true, wantLanguage: "zh-CN"},
+		{name: "cache only overrides manual", manual: true, cacheOnly: true, wantLanguage: "zh-CN"},
+		{name: "preferred cache avoids provider lookup", autoDownload: true, preferredCached: true, wantLanguage: "zh-TW"},
+		{name: "missing preferred language reuses fallback", autoDownload: true, providerMissing: true, wantLanguage: "zh-CN", wantLookups: 1},
+		{name: "provider failure reuses fallback", autoDownload: true, providerError: errors.New("provider unavailable"), wantLanguage: "zh-CN", wantLookups: 1},
+		{name: "provider timeout reuses fallback", autoDownload: true, providerError: context.DeadlineExceeded, wantLanguage: "zh-CN", wantLookups: 1},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			root := t.TempDir()
+			databasePath := filepath.Join(root, "test.db")
+			database, err := dbpkg.Open(databasePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { sql, _ := database.DB(); sql.Close() })
+			deps := newTestDependencies()
+			deps.database, deps.config = database, &common.Config{DatabasePath: databasePath}
+			deps.bindDatabase(t)
+			provider := &apiSubtitleProvider{language: "zh-TW", err: tt.providerError}
+			if tt.providerMissing {
+				provider.language = "zh-CN"
+			}
+			previous := subtitleService
+			subtitleService = subtitle.NewService(provider)
+			t.Cleanup(func() { subtitleService = previous })
+			dir := models.Directory{Path: root}
+			video := models.Video{Fingerprint: "language-change"}
+			jav := models.Jav{Code: "ABC-123"}
+			for _, row := range []any{&dir, &video, &jav} {
+				if err := database.Create(row).Error; err != nil {
+					t.Fatal(err)
+				}
+			}
+			location := models.VideoLocation{VideoID: video.ID, DirectoryID: dir.ID, RelativePath: "video.mp4", Filename: "video.mp4", JavID: &jav.ID}
+			if err := database.Create(&location).Error; err != nil {
+				t.Fatal(err)
+			}
+			cacheDir := filepath.Join(root, "subtitles")
+			if err := os.MkdirAll(cacheDir, 0700); err != nil {
+				t.Fatal(err)
+			}
+			cachedData := []byte("1\n00:00:01,000 --> 00:00:02,000\nCached subtitle\n")
+			writeCache := func(language string) {
+				t.Helper()
+				if err := os.WriteFile(filepath.Join(cacheDir, "ABC-123."+language+".srt"), cachedData, 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			writeCache("zh-CN")
+			if tt.preferredCached {
+				writeCache("zh-TW")
+			}
+			router := gin.New()
+			router.POST("/videos/:id/subtitles/resolve", resolveSubtitle)
+			router.PATCH("/config", updateConfig)
+			call := func(method, path, body string) *httptest.ResponseRecorder {
+				t.Helper()
+				r := httptest.NewRequest(method, path, strings.NewReader(body))
+				r.Header.Set("Content-Type", "application/json")
+				w := httptest.NewRecorder()
+				router.ServeHTTP(w, r)
+				if w.Code != 200 {
+					t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
+				}
+				return w
+			}
+			call("PATCH", "/config", fmt.Sprintf(`{"subtitle_auto_download":%t,"subtitle_language":"zh-CN"}`, tt.autoDownload))
+			path := fmt.Sprintf("/videos/%d/subtitles/resolve", video.ID)
+			body := fmt.Sprintf(`{"location_id":%d,"manual":%t,"cache_only":%t}`, location.ID, tt.manual, tt.cacheOnly)
+			initial := call("POST", path, body)
+			if initial.Header().Get("X-Subtitle-Language") != "zh-CN" || len(provider.codes) != 0 {
+				t.Fatal("initial preference did not reuse its cache", initial.Header(), provider.codes)
+			}
+			call("PATCH", "/config", `{"subtitle_language":"zh-TW"}`)
+			w := call("POST", path, body)
+			if w.Header().Get("X-Subtitle-Language") != tt.wantLanguage || w.Header().Get("X-Subtitle-Downloaded") != fmt.Sprint(tt.wantDownloaded) || w.Header().Get("X-Subtitle-Key") != "download:"+tt.wantLanguage {
+				t.Fatal("language change returned wrong subtitle", w.Header())
+			}
+			if len(provider.codes) != tt.wantLookups {
+				t.Fatalf("provider lookups = %d, want %d", len(provider.codes), tt.wantLookups)
+			}
+			if data, err := os.ReadFile(filepath.Join(cacheDir, "ABC-123.zh-CN.srt")); err != nil || string(data) != string(cachedData) {
+				t.Fatal("existing fallback was changed", err)
+			}
+		})
+	}
 }
