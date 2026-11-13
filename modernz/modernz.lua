@@ -2815,11 +2815,14 @@ local function layout_subtitle_menu()
     end
     local geo = anchor.layout.geometry
     local x1, y1, x2 = get_hitbox_coords(geo.x, geo.y, geo.an, geo.w, geo.h)
-    local width, row, pad = math.min(148, osc_param.playresx - 12), 32, 6
-    local items = {"选择字幕", "关闭字幕", "设置偏移"}
-    if not mp.get_property_native("user-data/javboss/subtitle-downloaded", false) then
-        items[#items + 1] = "查找字幕"
+    local items = mp.get_property_native("user-data/javboss/subtitle-menu-items", {})
+    local row, pad = 32, 6
+    local style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
+    local width = 180
+    for _, item in ipairs(items) do
+        width = math.max(width, estimate_text_width(item.label, style) + 36)
     end
+    width = math.min(width, 360, osc_param.playresx - 12)
     local height = row * #items + pad * 2
     local left = limit_range(6, osc_param.playresx - width - 6, (x1 + x2 - width) / 2)
     local top = math.max(6, y1 - height - 8)
@@ -2829,16 +2832,16 @@ local function layout_subtitle_menu()
     lo.geometry = {x = left, y = top, an = 7, w = width, h = height}
     lo.layer, lo.box.radius = 100, 6
     lo.style = "{\\bord0\\shad0\\1c&H282828&}"
-    for i, label in ipairs(items) do
-        local name = "subtitle_menu_" .. i
+    for i, choice in ipairs(items) do
+        local name = "subtitle_menu_" .. choice.name
         local item = new_element(name, "button")
-        item.content, item.hover_pad = label, 0
+        item.content, item.hover_pad = (choice.selected and "● " or "") .. choice.label, 0
         item.hover_color, item.hover_alpha = "#555555", 0
-        item.eventresponder.mbtn_left_up = function() subtitle_menu_action(i) end
+        item.eventresponder.mbtn_left_up = function() subtitle_menu_action(choice.action) end
         lo = add_layout(name)
-        lo.geometry = {x = left + width / 2, y = top + pad + row * (i - 0.5), an = 5, w = width - pad * 2, h = row}
+        lo.geometry = {x = left + pad, y = top + pad + row * (i - 0.5), an = 4, w = width - pad * 2, h = row}
         lo.layer = 101
-        lo.style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
+        lo.style = style .. string.format("{\\clip(%f,%f,%f,%f)}", left + pad, top, left + width - pad, top + height)
     end
     set_virt_mouse_area(0, 0, osc_param.displayresx, osc_param.playresy, "subtitle-menu-input")
 end
@@ -3928,7 +3931,7 @@ observe_cached("playlist-count", request_init)
 observe_cached("playlist-pos", request_init)
 mp.observe_property("user-data/javboss/playlist-sidebar-width", "number", request_init_resize)
 mp.observe_property("user-data/javboss/subtitle-editable", "bool", request_init_resize)
-mp.observe_property("user-data/javboss/subtitle-downloaded", "bool", request_init_resize)
+mp.observe_property("user-data/javboss/subtitle-menu-items", "native", request_init_resize)
 observe_cached("chapter-list", function ()
     state.chapter_list = state.chapter_list or {}
     table.sort(state.chapter_list, function(a, b) return a.time < b.time end)

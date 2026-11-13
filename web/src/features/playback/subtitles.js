@@ -97,7 +97,7 @@ export function startSubtitleLoading(
             kind: 'subtitles',
             src: objectURL,
             srclang: result.language,
-            label: `${result.source === 'local' ? '本地字幕' : result.source} · ${result.language}`,
+            label: `${result.source === 'local' ? '同目录字幕' : '已下载字幕'} · ${result.language}`,
           },
           false
         )

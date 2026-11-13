@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -237,10 +238,10 @@ func TestAutomaticSubtitleWithMPV(t *testing.T) {
 							t.Fatal("subtitle menu unavailable without tracks")
 						}
 					}
-					command("script-message-to", "modernz", "test-popup-click", "subtitle_menu_4")
+					command("script-message-to", "modernz", "test-popup-click", "subtitle_menu_find")
 					waitMPVTestProperty(t, s.ipcPath, "user-data/javboss/subtitle-status", "searching")
 					session := readMPVTestProperty(t, s.ipcPath, "user-data/javboss/subtitle-session").(map[string]any)
-					command("script-message", "javboss-subtitle-action", "4", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
+					command("script-message", "javboss-subtitle-action", "find", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
 					waitMPVTestProperty(t, s.ipcPath, "user-data/javboss/subtitle-status", "ready")
 					if manualLookups.Load() != 1 {
 						t.Fatal("manual click started duplicate lookups")
@@ -326,8 +327,6 @@ func testLiveSubtitleEditing(t *testing.T, endpoint string, saved <-chan int64, 
 	waitMPVTestProperty(t, endpoint, "sid", false)
 	waitMPVTestProperty(t, endpoint, "user-data/mpv/console/open", false)
 	chooseMenu(1)
-	waitMPVTestProperty(t, endpoint, "user-data/mpv/console/open", true)
-	command("keypress", "ENTER")
 	waitMPVTestProperty(t, endpoint, "sid", selectedSubtitle)
 	waitMPVTestProperty(t, endpoint, "user-data/mpv/console/open", false)
 	chooseMenu(3)
@@ -426,7 +425,7 @@ func testRememberedSubtitleVisibility(t *testing.T, endpoint string, saved <-cha
 	open()
 	waitMPVTestProperty(t, endpoint, "sid", float64(1))
 	session := readMPVTestProperty(t, endpoint, "user-data/javboss/subtitle-session").(map[string]any)
-	command("script-message", "javboss-subtitle-action", "2", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
+	command("script-message", "javboss-subtitle-action", "off", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
 	waitMPVTestProperty(t, endpoint, "sid", false)
 	waitSaved(false)
 	open()
@@ -464,18 +463,29 @@ func testLocalAndDownloadedSubtitleSelection(t *testing.T, endpoint string, stor
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
+	selectPopupTrack := func(id int) {
+		t.Helper()
+		command("script-message-to", "modernz", "javboss-subtitle-popup")
+		command("script-message-to", "modernz", "test-popup-inspect")
+		time.Sleep(30 * time.Millisecond)
+		command("script-message-to", "modernz", "test-popup-click", fmt.Sprintf("subtitle_menu_track_%d", id))
+		waitMPVTestProperty(t, endpoint, "sid", float64(id))
+		if readMPVTestProperty(t, endpoint, "user-data/mpv/console/open") == true {
+			t.Fatal("track selection opened a separate dialog")
+		}
+	}
 	open()
 	waitMPVTestProperty(t, endpoint, "sid", float64(2))
-	command("set_property", "sid", 1)
+	selectPopupTrack(1)
 	waitSaved("local:local.srt")
 	open()
 	waitMPVTestProperty(t, endpoint, "sid", float64(1))
-	command("set_property", "sid", 2)
+	selectPopupTrack(2)
 	waitSaved("download:zh-CN")
 	open()
 	waitMPVTestProperty(t, endpoint, "sid", float64(2))
 	session := readMPVTestProperty(t, endpoint, "user-data/javboss/subtitle-session").(map[string]any)
-	command("script-message", "javboss-subtitle-action", "4", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
+	command("script-message", "javboss-subtitle-action", "find", fmt.Sprint(session["generation"]), fmt.Sprint(session["entry"]))
 	waitMPVTestProperty(t, endpoint, "user-data/javboss/subtitle-status", "existing")
 	tracks := readMPVTestProperty(t, endpoint, "track-list").([]any)
 	count := 0
@@ -495,10 +505,12 @@ func testLocalAndDownloadedSubtitleSelection(t *testing.T, endpoint string, stor
 	if popup["open"] != true || popup["find"] != false {
 		t.Fatal("Find remains visible with a downloaded track", popup)
 	}
-	command("script-message-to", "modernz", "test-popup-click", "outside")
+	items := popup["items"].(map[string]any)
+	if !strings.Contains(items["subtitle_menu_track_1"].(string), "字幕：同目录字幕") || strings.Contains(items["subtitle_menu_track_1"].(string), "local.srt") || items["subtitle_menu_track_2"].(string) != "● 字幕：已下载字幕" {
+		t.Fatal("popup did not label the tracks and mark the selected download", items)
+	}
 	command("sub-remove", 2)
 	waitMPVTestProperty(t, endpoint, "user-data/javboss/subtitle-downloaded", false)
-	command("script-message-to", "modernz", "javboss-subtitle-popup")
 	command("script-message-to", "modernz", "test-popup-inspect")
 	time.Sleep(30 * time.Millisecond)
 	popup = readMPVTestProperty(t, endpoint, "user-data/javboss-test/popup").(map[string]any)

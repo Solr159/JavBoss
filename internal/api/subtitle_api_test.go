@@ -112,7 +112,7 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	}
 	body := fmt.Sprintf(`{"location_id":%d,"format":"vtt"}`, second.ID)
 	w := call(path, body, 200)
-	if w.Header().Get("X-Subtitle-Downloaded") != "true" || !strings.HasPrefix(w.Body.String(), "WEBVTT") || w.Header().Get("X-Subtitle-Source") != "test" {
+	if w.Header().Get("X-Subtitle-Downloaded") != "true" || !strings.HasPrefix(w.Body.String(), "WEBVTT") || w.Header().Get("X-Subtitle-Source") != "download" {
 		t.Fatal(w.Body.String())
 	}
 	if disposition := w.Header().Get("Content-Disposition"); !strings.Contains(disposition, "DEF-456.zh-CN.vtt") {
@@ -270,10 +270,10 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	}
 	manual := fmt.Sprintf(`{"location_id":%d,"format":"vtt","manual":true}`, second.ID)
 	w = call(path, manual, 200)
-	if w.Header().Get("X-Subtitle-Source") != "test" || strings.Contains(w.Body.String(), "Local") || len(provider.codes) != before+1 {
+	if w.Header().Get("X-Subtitle-Source") != "download" || strings.Contains(w.Body.String(), "Local") || len(provider.codes) != before+1 {
 		t.Fatal("manual loading must add the cached download alongside the sidecar")
 	}
-	if file, err := localSubtitleResolver(video.ID, second.ID, "")(context.Background(), mpv.SubtitleRequest{Manual: true}); err != nil || file == nil || file.Title != "test" {
+	if file, err := localSubtitleResolver(video.ID, second.ID, "")(context.Background(), mpv.SubtitleRequest{Manual: true}); err != nil || file == nil || file.Title != "download" {
 		t.Fatalf("manual MPV lookup must bypass sidecar: %+v %v", file, err)
 	}
 	if err := os.Remove(filepath.Join(root, "subtitles", "DEF-456.zh-CN.srt")); err != nil {
@@ -289,7 +289,7 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	}
 	cacheOnly := fmt.Sprintf(`{"location_id":%d,"download_only":true,"cache_only":true}`, second.ID)
 	w = call(path, cacheOnly, 200)
-	if w.Header().Get("X-Subtitle-Source") != "test" || w.Header().Get("X-Subtitle-Key") != "download:zh-CN" {
+	if w.Header().Get("X-Subtitle-Source") != "download" || w.Header().Get("X-Subtitle-Key") != "download:zh-CN" {
 		t.Fatal("automatic cache lookup returned sidecar", w.Header())
 	}
 	if err := os.Remove(filepath.Join(root, "subtitles", "DEF-456.zh-CN.srt")); err != nil {

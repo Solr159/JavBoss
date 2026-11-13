@@ -2,7 +2,6 @@ package subtitle
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -151,9 +150,8 @@ func (s *Service) resolveLanguage(ctx context.Context, req Request, base string)
 
 func (s *Service) resolve(ctx context.Context, req Request, base string) (*Result, error) {
 	type option struct {
-		provider  Provider
-		candidate Candidate
-		track     Track
+		provider Provider
+		track    Track
 	}
 	var options []option
 	var errs []error
@@ -183,7 +181,7 @@ func (s *Service) resolve(ctx context.Context, req Request, base string) (*Resul
 				}
 				if strings.EqualFold(req.Languages[0], track.Language) {
 					track.Language = req.Languages[0]
-					options = append(options, option{p, c, track})
+					options = append(options, option{p, track})
 				}
 			}
 		}
@@ -197,12 +195,8 @@ func (s *Service) resolve(ctx context.Context, req Request, base string) (*Resul
 			errs = append(errs, err)
 			continue
 		}
-		result := &Result{Path: base + ".srt", Source: o.provider.ID(), CandidateID: o.candidate.ID, TrackID: o.track.ID, Language: o.track.Language, Downloaded: true}
+		result := &Result{Path: base + ".srt", Source: SourceDownload, Language: o.track.Language, Downloaded: true}
 		if err := WriteAtomic(result.Path, data); err != nil {
-			return nil, err
-		}
-		metadata, _ := json.Marshal(result)
-		if err := WriteAtomic(base+".json", metadata); err != nil {
 			return nil, err
 		}
 		return result, nil
@@ -213,21 +207,15 @@ func (s *Service) resolve(ctx context.Context, req Request, base string) (*Resul
 	return nil, ErrNotFound
 }
 
+// The filename already carries the code and language. The SRT is the entire
+// disk cache; no metadata sidecar is needed to reuse it after a restart.
 func cached(base string) *Result {
-	data, err := os.ReadFile(base + ".json")
-	if err != nil {
+	path := base + ".srt"
+	info, err := os.Stat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 || info.Size() > MaxBytes {
 		return nil
 	}
-	var result Result
-	if json.Unmarshal(data, &result) != nil || result.Language == "" || result.Source == "" {
-		return nil
-	}
-	result.Path = base + ".srt"
-	info, err := os.Stat(result.Path)
-	if err != nil || info.Size() == 0 || info.Size() > MaxBytes {
-		return nil
-	}
-	return &result
+	return &Result{Path: path, Source: SourceDownload, Language: strings.TrimPrefix(filepath.Ext(base), ".")}
 }
 
 func WriteAtomic(path string, data []byte) error {

@@ -15,6 +15,7 @@ local preferred_track = ''
 local last_track = ''
 local track_keys = {}
 local status_visible = false
+local publish_menu
 local status_text = {
     searching = '正在查找字幕…',
     ready = '字幕已加载',
@@ -38,6 +39,7 @@ local function current_entry()
     return mp.get_property_number('playlist/' .. pos .. '/id', -1)
 end
 local function publish()
+    if publish_menu then publish_menu() end
     mp.set_property_native('user-data/javboss/subtitle-session', {
         generation = generation,
         entry = current_entry(),
@@ -101,7 +103,41 @@ local function has_downloaded_subtitle()
     end
     return false
 end
+local function menu_items()
+    local items = {}
+    if not loaded then return items end
+    local sid = mp.get_property_native('sid')
+    local visible = subtitle_visible()
+    local tracks = mp.get_property_native('track-list', {})
+    local download_count = 0
+    for _, track in ipairs(tracks) do
+        if track.type == 'sub' and track_key(track):match('^download:') then
+            download_count = download_count + 1
+        end
+    end
+    for _, track in ipairs(tracks) do
+        if track.type == 'sub' then
+            local key = track_key(track)
+            local downloaded = key:match('^download:') ~= nil
+            local path = track['external-filename']
+            local label = '字幕：' .. (downloaded and '已下载字幕' or (path and '同目录字幕' or '内嵌字幕'))
+            local language = track.lang or (downloaded and key:sub(10))
+            if (not path or (downloaded and download_count > 1)) and language and language ~= '' then label = label .. ' · ' .. language end
+            items[#items + 1] = {name = 'track_' .. track.id, label = label, action = key, selected = visible and sid == track.id}
+        end
+    end
+    items[#items + 1] = {name = 'off', label = '字幕：隐藏', action = 'off', selected = not visible}
+    items[#items + 1] = {name = 'offset', label = '设置偏移', action = 'offset'}
+    if not has_downloaded_subtitle() then
+        items[#items + 1] = {name = 'find', label = '查找字幕', action = 'find'}
+    end
+    return items
+end
+publish_menu = function()
+    mp.set_property_native('user-data/javboss/subtitle-menu-items', menu_items())
+end
 local function publish_downloaded_subtitle()
+    publish_menu()
     mp.set_property_native('user-data/javboss/subtitle-downloaded', loaded and has_downloaded_subtitle())
 end
 mp.observe_property('track-list', 'native', publish_downloaded_subtitle)
@@ -139,6 +175,7 @@ local function apply_visibility(enabled)
     snapshot_selection()
 end
 local function visibility_changed()
+    publish_menu()
     if not loaded or not visibility_ready or not has_subtitle() then return end
     local enabled, key = subtitle_visible(), selected_key()
     if enabled == last_visibility and (not enabled or key == last_track) then return end
@@ -180,6 +217,8 @@ mp.register_script_message('javboss-subtitle-add', function(expected, entry, pat
             return
         end
     end
+    if key and key:match('^download:') then title = '已下载字幕'
+    elseif key and key:match('^local:') then title = '同目录字幕' end
     local select = force or (not subtitles_disabled and not has_subtitle())
     if not mp.commandv('sub-add', path, select and 'select' or 'auto', title, language) then
         show_status('error')
@@ -238,25 +277,34 @@ end
 mp.register_script_message('javboss-subtitle-offset', open_offset_settings)
 
 local function subtitle_action(choice)
-    if choice == 1 then
-        mp.commandv('script-binding', 'select/select-sid')
-    elseif choice == 2 then
+    if choice == 'off' then
         apply_visibility(false)
         visibility_ready = true
         mp.set_property_native('secondary-sid', false)
         remember_visibility(false)
         mp.osd_message('字幕已关闭', 3)
-    elseif choice == 3 then
+    elseif choice == 'offset' then
         open_offset_settings()
-    elseif choice == 4 then
+    elseif choice == 'find' then
         if mp.get_property_native('user-data/javboss/subtitle-status') == 'searching' then return end
         mp.commandv('script-message', 'javboss-subtitle-load', tostring(generation), tostring(current_entry()))
+    else
+        for _, track in ipairs(mp.get_property_native('track-list', {})) do
+            if track.type == 'sub' and track_key(track) == choice then
+                subtitles_disabled, visibility_ready = false, true
+                mp.set_property_native('sub-visibility', true)
+                mp.set_property_native('sid', track.id)
+                remember_visibility(true)
+                break
+            end
+        end
     end
+    publish_menu()
 end
 
 mp.register_script_message('javboss-subtitle-action', function(choice, expected, entry)
     if loaded and generation == tonumber(expected) and current_entry() == tonumber(entry) then
-        subtitle_action(tonumber(choice))
+        subtitle_action(choice)
     end
 end)
 
@@ -271,8 +319,8 @@ mp.register_script_message('javboss-subtitle-menu', function()
     local expected, entry = generation, current_entry()
     local action
     input_open = true
-    local items = {'选择字幕', '关闭字幕', '设置偏移'}
-    if not has_downloaded_subtitle() then items[#items + 1] = '查找字幕' end
+    local choices, items = menu_items(), {}
+    for _, item in ipairs(choices) do items[#items + 1] = item.label end
     input.select({
         prompt = '字幕',
         items = items,
@@ -292,7 +340,7 @@ mp.register_script_message('javboss-subtitle-menu', function()
                 close_input()
                 return
             end
-            action = function() subtitle_action(choice) end
+            if choices[choice] then action = function() subtitle_action(choices[choice].action) end end
             close_input()
         end,
     })

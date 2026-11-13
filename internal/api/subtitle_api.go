@@ -250,7 +250,7 @@ func localSubtitle(videoPath string, languages []string) (*subtitle.Result, bool
 			if suffix == "."+languages[1] {
 				lang = languages[1]
 			}
-			return &subtitle.Result{Path: path, Language: lang, Source: "local"}, true
+			return &subtitle.Result{Path: path, Language: lang, Source: subtitle.SourceLocal}, true
 		}
 	}
 	return nil, false

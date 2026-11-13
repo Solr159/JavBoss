@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// Provider IDs must be stable: they identify subtitle provenance.
+// Provider IDs identify sources in diagnostics.
 // Candidate and Track IDs are opaque to the coordinator and owned by the provider.
 // Providers return only existing subtitles; they must not start remote translation jobs.
 // Search returns candidates in the provider's preferred order, best first.
@@ -39,19 +39,22 @@ type Request struct {
 	Languages []string // Ordered preference, independent of provider order.
 }
 
+const (
+	SourceLocal    = "local"
+	SourceDownload = "download"
+)
+
 type Result struct {
-	Downloaded  bool   `json:"-"` // True only when this resolve produced a fresh download.
-	Path        string `json:"-"`
-	Source      string `json:"source"`
-	CandidateID string `json:"candidate_id"`
-	TrackID     string `json:"track_id"`
-	Language    string `json:"language"`
+	Downloaded bool // True only when this resolve produced a fresh download.
+	Path       string
+	Source     string // SourceLocal or SourceDownload, independent of the provider.
+	Language   string
 }
 
 // SelectionKey is stable across players and cache refreshes. Local sidecars
 // identify a file; downloaded tracks identify the preferred language copy.
 func (r *Result) SelectionKey() string {
-	if r.Source == "local" {
+	if r.Source == SourceLocal {
 		return "local:" + filepath.Base(r.Path)
 	}
 	return "download:" + r.Language

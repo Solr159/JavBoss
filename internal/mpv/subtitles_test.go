@@ -99,14 +99,12 @@ local function flush()
 end
 local menu=messages['javboss-subtitle-menu']
 menu()
-assert(#prompt.items==4 and prompt.items[1]=='选择字幕' and prompt.items[2]=='关闭字幕' and prompt.items[3]=='设置偏移' and prompt.items[4]=='查找字幕')
-prompt.submit(2); flush()
+assert(#prompt.items==3 and prompt.items[1]=='字幕：隐藏' and prompt.items[2]=='设置偏移' and prompt.items[3]=='查找字幕')
+prompt.submit(1); flush()
 assert(state['sid']==false and state['secondary-sid']==false)
 add('3','2','late.srt','source','zh-CN','0')
 assert(last_add[3]=='auto' and state['sid']==false) -- late downloads stay disabled
-menu(); prompt.submit(1); flush()
-assert(last_save[1]=='script-binding' and last_save[2]=='select/select-sid')
-menu(); prompt.submit(3); flush()
+menu(); prompt.submit(2); flush()
 assert(prompt.items==nil and prompt.default_text=='0.000')
 prompt.submit('-2.5'); assert(state['sub-delay']==-2.5 and last_save[6]=='-2500')
 saved('3','2','1','saved')
@@ -116,13 +114,13 @@ menu()
 local stale_menu=prompt
 events['end-file'](); events['start-file'](); events['file-loaded']()
 state['sid']=42
-stale_menu.submit(2); flush(); assert(state['sid']==42)
-menu(); prompt.submit(2)
+stale_menu.submit(1); flush(); assert(state['sid']==42)
+menu(); prompt.submit(1)
 events['end-file'](); events['start-file'](); events['file-loaded']()
 flush(); assert(state['sid']==42) -- a queued action cannot affect the next video
-messages['javboss-subtitle-action']('2', '3', '2')
+messages['javboss-subtitle-action']('off', '3', '2')
 assert(state['sid']==42) -- an anchored popup from an old playback is ignored
-messages['javboss-subtitle-action']('2', '5', '999')
+messages['javboss-subtitle-action']('off', '5', '999')
 assert(state['sid']==42) -- another playlist entry cannot close this video's subtitles
 local status=messages['javboss-subtitle-status']
 local generation=tostring(state['user-data/javboss/subtitle-session'].generation)
@@ -144,18 +142,38 @@ add(generation,'2','one.srt','source','zh-CN','0'); assert(osd_text=='检测到�
 local before_add=calls
 add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','download:zh-CN')
 assert(calls==before_add+1 and last_add[3]=='select')
-state['track-list']={{type='sub',id=1,['external-filename']='one.srt'}, {type='sub',id=2,['external-filename']='download.srt'}}
+state['track-list']={{type='sub',id=1,lang='zh-CN',['external-filename']='one.srt'}, {type='sub',id=2,['external-filename']='download.srt'}}
 state['sid']=1
 add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','download:zh-CN')
 assert(calls==before_add+1 and state['sid']==2) -- reselect, never duplicate
 assert(state['user-data/javboss/subtitle-downloaded']==true)
-menu(); assert(#prompt.items==3); prompt.closed(); flush()
+menu()
+assert(prompt.prompt=='字幕' and prompt.items[1]=='字幕：同目录字幕' and prompt.items[2]=='字幕：已下载字幕' and prompt.items[3]=='字幕：隐藏')
+prompt.submit(1); flush(); assert(state['sid']==1 and last_save[5]=='local:one.srt')
+menu(); prompt.submit(2); flush()
+assert(state['sid']==2 and last_save[5]=='download:zh-CN')
+
+menu(); assert(#prompt.items==4); prompt.closed(); flush()
+-- Language labels distinguish multiple downloads and disappear when only one remains.
+state['track-list'][3]={type='sub',id=3,['external-filename']='download-tw.srt'}
+add(generation,'2','download-tw.srt','subtitlecat','zh-TW','0','existing','false','','download:zh-TW')
+menu()
+assert(prompt.items[2]=='字幕：已下载字幕 · zh-CN' and prompt.items[3]=='字幕：已下载字幕 · zh-TW')
+prompt.closed(); flush()
+state['track-list'][3]=nil; observed['track-list']()
+menu(); assert(prompt.items[2]=='字幕：已下载字幕'); prompt.closed(); flush()
 state['sid']=false; observed.sid()
-menu(); assert(#prompt.items==3); prompt.closed(); flush() -- hidden even when disabled
+menu(); assert(#prompt.items==4); prompt.closed(); flush() -- hidden even when disabled
 state['track-list']={{type='sub',id=1,['external-filename']='one.srt'}}
 observed['track-list']()
 assert(state['user-data/javboss/subtitle-downloaded']==false)
 menu(); assert(#prompt.items==4 and prompt.items[4]=='查找字幕'); prompt.closed(); flush()
+local previous_sid=state['sid']
+messages['javboss-subtitle-action']('download:zh-CN', generation, '2')
+assert(state['sid']==previous_sid) -- removed track cannot select a replacement by index
+local entries=state['user-data/javboss/subtitle-menu-items']
+assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and entries[2].selected)
+
 
 status(generation,'2','searching'); events['end-file']()
 assert(osd_text=='' and osd_duration==0)

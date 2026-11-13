@@ -27,10 +27,11 @@ mp.get_mouse_pos = function() return test_x, test_y end
 ` + string(data) + `
 mp.register_script_message("test-popup-inspect", function()
     osc_init()
-    local result = {open = subtitle_menu ~= nil, tooltips = user_opts.tooltip_hints, find = false}
+    local result = {open = subtitle_menu ~= nil, tooltips = user_opts.tooltip_hints, find = false, items = {}}
     for _, el in ipairs(elements) do
         if el.name == "sub_track" then result.anchor = el.hitbox; result.tooltip = el.tooltipF() end
-        if el.name == "subtitle_menu_4" then result.find = true; result.find_label = el.content end
+        if el.name:match("^subtitle_menu_track_") then result.items[el.name] = el.content end
+        if el.name == "subtitle_menu_find" then result.find = true; result.find_label = el.content end
     end
     if subtitle_menu then
         result.bounds = subtitle_menu.bounds
@@ -123,20 +124,20 @@ func testAnchoredSubtitlePopup(t *testing.T, endpoint string) {
 	selected := readMPVTestProperty(t, endpoint, "sid")
 	click("sub_track")
 	inspect(true)
-	click("subtitle_menu_2")
+	click("subtitle_menu_off")
 	inspect(false)
 	waitMPVTestProperty(t, endpoint, "sid", false)
 	click("sub_track")
 	inspect(true)
-	click("subtitle_menu_1")
+	click("subtitle_menu_track_1")
 	inspect(false)
-	waitMPVTestProperty(t, endpoint, "user-data/mpv/console/open", true)
-	command("keypress", "ENTER")
 	waitMPVTestProperty(t, endpoint, "sid", selected)
-	waitMPVTestProperty(t, endpoint, "user-data/mpv/console/open", false)
+	if readMPVTestProperty(t, endpoint, "user-data/mpv/console/open") == true {
+		t.Fatal("track selection opened a separate dialog")
+	}
 	click("sub_track")
 	inspect(true)
-	click("subtitle_menu_3")
+	click("subtitle_menu_offset")
 	inspect(false)
 	waitMPVTestProperty(t, endpoint, "user-data/javboss/subtitle-offset-open", true)
 	command("keypress", "ESC")

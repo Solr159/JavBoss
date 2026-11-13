@@ -60,21 +60,21 @@ func TestResolveLanguagePreferenceFallbackAndDiskCache(t *testing.T) {
 	r := request(t)
 	s := NewService(a, b)
 	result, err := s.Resolve(context.Background(), r)
-	if err != nil || result.Source != "second" || !result.Downloaded {
+	if err != nil || result.Source != SourceDownload || !result.Downloaded || b.downloads.Load() != 1 || a.downloads.Load() != 0 {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}
 	if result.Path != filepath.Join(r.CacheDir, "ABC-123.zh-CN.srt") {
 		t.Fatalf("unexpected filename: %s", result.Path)
 	}
-	if _, err := os.Stat(filepath.Join(r.CacheDir, "ABC-123.zh-CN.json")); err != nil {
-		t.Fatal(err)
+	if _, err := os.Stat(filepath.Join(r.CacheDir, "ABC-123.zh-CN.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("unexpected JSON sidecar", err)
 	}
 	data, err := os.ReadFile(result.Path)
 	if err != nil || string(data) != sampleSRT {
 		t.Fatalf("saved subtitle=%q err=%v", data, err)
 	}
-	// A fresh service uses the persisted cache, including provenance.
-	if cached, err := NewService(a, b).Resolve(context.Background(), r); err != nil || cached.Downloaded {
+	// A fresh service reuses the SRT alone and restores its language from the filename.
+	if cached, err := NewService(a, b).Resolve(context.Background(), r); err != nil || cached.Downloaded || cached.Language != "zh-CN" || cached.Source != SourceDownload {
 		t.Fatalf("cache marked as fresh download: %+v %v", cached, err)
 	}
 	if a.searches.Load() != 1 || b.downloads.Load() != 1 {
@@ -87,7 +87,7 @@ func TestResolveLanguagePreferenceFallbackAndDiskCache(t *testing.T) {
 	}
 	r.Languages = []string{"zh-TW", "zh-CN"}
 	other, err = s.Resolve(context.Background(), r)
-	if err != nil || other.Path != filepath.Join(r.CacheDir, "ABC-123.zh-TW.srt") || other.Source != "first" {
+	if err != nil || other.Path != filepath.Join(r.CacheDir, "ABC-123.zh-TW.srt") || other.Source != SourceDownload || a.downloads.Load() != 1 {
 		t.Fatalf("language preference ignored: %+v %v", other, err)
 	}
 }
@@ -97,7 +97,7 @@ func TestResolveSkipsBrokenSourcesAndInvalidDownloads(t *testing.T) {
 	b := &fakeProvider{id: "html", language: "zh-CN", data: []byte("<html>challenge</html>")}
 	c := &fakeProvider{id: "good", language: "zh-CN"}
 	result, err := NewService(a, b, c).Resolve(context.Background(), request(t))
-	if err != nil || result.Source != "good" {
+	if err != nil || result.Source != SourceDownload || c.downloads.Load() != 1 {
 		t.Fatalf("result=%+v err=%v", result, err)
 	}
 }
@@ -185,5 +185,35 @@ func TestCachedLookupNeverContactsProviders(t *testing.T) {
 	cancel()
 	if _, err := s.Cached(ctx, r); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
+	}
+}
+
+func TestStandaloneSRTCacheIgnoresMetadata(t *testing.T) {
+	for _, metadata := range []string{"", "invalid JSON"} {
+		t.Run(metadata, func(t *testing.T) {
+			r := request(t)
+			path := filepath.Join(r.CacheDir, "ABC-123.zh-TW.srt")
+			if err := os.WriteFile(path, []byte(sampleSRT), 0600); err != nil {
+				t.Fatal(err)
+			}
+			if metadata != "" {
+				if err := os.WriteFile(filepath.Join(r.CacheDir, "ABC-123.zh-TW.json"), []byte(metadata), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			p := &fakeProvider{id: "offline", err: errors.New("provider must not be contacted")}
+			s := NewService(p)
+			cached, err := s.Cached(context.Background(), r)
+			if err != nil || cached.Path != path || cached.Language != "zh-TW" || cached.Source != SourceDownload || cached.Downloaded {
+				t.Fatalf("standalone cache: %+v %v", cached, err)
+			}
+			r.Languages = []string{"zh-TW"}
+			if _, err := s.Resolve(context.Background(), r); err != nil {
+				t.Fatal(err)
+			}
+			if p.searches.Load() != 0 {
+				t.Fatal("cache lookup contacted provider")
+			}
+		})
 	}
 }
