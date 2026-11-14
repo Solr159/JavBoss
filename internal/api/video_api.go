@@ -219,7 +219,7 @@ func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.Playba
 	if mimeType := directMimeType(probe.Container); mimeType != "" {
 		info.Sources = append(info.Sources, playbackSource{
 			Kind:     "direct",
-			Src:      buildDirectStreamURL(video, locationID),
+			Src:      buildDirectStreamURL(video),
 			MimeType: mimeType,
 			Label:    "Direct",
 		})
@@ -236,7 +236,7 @@ func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.Playba
 
 func streamVideo(c *gin.Context) {
 	if strings.TrimSpace(c.Query("location_id")) == "" {
-		// Preserve legacy URLs that provide the file path directly.
+		// Playback info includes the selected path so Range requests need no lookup.
 		if fullPath, err := resolveStreamPathFromQuery(c); err == nil {
 			serveVideoFile(c, fullPath)
 			return
@@ -380,15 +380,16 @@ func directMimeType(container string) string {
 	}
 }
 
-func buildDirectStreamURL(video *models.Video, locationID int64) string {
+func buildDirectStreamURL(video *models.Video) string {
 	if video == nil {
 		return ""
 	}
 	streamURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/stream"
-	if locationID > 0 {
-		streamURL += "?location_id=" + strconv.FormatInt(locationID, 10)
+	query := url.Values{
+		"path":     {video.Path},
+		"dir_path": {video.DirectoryRef.Path},
 	}
-	return streamURL
+	return streamURL + "?" + query.Encode()
 }
 
 func buildHLSStreamURL(video *models.Video, locationID int64) string {
