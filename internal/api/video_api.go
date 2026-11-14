@@ -235,19 +235,17 @@ func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.Playba
 }
 
 func streamVideo(c *gin.Context) {
-	var fullPath string
-	var err error
-	if strings.TrimSpace(c.Query("location_id")) != "" {
-		fullPath, err = resolveStreamPathFromLocationQuery(c)
-	} else {
-		fullPath, err = resolveStreamPathFromQuery(c)
-	}
-	if err != nil {
-		_, fullPath, _, err = resolveVideoStreamTarget(c)
-		if err != nil {
-			respondPlaybackError(c, err)
+	if strings.TrimSpace(c.Query("location_id")) == "" {
+		// Preserve legacy URLs that provide the file path directly.
+		if fullPath, err := resolveStreamPathFromQuery(c); err == nil {
+			serveVideoFile(c, fullPath)
 			return
 		}
+	}
+	_, fullPath, _, err := resolveVideoStreamTarget(c)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
 	}
 	serveVideoFile(c, fullPath)
 }
@@ -295,26 +293,6 @@ func streamHLSSegment(c *gin.Context) {
 	})
 }
 
-func resolveStreamPathFromLocationQuery(c *gin.Context) (string, error) {
-	videoID, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
-	if err != nil || videoID <= 0 {
-		return "", errors.New("invalid id")
-	}
-	locationID, err := parseLocationIDQuery(c)
-	if err != nil || locationID <= 0 {
-		return "", err
-	}
-	loc, err := dbpkg.Default().GetActiveVideoLocation(c.Request.Context(), videoID, locationID)
-	if err != nil {
-		return "", err
-	}
-	if loc == nil {
-		return "", os.ErrNotExist
-	}
-	fullPath, _, err := resolveVideoPath(loc.RelativePath, loc.DirectoryRef.Path)
-	return fullPath, err
-}
-
 func resolveStreamPathFromQuery(c *gin.Context) (string, error) {
 	rawPath := strings.TrimSpace(c.Query("path"))
 	rawDirPath := strings.TrimSpace(c.Query("dir_path"))
@@ -328,27 +306,17 @@ func resolveVideoStreamTarget(c *gin.Context) (*models.Video, string, int64, err
 		return nil, "", 0, errors.New("invalid id")
 	}
 
-	video, err := dbpkg.Default().GetVideo(c.Request.Context(), id)
-	if err != nil {
-		return nil, "", 0, err
-	}
-	if video == nil {
-		return nil, "", 0, os.ErrNotExist
-	}
-
 	locationID, err := parseLocationIDQuery(c)
 	if err != nil {
 		return nil, "", 0, err
 	}
 
-	if locationID > 0 {
-		video, err = dbpkg.Default().GetVideoForLocation(c.Request.Context(), id, locationID)
-		if err != nil {
-			return nil, "", 0, err
-		}
-		if video == nil {
-			return nil, "", 0, os.ErrNotExist
-		}
+	video, err := dbpkg.Default().GetVideoForPlayback(c.Request.Context(), id, locationID)
+	if err != nil {
+		return nil, "", 0, err
+	}
+	if video == nil {
+		return nil, "", 0, os.ErrNotExist
 	}
 	fullPath, _, err := resolveVideoPath(video.Path, video.DirectoryRef.Path)
 	if err != nil {

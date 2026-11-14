@@ -50,7 +50,7 @@ func load(ctx context.Context, store *db.Store, video *models.Video, path string
 		return nil, ctx.Err()
 	}
 	// Another request or scan may have populated the row while we were waiting.
-	current, err := store.GetVideoForLocation(ctx, video.ID, video.LocationID)
+	current, err := store.GetVideoForPlayback(ctx, video.ID, video.LocationID)
 	if err != nil {
 		return nil, err
 	}

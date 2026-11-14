@@ -47,7 +47,7 @@ func mediaFixture(t *testing.T) (*db.Store, *gorm.DB, *models.Video, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	selected, err := store.GetVideoForLocation(t.Context(), video.ID, loc.ID)
+	selected, err := store.GetVideoForPlayback(t.Context(), video.ID, loc.ID)
 	if err != nil {
 		t.Fatal(err)
 	}
