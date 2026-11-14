@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/models"
 	"javboss/internal/util"
 )
 
@@ -55,6 +56,7 @@ type Options struct {
 	StreamType *StreamType
 	SourcePath string
 	Duration   float64
+	MediaInfo  *models.MediaInfo
 	Resolution string
 	Key        string
 	Segment    string
@@ -63,7 +65,7 @@ type Options struct {
 type StreamType struct {
 	Name          string
 	SegmentType   *SegmentType
-	ServeManifest func(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string)
+	ServeManifest func(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string, mediaInfo *models.MediaInfo)
 	Args          func(segment int, videoFilter string, videoOnly bool, outputDir string) []string
 }
 
@@ -216,11 +218,14 @@ func (sm *streamer) Stop() {
 }
 
 // ServeManifest builds an HLS playlist without starting a transcoding process.
-func ServeManifest(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string) {
-	StreamTypeHLS.ServeManifest(w, r, sourcePath, durationHint, resolution)
+func ServeManifest(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string, mediaInfo *models.MediaInfo) {
+	StreamTypeHLS.ServeManifest(w, r, sourcePath, durationHint, resolution, mediaInfo)
 }
 
 func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options Options) {
+	if options.MediaInfo != nil && options.MediaInfo.Complete() && options.MediaInfo.DurationSeconds > 0 {
+		options.Duration = options.MediaInfo.DurationSeconds
+	}
 	if sm.cacheDir == "" {
 		http.Error(w, "cannot live transcode files because cache dir is unset", http.StatusServiceUnavailable)
 		return
@@ -255,7 +260,7 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 
 	stream := sm.runningStreams[dir]
 	if stream == nil {
-		vf, err := loadStreamVideoFile(options.SourcePath, options.Duration)
+		vf, err := loadStreamVideoFile(options.SourcePath, options.Duration, options.MediaInfo)
 		if err != nil {
 			sm.streamsMutex.Unlock()
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -487,8 +492,8 @@ func (sm *streamer) stopAndRemoveAll() {
 	sm.runningStreams = nil
 }
 
-func serveHLSManifest(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string) {
-	vf, err := loadStreamVideoFile(sourcePath, durationHint)
+func serveHLSManifest(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string, mediaInfo *models.MediaInfo) {
+	vf, err := loadStreamVideoFile(sourcePath, durationHint, mediaInfo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -637,10 +642,13 @@ func lastSegmentForDuration(duration float64) int {
 	return int(math.Ceil(duration/segmentLength)) - 1
 }
 
-func loadStreamVideoFile(sourcePath string, durationHint float64) (*streamVideoFile, error) {
-	meta, err := util.ProbeVideo(sourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("probe video file: %w", err)
+func loadStreamVideoFile(sourcePath string, durationHint float64, meta *models.MediaInfo) (*streamVideoFile, error) {
+	if meta == nil || !meta.Complete() {
+		var err error
+		meta, err = util.ProbeVideo(sourcePath)
+		if err != nil {
+			return nil, fmt.Errorf("probe video file: %w", err)
+		}
 	}
 	duration := meta.DurationSeconds
 	if duration <= 0 {

@@ -1,0 +1,424 @@
+.player-window {
+  color-scheme: dark;
+  color: #f1f5f9;
+  background: #11151e;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  box-shadow: 0 32px 100px rgb(0 0 0 / 55%);
+}
+
+/* The frame, title bar and playlist follow the application theme. */
+:root:not(.dark) .player-window {
+  background: #fff;
+  border-color: #e4e4e7;
+  box-shadow: 0 32px 100px rgb(0 0 0 / 25%);
+}
+
+:root:not(.dark) .player-header {
+  color: #27272a;
+}
+
+:root:not(.dark) .player-toolbar-button {
+  color: #52525b;
+}
+
+:root:not(.dark) .player-toolbar-button:hover:not(:disabled) {
+  color: #18181b;
+  background: #f4f4f5;
+}
+
+:root:not(.dark) .player-toolbar-button[aria-expanded='true'] {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+:root:not(.dark) .player-close-button:hover:not(:disabled) {
+  color: #e11d48;
+  background: #ffe4e6;
+}
+
+.player-header {
+  margin-bottom: 6px;
+}
+
+.player-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 24px;
+  border-radius: 4px;
+  color: #cbd5e1;
+  transition:
+    background-color 150ms,
+    color 150ms;
+}
+
+.player-toolbar-button:hover:not(:disabled) {
+  color: #fff;
+  background: rgb(255 255 255 / 8%);
+}
+
+.player-toolbar-button:disabled {
+  opacity: 0.3;
+}
+
+.player-toolbar-button[aria-expanded='true'] {
+  color: #7dd3fc;
+  background: rgb(56 189 248 / 12%);
+}
+
+.player-close-button {
+  height: 20px;
+  border-radius: 50%;
+}
+
+.player-close-button:hover:not(:disabled) {
+  color: #fda4af;
+  background: rgb(251 113 133 / 12%);
+}
+
+.player-window button:not(.player-playlist-item):focus-visible,
+.player-shell .video-js .vjs-slider:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: -2px;
+}
+
+.player-playlist {
+  border: 1px solid rgb(255 255 255 / 5%);
+  border-radius: 10px;
+  background: #171c27;
+  scrollbar-color: #475569 transparent;
+  scrollbar-width: thin;
+}
+
+.player-playlist-item {
+  color: #94a3b8;
+  border: 1px solid transparent;
+}
+
+.player-playlist-item:hover {
+  color: #f1f5f9;
+  background: rgb(255 255 255 / 5%);
+}
+
+.player-playlist-item.is-active {
+  color: #e0f2fe;
+  border-color: rgb(56 189 248 / 20%);
+  background: rgb(56 189 248 / 10%);
+}
+
+.player-playlist-item.is-active .player-playlist-number {
+  color: #7dd3fc;
+}
+
+:root:not(.dark) .player-playlist {
+  color-scheme: light;
+  color: #27272a;
+  border-color: rgb(228 228 231 / 40%);
+  background: #f4f4f5;
+  scrollbar-color: #71717a transparent;
+}
+
+:root:not(.dark) .player-playlist-item {
+  color: #52525b;
+}
+
+:root:not(.dark) .player-playlist-item:hover {
+  color: #18181b;
+  background: #e4e4e7;
+}
+
+:root:not(.dark) .player-playlist-item.is-active {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #dbeafe;
+}
+
+:root:not(.dark) .player-playlist-item.is-active .player-playlist-number {
+  color: #2563eb;
+}
+
+.player-notice {
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 10px;
+  color: #e2e8f0;
+  background: rgb(15 23 42 / 88%);
+  box-shadow: 0 4px 20px rgb(0 0 0 / 20%);
+  backdrop-filter: blur(12px);
+}
+
+.player-loading {
+  border-radius: 10px;
+  background: radial-gradient(ellipse at center, #182334, #080b11 75%);
+}
+
+/* One startup indicator covers info lookup, source loading and first buffering.
+   Leave Video.js's normal buffering and manual play UI intact after startup. */
+.player-shell.player-starting .vjs-big-play-button,
+.player-shell.player-starting .vjs-loading-spinner {
+  display: none;
+}
+
+.player-shell {
+  container-type: inline-size;
+  --player-controls-height: 50px;
+  --player-control-size: 30px;
+  height: 100%;
+  min-height: 0;
+  padding-bottom: var(--player-controls-height);
+  border-radius: 10px;
+  background: #080b11;
+}
+
+.player-shell .video-js {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px 10px 0 0;
+  font-family: inherit;
+  color: #f1f5f9;
+  background: #080b11;
+}
+
+.player-shell .vjs-tech {
+  border-radius: inherit;
+}
+
+/* Keep controls below the picture in a window; use the same native controls
+   over a gradient in fullscreen. Video.js owns menus, seeking and keyboard input. */
+.player-shell .video-js:not(.vjs-controls-disabled) .vjs-control-bar {
+  display: flex;
+  align-items: center;
+  height: var(--player-controls-height);
+  padding: 18px 12px 2px;
+  border-radius: 0 0 10px 10px;
+  background: #080b11;
+  transform: translateY(100%);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.player-shell .video-js .vjs-control {
+  width: 3.6em;
+  height: var(--player-control-size);
+  flex-shrink: 0;
+}
+
+.player-shell .vjs-control-bar > .vjs-button,
+.player-shell .vjs-volume-panel .vjs-mute-control {
+  border-radius: 8px;
+}
+
+.player-shell .vjs-control-bar > .vjs-button:hover,
+.player-shell .vjs-volume-panel .vjs-mute-control:hover {
+  background: rgb(255 255 255 / 10%);
+}
+
+.player-shell .vjs-control-bar .vjs-icon-placeholder::before {
+  line-height: var(--player-control-size);
+}
+
+.player-shell .video-js .vjs-play-control {
+  color: #7dd3fc;
+}
+
+.player-shell .video-js .vjs-progress-control {
+  position: absolute;
+  top: 4px;
+  left: 12px;
+  right: 12px;
+  width: auto;
+  height: 14px;
+}
+
+.player-shell .vjs-progress-holder {
+  height: 4px;
+  margin: 0;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 14%);
+}
+
+.player-shell .vjs-load-progress,
+.player-shell .vjs-load-progress div,
+.player-shell .vjs-play-progress,
+.player-shell .vjs-volume-level {
+  border-radius: 4px;
+}
+
+.player-shell .vjs-load-progress div {
+  background: rgb(255 255 255 / 25%);
+}
+
+.player-shell .vjs-play-progress,
+.player-shell .vjs-volume-level {
+  background: #7dd3fc;
+}
+
+.player-shell .video-js .vjs-time-control {
+  display: block;
+  width: auto;
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 11px;
+  height: var(--player-control-size);
+  line-height: var(--player-control-size);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-shell .video-js .vjs-duration {
+  margin-right: auto;
+  color: #94a3b8;
+}
+
+.player-shell .video-js .vjs-time-divider {
+  color: #64748b;
+}
+
+.player-shell .video-js .vjs-volume-panel.vjs-volume-panel-horizontal {
+  width: 9em;
+}
+
+.player-shell .vjs-volume-panel .vjs-volume-control.vjs-volume-horizontal {
+  visibility: visible;
+  opacity: 1;
+  position: relative;
+  align-items: center;
+  width: 5em;
+  height: var(--player-control-size);
+  margin: 0;
+}
+
+.player-shell .vjs-volume-bar.vjs-slider-horizontal {
+  margin: 0 0.45em;
+}
+
+.player-shell .vjs-playback-rate .vjs-playback-rate-value {
+  font-size: 12px;
+  height: var(--player-control-size);
+  line-height: var(--player-control-size);
+}
+
+.player-shell .vjs-menu-button-popup .vjs-menu {
+  bottom: 0;
+}
+
+.player-shell .vjs-menu-button-popup .vjs-menu .vjs-menu-content {
+  padding: 6px;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 10px;
+  background: #1c2432;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 35%);
+}
+
+.player-shell .vjs-menu li.vjs-menu-item {
+  padding: 7px 4px;
+  border-radius: 5px;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.player-shell .vjs-menu li.vjs-selected {
+  color: #e0f2fe;
+  background: rgb(56 189 248 / 20%);
+}
+
+.player-shell .video-js .vjs-big-play-button {
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  border: 1px solid rgb(255 255 255 / 25%);
+  border-radius: 50%;
+  background: rgb(15 23 42 / 75%);
+  backdrop-filter: blur(12px);
+}
+
+.player-shell .vjs-big-play-button .vjs-icon-placeholder::before {
+  line-height: 62px;
+}
+
+.player-shell .video-js.vjs-fullscreen .vjs-control-bar {
+  transform: none;
+  border-radius: 0;
+  background: linear-gradient(transparent, rgb(0 0 0 / 85%));
+}
+
+.player-shell .video-js.vjs-fullscreen .player-subtitle-status {
+  bottom: calc(var(--player-controls-height) + 0.5rem);
+}
+
+/* The window and playlist can both be resized, so adapt to the actual video
+   width rather than the viewport. Keep containment on the stable shell, away
+   from the media element Video.js resets. Fullscreen restores all controls. */
+@container (max-width: 480px) {
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-volume-panel.vjs-volume-panel-horizontal {
+    width: 3.6em;
+  }
+
+  .player-shell
+    .video-js:not(.vjs-fullscreen)
+    .vjs-volume-panel
+    .vjs-volume-control.vjs-volume-horizontal {
+    display: none;
+  }
+}
+
+@container (max-width: 360px) {
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-picture-in-picture-control,
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-duration,
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-time-divider {
+    display: none;
+  }
+
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-current-time {
+    margin-right: auto;
+  }
+
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-control-bar {
+    padding-right: 4px;
+    padding-left: 4px;
+  }
+}
+
+@container (max-width: 260px) {
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-volume-panel,
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-current-time {
+    display: none;
+  }
+
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-play-control {
+    margin-right: auto;
+  }
+
+  .player-shell .video-js:not(.vjs-fullscreen) .vjs-control:not(.vjs-progress-control) {
+    width: 3em;
+  }
+}
+
+/* Fullscreen is sized by the viewport rather than the window shell. */
+@media (max-width: 480px) {
+  .player-shell .video-js.vjs-fullscreen .vjs-volume-panel.vjs-volume-panel-horizontal {
+    width: 3.6em;
+  }
+
+  .player-shell .video-js.vjs-fullscreen .vjs-volume-control.vjs-volume-horizontal,
+  .player-shell .video-js.vjs-fullscreen .vjs-picture-in-picture-control,
+  .player-shell .video-js.vjs-fullscreen .vjs-duration,
+  .player-shell .video-js.vjs-fullscreen .vjs-time-divider {
+    display: none;
+  }
+
+  .player-shell .video-js.vjs-fullscreen .vjs-current-time {
+    margin-right: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-window *,
+  .player-window *::before,
+  .player-window *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

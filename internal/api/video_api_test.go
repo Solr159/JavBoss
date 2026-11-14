@@ -546,14 +546,14 @@ func TestPlaybackInfoAdvertisesNativeCandidates(t *testing.T) {
 		{"avi", "mpeg4", ""},
 	} {
 		t.Run(tt.container+"_"+tt.codec, func(t *testing.T) {
-			info := buildPlaybackInfo(&models.Video{ID: 42}, 7, &util.PlaybackProbeResult{
+			info := buildPlaybackInfo(&models.Video{ID: 42, Path: "sample.mp4", DirectoryRef: models.Directory{Path: "/media"}}, 7, &util.PlaybackProbeResult{
 				Container: tt.container, VideoCodec: tt.codec, AudioCodec: "aac",
 			})
 			if info.VideoCodec != tt.codec || info.AudioCodec != "aac" || info.PreferredKind != "hls" {
 				t.Fatalf("unexpected playback metadata: %+v", info)
 			}
 			if tt.mime != "" {
-				if len(info.Sources) != 2 || info.Sources[0].Kind != "direct" || info.Sources[0].MimeType != tt.mime || info.Sources[0].Src != "/videos/42/stream?location_id=7" {
+				if len(info.Sources) != 2 || info.Sources[0].Kind != "direct" || info.Sources[0].MimeType != tt.mime || info.Sources[0].Src != "/videos/42/stream?dir_path=%2Fmedia&path=sample.mp4" {
 					t.Fatalf("missing native playback candidate: %+v", info.Sources)
 				}
 			} else if len(info.Sources) != 1 {

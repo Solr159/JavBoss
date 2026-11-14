@@ -20,11 +20,11 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         aria-controls="browser-playlist"
         data-playlist-resize
         title={zh('左右拖动调整播放列表宽度', 'Drag left or right to resize the playlist')}
-        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center hover:bg-blue-50 dark:hover:bg-ui-blue-hover ${resize.dragging ? 'bg-blue-50 dark:bg-ui-blue-surface' : ''}`}
+        className={`group flex w-2 shrink-0 cursor-col-resize touch-none select-none items-center justify-center hover:bg-white/5 ${resize.dragging ? 'bg-white/5' : ''}`}
         {...resize.separatorProps}
       >
         <span
-          className={`h-8 w-0.5 rounded-full group-hover:bg-blue-400 ${resize.dragging ? 'bg-blue-400' : 'bg-zinc-300 dark:bg-ui-hover'}`}
+          className={`h-8 w-0.5 rounded-full group-hover:bg-sky-400 ${resize.dragging ? 'bg-sky-400' : 'bg-slate-700'}`}
         />
       </div>
       <aside
@@ -32,12 +32,15 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         style={{ width: resize.width }}
         id="browser-playlist"
         aria-label={zh('播放列表', 'Playlist')}
-        className="flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded bg-zinc-100 dark:bg-ui-muted"
+        className="player-playlist flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden"
       >
-        <h3 className="border-b border-zinc-200 px-3 py-2 text-sm font-semibold dark:border-ui-border">
-          {zh('播放列表', 'Playlist')} ({items.length})
+        <h3 className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-zinc-200/40 px-2 text-[11px] font-medium leading-4 text-zinc-600 dark:border-white/5 dark:text-slate-300">
+          <span>{zh('播放列表', 'Playlist')}</span>
+          <span className="rounded bg-zinc-200 px-1.5 tabular-nums text-zinc-500 dark:bg-white/5 dark:text-slate-400">
+            {items.length}
+          </span>
         </h3>
-        <ol className="min-h-0 flex-1 overflow-y-auto p-1">
+        <ol className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1">
           {items.map((item, index) => {
             const active = index === currentIndex
             const title = getVideoDisplayName(item)
@@ -49,13 +52,17 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
                   aria-current={active ? 'true' : undefined}
                   title={title}
                   onClick={() => onSelect?.(index)}
-                  className={`flex w-full items-center gap-2 rounded py-1 pl-1 pr-2 text-left text-[11px] leading-4 ${active ? 'bg-blue-100 font-semibold text-ui-primary-hover dark:bg-ui-blue-surface dark:text-blue-300' : 'text-zinc-700 hover:bg-zinc-200 dark:text-ui-secondary dark:hover:bg-ui-hover'}`}
+                  className={`player-playlist-item flex w-full items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-[11px] leading-4 ${active ? 'is-active font-medium' : ''}`}
                 >
                   <span
-                    className="min-w-5 shrink-0 whitespace-nowrap text-center tabular-nums"
+                    className="player-playlist-number flex min-w-4 shrink-0 items-center justify-center whitespace-nowrap tabular-nums"
                     style={{ width: `${String(items.length).length + 1}ch` }}
                   >
-                    {active ? <PlayArrowRoundedIcon sx={{ fontSize: 18 }} /> : `${index + 1}.`}
+                    {active ? (
+                      <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
+                    ) : (
+                      String(index + 1).padStart(2, '0')
+                    )}
                   </span>
                   <span className="min-w-0 truncate">{title}</span>
                 </button>

@@ -37,6 +37,7 @@ test(
       assert.match(message, /Download FFmpeg in Settings → Tools/)
       assert.equal(await evaluate(`document.querySelectorAll('[role="alert"]').length`), 1)
       assert.equal(await evaluate(`document.querySelector('.vjs-error-display')`), null)
+      assert.equal(await evaluate(`document.querySelector('[data-player-loading]')`), null)
       assert.equal(
         await evaluate(`(() => {
           const error = document.querySelector('[role="alert"]').getBoundingClientRect();

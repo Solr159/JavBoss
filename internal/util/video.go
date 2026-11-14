@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,55 +18,12 @@ import (
 	"github.com/h2non/filetype"
 
 	"javboss/internal/common"
+	"javboss/internal/common/logging"
+	"javboss/internal/models"
 )
 
-type VideoMetadata struct {
-	Codec           string
-	VideoCodec      string
-	AudioCodec      string
-	Container       string
-	FormatName      string
-	Width           int
-	Height          int
-	FPS             float64
-	SampleRate      int
-	Channels        int
-	DurationSeconds float64
-	FormatBitRate   int64
-	VideoBitRate    int64
-	AudioBitRate    int64
-}
-
-func (m *VideoMetadata) Fingerprint(size int64) string {
-	fps := m.FPS
-	if fps > 0 {
-		fps = math.Round(fps*1000) / 1000
-	}
-	dur := math.Round(m.DurationSeconds)
-	return fmt.Sprintf("%dx%d|%s|%.3f|%d|%d|%.0f|%d",
-		m.Width,
-		m.Height,
-		strings.TrimSpace(m.Codec),
-		fps,
-		m.SampleRate,
-		m.Channels,
-		dur,
-		size)
-}
-
-// FingerprintV2 returns a metadata-only fingerprint with higher granularity.
-// Format: widthxheight|bitrate|video_bitrate|audio_bitrate|duration_ms|size
-func (m *VideoMetadata) FingerprintV2(size int64) string {
-	durationMs := int64(math.Round(m.DurationSeconds * 1000))
-	return fmt.Sprintf("%dx%d|%d|%d|%d|%d|%d",
-		m.Width,
-		m.Height,
-		m.FormatBitRate,
-		m.VideoBitRate,
-		m.AudioBitRate,
-		durationMs,
-		size)
-}
+// VideoMetadata remains the probe API type; its persistent representation belongs to models.
+type VideoMetadata = models.MediaInfo
 
 // IsVideoCandidate reports whether a file should be passed to ffprobe for final
 // video-stream validation. Known video extensions are accepted as candidates so
@@ -330,6 +286,7 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 	}
 	ffprobe, err := ResolveFFprobePath()
 	if err != nil {
+		logging.Error("ffprobe unavailable: path=%q err=%v", path, err)
 		return nil, err
 	}
 	// -v quiet -print_format json -show_streams -select_streams v:0
@@ -342,8 +299,10 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 	)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+	logging.Info("ffprobe start: path=%q", path)
 	out, err := cmd.Output()
 	if err != nil {
+		logging.Error("ffprobe failed: path=%q err=%v", path, err)
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, ctxErr
 		}
@@ -355,8 +314,10 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 	}
 	meta, err := parseFFprobeOutput(out, path)
 	if err != nil {
+		logging.Error("ffprobe failed: path=%q err=%v", path, err)
 		return nil, err
 	}
+	logging.Info("ffprobe done: path=%q", path)
 	return meta, nil
 }
 
@@ -416,6 +377,7 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 		duration = parseFloat(res.Format.Duration)
 	}
 	meta := &VideoMetadata{
+		Version:         models.MediaInfoVersion,
 		Codec:           strings.TrimSpace(video.CodecName),
 		VideoCodec:      strings.TrimSpace(video.CodecName),
 		FormatName:      normalizeFormatName(res.Format.FormatName),
