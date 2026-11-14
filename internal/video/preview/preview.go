@@ -17,7 +17,7 @@ import (
 	"javboss/internal/video/screenshot"
 )
 
-const Interval = 10
+const Interval = 3
 
 var ErrUnavailable = errors.New("preview generation is unavailable or busy")
 var ErrInvalidTime = errors.New("invalid preview timestamp")
@@ -49,7 +49,7 @@ func newCache(ctx context.Context, dir string, capture captureFunc) *cache {
 	return &cache{ctx: ctx, dir: dir, capture: capture, jobs: make(map[string]*job)}
 }
 
-// Second maps a hover position to a ten-second bucket, including the end edge.
+// Second maps a hover position to a three-second bucket, including the end edge.
 func Second(second, duration float64) (int64, error) {
 	if math.IsNaN(second) || math.IsInf(second, 0) || second < 0 ||
 		math.IsNaN(duration) || math.IsInf(duration, 0) || duration <= 0 || second > duration || duration >= math.MaxInt64 {

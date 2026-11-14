@@ -17,7 +17,8 @@ func TestSecond(t *testing.T) {
 		want             int64
 		invalid          bool
 	}{
-		{0, 60, 0, false}, {19.9, 60, 10, false}, {60, 60, 50, false},
+		{0, 60, 0, false}, {2.99, 60, 0, false}, {3, 60, 3, false},
+		{5.99, 60, 3, false}, {6, 60, 6, false}, {19.9, 60, 18, false}, {60, 60, 57, false},
 		{0.5, 0.5, 0, false}, {-1, 60, 0, true}, {61, 60, 0, true},
 		{0, 0, 0, true}, {math.NaN(), 60, 0, true}, {math.Inf(1), 60, 0, true},
 	} {

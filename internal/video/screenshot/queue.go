@@ -362,7 +362,7 @@ func CaptureFile(ctx context.Context, videoPath string, second float64, outputPa
 	return captureFile(ctx, videoPath, second, outputPath, false)
 }
 
-// CapturePreviewFile captures a frame fitted inside 320x180 for timeline previews.
+// CapturePreviewFile captures a nearby seek-point frame fitted inside 320x180.
 func CapturePreviewFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
 	return captureFile(ctx, videoPath, second, outputPath, true)
 }
@@ -388,10 +388,6 @@ func captureFile(ctx context.Context, videoPath string, second float64, outputPa
 	}
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	shotPath := filepath.Join(tempDir, "00000001.jpg")
-	// Share the CPU budget between the two possible preview jobs. Four decode
-	// threads reduce seek latency on H.264/HEVC without unbounded decoder pools.
-	previewThreads := strconv.Itoa(max(1, min(4, runtime.GOMAXPROCS(0)/2)))
-
 	requireFFmpeg := runtime.GOOS == "darwin" || common.ContainerMode()
 	if requireFFmpeg || preview {
 		ffmpegPath, err := util.ResolveFFmpegPath()
@@ -401,11 +397,7 @@ func captureFile(ctx context.Context, videoPath string, second float64, outputPa
 		// Prefer FFmpeg for previews when installed; desktop users with only the
 		// bundled MPV retain the same fallback as manual screenshots.
 		if err == nil {
-			args := buildFFmpegScreenshotArgs(second, shotPath, videoPath)
-			if preview {
-				args = append([]string{"-threads", previewThreads, "-filter_threads", "1"}, args...)
-				args = append(args[:len(args)-1], "-vf", "scale=320:180:force_original_aspect_ratio=decrease", "-threads", "1", shotPath)
-			}
+			args := buildFFmpegScreenshotArgs(second, shotPath, videoPath, preview)
 			if err := runFFmpegScreenshotArgs(ctx, ffmpegPath, args, shotPath); err != nil {
 				return err
 			}
@@ -417,10 +409,7 @@ func captureFile(ctx context.Context, videoPath string, second float64, outputPa
 	if pathErr != nil {
 		return fmt.Errorf("resolve mpv path: %w", pathErr)
 	}
-	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
-	if preview {
-		args = append(args[:len(args)-1], "--vd-lavc-threads="+previewThreads, "--vf=lavfi=[scale=320:180:force_original_aspect_ratio=decrease]", videoPath)
-	}
+	args := buildMPVScreenshotArgs(second, tempDir, videoPath, preview)
 
 	// Suppress Windows' startup busy cursor when background screenshots repeatedly
 	// launch the GUI mpv.exe; hiding the console alone does not disable that feedback.
@@ -479,8 +468,8 @@ func moveScreenshot(shotPath string, outputPath string) error {
 	return nil
 }
 
-func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath string) []string {
-	return []string{
+func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath string, preview bool) []string {
+	args := []string{
 		"-nostdin",
 		"-hide_banner",
 		"-loglevel", "error",
@@ -490,24 +479,42 @@ func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath stri
 		"-map", "0:v:0",
 		"-frames:v", "1",
 		"-q:v", "2",
-		outputPath,
 	}
+	if preview {
+		// Keep the first frame after the coarse seek, including its negative
+		// timestamp, instead of decoding and dropping frames up to the target.
+		args = append([]string{"-noaccurate_seek", "-threads", previewDecodeThreads(), "-filter_threads", "1"}, args...)
+		args = append(args, "-vf", "scale=320:180:force_original_aspect_ratio=decrease", "-threads", "1", "-vsync", "0")
+	}
+	return append(args, outputPath)
 }
 
-func buildMPVScreenshotArgs(second float64, tempDir string, videoPath string) []string {
-	return []string{
+func buildMPVScreenshotArgs(second float64, tempDir string, videoPath string, preview bool) []string {
+	preciseSeek := "yes"
+	if preview {
+		preciseSeek = "no"
+	}
+	args := []string{
 		"--no-config",
 		"--really-quiet",
 		"--msg-level=all=error",
 		"--ao=null",
-		"--hr-seek=yes",
+		"--hr-seek=" + preciseSeek,
 		"--start=" + formatScreenshotSecond(second),
 		"--frames=1",
 		"--vo=image",
 		"--vo-image-format=jpg",
 		"--vo-image-outdir=" + tempDir,
-		videoPath,
 	}
+	if preview {
+		args = append(args, "--vd-lavc-threads="+previewDecodeThreads(), "--vf=lavfi=[scale=320:180:force_original_aspect_ratio=decrease]")
+	}
+	return append(args, videoPath)
+}
+
+func previewDecodeThreads() string {
+	// Share the CPU budget between the two possible preview jobs.
+	return strconv.Itoa(max(1, min(4, runtime.GOMAXPROCS(0)/2)))
 }
 
 func formatScreenshotSecond(second float64) string {

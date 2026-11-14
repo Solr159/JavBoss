@@ -1,6 +1,6 @@
 import { fetchVideoPreview } from '@/features/playback/api'
 
-const INTERVAL = 10
+const INTERVAL = 3
 const HOVER_DELAY = 100
 const MAX_IMAGES = 48
 

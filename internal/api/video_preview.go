@@ -13,7 +13,7 @@ import (
 )
 
 // GET /videos/:id/preview?second=N&location_id=N returns a JPEG for the
-// ten-second interval containing second. location_id selects the playback file.
+// three-second interval containing second. location_id selects the playback file.
 func getVideoPreview(c *gin.Context) {
 	c.Header("Cache-Control", "private, no-store")
 	second, err := strconv.ParseFloat(c.Query("second"), 64)
