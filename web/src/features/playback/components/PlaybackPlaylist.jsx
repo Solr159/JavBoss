@@ -34,7 +34,7 @@ export default function PlaybackPlaylist({ items, currentIndex, onSelect }) {
         aria-label={zh('播放列表', 'Playlist')}
         className="player-playlist flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden"
       >
-        <h3 className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-zinc-200 px-2 text-[11px] font-medium leading-4 text-zinc-600 dark:border-white/5 dark:text-slate-300">
+        <h3 className="flex h-8 shrink-0 items-center justify-between gap-2 border-b border-zinc-200/40 px-2 text-[11px] font-medium leading-4 text-zinc-600 dark:border-white/5 dark:text-slate-300">
           <span>{zh('播放列表', 'Playlist')}</span>
           <span className="rounded bg-zinc-200 px-1.5 tabular-nums text-zinc-500 dark:bg-white/5 dark:text-slate-400">
             {items.length}

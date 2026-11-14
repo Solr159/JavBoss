@@ -112,7 +112,7 @@
 :root:not(.dark) .player-playlist {
   color-scheme: light;
   color: #27272a;
-  border-color: #e4e4e7;
+  border-color: rgb(228 228 231 / 40%);
   background: #f4f4f5;
   scrollbar-color: #71717a transparent;
 }
