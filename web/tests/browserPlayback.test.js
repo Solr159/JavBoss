@@ -260,6 +260,29 @@ test('cleanup removes pending source restoration when the player closes', () => 
   assert.equal(player.playCount, 0)
 })
 
+test('only an active autoplay policy rejection asks for manual playback', async () => {
+  for (const outcome of ['blocked', 'aborted', 'closed', 'fallback']) {
+    const player = new FakePlayer()
+    let rejectPlay
+    let blocked = 0
+    player.play = () => new Promise((resolve, reject) => (rejectPlay = reject))
+    const stop = startBrowserPlayback(player, direct, hls, 0, assert.fail, {
+      onAutoplayBlocked: () => blocked++,
+    })
+    player.emit('loadedmetadata')
+    if (outcome === 'closed') stop()
+    if (outcome === 'fallback') player.fail(3)
+    rejectPlay(
+      Object.assign(new Error('Playback rejected'), {
+        name: outcome === 'aborted' ? 'AbortError' : 'NotAllowedError',
+      })
+    )
+    await Promise.resolve()
+    assert.equal(blocked, outcome === 'blocked' ? 1 : 0, outcome)
+    stop()
+  }
+})
+
 test('missing transcoding tools stop both initial HLS and fallback before loading a manifest', async () => {
   for (const source of [hls, direct]) {
     const player = new FakePlayer()

@@ -30,6 +30,7 @@ type FileEntry struct {
 	Fingerprint   string
 	PathKey       string
 	DurationSec   int64
+	MediaInfo     models.MediaInfo
 }
 
 // Summary 汇总一次目录扫描产生的文件与目录变更数量。
@@ -312,6 +313,7 @@ func walkAndReconcileVideoFiles(ctx context.Context, directory models.Directory,
 			ModifiedAt:    modTime,
 			Fingerprint:   fingerprint,
 			DurationSec:   durationSec,
+			MediaInfo:     *meta,
 		}
 
 		return upsertVideo(ctx, fileEntry, state, summary)
@@ -351,6 +353,7 @@ func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summar
 		Size:        entry.Size,
 		Fingerprint: entry.Fingerprint,
 		DurationSec: entry.DurationSec,
+		MediaInfo:   entry.MediaInfo,
 	}
 
 	if err := db.Default().CreateVideo(ctx, video); err != nil {
@@ -381,6 +384,12 @@ func upsertVideo(ctx context.Context, entry *FileEntry, state *syncState, summar
 
 // upsertLocationForEntry 保存视频文件位置，并加入本次 JAV 关联队列。
 func upsertLocationForEntry(ctx context.Context, video *models.Video, entry *FileEntry, state *syncState) error {
+	if entry.MediaInfo.Complete() && !video.MediaInfo.Complete() {
+		if _, err := db.Default().FillVideoMediaInfo(ctx, video.ID, entry.MediaInfo); err != nil {
+			return err
+		}
+		video.MediaInfo = entry.MediaInfo
+	}
 	loc, err := db.Default().UpsertVideoLocation(ctx, video.ID, entry.DirectoryID, entry.RelativePath, entry.ModifiedAt)
 	if err != nil {
 		return err

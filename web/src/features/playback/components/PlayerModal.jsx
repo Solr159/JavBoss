@@ -7,9 +7,11 @@ import PlaybackPlaylist from '@/features/playback/components/PlaybackPlaylist'
 import SubtitleOffsetSettings from '@/features/playback/components/SubtitleOffsetSettings'
 import usePlayerWindow from '@/features/playback/hooks/usePlayerWindow'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import CircularProgress from '@mui/material/CircularProgress'
 import videojs from 'video.js'
 import zhCN from 'video.js/dist/lang/zh-CN.json'
 import 'video.js/dist/video-js.css'
+import '@/features/playback/components/PlayerModal.css'
 import { createVideoScreenshot, fetchPlaybackInfo } from '@/features/video/api'
 import { getVideoDisplayName } from '@/utils/display'
 import {
@@ -26,6 +28,7 @@ import { startWatchTracking } from '@/features/playback/watchTime'
 import { createBrowserResume } from '@/features/playback/browserResume'
 import { startSubtitleLoading } from '@/features/playback/subtitles'
 import { registerSubtitleMenu } from '@/features/playback/subtitleMenu'
+import { registerTimeDisplay } from '@/features/playback/timeDisplay'
 import {
   createPlaybackSession,
   reportPlaybackSession,
@@ -36,6 +39,7 @@ import {
 import { fetchTools } from '@/features/settings/api'
 
 registerSubtitleMenu(videojs)
+registerTimeDisplay(videojs)
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 const HOTKEY_HINT_DURATION_MS = 5000
@@ -77,6 +81,7 @@ export default function PlayerModal({
   const [subtitleSettingsHost, setSubtitleSettingsHost] = useState(null)
   const [subtitleSettingsOpen, setSubtitleSettingsOpen] = useState(false)
   const [loadingPlayback, setLoadingPlayback] = useState(false)
+  const [startupFinishedVideo, setStartupFinishedVideo] = useState(null)
   const [screenshotNotice, setScreenshotNotice] = useState('')
   const [hotkeyHintVisible, setHotkeyHintVisible] = useState(false)
   const normalizedHotkeys = useMemo(() => parsePlayerHotkeys(hotkeys), [hotkeys])
@@ -187,8 +192,12 @@ export default function PlayerModal({
       language: 'zh-CN',
       languages: { 'zh-cn': zhCN },
       persistTextTrackSettings: true,
+      playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
+        progressControl: { seekBar: { playProgressBar: { timeTooltip: false } } },
         subsCapsButton: { componentClass: 'JavBossSubtitleButton' },
+        currentTimeDisplay: { componentClass: 'JavBossCurrentTimeDisplay' },
+        remainingTimeDisplay: false,
       },
       controls: false,
       autoplay: false,
@@ -364,8 +373,14 @@ export default function PlayerModal({
 
     const playback = { video, locationId: playbackInfo.location_id || video.location_id }
     activePlaybackRef.current = playback
+    setStartupFinishedVideo(null)
+    const finishStartup = () => {
+      if (activePlaybackRef.current === playback) setStartupFinishedVideo(video)
+    }
+    player.on('playing', finishStartup)
     player.controls(true)
-    player.autoplay(true)
+    // startBrowserPlayback restores the position before requesting playback.
+    player.autoplay(false)
     const stopWatchTracking = startWatchTracking(player, {
       create: () => createPlaybackSession(video.id, playback.locationId),
       report: (session, total) => reportPlaybackSession(video.id, session, total),
@@ -390,6 +405,7 @@ export default function PlayerModal({
         resume: !hasExplicitStart,
         onPosition: resume.record,
         onEnded: resume.complete,
+        onAutoplayBlocked: finishStartup,
         beforeTranscode: async () => {
           const tools = await fetchTools()
           if (!tools.ffmpeg?.installed && !tools.ffmpeg?.upgrade_available) {
@@ -418,6 +434,7 @@ export default function PlayerModal({
       resume.flush()
       window.removeEventListener('pagehide', resume.flush)
       player.off('ended', handleEnded)
+      player.off('playing', finishStartup)
       player.autoplay(false)
       player.pause()
       player.controls(false)
@@ -483,6 +500,21 @@ export default function PlayerModal({
   if (!video) return null
 
   const displayName = getVideoDisplayName(video)
+  const startupPending =
+    !playbackError &&
+    (loadingPlayback ||
+      playbackInfo?.video !== video ||
+      (selectedSource?.src && startupFinishedVideo !== video))
+  const loadingOverlay = startupPending ? (
+    <div
+      data-player-loading
+      role="status"
+      className="player-loading absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 text-sm text-slate-300"
+    >
+      <CircularProgress size={28} thickness={3} color="inherit" aria-hidden="true" />
+      {zh('正在加载视频…', 'Loading video...')}
+    </div>
+  ) : null
   const subtitleStatusText =
     {
       searching: zh('正在查找字幕…', 'Finding subtitles...'),
@@ -497,23 +529,21 @@ export default function PlayerModal({
   return (
     <AppModal
       ariaLabel={displayName || zh('视频播放', 'Video playback')}
-      backdropColor="rgba(0, 0, 0, 0.7)"
-      contentClassName="player-window rounded-lg bg-white dark:bg-ui-surface shadow-lg"
+      backdropColor="rgba(3, 7, 18, 0.78)"
+      backdropBlur="6px"
+      contentClassName="player-window"
       contentProps={{ style: playerWindow.style, ...playerWindow.pointerProps }}
       onClose={onClose}
       closeDisabled={subtitleSettingsOpen}
       zIndex={1700}
     >
-      <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
+      <div className="flex h-full min-h-0 flex-col p-2">
         <header
-          className="flex min-w-0 shrink-0 cursor-move touch-none select-none items-center gap-2"
+          className="player-header flex min-w-0 shrink-0 cursor-move touch-none select-none items-center gap-2"
           onPointerDown={playerWindow.onMoveStart}
           title={zh('拖动标题栏移动播放器', 'Drag the title bar to move the player')}
         >
-          <h2
-            className="min-w-0 flex-1 truncate text-xs font-semibold leading-4"
-            title={displayName}
-          >
+          <h2 className="min-w-0 flex-1 truncate text-sm font-medium leading-5" title={displayName}>
             {displayName}
           </h2>
           {playlist.length > 1 ? (
@@ -524,11 +554,11 @@ export default function PlayerModal({
                 title={zh('上一个视频', 'Previous video')}
                 disabled={currentIndex === 0}
                 onClick={() => onSelectVideo?.(currentIndex - 1)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 dark:text-ui-secondary dark:hover:bg-ui-hover"
+                className="player-toolbar-button"
               >
                 <SkipPreviousRoundedIcon fontSize="small" />
               </button>
-              <span className="shrink-0 text-xs text-zinc-500 dark:text-ui-faint">
+              <span className="shrink-0 text-xs tabular-nums text-slate-400">
                 {currentIndex + 1} / {playlist.length}
               </span>
               <button
@@ -537,7 +567,7 @@ export default function PlayerModal({
                 title={zh('下一个视频', 'Next video')}
                 disabled={currentIndex === playlist.length - 1}
                 onClick={() => onSelectVideo?.(currentIndex + 1)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 dark:text-ui-secondary dark:hover:bg-ui-hover"
+                className="player-toolbar-button"
               >
                 <SkipNextRoundedIcon fontSize="small" />
               </button>
@@ -548,7 +578,7 @@ export default function PlayerModal({
                 aria-expanded={playlistVisible}
                 aria-controls="browser-playlist"
                 onClick={() => setPlaylistVisible((visible) => !visible)}
-                className="inline-flex h-6 w-5 shrink-0 items-center justify-center rounded text-zinc-600 hover:bg-zinc-100 dark:text-ui-secondary dark:hover:bg-ui-hover"
+                className="player-toolbar-button"
               >
                 <QueuePlayNextRoundedIcon sx={{ fontSize: 18 }} />
               </button>
@@ -559,22 +589,24 @@ export default function PlayerModal({
             aria-label={zh('关闭', 'Close')}
             title={zh('关闭', 'Close')}
             onClick={onClose}
-            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 focus:outline-none dark:text-ui-faint dark:hover:bg-ui-hover dark:hover:text-ui-text"
+            className="player-toolbar-button player-close-button"
           >
-            <CloseRoundedIcon sx={{ fontSize: 16 }} />
+            <CloseRoundedIcon sx={{ fontSize: 20 }} />
           </button>
         </header>
         <div className="flex min-h-0 min-w-0 flex-1">
-          <div className="player-shell relative min-w-0 flex-1 bg-black">
+          <div
+            className={`player-shell relative min-w-0 flex-1 bg-black ${startupPending ? 'player-starting' : ''}`}
+          >
             {!playbackError && (screenshotNotice || hotkeyHintVisible) ? (
               <div className="pointer-events-none absolute left-3 top-3 z-10 flex max-w-[calc(100%-1.5rem)] flex-col items-start gap-2">
                 {screenshotNotice ? (
-                  <div className="rounded bg-black/75 px-3 py-1.5 text-sm font-medium text-white shadow">
+                  <div className="player-notice px-3 py-1.5 text-sm font-medium">
                     {screenshotNotice}
                   </div>
                 ) : null}
                 {hotkeyHintVisible ? (
-                  <div className="max-h-[calc(100vh-12rem)] overflow-hidden rounded bg-black/75 px-3 py-2 text-xs leading-5 text-white shadow">
+                  <div className="player-notice max-h-[calc(100vh-12rem)] overflow-hidden px-3 py-2 text-xs leading-5">
                     {hotkeyHintLines.map((line, index) => (
                       <div key={`${index}-${line}`}>{line}</div>
                     ))}
@@ -593,21 +625,16 @@ export default function PlayerModal({
                   <div
                     role="status"
                     aria-atomic="true"
-                    className="player-subtitle-status pointer-events-none absolute bottom-2 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-black/70 px-2.5 py-1 text-xs leading-5 text-white shadow"
+                    className="player-subtitle-status player-notice pointer-events-none absolute bottom-2 left-3 z-10 max-w-[calc(100%-1.5rem)] px-2.5 py-1 text-xs leading-5"
                   >
                     {subtitleStatusText}
                   </div>,
                   player.el()
                 )
               : null}
-            {loadingPlayback || playbackInfo?.video !== video ? (
-              <div
-                data-player-loading
-                className="absolute inset-0 z-20 flex items-center justify-center bg-black text-sm text-white"
-              >
-                {zh('加载播放信息中…', 'Loading playback info...')}
-              </div>
-            ) : null}
+            {player && !player.isDisposed()
+              ? createPortal(loadingOverlay, player.el())
+              : loadingOverlay}
             {playbackError && player && !player.isDisposed()
               ? createPortal(
                   <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 p-6">

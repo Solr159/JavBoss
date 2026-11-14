@@ -65,7 +65,7 @@ export function startBrowserPlayback(
   fallback,
   startTime,
   onError,
-  { resume = false, onPosition, onEnded, beforeTranscode } = {}
+  { resume = false, onPosition, onEnded, beforeTranscode, onAutoplayBlocked } = {}
 ) {
   let activeSource = source
   let position = Math.max(0, Number(startTime) || 0)
@@ -118,7 +118,10 @@ export function startBrowserPlayback(
       player.playbackRate(playbackRate)
       if (shouldPlay) {
         // Autoplay rejection is not a decoding failure. Let the user press play.
-        player.play()?.catch(() => {})
+        player.play()?.catch((error) => {
+          if (stopped || failed || activeSource !== nextSource) return
+          if (error.name === 'NotAllowedError') onAutoplayBlocked?.()
+        })
       }
     }
     player.one('loadedmetadata', restorePosition)
@@ -154,7 +157,7 @@ export function startBrowserPlayback(
     if (activeSource.kind === 'direct' && fallback && [3, 4].includes(error.code)) {
       activeSource = fallback
       // src() clears the previous media error. Switch only once per video.
-      player.autoplay(shouldPlay)
+      player.autoplay(false)
       load(fallback)
       return
     }

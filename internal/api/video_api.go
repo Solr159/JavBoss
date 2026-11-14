@@ -23,6 +23,7 @@ import (
 	"javboss/internal/models"
 	"javboss/internal/mpv"
 	"javboss/internal/util"
+	"javboss/internal/video/metadata"
 	"javboss/internal/video/screenshot"
 	"javboss/internal/video/stream"
 )
@@ -190,14 +191,15 @@ func getVideoStreams(c *gin.Context) {
 		return
 	}
 
-	probe, err := util.ProbePlaybackSupport(fullPath)
+	mediaInfo, err := metadata.Load(c.Request.Context(), dbpkg.Default(), video, fullPath)
 	if err != nil {
 		logging.Error("probe playback support error: %v", err)
 		respondPlaybackError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, buildPlaybackInfo(video, locationID, probe))
+	probe := util.AssessPlaybackSupport(mediaInfo)
+	c.JSON(http.StatusOK, buildPlaybackInfo(video, locationID, &probe))
 }
 
 func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.PlaybackProbeResult) playbackInfo {
@@ -257,9 +259,14 @@ func streamHLSManifest(c *gin.Context) {
 		return
 	}
 
+	mediaInfo, err := metadata.Load(c.Request.Context(), dbpkg.Default(), video, fullPath)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
+	}
 	resolution := strings.TrimSpace(c.Query("resolution"))
 	c.Header("Cache-Control", "no-cache")
-	stream.ServeManifest(c.Writer, c.Request, fullPath, float64(video.DurationSec), resolution)
+	stream.ServeManifest(c.Writer, c.Request, fullPath, float64(video.DurationSec), resolution, mediaInfo)
 }
 
 func streamHLSSegment(c *gin.Context) {
@@ -269,12 +276,18 @@ func streamHLSSegment(c *gin.Context) {
 		return
 	}
 
+	mediaInfo, err := metadata.Load(c.Request.Context(), dbpkg.Default(), video, fullPath)
+	if err != nil {
+		respondPlaybackError(c, err)
+		return
+	}
 	segment := strings.TrimSpace(c.Param("segment"))
 	resolution := strings.TrimSpace(c.Query("resolution"))
 	c.Header("Cache-Control", "no-cache")
 	stream.ServeSegment(c.Writer, c.Request, stream.Options{
 		StreamType: stream.StreamTypeHLS,
 		SourcePath: fullPath,
+		MediaInfo:  mediaInfo,
 		Duration:   float64(video.DurationSec),
 		Resolution: resolution,
 		Key:        streamCacheKey(video.ID, locationID),
@@ -328,12 +341,16 @@ func resolveVideoStreamTarget(c *gin.Context) (*models.Video, string, int64, err
 		return nil, "", 0, err
 	}
 
-	var fullPath string
 	if locationID > 0 {
-		fullPath, err = resolveStreamPathFromLocationQuery(c)
-	} else {
-		fullPath, err = resolveVideoPrimaryPath(c.Request.Context(), video)
+		video, err = dbpkg.Default().GetVideoForLocation(c.Request.Context(), id, locationID)
+		if err != nil {
+			return nil, "", 0, err
+		}
+		if video == nil {
+			return nil, "", 0, os.ErrNotExist
+		}
 	}
+	fullPath, _, err := resolveVideoPath(video.Path, video.DirectoryRef.Path)
 	if err != nil {
 		return nil, "", 0, err
 	}
