@@ -294,8 +294,8 @@ func streamHLSSegment(c *gin.Context) {
 }
 
 func resolveStreamPathFromQuery(c *gin.Context) (string, error) {
-	rawPath := strings.TrimSpace(c.Query("path"))
-	rawDirPath := strings.TrimSpace(c.Query("dir_path"))
+	rawPath := c.Query("path")
+	rawDirPath := c.Query("dir_path")
 	fullPath, _, err := resolveVideoPath(rawPath, rawDirPath)
 	return fullPath, err
 }

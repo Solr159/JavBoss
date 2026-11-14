@@ -30,11 +30,16 @@ func TestPlaybackInfoAndHLSUsePersistedMediaInfoForSelectedLocation(t *testing.T
 	defer sqlDB.Close()
 	deps.database = conn
 	deps.bindDatabase(t)
-	dir := models.Directory{Path: filepath.Join(t.TempDir(), "media + #&%")}
+	dir := models.Directory{Path: filepath.Join(t.TempDir(), "media + #&% ")}
 	if err := os.MkdirAll(dir.Path, 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := conn.Create(&dir).Error; err != nil {
+		t.Fatal(err)
+	}
+	// Trimming the directory must never serve a same-named file from its sibling.
+	trimmedDir := strings.TrimSpace(dir.Path)
+	if err := os.MkdirAll(trimmedDir, 0700); err != nil {
 		t.Fatal(err)
 	}
 	video := models.Video{Fingerprint: "persisted", Size: 5, DurationSec: 12, MediaInfo: models.MediaInfo{Version: models.MediaInfoVersion, Container: "mp4", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080, DurationSeconds: 12.25}}
@@ -47,6 +52,9 @@ func TestPlaybackInfoAndHLSUsePersistedMediaInfoForSelectedLocation(t *testing.T
 		path := filepath.Join(dir.Path, name)
 		// These files cannot be probed as video. Success demonstrates the database path.
 		if err := os.WriteFile(path, []byte(contents[i]), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(trimmedDir, name), []byte("wrong"), 0600); err != nil {
 			t.Fatal(err)
 		}
 		stamp := time.Unix(1700000000+int64(i), 0)
