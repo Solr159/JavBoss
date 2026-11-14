@@ -1,7 +1,7 @@
 import { fetchVideoPreview } from '@/features/playback/api'
 
 const INTERVAL = 10
-const HOVER_DELAY = 180
+const HOVER_DELAY = 100
 const MAX_IMAGES = 48
 
 export function registerPreviewDisplay(videojs) {
