@@ -38,8 +38,7 @@
 }
 
 .player-header {
-  min-height: 34px;
-  padding: 0 6px 6px;
+  margin-bottom: 6px;
 }
 
 .player-toolbar-button {
@@ -47,9 +46,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
+  width: 20px;
+  height: 24px;
+  border-radius: 4px;
   color: #cbd5e1;
   transition:
     background-color 150ms,
@@ -68,6 +67,11 @@
 .player-toolbar-button[aria-expanded='true'] {
   color: #7dd3fc;
   background: rgb(56 189 248 / 12%);
+}
+
+.player-close-button {
+  height: 20px;
+  border-radius: 50%;
 }
 
 .player-close-button:hover:not(:disabled) {

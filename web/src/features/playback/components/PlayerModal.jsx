@@ -543,7 +543,10 @@ export default function PlayerModal({
           onPointerDown={playerWindow.onMoveStart}
           title={zh('拖动标题栏移动播放器', 'Drag the title bar to move the player')}
         >
-          <h2 className="min-w-0 flex-1 truncate text-sm font-medium leading-5" title={displayName}>
+          <h2
+            className="min-w-0 flex-1 truncate text-xs font-semibold leading-4"
+            title={displayName}
+          >
             {displayName}
           </h2>
           {playlist.length > 1 ? (
@@ -591,7 +594,7 @@ export default function PlayerModal({
             onClick={onClose}
             className="player-toolbar-button player-close-button"
           >
-            <CloseRoundedIcon sx={{ fontSize: 20 }} />
+            <CloseRoundedIcon sx={{ fontSize: 16 }} />
           </button>
         </header>
         <div className="flex min-h-0 min-w-0 flex-1">

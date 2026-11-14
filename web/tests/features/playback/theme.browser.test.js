@@ -52,7 +52,7 @@ test(
       assert.deepEqual(
         await evaluate(`['.player-header','.vjs-control-bar','.player-playlist-item'].map(
           selector=>document.querySelector(selector).getBoundingClientRect().height)`),
-        [34, 50, 26]
+        [24, 50, 26]
       )
       assert.equal(
         await evaluate(`themePlayer === document.querySelector('.video-js').player`),
