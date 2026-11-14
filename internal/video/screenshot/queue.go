@@ -359,6 +359,15 @@ func processTask(parent context.Context, dataDir string, fetchVideo videoFetcher
 
 // CaptureFile captures a frame without requiring the thumbnail queue to be started.
 func CaptureFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
+	return captureFile(ctx, videoPath, second, outputPath, false)
+}
+
+// CapturePreviewFile captures a frame fitted inside 320x180 for timeline previews.
+func CapturePreviewFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
+	return captureFile(ctx, videoPath, second, outputPath, true)
+}
+
+func captureFile(ctx context.Context, videoPath string, second float64, outputPath string, preview bool) error {
 	if videoPath == "" {
 		return errors.New("video path is required")
 	}
@@ -379,16 +388,29 @@ func CaptureFile(ctx context.Context, videoPath string, second float64, outputPa
 	}
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	shotPath := filepath.Join(tempDir, "00000001.jpg")
+	// Share the CPU budget between the two possible preview jobs. Four decode
+	// threads reduce seek latency on H.264/HEVC without unbounded decoder pools.
+	previewThreads := strconv.Itoa(max(1, min(4, runtime.GOMAXPROCS(0)/2)))
 
-	if runtime.GOOS == "darwin" || common.ContainerMode() {
+	requireFFmpeg := runtime.GOOS == "darwin" || common.ContainerMode()
+	if requireFFmpeg || preview {
 		ffmpegPath, err := util.ResolveFFmpegPath()
-		if err != nil {
+		if err != nil && requireFFmpeg {
 			return fmt.Errorf("resolve ffmpeg path: %w", err)
 		}
-		if err := runFFmpegScreenshot(ctx, ffmpegPath, videoPath, second, shotPath); err != nil {
-			return err
+		// Prefer FFmpeg for previews when installed; desktop users with only the
+		// bundled MPV retain the same fallback as manual screenshots.
+		if err == nil {
+			args := buildFFmpegScreenshotArgs(second, shotPath, videoPath)
+			if preview {
+				args = append([]string{"-threads", previewThreads, "-filter_threads", "1"}, args...)
+				args = append(args[:len(args)-1], "-vf", "scale=320:180:force_original_aspect_ratio=decrease", "-threads", "1", shotPath)
+			}
+			if err := runFFmpegScreenshotArgs(ctx, ffmpegPath, args, shotPath); err != nil {
+				return err
+			}
+			return moveScreenshot(shotPath, outputPath)
 		}
-		return moveScreenshot(shotPath, outputPath)
 	}
 
 	mpvPath, pathErr := util.ResolveMPVPath()
@@ -396,6 +418,9 @@ func CaptureFile(ctx context.Context, videoPath string, second float64, outputPa
 		return fmt.Errorf("resolve mpv path: %w", pathErr)
 	}
 	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
+	if preview {
+		args = append(args[:len(args)-1], "--vd-lavc-threads="+previewThreads, "--vf=lavfi=[scale=320:180:force_original_aspect_ratio=decrease]", videoPath)
+	}
 
 	// Suppress Windows' startup busy cursor when background screenshots repeatedly
 	// launch the GUI mpv.exe; hiding the console alone does not disable that feedback.
@@ -424,8 +449,7 @@ func CaptureFile(ctx context.Context, videoPath string, second float64, outputPa
 	return moveScreenshot(shotPath, outputPath)
 }
 
-func runFFmpegScreenshot(ctx context.Context, ffmpegPath string, videoPath string, second float64, outputPath string) error {
-	args := buildFFmpegScreenshotArgs(second, outputPath, videoPath)
+func runFFmpegScreenshotArgs(ctx context.Context, ffmpegPath string, args []string, outputPath string) error {
 	cmd := util.BackgroundCommandContext(ctx, ffmpegPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

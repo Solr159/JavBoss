@@ -29,6 +29,7 @@ import { createBrowserResume } from '@/features/playback/browserResume'
 import { startSubtitleLoading } from '@/features/playback/subtitles'
 import { registerSubtitleMenu } from '@/features/playback/subtitleMenu'
 import { registerTimeDisplay } from '@/features/playback/timeDisplay'
+import { registerPreviewDisplay } from '@/features/playback/previewDisplay'
 import {
   createPlaybackSession,
   reportPlaybackSession,
@@ -40,6 +41,7 @@ import { fetchTools } from '@/features/settings/api'
 
 registerSubtitleMenu(videojs)
 registerTimeDisplay(videojs)
+registerPreviewDisplay(videojs)
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 const HOTKEY_HINT_DURATION_MS = 5000
@@ -194,7 +196,12 @@ export default function PlayerModal({
       persistTextTrackSettings: true,
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
-        progressControl: { seekBar: { playProgressBar: { timeTooltip: false } } },
+        progressControl: {
+          seekBar: {
+            playProgressBar: { timeTooltip: false },
+            mouseTimeDisplay: { componentClass: 'JavBossPreviewDisplay' },
+          },
+        },
         subsCapsButton: { componentClass: 'JavBossSubtitleButton' },
         currentTimeDisplay: { componentClass: 'JavBossCurrentTimeDisplay' },
         remainingTimeDisplay: false,
@@ -373,6 +380,12 @@ export default function PlayerModal({
 
     const playback = { video, locationId: playbackInfo.location_id || video.location_id }
     activePlaybackRef.current = playback
+    const previewDisplay = player
+      .getChild('controlBar')
+      .getChild('progressControl')
+      .getChild('seekBar')
+      .getChild('mouseTimeDisplay')
+    previewDisplay?.setSource({ id: video.id, locationId: playback.locationId })
     setStartupFinishedVideo(null)
     const finishStartup = () => {
       if (activePlaybackRef.current === playback) setStartupFinishedVideo(video)
@@ -426,6 +439,7 @@ export default function PlayerModal({
     const stop = () => {
       if (activePlaybackRef.current !== playback) return
       activePlaybackRef.current = null
+      previewDisplay?.setSource(null)
       stopSourceRef.current = null
       player.getChild('textTrackSettings')?.close()
       stopSubtitlesRef.current?.()

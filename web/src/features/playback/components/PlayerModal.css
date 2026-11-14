@@ -240,6 +240,24 @@
   background: rgb(255 255 255 / 14%);
 }
 
+.player-shell .player-timeline-preview {
+  position: absolute;
+  bottom: 28px;
+  /* Video.js positions the tooltip in a 1px-wide mouse indicator. */
+  max-width: none;
+  height: auto;
+  max-height: 135px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #111;
+  box-shadow: 0 2px 12px rgb(0 0 0 / 50%);
+  pointer-events: none;
+}
+
+.player-shell .player-timeline-preview[hidden] {
+  display: none;
+}
+
 .player-shell .vjs-load-progress,
 .player-shell .vjs-load-progress div,
 .player-shell .vjs-play-progress,
