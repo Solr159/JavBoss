@@ -61,7 +61,7 @@ test(
         const rect = image.getBoundingClientRect();
         return {width:rect.width, height:rect.height, visible:image.checkVisibility({checkOpacity:true, checkVisibilityCSS:true})};
       })()`),
-      { width: 240, height: 135, visible: true }
+      { width: 192, height: 108, visible: true }
     )
     assert.deepEqual(await evaluate(`window.previewRequests`), [
       { path: '/videos/1/preview', second: 20, locationId: '11', aborted: false },
@@ -142,7 +142,7 @@ test(
           await evaluate(`(() => {
           const image = document.querySelector('.player-timeline-preview').getBoundingClientRect();
           const bar = document.querySelector('.vjs-progress-holder').getBoundingClientRect();
-            return image.width === 240 && image.height === 135 && image.bottom < bar.top &&
+            return image.width === 192 && image.height === 108 && image.bottom < bar.top &&
               image.left >= bar.left - 1 && image.right <= bar.right + 1;
         })()`),
           true

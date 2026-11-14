@@ -246,7 +246,7 @@
   /* Video.js positions the tooltip in a 1px-wide mouse indicator. */
   max-width: none;
   height: auto;
-  max-height: 135px;
+  max-height: 108px;
   object-fit: contain;
   border-radius: 6px;
   background: #111;

@@ -64,7 +64,7 @@ export function registerPreviewDisplay(videojs) {
         return
       const time = Math.min(Math.max(0, point * duration), Math.max(0, duration - 0.001))
       const bucket = Math.floor(time / INTERVAL) * INTERVAL
-      const width = Math.min(240, rect.width)
+      const width = Math.min(192, rect.width)
       const position = rect.width * point
       this.image.style.width = `${width}px`
       this.image.style.left = `${Math.max(0, Math.min(position - width / 2, rect.width - width)) - position}px`
