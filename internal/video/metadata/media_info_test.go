@@ -97,7 +97,7 @@ func TestFirstPlaybackBackfillsOnceAcrossConcurrentRequests(t *testing.T) {
 	}
 }
 
-func TestChangedFilesDoNotOverwriteSharedVideoInfo(t *testing.T) {
+func TestChangedFilesRejectPlaybackWithoutProbing(t *testing.T) {
 	for _, change := range []string{"size", "mtime"} {
 		t.Run(change, func(t *testing.T) {
 			store, conn, video, path := mediaFixture(t)
@@ -126,10 +126,8 @@ func TestChangedFilesDoNotOverwriteSharedVideoInfo(t *testing.T) {
 				}
 			}
 			calls := 0
-			changed := *testInfo()
-			changed.VideoCodec = "av1"
-			info, err := load(t.Context(), store, video, path, func(context.Context, string) (*util.VideoMetadata, error) { calls++; return &changed, nil })
-			if err != nil || calls != 1 || info.VideoCodec != "av1" {
+			info, err := load(t.Context(), store, video, path, func(context.Context, string) (*util.VideoMetadata, error) { calls++; return testInfo(), nil })
+			if !errors.Is(err, ErrFileChanged) || calls != 0 || info != nil {
 				t.Fatalf("changed file: %+v calls=%d err=%v", info, calls, err)
 			}
 			otherVideo, err := store.GetVideoForLocation(t.Context(), video.ID, otherLoc.ID)
@@ -182,6 +180,9 @@ func TestFailedOrInterruptedProbeDoesNotPopulateMediaInfo(t *testing.T) {
 			})
 			if err == nil {
 				t.Fatal("expected failure")
+			}
+			if reason == "changed during probe" && !errors.Is(err, ErrFileChanged) {
+				t.Fatalf("changed file error = %v", err)
 			}
 			var persisted models.Video
 			if err := conn.First(&persisted, video.ID).Error; err != nil {

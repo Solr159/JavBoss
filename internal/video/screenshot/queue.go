@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -359,91 +360,83 @@ func processTask(parent context.Context, dataDir string, fetchVideo videoFetcher
 
 // CaptureFile captures a frame without requiring the thumbnail queue to be started.
 func CaptureFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
+	return captureFile(ctx, videoPath, second, outputPath, false)
+}
+
+// CapturePreviewFile precisely captures the requested time, fitted inside 320x180.
+func CapturePreviewFile(ctx context.Context, videoPath string, second float64, outputPath string) error {
+	return captureFile(ctx, videoPath, second, outputPath, true)
+}
+
+func captureFile(ctx context.Context, videoPath string, second float64, outputPath string, preview bool) error {
 	if videoPath == "" {
 		return errors.New("video path is required")
 	}
-	if second < 0 {
-		return errors.New("second is required")
+	if second < 0 || math.IsNaN(second) || math.IsInf(second, 0) {
+		return errors.New("valid second is required")
 	}
 	if outputPath == "" {
 		return errors.New("output path is required")
 	}
-
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0o755); err != nil {
 		return fmt.Errorf("ensure screenshot dir: %w", err)
 	}
-
 	tempDir, err := os.MkdirTemp(filepath.Dir(outputPath), ".screenshot-*")
 	if err != nil {
 		return fmt.Errorf("create screenshot temp dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(tempDir) }()
 	shotPath := filepath.Join(tempDir, "00000001.jpg")
-
-	if runtime.GOOS == "darwin" || common.ContainerMode() {
-		ffmpegPath, err := util.ResolveFFmpegPath()
+	requireFFmpeg := runtime.GOOS == "darwin" || common.ContainerMode()
+	var usedFFmpeg bool
+	if requireFFmpeg || preview {
+		ffmpegPath, pathErr := util.ResolveFFmpegPath()
+		if pathErr != nil && requireFFmpeg {
+			return fmt.Errorf("resolve ffmpeg path: %w", pathErr)
+		}
+		// Prefer FFmpeg for previews; desktop installations with only bundled MPV
+		// use the same fallback as manual screenshots.
+		if pathErr == nil {
+			usedFFmpeg = true
+			args := buildFFmpegScreenshotArgs(second, shotPath, videoPath, preview)
+			err = runFFmpegScreenshotArgs(ctx, ffmpegPath, args, shotPath)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if !usedFFmpeg {
+		mpvPath, pathErr := util.ResolveMPVPath()
+		if pathErr != nil {
+			return fmt.Errorf("resolve mpv path: %w", pathErr)
+		}
+		args := buildMPVScreenshotArgs(second, tempDir, videoPath, preview)
+		// Avoid Windows' startup busy cursor for background screenshot processes.
+		out, err := util.BackgroundCombinedOutput(ctx, mpvPath, args...)
 		if err != nil {
-			return fmt.Errorf("resolve ffmpeg path: %w", err)
+			if errors.Is(err, exec.ErrNotFound) {
+				return errors.New("mpv not found")
+			}
+			return fmt.Errorf("mpv screenshot failed: %w: %s", err, strings.TrimSpace(string(out)))
 		}
-		if err := runFFmpegScreenshot(ctx, ffmpegPath, videoPath, second, shotPath); err != nil {
-			return err
+		info, err := os.Stat(shotPath)
+		if err != nil || info.Size() == 0 {
+			return errors.New("mpv produced no screenshot image")
 		}
-		return moveScreenshot(shotPath, outputPath)
 	}
-
-	mpvPath, pathErr := util.ResolveMPVPath()
-	if pathErr != nil {
-		return fmt.Errorf("resolve mpv path: %w", pathErr)
-	}
-	args := buildMPVScreenshotArgs(second, tempDir, videoPath)
-
-	// Suppress Windows' startup busy cursor when background screenshots repeatedly
-	// launch the GUI mpv.exe; hiding the console alone does not disable that feedback.
-	out, err := util.BackgroundCombinedOutput(ctx, mpvPath, args...)
-	if err != nil {
-		_ = os.Remove(shotPath)
-		if errors.Is(err, exec.ErrNotFound) {
-			return fmt.Errorf("mpv not found: %w", err)
-		}
-		lastOut := strings.TrimSpace(string(out))
-		if lastOut != "" {
-			return fmt.Errorf("mpv screenshot failed: %w: %s", err, lastOut)
-		}
-		return fmt.Errorf("mpv screenshot failed: %w", err)
-	}
-
-	info, err := os.Stat(shotPath)
-	if err != nil {
-		return errors.New("mpv produced no screenshot file")
-	}
-	if info.Size() == 0 {
-		_ = os.Remove(shotPath)
-		return errors.New("mpv produced empty screenshot file")
-	}
-
 	return moveScreenshot(shotPath, outputPath)
 }
 
-func runFFmpegScreenshot(ctx context.Context, ffmpegPath string, videoPath string, second float64, outputPath string) error {
-	args := buildFFmpegScreenshotArgs(second, outputPath, videoPath)
+func runFFmpegScreenshotArgs(ctx context.Context, ffmpegPath string, args []string, outputPath string) error {
 	cmd := util.BackgroundCommandContext(ctx, ffmpegPath, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = os.Remove(outputPath)
-		lastOut := strings.TrimSpace(string(out))
-		if lastOut != "" {
-			return fmt.Errorf("ffmpeg screenshot failed: %w: %s", err, lastOut)
-		}
-		return fmt.Errorf("ffmpeg screenshot failed: %w", err)
+		return fmt.Errorf("ffmpeg screenshot failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-
 	info, err := os.Stat(outputPath)
-	if err != nil {
-		return errors.New("ffmpeg produced no screenshot file")
-	}
-	if info.Size() == 0 {
-		_ = os.Remove(outputPath)
-		return errors.New("ffmpeg produced empty screenshot file")
+	if err != nil || info.Size() == 0 {
+		return errors.New("ffmpeg produced no screenshot image")
 	}
 	return nil
 }
@@ -455,35 +448,34 @@ func moveScreenshot(shotPath string, outputPath string) error {
 	return nil
 }
 
-func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath string) []string {
-	return []string{
-		"-nostdin",
-		"-hide_banner",
-		"-loglevel", "error",
-		"-y",
-		"-ss", formatScreenshotSecond(second),
-		"-i", videoPath,
-		"-map", "0:v:0",
-		"-frames:v", "1",
-		"-q:v", "2",
-		outputPath,
+func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath string, preview bool) []string {
+	args := []string{
+		"-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+		"-ss", formatScreenshotSecond(second), "-i", videoPath,
+		"-map", "0:v:0", "-frames:v", "1", "-q:v", "2",
 	}
+	if preview {
+		args = append([]string{"-threads", previewDecodeThreads(), "-filter_threads", "1"}, args...)
+		args = append(args, "-vf", "scale=320:180:force_original_aspect_ratio=decrease", "-threads", "1", "-vsync", "0")
+	}
+	return append(args, outputPath)
 }
 
-func buildMPVScreenshotArgs(second float64, tempDir string, videoPath string) []string {
-	return []string{
-		"--no-config",
-		"--really-quiet",
-		"--msg-level=all=error",
-		"--ao=null",
-		"--hr-seek=yes",
-		"--start=" + formatScreenshotSecond(second),
-		"--frames=1",
-		"--vo=image",
-		"--vo-image-format=jpg",
-		"--vo-image-outdir=" + tempDir,
-		videoPath,
+func buildMPVScreenshotArgs(second float64, tempDir string, videoPath string, preview bool) []string {
+	args := []string{
+		"--no-config", "--really-quiet", "--msg-level=all=error", "--ao=null",
+		"--hr-seek=yes", "--start=" + formatScreenshotSecond(second),
+		"--frames=1", "--vo=image", "--vo-image-format=jpg", "--vo-image-outdir=" + tempDir,
 	}
+	if preview {
+		args = append(args, "--vd-lavc-threads="+previewDecodeThreads(), "--vf=lavfi=[scale=320:180:force_original_aspect_ratio=decrease]")
+	}
+	return append(args, videoPath)
+}
+
+func previewDecodeThreads() string {
+	// Share the CPU budget between the two possible preview jobs.
+	return strconv.Itoa(max(1, min(4, runtime.GOMAXPROCS(0)/2)))
 }
 
 func formatScreenshotSecond(second float64) string {

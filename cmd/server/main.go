@@ -37,6 +37,7 @@ import (
 	"javboss/internal/download"
 	"javboss/internal/ffmpeg"
 	"javboss/internal/jav/scrape/cover"
+	"javboss/internal/video/preview"
 	"javboss/internal/video/screenshot"
 	"javboss/internal/video/stream"
 
@@ -238,6 +239,7 @@ func run() int {
 	}
 
 	screenshot.Start(ctx, dataDir)
+	preview.Start(ctx, filepath.Join(dataDir, "cache", "previews"))
 	cover.Start(ctx, cfg.JavCoverDir)
 	stream.Start(ctx, filepath.Join(dataDir, "cache", "streams"))
 	go func() {
