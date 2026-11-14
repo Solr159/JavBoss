@@ -197,9 +197,13 @@ export default function PlayerModal({
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
         progressControl: {
+          componentClass: 'JavBossPreviewProgressControl',
           seekBar: {
             playProgressBar: { timeTooltip: false },
-            mouseTimeDisplay: { componentClass: 'JavBossPreviewDisplay' },
+            mouseTimeDisplay: {
+              componentClass: 'JavBossPreviewDisplay',
+              timeTooltip: { componentClass: 'JavBossPreviewTimeTooltip' },
+            },
           },
         },
         subsCapsButton: { componentClass: 'JavBossSubtitleButton' },

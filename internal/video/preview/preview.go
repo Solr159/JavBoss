@@ -17,8 +17,6 @@ import (
 	"javboss/internal/video/screenshot"
 )
 
-const Interval = 3
-
 var ErrUnavailable = errors.New("preview generation is unavailable or busy")
 var ErrInvalidTime = errors.New("invalid preview timestamp")
 var active atomic.Pointer[cache]
@@ -49,14 +47,14 @@ func newCache(ctx context.Context, dir string, capture captureFunc) *cache {
 	return &cache{ctx: ctx, dir: dir, capture: capture, jobs: make(map[string]*job)}
 }
 
-// Second maps a hover position to a three-second bucket, including the end edge.
+// Second maps a hover position to an integer second, including the end edge.
 func Second(second, duration float64) (int64, error) {
 	if math.IsNaN(second) || math.IsInf(second, 0) || second < 0 ||
 		math.IsNaN(duration) || math.IsInf(duration, 0) || duration <= 0 || second > duration || duration >= math.MaxInt64 {
 		return 0, ErrInvalidTime
 	}
 	second = math.Min(second, math.Max(0, duration-0.001))
-	return int64(second/Interval) * Interval, nil
+	return int64(second), nil
 }
 
 // Get returns a cached image or generates it on demand.
@@ -82,7 +80,7 @@ func (c *cache) get(ctx context.Context, videoID int64, source string, second in
 		c.mu.Unlock()
 		return nil, err
 	}
-	if data, err := os.ReadFile(filepath.Join(c.dir, key)); err == nil {
+	if data, err := os.ReadFile(c.imagePath(videoID, second)); err == nil && len(data) > 0 {
 		c.mu.Unlock()
 		return data, nil
 	}
@@ -96,7 +94,7 @@ func (c *cache) get(ctx context.Context, videoID int64, source string, second in
 		j = &job{done: make(chan struct{}), cancel: cancel}
 		c.jobs[key] = j
 		c.workers++
-		go c.generate(workCtx, key, source, second, info, j)
+		go c.generate(workCtx, key, videoID, source, second, info, j)
 	}
 	j.waiters++
 	c.mu.Unlock()
@@ -117,46 +115,56 @@ func (c *cache) get(ctx context.Context, videoID int64, source string, second in
 	}
 }
 
-func (c *cache) generate(ctx context.Context, key, source string, second int64, original os.FileInfo, j *job) {
+func (c *cache) imagePath(videoID, second int64) string {
+	return filepath.Join(c.dir, fmt.Sprintf("%d_%d.jpg", videoID, second))
+}
+
+func (c *cache) generate(ctx context.Context, key string, videoID int64, source string, second int64, original os.FileInfo, j *job) {
 	defer j.cancel()
 	tempDir, err := os.MkdirTemp(c.dir, ".preview-")
 	var data []byte
-	path := filepath.Join(tempDir, "frame.jpg")
 	if err == nil {
 		defer os.RemoveAll(tempDir)
+		path := filepath.Join(tempDir, "frame.jpg")
 		err = c.capture(ctx, source, float64(second), path)
 		if err == nil {
-			data, err = os.ReadFile(path)
-		}
-		if err == nil && len(data) == 0 {
-			err = errors.New("empty preview image")
-		}
-		if err == nil {
-			err = ctx.Err()
-		}
-		if err == nil {
-			info, statErr := os.Stat(source)
-			if statErr != nil {
-				err = statErr
-			} else if info.Size() != original.Size() || !info.ModTime().Equal(original.ModTime()) {
-				err = errors.New("preview source changed during capture")
-			}
+			data, err = c.saveCapture(ctx, videoID, second, source, original, path)
 		}
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if err == nil {
-		err = ctx.Err()
-	}
-	if err == nil {
-		err = os.Rename(path, filepath.Join(c.dir, key))
-	}
 	j.data, j.err = data, err
 	if c.jobs[key] == j {
 		delete(c.jobs, key)
 	}
 	c.workers--
 	close(j.done)
+}
+
+func (c *cache) saveCapture(ctx context.Context, videoID, second int64, source string, original os.FileInfo, path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, errors.New("empty preview image")
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	info, err := os.Stat(source)
+	if err != nil {
+		return nil, err
+	}
+	if !os.SameFile(original, info) || info.Size() != original.Size() || !info.ModTime().Equal(original.ModTime()) {
+		return nil, errors.New("preview source changed during capture")
+	}
+	if err := os.Rename(path, c.imagePath(videoID, second)); err != nil {
+		return nil, err
+	}
+	return data, nil
 }
 
 func (c *cache) initLocked() error {

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
-  'timeline previews are bucketed, cached, cancelled on leave and reset for the next video',
+  'timeline previews use integer seconds and preserve caching, cancellation and video resets',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -53,7 +53,7 @@ test(
     }
     const leave = () => command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 0, y: 0 })
     const settle = () => evaluate(`new Promise(resolve => setTimeout(resolve, 400))`)
-    await hover(0.46)
+    await hover(0.475)
     await waitFor(`${image} && !${image}.hidden && ${image}.naturalWidth === 320`)
     assert.deepEqual(
       await evaluate(`(() => {
@@ -64,7 +64,7 @@ test(
       { width: 192, height: 108, visible: true }
     )
     assert.deepEqual(await evaluate(`window.previewRequests`), [
-      { path: '/videos/1/preview', second: 27, locationId: '11', aborted: false },
+      { path: '/videos/1/preview', second: 28, locationId: '11', aborted: false },
     ])
     assert.equal(await evaluate(`player.currentTime()`), 12)
     assert.equal(await evaluate(`player.paused()`), true)
@@ -73,11 +73,11 @@ test(
     assert.equal(await evaluate(`previewRequests.length`), 1)
     await leave()
     await waitFor(`${image}.hidden`)
-    await hover(0.46)
+    await hover(0.475)
     await waitFor(`!${image}.hidden`)
     assert.equal(await evaluate(`previewRequests.length`), 1)
 
-    // No request for a fleeting hover, including Video.js's trailing throttle.
+    // No request for a fleeting hover.
     await hover(0.65)
     await leave()
     await settle()

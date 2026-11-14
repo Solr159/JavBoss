@@ -37,7 +37,7 @@ func TestVideoPreviewHTTP(t *testing.T) {
 		t.Skipf("link fixture ffmpeg: %v", err)
 	}
 	source := filepath.Join(dir, "video.mp4")
-	cmd := exec.CommandContext(t.Context(), ffmpeg, "-nostdin", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=blue:s=640x360:d=1", "-c:v", "mpeg4", source)
+	cmd := exec.CommandContext(t.Context(), ffmpeg, "-nostdin", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=10:duration=24", "-c:v", "mpeg4", "-g", "60", "-bf", "0", source)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("create fixture: %v: %s", err, out)
 	}
@@ -61,7 +61,7 @@ func TestVideoPreviewHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	video := &models.Video{DurationSec: 1, Size: stat.Size(), Fingerprint: "preview-http"}
+	video := &models.Video{DurationSec: 24, Size: stat.Size(), Fingerprint: "preview-http"}
 	if err := db.Default().CreateVideo(t.Context(), video); err != nil {
 		t.Fatal(err)
 	}
@@ -98,9 +98,9 @@ func TestVideoPreviewHTTP(t *testing.T) {
 	if first.Header().Get("Content-Type") != "image/jpeg" || first.Header().Get("Cache-Control") != "private, no-store" {
 		t.Fatalf("headers: %v", first.Header())
 	}
-	second := request(base+"&second=1", http.StatusOK)
+	second := request(base+"&second=0.9", http.StatusOK)
 	if !bytes.Equal(first.Body.Bytes(), second.Body.Bytes()) {
-		t.Fatal("same bucket did not reuse image")
+		t.Fatal("same second did not reuse image")
 	}
 	files, err := os.ReadDir(cacheDir)
 	if err != nil {
@@ -115,7 +115,24 @@ func TestVideoPreviewHTTP(t *testing.T) {
 	if images != 1 {
 		t.Fatalf("cache images: %d", images)
 	}
-	for _, value := range []string{"", "invalid", "NaN", "Inf", "-1", "2"} {
+	// Adjacent seconds must have their own precisely captured images, even within one GOP.
+	var previous []byte
+	for _, second := range []int{18, 19, 20} {
+		response := request(fmt.Sprintf("%s&second=%d", base, second), http.StatusOK)
+		data := response.Body.Bytes()
+		path := filepath.Join(cacheDir, fmt.Sprintf("%d_%d.jpg", video.ID, second))
+		if cached, err := os.ReadFile(path); err != nil || !bytes.Equal(cached, data) {
+			t.Fatalf("precise screenshot at %d was not cached: %v", second, err)
+		}
+		if bytes.Equal(previous, data) {
+			t.Fatalf("second %d reused the previous frame", second)
+		}
+		if !bytes.Equal(request(fmt.Sprintf("%s&second=%d.8", base, second), http.StatusOK).Body.Bytes(), data) {
+			t.Fatalf("second %d did not reuse its own cache", second)
+		}
+		previous = data
+	}
+	for _, value := range []string{"", "invalid", "NaN", "Inf", "-1", "25"} {
 		request(base+"&second="+value, http.StatusBadRequest)
 	}
 	request(fmt.Sprintf("/videos/%d/preview?location_id=%d&second=0", video.ID, missing.ID), http.StatusNotFound)

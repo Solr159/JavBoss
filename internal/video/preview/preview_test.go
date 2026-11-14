@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -17,8 +18,8 @@ func TestSecond(t *testing.T) {
 		want             int64
 		invalid          bool
 	}{
-		{0, 60, 0, false}, {2.99, 60, 0, false}, {3, 60, 3, false},
-		{5.99, 60, 3, false}, {6, 60, 6, false}, {19.9, 60, 18, false}, {60, 60, 57, false},
+		{0, 60, 0, false}, {2.99, 60, 2, false}, {3, 60, 3, false},
+		{5.99, 60, 5, false}, {6, 60, 6, false}, {19.9, 60, 19, false}, {60, 60, 59, false},
 		{0.5, 0.5, 0, false}, {-1, 60, 0, true}, {61, 60, 0, true},
 		{0, 0, 0, true}, {math.NaN(), 60, 0, true}, {math.Inf(1), 60, 0, true},
 	} {
@@ -198,6 +199,48 @@ func TestCaptureFailureAndChangingSourceAreNotCached(t *testing.T) {
 			}
 			if _, err := os.Stat(filepath.Join(c.dir, "1_0.jpg")); !errors.Is(err, os.ErrNotExist) {
 				t.Fatalf("failed capture was cached: %v", err)
+			}
+		})
+	}
+}
+
+func TestCacheOnlyReusesRequestedSecond(t *testing.T) {
+	for _, cachedCurrent := range []bool{false, true} {
+		t.Run(strconv.FormatBool(cachedCurrent), func(t *testing.T) {
+			calls := 0
+			c := newCache(t.Context(), t.TempDir(), func(_ context.Context, _ string, second float64, output string) error {
+				calls++
+				if second != 20 {
+					t.Errorf("capture second = %v, want 20", second)
+				}
+				return os.WriteFile(output, []byte("exact"), 0600)
+			})
+			for _, second := range []int64{18, 19, 21} {
+				if err := os.WriteFile(c.imagePath(1, second), []byte("neighbor"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if cachedCurrent {
+				if err := os.WriteFile(c.imagePath(1, 20), []byte("exact"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			source := sourceFile(t)
+			for range 2 {
+				data, err := c.get(t.Context(), 1, source, 20)
+				if err != nil || string(data) != "exact" {
+					t.Fatalf("got %q, %v", data, err)
+				}
+			}
+			wantCalls := 1
+			if cachedCurrent {
+				wantCalls = 0
+			}
+			if calls != wantCalls {
+				t.Fatalf("capture calls = %d, want %d", calls, wantCalls)
+			}
+			if data, err := os.ReadFile(c.imagePath(1, 20)); err != nil || string(data) != "exact" {
+				t.Fatalf("exact cache: %q, %v", data, err)
 			}
 		})
 	}

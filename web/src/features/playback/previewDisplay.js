@@ -1,15 +1,37 @@
 import { fetchVideoPreview } from '@/features/playback/api'
 
-const INTERVAL = 3
 const HOVER_DELAY = 100
 const MAX_IMAGES = 48
 
 export function registerPreviewDisplay(videojs) {
+  const ProgressControl = videojs.getComponent('ProgressControl')
   const MouseTimeDisplay = videojs.getComponent('MouseTimeDisplay')
+  const TimeTooltip = videojs.getComponent('TimeTooltip')
+
+  // All three native hover components use leading-only throttles, so the last
+  // pointer position can be lost even after the mouse stops. Remove those
+  // wrappers; TimeTooltip.updateTime already coalesces the latest position into
+  // one animation frame. Keep native seeking, formatting and tooltip placement.
+  class PreviewProgressControl extends ProgressControl {
+    constructor(player, options) {
+      super(player, options)
+      this.off(this.el(), ['mousemove', 'touchmove'], this.handleMouseMove)
+      this.handleMouseMove = ProgressControl.prototype.handleMouseMove.bind(this)
+      this.on(this.el(), ['mousemove', 'touchmove'], this.handleMouseMove)
+    }
+  }
+
+  class PreviewTimeTooltip extends TimeTooltip {
+    constructor(player, options) {
+      super(player, options)
+      this.update = TimeTooltip.prototype.update.bind(this)
+    }
+  }
 
   class PreviewDisplay extends MouseTimeDisplay {
     constructor(player, options) {
       super(player, options)
+      this.update = PreviewDisplay.prototype.update.bind(this)
       this.images = new Map()
       this.source = null
       this.bucket = null
@@ -54,7 +76,7 @@ export function registerPreviewDisplay(videojs) {
     update(rect, point) {
       super.update(rect, point)
       const duration = this.player().duration()
-      // Video.js throttles mouse updates; a trailing update may arrive after leave.
+      // Only request previews while the pointer is over the progress control.
       if (
         !this.source ||
         !this.progress?.matches(':hover') ||
@@ -63,7 +85,7 @@ export function registerPreviewDisplay(videojs) {
       )
         return
       const time = Math.min(Math.max(0, point * duration), Math.max(0, duration - 0.001))
-      const bucket = Math.floor(time / INTERVAL) * INTERVAL
+      const bucket = Math.floor(time)
       const width = Math.min(192, rect.width)
       const position = rect.width * point
       this.image.style.width = `${width}px`
@@ -118,5 +140,7 @@ export function registerPreviewDisplay(videojs) {
     }
   }
 
+  videojs.registerComponent('JavBossPreviewProgressControl', PreviewProgressControl)
+  videojs.registerComponent('JavBossPreviewTimeTooltip', PreviewTimeTooltip)
   videojs.registerComponent('JavBossPreviewDisplay', PreviewDisplay)
 }

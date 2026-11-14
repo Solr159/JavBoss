@@ -13,7 +13,7 @@ import (
 )
 
 // GET /videos/:id/preview?second=N&location_id=N returns a JPEG for the
-// three-second interval containing second. location_id selects the playback file.
+// requested integer second, captured with precise seeking. location_id selects the playback file.
 func getVideoPreview(c *gin.Context) {
 	c.Header("Cache-Control", "private, no-store")
 	second, err := strconv.ParseFloat(c.Query("second"), 64)
@@ -30,12 +30,12 @@ func getVideoPreview(c *gin.Context) {
 	if video.MediaInfo.DurationSeconds > 0 {
 		duration = video.MediaInfo.DurationSeconds
 	}
-	bucket, err := preview.Second(second, duration)
+	requestedSecond, err := preview.Second(second, duration)
 	if err != nil {
 		respondLocalizedError(c, http.StatusBadRequest, "预览时间超出视频时长或时长未知", "Invalid preview timestamp or unknown duration")
 		return
 	}
-	data, err := preview.Get(c.Request.Context(), video.ID, source, bucket)
+	data, err := preview.Get(c.Request.Context(), video.ID, source, requestedSecond)
 	if err != nil {
 		if !errors.Is(err, context.Canceled) && !errors.Is(err, preview.ErrUnavailable) {
 			logging.Error("generate video preview (video_id=%d): %v", video.ID, err)

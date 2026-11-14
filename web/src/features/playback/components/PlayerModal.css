@@ -240,6 +240,11 @@
   background: rgb(255 255 255 / 14%);
 }
 
+.player-shell .vjs-mouse-display {
+  /* Keep hover and click coordinates relative to the same seek-bar elements. */
+  pointer-events: none;
+}
+
 .player-shell .player-timeline-preview {
   position: absolute;
   bottom: 28px;

@@ -53,18 +53,18 @@ func TestBuildMPVScreenshotArgsIncludesImageOutputOptions(t *testing.T) {
 	}
 }
 
-func TestApproximateSeekingIsOnlyUsedForPreviews(t *testing.T) {
+func TestScreenshotsAlwaysUsePreciseSeeking(t *testing.T) {
 	for _, preview := range []bool{false, true} {
-		args := buildFFmpegScreenshotArgs(12, "frame.jpg", "video.mp4", preview)
-		if slices.Contains(args, "-noaccurate_seek") != preview || slices.Contains(args, "-vsync") != preview {
-			t.Fatalf("unexpected FFmpeg seek mode for preview=%t: %v", preview, args)
+		args := buildFFmpegScreenshotArgs(20, "frame.jpg", "video.mp4", preview)
+		if slices.Contains(args, "-noaccurate_seek") || slices.Contains(args, "-copyts") {
+			t.Fatalf("unexpected approximate FFmpeg seek: %v", args)
 		}
-		if preview && slices.Index(args, "-noaccurate_seek") > slices.Index(args, "-i") {
-			t.Fatal("approximate seek must be an input option")
+		if preview && !slices.Contains(args, "scale=320:180:force_original_aspect_ratio=decrease") {
+			t.Fatalf("preview must retain thumbnail scaling: %v", args)
 		}
-		args = buildMPVScreenshotArgs(12, "screenshots", "video.mp4", preview)
-		if slices.Contains(args, "--hr-seek=no") != preview || slices.Contains(args, "--hr-seek=yes") == preview {
-			t.Fatalf("unexpected MPV seek mode for preview=%t: %v", preview, args)
+		args = buildMPVScreenshotArgs(20, "screenshots", "video.mp4", preview)
+		if !slices.Contains(args, "--hr-seek=yes") || slices.Contains(args, "--hr-seek=no") {
+			t.Fatalf("MPV must seek accurately: %v", args)
 		}
 	}
 }
