@@ -7,6 +7,36 @@
   box-shadow: 0 32px 100px rgb(0 0 0 / 55%);
 }
 
+/* The frame, title bar and playlist follow the application theme. */
+:root:not(.dark) .player-window {
+  background: #fff;
+  border-color: #e4e4e7;
+  box-shadow: 0 32px 100px rgb(0 0 0 / 25%);
+}
+
+:root:not(.dark) .player-header {
+  color: #27272a;
+}
+
+:root:not(.dark) .player-toolbar-button {
+  color: #52525b;
+}
+
+:root:not(.dark) .player-toolbar-button:hover:not(:disabled) {
+  color: #18181b;
+  background: #f4f4f5;
+}
+
+:root:not(.dark) .player-toolbar-button[aria-expanded='true'] {
+  color: #2563eb;
+  background: #dbeafe;
+}
+
+:root:not(.dark) .player-close-button:hover:not(:disabled) {
+  color: #e11d48;
+  background: #ffe4e6;
+}
+
 .player-header {
   min-height: 34px;
   padding: 0 6px 6px;
@@ -45,7 +75,7 @@
   background: rgb(251 113 133 / 12%);
 }
 
-.player-window button:focus-visible,
+.player-window button:not(.player-playlist-item):focus-visible,
 .player-shell .video-js .vjs-slider:focus-visible {
   outline: 2px solid #7dd3fc;
   outline-offset: -2px;
@@ -77,6 +107,33 @@
 
 .player-playlist-item.is-active .player-playlist-number {
   color: #7dd3fc;
+}
+
+:root:not(.dark) .player-playlist {
+  color-scheme: light;
+  color: #27272a;
+  border-color: #e4e4e7;
+  background: #f4f4f5;
+  scrollbar-color: #71717a transparent;
+}
+
+:root:not(.dark) .player-playlist-item {
+  color: #52525b;
+}
+
+:root:not(.dark) .player-playlist-item:hover {
+  color: #18181b;
+  background: #e4e4e7;
+}
+
+:root:not(.dark) .player-playlist-item.is-active {
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #dbeafe;
+}
+
+:root:not(.dark) .player-playlist-item.is-active .player-playlist-number {
+  color: #2563eb;
 }
 
 .player-notice {

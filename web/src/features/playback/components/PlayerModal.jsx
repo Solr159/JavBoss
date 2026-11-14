@@ -558,7 +558,7 @@ export default function PlayerModal({
               >
                 <SkipPreviousRoundedIcon fontSize="small" />
               </button>
-              <span className="shrink-0 text-xs tabular-nums text-slate-400">
+              <span className="shrink-0 text-xs tabular-nums text-zinc-500 dark:text-slate-400">
                 {currentIndex + 1} / {playlist.length}
               </span>
               <button
