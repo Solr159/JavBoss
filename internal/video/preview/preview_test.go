@@ -37,9 +37,17 @@ func sourceFile(t *testing.T) string {
 	return path
 }
 
-func TestCacheIdentityPersistenceAndEviction(t *testing.T) {
+func TestCacheIdentityPersistenceWithoutEviction(t *testing.T) {
 	source := sourceFile(t)
 	dir := t.TempDir()
+	// A sparse file exceeds the former disk limit without allocating image data.
+	largePath := filepath.Join(dir, "999_0.jpg")
+	if err := os.WriteFile(largePath, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(largePath, (256<<20)+1); err != nil {
+		t.Fatal(err)
+	}
 	var calls int
 	capture := func(_ context.Context, _ string, _ float64, output string) error {
 		calls++
@@ -86,24 +94,12 @@ func TestCacheIdentityPersistenceAndEviction(t *testing.T) {
 	if calls != 2 {
 		t.Fatal("different video ID reused cache")
 	}
-	c.limit = 10
 	get(1, 10)
 	get(1, 20)
-	if c.size > c.limit || len(c.entries) > 2 {
-		t.Fatal("cache limit exceeded")
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var size int64
-	for _, file := range entries {
-		if info, err := file.Info(); err == nil && !file.IsDir() {
-			size += info.Size()
+	for _, name := range []string{"999_0.jpg", "1_0.jpg", "2_0.jpg", "1_10.jpg", "1_20.jpg"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("cached preview %s was removed: %v", name, err)
 		}
-	}
-	if size > c.limit {
-		t.Fatal("eviction did not remove files")
 	}
 }
 
@@ -199,8 +195,8 @@ func TestCaptureFailureAndChangingSourceAreNotCached(t *testing.T) {
 			if _, err := c.get(t.Context(), 1, source, 0); err == nil {
 				t.Fatal("expected failure")
 			}
-			if len(c.entries) != 0 || c.size != 0 {
-				t.Fatal("failed capture was cached")
+			if _, err := os.Stat(filepath.Join(c.dir, "1_0.jpg")); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("failed capture was cached: %v", err)
 			}
 		})
 	}

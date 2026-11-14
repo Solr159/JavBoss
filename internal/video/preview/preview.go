@@ -1,4 +1,4 @@
-// Package preview generates bounded, on-demand timeline thumbnails separately
+// Package preview generates on-demand timeline thumbnails separately
 // from user screenshots. Uncached work is never queued behind other videos.
 package preview
 
@@ -9,7 +9,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -19,17 +18,12 @@ import (
 )
 
 const Interval = 10
-const cacheLimit = 256 << 20
 
 var ErrUnavailable = errors.New("preview generation is unavailable or busy")
 var ErrInvalidTime = errors.New("invalid preview timestamp")
 var active atomic.Pointer[cache]
 
 type captureFunc func(context.Context, string, float64, string) error
-type entry struct {
-	size int64
-	used time.Time
-}
 type job struct {
 	done    chan struct{}
 	cancel  context.CancelFunc
@@ -44,9 +38,7 @@ type cache struct {
 	mu      sync.Mutex
 	jobs    map[string]*job
 	workers int
-	entries map[string]entry
-	size    int64
-	limit   int64
+	ready   bool
 }
 
 func Start(ctx context.Context, dir string) {
@@ -54,7 +46,7 @@ func Start(ctx context.Context, dir string) {
 }
 
 func newCache(ctx context.Context, dir string, capture captureFunc) *cache {
-	return &cache{ctx: ctx, dir: dir, capture: capture, jobs: make(map[string]*job), limit: cacheLimit}
+	return &cache{ctx: ctx, dir: dir, capture: capture, jobs: make(map[string]*job)}
 }
 
 // Second maps a hover position to a ten-second bucket, including the end edge.
@@ -67,7 +59,7 @@ func Second(second, duration float64) (int64, error) {
 	return int64(second/Interval) * Interval, nil
 }
 
-// Get returns image bytes so eviction cannot race HTTP file serving.
+// Get returns a cached image or generates it on demand.
 func Get(ctx context.Context, videoID int64, source string, second int64) ([]byte, error) {
 	return active.Load().get(ctx, videoID, source, second)
 }
@@ -86,20 +78,13 @@ func (c *cache) get(ctx context.Context, videoID int64, source string, second in
 	// The scanner owns video identity; copies at different locations share previews.
 	key := fmt.Sprintf("%d_%d.jpg", videoID, second)
 	c.mu.Lock()
-	if err := c.loadLocked(); err != nil {
+	if err := c.initLocked(); err != nil {
 		c.mu.Unlock()
 		return nil, err
 	}
-	if item, ok := c.entries[key]; ok {
-		data, err := os.ReadFile(filepath.Join(c.dir, key))
-		if err == nil {
-			item.used = time.Now()
-			c.entries[key] = item
-			c.mu.Unlock()
-			return data, nil
-		}
-		delete(c.entries, key)
-		c.size -= item.size
+	if data, err := os.ReadFile(filepath.Join(c.dir, key)); err == nil {
+		c.mu.Unlock()
+		return data, nil
 	}
 	j := c.jobs[key]
 	if j == nil {
@@ -165,11 +150,6 @@ func (c *cache) generate(ctx context.Context, key, source string, second int64, 
 	}
 	if err == nil {
 		err = os.Rename(path, filepath.Join(c.dir, key))
-		if err == nil {
-			c.entries[key] = entry{size: int64(len(data)), used: time.Now()}
-			c.size += int64(len(data))
-			c.pruneLocked()
-		}
 	}
 	j.data, j.err = data, err
 	if c.jobs[key] == j {
@@ -179,8 +159,8 @@ func (c *cache) generate(ctx context.Context, key, source string, second int64, 
 	close(j.done)
 }
 
-func (c *cache) loadLocked() error {
-	if c.entries != nil {
+func (c *cache) initLocked() error {
+	if c.ready {
 		return nil
 	}
 	if err := os.MkdirAll(c.dir, 0755); err != nil {
@@ -190,43 +170,11 @@ func (c *cache) loadLocked() error {
 	if err != nil {
 		return fmt.Errorf("read preview cache: %w", err)
 	}
-	c.entries = make(map[string]entry)
 	for _, file := range files {
 		if strings.HasPrefix(file.Name(), ".preview-") {
 			_ = os.RemoveAll(filepath.Join(c.dir, file.Name()))
-			continue
 		}
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".jpg") {
-			continue
-		}
-		info, err := file.Info()
-		if err != nil {
-			continue
-		}
-		c.entries[file.Name()] = entry{size: info.Size(), used: info.ModTime()}
-		c.size += info.Size()
 	}
-	c.pruneLocked()
+	c.ready = true
 	return nil
-}
-
-func (c *cache) pruneLocked() {
-	if c.size <= c.limit {
-		return
-	}
-	keys := make([]string, 0, len(c.entries))
-	for key := range c.entries {
-		keys = append(keys, key)
-	}
-	sort.Slice(keys, func(i, j int) bool { return c.entries[keys[i]].used.Before(c.entries[keys[j]].used) })
-	for _, key := range keys {
-		if c.size <= c.limit {
-			break
-		}
-		if err := os.Remove(filepath.Join(c.dir, key)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			continue
-		}
-		c.size -= c.entries[key].size
-		delete(c.entries, key)
-	}
 }
