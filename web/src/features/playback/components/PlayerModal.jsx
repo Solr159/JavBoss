@@ -4,9 +4,11 @@ import QueuePlayNextRoundedIcon from '@mui/icons-material/QueuePlayNextRounded'
 import SkipPreviousRoundedIcon from '@mui/icons-material/SkipPreviousRounded'
 import SkipNextRoundedIcon from '@mui/icons-material/SkipNextRounded'
 import PlaybackPlaylist from '@/features/playback/components/PlaybackPlaylist'
+import SubtitleOffsetSettings from '@/features/playback/components/SubtitleOffsetSettings'
 import usePlayerWindow from '@/features/playback/hooks/usePlayerWindow'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import videojs from 'video.js'
+import zhCN from 'video.js/dist/lang/zh-CN.json'
 import 'video.js/dist/video-js.css'
 import { createVideoScreenshot, fetchPlaybackInfo } from '@/features/video/api'
 import { getVideoDisplayName } from '@/utils/display'
@@ -22,11 +24,22 @@ import { getErrorMessage } from '@/utils/errors'
 import { selectPlaybackSource, startBrowserPlayback } from '@/utils/browserPlayback'
 import { startWatchTracking } from '@/features/playback/watchTime'
 import { createBrowserResume } from '@/features/playback/browserResume'
-import { createPlaybackSession, reportPlaybackSession } from '@/features/playback/api'
+import { startSubtitleLoading } from '@/features/playback/subtitles'
+import { registerSubtitleMenu } from '@/features/playback/subtitleMenu'
+import {
+  createPlaybackSession,
+  reportPlaybackSession,
+  resolveVideoSubtitle,
+  fetchVideoSubtitleSettings,
+  updateVideoSubtitleSelection,
+} from '@/features/playback/api'
 import { fetchTools } from '@/features/settings/api'
+
+registerSubtitleMenu(videojs)
 
 const VOLUME_STORAGE_KEY = 'javboss.player.volume'
 const HOTKEY_HINT_DURATION_MS = 5000
+const SUBTITLE_RESULT_DURATION_MS = 3000
 
 function formatSignedAmount(amount) {
   return amount > 0 ? `+${amount}` : String(amount)
@@ -39,6 +52,7 @@ export default function PlayerModal({
   onSelectVideo,
   startTime = null,
   resumePlayback = true,
+  subtitleEnabled = false,
   onClose,
   hotkeys = null,
   showHotkeyHint = true,
@@ -48,6 +62,7 @@ export default function PlayerModal({
   const [player, setPlayer] = useState(null)
   const activePlaybackRef = useRef(null)
   const stopSourceRef = useRef(null)
+  const stopSubtitlesRef = useRef(null)
   const [videoContainer, setVideoContainer] = useState(null)
   const onEndedRef = useRef(null)
   const [playlistVisible, setPlaylistVisible] = useState(true)
@@ -57,6 +72,10 @@ export default function PlayerModal({
   const screenshotNoticeTimerRef = useRef(null)
   const [playbackInfo, setPlaybackInfo] = useState(null)
   const [playbackError, setPlaybackError] = useState('')
+  const [subtitleStatus, setSubtitleStatus] = useState('')
+  const [subtitleRevision, setSubtitleRevision] = useState(0)
+  const [subtitleSettingsHost, setSubtitleSettingsHost] = useState(null)
+  const [subtitleSettingsOpen, setSubtitleSettingsOpen] = useState(false)
   const [loadingPlayback, setLoadingPlayback] = useState(false)
   const [screenshotNotice, setScreenshotNotice] = useState('')
   const [hotkeyHintVisible, setHotkeyHintVisible] = useState(false)
@@ -165,6 +184,12 @@ export default function PlayerModal({
     videoElement.setAttribute('playsinline', '')
     videoContainer.appendChild(videoElement)
     const player = videojs(videoElement, {
+      language: 'zh-CN',
+      languages: { 'zh-cn': zhCN },
+      persistTextTrackSettings: true,
+      controlBar: {
+        subsCapsButton: { componentClass: 'JavBossSubtitleButton' },
+      },
       controls: false,
       autoplay: false,
       preload: 'auto',
@@ -173,6 +198,16 @@ export default function PlayerModal({
 
     setPlayer(player)
     const playerEl = player.el()
+    const subtitleSettings = player.getChild('textTrackSettings')
+    // Put React's per-video setting inside the native dialog, so it shares
+    // Video.js's fullscreen container, scrolling and keyboard handling.
+    const settingsHost = document.createElement('div')
+    settingsHost.className = 'player-subtitle-offset-settings-host'
+    // Keep Video.js's global style controls separate from per-video offsets.
+    subtitleSettings.contentEl().appendChild(settingsHost)
+    setSubtitleSettingsHost(settingsHost)
+    subtitleSettings.on('modalopen', () => setSubtitleSettingsOpen(true))
+    subtitleSettings.on('modalclose', () => setSubtitleSettingsOpen(false))
     const savedVolume = (() => {
       try {
         const raw = localStorage.getItem(VOLUME_STORAGE_KEY)
@@ -237,6 +272,7 @@ export default function PlayerModal({
     }
 
     const handleKeyDown = (event) => {
+      if (subtitleSettings.opened()) return
       const target = event.target
       if (
         target instanceof Element &&
@@ -313,6 +349,8 @@ export default function PlayerModal({
     return () => {
       // Stop per-video work before disposing the shared player, including on unmount.
       stopSourceRef.current?.()
+      setSubtitleSettingsOpen(false)
+      setSubtitleSettingsHost((current) => (current === settingsHost ? null : current))
       window.removeEventListener('keydown', handleKeyDown, true)
       player.off('fullscreenchange', focusPlayer)
       player.off('volumechange', handleVolumeChange)
@@ -373,6 +411,8 @@ export default function PlayerModal({
       if (activePlaybackRef.current !== playback) return
       activePlaybackRef.current = null
       stopSourceRef.current = null
+      player.getChild('textTrackSettings')?.close()
+      stopSubtitlesRef.current?.()
       stopWatchTracking()
       stopPlayback()
       resume.flush()
@@ -395,9 +435,64 @@ export default function PlayerModal({
     return stop
   }, [player, video, startTime, resumePlayback, selectedSource, playbackInfo, loadingPlayback])
 
+  // Reload only the subtitle track after an offset change, preserving playback.
+  useEffect(() => {
+    setSubtitleStatus('')
+    const playback = activePlaybackRef.current
+    if (!playback || playback.video !== video || player?.isDisposed()) return
+    let resultTimer = null
+    const stopLoading = startSubtitleLoading(player, {
+      autoDownload: subtitleEnabled,
+      getSettings: (signal) => fetchVideoSubtitleSettings(video.id, signal),
+      saveSelection: (track) => updateVideoSubtitleSelection(video.id, track),
+      // Always ask for existing subtitles; the server gates online downloads.
+      resolve: (signal, manual, options) =>
+        resolveVideoSubtitle(video.id, playback.locationId, signal, manual, options),
+      onStatus: (status) => {
+        if (activePlaybackRef.current !== playback) return
+        window.clearTimeout(resultTimer)
+        setSubtitleStatus(status)
+        if (status && status !== 'searching' && status !== 'disabled') {
+          resultTimer = window.setTimeout(() => {
+            if (activePlaybackRef.current === playback) setSubtitleStatus('')
+          }, SUBTITLE_RESULT_DURATION_MS)
+        }
+      },
+    })
+    const stop = () => {
+      window.clearTimeout(resultTimer)
+      stopLoading()
+    }
+    stopSubtitlesRef.current = stop
+    return () => {
+      stop()
+      if (stopSubtitlesRef.current === stop) stopSubtitlesRef.current = null
+    }
+  }, [
+    player,
+    video,
+    subtitleEnabled,
+    subtitleRevision,
+    selectedSource,
+    playbackInfo,
+    loadingPlayback,
+    startTime,
+    resumePlayback,
+  ])
+
   if (!video) return null
 
   const displayName = getVideoDisplayName(video)
+  const subtitleStatusText =
+    {
+      searching: zh('正在查找字幕…', 'Finding subtitles...'),
+      ready: zh('字幕已加载', 'Subtitles loaded'),
+      existing: zh('检测到已有字幕', 'Existing subtitles detected'),
+      not_found: zh('未找到中文字幕', 'No Chinese subtitles found'),
+      ambiguous: zh('无法自动匹配字幕', 'Cannot match subtitles automatically'),
+      error: zh('字幕下载失败', 'Subtitle download failed'),
+      settings_error: zh('字幕选择保存失败', 'Could not save subtitle selection'),
+    }[subtitleStatus] || ''
 
   return (
     <AppModal
@@ -406,6 +501,7 @@ export default function PlayerModal({
       contentClassName="player-window rounded-lg bg-white dark:bg-ui-surface shadow-lg"
       contentProps={{ style: playerWindow.style, ...playerWindow.pointerProps }}
       onClose={onClose}
+      closeDisabled={subtitleSettingsOpen}
       zIndex={1700}
     >
       <div className="flex h-full min-h-0 flex-col gap-1.5 p-2">
@@ -487,6 +583,23 @@ export default function PlayerModal({
               </div>
             ) : null}
             <div ref={setVideoContainer} data-vjs-player className="h-full w-full" />
+            {subtitleStatusText &&
+            !playbackError &&
+            !loadingPlayback &&
+            playbackInfo?.video === video &&
+            player &&
+            !player.isDisposed()
+              ? createPortal(
+                  <div
+                    role="status"
+                    aria-atomic="true"
+                    className="player-subtitle-status pointer-events-none absolute bottom-2 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-black/70 px-2.5 py-1 text-xs leading-5 text-white shadow"
+                  >
+                    {subtitleStatusText}
+                  </div>,
+                  player.el()
+                )
+              : null}
             {loadingPlayback || playbackInfo?.video !== video ? (
               <div
                 data-player-loading
@@ -527,6 +640,21 @@ export default function PlayerModal({
           onPointerDown={(event) => playerWindow.onResizeStart(event, direction)}
         />
       ))}
+      {subtitleSettingsOpen && subtitleSettingsHost && player && !player.isDisposed()
+        ? createPortal(
+            <SubtitleOffsetSettings
+              key={video.id}
+              video={video}
+              onClose={() => player.getChild('textTrackSettings').close()}
+              onSaved={() => {
+                if (activePlaybackRef.current?.video === video) {
+                  setSubtitleRevision((revision) => revision + 1)
+                }
+              }}
+            />,
+            subtitleSettingsHost
+          )
+        : null}
     </AppModal>
   )
 }

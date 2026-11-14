@@ -74,6 +74,9 @@ func TestBuildInputConfContentIncludesDefaultScreenshotKey(t *testing.T) {
 		t.Fatalf("buildInputConfContent returned error: %v", err)
 	}
 
+	if strings.Contains(content, "F9 ") {
+		t.Fatal("default configuration still binds F9", content)
+	}
 	if !strings.Contains(content, "e screenshot\n") {
 		t.Fatalf("expected e screenshot in mpv input config, got %q", content)
 	}
@@ -166,6 +169,9 @@ func TestBuildStartupHotkeyHintIncludesDefaultHotkeys(t *testing.T) {
 		t.Fatalf("buildStartupHotkeyHint returned error: %v", err)
 	}
 
+	if strings.Contains(content, "F9") {
+		t.Fatal("default hint still advertises F9", content)
+	}
 	expected := []string{
 		"a：进度 -1 秒",
 		"x：进度 +5 秒",
@@ -342,4 +348,21 @@ func openConfigTestDB(t *testing.T) *dbpkg.Store {
 	})
 
 	return dbpkg.NewStore(db)
+}
+
+func TestConfiguredF9IsNotOverridden(t *testing.T) {
+	store := openConfigTestDB(t)
+	if err := store.UpsertConfig(context.Background(), map[string]string{
+		playerHotkeysConfigKey: `[{"key":"F9","action":"screenshot","amount":0}]`,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	content, err := buildInputConfContent()
+	if err != nil || strings.Count(content, "F9 ") != 1 || !strings.Contains(content, "F9 screenshot\n") {
+		t.Fatalf("configured F9 was lost or overridden: %q, %v", content, err)
+	}
+	hint, err := buildStartupHotkeyHint()
+	if err != nil || !strings.Contains(hint, "F9：截图") || strings.Contains(hint, "字幕偏移") {
+		t.Fatalf("incorrect F9 hint: %q, %v", hint, err)
+	}
 }

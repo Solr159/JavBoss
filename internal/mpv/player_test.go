@@ -68,6 +68,7 @@ func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
 	}
 	expected := []any{"loadfile", "/videos/a.mp4", "replace", -1, map[string]string{
 		"start":                "12.345",
+		"sub-delay":            "0",
 		"screenshot-directory": filepath.Join(dataDir, "video", "42", "screenshot"),
 		"screenshot-template":  playbackScreenshotTemplate,
 	}}
@@ -98,6 +99,7 @@ func TestBuildPlaylistLoadFileCommandUsesPerFileScreenshotDirectory(t *testing.T
 			"screenshot-directory": filepath.Join(dataDir, "video", "84", "screenshot"),
 			"screenshot-template":  playbackScreenshotTemplate,
 			"start":                "2.5",
+			"sub-delay":            "0",
 		},
 	}
 	if !reflect.DeepEqual(command, expected) {

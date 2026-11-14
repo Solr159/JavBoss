@@ -496,10 +496,13 @@ func playVideoFile(c *gin.Context) {
 		dataDir = filepath.Dir(cfg.DatabasePath)
 	}
 	if err := mpv.PlayVideo(fullPath, mpv.PlayOptions{
-		NewWatchReporter: localPlaybackReporter(videoID, 0, dirPath, fullPath),
-		DataDir:          dataDir,
-		VideoID:          videoID,
-		StartTimeSec:     req.StartTimeSec,
+		NewWatchReporter:      localPlaybackReporter(videoID, 0, dirPath, fullPath),
+		ResolveSubtitle:       localSubtitleResolver(videoID, 0, fullPath),
+		SaveSubtitleOffset:    localSubtitleOffsetSaver(videoID),
+		SaveSubtitleSelection: localSubtitleSelectionSaver(videoID),
+		DataDir:               dataDir,
+		VideoID:               videoID,
+		StartTimeSec:          req.StartTimeSec,
 	}); err != nil {
 		logging.Error("play video file error: %v", err)
 		if strings.Contains(err.Error(), "mpv not found") {
@@ -597,9 +600,12 @@ func playVideoPlaylist(c *gin.Context) {
 				}
 			},
 			Options: mpv.PlayOptions{
-				NewWatchReporter: localPlaybackReporter(videoID, location.ID, "", ""),
-				DataDir:          dataDir,
-				VideoID:          requested.VideoID,
+				NewWatchReporter:      localPlaybackReporter(videoID, location.ID, "", ""),
+				ResolveSubtitle:       localSubtitleResolver(videoID, location.ID, fullPath),
+				SaveSubtitleOffset:    localSubtitleOffsetSaver(videoID),
+				SaveSubtitleSelection: localSubtitleSelectionSaver(videoID),
+				DataDir:               dataDir,
+				VideoID:               requested.VideoID,
 			},
 		})
 	}

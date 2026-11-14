@@ -671,7 +671,7 @@ func assertVideoContentSchema(t *testing.T, db *gorm.DB) {
 		t.Fatalf("iterate video columns: %v", err)
 	}
 
-	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at", "jav_scrape_override", "cover_screenshot_name", "watched_ms"}
+	wantColumns := []string{"id", "size", "fingerprint", "duration_sec", "play_count", "created_at", "updated_at", "jav_scrape_override", "cover_screenshot_name", "watched_ms", "subtitle_settings"}
 	if len(columns) != len(wantColumns) {
 		t.Fatalf("unexpected video columns: got %#v want %v", columns, wantColumns)
 	}

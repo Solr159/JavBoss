@@ -202,7 +202,7 @@ func buildStartupHotkeyHint() (string, error) {
 		return "", err
 	}
 
-	parts := make([]string, 0, len(hotkeys)+2)
+	parts := make([]string, 0, len(hotkeys)+3)
 	for _, item := range hotkeys {
 		keyName, ok := keyName(item.Key)
 		if !ok {

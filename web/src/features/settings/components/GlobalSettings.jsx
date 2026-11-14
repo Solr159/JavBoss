@@ -107,6 +107,12 @@ export default function GlobalSettings({ onToast, open, onClose }) {
         const cfg = await updateConfig({ allow_lan_access: Boolean(enabled) })
         useStore.setState({ config: cfg })
       }}
+      subtitleEnabled={configFlag(config?.subtitle_auto_download)}
+      subtitleLanguage={config?.subtitle_language || 'zh-CN'}
+      onSaveSubtitleSettings={async (payload) => {
+        const cfg = await updateConfig(payload)
+        useStore.setState({ config: cfg })
+      }}
       defaultPlayer={defaultPlayer}
       onSaveDefaultPlayer={async (player) => {
         const cfg = await updateConfig({ default_player: normalizeDefaultPlayer(player) })

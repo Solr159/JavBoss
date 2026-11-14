@@ -247,9 +247,9 @@ local user_opts = {
     audio_track_wheel_up_command = "cycle audio down",
 
     -- subtitle button mouse actions
-    sub_track_mbtn_left_command = "script-binding select/select-sid",
+    sub_track_mbtn_left_command = "script-message-to modernz javboss-subtitle-popup",
     sub_track_mbtn_mid_command = "cycle sub down",
-    sub_track_mbtn_right_command = "cycle sub",
+    sub_track_mbtn_right_command = "script-message javboss-subtitle-offset",
     sub_track_wheel_down_command = "cycle sub",
     sub_track_wheel_up_command = "cycle sub down",
 
@@ -483,6 +483,9 @@ local function load_locale_file()
 end
 
 local locale
+local function subtitle_offset_available()
+    return mp.get_property_native("user-data/javboss/subtitle-editable", false)
+end
 local function set_osc_locale()
     locale = language[user_opts.language] or language["default"]
 end
@@ -1158,6 +1161,7 @@ end
 -- Element Management
 --
 local elements = {}
+local subtitle_menu
 
 local function prepare_elements()
     -- remove elements without layout or invisible
@@ -1789,7 +1793,7 @@ local function render_elements(master_ass, osc_vis, wc_vis)
             -- add tooltip for button elements
             local seeking_with_force_tooltip = user_opts.force_seek_tooltip and state.mouse_down_counter > 0 and state.playing_and_seeking
 
-            if element.tooltipF ~= nil and element.enabled and not seeking_with_force_tooltip and user_opts.tooltip_hints then
+            if element.tooltipF ~= nil and element.enabled and not seeking_with_force_tooltip and user_opts.tooltip_hints and not subtitle_menu then
                 local hb = element.hover_box
                 if (hb and mouse_hit_coords(hb.x1, hb.y1, hb.x2, hb.y2) or mouse_hit(element)) then
                     local tooltiplabel
@@ -2156,7 +2160,7 @@ layouts["modern"] = function ()
         local outer = (ch_skip and 0 or 100) + (user_opts.jump_buttons and 0 or 100)
         local timecodes_above = osc_param.playresx < (user_opts.portrait_window_trigger - outer
             - (user_opts.playlist_button and (not user_opts.hide_empty_playlist_button or state.playlist_count > 1) and 0 or 100)
-            - (state.sub_track_count > 0 and 0 or 100)
+            - ((state.sub_track_count > 0 or subtitle_offset_available()) and 0 or 100)
             - (state.audio_track_count > 0 and 0 or 100))
         title_and_chapter_h_with_offset = timecodes_above
             and math.max(user_opts.osc_height * 0.2, user_opts.time_codes_offset + user_opts.title_offset + user_opts.time_font_size)
@@ -2225,7 +2229,7 @@ layouts["modern"] = function ()
     end
 
     local audio_track = state.audio_track_count > 0
-    local subtitle_track = state.sub_track_count > 0
+    local subtitle_track = state.sub_track_count > 0 or subtitle_offset_available()
     local chapter_skip_buttons = user_opts.chapter_skip_buttons and type(state.chapter_list) == "table" and next(state.chapter_list)
     local ontop_button = user_opts.ontop_button and not (window_controls_enabled() and user_opts.ontop_in_topbar and state.ontop)
     local playlist_button = user_opts.playlist_button and (not user_opts.hide_empty_playlist_button or state.playlist_count > 1)
@@ -2637,7 +2641,7 @@ layouts["modern-compact"] = function ()
 
     right_side_button("fullscreen", 250, user_opts.fullscreen_button)
     right_side_button("ontop", 300, user_opts.ontop_button and not (window_controls_enabled() and user_opts.ontop_in_topbar and state.ontop))
-    right_side_button("sub_track", 400, user_opts.subtitles_button and state.sub_track_count > 0)
+    right_side_button("sub_track", 400, user_opts.subtitles_button and (state.sub_track_count > 0 or subtitle_offset_available()))
     right_side_button("audio_track", 500, user_opts.audio_tracks_button and state.audio_track_count > 0)
     right_side_button("playlist", 600, user_opts.playlist_button)
     right_side_button("download", 700, state.is_URL and user_opts.download_button)
@@ -2783,6 +2787,63 @@ local function bind_buttons(element_name, use_down)
             elements[element_name].eventresponder[button .. "_press"] = function() mp.command(command) end
         end
     end
+end
+
+local function close_subtitle_menu()
+    if not subtitle_menu then return end
+    subtitle_menu = nil
+    state.active_element = nil
+    mp.disable_key_bindings("subtitle-menu-input")
+    request_init()
+end
+
+local function subtitle_menu_action(choice)
+    local session = subtitle_menu
+    if not session then return end
+    close_subtitle_menu()
+    mp.commandv("script-message", "javboss-subtitle-action", tostring(choice),
+        tostring(session.generation), tostring(session.entry))
+end
+
+-- Use the OSC's existing elements, scaling and hit testing for an anchored popup.
+local function layout_subtitle_menu()
+    if not subtitle_menu then return end
+    local anchor = elements.sub_track
+    if not anchor or not anchor.layout or not anchor.enabled then
+        close_subtitle_menu()
+        return
+    end
+    local geo = anchor.layout.geometry
+    local x1, y1, x2 = get_hitbox_coords(geo.x, geo.y, geo.an, geo.w, geo.h)
+    local items = mp.get_property_native("user-data/javboss/subtitle-menu-items", {})
+    local row, pad = 32, 6
+    local style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
+    local width = 180
+    for _, item in ipairs(items) do
+        width = math.max(width, estimate_text_width(item.label, style) + 36)
+    end
+    width = math.min(width, 360, osc_param.playresx - 12)
+    local height = row * #items + pad * 2
+    local left = limit_range(6, osc_param.playresx - width - 6, (x1 + x2 - width) / 2)
+    local top = math.max(6, y1 - height - 8)
+    subtitle_menu.bounds = {x1 = left, y1 = top, x2 = left + width, y2 = top + height}
+    new_element("subtitle_menu_background", "box")
+    local lo = add_layout("subtitle_menu_background")
+    lo.geometry = {x = left, y = top, an = 7, w = width, h = height}
+    lo.layer, lo.box.radius = 100, 6
+    lo.style = "{\\bord0\\shad0\\1c&H282828&}"
+    for i, choice in ipairs(items) do
+        local name = "subtitle_menu_" .. choice.name
+        local item = new_element(name, "button")
+        item.content, item.hover_pad = (choice.selected and "● " or "") .. choice.label, 0
+        item.hover_color, item.hover_alpha = "#555555", 0
+        item.eventresponder.mbtn_left_up = function() subtitle_menu_action(choice.action) end
+        lo = add_layout(name)
+        lo.geometry = {x = left + pad, y = top + pad + row * (i - 0.5), an = 4, w = width - pad * 2, h = row}
+        lo.layer = 101
+        lo.style = style .. string.format("{\\clip(%f,%f,%f,%f)}", left + pad, top, left + width - pad, top + height)
+    end
+    set_virt_mouse_area(0, 0, osc_param.displayresx, osc_param.playresy, "subtitle-menu-input")
 end
 
 -- format seconds into a time string
@@ -3025,7 +3086,7 @@ local function osc_init()
 
     --sub_track
     ne = new_element("sub_track", "button")
-    ne.enabled = state.sub_track_count > 0
+    ne.enabled = state.sub_track_count > 0 or subtitle_offset_available()
     ne.off = state.sub_track_count == 0 or not mp.get_property_native("sid")
     ne.content = icons.subtitle
     ne.tooltipF = function () return track_tooltip(locale.subtitle, "sub", "sid", state.sub_track_count) end
@@ -3380,6 +3441,8 @@ local function osc_init()
         layouts["modern"]()
     end
 
+    layout_subtitle_menu()
+
     -- load window controls
     if window_controls_enabled() then
         window_controls()
@@ -3406,7 +3469,18 @@ local function show_osc()
     show_bar("osc", "showtime", "osc_visible", "anitype", osc_visible)
 end
 
+mp.register_script_message("javboss-subtitle-popup", function()
+    if subtitle_menu then close_subtitle_menu(); return end
+    local session = mp.get_property_native("user-data/javboss/subtitle-session")
+    if not session or not session.loaded then return end
+    subtitle_menu = {generation = session.generation, entry = session.entry}
+    show_osc()
+    mp.enable_key_bindings("subtitle-menu-input")
+    request_init()
+end)
+
 local function hide_osc()
+    close_subtitle_menu()
     -- clear any pending thumbnail before hiding
     if thumbfast.width ~= 0 and thumbfast.height ~= 0 then
         mp.commandv("script-message-to", "thumbfast", "clear")
@@ -3471,8 +3545,20 @@ local function process_event(source, what)
     if what == "down" or what == "press" then
         reset_timeout() -- clicking resets the hideosc timer
 
+        if subtitle_menu and subtitle_menu.bounds then
+            local bounds = subtitle_menu.bounds
+            local on_button = false
+            for _, element in ipairs(elements) do
+                if element.name == "sub_track" and mouse_hit(element) then on_button = true end
+            end
+            if not on_button and not mouse_hit_coords(bounds.x1, bounds.y1, bounds.x2, bounds.y2) then
+                close_subtitle_menu()
+                return -- Dismiss without seeking or activating a control behind the popup.
+            end
+        end
+
         for n = 1, #elements do
-            if mouse_hit(elements[n]) and
+            if (not subtitle_menu or elements[n].name == "sub_track" or elements[n].name:match("^subtitle_menu_")) and mouse_hit(elements[n]) and
                 elements[n].eventresponder and
                 (elements[n].eventresponder[source .. "_up"] or
                     elements[n].eventresponder[action]) then
@@ -3508,6 +3594,7 @@ local function process_event(source, what)
         state.mouse_down_counter = 0
     elseif source == "mouse_move" then
         state.mouse_in_window = true
+        if subtitle_menu then request_tick(); return end
 
         local mouseX, mouseY = get_virt_mouse_pos()
         if user_opts.minmousemove == 0 or
@@ -3689,7 +3776,7 @@ local function render()
     end
 
     if state.hide_timer then state.hide_timer.timeout = math.huge end
-    if not state.keeponpause_active then
+    if not state.keeponpause_active and not subtitle_menu then
         run_autohide("showtime", hide_osc, osc_areas)
     end
     run_autohide("wc_showtime", hide_wc, wc_areas)
@@ -3837,11 +3924,14 @@ mp.register_event("file-loaded", function()
     if oos == "bottom" or oos == "both" then show_osc() end
     if oos == "top" or oos == "both" then show_wc() end
 end)
-mp.register_event("start-file", request_init)
+mp.register_event("start-file", function() close_subtitle_menu(); request_init() end)
+mp.register_event("end-file", close_subtitle_menu)
 mp.observe_property("track-list", "native", update_tracklist)
 observe_cached("playlist-count", request_init)
 observe_cached("playlist-pos", request_init)
 mp.observe_property("user-data/javboss/playlist-sidebar-width", "number", request_init_resize)
+mp.observe_property("user-data/javboss/subtitle-editable", "bool", request_init_resize)
+mp.observe_property("user-data/javboss/subtitle-menu-items", "native", request_init_resize)
 observe_cached("chapter-list", function ()
     state.chapter_list = state.chapter_list or {}
     table.sort(state.chapter_list, function(a, b) return a.time < b.time end)
@@ -3866,7 +3956,11 @@ observe_cached("border", request_init_resize)
 observe_cached("title-bar", request_init_resize)
 observe_cached("window-maximized", request_init_resize)
 observe_cached("idle-active", request_tick)
+mp.observe_property("user-data/javboss/subtitle-offset-open", "bool", function(_, val)
+    if val then close_subtitle_menu() end
+end)
 mp.observe_property("user-data/mpv/console/open", "bool", function(_, val)
+    if val then close_subtitle_menu() end
     if val and user_opts.visibility == "auto" and not user_opts.showonselect and not state.keeponpause_active then
         -- clear pending thumbnail
         if thumbfast.width ~= 0 and thumbfast.height ~= 0 then
@@ -3916,6 +4010,15 @@ mp.set_key_bindings({
 do_enable_keybindings()
 
 --mouse input bindings
+mp.set_key_bindings({
+    {"mbtn_left", function() process_event("mbtn_left", "up") end,
+                  function() process_event("mbtn_left", "down") end},
+    {"mbtn_right", close_subtitle_menu},
+    {"ESC", close_subtitle_menu},
+    {"mouse_move", function() process_event("mouse_move", nil) end},
+    {"mouse_leave", close_subtitle_menu},
+}, "subtitle-menu-input", "force")
+
 mp.set_key_bindings({
     {"mbtn_left",           function() process_event("mbtn_left", "up") end,
                             function() process_event("mbtn_left", "down")  end},
