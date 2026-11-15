@@ -130,6 +130,9 @@ func TestSubtitleEndpointSettingsLocationAttributionAndCache(t *testing.T) {
 	if disposition := w.Header().Get("Content-Disposition"); !strings.Contains(disposition, "DEF-456.zh-CN.vtt") {
 		t.Fatalf("unexpected filename: %s", disposition)
 	}
+	if filename := w.Header().Get("X-Subtitle-Filename"); filename != "DEF-456.zh-CN.srt" {
+		t.Fatalf("original subtitle filename lost during VTT conversion: %s", filename)
+	}
 	if cached := call(path, body, 200); cached.Header().Get("X-Subtitle-Downloaded") != "false" {
 		t.Fatal("cache marked as fresh download")
 	}

@@ -149,6 +149,10 @@
   backdrop-filter: blur(12px);
 }
 
+.player-hotkey-hint {
+  background: rgb(15 23 42 / 60%);
+}
+
 .player-loading {
   border-radius: 10px;
   background: radial-gradient(ellipse at center, #182334, #080b11 75%);
@@ -183,6 +187,11 @@
 
 .player-shell .vjs-tech {
   border-radius: inherit;
+}
+
+/* Windowed controls sit below the picture, so captions never need to move for them. */
+.player-shell .video-js:not(.vjs-fullscreen) .vjs-text-track-display {
+  bottom: 1em;
 }
 
 /* Keep controls below the picture in a window; use the same native controls
@@ -291,8 +300,15 @@
 }
 
 .player-shell .video-js .vjs-duration {
-  margin-right: auto;
   color: #94a3b8;
+}
+
+.player-shell .video-js .vjs-subs-caps-button {
+  margin-right: auto;
+}
+
+.player-shell .video-js .vjs-subs-caps-button > .vjs-button .vjs-icon-placeholder::before {
+  content: '\f10c'; /* Video.js CC icon */
 }
 
 .player-shell .video-js .vjs-time-divider {
@@ -345,6 +361,29 @@
 .player-shell .vjs-menu li.vjs-selected {
   color: #e0f2fe;
   background: rgb(56 189 248 / 20%);
+}
+
+.player-shell .vjs-subs-caps-button .vjs-menu {
+  right: auto;
+  bottom: 100%;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  /* Keep the visual gap inside the menu's hover area. */
+  height: 6px;
+  margin-bottom: 0;
+}
+
+.player-shell .vjs-subs-caps-button .vjs-menu .vjs-menu-content {
+  bottom: 100%;
+  left: 50%;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+  transform: translateX(-50%);
+}
+
+.player-shell .vjs-subs-caps-button .vjs-menu-item-text {
+  overflow-wrap: anywhere;
 }
 
 .player-shell .video-js .vjs-big-play-button {

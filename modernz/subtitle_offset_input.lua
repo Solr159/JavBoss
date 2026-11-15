@@ -56,11 +56,11 @@ render = function()
         ass:new_event()
         ass:pos(x + 10 * scale, y + top * scale)
         ass:an(7)
-        ass:append(string.format('{\\bord0\\shad0\\blur0\\fs%f\\1a&H00&\\1c&H%s&}', size * scale, color or 'FFFFFF'))
+        ass:append(string.format('{\\bord0\\shad0\\blur0\\q2\\fs%f\\1a&H00&\\1c&H%s&}', size * scale, color or 'FFFFFF'))
         ass:append(value)
     end
     text(10, 24, '字幕偏移（秒）：')
-    text(40, 16, '输入完成后按 Enter 保存', 'CCCCCC')
+    text(40, 16, '正数延后字幕，负数提前字幕，默认为 0，输入完成后按 Enter 保存', 'CCCCCC')
     local escaped = function(value) return mp.command_native({'escape-ass', value}) end
     local value = dialog.selected and '{\\u1}' .. escaped(dialog.text) .. '{\\u0}│'
         or escaped(dialog.text:sub(1, dialog.cursor)) .. '│' .. escaped(dialog.text:sub(dialog.cursor + 1))
@@ -73,7 +73,7 @@ end
 function api.get(options)
     api.terminate()
     overlay = overlay or mp.create_osd_overlay('ass-events')
-    dialog = {text = options.default_text or '', selected = true, submit = options.submit, closed = options.closed}
+    dialog = {text = options.default_text or '', selected = false, submit = options.submit, closed = options.closed}
     dialog.cursor = #dialog.text
     local function bind(key, handler, opts)
         local name = 'javboss-offset-' .. (#bindings + 1)

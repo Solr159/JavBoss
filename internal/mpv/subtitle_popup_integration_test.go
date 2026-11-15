@@ -27,8 +27,9 @@ mp.get_mouse_pos = function() return test_x, test_y end
 ` + string(data) + `
 mp.register_script_message("test-popup-inspect", function()
     osc_init()
-    local result = {open = subtitle_menu ~= nil, tooltips = user_opts.tooltip_hints, find = false, items = {}}
+    local result = {open = subtitle_menu ~= nil, tooltips = user_opts.tooltip_hints, find = false, items = {}, selected = {}}
     for _, el in ipairs(elements) do
+        if el.name:match("^subtitle_menu_") and el.type == "button" then result.selected[el.name] = el.selected end
         if el.name == "sub_track" then result.anchor = el.hitbox; result.tooltip = el.tooltipF() end
         if el.name:match("^subtitle_menu_track_") then result.items[el.name] = el.content end
         if el.name == "subtitle_menu_find" then result.find = true; result.find_label = el.content end
@@ -128,7 +129,11 @@ func testAnchoredSubtitlePopup(t *testing.T, endpoint string) {
 	inspect(false)
 	waitMPVTestProperty(t, endpoint, "sid", false)
 	click("sub_track")
-	inspect(true)
+	for name, selected := range inspect(true)["selected"].(map[string]any) {
+		if selected == true {
+			t.Fatalf("menu item %s remained selected after closing subtitles", name)
+		}
+	}
 	click("subtitle_menu_track_1")
 	inspect(false)
 	waitMPVTestProperty(t, endpoint, "sid", selected)

@@ -1,4 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded'
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import { fetchVideoSubtitleSettings, updateVideoSubtitleSettings } from '@/features/playback/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
@@ -6,6 +8,7 @@ import { zh } from '@/utils/i18n'
 export default function SubtitleOffsetSettings({ video, onSaved, onClose }) {
   const inputId = useId()
   const mountedRef = useRef(false)
+  const inputRef = useRef(null)
   const [seconds, setSeconds] = useState('0')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -32,6 +35,15 @@ export default function SubtitleOffsetSettings({ video, onSaved, onClose }) {
     }
   }, [video.id])
 
+  // Native spinner steps also constrain valid input. Keep millisecond validation
+  // and use 500 native steps for each half-second adjustment.
+  const adjustOffset = (direction) => {
+    const input = inputRef.current
+    if (!input || input.disabled) return
+    input.stepUp(direction * 500)
+    setSeconds(input.value)
+  }
+
   const save = async (event) => {
     event.preventDefault()
     if (loading || saving) return
@@ -55,20 +67,49 @@ export default function SubtitleOffsetSettings({ video, onSaved, onClose }) {
         {zh('字幕偏移（秒）', 'Subtitle offset (seconds)')}
       </label>
       <div className="flex flex-wrap items-center gap-2">
-        <input
-          id={inputId}
-          type="number"
-          min="-3600"
-          max="3600"
-          step="0.001"
-          required
-          value={seconds}
-          onChange={(event) => {
-            setSeconds(event.target.value)
-          }}
-          disabled={loading || saving}
-          className="w-28 rounded border border-white/40 bg-transparent px-2 py-1 text-white"
-        />
+        <div className="relative w-28">
+          <input
+            ref={inputRef}
+            id={inputId}
+            type="number"
+            min="-3600"
+            max="3600"
+            step="0.001"
+            required
+            value={seconds}
+            onChange={(event) => {
+              setSeconds(event.target.value)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+                event.preventDefault()
+                adjustOffset(event.key === 'ArrowUp' ? 1 : -1)
+              }
+            }}
+            disabled={loading || saving}
+            className="player-subtitle-offset-input w-full rounded border border-white/40 bg-transparent py-1 pl-2 pr-7 text-white"
+          />
+          <div className="absolute inset-y-px right-px flex w-6 flex-col">
+            <button
+              type="button"
+              aria-label={zh('增加 0.5 秒', 'Increase by 0.5 seconds')}
+              disabled={loading || saving}
+              onClick={() => adjustOffset(1)}
+              className="player-subtitle-offset-step flex min-h-0 flex-1 items-center justify-center disabled:opacity-50"
+            >
+              <KeyboardArrowUpRoundedIcon sx={{ fontSize: 16 }} />
+            </button>
+            <button
+              type="button"
+              aria-label={zh('减少 0.5 秒', 'Decrease by 0.5 seconds')}
+              disabled={loading || saving}
+              onClick={() => adjustOffset(-1)}
+              className="player-subtitle-offset-step flex min-h-0 flex-1 items-center justify-center disabled:opacity-50"
+            >
+              <KeyboardArrowDownRoundedIcon sx={{ fontSize: 16 }} />
+            </button>
+          </div>
+        </div>
         <button type="submit" disabled={loading || saving} className="disabled:opacity-50">
           {saving ? zh('保存中…', 'Saving...') : zh('保存偏移', 'Save offset')}
         </button>

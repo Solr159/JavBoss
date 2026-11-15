@@ -14,7 +14,9 @@ local last_visibility
 local preferred_track = ''
 local last_track = ''
 local track_keys = {}
-local status_visible = false
+local status_overlay = mp.create_osd_overlay('ass-events')
+status_overlay.z = 100
+local status_timer, active_status_text
 local publish_menu
 local status_text = {
     searching = '正在查找字幕…',
@@ -24,16 +26,36 @@ local status_text = {
     ambiguous = '无法自动匹配字幕',
     error = '字幕下载失败',
 }
+local function clear_status()
+    if status_timer then status_timer:kill(); status_timer = nil end
+    active_status_text = nil
+    status_overlay:remove()
+end
+local function render_status()
+    if not active_status_text then return end
+    local w, h = mp.get_osd_size()
+    if w <= 0 or h <= 0 then return end
+    local margins = mp.get_property_native('user-data/osc/margins', {})
+    local bottom = math.max(72, (margins.b or 0) * 720 + 12)
+    status_overlay.res_x, status_overlay.res_y = w / h * 720, 720
+    -- Keep loading feedback above the bottom controls without replacing native
+    -- OSD messages such as the startup shortcut hint or volume feedback.
+    status_overlay.data = string.format(
+        '{\\an1\\pos(18,%f)\\fs20\\bord1.5\\shad1\\q2\\1c&HFFFFFF&\\3c&H000000&}%s',
+        math.max(24, 720 - bottom), active_status_text)
+    status_overlay:update()
+end
 local function show_status(status)
     mp.set_property_native('user-data/javboss/subtitle-status', status)
-    local text = status_text[status]
-    if text then
-        mp.osd_message(text, status == 'searching' and 50 or 3)
-    elseif status_visible then
-        mp.osd_message('', 0)
+    clear_status()
+    active_status_text = status_text[status]
+    if active_status_text then
+        render_status()
+        status_timer = mp.add_timeout(status == 'searching' and 50 or 3, clear_status)
     end
-    status_visible = text ~= nil
 end
+mp.observe_property('osd-dimensions', 'native', render_status)
+mp.observe_property('user-data/osc/margins', 'native', render_status)
 local function current_entry()
     local pos = mp.get_property_number('playlist-pos', -1)
     return mp.get_property_number('playlist/' .. pos .. '/id', -1)
@@ -109,24 +131,18 @@ local function menu_items()
     local sid = mp.get_property_native('sid')
     local visible = subtitle_visible()
     local tracks = mp.get_property_native('track-list', {})
-    local download_count = 0
-    for _, track in ipairs(tracks) do
-        if track.type == 'sub' and track_key(track):match('^download:') then
-            download_count = download_count + 1
-        end
-    end
     for _, track in ipairs(tracks) do
         if track.type == 'sub' then
             local key = track_key(track)
             local downloaded = key:match('^download:') ~= nil
             local path = track['external-filename']
-            local label = '字幕：' .. (downloaded and '已下载字幕' or (path and '同目录字幕' or '内嵌字幕'))
-            local language = track.lang or (downloaded and key:sub(10))
-            if (not path or (downloaded and download_count > 1)) and language and language ~= '' then label = label .. ' · ' .. language end
+            local filename = path and (path:match('[^/\\]+$') or path)
+                or track.title or ('内嵌字幕 ' .. (track.lang or tostring(track.id)))
+            local label = filename .. '（' .. (downloaded and '下载' or '本地') .. '）'
             items[#items + 1] = {name = 'track_' .. track.id, label = label, action = key, selected = visible and sid == track.id}
         end
     end
-    items[#items + 1] = {name = 'off', label = '字幕：隐藏', action = 'off', selected = not visible}
+    items[#items + 1] = {name = 'off', label = '关闭字幕', action = 'off'}
     items[#items + 1] = {name = 'offset', label = '设置偏移', action = 'offset'}
     if not has_downloaded_subtitle() then
         items[#items + 1] = {name = 'find', label = '查找字幕', action = 'find'}
@@ -251,7 +267,8 @@ local function open_offset_settings()
     local expected, entry = generation, current_entry()
     input_open = true
     offset_input.get({
-        default_text = string.format('%.3f', mp.get_property_number('sub-delay', 0)),
+        default_text = string.format('%.3f', mp.get_property_number('sub-delay', 0))
+            :gsub('0+$', ''):gsub('%.$', ''):gsub('^-0$', '0'),
         closed = function() input_open = false end,
         submit = function(text)
             if not loaded or generation ~= expected or current_entry() ~= entry then

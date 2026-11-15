@@ -26,6 +26,7 @@ local events, messages, state = {}, {}, {['playlist-pos']=0, ['playlist/0/id']=1
 local observed = {}
 local calls = 0
 local osd_text, osd_duration, fail_add = nil, nil, false
+local status_overlay, status_timeout, w, h = nil, nil, 960, 540
 local last_add, timers = nil, {}
 local prompt, last_save, input_count, input_errors = nil, nil, 0, 0
 package.preload['mp.input'] = function() return {
@@ -40,10 +41,21 @@ mp = {
  set_property_number=function(key,value) state[key]=value end,
  get_property_native=function(key,default) if state[key]~=nil then return state[key] end; return default end,
  get_property_number=function(key,default) return state[key] or default end,
+ get_osd_size=function() return w,h end,
+ create_osd_overlay=function(kind)
+   assert(kind=='ass-events')
+   status_overlay={update=function(self) self.visible=true; self.text=self.data:match('}(.+)$') end,
+     remove=function(self) self.visible=false; self.text='' end}
+   return status_overlay
+ end,
  observe_property=function(name,_,fn) observed[name]=fn end,
  register_event=function(name,fn) events[name]=fn end,
  register_script_message=function(name,fn) messages[name]=fn end,
- add_timeout=function(_,fn) timers[#timers+1]=fn end,
+ add_timeout=function(delay,fn)
+   local timer={delay=delay,callback=fn,kill=function(self) self.killed=true end}
+   if delay==0 then timers[#timers+1]=fn else status_timeout=timer end
+   return timer
+ end,
  commandv=function(...)
    local args={...}
    if args[1]=='sub-add' then
@@ -99,13 +111,13 @@ local function flush()
 end
 local menu=messages['javboss-subtitle-menu']
 menu()
-assert(#prompt.items==3 and prompt.items[1]=='字幕：隐藏' and prompt.items[2]=='设置偏移' and prompt.items[3]=='查找字幕')
+assert(#prompt.items==3 and prompt.items[1]=='关闭字幕' and prompt.items[2]=='设置偏移' and prompt.items[3]=='查找字幕')
 prompt.submit(1); flush()
 assert(state['sid']==false and state['secondary-sid']==false)
 add('3','2','late.srt','source','zh-CN','0')
 assert(last_add[3]=='auto' and state['sid']==false) -- late downloads stay disabled
 menu(); prompt.submit(2); flush()
-assert(prompt.items==nil and prompt.default_text=='0.000')
+assert(prompt.items==nil and prompt.default_text=='0')
 prompt.submit('-2.5'); assert(state['sub-delay']==-2.5 and last_save[6]=='-2500')
 saved('3','2','1','saved')
 menu(); prompt.closed(); flush() -- Escape only dismisses the menu
@@ -124,20 +136,37 @@ messages['javboss-subtitle-action']('off', '5', '999')
 assert(state['sid']==42) -- another playlist entry cannot close this video's subtitles
 local status=messages['javboss-subtitle-status']
 local generation=tostring(state['user-data/javboss/subtitle-session'].generation)
+mp.osd_message('startup shortcuts', 5)
 for key,text in pairs({searching='正在查找字幕…',ready='字幕已加载',existing='检测到已有字幕',not_found='未找到中文字幕',ambiguous='无法自动匹配字幕',error='字幕下载失败'}) do
+ local previous=status_timeout
  status(generation,'2',key)
- assert(osd_text==text and osd_duration==(key=='searching' and 50 or 3))
+ assert(previous.killed,'superseded status timer is still active')
+ assert(status_overlay.visible and status_overlay.text==text and status_timeout.delay==(key=='searching' and 50 or 3))
+ assert(osd_text=='startup shortcuts' and osd_duration==5,'status replaced the native OSD hint')
+ assert(status_overlay.data:find('\\an1\\pos(18,',1,true),'status is not bottom-left aligned')
 end
+for _,size in ipairs({{960,540},{320,180},{1920,1080}}) do
+ w,h=size[1],size[2]; observed['osd-dimensions']()
+ assert(status_overlay.res_x==w/h*720 and status_overlay.res_y==720)
+end
+state['user-data/osc/margins']={b=0.2}; observed['user-data/osc/margins']()
+local y=tonumber(status_overlay.data:match('pos%([^,]+,([%d%.]+)%)'))
+assert(y==720-0.2*720-12,'status overlaps the controller margin')
+state['user-data/osc/margins']=nil
+status_timeout.callback()
+assert(not status_overlay.visible and osd_text=='startup shortcuts','expiry cleared the native OSD hint')
+observed['osd-dimensions'](); assert(not status_overlay.visible,'resize revived an expired status')
 status(generation,'2','searching')
 status('1','2','error'); status(generation,'999','error'); status(generation,'2','unknown')
-assert(osd_text=='正在查找字幕…')
-status(generation,'2','disabled'); assert(osd_text=='' and osd_duration==0)
+assert(status_overlay.text=='正在查找字幕…')
+status(generation,'2','disabled'); assert(not status_overlay.visible and status_timeout.killed)
+assert(osd_text=='startup shortcuts' and osd_duration==5)
 state['track-list']={}; fail_add=true
-add(generation,'2','missing.srt','source','zh-CN','0'); assert(osd_text=='字幕下载失败')
+add(generation,'2','missing.srt','source','zh-CN','0'); assert(status_overlay.text=='字幕下载失败')
 fail_add=false
-add(generation,'2','one.srt','source','zh-CN','0'); assert(osd_text=='字幕已加载')
+add(generation,'2','one.srt','source','zh-CN','0'); assert(status_overlay.text=='字幕已加载')
 state['track-list']={{type='sub', id=1, ['external-filename']='one.srt'}}
-add(generation,'2','one.srt','source','zh-CN','0'); assert(osd_text=='检测到已有字幕')
+add(generation,'2','one.srt','source','zh-CN','0'); assert(status_overlay.text=='检测到已有字幕')
 -- A different downloaded path becomes a separate selectable track.
 local before_add=calls
 add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','download:zh-CN')
@@ -148,20 +177,20 @@ add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','d
 assert(calls==before_add+1 and state['sid']==2) -- reselect, never duplicate
 assert(state['user-data/javboss/subtitle-downloaded']==true)
 menu()
-assert(prompt.prompt=='字幕' and prompt.items[1]=='字幕：同目录字幕' and prompt.items[2]=='字幕：已下载字幕' and prompt.items[3]=='字幕：隐藏')
+assert(prompt.prompt=='字幕' and prompt.items[1]=='one.srt（本地）' and prompt.items[2]=='download.srt（下载）' and prompt.items[3]=='关闭字幕')
 prompt.submit(1); flush(); assert(state['sid']==1 and last_save[5]=='local:one.srt')
 menu(); prompt.submit(2); flush()
 assert(state['sid']==2 and last_save[5]=='download:zh-CN')
 
 menu(); assert(#prompt.items==4); prompt.closed(); flush()
--- Language labels distinguish multiple downloads and disappear when only one remains.
+-- Filenames distinguish downloaded tracks and remain stable as tracks change.
 state['track-list'][3]={type='sub',id=3,['external-filename']='download-tw.srt'}
 add(generation,'2','download-tw.srt','subtitlecat','zh-TW','0','existing','false','','download:zh-TW')
 menu()
-assert(prompt.items[2]=='字幕：已下载字幕 · zh-CN' and prompt.items[3]=='字幕：已下载字幕 · zh-TW')
+assert(prompt.items[2]=='download.srt（下载）' and prompt.items[3]=='download-tw.srt（下载）')
 prompt.closed(); flush()
 state['track-list'][3]=nil; observed['track-list']()
-menu(); assert(prompt.items[2]=='字幕：已下载字幕'); prompt.closed(); flush()
+menu(); assert(prompt.items[2]=='download.srt（下载）'); prompt.closed(); flush()
 state['sid']=false; observed.sid()
 menu(); assert(#prompt.items==4); prompt.closed(); flush() -- hidden even when disabled
 state['track-list']={{type='sub',id=1,['external-filename']='one.srt'}}
@@ -172,12 +201,13 @@ local previous_sid=state['sid']
 messages['javboss-subtitle-action']('download:zh-CN', generation, '2')
 assert(state['sid']==previous_sid) -- removed track cannot select a replacement by index
 local entries=state['user-data/javboss/subtitle-menu-items']
-assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and entries[2].selected)
+assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and not entries[2].selected)
 
 
 status(generation,'2','searching'); events['end-file']()
-assert(osd_text=='' and osd_duration==0)
-status(generation,'2','error'); assert(osd_text=='')
+assert(not status_overlay.visible and status_timeout.killed)
+assert(osd_text=='startup shortcuts' and osd_duration==5)
+status(generation,'2','error'); assert(not status_overlay.visible)
 -- Restore off for existing/cache tracks without recording initialization.
 events['start-file'](); events['file-loaded']()
 generation=tostring(state['user-data/javboss/subtitle-session'].generation)

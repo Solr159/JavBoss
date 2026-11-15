@@ -194,8 +194,29 @@ export default function PlayerModal({
       language: 'zh-CN',
       languages: { 'zh-cn': zhCN },
       persistTextTrackSettings: true,
+      textTrackSettings: { componentClass: 'JavBossTextTrackSettings' },
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
+        children: [
+          'playToggle',
+          'skipBackward',
+          'skipForward',
+          'volumePanel',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'subsCapsButton',
+          'progressControl',
+          'liveDisplay',
+          'seekToLive',
+          'customControlSpacer',
+          'playbackRateMenuButton',
+          'chaptersButton',
+          'descriptionsButton',
+          'audioTrackButton',
+          'pictureInPictureToggle',
+          'fullscreenToggle',
+        ],
         progressControl: {
           componentClass: 'JavBossPreviewProgressControl',
           seekBar: {
@@ -228,6 +249,15 @@ export default function PlayerModal({
     setSubtitleSettingsHost(settingsHost)
     subtitleSettings.on('modalopen', () => setSubtitleSettingsOpen(true))
     subtitleSettings.on('modalclose', () => setSubtitleSettingsOpen(false))
+    // The native dialog has no outside-click option. Consume the click before
+    // it reaches playback controls, then use its normal close behavior.
+    const closeSubtitleSettingsOutside = (event) => {
+      if (!subtitleSettings.opened() || subtitleSettings.el().contains(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      subtitleSettings.close()
+    }
+    playerEl.addEventListener('click', closeSubtitleSettingsOutside, true)
     const savedVolume = (() => {
       try {
         const raw = localStorage.getItem(VOLUME_STORAGE_KEY)
@@ -372,6 +402,7 @@ export default function PlayerModal({
       setSubtitleSettingsOpen(false)
       setSubtitleSettingsHost((current) => (current === settingsHost ? null : current))
       window.removeEventListener('keydown', handleKeyDown, true)
+      playerEl.removeEventListener('click', closeSubtitleSettingsOutside, true)
       player.off('fullscreenchange', focusPlayer)
       player.off('volumechange', handleVolumeChange)
       player.dispose()
@@ -627,7 +658,7 @@ export default function PlayerModal({
                   </div>
                 ) : null}
                 {hotkeyHintVisible ? (
-                  <div className="player-notice max-h-[calc(100vh-12rem)] overflow-hidden px-3 py-2 text-xs leading-5">
+                  <div className="player-notice player-hotkey-hint max-h-[calc(100vh-12rem)] overflow-hidden px-3 py-2 text-xs leading-5">
                     {hotkeyHintLines.map((line, index) => (
                       <div key={`${index}-${line}`}>{line}</div>
                     ))}

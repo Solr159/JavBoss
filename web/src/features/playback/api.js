@@ -72,6 +72,7 @@ export async function resolveVideoSubtitle(
     status: 'ready',
     language: res.headers.get('X-Subtitle-Language'),
     source: res.headers.get('X-Subtitle-Source'),
+    filename: decodeURIComponent(res.headers.get('X-Subtitle-Filename') || ''),
     key: decodeURIComponent(res.headers.get('X-Subtitle-Key') || ''),
     downloaded: res.headers.get('X-Subtitle-Downloaded') === 'true',
   }

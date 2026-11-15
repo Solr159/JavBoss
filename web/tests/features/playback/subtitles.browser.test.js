@@ -72,7 +72,7 @@ test(
           const offset = window.subtitleSettings.offset_ms;
           const timing = offset < 0 ? '00:00:00.000 --> 00:00:57.500' : offset > 0 ? '00:00:30.500 --> 00:01:29.500' : '00:00:00.000 --> 00:00:59.000';
           return new Response('WEBVTT\\n\\n1\\n' + timing + '\\nSample subtitle\\n',
-            {headers:{'Content-Type':'text/vtt','X-Subtitle-Language':'zh-CN','X-Subtitle-Source':source,'X-Subtitle-Key':source === 'local' ? 'local:video.zh-CN.srt' : 'download:zh-CN','X-Subtitle-Downloaded':String(window.freshDownload === true)}});
+            {headers:{'Content-Type':'text/vtt','X-Subtitle-Filename':encodeURIComponent(source === 'local' ? 'video.zh-CN.srt' : 'ABC-123.zh-CN.srt'),'X-Subtitle-Language':'zh-CN','X-Subtitle-Source':source,'X-Subtitle-Key':source === 'local' ? 'local:video.zh-CN.srt' : 'download:zh-CN','X-Subtitle-Downloaded':String(window.freshDownload === true)}});
         }
         return Response.json({session_id:'test'});
       };
@@ -141,7 +141,7 @@ test(
       assert.equal(await evaluate(`Boolean(${findItem})`), false)
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
-        `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('已下载字幕')).click()`
+        `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('ABC-123.zh-CN.srt')).click()`
       )
     }
     await evaluate(`window.holdSubtitleLookup = true; window.finishSubtitleLookup = null`)
@@ -182,6 +182,27 @@ test(
       }`)
     }
     const saveOffset = () => evaluate(`${form}.querySelector('button[type="submit"]').click()`)
+    const checkOutsideDismissal = async () => {
+      const savedOffset = await evaluate(`${form}.querySelector('input').value`)
+      const writes = await evaluate(`window.settingsWrites.length`)
+      await setOffset('7.5')
+      await evaluate(`${form}.querySelector('input').click()`)
+      assert.equal(await evaluate(`Boolean(${modal})`), true)
+      const point = await evaluate(`(() => {
+        const panel = ${modal}.getBoundingClientRect();
+        const video = ${player}.el().getBoundingClientRect();
+        return {x: video.left + video.width / 2, y: (panel.bottom + video.bottom) / 2};
+      })()`)
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await command('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 })
+      }
+      await waitFor(`!${modal}`)
+      assert.equal(await evaluate(`${player}.paused()`), true)
+      assert.equal(await evaluate(`${player}.currentTime()`), 10)
+      assert.equal(await evaluate(`window.settingsWrites.length`), writes)
+      await openSettings()
+      assert.equal(await evaluate(`${form}.querySelector('input').value`), savedOffset)
+    }
     const setFont = async (value) => {
       await evaluate(`{
         const font = ${modal}.querySelector('.vjs-font-percent select');
@@ -189,7 +210,19 @@ test(
       }`)
     }
     const savedStyle = `JSON.parse(localStorage.getItem('vjs-text-track-settings'))`
+    const backgrounds = () =>
+      evaluate(`['.vjs-bg-opacity select', '.vjs-window-opacity select'].map(
+        selector => document.querySelector(selector).value)`)
+    const setBackgrounds = () =>
+      evaluate(`{
+        for (const [selector, value] of [['.vjs-bg-opacity select', '0.5'], ['.vjs-window-opacity select', '1']]) {
+          const select = document.querySelector(selector);
+          select.value = value;
+          select.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+      }`)
     await openSettings()
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.equal(await evaluate(`${modal}.textContent.includes('字体尺寸')`), true)
     assert.equal(await evaluate(`${form}.textContent.includes('Subtitle offset (seconds)')`), true)
     const checkControlsLayout = async () =>
@@ -207,6 +240,7 @@ test(
         true
       )
     await checkControlsLayout()
+    await checkOutsideDismissal()
     await evaluate(`window.holdSettingsSave = true`)
     await setOffset('30.5')
     await saveOffset()
@@ -222,12 +256,15 @@ test(
     // Style controls never reset or save the per-video offset, including an unsaved draft.
     await openSettings()
     await setFont('2.00')
+    await setBackgrounds()
     await setOffset('99')
     await evaluate(`${modal}.querySelector('.vjs-default-button').click()`)
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.equal(await evaluate(`${modal}.querySelector('.vjs-font-percent select').value`), '1.00')
     assert.equal(await evaluate(`${form}.querySelector('input').value`), '99')
     assert.equal(await evaluate(`window.settingsWrites.length`), 1)
     await setFont('2.00')
+    await setBackgrounds()
     await evaluate(`${modal}.querySelector('.vjs-done-button').click()`)
     await waitFor(`!${modal}`)
     assert.equal(await evaluate(`${savedStyle}.fontPercent`), 2)
@@ -248,6 +285,7 @@ test(
     await waitFor(`${form}?.querySelector('input')?.value === '30.5'`)
     assert.equal(await evaluate(`document.fullscreenElement.contains(${form})`), true)
     await checkControlsLayout()
+    await checkOutsideDismissal()
     await evaluate(`window.settingsFailure = true`)
     await setOffset('-1.5')
     await saveOffset()
@@ -302,9 +340,16 @@ test(
     // The native CC menu persists Off and restores it on returning to the video.
     await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
     await evaluate(
-      `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click()`
+      `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click()`
     )
     await waitFor(`window.subtitleSettings.track === 'off'`)
+    const offItem = `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕'))`
+    assert.equal(await evaluate(`${offItem}.getAttribute('role')`), 'menuitem')
+    assert.equal(await evaluate(`${offItem}.hasAttribute('aria-checked')`), false)
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.vjs-subs-caps-button .vjs-selected').length`),
+      0
+    )
     await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
@@ -319,7 +364,7 @@ test(
     // Fresh automatic downloads override the remembered Off preference.
     await evaluate(`{
       document.querySelector('.vjs-subs-caps-button > button').click();
-      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click();
+      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click();
     }`)
     await waitFor(`window.subtitleSettings.track === 'off'`)
     await evaluate(`{
@@ -340,17 +385,19 @@ test(
     }`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
-    await waitFor(`${subtitles}.some(t => t.label.includes('同目录字幕') && t.cues?.length === 1)`)
+    await waitFor(
+      `${subtitles}.some(t => t.label.includes('video.zh-CN.srt') && t.cues?.length === 1)`
+    )
     await waitFor(`${subtitles}.length === 2`)
     await selectDownloaded()
     await waitFor(
-      `${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('已下载字幕') && t.mode === 'showing')`
+      `${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('ABC-123.zh-CN.srt') && t.mode === 'showing')`
     )
     const menuLabels = `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item-text')].map(item => item.textContent)`
     assert.deepEqual(await evaluate(`${menuLabels}.slice(0, -1)`), [
-      '字幕：同目录字幕',
-      '字幕：已下载字幕',
-      '字幕：隐藏',
+      'video.zh-CN.srt（本地）',
+      'ABC-123.zh-CN.srt（下载）',
+      '关闭字幕',
     ])
     assert.equal(
       await evaluate(
@@ -358,18 +405,18 @@ test(
       ),
       true
     )
-    // Native add/remove events rebuild labels as the number of downloads changes.
+    // Native add/remove events retain filenames for each downloaded track.
     await evaluate(`window.extraSubtitle = ${player}.addRemoteTextTrack({
       id: 'javboss:download:zh-TW', kind: 'subtitles', srclang: 'zh-TW', label: 'other.srt'
     }, false).track; undefined`)
     await waitFor(
-      `${menuLabels}.includes('字幕：已下载字幕 · zh-CN') && ${menuLabels}.includes('字幕：已下载字幕 · zh-TW')`
+      `${menuLabels}.includes('ABC-123.zh-CN.srt（下载）') && ${menuLabels}.includes('other.srt（下载）')`
     )
     await evaluate(`${player}.removeRemoteTextTrack(window.extraSubtitle)`)
     await waitFor(
-      `${menuLabels}.includes('字幕：已下载字幕') && !${menuLabels}.includes('字幕：已下载字幕 · zh-CN')`
+      `${menuLabels}.includes('ABC-123.zh-CN.srt（下载）') && !${menuLabels}.includes('other.srt（下载）')`
     )
-    for (const label of ['同目录字幕', '已下载字幕']) {
+    for (const label of ['video.zh-CN.srt', 'ABC-123.zh-CN.srt']) {
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
         `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('${label}')).click()`
@@ -386,8 +433,8 @@ test(
       await waitFor(`${subtitles}.length === 2`)
     }
     for (const [label, key] of [
-      ['同目录字幕', 'local:video.zh-CN.srt'],
-      ['已下载字幕', 'download:zh-CN'],
+      ['video.zh-CN.srt', 'local:video.zh-CN.srt'],
+      ['ABC-123.zh-CN.srt', 'download:zh-CN'],
     ]) {
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
@@ -403,11 +450,11 @@ test(
     await setOffset('2')
     await saveOffset()
     await waitFor(
-      `!${modal} && ${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('已下载字幕') && t.mode === 'showing')`
+      `!${modal} && ${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('ABC-123.zh-CN.srt') && t.mode === 'showing')`
     )
     await evaluate(`{
       document.querySelector('.vjs-subs-caps-button > button').click();
-      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click();
+      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click();
     }`)
     await waitFor(`window.subtitleSettings.track === 'off'`)
     await reopenFirst()
@@ -424,7 +471,7 @@ test(
     await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
-    await waitFor(`${subtitles}.length === 1 && ${subtitles}[0].label.includes('同目录字幕')`)
+    await waitFor(`${subtitles}.length === 1 && ${subtitles}[0].label.includes('video.zh-CN.srt')`)
     await waitFor(`${findItem}`)
     await loadSubtitle()
     await waitFor(`${subtitles}.length === 2 && !(${findItem})`)
@@ -467,6 +514,7 @@ test(
     await waitFor(`document.querySelector('#root > button')`)
     await evaluate(`document.querySelector('#root > button').click()`)
     await waitFor(`document.querySelector('.video-js')?.player`)
+    assert.deepEqual(await backgrounds(), ['0.5', '1'])
     assert.equal(
       await evaluate(`${player}.getChild('textTrackSettings').getValues().fontPercent`),
       2
@@ -482,6 +530,7 @@ test(
       await evaluate(`${player}.getChild('textTrackSettings').getValues()`)
     )
     assert.equal(await evaluate(`document.querySelector('.vjs-font-percent select').value`), '1.00')
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.deepEqual(await evaluate(`window.appErrors`), [])
   }
 )
