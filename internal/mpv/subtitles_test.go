@@ -99,7 +99,7 @@ local function flush()
 end
 local menu=messages['javboss-subtitle-menu']
 menu()
-assert(#prompt.items==3 and prompt.items[1]=='字幕：隐藏' and prompt.items[2]=='设置偏移' and prompt.items[3]=='查找字幕')
+assert(#prompt.items==3 and prompt.items[1]=='关闭字幕' and prompt.items[2]=='设置偏移' and prompt.items[3]=='查找字幕')
 prompt.submit(1); flush()
 assert(state['sid']==false and state['secondary-sid']==false)
 add('3','2','late.srt','source','zh-CN','0')
@@ -148,20 +148,20 @@ add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','d
 assert(calls==before_add+1 and state['sid']==2) -- reselect, never duplicate
 assert(state['user-data/javboss/subtitle-downloaded']==true)
 menu()
-assert(prompt.prompt=='字幕' and prompt.items[1]=='字幕：同目录字幕' and prompt.items[2]=='字幕：已下载字幕' and prompt.items[3]=='字幕：隐藏')
+assert(prompt.prompt=='字幕' and prompt.items[1]=='one.srt（本地）' and prompt.items[2]=='download.srt（下载）' and prompt.items[3]=='关闭字幕')
 prompt.submit(1); flush(); assert(state['sid']==1 and last_save[5]=='local:one.srt')
 menu(); prompt.submit(2); flush()
 assert(state['sid']==2 and last_save[5]=='download:zh-CN')
 
 menu(); assert(#prompt.items==4); prompt.closed(); flush()
--- Language labels distinguish multiple downloads and disappear when only one remains.
+-- Filenames distinguish downloaded tracks and remain stable as tracks change.
 state['track-list'][3]={type='sub',id=3,['external-filename']='download-tw.srt'}
 add(generation,'2','download-tw.srt','subtitlecat','zh-TW','0','existing','false','','download:zh-TW')
 menu()
-assert(prompt.items[2]=='字幕：已下载字幕 · zh-CN' and prompt.items[3]=='字幕：已下载字幕 · zh-TW')
+assert(prompt.items[2]=='download.srt（下载）' and prompt.items[3]=='download-tw.srt（下载）')
 prompt.closed(); flush()
 state['track-list'][3]=nil; observed['track-list']()
-menu(); assert(prompt.items[2]=='字幕：已下载字幕'); prompt.closed(); flush()
+menu(); assert(prompt.items[2]=='download.srt（下载）'); prompt.closed(); flush()
 state['sid']=false; observed.sid()
 menu(); assert(#prompt.items==4); prompt.closed(); flush() -- hidden even when disabled
 state['track-list']={{type='sub',id=1,['external-filename']='one.srt'}}
@@ -172,7 +172,7 @@ local previous_sid=state['sid']
 messages['javboss-subtitle-action']('download:zh-CN', generation, '2')
 assert(state['sid']==previous_sid) -- removed track cannot select a replacement by index
 local entries=state['user-data/javboss/subtitle-menu-items']
-assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and entries[2].selected)
+assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and not entries[2].selected)
 
 
 status(generation,'2','searching'); events['end-file']()

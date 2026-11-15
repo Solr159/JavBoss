@@ -347,6 +347,21 @@
   background: rgb(56 189 248 / 20%);
 }
 
+.player-shell .vjs-subs-caps-button .vjs-menu {
+  right: 0;
+  left: auto;
+}
+
+.player-shell .vjs-subs-caps-button .vjs-menu .vjs-menu-content {
+  right: 0;
+  width: max-content;
+  max-width: min(360px, calc(100vw - 24px));
+}
+
+.player-shell .vjs-subs-caps-button .vjs-menu-item-text {
+  overflow-wrap: anywhere;
+}
+
 .player-shell .video-js .vjs-big-play-button {
   width: 64px;
   height: 64px;

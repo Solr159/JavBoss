@@ -72,7 +72,7 @@ test(
           const offset = window.subtitleSettings.offset_ms;
           const timing = offset < 0 ? '00:00:00.000 --> 00:00:57.500' : offset > 0 ? '00:00:30.500 --> 00:01:29.500' : '00:00:00.000 --> 00:00:59.000';
           return new Response('WEBVTT\\n\\n1\\n' + timing + '\\nSample subtitle\\n',
-            {headers:{'Content-Type':'text/vtt','X-Subtitle-Language':'zh-CN','X-Subtitle-Source':source,'X-Subtitle-Key':source === 'local' ? 'local:video.zh-CN.srt' : 'download:zh-CN','X-Subtitle-Downloaded':String(window.freshDownload === true)}});
+            {headers:{'Content-Type':'text/vtt','X-Subtitle-Filename':encodeURIComponent(source === 'local' ? 'video.zh-CN.srt' : 'ABC-123.zh-CN.srt'),'X-Subtitle-Language':'zh-CN','X-Subtitle-Source':source,'X-Subtitle-Key':source === 'local' ? 'local:video.zh-CN.srt' : 'download:zh-CN','X-Subtitle-Downloaded':String(window.freshDownload === true)}});
         }
         return Response.json({session_id:'test'});
       };
@@ -141,7 +141,7 @@ test(
       assert.equal(await evaluate(`Boolean(${findItem})`), false)
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
-        `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('已下载字幕')).click()`
+        `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('ABC-123.zh-CN.srt')).click()`
       )
     }
     await evaluate(`window.holdSubtitleLookup = true; window.finishSubtitleLookup = null`)
@@ -302,9 +302,16 @@ test(
     // The native CC menu persists Off and restores it on returning to the video.
     await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
     await evaluate(
-      `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click()`
+      `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click()`
     )
     await waitFor(`window.subtitleSettings.track === 'off'`)
+    const offItem = `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕'))`
+    assert.equal(await evaluate(`${offItem}.getAttribute('role')`), 'menuitem')
+    assert.equal(await evaluate(`${offItem}.hasAttribute('aria-checked')`), false)
+    assert.equal(
+      await evaluate(`document.querySelectorAll('.vjs-subs-caps-button .vjs-selected').length`),
+      0
+    )
     await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
@@ -319,7 +326,7 @@ test(
     // Fresh automatic downloads override the remembered Off preference.
     await evaluate(`{
       document.querySelector('.vjs-subs-caps-button > button').click();
-      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click();
+      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click();
     }`)
     await waitFor(`window.subtitleSettings.track === 'off'`)
     await evaluate(`{
@@ -340,17 +347,19 @@ test(
     }`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
-    await waitFor(`${subtitles}.some(t => t.label.includes('同目录字幕') && t.cues?.length === 1)`)
+    await waitFor(
+      `${subtitles}.some(t => t.label.includes('video.zh-CN.srt') && t.cues?.length === 1)`
+    )
     await waitFor(`${subtitles}.length === 2`)
     await selectDownloaded()
     await waitFor(
-      `${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('已下载字幕') && t.mode === 'showing')`
+      `${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('ABC-123.zh-CN.srt') && t.mode === 'showing')`
     )
     const menuLabels = `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item-text')].map(item => item.textContent)`
     assert.deepEqual(await evaluate(`${menuLabels}.slice(0, -1)`), [
-      '字幕：同目录字幕',
-      '字幕：已下载字幕',
-      '字幕：隐藏',
+      'video.zh-CN.srt（本地）',
+      'ABC-123.zh-CN.srt（下载）',
+      '关闭字幕',
     ])
     assert.equal(
       await evaluate(
@@ -358,18 +367,18 @@ test(
       ),
       true
     )
-    // Native add/remove events rebuild labels as the number of downloads changes.
+    // Native add/remove events retain filenames for each downloaded track.
     await evaluate(`window.extraSubtitle = ${player}.addRemoteTextTrack({
       id: 'javboss:download:zh-TW', kind: 'subtitles', srclang: 'zh-TW', label: 'other.srt'
     }, false).track; undefined`)
     await waitFor(
-      `${menuLabels}.includes('字幕：已下载字幕 · zh-CN') && ${menuLabels}.includes('字幕：已下载字幕 · zh-TW')`
+      `${menuLabels}.includes('ABC-123.zh-CN.srt（下载）') && ${menuLabels}.includes('other.srt（下载）')`
     )
     await evaluate(`${player}.removeRemoteTextTrack(window.extraSubtitle)`)
     await waitFor(
-      `${menuLabels}.includes('字幕：已下载字幕') && !${menuLabels}.includes('字幕：已下载字幕 · zh-CN')`
+      `${menuLabels}.includes('ABC-123.zh-CN.srt（下载）') && !${menuLabels}.includes('other.srt（下载）')`
     )
-    for (const label of ['同目录字幕', '已下载字幕']) {
+    for (const label of ['video.zh-CN.srt', 'ABC-123.zh-CN.srt']) {
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
         `[...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('${label}')).click()`
@@ -386,8 +395,8 @@ test(
       await waitFor(`${subtitles}.length === 2`)
     }
     for (const [label, key] of [
-      ['同目录字幕', 'local:video.zh-CN.srt'],
-      ['已下载字幕', 'download:zh-CN'],
+      ['video.zh-CN.srt', 'local:video.zh-CN.srt'],
+      ['ABC-123.zh-CN.srt', 'download:zh-CN'],
     ]) {
       await evaluate(`document.querySelector('.vjs-subs-caps-button > button').click()`)
       await evaluate(
@@ -403,11 +412,11 @@ test(
     await setOffset('2')
     await saveOffset()
     await waitFor(
-      `!${modal} && ${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('已下载字幕') && t.mode === 'showing')`
+      `!${modal} && ${subtitles}.length === 2 && ${subtitles}.some(t => t.label.includes('ABC-123.zh-CN.srt') && t.mode === 'showing')`
     )
     await evaluate(`{
       document.querySelector('.vjs-subs-caps-button > button').click();
-      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('字幕：隐藏')).click();
+      [...document.querySelectorAll('.vjs-subs-caps-button .vjs-menu-item')].find(item => item.textContent.includes('关闭字幕')).click();
     }`)
     await waitFor(`window.subtitleSettings.track === 'off'`)
     await reopenFirst()
@@ -424,7 +433,7 @@ test(
     await evaluate(`document.querySelector('button[aria-label="Next video"]').click()`)
     await waitFor(`${subtitles}.length === 0`)
     await evaluate(`document.querySelector('button[aria-label="Previous video"]').click()`)
-    await waitFor(`${subtitles}.length === 1 && ${subtitles}[0].label.includes('同目录字幕')`)
+    await waitFor(`${subtitles}.length === 1 && ${subtitles}[0].label.includes('video.zh-CN.srt')`)
     await waitFor(`${findItem}`)
     await loadSubtitle()
     await waitFor(`${subtitles}.length === 2 && !(${findItem})`)

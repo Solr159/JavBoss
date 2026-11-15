@@ -97,7 +97,7 @@ export function startSubtitleLoading(
             kind: 'subtitles',
             src: objectURL,
             srclang: result.language,
-            label: `${result.source === 'local' ? '同目录字幕' : '已下载字幕'} · ${result.language}`,
+            label: result.filename || (key.startsWith('local:') ? key.slice(6) : result.language),
           },
           // The same video can switch sources during playback fallback. This
           // loader removes its own tracks when changing videos or disposing.

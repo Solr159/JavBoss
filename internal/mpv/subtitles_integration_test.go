@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -506,7 +505,8 @@ func testLocalAndDownloadedSubtitleSelection(t *testing.T, endpoint string, stor
 		t.Fatal("Find remains visible with a downloaded track", popup)
 	}
 	items := popup["items"].(map[string]any)
-	if !strings.Contains(items["subtitle_menu_track_1"].(string), "字幕：同目录字幕") || strings.Contains(items["subtitle_menu_track_1"].(string), "local.srt") || items["subtitle_menu_track_2"].(string) != "● 字幕：已下载字幕" {
+	selectedItems := popup["selected"].(map[string]any)
+	if items["subtitle_menu_track_1"] != "local.srt（本地）" || items["subtitle_menu_track_2"] != "download.srt（下载）" || selectedItems["subtitle_menu_track_1"] != false || selectedItems["subtitle_menu_track_2"] != true || selectedItems["subtitle_menu_off"] != false {
 		t.Fatal("popup did not label the tracks and mark the selected download", items)
 	}
 	command("sub-remove", 2)

@@ -124,6 +124,7 @@ func resolveSubtitle(c *gin.Context) {
 		contentType = "text/vtt; charset=utf-8"
 	}
 	filename := filepath.Base(result.Path)
+	c.Header("X-Subtitle-Filename", url.PathEscape(filename))
 	if req.Format == "vtt" {
 		filename = strings.TrimSuffix(filename, filepath.Ext(filename)) + ".vtt"
 	}

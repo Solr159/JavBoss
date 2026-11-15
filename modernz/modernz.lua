@@ -1570,8 +1570,8 @@ local function render_elements(master_ass, osc_vis, wc_vis)
 
         local elem_ass = assdraw.ass_new()
 
-        -- Hover background box
-        if element.type == "button" and hover_effects.box
+        -- Selected menu rows retain their background when the pointer moves away.
+        if element.type == "button" and (hover_effects.box or element.selected)
             and element.name ~= "title"
             and element.name ~= "chapter_title"
             and element.name ~= "time_codes"
@@ -1581,7 +1581,7 @@ local function render_elements(master_ass, osc_vis, wc_vis)
                 element.eventresponder["mbtn_left_up"] ~= nil
             )
             local hb = element.hover_box
-            if (hb and mouse_hit_coords(hb.x1, hb.y1, hb.x2, hb.y2) or mouse_hit(element)) and is_clickable and element.enabled then
+            if (element.selected or hb and mouse_hit_coords(hb.x1, hb.y1, hb.x2, hb.y2) or mouse_hit(element)) and is_clickable and element.enabled then
                 local hx1, hy1, hx2, hy2
                 if hb then hx1, hy1, hx2, hy2 = hb.x1, hb.y1, hb.x2, hb.y2
                 else hx1, hy1, hx2, hy2 = get_element_hitbox(element) end
@@ -2820,7 +2820,7 @@ local function layout_subtitle_menu()
     local style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
     local width = 0
     for _, item in ipairs(items) do
-        local label = (item.selected and "● " or "") .. item.label
+        local label = mp.command_native({"escape-ass", item.label})
         width = math.max(width, estimate_text_width(label, style))
     end
     -- Keep symmetric padding around the rendered labels; fall back if bounds are unavailable.
@@ -2838,7 +2838,8 @@ local function layout_subtitle_menu()
     for i, choice in ipairs(items) do
         local name = "subtitle_menu_" .. choice.name
         local item = new_element(name, "button")
-        item.content, item.hover_pad = (choice.selected and "● " or "") .. choice.label, 0
+        item.content, item.hover_pad = mp.command_native({"escape-ass", choice.label}), 0
+        item.selected = choice.selected == true
         item.hover_color, item.hover_alpha = "#555555", 0
         item.eventresponder.mbtn_left_up = function() subtitle_menu_action(choice.action) end
         lo = add_layout(name)

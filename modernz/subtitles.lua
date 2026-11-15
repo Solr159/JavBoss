@@ -109,24 +109,18 @@ local function menu_items()
     local sid = mp.get_property_native('sid')
     local visible = subtitle_visible()
     local tracks = mp.get_property_native('track-list', {})
-    local download_count = 0
-    for _, track in ipairs(tracks) do
-        if track.type == 'sub' and track_key(track):match('^download:') then
-            download_count = download_count + 1
-        end
-    end
     for _, track in ipairs(tracks) do
         if track.type == 'sub' then
             local key = track_key(track)
             local downloaded = key:match('^download:') ~= nil
             local path = track['external-filename']
-            local label = '字幕：' .. (downloaded and '已下载字幕' or (path and '同目录字幕' or '内嵌字幕'))
-            local language = track.lang or (downloaded and key:sub(10))
-            if (not path or (downloaded and download_count > 1)) and language and language ~= '' then label = label .. ' · ' .. language end
+            local filename = path and (path:match('[^/\\]+$') or path)
+                or track.title or ('内嵌字幕 ' .. (track.lang or tostring(track.id)))
+            local label = filename .. '（' .. (downloaded and '下载' or '本地') .. '）'
             items[#items + 1] = {name = 'track_' .. track.id, label = label, action = key, selected = visible and sid == track.id}
         end
     end
-    items[#items + 1] = {name = 'off', label = '字幕：隐藏', action = 'off', selected = not visible}
+    items[#items + 1] = {name = 'off', label = '关闭字幕', action = 'off'}
     items[#items + 1] = {name = 'offset', label = '设置偏移', action = 'offset'}
     if not has_downloaded_subtitle() then
         items[#items + 1] = {name = 'find', label = '查找字幕', action = 'find'}

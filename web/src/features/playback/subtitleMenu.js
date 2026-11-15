@@ -18,22 +18,17 @@ export function registerSubtitleMenu(videojs) {
       const downloads = tracks.filter((track) => track.id?.startsWith('javboss:download:'))
       for (const item of items) {
         let label
-        if (item instanceof OffTextTrackMenuItem) label = '字幕：隐藏'
-        else if (tracks.includes(item.track)) {
+        if (item instanceof OffTextTrackMenuItem) {
+          label = '关闭字幕'
+          item.selected(false)
+          item.selectable = false
+          item.el().setAttribute('role', 'menuitem')
+          item.el().removeAttribute('aria-checked')
+        } else if (tracks.includes(item.track)) {
           const track = item.track
           const downloaded = downloads.includes(track)
-          const source = downloaded
-            ? '已下载字幕'
-            : track.id?.startsWith('javboss:local:')
-              ? '同目录字幕'
-              : '内嵌字幕'
-          const language =
-            track.language || (downloaded ? track.id.slice('javboss:download:'.length) : '')
-          label = `字幕：${source}`
-          const showLanguage = downloaded
-            ? downloads.length > 1
-            : !track.id?.startsWith('javboss:local:')
-          if (showLanguage && language) label += ` · ${language}`
+          const filename = track.label || `内嵌字幕 ${track.language || tracks.indexOf(track) + 1}`
+          label = `${filename}（${downloaded ? '下载' : '本地'}）`
         }
         if (label) {
           // Native track labels can be read-only. Relabel the menu while keeping
