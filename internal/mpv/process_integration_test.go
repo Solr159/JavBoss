@@ -3,6 +3,7 @@
 package mpv
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -39,14 +40,16 @@ func TestShutdownAllPlaybackModesWithMPV(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	options := PlayOptions{DataDir: dir, VideoID: 1}
-	if err := defaultSession.PlayVideo(image, options); err != nil {
+	options := PlayOptions{Title: "中文 {测试} 100%.mp4", DataDir: dir, VideoID: 1}
+	// Client playback uses the single-video entry point with subtitle callbacks.
+	options.SaveSubtitleOffset = func(context.Context, int64) error { return nil }
+	if err := PlayVideo(image, options); err != nil {
 		t.Fatal(err)
 	}
 	if err := playVideoInNewProcess(image, options); err != nil {
 		t.Fatal(err)
 	}
-	if err := playPlaylistInNewProcess([]PlaylistItem{{Path: image, Options: options}}); err != nil {
+	if err := playPlaylistInNewProcess([]PlaylistItem{{Path: image, Title: options.Title, Options: options}}); err != nil {
 		t.Fatal(err)
 	}
 	playerProcesses.mu.Lock()
@@ -62,7 +65,13 @@ func TestShutdownAllPlaybackModesWithMPV(t *testing.T) {
 		if err := waitForIPCReady(p.ipcPath); err != nil {
 			t.Fatal(err)
 		}
+		waitMPVTestProperty(t, p.ipcPath, "media-title", options.Title)
 	}
+	// Loading a subsequent untitled file must restore MPV's filename fallback.
+	if err := defaultSession.PlayVideo(image, PlayOptions{DataDir: dir, VideoID: 2}); err != nil {
+		t.Fatal(err)
+	}
+	waitMPVTestProperty(t, defaultSession.ipcPath, "media-title", filepath.Base(image))
 	Shutdown()
 	for _, p := range players {
 		if p.running() || p.cmd.ProcessState == nil || !p.cmd.ProcessState.Success() {

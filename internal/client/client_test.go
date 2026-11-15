@@ -162,7 +162,7 @@ func TestClientPlaybackUsesLocalMPVAndRangeProxy(t *testing.T) {
 		mu.Unlock()
 		return nil
 	})
-	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/videos/play", strings.NewReader(`{"video_id":42,"location_id":7,"start_time":12.5}`))
+	request := httptest.NewRequest(http.MethodPost, "http://127.0.0.1/videos/play", strings.NewReader(`{"video_id":42,"location_id":7,"title":"中文 {测试} 100%.mp4","start_time":12.5}`))
 	request.Header.Set("Cookie", "remote_session=secret")
 	request.Header.Set("Origin", "http://127.0.0.1")
 	request.Header.Set("Sec-Fetch-Site", "same-origin")
@@ -177,6 +177,9 @@ func TestClientPlaybackUsesLocalMPVAndRangeProxy(t *testing.T) {
 	mu.Unlock()
 	if capturedOptions.VideoID != 42 || capturedOptions.StartTimeSec != 12.5 || !capturedOptions.EnableNetworkThumbnail {
 		t.Fatalf("play options = %#v", capturedOptions)
+	}
+	if capturedOptions.Title != "中文 {测试} 100%.mp4" {
+		t.Fatalf("play title = %q", capturedOptions.Title)
 	}
 	parsed, err := url.Parse(capturedURL)
 	if err != nil || !strings.HasPrefix(parsed.Path, "/__client/media/") {

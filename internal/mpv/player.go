@@ -30,6 +30,7 @@ const (
 )
 
 type PlayOptions struct {
+	Title                  string
 	ResolveSubtitle        SubtitleResolver
 	SaveSubtitleOffset     SubtitleOffsetSaver
 	SaveSubtitleSelection  SubtitleSelectionSaver
@@ -87,7 +88,7 @@ var (
 // PlayVideo launches mpv to play the given file path.
 func PlayVideo(path string, options PlayOptions) error {
 	if options.NewWatchReporter != nil || options.ResolveSubtitle != nil || options.SaveSubtitleOffset != nil || options.SaveSubtitleSelection != nil {
-		return PlayPlaylist([]PlaylistItem{{Path: path, Options: options}})
+		return PlayPlaylist([]PlaylistItem{{Path: path, Title: options.Title, Options: options}})
 	}
 	cancelFocusRestoreAttempts()
 	rememberFocusRestoreOwner(0)
@@ -506,6 +507,9 @@ func buildCommandArgs(path string, options PlayOptions, ipcPath string, startIdl
 	args = append(args, buildPlaybackStartArgs(options)...)
 	args = append(args, "--input-conf="+inputConfPath)
 	if strings.TrimSpace(path) != "" {
+		if title := strings.TrimSpace(options.Title); title != "" {
+			args = append(args, "--force-media-title="+title)
+		}
 		args = append(args, "--", path)
 	}
 	return exec.Command(mpvPath, args...), nil
@@ -597,7 +601,7 @@ func isOptionalPlaybackCommand(command []any) bool {
 }
 
 func buildLoadFileCommand(path string, options PlayOptions) ([]any, error) {
-	return buildPlaylistLoadFileCommand(PlaylistItem{Path: path, Options: options}, "replace")
+	return buildPlaylistLoadFileCommand(PlaylistItem{Path: path, Title: options.Title, Options: options}, "replace")
 }
 
 func buildPlaylistLoadFileCommand(item PlaylistItem, mode string) ([]any, error) {

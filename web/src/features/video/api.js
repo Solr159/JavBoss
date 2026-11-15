@@ -45,13 +45,14 @@ export async function openVideoFile({ path, dirPath }) {
   }
 }
 
-export async function playVideoFile({ id, locationId, path, dirPath, startTime }) {
+export async function playVideoFile({ id, locationId, title, path, dirPath, startTime }) {
   const res = await apiFetch('/videos/play', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({
       video_id: id,
       location_id: locationId,
+      title,
       path,
       dir_path: dirPath,
       start_time: startTime,
