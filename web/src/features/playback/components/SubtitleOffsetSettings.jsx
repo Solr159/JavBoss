@@ -60,7 +60,7 @@ export default function SubtitleOffsetSettings({ video, onSaved, onClose }) {
           type="number"
           min="-3600"
           max="3600"
-          step="0.001"
+          step="0.5"
           required
           value={seconds}
           onChange={(event) => {

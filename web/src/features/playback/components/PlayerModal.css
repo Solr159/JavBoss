@@ -185,6 +185,11 @@
   border-radius: inherit;
 }
 
+/* Windowed controls sit below the picture, so captions never need to move for them. */
+.player-shell .video-js:not(.vjs-fullscreen) .vjs-text-track-display {
+  bottom: 1em;
+}
+
 /* Keep controls below the picture in a window; use the same native controls
    over a gradient in fullscreen. Video.js owns menus, seeking and keyboard input. */
 .player-shell .video-js:not(.vjs-controls-disabled) .vjs-control-bar {
