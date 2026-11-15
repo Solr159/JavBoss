@@ -182,6 +182,27 @@ test(
       }`)
     }
     const saveOffset = () => evaluate(`${form}.querySelector('button[type="submit"]').click()`)
+    const checkOutsideDismissal = async () => {
+      const savedOffset = await evaluate(`${form}.querySelector('input').value`)
+      const writes = await evaluate(`window.settingsWrites.length`)
+      await setOffset('7.5')
+      await evaluate(`${form}.querySelector('input').click()`)
+      assert.equal(await evaluate(`Boolean(${modal})`), true)
+      const point = await evaluate(`(() => {
+        const panel = ${modal}.getBoundingClientRect();
+        const video = ${player}.el().getBoundingClientRect();
+        return {x: video.left + video.width / 2, y: (panel.bottom + video.bottom) / 2};
+      })()`)
+      for (const type of ['mousePressed', 'mouseReleased']) {
+        await command('Input.dispatchMouseEvent', { type, ...point, button: 'left', clickCount: 1 })
+      }
+      await waitFor(`!${modal}`)
+      assert.equal(await evaluate(`${player}.paused()`), true)
+      assert.equal(await evaluate(`${player}.currentTime()`), 10)
+      assert.equal(await evaluate(`window.settingsWrites.length`), writes)
+      await openSettings()
+      assert.equal(await evaluate(`${form}.querySelector('input').value`), savedOffset)
+    }
     const setFont = async (value) => {
       await evaluate(`{
         const font = ${modal}.querySelector('.vjs-font-percent select');
@@ -219,6 +240,7 @@ test(
         true
       )
     await checkControlsLayout()
+    await checkOutsideDismissal()
     await evaluate(`window.holdSettingsSave = true`)
     await setOffset('30.5')
     await saveOffset()
@@ -263,6 +285,7 @@ test(
     await waitFor(`${form}?.querySelector('input')?.value === '30.5'`)
     assert.equal(await evaluate(`document.fullscreenElement.contains(${form})`), true)
     await checkControlsLayout()
+    await checkOutsideDismissal()
     await evaluate(`window.settingsFailure = true`)
     await setOffset('-1.5')
     await saveOffset()

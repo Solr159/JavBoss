@@ -249,6 +249,15 @@ export default function PlayerModal({
     setSubtitleSettingsHost(settingsHost)
     subtitleSettings.on('modalopen', () => setSubtitleSettingsOpen(true))
     subtitleSettings.on('modalclose', () => setSubtitleSettingsOpen(false))
+    // The native dialog has no outside-click option. Consume the click before
+    // it reaches playback controls, then use its normal close behavior.
+    const closeSubtitleSettingsOutside = (event) => {
+      if (!subtitleSettings.opened() || subtitleSettings.el().contains(event.target)) return
+      event.preventDefault()
+      event.stopPropagation()
+      subtitleSettings.close()
+    }
+    playerEl.addEventListener('click', closeSubtitleSettingsOutside, true)
     const savedVolume = (() => {
       try {
         const raw = localStorage.getItem(VOLUME_STORAGE_KEY)
@@ -393,6 +402,7 @@ export default function PlayerModal({
       setSubtitleSettingsOpen(false)
       setSubtitleSettingsHost((current) => (current === settingsHost ? null : current))
       window.removeEventListener('keydown', handleKeyDown, true)
+      playerEl.removeEventListener('click', closeSubtitleSettingsOutside, true)
       player.off('fullscreenchange', focusPlayer)
       player.off('volumechange', handleVolumeChange)
       player.dispose()
