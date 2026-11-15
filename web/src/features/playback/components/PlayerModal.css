@@ -298,6 +298,10 @@
   margin-right: auto;
 }
 
+.player-shell .video-js .vjs-subs-caps-button > .vjs-button .vjs-icon-placeholder::before {
+  content: '\f10c'; /* Video.js CC icon */
+}
+
 .player-shell .video-js .vjs-time-divider {
   color: #64748b;
 }
