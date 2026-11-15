@@ -743,8 +743,9 @@ function mpvUrls(choice) {
       "https://github.com/mpv-player/mpv/releases/download/v0.41.0/mpv-v0.41.0-x86_64-w64-mingw32.zip",
     );
   } else if (choice.goos === "linux" && choice.goarch === "amd64") {
+    // Pin the release tag: continuous replaces assets when upstream updates MPV.
     urls.push(
-      "https://github.com/ivan-hc/MPV-appimage/releases/download/continuous/mpv-Media-Player_0.41.0-6-archimage5.0-x86_64.AppImage",
+      "https://github.com/ivan-hc/MPV-appimage/releases/download/20261101-174545/mpv-Media-Player_0.41.0-6-archimage5.0-x86_64.AppImage",
     );
   } else if (choice.goos === "darwin" && choice.goarch === "amd64") {
     urls.push(
