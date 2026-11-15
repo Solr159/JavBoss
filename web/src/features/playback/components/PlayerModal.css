@@ -149,6 +149,10 @@
   backdrop-filter: blur(12px);
 }
 
+.player-hotkey-hint {
+  background: rgb(15 23 42 / 60%);
+}
+
 .player-loading {
   border-radius: 10px;
   background: radial-gradient(ellipse at center, #182334, #080b11 75%);

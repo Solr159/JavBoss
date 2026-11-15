@@ -658,7 +658,7 @@ export default function PlayerModal({
                   </div>
                 ) : null}
                 {hotkeyHintVisible ? (
-                  <div className="player-notice max-h-[calc(100vh-12rem)] overflow-hidden px-3 py-2 text-xs leading-5">
+                  <div className="player-notice player-hotkey-hint max-h-[calc(100vh-12rem)] overflow-hidden px-3 py-2 text-xs leading-5">
                     {hotkeyHintLines.map((line, index) => (
                       <div key={`${index}-${line}`}>{line}</div>
                     ))}
