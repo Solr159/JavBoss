@@ -196,6 +196,26 @@ export default function PlayerModal({
       persistTextTrackSettings: true,
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
+        children: [
+          'playToggle',
+          'skipBackward',
+          'skipForward',
+          'volumePanel',
+          'currentTimeDisplay',
+          'timeDivider',
+          'durationDisplay',
+          'subsCapsButton',
+          'progressControl',
+          'liveDisplay',
+          'seekToLive',
+          'customControlSpacer',
+          'playbackRateMenuButton',
+          'chaptersButton',
+          'descriptionsButton',
+          'audioTrackButton',
+          'pictureInPictureToggle',
+          'fullscreenToggle',
+        ],
         progressControl: {
           componentClass: 'JavBossPreviewProgressControl',
           seekBar: {
