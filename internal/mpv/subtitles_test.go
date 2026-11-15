@@ -26,6 +26,7 @@ local events, messages, state = {}, {}, {['playlist-pos']=0, ['playlist/0/id']=1
 local observed = {}
 local calls = 0
 local osd_text, osd_duration, fail_add = nil, nil, false
+local status_overlay, status_timeout, w, h = nil, nil, 960, 540
 local last_add, timers = nil, {}
 local prompt, last_save, input_count, input_errors = nil, nil, 0, 0
 package.preload['mp.input'] = function() return {
@@ -40,10 +41,21 @@ mp = {
  set_property_number=function(key,value) state[key]=value end,
  get_property_native=function(key,default) if state[key]~=nil then return state[key] end; return default end,
  get_property_number=function(key,default) return state[key] or default end,
+ get_osd_size=function() return w,h end,
+ create_osd_overlay=function(kind)
+   assert(kind=='ass-events')
+   status_overlay={update=function(self) self.visible=true; self.text=self.data:match('}(.+)$') end,
+     remove=function(self) self.visible=false; self.text='' end}
+   return status_overlay
+ end,
  observe_property=function(name,_,fn) observed[name]=fn end,
  register_event=function(name,fn) events[name]=fn end,
  register_script_message=function(name,fn) messages[name]=fn end,
- add_timeout=function(_,fn) timers[#timers+1]=fn end,
+ add_timeout=function(delay,fn)
+   local timer={delay=delay,callback=fn,kill=function(self) self.killed=true end}
+   if delay==0 then timers[#timers+1]=fn else status_timeout=timer end
+   return timer
+ end,
  commandv=function(...)
    local args={...}
    if args[1]=='sub-add' then
@@ -124,20 +136,37 @@ messages['javboss-subtitle-action']('off', '5', '999')
 assert(state['sid']==42) -- another playlist entry cannot close this video's subtitles
 local status=messages['javboss-subtitle-status']
 local generation=tostring(state['user-data/javboss/subtitle-session'].generation)
+mp.osd_message('startup shortcuts', 5)
 for key,text in pairs({searching='正在查找字幕…',ready='字幕已加载',existing='检测到已有字幕',not_found='未找到中文字幕',ambiguous='无法自动匹配字幕',error='字幕下载失败'}) do
+ local previous=status_timeout
  status(generation,'2',key)
- assert(osd_text==text and osd_duration==(key=='searching' and 50 or 3))
+ assert(previous.killed,'superseded status timer is still active')
+ assert(status_overlay.visible and status_overlay.text==text and status_timeout.delay==(key=='searching' and 50 or 3))
+ assert(osd_text=='startup shortcuts' and osd_duration==5,'status replaced the native OSD hint')
+ assert(status_overlay.data:find('\\an1\\pos(18,',1,true),'status is not bottom-left aligned')
 end
+for _,size in ipairs({{960,540},{320,180},{1920,1080}}) do
+ w,h=size[1],size[2]; observed['osd-dimensions']()
+ assert(status_overlay.res_x==w/h*720 and status_overlay.res_y==720)
+end
+state['user-data/osc/margins']={b=0.2}; observed['user-data/osc/margins']()
+local y=tonumber(status_overlay.data:match('pos%([^,]+,([%d%.]+)%)'))
+assert(y==720-0.2*720-12,'status overlaps the controller margin')
+state['user-data/osc/margins']=nil
+status_timeout.callback()
+assert(not status_overlay.visible and osd_text=='startup shortcuts','expiry cleared the native OSD hint')
+observed['osd-dimensions'](); assert(not status_overlay.visible,'resize revived an expired status')
 status(generation,'2','searching')
 status('1','2','error'); status(generation,'999','error'); status(generation,'2','unknown')
-assert(osd_text=='正在查找字幕…')
-status(generation,'2','disabled'); assert(osd_text=='' and osd_duration==0)
+assert(status_overlay.text=='正在查找字幕…')
+status(generation,'2','disabled'); assert(not status_overlay.visible and status_timeout.killed)
+assert(osd_text=='startup shortcuts' and osd_duration==5)
 state['track-list']={}; fail_add=true
-add(generation,'2','missing.srt','source','zh-CN','0'); assert(osd_text=='字幕下载失败')
+add(generation,'2','missing.srt','source','zh-CN','0'); assert(status_overlay.text=='字幕下载失败')
 fail_add=false
-add(generation,'2','one.srt','source','zh-CN','0'); assert(osd_text=='字幕已加载')
+add(generation,'2','one.srt','source','zh-CN','0'); assert(status_overlay.text=='字幕已加载')
 state['track-list']={{type='sub', id=1, ['external-filename']='one.srt'}}
-add(generation,'2','one.srt','source','zh-CN','0'); assert(osd_text=='检测到已有字幕')
+add(generation,'2','one.srt','source','zh-CN','0'); assert(status_overlay.text=='检测到已有字幕')
 -- A different downloaded path becomes a separate selectable track.
 local before_add=calls
 add(generation,'2','download.srt','subtitlecat','zh-CN','0','ready','true','','download:zh-CN')
@@ -176,8 +205,9 @@ assert(entries[1].action=='local:one.srt' and entries[2].action=='off' and not e
 
 
 status(generation,'2','searching'); events['end-file']()
-assert(osd_text=='' and osd_duration==0)
-status(generation,'2','error'); assert(osd_text=='')
+assert(not status_overlay.visible and status_timeout.killed)
+assert(osd_text=='startup shortcuts' and osd_duration==5)
+status(generation,'2','error'); assert(not status_overlay.visible)
 -- Restore off for existing/cache tracks without recording initialization.
 events['start-file'](); events['file-loaded']()
 generation=tostring(state['user-data/javboss/subtitle-session'].generation)

@@ -14,7 +14,9 @@ local last_visibility
 local preferred_track = ''
 local last_track = ''
 local track_keys = {}
-local status_visible = false
+local status_overlay = mp.create_osd_overlay('ass-events')
+status_overlay.z = 100
+local status_timer, active_status_text
 local publish_menu
 local status_text = {
     searching = '正在查找字幕…',
@@ -24,16 +26,36 @@ local status_text = {
     ambiguous = '无法自动匹配字幕',
     error = '字幕下载失败',
 }
+local function clear_status()
+    if status_timer then status_timer:kill(); status_timer = nil end
+    active_status_text = nil
+    status_overlay:remove()
+end
+local function render_status()
+    if not active_status_text then return end
+    local w, h = mp.get_osd_size()
+    if w <= 0 or h <= 0 then return end
+    local margins = mp.get_property_native('user-data/osc/margins', {})
+    local bottom = math.max(72, (margins.b or 0) * 720 + 12)
+    status_overlay.res_x, status_overlay.res_y = w / h * 720, 720
+    -- Keep loading feedback above the bottom controls without replacing native
+    -- OSD messages such as the startup shortcut hint or volume feedback.
+    status_overlay.data = string.format(
+        '{\\an1\\pos(18,%f)\\fs20\\bord1.5\\shad1\\q2\\1c&HFFFFFF&\\3c&H000000&}%s',
+        math.max(24, 720 - bottom), active_status_text)
+    status_overlay:update()
+end
 local function show_status(status)
     mp.set_property_native('user-data/javboss/subtitle-status', status)
-    local text = status_text[status]
-    if text then
-        mp.osd_message(text, status == 'searching' and 50 or 3)
-    elseif status_visible then
-        mp.osd_message('', 0)
+    clear_status()
+    active_status_text = status_text[status]
+    if active_status_text then
+        render_status()
+        status_timer = mp.add_timeout(status == 'searching' and 50 or 3, clear_status)
     end
-    status_visible = text ~= nil
 end
+mp.observe_property('osd-dimensions', 'native', render_status)
+mp.observe_property('user-data/osc/margins', 'native', render_status)
 local function current_entry()
     local pos = mp.get_property_number('playlist-pos', -1)
     return mp.get_property_number('playlist/' .. pos .. '/id', -1)
