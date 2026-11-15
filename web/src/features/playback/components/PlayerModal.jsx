@@ -194,6 +194,7 @@ export default function PlayerModal({
       language: 'zh-CN',
       languages: { 'zh-cn': zhCN },
       persistTextTrackSettings: true,
+      textTrackSettings: { componentClass: 'JavBossTextTrackSettings' },
       playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
       controlBar: {
         children: [

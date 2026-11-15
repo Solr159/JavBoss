@@ -5,6 +5,13 @@ export function registerSubtitleMenu(videojs) {
   const MenuItem = videojs.getComponent('MenuItem')
   const OffTextTrackMenuItem = videojs.getComponent('OffTextTrackMenuItem')
   const CaptionSettingsMenuItem = videojs.getComponent('CaptionSettingsMenuItem')
+  const TextTrackSettings = videojs.getComponent('TextTrackSettings')
+  class SubtitleSettings extends TextTrackSettings {
+    setDefaults() {
+      super.setDefaults()
+      this.setValues({ backgroundOpacity: '0', windowOpacity: '0' })
+    }
+  }
   class FindSubtitleItem extends MenuItem {
     handleClick(event) {
       super.handleClick(event)
@@ -46,4 +53,5 @@ export function registerSubtitleMenu(videojs) {
     }
   }
   videojs.registerComponent('JavBossSubtitleButton', SubtitleButton)
+  videojs.registerComponent('JavBossTextTrackSettings', SubtitleSettings)
 }

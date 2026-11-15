@@ -189,7 +189,19 @@ test(
       }`)
     }
     const savedStyle = `JSON.parse(localStorage.getItem('vjs-text-track-settings'))`
+    const backgrounds = () =>
+      evaluate(`['.vjs-bg-opacity select', '.vjs-window-opacity select'].map(
+        selector => document.querySelector(selector).value)`)
+    const setBackgrounds = () =>
+      evaluate(`{
+        for (const [selector, value] of [['.vjs-bg-opacity select', '0.5'], ['.vjs-window-opacity select', '1']]) {
+          const select = document.querySelector(selector);
+          select.value = value;
+          select.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+      }`)
     await openSettings()
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.equal(await evaluate(`${modal}.textContent.includes('字体尺寸')`), true)
     assert.equal(await evaluate(`${form}.textContent.includes('Subtitle offset (seconds)')`), true)
     const checkControlsLayout = async () =>
@@ -222,12 +234,15 @@ test(
     // Style controls never reset or save the per-video offset, including an unsaved draft.
     await openSettings()
     await setFont('2.00')
+    await setBackgrounds()
     await setOffset('99')
     await evaluate(`${modal}.querySelector('.vjs-default-button').click()`)
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.equal(await evaluate(`${modal}.querySelector('.vjs-font-percent select').value`), '1.00')
     assert.equal(await evaluate(`${form}.querySelector('input').value`), '99')
     assert.equal(await evaluate(`window.settingsWrites.length`), 1)
     await setFont('2.00')
+    await setBackgrounds()
     await evaluate(`${modal}.querySelector('.vjs-done-button').click()`)
     await waitFor(`!${modal}`)
     assert.equal(await evaluate(`${savedStyle}.fontPercent`), 2)
@@ -476,6 +491,7 @@ test(
     await waitFor(`document.querySelector('#root > button')`)
     await evaluate(`document.querySelector('#root > button').click()`)
     await waitFor(`document.querySelector('.video-js')?.player`)
+    assert.deepEqual(await backgrounds(), ['0.5', '1'])
     assert.equal(
       await evaluate(`${player}.getChild('textTrackSettings').getValues().fontPercent`),
       2
@@ -491,6 +507,7 @@ test(
       await evaluate(`${player}.getChild('textTrackSettings').getValues()`)
     )
     assert.equal(await evaluate(`document.querySelector('.vjs-font-percent select').value`), '1.00')
+    assert.deepEqual(await backgrounds(), ['0', '0'])
     assert.deepEqual(await evaluate(`window.appErrors`), [])
   }
 )
