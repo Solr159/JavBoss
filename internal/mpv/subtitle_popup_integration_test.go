@@ -44,6 +44,28 @@ mp.register_script_message("test-popup-size", function(w, h)
     test_w, test_h = tonumber(w), tonumber(h)
     osc_init()
 end)
+mp.register_script_message("test-popup-measure", function(x0, x1)
+    local original_update = rawget(text_measure_osd, "update")
+    local data, resolution
+    text_measure_osd.update = function(self)
+        data, resolution = self.data, self.res_x
+        return {x0 = tonumber(x0), x1 = tonumber(x1)}
+    end
+    osc_init()
+    local result = {
+        bounds = subtitle_menu.bounds,
+        available = osc_param.playresx - 12,
+        no_wrap = data:find("\\q2", 1, true) ~= nil,
+    }
+    -- Simulate a reserved sidebar: measurement must still use the rendering canvas.
+    osc_param.playresx = osc_param.playresx - 200
+    result.label_width = estimate_text_width("字幕 789.srt（本地）", "{\\fs16}", true)
+    result.actual_digits = data:find("789.srt", 1, true) ~= nil
+    result.same_canvas = resolution == osc_param.displayresx
+    text_measure_osd.update = original_update
+    mp.set_property_native("user-data/javboss-test/measurement", result)
+    osc_init()
+end)
 mp.register_script_message("test-popup-click", function(target)
     local x, y = 10, 10
     for _, el in ipairs(elements) do
@@ -72,7 +94,7 @@ func testAnchoredSubtitlePopup(t *testing.T, endpoint string) {
 	command := func(args ...any) {
 		t.Helper()
 		if err := runIPCCommand(endpoint, args); err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v: %v", args, err)
 		}
 	}
 	inspect := func(open bool) map[string]any {
@@ -106,6 +128,34 @@ func testAnchoredSubtitlePopup(t *testing.T, endpoint string) {
 		bounds, anchor := info["bounds"].(map[string]any), info["anchor"].(map[string]any)
 		if bounds["y2"].(float64) >= anchor["y1"].(float64) || bounds["x1"].(float64) < 0 || bounds["x2"].(float64) > info["width"].(float64) {
 			t.Fatalf("popup is not anchored above the button within the window: %v", info)
+		}
+	}
+	// Exercise fractional side bearings and labels wider than the old 360 cap.
+	for _, test := range []struct {
+		x0, x1 string
+		width  float64
+	}{
+		{"1.2", "101.1", 102},
+		{"-1.2", "401.1", 403},
+		{"0", "2000", 2000},
+	} {
+		command("set_property", "user-data/javboss-test/measurement", nil)
+		command("script-message-to", "modernz", "test-popup-measure", test.x0, test.x1)
+		deadline := time.Now().Add(3 * time.Second)
+		var result map[string]any
+		for time.Now().Before(deadline) {
+			result, _ = readMPVTestProperty(t, endpoint, "user-data/javboss-test/measurement").(map[string]any)
+			if result != nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if result == nil || result["label_width"] != test.width || result["actual_digits"] != true || result["same_canvas"] != true || result["no_wrap"] != true {
+			t.Fatalf("incorrect subtitle label measurement: %v", result)
+		}
+		bounds := result["bounds"].(map[string]any)
+		if got, want := bounds["x2"].(float64)-bounds["x1"].(float64), min(test.width+12, result["available"].(float64)); got != want {
+			t.Fatalf("popup width = %v, want %v", got, want)
 		}
 	}
 	click("sub_track")

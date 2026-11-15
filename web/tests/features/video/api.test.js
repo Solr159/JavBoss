@@ -2,6 +2,37 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { loadModules } from '../../helpers/modules.js'
 
+test('single-video playback sends the filename with normal and seek requests', async (t) => {
+  const [{ playVideoFile }] = await loadModules(t, ['features/video/api.js'])
+  const requests = []
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    requests.push({ url, method: init.method, body: JSON.parse(init.body) })
+    return Response.json({ status: 'ok' })
+  })
+  for (const startTime of [undefined, 12.5]) {
+    await playVideoFile({
+      id: 42,
+      locationId: 7,
+      title: '中文 {测试} 100%.mp4',
+      path: '中文 {测试} 100%.mp4',
+      dirPath: '/videos',
+      startTime,
+    })
+    assert.deepEqual(requests.at(-1), {
+      url: '/videos/play',
+      method: 'POST',
+      body: {
+        video_id: 42,
+        location_id: 7,
+        title: '中文 {测试} 100%.mp4',
+        path: '中文 {测试} 100%.mp4',
+        dir_path: '/videos',
+        ...(startTime === undefined ? {} : { start_time: startTime }),
+      },
+    })
+  }
+})
+
 test('directory API resolves shared root paths without mixing identical subdirectory names', async (t) => {
   const [{ fetchVideoDirectories }] = await loadModules(t, ['features/video/api.js'])
   const items = [

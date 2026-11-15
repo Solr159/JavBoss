@@ -77,6 +77,19 @@ func TestBuildLoadFileCommandReplacesCurrentFile(t *testing.T) {
 	}
 }
 
+func TestBuildLoadFileCommandPreservesTitle(t *testing.T) {
+	const title = "中文 {测试} 100%.mp4"
+	command, err := buildLoadFileCommand("http://127.0.0.1/__client/media/random-token", PlayOptions{
+		Title: title, DataDir: t.TempDir(), VideoID: 42,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := command[4].(map[string]string)["force-media-title"]; got != title {
+		t.Fatalf("force-media-title = %q, want %q", got, title)
+	}
+}
+
 func TestBuildPlaylistLoadFileCommandUsesPerFileScreenshotDirectory(t *testing.T) {
 	dataDir := t.TempDir()
 	command, err := buildPlaylistLoadFileCommand(PlaylistItem{

@@ -765,14 +765,14 @@ end
 
 local text_width_cache = {}
 
-local function estimate_text_width(text, style)
+local function estimate_text_width(text, style, exact)
     if text == nil then return 0 end
     text = tostring(text)
     if #text == 0 then return 0 end
 
-    -- replace digits with '0' for consistency
-    local measure_text = text:gsub("%d", "0")
-    local cache_key = measure_text .. (style or "")
+    -- Time counters benefit from stable digit widths; filenames need their actual glyphs.
+    local measure_text = exact and text or text:gsub("%d", "0")
+    local cache_key = tostring(exact == true) .. measure_text .. (style or "")
     local width = 0
 
     if text_width_cache[cache_key] then
@@ -780,16 +780,22 @@ local function estimate_text_width(text, style)
     end
 
     if text_measure_osd and text_measure_osd.update then
-        text_measure_osd.res_x = osc_param.playresx
+        text_measure_osd.res_x = osc_param.displayresx
         text_measure_osd.res_y = osc_param.playresy
         text_measure_osd.data = (style or "") .. "{\\an7\\pos(0,0)}" .. measure_text
 
         local bounds = text_measure_osd:update()
         if bounds and bounds.x1 and bounds.x0 then
-            -- subtract side-bearing padding that libass adds even at bord0
-            local fs = tonumber((style or ""):match("\\fs(%d+%.?%d*)")) or 16
-            local bearing_correction = fs * 0.08 * 2
-            width = math.max(0, (bounds.x1 - bounds.x0) - bearing_correction)
+            if exact then
+                -- Include side bearings and round outward so platform font fallback
+                -- and fractional glyph bounds cannot clip the final character.
+                width = math.ceil(math.max(0, bounds.x1) - math.min(0, bounds.x0))
+            else
+                -- subtract side-bearing padding that libass adds even at bord0
+                local fs = tonumber((style or ""):match("\\fs(%d+%.?%d*)")) or 16
+                local bearing_correction = fs * 0.08 * 2
+                width = math.max(0, (bounds.x1 - bounds.x0) - bearing_correction)
+            end
         end
     end
 
@@ -2817,15 +2823,15 @@ local function layout_subtitle_menu()
     local x1, y1, x2 = get_hitbox_coords(geo.x, geo.y, geo.an, geo.w, geo.h)
     local items = mp.get_property_native("user-data/javboss/subtitle-menu-items", {})
     local row, pad = 32, 6
-    local style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
+    local style = "{\\bord0\\shad0\\fs16\\q2\\1c&HFFFFFF&}"
     local width = 0
     for _, item in ipairs(items) do
         local label = mp.command_native({"escape-ass", item.label})
-        width = math.max(width, estimate_text_width(label, style))
+        width = math.max(width, estimate_text_width(label, style, true))
     end
     -- Keep symmetric padding around the rendered labels; fall back if bounds are unavailable.
     width = width > 0 and width + pad * 2 or 180
-    width = math.min(width, 360, osc_param.playresx - 12)
+    width = math.min(width, osc_param.playresx - 12)
     local height = row * #items + pad * 2
     local left = limit_range(6, osc_param.playresx - width - 6, (x1 + x2 - width) / 2)
     local top = math.max(6, y1 - height - 8)
