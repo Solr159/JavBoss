@@ -208,9 +208,9 @@ type JavFavoriteMap struct {
 type JavTagMap struct {
 	JavID     int64     `gorm:"primaryKey"`
 	Jav       Jav       `gorm:"foreignKey:JavID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	JavTagID  int64     `gorm:"primaryKey"`
+	JavTagID  int64     `gorm:"primaryKey;index:idx_jav_tag_map_tag_provider,priority:1"`
 	JavTag    JavTag    `gorm:"foreignKey:JavTagID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	Provider  int       `gorm:"primaryKey;not null;default:0;index"`
+	Provider  int       `gorm:"primaryKey;not null;default:0;index;index:idx_jav_tag_map_tag_provider,priority:2"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 }
 
