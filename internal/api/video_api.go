@@ -185,6 +185,7 @@ type videoJavPossibleCodesResponse struct {
 }
 
 func getVideoStreams(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
 	video, fullPath, locationID, err := resolveVideoStreamTarget(c)
 	if err != nil {
 		respondPlaybackError(c, err)
@@ -322,10 +323,7 @@ func resolveVideoStreamTarget(c *gin.Context) (*models.Video, string, int64, err
 	if err != nil {
 		return nil, "", 0, err
 	}
-	if _, err := os.Stat(fullPath); err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, "", 0, err
-		}
+	if _, err := metadata.CheckFile(fullPath, video.Size, video.ModifiedAt); err != nil {
 		return nil, "", 0, err
 	}
 
@@ -345,6 +343,7 @@ func parseLocationIDQuery(c *gin.Context) (int64, error) {
 }
 
 func respondPlaybackError(c *gin.Context, err error) {
+	c.Header("Cache-Control", "no-store")
 	switch {
 	case err == nil:
 		return
@@ -352,6 +351,8 @@ func respondPlaybackError(c *gin.Context, err error) {
 		respondLocalizedError(c, http.StatusNotFound, "视频文件或所在目录不存在", "Video file or directory does not exist")
 	case errors.Is(err, context.Canceled):
 		c.Status(499)
+	case errors.Is(err, metadata.ErrFileChanged):
+		respondLocalizedError(c, http.StatusConflict, "视频文件已修改，请重新扫描所在目录后再播放", "The video file has changed. Rescan its directory before playing.")
 	case strings.Contains(err.Error(), "ffmpeg not found"), strings.Contains(err.Error(), "ffprobe not found"):
 		respondLocalizedError(c, http.StatusServiceUnavailable, "缺少网页播放器所需组件", err.Error())
 	case strings.Contains(err.Error(), "browser playback is not supported"):

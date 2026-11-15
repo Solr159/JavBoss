@@ -2,9 +2,11 @@ package metadata
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"javboss/internal/common/logging"
 	"javboss/internal/db"
@@ -22,6 +24,20 @@ var backfillGates = func() [64]chan struct{} {
 	return gates
 }()
 
+var ErrFileChanged = errors.New("video file has changed; rescan required")
+
+// CheckFile rejects files that no longer match the identity recorded by the scanner.
+func CheckFile(path string, size int64, modifiedAt time.Time) (os.FileInfo, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() != size || !info.ModTime().Equal(modifiedAt) {
+		return nil, ErrFileChanged
+	}
+	return info, nil
+}
+
 func Load(ctx context.Context, store *db.Store, video *models.Video, path string) (*models.MediaInfo, error) {
 	return load(ctx, store, video, path, util.ProbeVideoContext)
 }
@@ -30,14 +46,10 @@ func load(ctx context.Context, store *db.Store, video *models.Video, path string
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	before, err := os.Stat(path)
-	if err != nil {
+	if _, err := CheckFile(path, video.Size, video.ModifiedAt); err != nil {
 		return nil, err
 	}
-	unchanged := func(v *models.Video, file os.FileInfo) bool {
-		return v.Size == file.Size() && v.ModifiedAt.Equal(file.ModTime())
-	}
-	if video.MediaInfo.Complete() && unchanged(video, before) {
+	if video.MediaInfo.Complete() {
 		logging.Info("playback media_info reuse: video_id=%d location_id=%d path=%q source=database", video.ID, video.LocationID, path)
 		info := video.MediaInfo
 		return &info, nil
@@ -58,22 +70,18 @@ func load(ctx context.Context, store *db.Store, video *models.Video, path string
 		return nil, os.ErrNotExist
 	}
 	if filepath.Clean(filepath.Join(current.DirectoryRef.Path, filepath.FromSlash(current.Path))) != filepath.Clean(path) {
-		return nil, fmt.Errorf("video location changed during playback preparation")
+		return nil, fmt.Errorf("video location changed during playback preparation: %w", ErrFileChanged)
 	}
-	before, err = os.Stat(path)
+	before, err := CheckFile(path, current.Size, current.ModifiedAt)
 	if err != nil {
 		return nil, err
 	}
-	if current.MediaInfo.Complete() && unchanged(current, before) {
+	if current.MediaInfo.Complete() {
 		logging.Info("playback media_info reuse: video_id=%d location_id=%d path=%q source=database after_wait=true", current.ID, current.LocationID, path)
 		info := current.MediaInfo
 		return &info, nil
 	}
-	reason := "missing_or_outdated_media_info"
-	if !unchanged(current, before) {
-		reason = "file_changed"
-	}
-	logging.Info("playback media_info probe required: video_id=%d location_id=%d path=%q reason=%s", current.ID, current.LocationID, path, reason)
+	logging.Info("playback media_info probe required: video_id=%d location_id=%d path=%q reason=missing_or_outdated_media_info", current.ID, current.LocationID, path)
 	info, err := probe(ctx, path)
 	if err != nil {
 		return nil, err
@@ -81,24 +89,18 @@ func load(ctx context.Context, store *db.Store, video *models.Video, path string
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	after, err := os.Stat(path)
+	after, err := CheckFile(path, current.Size, current.ModifiedAt)
 	if err != nil {
 		return nil, err
 	}
-	if !os.SameFile(before, after) || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
-		return nil, fmt.Errorf("video file changed during probe")
+	if !os.SameFile(before, after) {
+		return nil, ErrFileChanged
 	}
-	// A replaced file may now belong to another video. Play using its actual
-	// metadata, but let the scanner reconcile identity before modifying shared data.
-	if unchanged(current, after) {
-		filled, err := store.FillVideoMediaInfo(ctx, current.ID, *info)
-		if err != nil {
-			logging.Error("playback media_info persist failed: video_id=%d location_id=%d path=%q err=%v", current.ID, current.LocationID, path, err)
-			return nil, err
-		}
-		logging.Info("playback media_info persisted: video_id=%d location_id=%d path=%q updated=%t", current.ID, current.LocationID, path, filled)
-	} else {
-		logging.Info("playback media_info persist skipped: video_id=%d location_id=%d path=%q reason=file_changed", current.ID, current.LocationID, path)
+	filled, err := store.FillVideoMediaInfo(ctx, current.ID, *info)
+	if err != nil {
+		logging.Error("playback media_info persist failed: video_id=%d location_id=%d path=%q err=%v", current.ID, current.LocationID, path, err)
+		return nil, err
 	}
+	logging.Info("playback media_info persisted: video_id=%d location_id=%d path=%q updated=%t", current.ID, current.LocationID, path, filled)
 	return info, nil
 }

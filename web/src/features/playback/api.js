@@ -2,6 +2,14 @@ import { apiFetch, apiError, jsonHeaders } from '@/api/client'
 
 const subtitleSelectionSaves = new Map()
 
+export async function fetchVideoPreview(videoId, locationId, second, signal) {
+  const params = new URLSearchParams({ second: String(second) })
+  if (locationId) params.set('location_id', String(locationId))
+  const res = await apiFetch(`/videos/${videoId}/preview?${params}`, { signal, cache: 'no-store' })
+  if (!res.ok) throw await apiError(res)
+  return res.blob()
+}
+
 export async function fetchVideoSubtitleSettings(videoId, signal) {
   await subtitleSelectionSaves.get(videoId)?.catch(() => {})
   const res = await apiFetch(`/videos/${videoId}/subtitle-settings`, { signal, cache: 'no-store' })

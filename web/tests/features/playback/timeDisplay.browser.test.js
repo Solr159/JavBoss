@@ -3,7 +3,7 @@ import test from 'node:test'
 import { browserUnavailable, openBrowser } from '../../helpers/browser.js'
 
 test(
-  'seek release displays the actual time when the pending target is cleared, including paused playback',
+  'seek release and stationary hover display the actual target, including rapid pointer moves',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t)
@@ -69,6 +69,72 @@ test(
     await waitFor(`!player.seeking() && ${displayed} === '0:00'`)
     await evaluate(`player.play(); void 0`)
     await waitFor(`player.currentTime() >= 1 && ${displayed} !== '0:00'`)
+    // A stationary hover followed by a click must keep the same target, even
+    // when the pointer falls on a half pixel and the mouse indicator covers it.
+    await evaluate(`player.pause(); document.querySelector('.player-shell').style.width = '701px'`)
+    for (const fullscreen of [false, true]) {
+      if (fullscreen) {
+        const button = await evaluate(`(() => {
+          const rect = document.querySelector('.vjs-fullscreen-control').getBoundingClientRect();
+          return {x:rect.left + rect.width / 2, y:rect.top + rect.height / 2};
+        })()`)
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await command('Input.dispatchMouseEvent', {
+            type,
+            ...button,
+            button: 'left',
+            clickCount: 1,
+          })
+        }
+        await waitFor(`player.isFullscreen()`)
+      }
+      for (const fraction of [0.3, 0.5, 0.75]) {
+        const point = await evaluate(`(() => {
+          const rect = seekBar.el().getBoundingClientRect();
+          return {x:rect.left + rect.width * ${fraction}, y:rect.top + rect.height / 2};
+        })()`)
+        await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...point })
+        await evaluate(`new Promise(resolve => setTimeout(resolve, 150))`)
+        // Move twice in one task and once on the next frame, then stop.
+        // A leading-only throttle used to retain the first position forever.
+        // Alternate direction to cover both an early and a late hover label.
+        await evaluate(`(async () => {
+          for (const x of [${point.x + (fraction === 0.5 ? -18 : 18)}, ${point.x + (fraction === 0.5 ? -9 : 9)}, ${point.x}]) {
+            if (x === ${point.x}) await new Promise(requestAnimationFrame);
+            document.elementFromPoint(x, ${point.y}).dispatchEvent(new MouseEvent('mousemove', {
+              bubbles:true, clientX:x, clientY:${point.y}
+            }));
+          }
+        })()`)
+        await evaluate(`new Promise(resolve => setTimeout(resolve, 150))`)
+        const hover = await evaluate(`(() => {
+          const mouse = seekBar.getChild('mouseTimeDisplay').el();
+          return {
+            time:parseFloat(mouse.style.left) / seekBar.el().offsetWidth * player.duration(),
+            label:mouse.querySelector('.vjs-time-tooltip').textContent,
+            second:seekBar.getChild('mouseTimeDisplay').bucket
+          };
+        })()`)
+        for (const type of ['mousePressed', 'mouseReleased']) {
+          await command('Input.dispatchMouseEvent', {
+            type,
+            ...point,
+            button: 'left',
+            clickCount: 1,
+          })
+        }
+        await waitFor(`!player.seeking()`)
+        await paint()
+        const actual = await evaluate(`player.currentTime()`)
+        assert.ok(
+          Math.abs(actual - hover.time) < 0.001,
+          `fullscreen=${fullscreen}, position=${fraction}: hover=${hover.time}, seek=${actual}`
+        )
+        assert.equal(await evaluate(displayed), hover.label)
+        assert.equal(hover.second, Math.floor(actual))
+        assert.equal(await evaluate(`player.paused()`), true)
+      }
+    }
     assert.deepEqual(await evaluate('window.appErrors'), [])
   }
 )
