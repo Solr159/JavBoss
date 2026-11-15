@@ -1175,6 +1175,28 @@ body.has-page-scroll .sticky-pagination {
   background: #1d4ed8;
 }
 
+.player-subtitle-offset-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.player-subtitle-offset-input::-webkit-inner-spin-button,
+.player-subtitle-offset-input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.player-shell .player-subtitle-offset-settings .player-subtitle-offset-step {
+  display: flex;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.player-shell .player-subtitle-offset-settings .player-subtitle-offset-step:hover:not(:disabled) {
+  background: rgb(255 255 255 / 12%);
+}
+
 .video-card-tag {
   border: 1px solid var(--theme-video-tag-border);
   background: var(--theme-video-tag-surface);
