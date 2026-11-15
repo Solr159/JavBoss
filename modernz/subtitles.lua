@@ -267,7 +267,8 @@ local function open_offset_settings()
     local expected, entry = generation, current_entry()
     input_open = true
     offset_input.get({
-        default_text = string.format('%.3f', mp.get_property_number('sub-delay', 0)),
+        default_text = string.format('%.3f', mp.get_property_number('sub-delay', 0))
+            :gsub('0+$', ''):gsub('%.$', ''):gsub('^-0$', '0'),
         closed = function() input_open = false end,
         submit = function(text)
             if not loaded or generation ~= expected or current_entry() ~= entry then

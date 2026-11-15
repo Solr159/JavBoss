@@ -117,7 +117,7 @@ assert(state['sid']==false and state['secondary-sid']==false)
 add('3','2','late.srt','source','zh-CN','0')
 assert(last_add[3]=='auto' and state['sid']==false) -- late downloads stay disabled
 menu(); prompt.submit(2); flush()
-assert(prompt.items==nil and prompt.default_text=='0.000')
+assert(prompt.items==nil and prompt.default_text=='0')
 prompt.submit('-2.5'); assert(state['sub-delay']==-2.5 and last_save[6]=='-2500')
 saved('3','2','1','saved')
 menu(); prompt.closed(); flush() -- Escape only dismisses the menu

@@ -50,7 +50,7 @@ local function type_text(value)
  for ch in value:gmatch('.') do keys.any_unicode({event='press',key_text=ch}) end
 end
 open()
-assert(table.concat(texts):find('│',1,true),'initial input cursor is missing')
+assert(table.concat(texts):find('1.000│',1,true),'initial cursor must follow the existing value')
 assert(table.concat(texts):find('输入完成后按 Enter 保存',1,true),'save instruction is missing')
 for _,size in ipairs({{960,540},{320,180},{1920,1080}}) do
  w,h=size[1],size[2]; resize()
@@ -59,7 +59,14 @@ for _,size in ipairs({{960,540},{320,180},{1920,1080}}) do
  assert(math.abs(panel[1]+panel[3]-w)<0.001 and math.abs(panel[2]+panel[4]-h)<0.001,'dialog is not centered')
  assert(panel[1]>=0 and panel[2]>=0 and panel[3]<=w and panel[4]<=h,'dialog exceeds viewport')
 end
--- Default value is selected; typing replaces it. Cursor editing supports decimals.
+-- Opening does not select everything: Backspace removes one character and typing appends.
+key('DEL'); assert(table.concat(texts):find('1.000│',1,true),'Delete at the end changed the value')
+key('BS'); assert(table.concat(texts):find('1.00│',1,true),'Backspace cleared the initial value')
+type_text('5'); assert(table.concat(texts):find('1.005│',1,true),'typing did not append at the cursor')
+key('HOME'); key('BS'); assert(table.concat(texts):find('│1.005',1,true),'Backspace at the start changed the value')
+-- Explicit select-all still supports clearing and replacing the entire value.
+key('Ctrl+a'); key('BS'); assert(table.concat(texts):find('1.005',1,true)==nil)
+type_text('1.000'); key('Ctrl+a')
 type_text('-12.5'); key('LEFT'); key('BS'); type_text('.'); key('END'); key('BS'); type_text('75')
 key('ENTER'); assert(saved=='-12.75',saved)
 assert(removed and closed==1 and next(keys)==nil and state['user-data/javboss/subtitle-offset-open']==false)
@@ -73,7 +80,7 @@ keys.MBTN_LEFT({event='up'}); assert(saved=='-12.75' and closed==2,'inside click
 key('ENTER'); assert(saved=='-12.5' and closed==3)
 open(); key('ESC'); assert(closed==4 and next(keys)==nil)
 input.terminate(); assert(closed==4)
-open(); key('KP_SUBTRACT'); key('KP2'); key('KP_DEC'); key('KP5'); key('KP_ENTER')
+open(); key('Ctrl+a'); key('KP_SUBTRACT'); key('KP2'); key('KP_DEC'); key('KP5'); key('KP_ENTER')
 assert(saved=='-2.5' and closed==5)
 -- Outside clicks cancel without saving, including after a resize.
 for _,size in ipairs({{960,540},{320,180},{1920,1080}}) do

@@ -73,7 +73,7 @@ end
 function api.get(options)
     api.terminate()
     overlay = overlay or mp.create_osd_overlay('ass-events')
-    dialog = {text = options.default_text or '', selected = true, submit = options.submit, closed = options.closed}
+    dialog = {text = options.default_text or '', selected = false, submit = options.submit, closed = options.closed}
     dialog.cursor = #dialog.text
     local function bind(key, handler, opts)
         local name = 'javboss-offset-' .. (#bindings + 1)
