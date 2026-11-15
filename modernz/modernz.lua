@@ -2818,10 +2818,13 @@ local function layout_subtitle_menu()
     local items = mp.get_property_native("user-data/javboss/subtitle-menu-items", {})
     local row, pad = 32, 6
     local style = "{\\bord0\\shad0\\fs16\\1c&HFFFFFF&}"
-    local width = 180
+    local width = 0
     for _, item in ipairs(items) do
-        width = math.max(width, estimate_text_width(item.label, style) + 36)
+        local label = (item.selected and "● " or "") .. item.label
+        width = math.max(width, estimate_text_width(label, style))
     end
+    -- Keep symmetric padding around the rendered labels; fall back if bounds are unavailable.
+    width = width > 0 and width + pad * 2 or 180
     width = math.min(width, 360, osc_param.playresx - 12)
     local height = row * #items + pad * 2
     local left = limit_range(6, osc_param.playresx - width - 6, (x1 + x2 - width) / 2)
@@ -2839,6 +2842,7 @@ local function layout_subtitle_menu()
         item.hover_color, item.hover_alpha = "#555555", 0
         item.eventresponder.mbtn_left_up = function() subtitle_menu_action(choice.action) end
         lo = add_layout(name)
+        lo.button.hoverstyle = osc_styles.element_hover:gsub("\\fscx%d+\\fscy%d+", "")
         lo.geometry = {x = left + pad, y = top + pad + row * (i - 0.5), an = 4, w = width - pad * 2, h = row}
         lo.layer = 101
         lo.style = style .. string.format("{\\clip(%f,%f,%f,%f)}", left + pad, top, left + width - pad, top + height)
