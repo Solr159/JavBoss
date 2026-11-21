@@ -134,14 +134,24 @@ func cacheableLookupResult(c *MetadataClient, key string, value any, err error) 
 	}
 }
 
-func lookupCacheKey(provider Provider, method, input string) string {
-	return strings.Join([]string{
+// lookupCacheKey scopes a cache entry to the site origin actually contacted, so
+// switching a provider between mirrors cannot replay another origin's results.
+func (c *MetadataClient) lookupCacheKey(provider Provider, method, input string) string {
+	return lookupCacheKey(provider, method, input, c.ProviderBaseURL(provider))
+}
+
+func lookupCacheKey(provider Provider, method, input string, discriminator ...string) string {
+	parts := []string{
 		lookupCacheKeyVersion(provider, method),
 		"jav",
 		ParseProvider(int(provider)).String(),
 		method,
 		normalizeLookupCacheInput(method, input),
-	}, ":")
+	}
+	if len(discriminator) > 0 && strings.TrimSpace(discriminator[0]) != "" {
+		parts = append(parts, discriminator[0])
+	}
+	return strings.Join(parts, ":")
 }
 
 func lookupCacheKeyVersion(provider Provider, method string) string {

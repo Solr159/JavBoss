@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/internal/ratelimit"
 	"javboss/internal/jav/scrape/metadata"
@@ -17,9 +19,40 @@ import (
 type JavBusClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
+	baseURLMu  sync.RWMutex
+	baseURL    string
 }
 
 const javBusRequestInterval = 500 * time.Millisecond
+
+// DefaultBaseURL is the official JavBus origin used when no override is configured.
+const DefaultBaseURL = "https://www.javbus.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *JavBusClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *JavBusClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 // LookupJavByCode fetches metadata for a given code.
 func (p *JavBusClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
@@ -79,12 +112,13 @@ var javBusCodeRewrites = []javBusCodeRewrite{
 // FetchGenreCategories loads the censored and uncensored JavBus genre
 // indexes and returns the category assigned to each label by JavBus.
 func (p *JavBusClient) FetchGenreCategories(ctx context.Context) ([]metadata.GenreCategory, error) {
+	base := p.BaseURL()
 	pages := []struct {
 		url        string
 		pathPrefix string
 	}{
-		{url: "https://www.javbus.com/genre", pathPrefix: "/genre/"},
-		{url: "https://www.javbus.com/uncensored/genre", pathPrefix: "/uncensored/genre/"},
+		{url: base + "/genre", pathPrefix: "/genre/"},
+		{url: base + "/uncensored/genre", pathPrefix: "/uncensored/genre/"},
 	}
 
 	seen := make(map[string]struct{})

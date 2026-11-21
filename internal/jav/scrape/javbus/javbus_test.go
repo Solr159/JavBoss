@@ -369,3 +369,52 @@ func TestParseJavBusUncensoredUsesProducerAsStudio(t *testing.T) {
 		})
 	}
 }
+
+func TestJavBusBaseURLOverride(t *testing.T) {
+	client := &http.Client{}
+	p := New(client)
+	if p.OriginURL() != DefaultBaseURL {
+		t.Fatalf("default origin = %q, want %q", p.OriginURL(), DefaultBaseURL)
+	}
+
+	var requested []*http.Request
+	client.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		requested = append(requested, req)
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Status:     "404 Not Found",
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("")),
+		}, nil
+	})
+	p.SetBaseURL("  https://mirror.javbus.test/  ")
+	if got := p.BaseURL(); got != "https://mirror.javbus.test" {
+		t.Fatalf("BaseURL() = %q", got)
+	}
+
+	if _, _, err := p.fetchJavBusDocument(context.Background(), "ABC-001"); err == nil {
+		t.Fatal("expected not found error")
+	}
+	if len(requested) != 1 {
+		t.Fatalf("requests = %d, want 1", len(requested))
+	}
+	if got := requested[0].URL.String(); got != "https://mirror.javbus.test/ABC-001" {
+		t.Fatalf("request url = %q", got)
+	}
+	if got := requested[0].Header.Get("Referer"); got != "https://mirror.javbus.test/" {
+		t.Fatalf("referer = %q", got)
+	}
+}
+
+func TestJavBusBaseURLFallsBackOnInvalidValue(t *testing.T) {
+	p := New(&http.Client{})
+	p.SetBaseURL("https://mirror.javbus.test/path")
+	if got := p.BaseURL(); got != DefaultBaseURL {
+		t.Fatalf("BaseURL() = %q, want default after invalid value", got)
+	}
+	p.SetBaseURL("https://mirror.javbus.test")
+	p.SetBaseURL("")
+	if got := p.OriginURL(); got != DefaultBaseURL {
+		t.Fatalf("OriginURL() = %q, want default after reset", got)
+	}
+}

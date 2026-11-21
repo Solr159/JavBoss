@@ -4,7 +4,11 @@ import { IconButton } from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
 
-import { checkProviderAvailability, fetchAvailabilityProviders } from '@/features/settings/api'
+import {
+  checkProviderAvailability,
+  fetchAvailabilityProviders,
+  updateProviderBaseURL,
+} from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import { runProviderChecks } from '@/utils/providerAvailability'
@@ -56,6 +60,90 @@ function resultLabel(result) {
     default:
       return zh('未检测', 'Not checked')
   }
+}
+
+function ProviderBaseURLField({ provider, name, disabled, onSaved }) {
+  const [draft, setDraft] = useState(provider.base_url || '')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setDraft(provider.base_url || '')
+  }, [provider.base_url])
+
+  const save = async (value) => {
+    if (saving || disabled) return
+    const next = String(value || '').trim()
+    if (next === (provider.base_url || '')) {
+      setDraft(provider.base_url || '')
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateProviderBaseURL(provider.id, next)
+      setDraft(updated.base_url || '')
+      onSaved?.(updated)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form
+      className="space-y-1"
+      onSubmit={(event) => {
+        event.preventDefault()
+        save(draft)
+      }}
+    >
+      <div className="flex flex-wrap items-center gap-1.5">
+        <input
+          type="text"
+          inputMode="url"
+          autoComplete="off"
+          spellCheck={false}
+          value={draft}
+          placeholder={provider.default_base_url || ''}
+          aria-label={zh(`自定义 ${name} 站点地址`, `Custom ${name} URL`)}
+          disabled={disabled || saving}
+          onChange={(event) => setDraft(event.target.value)}
+          className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] leading-4 text-zinc-800 placeholder:text-zinc-400 focus:border-ui-primary focus:outline-none disabled:opacity-60 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:placeholder:text-ui-faint"
+        />
+        <button
+          type="submit"
+          disabled={disabled || saving}
+          className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-700 transition hover:border-zinc-300 disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary"
+        >
+          {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+        </button>
+        {provider.base_url ? (
+          <button
+            type="button"
+            onClick={() => save('')}
+            disabled={disabled || saving}
+            className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-700 transition hover:border-zinc-300 disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary"
+          >
+            {zh('默认地址', 'Default')}
+          </button>
+        ) : null}
+      </div>
+      {error ? (
+        <p role="alert" className="text-[11px] leading-4 text-red-600 dark:text-red-300">
+          {error}
+        </p>
+      ) : (
+        <p className="text-[10px] leading-4 text-zinc-400 dark:text-ui-faint">
+          {zh(
+            '留空使用默认地址，仅支持站点地址（不含路径）',
+            'Leave empty for the default site; origin only'
+          )}
+        </p>
+      )}
+    </form>
+  )
 }
 
 export default function ProviderAvailabilityPanel({ disabled = false }) {
@@ -145,6 +233,27 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
     )
   }
 
+  const applyProviderUpdate = (updated) => {
+    setProviders((current) =>
+      current.map((provider) =>
+        provider.id === updated.provider
+          ? {
+              ...provider,
+              base_url: updated.base_url,
+              default_base_url: updated.default_base_url,
+              domain: updated.domain,
+            }
+          : provider
+      )
+    )
+    setResults((current) => {
+      if (!(updated.provider in current)) return current
+      const next = { ...current }
+      delete next[updated.provider]
+      return next
+    })
+  }
+
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ui-border dark:bg-ui-surface">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -156,6 +265,12 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
             {zh(
               '使用当前代理设置执行真实查询，成功获取并解析数据后视为可用',
               'Run a real lookup using the current proxy settings; success requires parsed data'
+            )}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
+            {zh(
+              '可为每个数据源填写自定义站点地址替代默认地址，修改后需重新检测',
+              'Each source accepts a custom site origin instead of the default; re-check after saving'
             )}
           </p>
           {disabled && (
@@ -236,8 +351,13 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                   <div className="text-[13px] font-semibold leading-5 text-zinc-800 dark:text-ui-text">
                     {name}
                   </div>
-                  <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
-                    {provider.domain}
+                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
+                    <span className="break-all">{provider.domain}</span>
+                    {provider.base_url ? (
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                        {zh('自定义', 'Custom')}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="mt-1 text-[11px] text-zinc-500 dark:text-ui-faint">
                     {zh('测试查询：', 'Test lookup: ')}
@@ -271,6 +391,14 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                   </span>
                 </Tooltip>
               </div>
+              {provider.configurable ? (
+                <ProviderBaseURLField
+                  provider={provider}
+                  name={name}
+                  disabled={disabled || checking}
+                  onSaved={applyProviderUpdate}
+                />
+              ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span
                   className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${color}`}

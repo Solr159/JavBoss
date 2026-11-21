@@ -373,6 +373,7 @@ func applyRuntimeConfig(ctx context.Context) map[string]string {
 		return nil
 	}
 	util.SetProxySettings(cfg["proxy_mode"], cfg["proxy_host"], cfg["proxy_port"])
+	scrape.ApplyProviderBaseURLConfig(cfg)
 	return cfg
 }
 

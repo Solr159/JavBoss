@@ -128,8 +128,9 @@ func isAvsoxSessionAuthError(err error) bool {
 }
 
 func (p *AvsoxClient) fetchAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
-	pageURL := fmt.Sprintf("%s/%s/search/%s", avsoxBaseURL, avsoxAPILanguage, url.PathEscape(code))
-	req, err := buildAvsoxRequest(ctx, pageURL, avsoxBaseURL)
+	base := p.BaseURL()
+	pageURL := fmt.Sprintf("%s/%s/search/%s", base, avsoxAPILanguage, url.PathEscape(code))
+	req, err := buildAvsoxRequest(ctx, pageURL, base)
 	if err != nil {
 		return avsoxSession{}, err
 	}
@@ -220,7 +221,7 @@ func (p *AvsoxClient) postAvsoxAPIOnce(ctx context.Context, session avsoxSession
 	if err != nil {
 		return err
 	}
-	targetURL := avsoxBaseURL + path
+	targetURL := p.BaseURL() + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -229,7 +230,7 @@ func (p *AvsoxClient) postAvsoxAPIOnce(ctx context.Context, session avsoxSession
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", avsoxBaseURL)
+	req.Header.Set("Origin", p.BaseURL())
 	req.Header.Set("Referer", session.referer)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("X-CSRF-Token", session.csrfToken)
@@ -326,4 +327,4 @@ type avsoxStatusError struct {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *AvsoxClient) OriginURL() string { return avsoxBaseURL }
+func (p *AvsoxClient) OriginURL() string { return p.BaseURL() }

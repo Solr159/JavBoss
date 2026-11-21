@@ -123,7 +123,7 @@ func TestAvmooMovieInfoFromAPI(t *testing.T) {
 		t.Fatalf("unmarshal avmoo api fixture: %v", err)
 	}
 
-	info := avmooMovieInfoFromAPI(&movie)
+	info := avmooMovieInfoFromAPI(&movie, DefaultBaseURL)
 	if info == nil {
 		t.Fatal("expected info, got nil")
 	}

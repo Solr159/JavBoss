@@ -211,7 +211,7 @@ func TestAvsoxMovieDetailURL(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := avsoxMovieDetailURL(test.movie); got != test.want {
+			if got := avsoxMovieDetailURL(test.movie, DefaultBaseURL); got != test.want {
 				t.Fatalf("detail URL = %q, want %q", got, test.want)
 			}
 		})

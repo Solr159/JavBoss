@@ -18,11 +18,14 @@ import (
 type ProviderOrigin interface{ OriginURL() string }
 
 type AvailabilityProvider struct {
-	ID         Provider            `json:"id"`
-	Name       string              `json:"name"`
-	Domain     string              `json:"domain"`
-	Sample     string              `json:"sample"`
-	LastResult *AvailabilityResult `json:"last_result,omitempty"`
+	ID             Provider            `json:"id"`
+	Name           string              `json:"name"`
+	Domain         string              `json:"domain"`
+	Sample         string              `json:"sample"`
+	BaseURL        string              `json:"base_url"`
+	DefaultBaseURL string              `json:"default_base_url"`
+	Configurable   bool                `json:"configurable"`
+	LastResult     *AvailabilityResult `json:"last_result,omitempty"`
 }
 
 type AvailabilityResult struct {
@@ -95,7 +98,14 @@ func (c *MetadataClient) AvailabilityProviders() []AvailabilityProvider {
 				continue
 			}
 			result = append(result, AvailabilityProvider{
-				ID: id, Name: id.String(), Domain: target.Hostname(), Sample: availabilitySample(id), LastResult: c.cachedAvailabilityResult(id),
+				ID:             id,
+				Name:           id.String(),
+				Domain:         target.Hostname(),
+				Sample:         availabilitySample(id),
+				BaseURL:        c.ProviderBaseURL(id),
+				DefaultBaseURL: DefaultProviderBaseURL(id),
+				Configurable:   DefaultProviderBaseURL(id) != "",
+				LastResult:     c.cachedAvailabilityResult(id),
 			})
 		}
 	}
@@ -144,6 +154,7 @@ func (c *MetadataClient) CheckAvailability(ctx context.Context, provider Provide
 	if err != nil {
 		return result, err
 	}
+	c.applyProviderBaseURL(provider, implementation)
 	// Query the fresh provider directly, bypassing the metadata lookup cache.
 	sample := availabilitySample(provider)
 	valid := false

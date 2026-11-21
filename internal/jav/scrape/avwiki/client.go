@@ -10,25 +10,56 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/ratelimit"
 	"javboss/internal/jav/scrape/metadata"
 )
 
-const baseURL = "https://av-wiki.net"
 const maxResponseBytes = 2 << 20
+
+// DefaultBaseURL is the official AV Wiki origin used when no override is configured.
+const DefaultBaseURL = "https://av-wiki.net"
 
 type AVWikiClient struct {
 	httpClient *http.Client
+	baseURLMu  sync.RWMutex
 	baseURL    string
 	limiter    *ratelimit.Limiter
 }
 
 // New creates a provider using the supplied non-nil HTTP client.
 func New(httpClient *http.Client) *AVWikiClient {
-	return &AVWikiClient{httpClient: httpClient, baseURL: baseURL, limiter: ratelimit.New(time.Second)}
+	return &AVWikiClient{httpClient: httpClient, limiter: ratelimit.New(time.Second)}
+}
+
+// BaseURL returns the origin currently used by this client.
+func (p *AVWikiClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *AVWikiClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
 }
 
 type actressTag struct {
@@ -118,7 +149,7 @@ func (p *AVWikiClient) fetchTags(ctx context.Context, query url.Values) ([]actre
 }
 
 func (p *AVWikiClient) request(ctx context.Context, query url.Values) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.baseURL+"/wp-json/wp/v2/tags?"+query.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.BaseURL()+"/wp-json/wp/v2/tags?"+query.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("avwiki: build request: %w", err)
 	}
@@ -132,6 +163,6 @@ func (p *AVWikiClient) request(ctx context.Context, query url.Values) (*http.Res
 	return p.httpClient.Do(req)
 }
 
-func (p *AVWikiClient) OriginURL() string { return p.baseURL }
+func (p *AVWikiClient) OriginURL() string { return p.BaseURL() }
 
 func normalizeName(value string) string { return strings.Join(strings.Fields(value), "") }
