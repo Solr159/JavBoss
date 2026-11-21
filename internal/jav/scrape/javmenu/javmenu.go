@@ -8,9 +8,11 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/htmlutil"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/internal/ratelimit"
@@ -24,13 +26,43 @@ import (
 type JavMenuClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
+	baseURLMu  sync.RWMutex
+	baseURL    string
 }
 
 const (
-	javMenuBaseURL         = "https://javmenu.com"
 	javMenuUserAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	javMenuRequestInterval = 1500 * time.Millisecond
 )
+
+// DefaultBaseURL is the official JavMenu origin used when no override is configured.
+const DefaultBaseURL = "https://javmenu.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *JavMenuClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *JavMenuClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 // LookupJavByCode fetches metadata for a given code.
 func (p *JavMenuClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
@@ -59,8 +91,9 @@ func (p *JavMenuClient) LookupJavByCode(ctx context.Context, code string) (*meta
 }
 
 func (p *JavMenuClient) fetchJavMenuDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	targetURL := fmt.Sprintf("%s/%s", javMenuBaseURL, url.PathEscape(strings.ToUpper(strings.TrimSpace(code))))
-	doc, status, err := p.fetchJavMenuHTML(ctx, targetURL, javMenuBaseURL)
+	base := p.BaseURL()
+	targetURL := fmt.Sprintf("%s/%s", base, url.PathEscape(strings.ToUpper(strings.TrimSpace(code))))
+	doc, status, err := p.fetchJavMenuHTML(ctx, targetURL, base)
 	if err != nil {
 		return nil, "", err
 	}
@@ -252,4 +285,4 @@ func New(httpClient *http.Client) *JavMenuClient {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *JavMenuClient) OriginURL() string { return javMenuBaseURL }
+func (p *JavMenuClient) OriginURL() string { return p.BaseURL() }

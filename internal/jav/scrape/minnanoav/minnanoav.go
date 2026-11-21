@@ -9,9 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/htmlutil"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/internal/ratelimit"
@@ -25,12 +27,42 @@ import (
 type MinnanoAVClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
+	baseURLMu  sync.RWMutex
+	baseURL    string
 }
 
 const (
-	minnanoAVBaseURL         = "https://www.minnano-av.com"
 	minnanoAVRequestInterval = 500 * time.Millisecond
 )
+
+// DefaultBaseURL is the official みんなのAV.com origin used when no override is configured.
+const DefaultBaseURL = "https://www.minnano-av.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *MinnanoAVClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *MinnanoAVClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 var (
 	minnanoAVActressPathPattern = regexp.MustCompile(`^/actress\d+\.html$`)
@@ -51,7 +83,7 @@ func (p *MinnanoAVClient) LookupActressByName(ctx context.Context, name string) 
 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	return p.lookupMinnanoAVActressByName(ctx, minnanoAVBaseURL, name)
+	return p.lookupMinnanoAVActressByName(ctx, p.BaseURL(), name)
 }
 
 func (p *MinnanoAVClient) lookupMinnanoAVActressByName(ctx context.Context, baseURL, name string) (*metadata.ActressInfo, error) {
@@ -369,4 +401,4 @@ func New(httpClient *http.Client) *MinnanoAVClient {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *MinnanoAVClient) OriginURL() string { return minnanoAVBaseURL }
+func (p *MinnanoAVClient) OriginURL() string { return p.BaseURL() }

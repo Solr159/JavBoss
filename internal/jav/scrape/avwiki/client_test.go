@@ -107,3 +107,21 @@ func TestCancellationWhileWaitingForLimiter(t *testing.T) {
 		t.Fatal("request made after cancellation")
 	}
 }
+
+func TestBaseURLOverride(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte("[]"))
+	})
+	if client.OriginURL() != client.baseURL {
+		t.Fatalf("OriginURL() = %q, want %q", client.OriginURL(), client.baseURL)
+	}
+	client.SetBaseURL("https://avwiki-mirror.test")
+	if got := client.BaseURL(); got != "https://avwiki-mirror.test" {
+		t.Fatalf("BaseURL() = %q", got)
+	}
+	client.SetBaseURL("nonsense")
+	if got := client.OriginURL(); got != DefaultBaseURL {
+		t.Fatalf("OriginURL() = %q, want default", got)
+	}
+}

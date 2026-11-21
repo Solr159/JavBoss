@@ -131,8 +131,9 @@ func isAvmooSessionAuthError(err error) bool {
 }
 
 func (p *AvmooClient) fetchAvmooSession(ctx context.Context, code string) (avmooSession, error) {
-	pageURL := fmt.Sprintf("%s/%s/search/%s", avmooBaseURL, avmooAPILanguage, url.PathEscape(code))
-	req, err := buildAvmooRequest(ctx, pageURL, avmooBaseURL)
+	base := p.BaseURL()
+	pageURL := fmt.Sprintf("%s/%s/search/%s", base, avmooAPILanguage, url.PathEscape(code))
+	req, err := buildAvmooRequest(ctx, pageURL, base)
 	if err != nil {
 		return avmooSession{}, err
 	}
@@ -223,7 +224,7 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 	if err != nil {
 		return err
 	}
-	targetURL := avmooBaseURL + path
+	targetURL := p.BaseURL() + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -232,7 +233,7 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "zh-TW,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", avmooBaseURL)
+	req.Header.Set("Origin", p.BaseURL())
 	req.Header.Set("Referer", session.referer)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("X-CSRF-Token", session.csrfToken)
@@ -278,8 +279,8 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 }
 
 func (p *AvmooClient) fetchAvmooDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	searchURL := fmt.Sprintf("%s/tw/search/%s", avmooBaseURL, url.PathEscape(code))
-	searchDoc, status, err := p.fetchAvmooHTML(ctx, searchURL, avmooBaseURL)
+	searchURL := fmt.Sprintf("%s/tw/search/%s", p.BaseURL(), url.PathEscape(code))
+	searchDoc, status, err := p.fetchAvmooHTML(ctx, searchURL, p.BaseURL())
 	if err != nil {
 		return nil, "", err
 	}
@@ -387,4 +388,4 @@ type avmooStatusError struct {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *AvmooClient) OriginURL() string { return avmooBaseURL }
+func (p *AvmooClient) OriginURL() string { return p.BaseURL() }

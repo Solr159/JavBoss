@@ -90,6 +90,7 @@ func RegisterRoutes(router gin.IRoutes) {
 	router.POST("/videos/tags/replace", replaceTagsForVideos)
 	router.GET("/jav", searchJav)
 	router.GET("/jav/providers", listAvailabilityProviders)
+	router.PUT("/jav/providers/:provider/base_url", updateProviderBaseURL)
 	router.POST("/jav/providers/:provider/availability", checkProviderAvailability)
 	router.POST("/jav/providers/:provider/connectivity", checkProviderAvailability) // Legacy route, same availability check.
 	router.GET("/jav/filter-options", listJavFilterOptions)

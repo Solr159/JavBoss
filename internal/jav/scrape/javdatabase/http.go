@@ -67,4 +67,4 @@ func buildJavDatabaseRequest(ctx context.Context, targetURL, referer string) (*h
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *JavDatabaseClient) OriginURL() string { return "https://www.javdatabase.com" }
+func (p *JavDatabaseClient) OriginURL() string { return p.BaseURL() }

@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/internal/ratelimit"
 	"javboss/internal/jav/scrape/metadata"
@@ -16,13 +18,43 @@ import (
 type JavDBClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
+	baseURLMu  sync.RWMutex
+	baseURL    string
 }
 
 const (
-	javDBBaseURL         = "https://javdb.com"
 	javDBUserAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	javDBRequestInterval = 500 * time.Millisecond
 )
+
+// DefaultBaseURL is the official JavDB origin used when no override is configured.
+const DefaultBaseURL = "https://javdb.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *JavDBClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *JavDBClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 // LookupActressURLByCodeAndName resolves an actress profile URL from a movie detail page.
 func (p *JavDBClient) LookupActressURLByCodeAndName(ctx context.Context, code, name string) (string, error) {
@@ -125,11 +157,11 @@ func (p *JavDBClient) LookupMovieURLByCode(ctx context.Context, code string) (st
 		return "", metadata.ErrNotFound
 	}
 
-	searchURL := javDBSearchURL(code)
+	searchURL := javDBSearchURL(p.BaseURL(), code)
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	searchDoc, status, err := p.fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
+	searchDoc, status, err := p.fetchJavDBHTML(ctx, searchURL, p.BaseURL())
 	if err != nil {
 		return "", err
 	}
@@ -150,8 +182,8 @@ func (p *JavDBClient) lookupJavDBActressURLByName(ctx context.Context, name stri
 		return "", metadata.ErrNotFound
 	}
 
-	searchURL := javDBActorSearchURL(name)
-	doc, status, err := p.fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
+	searchURL := javDBActorSearchURL(p.BaseURL(), name)
+	doc, status, err := p.fetchJavDBHTML(ctx, searchURL, p.BaseURL())
 	if err != nil {
 		return "", err
 	}

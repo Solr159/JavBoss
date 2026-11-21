@@ -28,6 +28,60 @@ window.EventSource = class extends EventTarget {
 }
 const config = { video_page_size: '25', jav_page_size: '24', initial_view_mode: 'video' }
 const jav = { id: 1, code: 'ABC-001', title: 'Test JAV', videos: [], tags: [], idols: [] }
+const providers = [
+  {
+    id: 1,
+    name: 'javbus',
+    domain: 'www.javbus.com',
+    sample: 'SSIS-001',
+    base_url: '',
+    default_base_url: 'https://www.javbus.com',
+    configurable: true,
+  },
+  {
+    id: 12,
+    name: 'javdb-api',
+    domain: 'jdforrepam.com',
+    sample: 'SSIS-001',
+    base_url: '',
+    default_base_url: '',
+    configurable: false,
+  },
+]
+const updateProviderBaseURL = (provider, body) => {
+  const raw = String(JSON.parse(body || '{}').base_url || '').trim()
+  let normalized = ''
+  if (raw) {
+    let parsed = null
+    try {
+      parsed = new URL(raw)
+    } catch {
+      parsed = null
+    }
+    const invalidOrigin =
+      !parsed ||
+      !['http:', 'https:'].includes(parsed.protocol) ||
+      parsed.username ||
+      parsed.password ||
+      parsed.search ||
+      parsed.hash ||
+      (parsed.pathname !== '/' && parsed.pathname !== '')
+    if (invalidOrigin)
+      return Response.json(
+        { error_zh: '数据源地址无效', error_en: 'Invalid provider URL' },
+        { status: 400 }
+      )
+    normalized = `${parsed.protocol}//${parsed.host}`
+  }
+  provider.base_url = normalized
+  provider.domain = new URL(normalized || provider.default_base_url).hostname
+  return Response.json({
+    provider: provider.id,
+    base_url: provider.base_url,
+    default_base_url: provider.default_base_url,
+    domain: provider.domain,
+  })
+}
 window.fetch = async (input, init = {}) => {
   const url = new URL(input, location.origin)
   window.requests.push({ url: url.pathname + url.search, method: init.method || 'GET' })
@@ -43,6 +97,12 @@ window.fetch = async (input, init = {}) => {
   if (url.pathname === '/videos/watched-time') return Response.json({ videos: [], javs: [] })
   if (url.pathname === '/downloads')
     return Response.json({ items: [], total: 0, counts: { active: 0, completed: 0, failed: 0 } })
+  if (url.pathname === '/jav/providers') return Response.json(providers)
+  if (url.pathname.startsWith('/jav/providers/') && url.pathname.endsWith('/base_url')) {
+    const provider = providers.find((item) => url.pathname === `/jav/providers/${item.id}/base_url`)
+    if (!provider) return Response.json({ error_en: 'Invalid provider' }, { status: 400 })
+    return updateProviderBaseURL(provider, init.body)
+  }
   if (url.pathname === '/jav') return Response.json({ items: [jav], total: 1 })
   if (url.pathname === '/jav/items/1') {
     if (init.method === 'PUT') Object.assign(jav, JSON.parse(init.body))

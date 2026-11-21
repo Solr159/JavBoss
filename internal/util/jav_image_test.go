@@ -42,3 +42,39 @@ func TestSetJavImageRequestHeaders(t *testing.T) {
 		})
 	}
 }
+
+func TestSetJavImageSources(t *testing.T) {
+	util.SetJavImageSources([]util.JavImageSource{
+		{Origin: "https://mirror.javbus.test/", Cookie: "age=verified; existmag=mag"},
+		{Origin: "https://mirror.avmoo.test"},
+		{Origin: "https://www.javbus.com", Cookie: "ignored=1"},
+		{Origin: "not a url"},
+	})
+	t.Cleanup(func() { util.SetJavImageSources(nil) })
+
+	for _, tc := range []struct {
+		name, host, referer, cookie string
+	}{
+		{name: "configured origin", host: "mirror.javbus.test", referer: "https://mirror.javbus.test/", cookie: "age=verified"},
+		{name: "configured subdomain", host: "img.mirror.avmoo.test", referer: "https://mirror.avmoo.test/"},
+		{name: "official host keeps built-in rules", host: "www.javbus.com", referer: "https://www.javbus.com/", cookie: "age=verified"},
+		{name: "unrelated host", host: "cdn.example.test"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, "https://"+tc.host+"/image.jpg", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			util.SetJavImageRequestHeaders(req)
+			if got := req.Header.Get("Referer"); got != tc.referer {
+				t.Fatalf("Referer = %q, want %q", got, tc.referer)
+			}
+			if got := strings.Contains(req.Header.Get("Cookie"), tc.cookie); tc.cookie != "" && !got {
+				t.Fatalf("Cookie = %q, want %q", req.Header.Get("Cookie"), tc.cookie)
+			}
+			if tc.cookie == "" && strings.Contains(req.Header.Get("Cookie"), "ignored=1") {
+				t.Fatalf("official javbus origin must not be registered: %q", req.Header.Get("Cookie"))
+			}
+		})
+	}
+}

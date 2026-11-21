@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/internal/ratelimit"
 	"javboss/internal/jav/scrape/metadata"
@@ -18,11 +20,42 @@ import (
 type JavDatabaseClient struct {
 	httpClient *http.Client
 	limiter    *ratelimit.Limiter
+	baseURLMu  sync.RWMutex
+	baseURL    string
 }
 
 var errNoActressLink = errors.New("javdatabase: actress link not found")
 
 const javDatabaseRequestInterval = 500 * time.Millisecond
+
+// DefaultBaseURL is the official JavDatabase origin used when no override is configured.
+const DefaultBaseURL = "https://www.javdatabase.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *JavDatabaseClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *JavDatabaseClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 // LookupActressByCode resolves a solo movie code to its actress profile.
 func (p *JavDatabaseClient) LookupActressByCode(ctx context.Context, code string) (*metadata.ActressInfo, error) {
@@ -36,7 +69,7 @@ func (p *JavDatabaseClient) LookupJavByCode(ctx context.Context, code string) (*
 		return nil, metadata.ErrNotFound
 	}
 
-	base := "https://www.javdatabase.com"
+	base := p.BaseURL()
 	movieURL := fmt.Sprintf("%s/movies/%s/", base, code)
 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -72,7 +105,7 @@ func (p *JavDatabaseClient) lookupActressByCode(ctx context.Context, code string
 		return nil, metadata.ErrNotFound
 	}
 
-	base := "https://www.javdatabase.com"
+	base := p.BaseURL()
 
 	movieURL := fmt.Sprintf("%s/movies/%s", base, code)
 

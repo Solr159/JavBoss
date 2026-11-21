@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/ratelimit"
 	"javboss/internal/jav/scrape/metadata"
 )
@@ -14,6 +15,8 @@ import (
 // AvsoxClient retrieves metadata from avsox.
 type AvsoxClient struct {
 	httpClient   *http.Client
+	baseURLMu    sync.RWMutex
+	baseURL      string
 	sessionCache struct {
 		sync.Mutex
 		session   avsoxSession
@@ -23,7 +26,6 @@ type AvsoxClient struct {
 }
 
 const (
-	avsoxBaseURL         = "https://avsox.click"
 	avsoxUserAgent       = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	avsoxRequestInterval = 1500 * time.Millisecond
 	avsoxAPILanguage     = "cn"
@@ -34,6 +36,35 @@ const (
 	avsoxAPIRetryDelay   = 2 * time.Second
 	avsoxSessionTTL      = 30 * time.Minute
 )
+
+// DefaultBaseURL is the official Avsox origin used when no override is configured.
+const DefaultBaseURL = "https://avsox.click"
+
+// BaseURL returns the origin currently used by this client.
+func (p *AvsoxClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *AvsoxClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
+}
 
 // LookupJavByCode fetches metadata for a given code.
 func (p *AvsoxClient) LookupJavByCode(ctx context.Context, code string) (*metadata.JavInfo, error) {
@@ -74,7 +105,7 @@ func (p *AvsoxClient) LookupMovieURLByCode(ctx context.Context, code string) (st
 	if err != nil {
 		return "", err
 	}
-	detailURL := avsoxMovieDetailURL(movie)
+	detailURL := avsoxMovieDetailURL(movie, p.BaseURL())
 	if detailURL == "" {
 		return "", metadata.ErrNotFound
 	}

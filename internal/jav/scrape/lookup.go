@@ -24,7 +24,7 @@ func (c *MetadataClient) LookupJavByCode(ctx context.Context, code string, provi
 		return nil, fmt.Errorf("%s: lookup_jav: %w", provider, ErrUnsupportedOperation)
 	}
 	input := code
-	key := lookupCacheKey(provider, "lookup_jav", input)
+	key := c.lookupCacheKey(provider, "lookup_jav", input)
 	if cached, ok, err := lookupCacheGet[JavInfo](c, key); ok {
 		return cached, err
 	}
@@ -51,7 +51,7 @@ func (c *MetadataClient) LookupActressByCode(ctx context.Context, code string, p
 		return nil, fmt.Errorf("%s: lookup_actress_code: %w", provider, ErrUnsupportedOperation)
 	}
 	input := code
-	key := lookupCacheKey(provider, "lookup_actress_code", input)
+	key := c.lookupCacheKey(provider, "lookup_actress_code", input)
 	if cached, ok, err := lookupCacheGet[ActressInfo](c, key); ok {
 		return cached, err
 	}
@@ -78,7 +78,7 @@ func (c *MetadataClient) LookupActressByJapaneseName(ctx context.Context, name s
 		return nil, fmt.Errorf("%s: lookup_actress_name: %w", provider, ErrUnsupportedOperation)
 	}
 	input := name
-	key := lookupCacheKey(provider, "lookup_actress_name", input)
+	key := c.lookupCacheKey(provider, "lookup_actress_name", input)
 	if cached, ok, err := lookupCacheGet[ActressInfo](c, key); ok {
 		return cached, err
 	}
@@ -105,7 +105,7 @@ func (c *MetadataClient) LookupActressURLByCodeAndName(ctx context.Context, code
 		return "", fmt.Errorf("%s: lookup_actress_url_code_name: %w", provider, ErrUnsupportedOperation)
 	}
 	input := strings.ToUpper(strings.TrimSpace(code)) + "|" + strings.Join(strings.Fields(name), " ")
-	key := lookupCacheKey(provider, "lookup_actress_url_code_name", input)
+	key := c.lookupCacheKey(provider, "lookup_actress_url_code_name", input)
 	if cached, ok, err := lookupCacheGet[string](c, key); ok {
 		if cached == nil {
 			return "", err
@@ -135,7 +135,7 @@ func (c *MetadataClient) LookupSeriesURLByCode(ctx context.Context, code string,
 		return "", fmt.Errorf("%s: lookup_series_url: %w", provider, ErrUnsupportedOperation)
 	}
 	input := code
-	key := lookupCacheKey(provider, "lookup_series_url", input)
+	key := c.lookupCacheKey(provider, "lookup_series_url", input)
 	if cached, ok, err := lookupCacheGet[string](c, key); ok {
 		if cached == nil {
 			return "", err
@@ -165,7 +165,7 @@ func (c *MetadataClient) LookupStudioURLByCode(ctx context.Context, code string,
 		return "", fmt.Errorf("%s: lookup_studio_url: %w", provider, ErrUnsupportedOperation)
 	}
 	input := code
-	key := lookupCacheKey(provider, "lookup_studio_url", input)
+	key := c.lookupCacheKey(provider, "lookup_studio_url", input)
 	if cached, ok, err := lookupCacheGet[string](c, key); ok {
 		if cached == nil {
 			return "", err

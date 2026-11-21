@@ -9,9 +9,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"javboss/internal/common/logging"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/internal/htmlutil"
 	"javboss/internal/jav/scrape/internal/parseutil"
 	"javboss/internal/jav/scrape/metadata"
@@ -23,6 +25,37 @@ import (
 // JavModelClient retrieves metadata from javmodel.
 type JavModelClient struct {
 	httpClient *http.Client
+	baseURLMu  sync.RWMutex
+	baseURL    string
+}
+
+// DefaultBaseURL is the official JavModel origin used when no override is configured.
+const DefaultBaseURL = "https://javmodel.com"
+
+// BaseURL returns the origin currently used by this client.
+func (p *JavModelClient) BaseURL() string {
+	if p == nil {
+		return DefaultBaseURL
+	}
+	p.baseURLMu.RLock()
+	value := p.baseURL
+	p.baseURLMu.RUnlock()
+	if strings.TrimSpace(value) == "" {
+		return DefaultBaseURL
+	}
+	return value
+}
+
+// SetBaseURL replaces the origin used for requests. Invalid values fall back to
+// the default origin so a bad persisted setting cannot break scraping.
+func (p *JavModelClient) SetBaseURL(raw string) {
+	if p == nil {
+		return
+	}
+	normalized := baseurl.NormalizeOrDefault(raw)
+	p.baseURLMu.Lock()
+	p.baseURL = normalized
+	p.baseURLMu.Unlock()
 }
 
 // LookupActressByName queries javmodel.
@@ -33,7 +66,7 @@ func (p *JavModelClient) LookupActressByName(ctx context.Context, name string) (
 	}
 	logging.Info("javmodel: name -> %s", name)
 
-	base := "https://javmodel.com"
+	base := p.BaseURL()
 	searchURL := fmt.Sprintf("%s/jav/search.html?q=%s", base, url.QueryEscape(name))
 
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
@@ -358,4 +391,4 @@ func parseBirthDateFlexible(value string) int {
 func New(httpClient *http.Client) *JavModelClient { return &JavModelClient{httpClient: httpClient} }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *JavModelClient) OriginURL() string { return "https://javmodel.com" }
+func (p *JavModelClient) OriginURL() string { return p.BaseURL() }
