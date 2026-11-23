@@ -11,6 +11,7 @@ import { CircularProgress, IconButton, Switch } from '@mui/material'
 
 import DirectoryPickerModal from '@/features/directories/components/DirectoryPickerModal'
 import DirectoryCleanupPanel from '@/features/directories/components/DirectoryCleanupPanel'
+import { fetchTools } from '@/features/settings/api'
 import AppModal from '@/shared/ui/AppModal'
 import { useStore } from '@/store'
 import { apiHostPath, displayHostPath, hostPathsEnabled } from '@/utils/hostPath'
@@ -210,6 +211,7 @@ function DirectoryRowIconButton({ label, disabled = false, children, ...props })
 export default function DirectoryManager({
   open,
   directories,
+  onOpenFFmpegTools,
   onCreate,
   onUpdate,
   onDelete,
@@ -225,6 +227,8 @@ export default function DirectoryManager({
   const picking = pickerTarget !== null
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
+  const [ffmpegPrompt, setFFmpegPrompt] = useState(null)
+  const [checkingFFmpeg, setCheckingFFmpeg] = useState(false)
 
   const [editId, setEditId] = useState(null)
   const [editPath, setEditPath] = useState('')
@@ -326,6 +330,28 @@ export default function DirectoryManager({
     const timer = window.setInterval(refresh, 1000)
     return () => window.clearInterval(timer)
   }, [onRefresh, open])
+
+  const checkFFmpeg = async () => {
+    if (!onOpenFFmpegTools) return true
+    setCheckingFFmpeg(true)
+    try {
+      const { ffmpeg } = await fetchTools()
+      if (ffmpeg.installed || ffmpeg.upgrade_available) return true
+      setFFmpegPrompt(ffmpeg)
+      return false
+    } finally {
+      setCheckingFFmpeg(false)
+    }
+  }
+
+  const handleAddDirectory = async () => {
+    setError('')
+    try {
+      if (await checkFFmpeg()) setAdding(true)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -464,6 +490,7 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
+      if (!(await checkFFmpeg())) return
       await onScan?.(dir.id)
     } catch (err) {
       setRowErrorId(dir.id)
@@ -738,7 +765,7 @@ export default function DirectoryManager({
                               'Manual scan (click to immediately scan the directory and scrape JAV metadata)'
                             )}
                             onClick={() => handleScan(d)}
-                            disabled={d.is_delete || working}
+                            disabled={d.is_delete || working || checkingFFmpeg}
                           >
                             <PlayArrowRoundedIcon fontSize="small" />
                           </DirectoryRowIconButton>
@@ -863,19 +890,70 @@ export default function DirectoryManager({
           </div>
         </form>
       )}
+      {!adding && error && (
+        <p role="alert" className="text-sm text-red-600 dark:text-red-300">
+          {error}
+        </p>
+      )}
       {!adding && (
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => {
-              setAdding(true)
-              setError('')
-            }}
+            disabled={checkingFFmpeg}
+            onClick={handleAddDirectory}
             className="rounded border px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-ui-hover"
           >
             {zh('添加目录', 'Add Directory')}
           </button>
         </div>
+      )}
+      {ffmpegPrompt && (
+        <AppModal
+          ariaLabelledby="directory-ffmpeg-title"
+          contentProps={{ 'aria-describedby': 'directory-ffmpeg-description' }}
+          className="p-4"
+          contentClassName="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl dark:bg-ui-surface"
+          onClose={() => setFFmpegPrompt(null)}
+          zIndex={1400}
+        >
+          <h3 id="directory-ffmpeg-title" className="font-semibold text-zinc-900 dark:text-ui-text">
+            {ffmpegPrompt.downloading
+              ? zh('正在下载 FFmpeg', 'Downloading FFmpeg')
+              : zh('尚未安装 FFmpeg', 'FFmpeg is not installed')}
+          </h3>
+          <p
+            id="directory-ffmpeg-description"
+            className="mt-2 text-sm text-zinc-600 dark:text-ui-secondary"
+          >
+            {ffmpegPrompt.downloading
+              ? zh('请等待安装完成后再继续。', 'Wait for installation to finish before continuing.')
+              : zh(
+                  'macOS 需要 FFmpeg 生成视频缩略图。请先到「工具」下载并安装。',
+                  'FFmpeg is needed to generate video thumbnails on macOS. Download and install it in Tools.'
+                )}
+          </p>
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              className="rounded border px-3 py-1.5 text-sm"
+              onClick={() => setFFmpegPrompt(null)}
+            >
+              {zh('取消', 'Cancel')}
+            </button>
+            <button
+              type="button"
+              className="rounded bg-ui-primary px-3 py-1.5 text-sm text-white"
+              onClick={() => {
+                setFFmpegPrompt(null)
+                onOpenFFmpegTools()
+              }}
+            >
+              {ffmpegPrompt.downloading
+                ? zh('查看下载进度', 'View progress')
+                : zh('前往下载安装', 'Go to download')}
+            </button>
+          </div>
+        </AppModal>
       )}
       {(toolDirectory || cleanupDirectory) && (
         <AppModal

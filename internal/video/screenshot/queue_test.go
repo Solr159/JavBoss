@@ -24,6 +24,8 @@ func TestBuildFFmpegScreenshotArgsIncludesHeadlessImageOptions(t *testing.T) {
 		"1",
 		"-q:v",
 		"2",
+		"-vf",
+		"scale=round(iw*sar):ih,setsar=1",
 		"/tmp/screenshots/00000001.jpg",
 	}
 	for _, option := range required {

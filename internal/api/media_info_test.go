@@ -42,13 +42,13 @@ func TestPlaybackInfoAndHLSUsePersistedMediaInfoForSelectedLocation(t *testing.T
 	if err := os.MkdirAll(trimmedDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	video := models.Video{Fingerprint: "persisted", Size: 5, DurationSec: 12, MediaInfo: models.MediaInfo{Version: models.MediaInfoVersion, Container: "mp4", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080, DurationSeconds: 12.25}}
+	video := models.Video{Fingerprint: "persisted", Size: 5, DurationSec: 12, MediaInfo: models.MediaInfo{Version: models.MediaInfoVersion, Container: "avi", FormatName: "mov", VideoCodec: "h264", AudioCodec: "aac", Width: 1920, Height: 1080, DurationSeconds: 12.25}}
 	if err := conn.Create(&video).Error; err != nil {
 		t.Fatal(err)
 	}
 	var locationIDs []int64
 	contents := []string{"first", "other"}
-	for i, name := range []string{"第一个 + #&%.mp4", "second + #&%.mp4"} {
+	for i, name := range []string{"第一个 + #&%.avi", "second + #&%.mp4"} {
 		path := filepath.Join(dir.Path, name)
 		// These files cannot be probed as video. Success demonstrates the database path.
 		if err := os.WriteFile(path, []byte(contents[i]), 0600); err != nil {
@@ -126,7 +126,7 @@ func TestPlaybackInfoAndHLSUsePersistedMediaInfoForSelectedLocation(t *testing.T
 				if err := json.Unmarshal(response.Body.Bytes(), &info); err != nil {
 					t.Fatal(err)
 				}
-				if info.LocationID != locationID || len(info.Sources) != 2 || info.Sources[0].Kind != "direct" {
+				if info.LocationID != locationID || len(info.Sources) != 2 || info.Sources[0].Kind != "direct" || info.PreferredKind != "direct" || info.Sources[0].MimeType != "video/mp4" {
 					t.Fatalf("unexpected playback info: %+v", info)
 				}
 				// Follow the advertised URL, including encoded path characters, and
@@ -141,7 +141,7 @@ func TestPlaybackInfoAndHLSUsePersistedMediaInfoForSelectedLocation(t *testing.T
 					queries = 0
 					router.ServeHTTP(directResponse, directRequest)
 					want := contents[max(0, index-1)][span[0] : span[1]+1]
-					if queries != 0 || directResponse.Code != http.StatusPartialContent || directResponse.Body.String() != want {
+					if queries != 0 || directResponse.Code != http.StatusPartialContent || directResponse.Header().Get("Content-Type") != "video/mp4" || directResponse.Body.String() != want {
 						t.Fatalf("direct Range: queries=%d status=%d body=%q, want 0/206/%q", queries, directResponse.Code, directResponse.Body.String(), want)
 					}
 				}

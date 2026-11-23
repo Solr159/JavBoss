@@ -220,7 +220,7 @@ func buildPlaybackInfo(video *models.Video, locationID int64, probe *util.Playba
 	if mimeType := directMimeType(probe.Container); mimeType != "" {
 		info.Sources = append(info.Sources, playbackSource{
 			Kind:     "direct",
-			Src:      buildDirectStreamURL(video),
+			Src:      buildDirectStreamURL(video, probe.Container),
 			MimeType: mimeType,
 			Label:    "Direct",
 		})
@@ -381,14 +381,15 @@ func directMimeType(container string) string {
 	}
 }
 
-func buildDirectStreamURL(video *models.Video) string {
+func buildDirectStreamURL(video *models.Video, container string) string {
 	if video == nil {
 		return ""
 	}
 	streamURL := "/videos/" + strconv.FormatInt(video.ID, 10) + "/stream"
 	query := url.Values{
-		"path":     {video.Path},
-		"dir_path": {video.DirectoryRef.Path},
+		"container": {container},
+		"path":      {video.Path},
+		"dir_path":  {video.DirectoryRef.Path},
 	}
 	return streamURL + "?" + query.Encode()
 }
@@ -438,6 +439,10 @@ func serveVideoFile(c *gin.Context, fullPath string) {
 	}
 	if err := http.NewResponseController(c.Writer).SetWriteDeadline(time.Time{}); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		logging.Error("disable video stream write deadline error: %v", err)
+	}
+	// The advertised container also applies to Range and HEAD responses.
+	if mimeType := directMimeType(c.Query("container")); mimeType != "" {
+		c.Header("Content-Type", mimeType)
 	}
 	c.File(fullPath)
 }

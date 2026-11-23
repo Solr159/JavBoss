@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -45,8 +46,7 @@ var ffmpegDownloads = map[string]ffmpegDownload{
 		binarySHA256: "9eac5b2b5076db5ff853a6fa0dcd6b8de7d0cac8481eadda6c47cd935825f1ee",
 	},
 	// TODO: macOS 暂时保留 FFmpeg 6.1.1。Shaka 8.1.2 构建最低要求 macOS 15，
-	// 无法兼容目前仍需支持的 macOS 12–14；其他兼容构建又会让发布包增大 20 MB
-	// 以上。等 macOS 15 已足够老、可作为项目最低支持版本时再升级。
+	// 无法兼容目前仍需支持的 macOS 12–14。
 	"darwin/amd64": {
 		version:      "6.1.1",
 		url:          "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.1.1/ffmpeg-darwin-x64.gz",
@@ -84,7 +84,6 @@ type installer struct {
 	context     context.Context
 	targetPath  string
 	displayPath string
-	bundledDir  string
 	tempDir     string
 	version     string
 	downloadURL string
@@ -113,7 +112,6 @@ func newInstaller(ctx context.Context, baseDir string) *installer {
 		context:       ctx,
 		targetPath:    filepath.Join(baseDir, relativePath),
 		displayPath:   filepath.ToSlash(relativePath),
-		bundledDir:    filepath.Join(baseDir, "internal", "bin"),
 		tempDir:       os.TempDir(),
 		version:       download.version,
 		downloadURL:   download.url,
@@ -125,7 +123,6 @@ func newInstaller(ctx context.Context, baseDir string) *installer {
 	}
 	if manager.containerMode {
 		manager.displayPath = util.ContainerFFBinaryDir + "/ffmpeg"
-		manager.bundledDir = util.ContainerFFBinaryDir
 		manager.downloadURL = ""
 		return manager
 	}
@@ -197,23 +194,10 @@ func (m *installer) detectInstallation() (bool, string, bool) {
 		}
 		return false, "", false
 	}
-	if m.resolveFFmpeg != nil {
-		if resolvedPath, err := m.resolveFFmpeg(); err == nil && isUsableFFmpegFile(resolvedPath) {
-			switch {
-			case sameFilePath(resolvedPath, m.targetPath):
-				if managedFFmpegIsCurrent(m.targetPath, m.binarySHA) {
-					return true, "downloaded", false
-				}
-				return false, "", true
-			case pathWithinDirectory(resolvedPath, m.bundledDir):
-				return true, "builtin", false
-			}
-		}
-	}
 	if managedFFmpegIsCurrent(m.targetPath, m.binarySHA) {
 		return true, "downloaded", false
 	}
-	return false, "", managedFFmpegNeedsUpgrade(m.targetPath, m.binarySHA)
+	return false, "", isUsableFFmpegFile(m.targetPath)
 }
 
 func managedFFmpegIsCurrent(targetPath, binarySHA string) bool {
@@ -432,7 +416,14 @@ func (r *downloadProgressReader) Read(p []byte) (int, error) {
 
 func isUsableFFmpegFile(path string) bool {
 	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	_, err = exec.LookPath(path)
+	return err == nil
 }
 
 func fileMatchesSHA256(path string, expectedSHA string) bool {
@@ -447,28 +438,6 @@ func fileMatchesSHA256(path string, expectedSHA string) bool {
 		return false
 	}
 	return strings.EqualFold(hex.EncodeToString(hasher.Sum(nil)), strings.TrimSpace(expectedSHA))
-}
-
-func sameFilePath(left string, right string) bool {
-	leftInfo, leftErr := os.Stat(left)
-	rightInfo, rightErr := os.Stat(right)
-	if leftErr == nil && rightErr == nil {
-		return os.SameFile(leftInfo, rightInfo)
-	}
-	return filepath.Clean(left) == filepath.Clean(right)
-}
-
-func pathWithinDirectory(path string, directory string) bool {
-	if strings.TrimSpace(path) == "" || strings.TrimSpace(directory) == "" {
-		return false
-	}
-	relativePath, err := filepath.Rel(directory, path)
-	if err != nil {
-		return false
-	}
-	return relativePath != ".." &&
-		relativePath != "." &&
-		!strings.HasPrefix(relativePath, ".."+string(filepath.Separator))
 }
 
 func validateFFmpeg(parent context.Context, path string) error {

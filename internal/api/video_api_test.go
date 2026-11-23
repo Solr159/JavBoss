@@ -553,7 +553,7 @@ func TestPlaybackInfoAdvertisesNativeCandidates(t *testing.T) {
 				t.Fatalf("unexpected playback metadata: %+v", info)
 			}
 			if tt.mime != "" {
-				if len(info.Sources) != 2 || info.Sources[0].Kind != "direct" || info.Sources[0].MimeType != tt.mime || info.Sources[0].Src != "/videos/42/stream?dir_path=%2Fmedia&path=sample.mp4" {
+				if len(info.Sources) != 2 || info.Sources[0].Kind != "direct" || info.Sources[0].MimeType != tt.mime || info.Sources[0].Src != "/videos/42/stream?container="+tt.container+"&dir_path=%2Fmedia&path=sample.mp4" {
 					t.Fatalf("missing native playback candidate: %+v", info.Sources)
 				}
 			} else if len(info.Sources) != 1 {

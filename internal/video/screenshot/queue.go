@@ -457,6 +457,9 @@ func buildFFmpegScreenshotArgs(second float64, outputPath string, videoPath stri
 	if preview {
 		args = append([]string{"-threads", previewDecodeThreads(), "-filter_threads", "1"}, args...)
 		args = append(args, "-vf", "scale=320:180:force_original_aspect_ratio=decrease", "-threads", "1", "-vsync", "0")
+	} else {
+		// Bake the display aspect ratio into the JPEG's pixel dimensions for browsers.
+		args = append(args, "-vf", "scale=round(iw*sar):ih,setsar=1")
 	}
 	return append(args, outputPath)
 }

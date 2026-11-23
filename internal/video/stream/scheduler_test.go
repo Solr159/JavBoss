@@ -1,0 +1,269 @@
+package stream
+
+import (
+	"context"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"testing"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+
+	"javboss/internal/models"
+	"javboss/internal/util"
+)
+
+func TestPublishOnlyCompleteSegments(t *testing.T) {
+	output := t.TempDir()
+	staging := t.TempDir()
+	s := &runningStream{outputDir: output, streamType: StreamTypeHLS, tp: &transcodeProcess{stagingDir: staging, nextSegment: 3, batch: &segmentBatch{dir: output, first: 3, end: 3}}}
+	for path, content := range map[string]string{filepath.Join(output, "3.ts"): "cached", filepath.Join(staging, "3.ts"): "duplicate", filepath.Join(staging, "4.ts.tmp"): "partial"} {
+		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	s.publishSegments()
+	b, err := os.ReadFile(filepath.Join(output, "3.ts"))
+	if err != nil || string(b) != "cached" || s.tp.nextSegment != 4 || segmentExists(filepath.Join(output, "4.ts")) {
+		t.Fatalf("unexpected published files: cached=%q next=%d err=%v", b, s.tp.nextSegment, err)
+	}
+	if err := os.Rename(filepath.Join(staging, "4.ts.tmp"), filepath.Join(staging, "4.ts")); err != nil {
+		t.Fatal(err)
+	}
+	// The periodic scan must recover even if the filesystem delivered no event.
+	sm := newStreamer(output)
+	s.lastAccessed = time.Now()
+	sm.runningStreams["movie"] = s
+	sm.monitorStreams()
+	if !segmentExists(filepath.Join(output, "4.ts")) || s.tp.nextSegment != 5 {
+		t.Fatal("completed last segment was not published")
+	}
+}
+
+func TestSegmentRequestsWakeWithoutPolling(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fixture uses a shell executable")
+	}
+	t.Chdir(t.TempDir())
+	t.Setenv("JAVBOSS_BUILD_MODE", "development")
+	t.Setenv("JAVBOSS_CONTAINER", "")
+	tool := util.FFmpegToolRelativePath()
+	if err := os.MkdirAll(filepath.Dir(tool), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// The test drives filesystem publication; this process stays alive until a seek cancels it.
+	if err := os.WriteFile(tool, []byte("#!/bin/sh\nexec sleep 60\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	sm := newStreamer(t.TempDir())
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sm.watcher = watcher
+	go sm.watchSegments(watcher)
+	go func() {
+		for {
+			select {
+			case <-sm.context.Done():
+				return
+			case <-sm.wake:
+				sm.monitorStreams()
+			}
+		}
+	}()
+	t.Cleanup(sm.Stop)
+	request := func(ctx context.Context, idx int) <-chan string {
+		done := make(chan string, 1)
+		go func() {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest("GET", "/segment", nil).WithContext(ctx)
+			sm.ServeSegment(rec, req, Options{StreamType: StreamTypeHLS, Key: "movie", MediaInfo: &models.MediaInfo{Version: models.MediaInfoVersion, DurationSeconds: 1200}, Segment: strconv.Itoa(idx) + ".ts"})
+			done <- rec.Body.String()
+		}()
+		return done
+	}
+	waitProcess := func(target, waiters int) string {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			sm.streamsMutex.Lock()
+			s := sm.runningStreams["movie_hls"]
+			var dir string
+			if s != nil && s.tp != nil && s.tp.nextSegment == target && len(s.waitingSegments) == waiters {
+				dir = s.tp.stagingDir
+			}
+			sm.streamsMutex.Unlock()
+			if dir != "" {
+				return dir
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("no process for segment %d with %d waiters", target, waiters)
+		return ""
+	}
+	expect := func(done <-chan string, want string) {
+		t.Helper()
+		select {
+		case got := <-done:
+			if got != want {
+				t.Fatalf("segment = %q, want %q", got, want)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("request waited for polling")
+		}
+	}
+	publish := func(dir string, idx int, data string) {
+		t.Helper()
+		final := filepath.Join(dir, strconv.Itoa(idx)+".ts")
+		if err := os.WriteFile(final+".tmp", []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Rename(final+".tmp", final); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ctx := t.Context()
+	a := request(ctx, 1)
+	dir := waitProcess(1, 1)
+	// The current batch owns both a pending segment and subsequent cache hits.
+	flat := filepath.Join(sm.cacheDir, "movie_hls", "1.ts")
+	if err := os.WriteFile(flat, []byte("legacy"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	b := request(ctx, 1)
+	if waitProcess(1, 2) != dir {
+		t.Fatal("duplicate request restarted FFmpeg")
+	}
+	publish(dir, 1, "first")
+	expect(a, "first")
+	expect(b, "first")
+	expect(request(ctx, 1), "first")
+	// Fill the buffer without another request. Cache hits should release the
+	// same parked process only after the low watermark is reached.
+	waitPaused := func(want bool) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			sm.streamsMutex.Lock()
+			tp := sm.runningStreams["movie_hls"].tp
+			same := tp != nil && tp.stagingDir == dir
+			ok := same && tp.paused == want
+			sm.streamsMutex.Unlock()
+			if !same {
+				t.Fatal("encoder was replaced during sequential playback")
+			}
+			if ok {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("encoder paused state did not reach %v", want)
+	}
+	for i := 2; i <= 16; i++ {
+		publish(dir, i, strconv.Itoa(i))
+	}
+	waitPaused(true)
+	expect(request(ctx, 3), "3")
+	waitPaused(true)
+	expect(request(ctx, 11), "11")
+	waitPaused(false)
+	for i := 17; i <= 26; i++ {
+		publish(dir, i, strconv.Itoa(i))
+	}
+	waitPaused(true)
+	stale, cancel := context.WithCancel(ctx)
+	defer cancel()
+	skipped := request(stale, 120)
+	waitProcess(120, 1)
+	cancel()
+	expect(skipped, "")
+	end := request(ctx, 300)
+	dir = waitProcess(300, 1)
+	publish(dir, 300, "target")
+	expect(end, "target")
+	expect(request(ctx, 1), "first")
+}
+
+func TestCachedSegmentServedWithoutProbeOrMonitor(t *testing.T) {
+	sm := newStreamer(t.TempDir())
+	t.Cleanup(sm.Stop)
+	dir := filepath.Join(sm.cacheDir, StreamTypeHLS.FileDir("movie", 0))
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "3.ts"), []byte("cached"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	request := httptest.NewRequest("GET", "/3.ts", nil)
+	request.Header.Set("Range", "bytes=1-3")
+	rec := httptest.NewRecorder()
+	sm.ServeSegment(rec, request, Options{StreamType: StreamTypeHLS, SourcePath: "missing.avi", Duration: 20, Key: "movie", Segment: "3.ts"})
+	if rec.Code != 206 || rec.Header().Get("Content-Type") != MimeMpegTS || rec.Body.String() != "ach" {
+		t.Fatalf("cached response = %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBatchContinuityAcrossSeekAndOverlap(t *testing.T) {
+	s := &runningStream{outputDir: t.TempDir()}
+	old := s.batchFor(25, 0, "25.ts")
+	old.end = 50
+	s.selected = old
+	next := s.batchFor(0, 49, "0.ts")
+	next.end = 25
+	s.selected = next
+	s.tp = &transcodeProcess{batch: next, ctx: t.Context(), nextSegment: 25}
+	if got := s.batchFor(25, 24, "25.ts"); got != next {
+		t.Fatal("sequential request crossed into the old encoder timeline")
+	}
+	// A distant seek into the tail of a retired batch must not replay a long prefix.
+	fresh := s.batchFor(45, 24, "45.ts")
+	if fresh.first != 45 || fresh == old {
+		t.Fatal("distant seek did not start at the target")
+	}
+	// Reusing a nearby cached start can extend that same timeline.
+	s.selected = fresh
+	s.tp = &transcodeProcess{batch: fresh, ctx: t.Context(), nextSegment: 45}
+	if err := os.MkdirAll(old.dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old.dir, "27.ts"), []byte("cached"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.batchFor(27, 45, "27.ts"); got != old {
+		t.Fatal("nearby cached seek was not reused")
+	}
+}
+
+func TestBatchReplayBoundUsesEncoderPosition(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		next   int // -1 means replay would start at batch.first
+		target int
+		reuse  bool
+	}{
+		{"restart far behind missing target", 2, 1000, false},
+		{"no encoder to extend cached tail", -1, 1000, false},
+		{"cached tail still served", 2, 999, true},
+		{"missing file within cached prefix", 2, 998, false},
+		{"encoder nearly caught up", 995, 1000, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b := &segmentBatch{first: 0, end: 1000, dir: t.TempDir()}
+			s := &runningStream{outputDir: t.TempDir(), selected: b, batches: []*segmentBatch{b}}
+			if tc.next >= 0 {
+				s.tp = &transcodeProcess{batch: b, ctx: t.Context(), nextSegment: tc.next}
+			}
+			if err := os.WriteFile(filepath.Join(b.dir, "999.ts"), []byte("cached"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			got := s.batchFor(tc.target, tc.target-1, strconv.Itoa(tc.target)+".ts")
+			if (got == b) != tc.reuse || (!tc.reuse && got.first != tc.target) {
+				t.Fatalf("target %d selected batch starting at %d", tc.target, got.first)
+			}
+		})
+	}
+}

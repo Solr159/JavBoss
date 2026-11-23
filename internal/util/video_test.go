@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 )
 
@@ -128,7 +126,7 @@ func makeMPEGTransportStreamHeader(packetSize, syncOffset int) []byte {
 }
 
 func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
-	if got := detectContainer("rm", "/videos/sample.rmvb"); got != "rmvb" {
+	if got := detectContainer("rm", "/videos/sample.rmvb", ""); got != "rmvb" {
 		t.Fatalf("detectContainer() = %q, want %q", got, "rmvb")
 	}
 }
@@ -213,7 +211,7 @@ func TestFindFFmpegPathOnlyUsesProjectFiles(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			if source == "bundled" && runtime.GOOS != "darwin" {
+			if source == "bundled" {
 				want = ""
 			}
 			got, err := findFFmpegPath()
@@ -277,20 +275,18 @@ func TestReleaseFFBinaryLookupOnlyUsesExecutableDirectory(t *testing.T) {
 				calls := 0
 				lookup := func(candidate string) (string, error) {
 					calls++
-					rel, err := filepath.Rel(execDir, candidate)
-					if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
-						t.Errorf("release looked outside executable directory: %q", candidate)
-						// A working-directory or system binary would be available.
+					if candidate != want {
+						t.Errorf("unexpected release lookup path: %q, want %q", candidate, want)
 						return candidate, nil
 					}
-					if installed && candidate == want {
+					if installed {
 						return candidate, nil
 					}
 					return "", os.ErrNotExist
 				}
 				got, err := findFFBinaryPathWithLookup(name, lookup)
-				if calls == 0 {
-					t.Fatal("executable directory was not checked")
+				if calls != 1 {
+					t.Fatalf("lookup calls = %d, want 1", calls)
 				}
 				if installed {
 					if err != nil || got != want {
@@ -339,34 +335,16 @@ func TestDockerFFBinaryLookupOnlyUsesFixedImagePath(t *testing.T) {
 	}
 }
 
-func TestFFBinaryCandidatesForBasePlatformOrder(t *testing.T) {
-	baseDir := filepath.Join("project", "root")
-	binName := "ffmpeg"
-	toolPath := filepath.Join("data", "tools", "platform", binName)
-	bundledPath := filepath.Join(baseDir, "internal", "bin", binName)
-	downloadedPath := filepath.Join(baseDir, toolPath)
-
-	tests := []struct {
-		name string
-		goos string
-		want []string
-	}{
-		{name: "macOS prioritizes bundled FFmpeg", goos: "darwin", want: []string{bundledPath, downloadedPath}},
-		{name: "Windows only uses tool downloads", goos: "windows", want: []string{downloadedPath}},
-		{name: "Linux only uses tool downloads", goos: "linux", want: []string{downloadedPath}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ffBinaryCandidatesForBase(baseDir, "ffmpeg", binName, tt.goos, toolPath)
-			if len(got) != len(tt.want) {
-				t.Fatalf("candidate count = %d, want %d", len(got), len(tt.want))
-			}
-			for index := range tt.want {
-				if got[index] != tt.want[index] {
-					t.Fatalf("candidate[%d] = %q, want %q", index, got[index], tt.want[index])
-				}
-			}
-		})
+func TestContainerFromProbeWithMisleadingExtension(t *testing.T) {
+	for _, tt := range []struct{ format, name, brand, want string }{
+		{"mov,mp4,m4a,3gp,3g2,mj2", "MBD-152.avi", "isom", "mp4"},
+		{"mov,mp4,m4a,3gp,3g2,mj2", "movie.avi", "qt  ", "mov"},
+		{"avi", "movie.mp4", "", "avi"},
+		{"matroska,webm", "movie.webm", "", "webm"},
+		{"matroska,webm", "movie.avi", "", "mkv"},
+	} {
+		if got := detectContainer(tt.format, tt.name, tt.brand); got != tt.want {
+			t.Errorf("%s (%s): got %q, want %q", tt.name, tt.format, got, tt.want)
+		}
 	}
 }

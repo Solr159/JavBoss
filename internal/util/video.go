@@ -169,7 +169,7 @@ func ResolveFFprobePath() (string, error) {
 }
 
 // ResolveFFmpegPath uses only the fixed image path in Docker. Native installations
-// use tool downloads, with a bundled executable also supported on macOS.
+// use the executable downloaded from Tools.
 // Release builds resolve paths only relative to the executable directory.
 func ResolveFFmpegPath() (string, error) {
 	return findFFmpegPath()
@@ -223,52 +223,31 @@ func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)
 		binName = name + ".exe"
 	}
 
+	relativePath := filepath.Join("internal", "bin", binName)
+	if name == "ffmpeg" {
+		relativePath = FFmpegToolRelativePath()
+	}
 	releaseMode := os.Getenv("JAVBOSS_BUILD_MODE") == "release"
 	if !releaseMode {
 		if wd, err := os.Getwd(); err == nil {
-			candidates = append(
-				candidates,
-				ffBinaryCandidatesForBase(wd, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
-			)
+			candidates = append(candidates, filepath.Join(wd, relativePath))
 		}
 	}
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
-		candidates = append(
-			candidates,
-			ffBinaryCandidatesForBase(execDir, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
-		)
+		candidates = append(candidates, filepath.Join(execDir, relativePath))
 	} else if releaseMode {
 		return "", fmt.Errorf("resolve executable directory for %s: %w", name, err)
 	}
 	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
 		if resolved, err := lookup(candidate); err == nil {
 			return resolved, nil
 		}
 	}
 	if name == "ffmpeg" {
-		if runtime.GOOS != "darwin" {
-			return "", fmt.Errorf("%s not found; download it from Tools to %s", name, filepath.ToSlash(FFmpegToolRelativePath()))
-		}
-		return "", fmt.Errorf("%s not found; use the release bundle at internal/bin/%s or download it from Tools to %s", name, binName, filepath.ToSlash(FFmpegToolRelativePath()))
+		return "", fmt.Errorf("%s not found; download it from Tools to %s", name, filepath.ToSlash(relativePath))
 	}
 	return "", fmt.Errorf("%s not found; place binary at internal/bin/%s", name, binName)
-}
-
-func ffBinaryCandidatesForBase(baseDir string, name string, binName string, goos string, ffmpegToolPath string) []string {
-	bundledPath := filepath.Join(baseDir, "internal", "bin", binName)
-	if name != "ffmpeg" {
-		return []string{bundledPath}
-	}
-
-	downloadedPath := filepath.Join(baseDir, ffmpegToolPath)
-	if goos == "darwin" {
-		return []string{bundledPath, downloadedPath}
-	}
-	return []string{downloadedPath}
 }
 
 // ProbeVideo extracts codec/resolution/fps/duration using ffprobe.
@@ -294,7 +273,7 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 		"-v", "error",
 		"-print_format", "json",
 		"-show_entries", "stream=index,codec_type,codec_name,width,height,avg_frame_rate,r_frame_rate,sample_rate,channels,bit_rate",
-		"-show_entries", "format=duration,size,bit_rate,format_name",
+		"-show_entries", "format=duration,size,bit_rate,format_name:format_tags=major_brand",
 		path,
 	)
 	var stderr bytes.Buffer
@@ -342,6 +321,9 @@ type ffprobeResult struct {
 		Size       string `json:"size"`
 		BitRate    string `json:"bit_rate"`
 		FormatName string `json:"format_name"`
+		Tags       struct {
+			MajorBrand string `json:"major_brand"`
+		} `json:"tags"`
 	} `json:"format"`
 }
 
@@ -381,7 +363,7 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 		Codec:           strings.TrimSpace(video.CodecName),
 		VideoCodec:      strings.TrimSpace(video.CodecName),
 		FormatName:      normalizeFormatName(res.Format.FormatName),
-		Container:       detectContainer(res.Format.FormatName, path),
+		Container:       detectContainer(res.Format.FormatName, path, res.Format.Tags.MajorBrand),
 		Width:           video.Width,
 		Height:          video.Height,
 		FPS:             fps,
@@ -463,30 +445,52 @@ func normalizeFormatName(raw string) string {
 	return strings.ToLower(strings.TrimSpace(part))
 }
 
-func detectContainer(formatName, path string) string {
-	switch strings.ToLower(strings.TrimSpace(filepath.Ext(path))) {
-	case ".mp4", ".m4v":
-		return "mp4"
-	case ".mov":
+func detectContainer(formatName, path, brand string) string {
+	hint := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+	if normalizeFormatName(formatName) == "mov" && strings.TrimSpace(brand) == "qt" {
 		return "mov"
-	case ".webm":
-		return "webm"
-	case ".mkv":
-		return "mkv"
-	case ".avi":
-		return "avi"
-	case ".wmv":
-		return "wmv"
-	case ".flv":
-		return "flv"
-	case ".rmvb", ".rm":
-		return "rmvb"
-	case ".ts":
-		return "ts"
-	case ".m2ts", ".mts":
-		return "m2ts"
-	case ".mpg", ".mpeg":
-		return "mpeg"
 	}
-	return normalizeFormatName(formatName)
+	return probedContainer(formatName, hint)
+}
+
+// ffprobe reports shared demuxer names for several container families. Use
+// the hint only within that family, or when no format was recorded.
+func probedContainer(formatName, hint string) string {
+	format := normalizeFormatName(formatName)
+	switch format {
+	case "mov":
+		if hint == "mov" {
+			return "mov"
+		}
+		return "mp4"
+	case "matroska":
+		if hint == "webm" {
+			return "webm"
+		}
+		return "mkv"
+	case "mpegts":
+		if hint == "m2ts" || hint == "mts" {
+			return "m2ts"
+		}
+		return "ts"
+	case "asf":
+		if hint == "wmv" {
+			return "wmv"
+		}
+	case "rm":
+		return "rmvb"
+	case "":
+		switch hint {
+		case "m4v":
+			return "mp4"
+		case "mts":
+			return "m2ts"
+		case "mpg":
+			return "mpeg"
+		case "rm":
+			return "rmvb"
+		}
+		return hint
+	}
+	return format
 }
