@@ -5,18 +5,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 
 	"javboss/internal/common/logging"
 	"javboss/internal/models"
@@ -50,6 +50,9 @@ type streamer struct {
 
 	runningStreams map[string]*runningStream
 	streamsMutex   sync.Mutex
+	watcher        *fsnotify.Watcher
+	wake           chan struct{}
+	processes      sync.WaitGroup
 }
 
 type Options struct {
@@ -85,23 +88,17 @@ type streamVideoFile struct {
 }
 
 type transcodeProcess struct {
-	cmd         *exec.Cmd
-	context     context.Context
 	cancel      context.CancelFunc
-	cancelled   bool
-	outputDir   string
-	segmentType *SegmentType
-	segment     int
+	stagingDir  string
+	nextSegment int
 }
 
 type waitingSegment struct {
-	segmentType *SegmentType
-	idx         int
-	file        string
-	path        string
-	accessed    time.Time
-	available   chan error
-	done        atomic.Bool
+	ctx       context.Context
+	idx       int
+	path      string
+	accessed  time.Time
+	available chan error
 }
 
 type runningStream struct {
@@ -163,10 +160,10 @@ var (
 				"-f", "hls",
 				"-start_number", fmt.Sprint(segment),
 				"-hls_time", fmt.Sprint(segmentLength),
-				"-hls_flags", "split_by_time",
+				"-hls_flags", "split_by_time+temp_file",
 				"-hls_segment_type", "mpegts",
 				"-hls_playlist_type", "vod",
-				"-hls_segment_filename", filepath.Join(outputDir, ".%d.ts"),
+				"-hls_segment_filename", filepath.Join(outputDir, "%d.ts"),
 				filepath.Join(outputDir, "manifest.m3u8"),
 			)
 			return args
@@ -188,6 +185,7 @@ func newStreamer(cacheDir string) *streamer {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &streamer{
 		cacheDir:       cacheDir,
+		wake:           make(chan struct{}, 1),
 		context:        ctx,
 		cancelFunc:     cancel,
 		runningStreams: make(map[string]*runningStream),
@@ -195,11 +193,20 @@ func newStreamer(cacheDir string) *streamer {
 }
 
 func (sm *streamer) Start(parent context.Context) {
+	// Filesystem events handle normal delivery. The ticker also covers filesystems
+	// that cannot be watched or drop events.
+	watcher, err := fsnotify.NewWatcher()
+	if err == nil {
+		sm.watcher = watcher
+		go sm.watchSegments(watcher)
+	}
 	go func() {
 		ticker := time.NewTicker(monitorInterval)
 		defer ticker.Stop()
 		for {
 			select {
+			case <-sm.wake:
+				sm.monitorStreams()
 			case <-ticker.C:
 				sm.monitorStreams()
 			case <-parent.Done():
@@ -212,9 +219,51 @@ func (sm *streamer) Start(parent context.Context) {
 	}()
 }
 
+// Drain watcher events independently of streamsMutex. On Windows, adding or
+// removing a watch can wait for the event reader. One wake covers a burst of files.
+func (sm *streamer) watchSegments(watcher *fsnotify.Watcher) {
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if !event.Has(fsnotify.Create) || filepath.Ext(event.Name) != ".ts" {
+				continue
+			}
+		case _, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+		}
+		sm.wakeMonitor()
+	}
+}
+
+func (sm *streamer) wakeMonitor() {
+	select {
+	case sm.wake <- struct{}{}:
+	default:
+	}
+}
+
 func (sm *streamer) Stop() {
+	sm.streamsMutex.Lock()
 	sm.cancelFunc()
-	sm.stopAndRemoveAll()
+	streams := sm.runningStreams
+	sm.runningStreams = nil
+	if sm.watcher != nil {
+		sm.watcher.Close()
+		sm.watcher = nil
+	}
+	for _, stream := range streams {
+		stream.failWaitersFrom(0, context.Canceled)
+	}
+	sm.streamsMutex.Unlock()
+	sm.processes.Wait()
+	for _, stream := range streams {
+		removeTranscodeFiles(stream)
+	}
 }
 
 // ServeManifest builds an HLS playlist without starting a transcoding process.
@@ -254,22 +303,20 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 	dir := options.StreamType.FileDir(options.Key, maxTranscodeSize)
 	outputDir := filepath.Join(sm.cacheDir, dir)
 	name := options.StreamType.SegmentType.MakeFilename(segment)
-	file := filepath.Join(dir, name)
+	path := filepath.Join(outputDir, name)
 
 	sm.streamsMutex.Lock()
 
+	if sm.context.Err() != nil {
+		sm.streamsMutex.Unlock()
+		http.Error(w, "streaming service stopped", http.StatusServiceUnavailable)
+		return
+	}
 	stream := sm.runningStreams[dir]
 	if stream == nil {
-		vf, err := loadStreamVideoFile(options.SourcePath, options.Duration, options.MediaInfo)
-		if err != nil {
-			sm.streamsMutex.Unlock()
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		stream = &runningStream{
 			dir:              dir,
 			streamType:       options.StreamType,
-			vf:               vf,
 			maxTranscodeSize: maxTranscodeSize,
 			outputDir:        outputDir,
 			waitingSegments:  make([]*waitingSegment, 0, 10),
@@ -281,191 +328,192 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 	stream.lastAccessed = now
 	stream.lastSegment = segment
 
-	waiting := &waitingSegment{
-		segmentType: options.StreamType.SegmentType,
-		idx:         segment,
-		file:        file,
-		path:        filepath.Join(sm.cacheDir, file),
-		accessed:    now,
-		available:   make(chan error, 1),
-	}
-	stream.waitingSegments = append(stream.waitingSegments, waiting)
-
-	sm.streamsMutex.Unlock()
-
-	serveWaitingSegment(w, r, waiting)
-}
-
-func serveWaitingSegment(w http.ResponseWriter, r *http.Request, segment *waitingSegment) {
-	select {
-	case <-r.Context().Done():
-	case err := <-segment.available:
-		if err == nil {
-			w.Header().Set("Content-Type", segment.segmentType.MimeType)
-			http.ServeFile(w, r, segment.path)
-		} else if !errors.Is(err, context.Canceled) {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	}
-	segment.done.Store(true)
-}
-
-func (sm *streamer) startTranscode(stream *runningStream, segment int, done chan<- error) {
-	if segment < 0 {
-		segment = 0
-	}
-
-	if err := os.MkdirAll(stream.outputDir, os.ModePerm); err != nil {
-		done <- err
-		return
-	}
-
-	ffmpegPath, err := util.ResolveFFmpegPath()
-	if err != nil {
-		done <- err
-		return
-	}
-
-	lockCtx, cancel := context.WithCancel(sm.context)
-	args := stream.makeStreamArgs(segment)
-	cmd := util.BackgroundCommandContext(lockCtx, ffmpegPath, args...)
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		cancel()
-		done <- err
-		return
-	}
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		cancel()
-		done <- err
-		return
-	}
-
-	if err := cmd.Start(); err != nil {
-		cancel()
-		done <- fmt.Errorf("error starting transcode process: %w", err)
-		return
-	}
-
-	tp := &transcodeProcess{
-		cmd:         cmd,
-		context:     lockCtx,
-		cancel:      cancel,
-		outputDir:   stream.outputDir,
-		segmentType: stream.streamType.SegmentType,
-		segment:     segment,
-	}
-	stream.tp = tp
-
-	go func() {
-		errStr, _ := io.ReadAll(stderr)
-		outStr, _ := io.ReadAll(stdout)
-		errCmd := cmd.Wait()
-
-		var runErr error
-		if !tp.cancelled {
-			msg := string(errStr)
-			if msg == "" {
-				msg = string(outStr)
-			}
-			if msg != "" {
-				runErr = errors.New(msg)
-			} else {
-				runErr = errCmd
-			}
-			if runErr != nil {
-				runErr = fmt.Errorf("ffmpeg error when running command <%s>: %w", strings.Join(cmd.Args, " "), runErr)
-				logging.Error("transcode error: %v", runErr)
-			}
-		}
-
-		sm.streamsMutex.Lock()
-		tp.cancel()
-		tp.checkSegments()
-		if stream.tp == tp {
-			stream.tp = nil
-		}
+	if segmentExists(path) {
 		sm.streamsMutex.Unlock()
-
-		if runErr != nil {
-			done <- runErr
-		}
-	}()
-}
-
-func stopTranscode(stream *runningStream) {
-	tp := stream.tp
-	if tp != nil {
-		tp.cancel()
-		tp.cancelled = true
-	}
-}
-
-func (sm *streamer) checkTranscode(stream *runningStream, now time.Time) {
-	if len(stream.waitingSegments) == 0 && stream.lastAccessed.Add(maxIdleTime).Before(now) {
-		stopTranscode(stream)
-		removeTranscodeFiles(stream)
-		delete(sm.runningStreams, stream.dir)
-		return
-	}
-
-	if stream.tp != nil {
-		segmentType := stream.streamType.SegmentType
-		segment := stream.lastSegment
-		for i := segment; i < segment+maxSegmentBuffer; i++ {
-			if !segmentExists(filepath.Join(stream.outputDir, segmentType.MakeFilename(i))) {
+	} else {
+		if stream.vf == nil {
+			stream.vf, err = loadStreamVideoFile(options.SourcePath, options.Duration, options.MediaInfo)
+			if err != nil {
+				sm.streamsMutex.Unlock()
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
 		}
-		stopTranscode(stream)
+		waiting := &waitingSegment{ctx: r.Context(), idx: segment, path: path, accessed: now, available: make(chan error, 1)}
+		stream.waitingSegments = append(stream.waitingSegments, waiting)
+		sm.updateStream(stream, now)
+		sm.streamsMutex.Unlock()
+		select {
+		case <-r.Context().Done():
+			sm.wakeMonitor()
+			return
+		case err := <-waiting.available:
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					http.Error(w, "streaming service stopped", http.StatusServiceUnavailable)
+				} else {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+				}
+				return
+			}
+		}
+	}
+	w.Header().Set("Content-Type", options.StreamType.SegmentType.MimeType)
+	http.ServeFile(w, r, path)
+}
+
+// The caller holds streamsMutex. Each process writes to its own staging directory
+// so overlapping seeks cannot overwrite an already published segment.
+func (sm *streamer) startTranscode(stream *runningStream, segment int) error {
+	ffmpegPath, err := util.ResolveFFmpegPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(stream.outputDir, 0755); err != nil {
+		return err
+	}
+	staging, err := os.MkdirTemp(stream.outputDir, ".transcode-")
+	if err != nil {
+		return err
+	}
+	if sm.watcher != nil {
+		// A failed watch is covered by the periodic scan.
+		_ = sm.watcher.Add(staging)
+	}
+	ctx, cancel := context.WithCancel(sm.context)
+	args := stream.makeStreamArgs(segment, staging)
+	cmd := util.BackgroundCommandContext(ctx, ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		cancel()
+		if sm.watcher != nil {
+			_ = sm.watcher.Remove(staging)
+		}
+		os.RemoveAll(staging)
+		return fmt.Errorf("start ffmpeg: %w", err)
+	}
+	tp := &transcodeProcess{cancel: cancel, stagingDir: staging, nextSegment: segment}
+	stream.tp = tp
+	sm.processes.Add(1)
+	go func() {
+		defer sm.processes.Done()
+		err := cmd.Wait()
+		sm.streamsMutex.Lock()
+		defer sm.streamsMutex.Unlock()
+		defer cancel()
+		defer os.RemoveAll(staging)
+		if sm.watcher != nil {
+			_ = sm.watcher.Remove(staging)
+		}
+		if sm.runningStreams[stream.dir] != stream {
+			return
+		}
+		stream.publishSegments()
+		// Deliver completed segments even if a later write failed.
+		stream.collectWaiters(time.Now())
+		if ctx.Err() == nil {
+			if err != nil {
+				err = fmt.Errorf("ffmpeg transcode: %w: %s", err, strings.TrimSpace(stderr.String()))
+				logging.Error("%v", err)
+			} else {
+				err = errors.New("ffmpeg reached end of input before the requested segment")
+			}
+			stream.failWaitersFrom(segment, err)
+		}
+		stream.tp = nil
+		sm.updateStream(stream, time.Now())
+	}()
+	return nil
+}
+
+// publishSegments moves only completed HLS segments. FFmpeg's temp_file flag
+// leaves an interrupted write under a .tmp name that is never served.
+func (stream *runningStream) publishSegments() {
+	tp := stream.tp
+	if tp == nil {
+		return
+	}
+	for {
+		name := stream.streamType.SegmentType.MakeFilename(tp.nextSegment)
+		staged := filepath.Join(tp.stagingDir, name)
+		if !segmentExists(staged) {
+			return
+		}
+		final := filepath.Join(stream.outputDir, name)
+		var err error
+		if segmentExists(final) {
+			err = os.Remove(staged)
+		} else {
+			err = os.Rename(staged, final)
+		}
+		if err != nil {
+			logging.Error("publish HLS segment: %v", err)
+			return
+		}
+		tp.nextSegment++
 	}
 }
 
-func (sm *streamer) ensureTranscode(stream *runningStream, segment *waitingSegment) bool {
-	segmentIdx := segment.idx
+func (stream *runningStream) collectWaiters(now time.Time) {
+	stream.waitingSegments = slices.DeleteFunc(stream.waitingSegments, func(w *waitingSegment) bool {
+		switch {
+		case w.ctx.Err() != nil:
+		case segmentExists(w.path):
+			w.available <- nil
+		case now.Sub(w.accessed) >= maxSegmentWait:
+			w.available <- fmt.Errorf("timed out waiting for segment %d", w.idx)
+		default:
+			return false
+		}
+		return true
+	})
+}
+
+func (stream *runningStream) failWaitersFrom(segment int, err error) {
+	stream.waitingSegments = slices.DeleteFunc(stream.waitingSegments, func(w *waitingSegment) bool {
+		if w.idx < segment {
+			return false
+		}
+		w.available <- err
+		return true
+	})
+}
+
+func (sm *streamer) updateStream(stream *runningStream, now time.Time) {
+	stream.publishSegments()
+	stream.collectWaiters(now)
 	tp := stream.tp
-	if tp == nil {
-		sm.startTranscode(stream, segmentIdx, segment.available)
-		return true
+	if len(stream.waitingSegments) > 0 {
+		// Satisfy the oldest still-live request first. Duplicate requests share the
+		// process, and disconnected seeks are removed before selecting a target.
+		target := stream.waitingSegments[0].idx
+		if tp == nil {
+			if err := sm.startTranscode(stream, target); err != nil {
+				stream.failWaitersFrom(0, err)
+			}
+		} else if target < tp.nextSegment || target > tp.nextSegment+maxSegmentGap {
+			tp.cancel()
+		}
+		return
 	}
-	if segmentIdx < tp.segment || tp.segment+maxSegmentGap < segmentIdx {
-		stopTranscode(stream)
-		return true
+	idle := now.Sub(stream.lastAccessed) > maxIdleTime
+	if tp != nil {
+		if idle || tp.nextSegment >= stream.lastSegment+maxSegmentBuffer {
+			tp.cancel()
+		}
+	} else if idle {
+		removeTranscodeFiles(stream)
+		delete(sm.runningStreams, stream.dir)
 	}
-	return false
 }
 
 func (sm *streamer) monitorStreams() {
 	sm.streamsMutex.Lock()
 	defer sm.streamsMutex.Unlock()
-
 	now := time.Now()
 	for _, stream := range sm.runningStreams {
-		if stream.tp != nil {
-			stream.tp.checkSegments()
-		}
-
-		transcodeStarted := false
-		temp := stream.waitingSegments[:0]
-		for _, segment := range stream.waitingSegments {
-			remove := false
-			if segment.done.Load() || segment.checkAvailable(now) {
-				remove = true
-			} else if !transcodeStarted {
-				transcodeStarted = sm.ensureTranscode(stream, segment)
-			}
-			if !remove {
-				temp = append(temp, segment)
-			}
-		}
-		stream.waitingSegments = temp
-
-		if !transcodeStarted {
-			sm.checkTranscode(stream, now)
-		}
+		sm.updateStream(stream, now)
 	}
 }
 
@@ -473,23 +521,6 @@ func removeTranscodeFiles(stream *runningStream) {
 	if err := os.RemoveAll(stream.outputDir); err != nil {
 		logging.Error("remove segment directory failed %s: %v", stream.outputDir, err)
 	}
-}
-
-func (sm *streamer) stopAndRemoveAll() {
-	sm.streamsMutex.Lock()
-	defer sm.streamsMutex.Unlock()
-
-	for _, stream := range sm.runningStreams {
-		for _, segment := range stream.waitingSegments {
-			if len(segment.available) == 0 {
-				segment.available <- context.Canceled
-			}
-		}
-		stopTranscode(stream)
-		removeTranscodeFiles(stream)
-	}
-
-	sm.runningStreams = nil
 }
 
 func serveHLSManifest(w http.ResponseWriter, r *http.Request, sourcePath string, durationHint float64, resolution string, mediaInfo *models.MediaInfo) {
@@ -570,7 +601,7 @@ func (t StreamType) FileDir(key string, maxTranscodeSize int) string {
 	return fmt.Sprintf("%s_%s_%d", key, t.Name, maxTranscodeSize)
 }
 
-func (s *runningStream) makeStreamArgs(segment int) []string {
+func (s *runningStream) makeStreamArgs(segment int, outputDir string) []string {
 	args := []string{"-hide_banner", "-loglevel", "error"}
 	if segment > 0 {
 		args = append(args, "-ss", strconv.Itoa(segment*segmentLength))
@@ -579,55 +610,8 @@ func (s *runningStream) makeStreamArgs(segment int) []string {
 
 	videoOnly := strings.TrimSpace(s.vf.AudioCodec) == ""
 	videoFilter := scaleFilter(s.vf, s.maxTranscodeSize)
-	args = append(args, s.streamType.Args(segment, videoFilter, videoOnly, s.outputDir)...)
+	args = append(args, s.streamType.Args(segment, videoFilter, videoOnly, outputDir)...)
 	return args
-}
-
-func (tp *transcodeProcess) checkSegments() {
-	doSegment := func(filename string) {
-		if filename == "" {
-			return
-		}
-		oldPath := filepath.Join(tp.outputDir, filename)
-		newPath := filepath.Join(tp.outputDir, filename[1:])
-		if !segmentExists(newPath) {
-			_ = os.Rename(oldPath, newPath)
-		} else {
-			_ = os.Remove(oldPath)
-		}
-	}
-
-	processState := tp.cmd.ProcessState
-	var lastFilename string
-	for i := tp.segment; ; i++ {
-		filename := fmt.Sprintf("."+tp.segmentType.Format, i)
-		if segmentExists(filepath.Join(tp.outputDir, filename)) {
-			doSegment(lastFilename)
-		} else {
-			if processState != nil {
-				if processState.Success() {
-					doSegment(lastFilename)
-				} else if lastFilename != "" {
-					_ = os.Remove(filepath.Join(tp.outputDir, lastFilename))
-				}
-			}
-			break
-		}
-		lastFilename = filename
-		tp.segment = i
-	}
-}
-
-func (s *waitingSegment) checkAvailable(now time.Time) bool {
-	if segmentExists(s.path) {
-		s.available <- nil
-		return true
-	}
-	if s.accessed.Add(maxSegmentWait).Before(now) {
-		s.available <- fmt.Errorf("timed out waiting for segment file %s to be generated", s.file)
-		return true
-	}
-	return false
 }
 
 func segmentExists(path string) bool {

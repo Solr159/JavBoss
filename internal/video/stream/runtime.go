@@ -12,8 +12,8 @@ var active atomic.Pointer[streamer]
 // Canceling ctx stops transcoding and removes its temporary files.
 func Start(ctx context.Context, cacheDir string) {
 	s := newStreamer(cacheDir)
-	active.Store(s)
 	s.Start(ctx)
+	active.Store(s)
 }
 
 // ServeSegment serves a segment through the shared transcoding processes.
