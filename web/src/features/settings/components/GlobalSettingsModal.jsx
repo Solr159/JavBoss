@@ -196,7 +196,9 @@ export default function GlobalSettingsModal({
   const [toolsLoading, setToolsLoading] = useState(false)
   const [toolsError, setToolsError] = useState('')
   const [startingFFmpegDownload, setStartingFFmpegDownload] = useState(false)
-  const checkTools = open && activeSection === 'tools'
+  const macOSDirectories =
+    activeSection === 'directories' && serverOS === 'darwin' && !containerMode
+  const checkTools = open && (activeSection === 'tools' || macOSDirectories)
 
   const normalizedPlayerHotkeys = parsePlayerHotkeys(playerHotkeys)
   const ffmpegInstalledLabel =
@@ -304,7 +306,7 @@ export default function GlobalSettingsModal({
     return () => {
       cancelled = true
     }
-  }, [checkTools])
+  }, [checkTools, activeSection])
 
   useEffect(() => {
     if (!checkTools || !ffmpegStatus?.downloading) return undefined
@@ -1175,6 +1177,27 @@ export default function GlobalSettingsModal({
 
   const renderDirectoriesPanel = () => (
     <div className="space-y-2">
+      {macOSDirectories &&
+        !toolsLoading &&
+        !toolsError &&
+        ffmpegStatus?.installed === false &&
+        !ffmpegStatus.upgrade_available &&
+        !ffmpegStatus.downloading && (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {zh('尚未安装 FFmpeg，请前往「', 'FFmpeg is not installed. Go to ')}
+            <button
+              type="button"
+              className="font-medium underline"
+              onClick={() => setActiveSection('tools')}
+            >
+              {zh('工具', 'Tools')}
+            </button>
+            {zh(
+              '」下载 FFmpeg，否则会影响目录扫描。',
+              ' to download FFmpeg. Directory scanning is affected until FFmpeg is installed.'
+            )}
+          </p>
+        )}
       <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-600 dark:text-ui-secondary">
         <InfoOutlinedIcon fontSize="inherit" className="text-[15px]" aria-hidden="true" />
         {zh(
@@ -1185,9 +1208,7 @@ export default function GlobalSettingsModal({
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ui-border dark:bg-ui-surface">
         <DirectoryManager
           open={open}
-          onOpenFFmpegTools={
-            serverOS === 'darwin' && !containerMode ? () => setActiveSection('tools') : undefined
-          }
+          onOpenFFmpegTools={macOSDirectories ? () => setActiveSection('tools') : undefined}
           directories={directories}
           onCreate={onCreateDirectory}
           onUpdate={onUpdateDirectory}

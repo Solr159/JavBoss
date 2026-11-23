@@ -331,24 +331,26 @@ export default function DirectoryManager({
     return () => window.clearInterval(timer)
   }, [onRefresh, open])
 
+  const checkFFmpeg = async () => {
+    if (!onOpenFFmpegTools) return true
+    setCheckingFFmpeg(true)
+    try {
+      const { ffmpeg } = await fetchTools()
+      if (ffmpeg.installed || ffmpeg.upgrade_available) return true
+      setFFmpegPrompt(ffmpeg)
+      return false
+    } finally {
+      setCheckingFFmpeg(false)
+    }
+  }
+
   const handleAddDirectory = async () => {
     setError('')
-    if (onOpenFFmpegTools) {
-      setCheckingFFmpeg(true)
-      try {
-        const { ffmpeg } = await fetchTools()
-        if (!ffmpeg.installed && !ffmpeg.upgrade_available) {
-          setFFmpegPrompt(ffmpeg)
-          return
-        }
-      } catch (err) {
-        setError(getErrorMessage(err))
-        return
-      } finally {
-        setCheckingFFmpeg(false)
-      }
+    try {
+      if (await checkFFmpeg()) setAdding(true)
+    } catch (err) {
+      setError(getErrorMessage(err))
     }
-    setAdding(true)
   }
 
   const handleSubmit = async (e) => {
@@ -488,6 +490,7 @@ export default function DirectoryManager({
     setRowErrorId(null)
     setRowErrorMsg('')
     try {
+      if (!(await checkFFmpeg())) return
       await onScan?.(dir.id)
     } catch (err) {
       setRowErrorId(dir.id)
@@ -762,7 +765,7 @@ export default function DirectoryManager({
                               'Manual scan (click to immediately scan the directory and scrape JAV metadata)'
                             )}
                             onClick={() => handleScan(d)}
-                            disabled={d.is_delete || working}
+                            disabled={d.is_delete || working || checkingFFmpeg}
                           >
                             <PlayArrowRoundedIcon fontSize="small" />
                           </DirectoryRowIconButton>
@@ -923,13 +926,10 @@ export default function DirectoryManager({
             className="mt-2 text-sm text-zinc-600 dark:text-ui-secondary"
           >
             {ffmpegPrompt.downloading
-              ? zh(
-                  '请等待安装完成后再添加目录。',
-                  'Wait for installation to finish before adding a directory.'
-                )
+              ? zh('请等待安装完成后再继续。', 'Wait for installation to finish before continuing.')
               : zh(
-                  '添加目录前，请先到「工具」下载并安装 FFmpeg。',
-                  'Download and install FFmpeg in Tools before adding a directory.'
+                  'macOS 需要 FFmpeg 生成视频缩略图。请先到「工具」下载并安装。',
+                  'FFmpeg is needed to generate video thumbnails on macOS. Download and install it in Tools.'
                 )}
           </p>
           <div className="mt-5 flex justify-end gap-2">
