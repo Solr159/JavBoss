@@ -29,11 +29,12 @@ const (
 
 	segmentLength = 2
 
-	maxSegmentWait   = 15 * time.Second
-	monitorInterval  = 200 * time.Millisecond
-	maxSegmentGap    = 5
-	maxSegmentBuffer = 15
-	maxIdleTime      = 30 * time.Second
+	maxSegmentWait      = 15 * time.Second
+	monitorInterval     = 200 * time.Millisecond
+	maxSegmentGap       = 5
+	resumeSegmentBuffer = 5
+	maxSegmentBuffer    = 15
+	maxIdleTime         = 2 * time.Minute
 
 	resolutionParamKey = "resolution"
 	apiKeyParamKey     = "apikey"
@@ -87,13 +88,26 @@ type streamVideoFile struct {
 	AudioCodec string
 }
 
+// Each batch starts at a single input seek point. Only that encoder timeline
+// may extend its cached prefix, even when another seek overlaps the same indices.
+type segmentBatch struct {
+	first, end int // end is exclusive
+	dir        string
+	complete   bool
+}
+
 type transcodeProcess struct {
+	batch       *segmentBatch
+	control     *processControl
+	ctx         context.Context
+	paused      bool
 	cancel      context.CancelFunc
 	stagingDir  string
 	nextSegment int
 }
 
 type waitingSegment struct {
+	batch     *segmentBatch
 	ctx       context.Context
 	idx       int
 	path      string
@@ -108,6 +122,9 @@ type runningStream struct {
 	maxTranscodeSize int
 	outputDir        string
 
+	batches         []*segmentBatch
+	selected        *segmentBatch
+	prefetch        bool
 	waitingSegments []*waitingSegment
 	tp              *transcodeProcess
 	lastAccessed    time.Time
@@ -257,7 +274,7 @@ func (sm *streamer) Stop() {
 		sm.watcher = nil
 	}
 	for _, stream := range streams {
-		stream.failWaitersFrom(0, context.Canceled)
+		stream.failWaiters(nil, context.Canceled)
 	}
 	sm.streamsMutex.Unlock()
 	sm.processes.Wait()
@@ -326,9 +343,20 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 
 	now := time.Now()
 	stream.lastAccessed = now
+	previous := stream.lastSegment
 	stream.lastSegment = segment
 
-	if segmentExists(path) {
+	// Completed flat files from older versions remain valid cache hits.
+	cached := segmentExists(path)
+	if !cached {
+		batch := stream.batchFor(segment, previous)
+		stream.prefetch = stream.prefetch || stream.selected != batch
+		stream.selected = batch
+		path = filepath.Join(batch.dir, name)
+		cached = segmentExists(path)
+	}
+	if cached {
+		sm.wakeMonitor()
 		sm.streamsMutex.Unlock()
 	} else {
 		if stream.vf == nil {
@@ -339,7 +367,7 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 				return
 			}
 		}
-		waiting := &waitingSegment{ctx: r.Context(), idx: segment, path: path, accessed: now, available: make(chan error, 1)}
+		waiting := &waitingSegment{batch: stream.selected, ctx: r.Context(), idx: segment, path: path, accessed: now, available: make(chan error, 1)}
 		stream.waitingSegments = append(stream.waitingSegments, waiting)
 		sm.updateStream(stream, now)
 		sm.streamsMutex.Unlock()
@@ -362,14 +390,43 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 	http.ServeFile(w, r, path)
 }
 
+func (s *runningStream) batchFor(segment, previous int) *segmentBatch {
+	if b := s.selected; b != nil && segment >= b.first {
+		// Continue across an overlap with a retired batch on our own timeline.
+		if segment < b.end {
+			return b
+		}
+		nearEnd := segment <= b.end+maxSegmentGap
+		if !b.complete && nearEnd && (segment == previous+1 || s.tp != nil && s.tp.batch == b) {
+			return b
+		}
+	}
+	for _, b := range s.batches {
+		if segment == b.first {
+			return b
+		}
+		if segment > b.first && segment < b.end {
+			// A retired, partial batch can only be extended by replaying its prefix
+			// from the original seek point. Bound that work for distant seeks.
+			if b.complete || segment-b.first <= maxSegmentGap {
+				return b
+			}
+		}
+	}
+	b := &segmentBatch{first: segment, end: segment, dir: filepath.Join(s.outputDir, fmt.Sprintf("from-%d", segment))}
+	s.batches = append(s.batches, b)
+	return b
+}
+
 // The caller holds streamsMutex. Each process writes to its own staging directory
 // so overlapping seeks cannot overwrite an already published segment.
-func (sm *streamer) startTranscode(stream *runningStream, segment int) error {
+func (sm *streamer) startTranscode(stream *runningStream, batch *segmentBatch) error {
+	segment := batch.first
 	ffmpegPath, err := util.ResolveFFmpegPath()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(stream.outputDir, 0755); err != nil {
+	if err := os.MkdirAll(batch.dir, 0755); err != nil {
 		return err
 	}
 	staging, err := os.MkdirTemp(stream.outputDir, ".transcode-")
@@ -393,7 +450,17 @@ func (sm *streamer) startTranscode(stream *runningStream, segment int) error {
 		os.RemoveAll(staging)
 		return fmt.Errorf("start ffmpeg: %w", err)
 	}
-	tp := &transcodeProcess{cancel: cancel, stagingDir: staging, nextSegment: segment}
+	control, err := openProcessControl(cmd.Process)
+	if err != nil {
+		cancel()
+		_ = cmd.Wait()
+		if sm.watcher != nil {
+			_ = sm.watcher.Remove(staging)
+		}
+		os.RemoveAll(staging)
+		return fmt.Errorf("open ffmpeg process: %w", err)
+	}
+	tp := &transcodeProcess{batch: batch, control: control, ctx: ctx, cancel: cancel, stagingDir: staging, nextSegment: segment}
 	stream.tp = tp
 	sm.processes.Add(1)
 	go func() {
@@ -402,6 +469,7 @@ func (sm *streamer) startTranscode(stream *runningStream, segment int) error {
 		sm.streamsMutex.Lock()
 		defer sm.streamsMutex.Unlock()
 		defer cancel()
+		defer control.close()
 		defer os.RemoveAll(staging)
 		if sm.watcher != nil {
 			_ = sm.watcher.Remove(staging)
@@ -417,9 +485,10 @@ func (sm *streamer) startTranscode(stream *runningStream, segment int) error {
 				err = fmt.Errorf("ffmpeg transcode: %w: %s", err, strings.TrimSpace(stderr.String()))
 				logging.Error("%v", err)
 			} else {
+				batch.complete = true
 				err = errors.New("ffmpeg reached end of input before the requested segment")
 			}
-			stream.failWaitersFrom(segment, err)
+			stream.failWaiters(batch, err)
 		}
 		stream.tp = nil
 		sm.updateStream(stream, time.Now())
@@ -440,7 +509,7 @@ func (stream *runningStream) publishSegments() {
 		if !segmentExists(staged) {
 			return
 		}
-		final := filepath.Join(stream.outputDir, name)
+		final := filepath.Join(tp.batch.dir, name)
 		var err error
 		if segmentExists(final) {
 			err = os.Remove(staged)
@@ -452,6 +521,7 @@ func (stream *runningStream) publishSegments() {
 			return
 		}
 		tp.nextSegment++
+		tp.batch.end = max(tp.batch.end, tp.nextSegment)
 	}
 }
 
@@ -470,14 +540,27 @@ func (stream *runningStream) collectWaiters(now time.Time) {
 	})
 }
 
-func (stream *runningStream) failWaitersFrom(segment int, err error) {
+func (stream *runningStream) failWaiters(batch *segmentBatch, err error) {
 	stream.waitingSegments = slices.DeleteFunc(stream.waitingSegments, func(w *waitingSegment) bool {
-		if w.idx < segment {
+		if batch != nil && w.batch != batch {
 			return false
 		}
 		w.available <- err
 		return true
 	})
+}
+
+func (tp *transcodeProcess) setPaused(pause bool) {
+	if tp.paused == pause || tp.ctx.Err() != nil {
+		return
+	}
+	if err := tp.control.setPaused(pause); err != nil {
+		// A failed resume cannot make progress. Reap the child before retrying demand.
+		logging.Error("change ffmpeg pause state: %v", err)
+		tp.cancel()
+		return
+	}
+	tp.paused = pause
 }
 
 func (sm *streamer) updateStream(stream *runningStream, now time.Time) {
@@ -487,20 +570,42 @@ func (sm *streamer) updateStream(stream *runningStream, now time.Time) {
 	if len(stream.waitingSegments) > 0 {
 		// Satisfy the oldest still-live request first. Duplicate requests share the
 		// process, and disconnected seeks are removed before selecting a target.
-		target := stream.waitingSegments[0].idx
+		batch := stream.waitingSegments[0].batch
 		if tp == nil {
-			if err := sm.startTranscode(stream, target); err != nil {
-				stream.failWaitersFrom(0, err)
+			stream.prefetch = false
+			if err := sm.startTranscode(stream, batch); err != nil {
+				stream.failWaiters(batch, err)
 			}
-		} else if target < tp.nextSegment || target > tp.nextSegment+maxSegmentGap {
+		} else if tp.batch != batch {
 			tp.cancel()
+		} else {
+			tp.setPaused(false)
 		}
 		return
 	}
 	idle := now.Sub(stream.lastAccessed) > maxIdleTime
-	if tp != nil {
-		if idle || tp.nextSegment >= stream.lastSegment+maxSegmentBuffer {
+	if !idle && stream.prefetch && stream.selected != nil {
+		if tp != nil && tp.batch != stream.selected {
 			tp.cancel()
+			return
+		}
+		stream.prefetch = false
+		if tp == nil && !stream.selected.complete && stream.vf != nil {
+			if err := sm.startTranscode(stream, stream.selected); err != nil {
+				logging.Error("prefetch HLS batch: %v", err)
+			}
+			return
+		}
+	}
+	if tp != nil {
+		ahead := tp.nextSegment - 1 - stream.lastSegment
+		switch {
+		case idle:
+			tp.cancel()
+		case ahead >= maxSegmentBuffer:
+			tp.setPaused(true)
+		case ahead <= resumeSegmentBuffer:
+			tp.setPaused(false)
 		}
 	} else if idle {
 		removeTranscodeFiles(stream)

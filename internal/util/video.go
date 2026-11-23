@@ -273,7 +273,7 @@ func ProbeVideoContext(ctx context.Context, path string) (*VideoMetadata, error)
 		"-v", "error",
 		"-print_format", "json",
 		"-show_entries", "stream=index,codec_type,codec_name,width,height,avg_frame_rate,r_frame_rate,sample_rate,channels,bit_rate",
-		"-show_entries", "format=duration,size,bit_rate,format_name",
+		"-show_entries", "format=duration,size,bit_rate,format_name:format_tags=major_brand",
 		path,
 	)
 	var stderr bytes.Buffer
@@ -321,6 +321,9 @@ type ffprobeResult struct {
 		Size       string `json:"size"`
 		BitRate    string `json:"bit_rate"`
 		FormatName string `json:"format_name"`
+		Tags       struct {
+			MajorBrand string `json:"major_brand"`
+		} `json:"tags"`
 	} `json:"format"`
 }
 
@@ -360,7 +363,7 @@ func parseFFprobeOutput(out []byte, path string) (*VideoMetadata, error) {
 		Codec:           strings.TrimSpace(video.CodecName),
 		VideoCodec:      strings.TrimSpace(video.CodecName),
 		FormatName:      normalizeFormatName(res.Format.FormatName),
-		Container:       detectContainer(res.Format.FormatName, path),
+		Container:       detectContainer(res.Format.FormatName, path, res.Format.Tags.MajorBrand),
 		Width:           video.Width,
 		Height:          video.Height,
 		FPS:             fps,
@@ -442,30 +445,52 @@ func normalizeFormatName(raw string) string {
 	return strings.ToLower(strings.TrimSpace(part))
 }
 
-func detectContainer(formatName, path string) string {
-	switch strings.ToLower(strings.TrimSpace(filepath.Ext(path))) {
-	case ".mp4", ".m4v":
-		return "mp4"
-	case ".mov":
+func detectContainer(formatName, path, brand string) string {
+	hint := strings.ToLower(strings.TrimPrefix(filepath.Ext(path), "."))
+	if normalizeFormatName(formatName) == "mov" && strings.TrimSpace(brand) == "qt" {
 		return "mov"
-	case ".webm":
-		return "webm"
-	case ".mkv":
-		return "mkv"
-	case ".avi":
-		return "avi"
-	case ".wmv":
-		return "wmv"
-	case ".flv":
-		return "flv"
-	case ".rmvb", ".rm":
-		return "rmvb"
-	case ".ts":
-		return "ts"
-	case ".m2ts", ".mts":
-		return "m2ts"
-	case ".mpg", ".mpeg":
-		return "mpeg"
 	}
-	return normalizeFormatName(formatName)
+	return probedContainer(formatName, hint)
+}
+
+// ffprobe reports shared demuxer names for several container families. Use
+// the hint only within that family, or when no format was recorded.
+func probedContainer(formatName, hint string) string {
+	format := normalizeFormatName(formatName)
+	switch format {
+	case "mov":
+		if hint == "mov" {
+			return "mov"
+		}
+		return "mp4"
+	case "matroska":
+		if hint == "webm" {
+			return "webm"
+		}
+		return "mkv"
+	case "mpegts":
+		if hint == "m2ts" || hint == "mts" {
+			return "m2ts"
+		}
+		return "ts"
+	case "asf":
+		if hint == "wmv" {
+			return "wmv"
+		}
+	case "rm":
+		return "rmvb"
+	case "":
+		switch hint {
+		case "m4v":
+			return "mp4"
+		case "mts":
+			return "m2ts"
+		case "mpg":
+			return "mpeg"
+		case "rm":
+			return "rmvb"
+		}
+		return hint
+	}
+	return format
 }

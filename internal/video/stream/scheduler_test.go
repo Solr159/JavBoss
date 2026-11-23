@@ -19,7 +19,7 @@ import (
 func TestPublishOnlyCompleteSegments(t *testing.T) {
 	output := t.TempDir()
 	staging := t.TempDir()
-	s := &runningStream{outputDir: output, streamType: StreamTypeHLS, tp: &transcodeProcess{stagingDir: staging, nextSegment: 3}}
+	s := &runningStream{outputDir: output, streamType: StreamTypeHLS, tp: &transcodeProcess{stagingDir: staging, nextSegment: 3, batch: &segmentBatch{dir: output, first: 3, end: 3}}}
 	for path, content := range map[string]string{filepath.Join(output, "3.ts"): "cached", filepath.Join(staging, "3.ts"): "duplicate", filepath.Join(staging, "4.ts.tmp"): "partial"} {
 		if err := os.WriteFile(path, []byte(content), 0600); err != nil {
 			t.Fatal(err)
@@ -136,6 +136,39 @@ func TestSegmentRequestsWakeWithoutPolling(t *testing.T) {
 	publish(dir, 1, "first")
 	expect(a, "first")
 	expect(b, "first")
+	// Fill the buffer without another request. Cache hits should release the
+	// same parked process only after the low watermark is reached.
+	waitPaused := func(want bool) {
+		t.Helper()
+		deadline := time.Now().Add(5 * time.Second)
+		for time.Now().Before(deadline) {
+			sm.streamsMutex.Lock()
+			tp := sm.runningStreams["movie_hls"].tp
+			same := tp != nil && tp.stagingDir == dir
+			ok := same && tp.paused == want
+			sm.streamsMutex.Unlock()
+			if !same {
+				t.Fatal("encoder was replaced during sequential playback")
+			}
+			if ok {
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+		t.Fatalf("encoder paused state did not reach %v", want)
+	}
+	for i := 2; i <= 16; i++ {
+		publish(dir, i, strconv.Itoa(i))
+	}
+	waitPaused(true)
+	expect(request(ctx, 3), "3")
+	waitPaused(true)
+	expect(request(ctx, 11), "11")
+	waitPaused(false)
+	for i := 17; i <= 26; i++ {
+		publish(dir, i, strconv.Itoa(i))
+	}
+	waitPaused(true)
 	stale, cancel := context.WithCancel(ctx)
 	defer cancel()
 	skipped := request(stale, 120)
@@ -165,5 +198,30 @@ func TestCachedSegmentServedWithoutProbeOrMonitor(t *testing.T) {
 	sm.ServeSegment(rec, request, Options{StreamType: StreamTypeHLS, SourcePath: "missing.avi", Duration: 20, Key: "movie", Segment: "3.ts"})
 	if rec.Code != 206 || rec.Header().Get("Content-Type") != MimeMpegTS || rec.Body.String() != "ach" {
 		t.Fatalf("cached response = %d %q", rec.Code, rec.Body.String())
+	}
+}
+
+func TestBatchContinuityAcrossSeekAndOverlap(t *testing.T) {
+	s := &runningStream{outputDir: t.TempDir()}
+	old := s.batchFor(25, 0)
+	old.end = 50
+	s.selected = old
+	next := s.batchFor(0, 49)
+	next.end = 25
+	s.selected = next
+	s.tp = &transcodeProcess{batch: next, nextSegment: 25}
+	if got := s.batchFor(25, 24); got != next {
+		t.Fatal("sequential request crossed into the old encoder timeline")
+	}
+	// A distant seek into the tail of a retired batch must not replay a long prefix.
+	fresh := s.batchFor(45, 24)
+	if fresh.first != 45 || fresh == old {
+		t.Fatal("distant seek did not start at the target")
+	}
+	// Reusing a nearby cached start can extend that same timeline.
+	s.selected = fresh
+	s.tp = &transcodeProcess{batch: fresh, nextSegment: 45}
+	if got := s.batchFor(27, 45); got != old {
+		t.Fatal("nearby cached seek was not reused")
 	}
 }

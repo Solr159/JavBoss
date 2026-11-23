@@ -126,7 +126,7 @@ func makeMPEGTransportStreamHeader(packetSize, syncOffset int) []byte {
 }
 
 func TestDetectContainerRecognizesRMVBExtension(t *testing.T) {
-	if got := detectContainer("rm", "/videos/sample.rmvb"); got != "rmvb" {
+	if got := detectContainer("rm", "/videos/sample.rmvb", ""); got != "rmvb" {
 		t.Fatalf("detectContainer() = %q, want %q", got, "rmvb")
 	}
 }
@@ -331,6 +331,20 @@ func TestDockerFFBinaryLookupOnlyUsesFixedImagePath(t *testing.T) {
 					t.Fatalf("missing image binary must fail without fallback: %q, %v", got, err)
 				}
 			})
+		}
+	}
+}
+
+func TestContainerFromProbeWithMisleadingExtension(t *testing.T) {
+	for _, tt := range []struct{ format, name, brand, want string }{
+		{"mov,mp4,m4a,3gp,3g2,mj2", "MBD-152.avi", "isom", "mp4"},
+		{"mov,mp4,m4a,3gp,3g2,mj2", "movie.avi", "qt  ", "mov"},
+		{"avi", "movie.mp4", "", "avi"},
+		{"matroska,webm", "movie.webm", "", "webm"},
+		{"matroska,webm", "movie.avi", "", "mkv"},
+	} {
+		if got := detectContainer(tt.format, tt.name, tt.brand); got != tt.want {
+			t.Errorf("%s (%s): got %q, want %q", tt.name, tt.format, got, tt.want)
 		}
 	}
 }

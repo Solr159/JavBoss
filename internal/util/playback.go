@@ -24,7 +24,8 @@ func AssessPlaybackSupport(meta *VideoMetadata) PlaybackProbeResult {
 		return result
 	}
 
-	result.Container = normalizePlaybackValue(meta.Container)
+	// Older probe records stored the extension in Container even when FormatName disagreed.
+	result.Container = probedContainer(meta.FormatName, normalizePlaybackValue(meta.Container))
 	result.VideoCodec = normalizePlaybackValue(meta.VideoCodec)
 	result.AudioCodec = normalizePlaybackValue(meta.AudioCodec)
 
