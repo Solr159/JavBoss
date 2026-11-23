@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -253,6 +254,44 @@ func TestInstallFFmpegFileStagesAndAtomicallyReplacesExistingTarget(t *testing.T
 	}
 	if len(matches) != 0 {
 		t.Fatalf("staged FFmpeg files were not cleaned up: %v", matches)
+	}
+}
+
+func TestDownloadReplacesNonExecutableFFmpeg(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires Unix execute permissions")
+	}
+	current := []byte("#!/bin/sh\necho 'ffmpeg version test'\n")
+	digest := sha256.Sum256(current)
+	checksum := hex.EncodeToString(digest[:])
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(current)
+	}))
+	defer server.Close()
+
+	for name, payload := range map[string][]byte{"current": current, "outdated": []byte("old FFmpeg")} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "ffmpeg")
+			if err := os.WriteFile(path, payload, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			manager := &installer{
+				context: t.Context(), targetPath: path, httpClient: server.Client(),
+				downloadURL: server.URL, downloadSHA: checksum, binarySHA: checksum,
+			}
+			if status := manager.Status(); status.Installed || status.UpgradeAvailable {
+				t.Fatalf("non-executable FFmpeg reported as usable: %+v", status)
+			}
+			if started, err := manager.StartDownload(); err != nil || !started {
+				t.Fatalf("repair download: started=%v err=%v", started, err)
+			}
+			if status := waitForFFmpegDownload(t, manager); !status.Installed || status.UpgradeAvailable {
+				t.Fatalf("status after repair: %+v", status)
+			}
+			if _, err := exec.LookPath(path); err != nil {
+				t.Fatalf("repaired FFmpeg is not executable: %v", err)
+			}
+		})
 	}
 }
 

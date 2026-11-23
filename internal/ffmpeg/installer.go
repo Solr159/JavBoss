@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -415,7 +416,14 @@ func (r *downloadProgressReader) Read(p []byte) (int, error) {
 
 func isUsableFFmpegFile(path string) bool {
 	info, err := os.Stat(path)
-	return err == nil && info.Mode().IsRegular() && info.Size() > 0
+	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	_, err = exec.LookPath(path)
+	return err == nil
 }
 
 func fileMatchesSHA256(path string, expectedSHA string) bool {
