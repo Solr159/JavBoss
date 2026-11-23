@@ -129,6 +129,11 @@ func TestSegmentRequestsWakeWithoutPolling(t *testing.T) {
 	ctx := t.Context()
 	a := request(ctx, 1)
 	dir := waitProcess(1, 1)
+	// The current batch owns both a pending segment and subsequent cache hits.
+	flat := filepath.Join(sm.cacheDir, "movie_hls", "1.ts")
+	if err := os.WriteFile(flat, []byte("legacy"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	b := request(ctx, 1)
 	if waitProcess(1, 2) != dir {
 		t.Fatal("duplicate request restarted FFmpeg")
@@ -136,6 +141,7 @@ func TestSegmentRequestsWakeWithoutPolling(t *testing.T) {
 	publish(dir, 1, "first")
 	expect(a, "first")
 	expect(b, "first")
+	expect(request(ctx, 1), "first")
 	// Fill the buffer without another request. Cache hits should release the
 	// same parked process only after the low watermark is reached.
 	waitPaused := func(want bool) {
@@ -203,25 +209,61 @@ func TestCachedSegmentServedWithoutProbeOrMonitor(t *testing.T) {
 
 func TestBatchContinuityAcrossSeekAndOverlap(t *testing.T) {
 	s := &runningStream{outputDir: t.TempDir()}
-	old := s.batchFor(25, 0)
+	old := s.batchFor(25, 0, "25.ts")
 	old.end = 50
 	s.selected = old
-	next := s.batchFor(0, 49)
+	next := s.batchFor(0, 49, "0.ts")
 	next.end = 25
 	s.selected = next
-	s.tp = &transcodeProcess{batch: next, nextSegment: 25}
-	if got := s.batchFor(25, 24); got != next {
+	s.tp = &transcodeProcess{batch: next, ctx: t.Context(), nextSegment: 25}
+	if got := s.batchFor(25, 24, "25.ts"); got != next {
 		t.Fatal("sequential request crossed into the old encoder timeline")
 	}
 	// A distant seek into the tail of a retired batch must not replay a long prefix.
-	fresh := s.batchFor(45, 24)
+	fresh := s.batchFor(45, 24, "45.ts")
 	if fresh.first != 45 || fresh == old {
 		t.Fatal("distant seek did not start at the target")
 	}
 	// Reusing a nearby cached start can extend that same timeline.
 	s.selected = fresh
-	s.tp = &transcodeProcess{batch: fresh, nextSegment: 45}
-	if got := s.batchFor(27, 45); got != old {
+	s.tp = &transcodeProcess{batch: fresh, ctx: t.Context(), nextSegment: 45}
+	if err := os.MkdirAll(old.dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(old.dir, "27.ts"), []byte("cached"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := s.batchFor(27, 45, "27.ts"); got != old {
 		t.Fatal("nearby cached seek was not reused")
+	}
+}
+
+func TestBatchReplayBoundUsesEncoderPosition(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		next   int // -1 means replay would start at batch.first
+		target int
+		reuse  bool
+	}{
+		{"restart far behind missing target", 2, 1000, false},
+		{"no encoder to extend cached tail", -1, 1000, false},
+		{"cached tail still served", 2, 999, true},
+		{"missing file within cached prefix", 2, 998, false},
+		{"encoder nearly caught up", 995, 1000, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			b := &segmentBatch{first: 0, end: 1000, dir: t.TempDir()}
+			s := &runningStream{outputDir: t.TempDir(), selected: b, batches: []*segmentBatch{b}}
+			if tc.next >= 0 {
+				s.tp = &transcodeProcess{batch: b, ctx: t.Context(), nextSegment: tc.next}
+			}
+			if err := os.WriteFile(filepath.Join(b.dir, "999.ts"), []byte("cached"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			got := s.batchFor(tc.target, tc.target-1, strconv.Itoa(tc.target)+".ts")
+			if (got == b) != tc.reuse || (!tc.reuse && got.first != tc.target) {
+				t.Fatalf("target %d selected batch starting at %d", tc.target, got.first)
+			}
+		})
 	}
 }

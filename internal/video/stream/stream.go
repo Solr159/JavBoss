@@ -346,10 +346,11 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 	previous := stream.lastSegment
 	stream.lastSegment = segment
 
-	// Completed flat files from older versions remain valid cache hits.
-	cached := segmentExists(path)
+	// A legacy flat cache can serve an initial request. Once a batch is
+	// selected, even its pending segments must stay on that encoder timeline.
+	cached := stream.selected == nil && segmentExists(path)
 	if !cached {
-		batch := stream.batchFor(segment, previous)
+		batch := stream.batchFor(segment, previous, name)
 		stream.prefetch = stream.prefetch || stream.selected != batch
 		stream.selected = batch
 		path = filepath.Join(batch.dir, name)
@@ -390,14 +391,19 @@ func (sm *streamer) ServeSegment(w http.ResponseWriter, r *http.Request, options
 	http.ServeFile(w, r, path)
 }
 
-func (s *runningStream) batchFor(segment, previous int) *segmentBatch {
+func (s *runningStream) batchFor(segment, previous int, name string) *segmentBatch {
 	if b := s.selected; b != nil && segment >= b.first {
 		// Continue across an overlap with a retired batch on our own timeline.
-		if segment < b.end {
+		if segment < b.end && segmentExists(filepath.Join(b.dir, name)) {
 			return b
 		}
-		nearEnd := segment <= b.end+maxSegmentGap
-		if !b.complete && nearEnd && (segment == previous+1 || s.tp != nil && s.tp.batch == b) {
+		// Restarting a batch replays from first, even if its cached prefix is long.
+		next := b.first
+		active := s.tp != nil && s.tp.batch == b && s.tp.ctx.Err() == nil
+		if active {
+			next = s.tp.nextSegment
+		}
+		if !b.complete && segment >= next && segment-next <= maxSegmentGap && (active || segment == previous+1) {
 			return b
 		}
 	}
@@ -408,7 +414,7 @@ func (s *runningStream) batchFor(segment, previous int) *segmentBatch {
 		if segment > b.first && segment < b.end {
 			// A retired, partial batch can only be extended by replaying its prefix
 			// from the original seek point. Bound that work for distant seeks.
-			if b.complete || segment-b.first <= maxSegmentGap {
+			if (b.complete || segment-b.first <= maxSegmentGap) && segmentExists(filepath.Join(b.dir, name)) {
 				return b
 			}
 		}
@@ -576,7 +582,7 @@ func (sm *streamer) updateStream(stream *runningStream, now time.Time) {
 			if err := sm.startTranscode(stream, batch); err != nil {
 				stream.failWaiters(batch, err)
 			}
-		} else if tp.batch != batch {
+		} else if tp.batch != batch || stream.waitingSegments[0].idx < tp.nextSegment {
 			tp.cancel()
 		} else {
 			tp.setPaused(false)
