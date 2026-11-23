@@ -12,7 +12,11 @@ test(
     const modal = `document.querySelector('[aria-labelledby="global-settings-title"]')`
     const button = (label) =>
       `[...${modal}.querySelectorAll('button')].find(b => b.textContent.includes('${label}'))`
-    const notice = button('Go to Tools to download FFmpeg')
+    const prompt = `document.querySelector('[aria-labelledby="directory-ffmpeg-title"]')`
+    const promptButton = (label) =>
+      `[...${prompt}.querySelectorAll('button')].find(b => b.textContent.includes('${label}'))`
+    const add = button('Add Directory')
+    const pathInput = `document.querySelector('#dir-path-input')`
     await waitFor(`${settings} && window.testStore.getState().config.video_page_size`)
     await evaluate(`{
       window.setServerOS = runtime_os => window.testStore.setState(s => ({ config: { ...s.config, runtime_os } }));
@@ -36,19 +40,37 @@ test(
     }`)
     await waitFor(modal)
     assert.equal(await evaluate('window.toolChecks'), 0)
-    assert.equal(await evaluate(`Boolean(${notice})`), false)
+    assert.equal(await evaluate(`Boolean(${prompt})`), false)
+    await evaluate(`${add}.click()`)
+    await waitFor(pathInput)
+    await evaluate(`${button('Cancel')}.click()`)
     await evaluate(`window.setServerOS('darwin')`)
-    await waitFor(notice)
-    await evaluate(`${notice}.click()`)
+    assert.equal(await evaluate('window.toolChecks'), 0)
+    await evaluate(`${add}.click()`)
+    await waitFor(`${prompt}?.textContent.includes('FFmpeg is not installed')`)
+    assert.equal(await evaluate(`Boolean(${pathInput})`), false)
+    await evaluate(`${promptButton('Cancel')}.click()`)
+    await waitFor(`!${prompt} && ${add}`)
+    await evaluate(`${add}.click()`)
+    await waitFor(prompt)
+    await evaluate(`${promptButton('Go to download')}.click()`)
     const download = button('Download FFmpeg')
     await waitFor(`${download} && !${download}.disabled`)
     await evaluate(`${download}.click()`)
     await waitFor(button('Downloading'))
     await evaluate(`${button('Directory Management')}.click()`)
     await waitFor(`${modal}.textContent.includes('/videos')`)
-    assert.equal(await evaluate(`Boolean(${notice})`), false)
-    await evaluate(`window.toolStatus = { installed: true }; window.beforePoll = window.toolChecks`)
-    await waitFor('window.toolChecks > window.beforePoll')
-    assert.equal(await evaluate(`Boolean(${notice})`), false)
+    assert.equal(await evaluate(`Boolean(${prompt})`), false)
+    await evaluate(`${add}.click()`)
+    await waitFor(`${prompt}?.textContent.includes('Downloading FFmpeg')`)
+    assert.equal(await evaluate(`Boolean(${pathInput})`), false)
+    await evaluate(`${promptButton('View progress')}.click()`)
+    await waitFor(button('Downloading'))
+    await evaluate(`window.toolStatus = { installed: true }`)
+    await waitFor(button('Installed'))
+    await evaluate(`${button('Directory Management')}.click()`)
+    assert.equal(await evaluate(`Boolean(${prompt})`), false)
+    await evaluate(`${add}.click()`)
+    await waitFor(pathInput)
   }
 )

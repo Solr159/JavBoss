@@ -275,10 +275,9 @@ function commandExists(cmd) {
 
 async function ensureNpmDeps(cwd) {
   if (process.env.SKIP_NPM_INSTALL === "1") return;
-  const nodeModules = path.join(cwd, "node_modules");
-  if (fs.existsSync(nodeModules)) return;
   const hasLock = fs.existsSync(path.join(cwd, "package-lock.json"));
-  await runCommand("npm", [hasLock ? "ci" : "install"], { cwd });
+  const cleanInstall = hasLock && !fs.existsSync(path.join(cwd, "node_modules"));
+  await runCommand("npm", [cleanInstall ? "ci" : "install", "--prefer-offline", "--no-audit", "--no-fund"], { cwd });
 }
 
 async function buildWeb() {
