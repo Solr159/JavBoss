@@ -64,7 +64,7 @@ jobs:
           npm install
           npm run build
 
-      - name: Download ffmpeg/ffprobe
+      - name: Download ffprobe and mpv
         run: bash scripts/cli.sh download-dependencies "${{ matrix.platform }}"
 
       - name: Build release

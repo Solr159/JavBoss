@@ -10,15 +10,15 @@
 - Backend: Go + Gin + GORM + SQLite
 - Frontend: React + Vite + Tailwind + Zustand
 - 媒体探测: `ffprobe`
-- 缩略图截图生成: macOS 使用 `ffmpeg`，其他平台使用 `mpv`
+- 缩略图截图生成: macOS 从「设置 → 工具」下载 `ffmpeg`，其他平台使用 `mpv`
 - 播放与手动截图: `mpv`
 
 ## 常用命令
 
-下载依赖（`ffprobe` + `mpv`，macOS 额外下载 `ffmpeg`）：
+下载依赖（`ffprobe` + `mpv`）：
 
 ```bash
-./scripts/cli.sh download linux-x86_64
+./scripts/cli.sh download-dependencies linux-x86_64
 ```
 
 安装前端依赖：

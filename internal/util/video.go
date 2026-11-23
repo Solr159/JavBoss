@@ -169,7 +169,7 @@ func ResolveFFprobePath() (string, error) {
 }
 
 // ResolveFFmpegPath uses only the fixed image path in Docker. Native installations
-// use tool downloads, with a bundled executable also supported on macOS.
+// use the executable downloaded from Tools.
 // Release builds resolve paths only relative to the executable directory.
 func ResolveFFmpegPath() (string, error) {
 	return findFFmpegPath()
@@ -223,52 +223,31 @@ func findFFBinaryPathWithLookup(name string, lookup func(string) (string, error)
 		binName = name + ".exe"
 	}
 
+	relativePath := filepath.Join("internal", "bin", binName)
+	if name == "ffmpeg" {
+		relativePath = FFmpegToolRelativePath()
+	}
 	releaseMode := os.Getenv("JAVBOSS_BUILD_MODE") == "release"
 	if !releaseMode {
 		if wd, err := os.Getwd(); err == nil {
-			candidates = append(
-				candidates,
-				ffBinaryCandidatesForBase(wd, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
-			)
+			candidates = append(candidates, filepath.Join(wd, relativePath))
 		}
 	}
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
-		candidates = append(
-			candidates,
-			ffBinaryCandidatesForBase(execDir, name, binName, runtime.GOOS, FFmpegToolRelativePath())...,
-		)
+		candidates = append(candidates, filepath.Join(execDir, relativePath))
 	} else if releaseMode {
 		return "", fmt.Errorf("resolve executable directory for %s: %w", name, err)
 	}
 	for _, candidate := range candidates {
-		if candidate == "" {
-			continue
-		}
 		if resolved, err := lookup(candidate); err == nil {
 			return resolved, nil
 		}
 	}
 	if name == "ffmpeg" {
-		if runtime.GOOS != "darwin" {
-			return "", fmt.Errorf("%s not found; download it from Tools to %s", name, filepath.ToSlash(FFmpegToolRelativePath()))
-		}
-		return "", fmt.Errorf("%s not found; use the release bundle at internal/bin/%s or download it from Tools to %s", name, binName, filepath.ToSlash(FFmpegToolRelativePath()))
+		return "", fmt.Errorf("%s not found; download it from Tools to %s", name, filepath.ToSlash(relativePath))
 	}
 	return "", fmt.Errorf("%s not found; place binary at internal/bin/%s", name, binName)
-}
-
-func ffBinaryCandidatesForBase(baseDir string, name string, binName string, goos string, ffmpegToolPath string) []string {
-	bundledPath := filepath.Join(baseDir, "internal", "bin", binName)
-	if name != "ffmpeg" {
-		return []string{bundledPath}
-	}
-
-	downloadedPath := filepath.Join(baseDir, ffmpegToolPath)
-	if goos == "darwin" {
-		return []string{bundledPath, downloadedPath}
-	}
-	return []string{downloadedPath}
 }
 
 // ProbeVideo extracts codec/resolution/fps/duration using ffprobe.

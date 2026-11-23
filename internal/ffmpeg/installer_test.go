@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -68,18 +67,24 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 	}))
 	defer server.Close()
 
-	targetPath := filepath.Join(t.TempDir(), "internal", "bin", "ffmpeg")
-	manager := &installer{
-		context:     context.Background(),
-		targetPath:  targetPath,
-		displayPath: "internal/bin/ffmpeg",
-		downloadURL: server.URL,
-		downloadSHA: hex.EncodeToString(digest[:]),
-		binarySHA:   hex.EncodeToString(binaryDigest[:]),
-		httpClient:  server.Client(),
-		resolveFFmpeg: func() (string, error) {
-			return "", errors.New("FFmpeg not found")
-		},
+	t.Setenv("JAVBOSS_CONTAINER", "")
+	t.Setenv("JAVBOSS_BUILD_MODE", "development")
+	baseDir := t.TempDir()
+	t.Chdir(baseDir)
+	bundleDir := filepath.Join(baseDir, "internal", "bin")
+	if err := os.MkdirAll(bundleDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundleDir, currentTestFFmpegBinaryName()), payload, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manager := newInstaller(context.Background(), baseDir)
+	manager.downloadURL = server.URL
+	manager.downloadSHA = hex.EncodeToString(digest[:])
+	manager.binarySHA = hex.EncodeToString(binaryDigest[:])
+	manager.httpClient = server.Client()
+	if status := manager.Status(); status.Installed || status.Source != "" || status.UpgradeAvailable {
+		t.Fatalf("legacy bundle counted as a tool download: %+v", status)
 	}
 
 	started, err := manager.StartDownload()
@@ -100,10 +105,7 @@ func TestFFmpegToolManagerDownloadsAndInstalls(t *testing.T) {
 	if status.Source != "downloaded" {
 		t.Fatalf("source = %q, want downloaded", status.Source)
 	}
-	if status.Path != "internal/bin/ffmpeg" {
-		t.Fatalf("path = %q, want internal/bin/ffmpeg", status.Path)
-	}
-	if _, err := os.Stat(targetPath); err != nil {
+	if _, err := os.Stat(manager.targetPath); err != nil {
 		t.Fatalf("stat installed FFmpeg: %v", err)
 	}
 
@@ -134,9 +136,6 @@ func TestFFmpegToolManagerDownloadsRawBinary(t *testing.T) {
 		downloadSHA: hex.EncodeToString(digest[:]),
 		binarySHA:   hex.EncodeToString(digest[:]),
 		httpClient:  server.Client(),
-		resolveFFmpeg: func() (string, error) {
-			return "", errors.New("FFmpeg not found")
-		},
 	}
 
 	if err := manager.downloadToTarget(); err != nil {
@@ -176,9 +175,6 @@ func TestFFmpegToolManagerRejectsChecksumMismatch(t *testing.T) {
 		downloadSHA: "wrong-checksum",
 		binarySHA:   hex.EncodeToString(binaryDigest[:]),
 		httpClient:  server.Client(),
-		resolveFFmpeg: func() (string, error) {
-			return targetPath, nil
-		},
 	}
 
 	if _, err := manager.StartDownload(); err != nil {
@@ -286,9 +282,6 @@ func TestFFmpegToolManagerTreatsManagedChecksumMismatchAsUpgrade(t *testing.T) {
 		downloadSHA: hex.EncodeToString(newDigest[:]),
 		binarySHA:   hex.EncodeToString(newDigest[:]),
 		httpClient:  server.Client(),
-		resolveFFmpeg: func() (string, error) {
-			return targetPath, nil
-		},
 	}
 
 	status := manager.Status()
@@ -340,57 +333,6 @@ func TestNewFFmpegToolManagerUsesPersistentDataPath(t *testing.T) {
 	}
 	if manager.tempDir != os.TempDir() {
 		t.Fatalf("tempDir = %q, want system temp directory %q", manager.tempDir, os.TempDir())
-	}
-}
-
-func TestFFmpegToolManagerDetectsBuiltInFFmpeg(t *testing.T) {
-	tests := []struct {
-		name         string
-		resolvedPath func(string) string
-	}{
-		{
-			name: "release bundle",
-			resolvedPath: func(baseDir string) string {
-				return filepath.Join(baseDir, "internal", "bin", "ffmpeg")
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			baseDir := t.TempDir()
-			resolvedPath := tt.resolvedPath(baseDir)
-			if err := os.MkdirAll(filepath.Dir(resolvedPath), 0o755); err != nil {
-				t.Fatalf("create built-in FFmpeg directory: %v", err)
-			}
-			if err := os.WriteFile(resolvedPath, []byte("built-in ffmpeg"), 0o755); err != nil {
-				t.Fatalf("write built-in FFmpeg: %v", err)
-			}
-
-			manager := &installer{
-				context:    context.Background(),
-				targetPath: filepath.Join(baseDir, "data", "tools", "test", "ffmpeg"),
-				bundledDir: filepath.Join(baseDir, "internal", "bin"),
-				resolveFFmpeg: func() (string, error) {
-					return resolvedPath, nil
-				},
-			}
-
-			status := manager.Status()
-			if !status.Installed {
-				t.Fatal("installed = false, want true")
-			}
-			if status.Source != "builtin" {
-				t.Fatalf("source = %q, want builtin", status.Source)
-			}
-			started, err := manager.StartDownload()
-			if err != nil {
-				t.Fatalf("start download: %v", err)
-			}
-			if started {
-				t.Fatal("StartDownload() = true for built-in FFmpeg")
-			}
-		})
 	}
 }
 
