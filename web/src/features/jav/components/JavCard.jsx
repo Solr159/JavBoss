@@ -457,10 +457,22 @@ export default function JavCard(props) {
             title={titleText}
             style={titleClampStyle}
           >
-            {codeText ? (
-              <span className="font-semibold text-gray-800 dark:text-ui-text">{codeText}</span>
+            {codeText || item?.is_uncensored === true ? (
+              <>
+                <span className="inline-flex items-center gap-1 align-baseline">
+                  {codeText ? (
+                    <span className="font-semibold text-gray-800 [text-box:trim-both_cap_alphabetic] dark:text-ui-text">
+                      {codeText}
+                    </span>
+                  ) : null}
+                  {item?.is_uncensored === true ? (
+                    <span className="whitespace-nowrap rounded bg-rose-100 px-1 py-0.5 text-[10px] font-medium leading-none text-rose-700 [text-box:trim-both_cap_alphabetic] dark:bg-rose-900 dark:text-rose-300">
+                      {zh('无码', 'Uncensored')}
+                    </span>
+                  ) : null}
+                </span>{' '}
+              </>
             ) : null}
-            {codeText ? ' ' : null}
             <span className="font-medium text-gray-800 dark:text-ui-text">{mainTitle}</span>
           </div>
           <div
