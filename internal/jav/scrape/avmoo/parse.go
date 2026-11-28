@@ -81,7 +81,7 @@ func findAvmooAPISearchResult(results []avmooAPIMovie, code string) *avmooAPIMov
 	return nil
 }
 
-func avmooMovieInfoFromAPI(movie *avmooAPIMovie) *metadata.JavInfo {
+func avmooMovieInfoFromAPI(movie *avmooAPIMovie, baseURL string) *metadata.JavInfo {
 	if movie == nil {
 		return nil
 	}
@@ -91,11 +91,11 @@ func avmooMovieInfoFromAPI(movie *avmooAPIMovie) *metadata.JavInfo {
 		Code:        strings.TrimSpace(movie.MovieFanHao),
 		ReleaseUnix: parseutil.ParseDateUnix(movie.ReleaseDate),
 		DurationMin: movie.Length,
-		CoverURL:    parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall),
+		CoverURL:    parseutil.ResolveURL(baseURL, parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall)),
 		SampleImages: parseutil.SampleImagesFromURLs(
 			movie.SampleSmall,
 			movie.SampleLarge,
-			avmooBaseURL,
+			baseURL,
 		),
 		IsUncensored: &isUncensored,
 		Provider:     metadata.ProviderAvmoo,

@@ -14,12 +14,12 @@ import (
 	"golang.org/x/net/html"
 )
 
-func javDBSearchURL(code string) string {
-	return fmt.Sprintf("%s/search?q=%s&f=all", javDBBaseURL, url.QueryEscape(strings.TrimSpace(code)))
+func javDBSearchURL(baseURL, code string) string {
+	return fmt.Sprintf("%s/search?q=%s&f=all", baseURL, url.QueryEscape(strings.TrimSpace(code)))
 }
 
-func javDBActorSearchURL(name string) string {
-	return fmt.Sprintf("%s/search?q=%s&f=actor", javDBBaseURL, url.QueryEscape(strings.TrimSpace(name)))
+func javDBActorSearchURL(baseURL, name string) string {
+	return fmt.Sprintf("%s/search?q=%s&f=actor", baseURL, url.QueryEscape(strings.TrimSpace(name)))
 }
 
 func findJavDBSearchResultURL(root *html.Node, code, pageURL string) string {

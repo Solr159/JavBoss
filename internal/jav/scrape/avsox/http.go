@@ -27,8 +27,8 @@ func (e avsoxStatusError) Error() string {
 	return fmt.Sprintf("avsox: %s code %d", e.source, e.status)
 }
 
-func (p *AvsoxClient) fetchAvsoxMovieByCode(ctx context.Context, code string) (*avsoxAPIMovie, error) {
-	session, err := p.cachedAvsoxSession(ctx, code)
+func (p *AvsoxClient) fetchAvsoxMovieByCode(ctx context.Context, base, code string) (*avsoxAPIMovie, error) {
+	session, err := p.cachedAvsoxSession(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +39,7 @@ func (p *AvsoxClient) fetchAvsoxMovieByCode(ctx context.Context, code string) (*
 
 	p.invalidateCachedAvsoxSession(session)
 	logging.Info("avsox session expired, refreshing")
-	session, err = p.refreshAvsoxSession(ctx, code)
+	session, err = p.refreshAvsoxSession(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
@@ -81,20 +81,20 @@ func (p *AvsoxClient) fetchAvsoxMovieWithSession(ctx context.Context, session av
 	return &movie, nil
 }
 
-func (p *AvsoxClient) cachedAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
+func (p *AvsoxClient) cachedAvsoxSession(ctx context.Context, base, code string) (avsoxSession, error) {
 	now := time.Now()
 	p.sessionCache.Lock()
 	session := p.sessionCache.session
-	if session.csrfToken != "" && session.cookie != "" && now.Before(p.sessionCache.expiresAt) {
+	if session.origin == base && session.csrfToken != "" && session.cookie != "" && now.Before(p.sessionCache.expiresAt) {
 		p.sessionCache.Unlock()
 		return session, nil
 	}
 	p.sessionCache.Unlock()
-	return p.refreshAvsoxSession(ctx, code)
+	return p.refreshAvsoxSession(ctx, base, code)
 }
 
-func (p *AvsoxClient) refreshAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
-	session, err := p.fetchAvsoxSession(ctx, code)
+func (p *AvsoxClient) refreshAvsoxSession(ctx context.Context, base, code string) (avsoxSession, error) {
+	session, err := p.fetchAvsoxSession(ctx, base, code)
 	if err != nil {
 		return avsoxSession{}, err
 	}
@@ -107,7 +107,7 @@ func (p *AvsoxClient) refreshAvsoxSession(ctx context.Context, code string) (avs
 
 func (p *AvsoxClient) invalidateCachedAvsoxSession(session avsoxSession) {
 	p.sessionCache.Lock()
-	if p.sessionCache.session.csrfToken == session.csrfToken && p.sessionCache.session.cookie == session.cookie {
+	if p.sessionCache.session == session {
 		p.sessionCache.session = avsoxSession{}
 		p.sessionCache.expiresAt = time.Time{}
 	}
@@ -127,9 +127,9 @@ func isAvsoxSessionAuthError(err error) bool {
 	}
 }
 
-func (p *AvsoxClient) fetchAvsoxSession(ctx context.Context, code string) (avsoxSession, error) {
-	pageURL := fmt.Sprintf("%s/%s/search/%s", avsoxBaseURL, avsoxAPILanguage, url.PathEscape(code))
-	req, err := buildAvsoxRequest(ctx, pageURL, avsoxBaseURL)
+func (p *AvsoxClient) fetchAvsoxSession(ctx context.Context, base, code string) (avsoxSession, error) {
+	pageURL := fmt.Sprintf("%s/%s/search/%s", base, avsoxAPILanguage, url.PathEscape(code))
+	req, err := buildAvsoxRequest(ctx, pageURL, base)
 	if err != nil {
 		return avsoxSession{}, err
 	}
@@ -163,6 +163,7 @@ func (p *AvsoxClient) fetchAvsoxSession(ctx context.Context, code string) (avsox
 		return avsoxSession{}, errors.New("avsox: missing csrf session")
 	}
 	return avsoxSession{
+		origin:    base,
 		csrfToken: token,
 		cookie:    cookie,
 		referer:   pageURL,
@@ -220,7 +221,7 @@ func (p *AvsoxClient) postAvsoxAPIOnce(ctx context.Context, session avsoxSession
 	if err != nil {
 		return err
 	}
-	targetURL := avsoxBaseURL + path
+	targetURL := session.origin + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -229,7 +230,7 @@ func (p *AvsoxClient) postAvsoxAPIOnce(ctx context.Context, session avsoxSession
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", avsoxBaseURL)
+	req.Header.Set("Origin", session.origin)
 	req.Header.Set("Referer", session.referer)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("X-CSRF-Token", session.csrfToken)
@@ -308,6 +309,7 @@ func buildAvsoxRequest(ctx context.Context, targetURL, referer string) (*http.Re
 }
 
 type avsoxSession struct {
+	origin    string
 	csrfToken string
 	cookie    string
 	referer   string
@@ -326,4 +328,4 @@ type avsoxStatusError struct {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *AvsoxClient) OriginURL() string { return avsoxBaseURL }
+func (p *AvsoxClient) OriginURL() string { return p.BaseURL() }

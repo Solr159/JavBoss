@@ -144,7 +144,7 @@ func TestAvsoxMovieInfoFromAPI(t *testing.T) {
 		t.Fatalf("unmarshal avsox api fixture: %v", err)
 	}
 
-	info := avsoxMovieInfoFromAPI(&movie)
+	info := avsoxMovieInfoFromAPI(&movie, DefaultBaseURL)
 	if info == nil {
 		t.Fatal("expected info, got nil")
 	}
@@ -211,7 +211,7 @@ func TestAvsoxMovieDetailURL(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if got := avsoxMovieDetailURL(test.movie); got != test.want {
+			if got := avsoxMovieDetailURL(test.movie, DefaultBaseURL); got != test.want {
 				t.Fatalf("detail URL = %q, want %q", got, test.want)
 			}
 		})
@@ -246,7 +246,7 @@ func TestAvsoxSessionAuthErrorDetection(t *testing.T) {
 
 func TestAvsoxSessionCacheReuseAndInvalidate(t *testing.T) {
 	p := New(NewHTTPClient())
-	session := avsoxSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avsox.click/cn/search/030919_047"}
+	session := avsoxSession{origin: p.BaseURL(), csrfToken: "token", cookie: "cookie=value", referer: "https://avsox.click/cn/search/030919_047"}
 	p.sessionCache.Lock()
 	p.sessionCache.session = session
 	p.sessionCache.expiresAt = time.Now().Add(time.Minute)
@@ -258,7 +258,7 @@ func TestAvsoxSessionCacheReuseAndInvalidate(t *testing.T) {
 		p.sessionCache.Unlock()
 	})
 
-	got, err := p.cachedAvsoxSession(context.Background(), "030919_048")
+	got, err := p.cachedAvsoxSession(context.Background(), p.BaseURL(), "030919_048")
 	if err != nil {
 		t.Fatalf("cachedAvsoxSession: %v", err)
 	}

@@ -1,10 +1,23 @@
 import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useRef, useState } from 'react'
-import { IconButton } from '@mui/material'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+} from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
-import { checkProviderAvailability, fetchAvailabilityProviders } from '@/features/settings/api'
+import {
+  checkProviderAvailability,
+  fetchAvailabilityProviders,
+  updateProviderBaseURL,
+} from '@/features/settings/api'
 import { getErrorMessage } from '@/utils/errors'
 import { zh } from '@/utils/i18n'
 import { runProviderChecks } from '@/utils/providerAvailability'
@@ -56,6 +69,137 @@ function resultLabel(result) {
     default:
       return zh('未检测', 'Not checked')
   }
+}
+
+function ProviderAddress({ provider, name, disabled, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const defaultURL = provider.default_base_url || ''
+  const editLabel = zh(`编辑 ${name} 站点地址`, `Edit ${name} URL`)
+
+  const openEditor = () => {
+    setDraft(provider.base_url || defaultURL)
+    setError('')
+    setEditing(true)
+  }
+
+  const closeEditor = () => {
+    if (!saving) setEditing(false)
+  }
+
+  const save = async (event) => {
+    event.preventDefault()
+    if (saving || disabled) return
+    const value = draft.trim()
+    const next = value === defaultURL ? '' : value
+    const currentURL = provider.base_url || ''
+    if (next === currentURL) {
+      setEditing(false)
+      return
+    }
+    setSaving(true)
+    setError('')
+    try {
+      const updated = await updateProviderBaseURL(provider.id, next)
+      onSaved(updated, (updated.base_url || '') !== currentURL)
+      setEditing(false)
+    } catch (err) {
+      setError(getErrorMessage(err))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
+      <div className="flex min-w-0 items-center gap-1">
+        <span className="break-all">{provider.domain}</span>
+        {provider.configurable && (
+          <Tooltip title={editLabel} arrow>
+            <span className="inline-flex shrink-0">
+              <IconButton
+                type="button"
+                size="small"
+                aria-label={editLabel}
+                aria-haspopup="dialog"
+                disabled={disabled}
+                onClick={openEditor}
+                sx={{ width: 24, height: 24, color: 'var(--theme-faint, #71717a)' }}
+              >
+                <EditOutlinedIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
+      </div>
+      {provider.base_url && (
+        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {zh('自定义', 'Custom')}
+        </span>
+      )}
+      <Dialog
+        open={editing}
+        onClose={closeEditor}
+        disableScrollLock
+        fullWidth
+        maxWidth="xs"
+        slotProps={{ paper: { component: 'form', onSubmit: save, sx: { borderRadius: '16px' } } }}
+      >
+        <DialogTitle>{editLabel}</DialogTitle>
+        <DialogContent>
+          <TextField
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- The user has opened the editor.
+            autoFocus
+            fullWidth
+            size="small"
+            margin="dense"
+            label={zh('站点地址', 'Site URL')}
+            autoComplete="off"
+            value={draft}
+            disabled={disabled}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setError('')
+            }}
+            error={Boolean(error)}
+            helperText={
+              error ||
+              zh(
+                '请输入 https://域名，不能包含端口或路径',
+                'Enter https://domain without a port or path'
+              )
+            }
+            slotProps={{
+              input: { readOnly: saving },
+              htmlInput: { inputMode: 'url', spellCheck: false },
+              formHelperText: error ? { role: 'alert' } : undefined,
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pt: 0, pb: 2, flexWrap: 'wrap' }}>
+          <Button
+            type="button"
+            disabled={disabled || saving}
+            onClick={() => {
+              setDraft(defaultURL)
+              setError('')
+            }}
+            sx={{ mr: 'auto' }}
+          >
+            {zh('恢复默认', 'Restore defaults')}
+          </Button>
+          <Button type="button" onClick={closeEditor} disabled={saving}>
+            {zh('取消', 'Cancel')}
+          </Button>
+          <Button type="submit" variant="contained" disableElevation disabled={disabled || saving}>
+            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
+  )
 }
 
 export default function ProviderAvailabilityPanel({ disabled = false }) {
@@ -145,6 +289,28 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
     )
   }
 
+  const applyProviderUpdate = (updated, addressChanged) => {
+    setProviders((current) =>
+      current.map((provider) =>
+        provider.id === updated.provider
+          ? {
+              ...provider,
+              base_url: updated.base_url,
+              default_base_url: updated.default_base_url,
+              domain: updated.domain,
+            }
+          : provider
+      )
+    )
+    if (!addressChanged) return
+    setResults((current) => {
+      if (!(updated.provider in current)) return current
+      const next = { ...current }
+      delete next[updated.provider]
+      return next
+    })
+  }
+
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-ui-border dark:bg-ui-surface">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -156,6 +322,12 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
             {zh(
               '使用当前代理设置执行真实查询，成功获取并解析数据后视为可用',
               'Run a real lookup using the current proxy settings; success requires parsed data'
+            )}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
+            {zh(
+              '可自定义数据源的站点地址，修改后需重新检测。',
+              'Provider site URLs can be customized. Re-check after saving a change.'
             )}
           </p>
           {disabled && (
@@ -232,13 +404,16 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
               className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 transition hover:border-zinc-300 hover:shadow-sm dark:border-ui-border/80 dark:bg-ui-surface dark:hover:border-ui-faint"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold leading-5 text-zinc-800 dark:text-ui-text">
                     {name}
                   </div>
-                  <div className="mt-0.5 break-all text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
-                    {provider.domain}
-                  </div>
+                  <ProviderAddress
+                    provider={provider}
+                    name={name}
+                    disabled={disabled || checking}
+                    onSaved={applyProviderUpdate}
+                  />
                   <div className="mt-1 text-[11px] text-zinc-500 dark:text-ui-faint">
                     {zh('测试查询：', 'Test lookup: ')}
                     {provider.sample}

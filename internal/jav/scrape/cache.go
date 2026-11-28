@@ -21,15 +21,15 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
 	ProviderJavDBAPI:    "v5", // Preserve separators when validating movie numbers.
-	ProviderAvmoo:       "v6",
-	ProviderAvsox:       "v3",
+	ProviderAvmoo:       "v7", // Resolve relative poster URLs.
+	ProviderAvsox:       "v4", // Resolve relative poster URLs.
 	ProviderJavMenu:     "v2",
 	ProviderThePornDB:   "v2",
 }
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
-	ProviderMinnanoAV: "v3",
-	ProviderAVWiki:    "v2", // Normalize RomanName to given-name-first order.
+	ProviderMinnanoAV: "v4", // Discard false misses after a search redirect.
+	ProviderAVWiki:    "v5", // Discard false misses for equivalent default ports.
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.
@@ -134,14 +134,23 @@ func cacheableLookupResult(c *MetadataClient, key string, value any, err error) 
 	}
 }
 
-func lookupCacheKey(provider Provider, method, input string) string {
-	return strings.Join([]string{
+// providerLookupCacheKey uses the same provider instance that runs the lookup.
+func providerLookupCacheKey(provider Provider, implementation any, method, input string) string {
+	return lookupCacheKey(provider, method, input, configuredProviderBaseURL(provider, implementation))
+}
+
+func lookupCacheKey(provider Provider, method, input string, discriminator ...string) string {
+	parts := []string{
 		lookupCacheKeyVersion(provider, method),
 		"jav",
 		ParseProvider(int(provider)).String(),
 		method,
 		normalizeLookupCacheInput(method, input),
-	}, ":")
+	}
+	if len(discriminator) > 0 && strings.TrimSpace(discriminator[0]) != "" {
+		parts = append(parts, discriminator[0])
+	}
+	return strings.Join(parts, ":")
 }
 
 func lookupCacheKeyVersion(provider Provider, method string) string {

@@ -16,11 +16,11 @@ import (
 )
 
 func (p *JavBusClient) fetchJavBusDocument(ctx context.Context, code string) (*html.Node, string, error) {
-	base := "https://www.javbus.com"
+	base := p.BaseURL()
 
 	url := fmt.Sprintf("%s/%s", base, code)
 
-	req, err := buildRequest(ctx, url)
+	req, err := buildRequest(ctx, url, base+"/")
 	if err != nil {
 		return nil, "", err
 	}
@@ -58,7 +58,7 @@ func (p *JavBusClient) fetchJavBusDocument(ctx context.Context, code string) (*h
 }
 
 func (p *JavBusClient) fetchJavBusGenreDocument(ctx context.Context, targetURL string) (*html.Node, error) {
-	req, err := buildRequest(ctx, targetURL)
+	req, err := buildRequest(ctx, targetURL, p.BaseURL()+"/")
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (p *JavBusClient) doJavBusRequest(req *http.Request) (*http.Response, error
 	return p.httpClient.Do(req)
 }
 
-func buildRequest(ctx context.Context, url string) (*http.Request, error) {
+func buildRequest(ctx context.Context, url, referer string) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -100,10 +100,10 @@ func buildRequest(ctx context.Context, url string) (*http.Request, error) {
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-	req.Header.Set("Referer", "https://www.javbus.com/")
+	req.Header.Set("Referer", referer)
 	req.Header.Set("Cookie", "age=verified; existmag=mag")
 	return req, nil
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *JavBusClient) OriginURL() string { return "https://www.javbus.com" }
+func (p *JavBusClient) OriginURL() string { return p.BaseURL() }

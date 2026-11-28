@@ -28,8 +28,8 @@ func TestParseActress(t *testing.T) {
 		{"invalid date", "name-test", "test name", "2001年2月29日", "T160 / B80 / W60 / H90", "Test Name", [5]int{160, 80, 60, 90, 0}, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			tag := actressTag{Name: "女優名", Link: baseURL + "/av-actress/" + tc.slug + "/", Description: profileFixture("女優名", tc.roman, tc.date, tc.size)}
-			info := parseActress(tag, baseURL)
+			tag := actressTag{Name: "女優名", Link: DefaultBaseURL + "/av-actress/" + tc.slug + "/", Description: profileFixture("女優名", tc.roman, tc.date, tc.size)}
+			info := parseActress(tag, DefaultBaseURL)
 			if info == nil {
 				t.Fatal("missing profile")
 			}
@@ -46,14 +46,39 @@ func TestParseActress(t *testing.T) {
 func TestParseActressRejectsUnrelatedProfiles(t *testing.T) {
 	for _, tc := range []struct{ name, link, description string }{
 		{"wrong origin", "https://other.test/av-actress/test/", profileFixture("女優名", "test name", "", "")},
-		{"movie link", baseURL + "/movie-001/", profileFixture("女優名", "test name", "", "")},
-		{"wrong profile", baseURL + "/av-actress/test/", profileFixture("別の女優", "test name", "", "")},
-		{"empty profile", baseURL + "/av-actress/test/", ""},
-		{"unrelated description", baseURL + "/av-actress/test/", "T160 B90 W60 H90"},
+		{"movie link", DefaultBaseURL + "/movie-001/", profileFixture("女優名", "test name", "", "")},
+		{"wrong profile", DefaultBaseURL + "/av-actress/test/", profileFixture("別の女優", "test name", "", "")},
+		{"empty profile", DefaultBaseURL + "/av-actress/test/", ""},
+		{"unrelated description", DefaultBaseURL + "/av-actress/test/", "T160 B90 W60 H90"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if info := parseActress(actressTag{Name: "女優名", Link: tc.link, Description: tc.description}, baseURL); info != nil {
+			if info := parseActress(actressTag{Name: "女優名", Link: tc.link, Description: tc.description}, DefaultBaseURL); info != nil {
 				t.Fatalf("unrelated profile accepted: %+v", info)
+			}
+		})
+	}
+}
+
+func TestParseActressMatchesEffectiveOriginPort(t *testing.T) {
+	const name = "女優名"
+	const path = "/av-actress/test/"
+	for _, tc := range []struct{ name, origin, link, want string }{
+		{"explicit HTTPS response port", "https://av-wiki.net:443", "https://av-wiki.net", "https://av-wiki.net"},
+		{"explicit HTTPS link port", "https://av-wiki.net", "https://av-wiki.net:443", "https://av-wiki.net"},
+		{"explicit HTTP response port", "http://av-wiki.net:80", "http://av-wiki.net", "http://av-wiki.net"},
+		{"matching custom port", "https://av-wiki.net:8443", "https://av-wiki.net:8443", "https://av-wiki.net:8443"},
+		{"different port", "https://av-wiki.net:8443", "https://av-wiki.net", ""},
+		{"different scheme", "https://av-wiki.net:443", "http://av-wiki.net:443", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tag := actressTag{Name: name, Link: tc.link + path, Description: profileFixture(name, "test name", "", "")}
+			info := parseActress(tag, tc.origin)
+			if tc.want == "" {
+				if info != nil {
+					t.Fatalf("unexpected profile: %+v", info)
+				}
+			} else if info == nil || info.ProfileURL != tc.want+path {
+				t.Fatalf("profile = %+v, want URL %q", info, tc.want+path)
 			}
 		})
 	}

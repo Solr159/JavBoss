@@ -17,8 +17,8 @@ import (
 )
 
 func (p *JavDBClient) fetchJavDBDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	searchURL := javDBSearchURL(code)
-	searchDoc, status, err := p.fetchJavDBHTML(ctx, searchURL, javDBBaseURL)
+	searchURL := javDBSearchURL(p.BaseURL(), code)
+	searchDoc, status, err := p.fetchJavDBHTML(ctx, searchURL, p.BaseURL())
 	if err != nil {
 		return nil, "", err
 	}
@@ -112,4 +112,4 @@ func buildJavDBRequest(ctx context.Context, targetURL, referer string) (*http.Re
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *JavDBClient) OriginURL() string { return javDBBaseURL }
+func (p *JavDBClient) OriginURL() string { return p.BaseURL() }

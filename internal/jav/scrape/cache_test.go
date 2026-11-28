@@ -170,14 +170,14 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderAvmoo,
 			method:   "lookup_jav",
 			input:    "abc-001",
-			want:     "v6:jav:avmoo:lookup_jav:ABC-001",
+			want:     "v7:jav:avmoo:lookup_jav:ABC-001",
 		},
 		{
 			name:     "avsox lookup jav uses provider version",
 			provider: ProviderAvsox,
 			method:   "lookup_jav",
 			input:    "030919_047",
-			want:     "v3:jav:avsox:lookup_jav:030919_047",
+			want:     "v4:jav:avsox:lookup_jav:030919_047",
 		},
 		{
 			name:     "javmenu lookup jav uses provider version",
@@ -205,14 +205,14 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderMinnanoAV,
 			method:   "lookup_actress_name",
 			input:    "倉沢裕美",
-			want:     "v3:jav:minnanoav:lookup_actress_name:倉沢裕美",
+			want:     "v4:jav:minnanoav:lookup_actress_name:倉沢裕美",
 		},
 		{
 			name:     "avwiki actress lookup uses normalized roman name version",
 			provider: ProviderAVWiki,
 			method:   "lookup_actress_name",
 			input:    "九井スナオ",
-			want:     "v2:jav:avwiki:lookup_actress_name:九井スナオ",
+			want:     "v5:jav:avwiki:lookup_actress_name:九井スナオ",
 		},
 	}
 

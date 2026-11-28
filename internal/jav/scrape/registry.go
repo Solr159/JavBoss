@@ -1,13 +1,17 @@
 package scrape
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
+	"javboss/internal/common/logging"
 	"javboss/internal/jav/scrape/avmoo"
 	"javboss/internal/jav/scrape/avsox"
 	"javboss/internal/jav/scrape/avwiki"
+	"javboss/internal/jav/scrape/internal/baseurl"
 	"javboss/internal/jav/scrape/javbus"
 	"javboss/internal/jav/scrape/javdatabase"
 	"javboss/internal/jav/scrape/javdb"
@@ -19,9 +23,10 @@ import (
 	"javboss/internal/util"
 )
 
-// MetadataClient owns an immutable provider registry and an independently configurable cache.
+// MetadataClient owns the provider registry and an independently configurable cache.
 // Providers supplied to NewMetadataClient must support concurrent queries.
 type MetadataClient struct {
+	providersMu          sync.RWMutex
 	providers            map[Provider]any
 	availabilityFactory  func(Provider, *http.Client) (any, error)
 	cacheMu              sync.RWMutex
@@ -111,9 +116,196 @@ func (c *MetadataClient) providerFor(provider Provider) (any, error) {
 	if provider == ProviderUnknown || provider == ProviderUser || provider == ProviderManualScrape {
 		return nil, ErrUnsupportedProvider
 	}
+	c.providersMu.RLock()
 	implementation, ok := c.providers[provider]
+	c.providersMu.RUnlock()
 	if !ok || implementation == nil {
 		return nil, ErrUnsupportedProvider
 	}
 	return implementation, nil
+}
+
+// baseURLProvider is implemented by scrapers whose site origin users may override.
+type baseURLProvider interface {
+	BaseURL() string
+	SetBaseURL(string)
+}
+
+// ConfigurableBaseURLProviders lists the providers whose site origin can be
+// overridden. Public API services keep their fixed endpoints.
+func ConfigurableBaseURLProviders() []Provider {
+	return []Provider{
+		ProviderJavBus, ProviderJavDatabase, ProviderJavDB, ProviderAvmoo, ProviderAvsox,
+		ProviderJavMenu, ProviderJavModel, ProviderMinnanoAV, ProviderAVWiki,
+	}
+}
+
+// DefaultProviderBaseURL returns the official origin of a configurable provider,
+// or an empty string for providers without a configurable origin.
+func DefaultProviderBaseURL(provider Provider) string {
+	switch ParseProvider(int(provider)) {
+	case ProviderJavBus:
+		return javbus.DefaultBaseURL
+	case ProviderJavDatabase:
+		return javdatabase.DefaultBaseURL
+	case ProviderJavDB:
+		return javdb.DefaultBaseURL
+	case ProviderAvmoo:
+		return avmoo.DefaultBaseURL
+	case ProviderAvsox:
+		return avsox.DefaultBaseURL
+	case ProviderJavMenu:
+		return javmenu.DefaultBaseURL
+	case ProviderJavModel:
+		return javmodel.DefaultBaseURL
+	case ProviderMinnanoAV:
+		return minnanoav.DefaultBaseURL
+	case ProviderAVWiki:
+		return avwiki.DefaultBaseURL
+	default:
+		return ""
+	}
+}
+
+// ProviderBaseURLConfigKey returns the config key that stores a provider's
+// configured origin, or an empty string for providers without one.
+func ProviderBaseURLConfigKey(provider Provider) string {
+	provider = ParseProvider(int(provider))
+	if DefaultProviderBaseURL(provider) == "" {
+		return ""
+	}
+	return provider.String() + "_base_url"
+}
+
+// NormalizeProviderBaseURL validates a configured site origin and represents
+// the default origin as an empty override.
+func NormalizeProviderBaseURL(provider Provider, raw string) (string, error) {
+	provider = ParseProvider(int(provider))
+	defaultURL := DefaultProviderBaseURL(provider)
+	if defaultURL == "" {
+		return "", ErrUnsupportedProvider
+	}
+	if strings.TrimSpace(raw) == "" {
+		return "", nil
+	}
+	normalized, err := baseurl.Normalize(raw)
+	if err != nil {
+		return "", fmt.Errorf("%s base url: %w", provider, err)
+	}
+	if normalized == defaultURL {
+		return "", nil
+	}
+	return normalized, nil
+}
+
+// ProviderBaseURL returns the configured origin of a provider, or an empty
+// string when the default origin is in use.
+func ProviderBaseURL(provider Provider) string {
+	return defaultMetadataClient.ProviderBaseURL(provider)
+}
+
+// ProviderBaseURL returns this client's configured origin of a provider, or an
+// empty string when the default origin is in use.
+func (c *MetadataClient) ProviderBaseURL(provider Provider) string {
+	implementation, err := c.providerFor(provider)
+	if err != nil {
+		return ""
+	}
+	return configuredProviderBaseURL(provider, implementation)
+}
+
+func configuredProviderBaseURL(provider Provider, implementation any) string {
+	effective := effectiveProviderBaseURL(implementation)
+	if effective == "" || effective == DefaultProviderBaseURL(provider) {
+		return ""
+	}
+	return effective
+}
+
+// effectiveProviderBaseURL reports the origin a provider currently requests.
+func effectiveProviderBaseURL(implementation any) string {
+	scraper, ok := implementation.(baseURLProvider)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(scraper.BaseURL())
+}
+
+// applyProviderBaseURL aligns a freshly created provider with the configured origin.
+func (c *MetadataClient) applyProviderBaseURL(provider Provider, implementation any) {
+	setter, ok := implementation.(interface{ SetBaseURL(string) })
+	if !ok {
+		return
+	}
+	if configured := c.ProviderBaseURL(provider); configured != "" {
+		setter.SetBaseURL(configured)
+	}
+}
+
+// SetProviderBaseURL changes a provider's origin on the default metadata client.
+// An empty value restores the official origin.
+func SetProviderBaseURL(provider Provider, raw string) error {
+	provider = ParseProvider(int(provider))
+	normalized, err := NormalizeProviderBaseURL(provider, raw)
+	if err != nil {
+		return err
+	}
+	c := defaultMetadataClient
+	c.providersMu.Lock()
+	defer c.providersMu.Unlock()
+
+	origin := normalized
+	if origin == "" {
+		origin = DefaultProviderBaseURL(provider)
+	}
+	if effectiveProviderBaseURL(c.providers[provider]) == origin {
+		return nil
+	}
+
+	// In-flight lookups keep their original instance, including its sessions.
+	implementation, err := newProvider(provider, newCachedProviderHTTPClient(provider))
+	if err != nil {
+		return err
+	}
+	setter, ok := implementation.(baseURLProvider)
+	if !ok {
+		return ErrUnsupportedProvider
+	}
+	setter.SetBaseURL(normalized)
+	c.providers[provider] = implementation
+	c.invalidateProviderAvailability(provider)
+	refreshJavImageSources(c.providers)
+	return nil
+}
+
+// ApplyProviderBaseURLConfig applies every persisted provider origin in cfg so
+// startup and config reloads agree with the stored values.
+func ApplyProviderBaseURLConfig(cfg map[string]string) {
+	for _, provider := range ConfigurableBaseURLProviders() {
+		raw := strings.TrimSpace(cfg[ProviderBaseURLConfigKey(provider)])
+		if raw == "" {
+			continue
+		}
+		if err := SetProviderBaseURL(provider, raw); err != nil {
+			logging.Error("apply %s base url failed: %v", provider, err)
+		}
+	}
+}
+
+// refreshJavImageSources teaches the image proxy which Referer each configured
+// origin expects so covers served from a mirror keep loading.
+func refreshJavImageSources(providers map[Provider]any) {
+	sources := make([]util.JavImageSource, 0, len(ConfigurableBaseURLProviders()))
+	for _, provider := range ConfigurableBaseURLProviders() {
+		origin := effectiveProviderBaseURL(providers[provider])
+		if origin == "" {
+			continue
+		}
+		source := util.JavImageSource{Origin: origin}
+		if provider == ProviderJavBus {
+			source.Cookie = "age=verified; existmag=mag"
+		}
+		sources = append(sources, source)
+	}
+	util.SetJavImageSources(sources)
 }

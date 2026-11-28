@@ -21,6 +21,17 @@ export async function checkProviderAvailability(provider, { signal } = {}) {
   return parseJSONResponse(res)
 }
 
+export async function updateProviderBaseURL(provider, baseURL, { signal } = {}) {
+  const res = await apiFetch(`/jav/providers/${encodeURIComponent(provider)}/base_url`, {
+    method: 'PUT',
+    headers: jsonHeaders,
+    body: JSON.stringify({ base_url: baseURL }),
+    signal,
+  })
+  if (!res.ok) throw await apiError(res)
+  return parseJSONResponse(res)
+}
+
 export async function fetchConfig() {
   const res = await apiFetch('/config')
   if (!res.ok) throw await apiError(res)

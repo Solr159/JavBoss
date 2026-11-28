@@ -30,8 +30,8 @@ func (e avmooStatusError) Error() string {
 	return fmt.Sprintf("avmoo: %s code %d", e.source, e.status)
 }
 
-func (p *AvmooClient) fetchAvmooMovieByCode(ctx context.Context, code string) (*avmooAPIMovie, error) {
-	session, err := p.cachedAvmooSession(ctx, code)
+func (p *AvmooClient) fetchAvmooMovieByCode(ctx context.Context, base, code string) (*avmooAPIMovie, error) {
+	session, err := p.cachedAvmooSession(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func (p *AvmooClient) fetchAvmooMovieByCode(ctx context.Context, code string) (*
 
 	p.invalidateCachedAvmooSession(session)
 	logging.Info("avmoo session expired, refreshing")
-	session, err = p.refreshAvmooSession(ctx, code)
+	session, err = p.refreshAvmooSession(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
@@ -84,20 +84,20 @@ func (p *AvmooClient) fetchAvmooMovieWithSession(ctx context.Context, session av
 	return &movie, nil
 }
 
-func (p *AvmooClient) cachedAvmooSession(ctx context.Context, code string) (avmooSession, error) {
+func (p *AvmooClient) cachedAvmooSession(ctx context.Context, base, code string) (avmooSession, error) {
 	now := time.Now()
 	p.sessionCache.Lock()
 	session := p.sessionCache.session
-	if session.csrfToken != "" && session.cookie != "" && now.Before(p.sessionCache.expiresAt) {
+	if session.origin == base && session.csrfToken != "" && session.cookie != "" && now.Before(p.sessionCache.expiresAt) {
 		p.sessionCache.Unlock()
 		return session, nil
 	}
 	p.sessionCache.Unlock()
-	return p.refreshAvmooSession(ctx, code)
+	return p.refreshAvmooSession(ctx, base, code)
 }
 
-func (p *AvmooClient) refreshAvmooSession(ctx context.Context, code string) (avmooSession, error) {
-	session, err := p.fetchAvmooSession(ctx, code)
+func (p *AvmooClient) refreshAvmooSession(ctx context.Context, base, code string) (avmooSession, error) {
+	session, err := p.fetchAvmooSession(ctx, base, code)
 	if err != nil {
 		return avmooSession{}, err
 	}
@@ -110,7 +110,7 @@ func (p *AvmooClient) refreshAvmooSession(ctx context.Context, code string) (avm
 
 func (p *AvmooClient) invalidateCachedAvmooSession(session avmooSession) {
 	p.sessionCache.Lock()
-	if p.sessionCache.session.csrfToken == session.csrfToken && p.sessionCache.session.cookie == session.cookie {
+	if p.sessionCache.session == session {
 		p.sessionCache.session = avmooSession{}
 		p.sessionCache.expiresAt = time.Time{}
 	}
@@ -130,9 +130,9 @@ func isAvmooSessionAuthError(err error) bool {
 	}
 }
 
-func (p *AvmooClient) fetchAvmooSession(ctx context.Context, code string) (avmooSession, error) {
-	pageURL := fmt.Sprintf("%s/%s/search/%s", avmooBaseURL, avmooAPILanguage, url.PathEscape(code))
-	req, err := buildAvmooRequest(ctx, pageURL, avmooBaseURL)
+func (p *AvmooClient) fetchAvmooSession(ctx context.Context, base, code string) (avmooSession, error) {
+	pageURL := fmt.Sprintf("%s/%s/search/%s", base, avmooAPILanguage, url.PathEscape(code))
+	req, err := buildAvmooRequest(ctx, pageURL, base)
 	if err != nil {
 		return avmooSession{}, err
 	}
@@ -166,6 +166,7 @@ func (p *AvmooClient) fetchAvmooSession(ctx context.Context, code string) (avmoo
 		return avmooSession{}, errors.New("avmoo: missing csrf session")
 	}
 	return avmooSession{
+		origin:    base,
 		csrfToken: token,
 		cookie:    cookie,
 		referer:   pageURL,
@@ -223,7 +224,7 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 	if err != nil {
 		return err
 	}
-	targetURL := avmooBaseURL + path
+	targetURL := session.origin + path
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return err
@@ -232,7 +233,7 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 	req.Header.Set("Accept", "application/json, text/plain, */*")
 	req.Header.Set("Accept-Language", "zh-TW,zh;q=0.9,en;q=0.8")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Origin", avmooBaseURL)
+	req.Header.Set("Origin", session.origin)
 	req.Header.Set("Referer", session.referer)
 	req.Header.Set("X-Requested-With", "XMLHttpRequest")
 	req.Header.Set("X-CSRF-Token", session.csrfToken)
@@ -278,8 +279,8 @@ func (p *AvmooClient) postAvmooAPIOnce(ctx context.Context, session avmooSession
 }
 
 func (p *AvmooClient) fetchAvmooDetailByCode(ctx context.Context, code string) (*html.Node, string, error) {
-	searchURL := fmt.Sprintf("%s/tw/search/%s", avmooBaseURL, url.PathEscape(code))
-	searchDoc, status, err := p.fetchAvmooHTML(ctx, searchURL, avmooBaseURL)
+	searchURL := fmt.Sprintf("%s/tw/search/%s", p.BaseURL(), url.PathEscape(code))
+	searchDoc, status, err := p.fetchAvmooHTML(ctx, searchURL, p.BaseURL())
 	if err != nil {
 		return nil, "", err
 	}
@@ -369,6 +370,7 @@ func buildAvmooRequest(ctx context.Context, targetURL, referer string) (*http.Re
 }
 
 type avmooSession struct {
+	origin    string
 	csrfToken string
 	cookie    string
 	referer   string
@@ -387,4 +389,4 @@ type avmooStatusError struct {
 }
 
 // OriginURL identifies the origin used for availability checks.
-func (p *AvmooClient) OriginURL() string { return avmooBaseURL }
+func (p *AvmooClient) OriginURL() string { return p.BaseURL() }
