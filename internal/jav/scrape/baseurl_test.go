@@ -6,10 +6,8 @@ import (
 	"errors"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"slices"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -133,47 +131,56 @@ func (c lookupCacheWithReadHook) Get(key string, now time.Time) ([]byte, bool, e
 }
 
 func TestLookupCacheUsesOriginOfCapturedProvider(t *testing.T) {
-	mirror := func() *httptest.Server {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			json.NewEncoder(w).Encode([]map[string]string{{
-				"name": "女優名", "link": "http://" + r.Host + "/av-actress/test/",
-				"description": "<dl class=actress-data><dt>AV女優名</dt><dd>女優名</dd></dl>",
-			}})
-		}))
-		t.Cleanup(server.Close)
-		return server
-	}
-	oldMirror, newMirror := mirror(), mirror()
+	const (
+		oldMirror = "https://old.avwiki.test"
+		newMirror = "https://new.avwiki.test"
+		name      = "女優名"
+	)
 	provider := ProviderAVWiki
-	if err := SetProviderBaseURL(provider, oldMirror.URL); err != nil {
+	oldProvider, err := newProvider(provider, &http.Client{Transport: testRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		if req.URL.Scheme != "https" || req.URL.Host != "old.avwiki.test" {
+			t.Errorf("lookup sent to %s, want %s", req.URL, oldMirror)
+		}
+		return mockAVWikiProfile(oldMirror, name), nil
+	})})
+	if err != nil {
 		t.Fatal(err)
 	}
+	oldProvider.(baseURLProvider).SetBaseURL(oldMirror)
+	c := defaultMetadataClient
+	c.providersMu.Lock()
+	c.providers[provider] = oldProvider
+	c.providersMu.Unlock()
 	t.Cleanup(func() {
 		_ = SetProviderBaseURL(provider, "")
 		util.SetJavImageSources(nil)
 	})
 
 	cache := newMemoryLookupCache()
-	oldCache := defaultMetadataClient.currentLookupCache()
+	oldCache := c.currentLookupCache()
 	t.Cleanup(func() { SetCache(oldCache) })
 	SetCache(lookupCacheWithReadHook{memoryLookupCache: cache, onRead: func() {
 		// Switch after looking up the key and before the upstream request starts.
-		if err := SetProviderBaseURL(provider, newMirror.URL); err != nil {
+		if err := SetProviderBaseURL(provider, newMirror); err != nil {
 			t.Fatal(err)
 		}
 		SetCache(cache)
 	}})
 
-	for _, origin := range []string{oldMirror.URL, newMirror.URL, oldMirror.URL} {
-		result, err := LookupActressByJapaneseName(context.Background(), "女優名", provider)
-		if err != nil || result == nil || result.ProfileURL != origin+"/av-actress/test/" {
-			t.Fatalf("origin=%s: lookup=%+v, err=%v", origin, result, err)
-		}
-		if origin == newMirror.URL {
-			if err := SetProviderBaseURL(provider, oldMirror.URL); err != nil {
-				t.Fatal(err)
-			}
-		}
+	result, err := LookupActressByJapaneseName(context.Background(), name, provider)
+	if err != nil || result == nil || result.ProfileURL != oldMirror+"/av-actress/test/" {
+		t.Fatalf("lookup=%+v, err=%v", result, err)
+	}
+	if got := ProviderBaseURL(provider); got != newMirror {
+		t.Fatalf("active provider origin = %q, want %q", got, newMirror)
+	}
+	oldKey := lookupCacheKey(provider, "lookup_actress_name", name, oldMirror)
+	if got, ok, err := lookupCacheGet[ActressInfo](c, oldKey); err != nil || !ok || got.ProfileURL != result.ProfileURL {
+		t.Fatalf("old cache: profile=%+v, hit=%v, err=%v", got, ok, err)
+	}
+	newKey := lookupCacheKey(provider, "lookup_actress_name", name, newMirror)
+	if _, ok, _ := lookupCacheGet[ActressInfo](c, newKey); ok {
+		t.Fatal("old lookup result was cached under the new origin")
 	}
 }
 
@@ -259,7 +266,7 @@ func TestApplyProviderBaseURLConfig(t *testing.T) {
 	})
 	ApplyProviderBaseURLConfig(map[string]string{
 		"javmenu_base_url": "https://mirror.javmenu.test",
-		"javbus_base_url":  "",
+		"javbus_base_url":  "http://mirror.javbus.test:8080",
 		"avmoo_base_url":   "https://mirror.avmoo.test",
 	})
 	if got := ProviderBaseURL(ProviderJavMenu); got != "https://mirror.javmenu.test" {
@@ -275,33 +282,29 @@ func TestApplyProviderBaseURLConfig(t *testing.T) {
 }
 
 func TestCheckAvailabilityUsesConfiguredBaseURL(t *testing.T) {
-	var requests atomic.Int32
-	var server *httptest.Server
-	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		if r.URL.Path != "/wp-json/wp/v2/tags" {
-			t.Errorf("unexpected path %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("X-WP-TotalPages", "1")
-		description := `<div class="actress-data"><dl>
-<dt>AV女優名：</dt><dd>三上悠亜（みかみゆあ）- Yua Mikami</dd>
-<dt>生年月日：</dt><dd>1993年8月16日</dd>
-<dt>サイズ：</dt><dd>T162 / B85 / W58 / H88 / Fカップ</dd>
-</dl></div>`
-		body, _ := json.Marshal([]map[string]string{{
-			"name": "三上悠亜", "link": server.URL + "/av-actress/mikami-yua/", "description": description,
-		}})
-		_, _ = w.Write(body)
-	}))
-	defer server.Close()
+	const mirror = "https://mirror.avwiki.test"
+	c := defaultMetadataClient
+	originalFactory := c.availabilityFactory
 	t.Cleanup(func() {
+		c.availabilityFactory = originalFactory
 		_ = SetProviderBaseURL(ProviderAVWiki, "")
 		util.SetJavImageSources(nil)
 		InvalidateAvailabilityCache()
 	})
 
-	if err := SetProviderBaseURL(ProviderAVWiki, server.URL); err != nil {
+	requests := 0
+	c.availabilityFactory = func(provider Provider, client *http.Client) (any, error) {
+		client.Transport = testRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requests++
+			if req.URL.Scheme != "https" || req.URL.Host != "mirror.avwiki.test" || req.URL.Path != "/wp-json/wp/v2/tags" {
+				t.Errorf("unexpected availability request: %s", req.URL)
+			}
+			return mockAVWikiProfile(mirror, "三上悠亜"), nil
+		})
+		return newProvider(provider, client)
+	}
+
+	if err := SetProviderBaseURL(ProviderAVWiki, mirror); err != nil {
 		t.Fatalf("SetProviderBaseURL: %v", err)
 	}
 	result, err := CheckAvailability(context.Background(), ProviderAVWiki)
@@ -309,9 +312,17 @@ func TestCheckAvailabilityUsesConfiguredBaseURL(t *testing.T) {
 		t.Fatalf("CheckAvailability: %v", err)
 	}
 	if result.Status != "ok" {
-		t.Fatalf("status = %q, want ok (requests=%d)", result.Status, requests.Load())
+		t.Fatalf("status = %q, want ok (requests=%d)", result.Status, requests)
 	}
-	if requests.Load() == 0 {
+	if requests != 1 {
 		t.Fatal("availability check did not reach the configured origin")
 	}
+}
+
+func mockAVWikiProfile(origin, name string) *http.Response {
+	description := `<dl class="actress-data"><dt>AV女優名</dt><dd>` + name + `</dd><dt>サイズ</dt><dd>T160</dd></dl>`
+	body, _ := json.Marshal([]map[string]string{{
+		"name": name, "link": origin + "/av-actress/test/", "description": description,
+	}})
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(string(body)))}
 }

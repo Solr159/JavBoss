@@ -220,7 +220,11 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 		{name: "path", provider: "1", body: `{"base_url":"https://mirror.javbus.test/genre"}`},
 		{name: "credentials", provider: "1", body: `{"base_url":"https://user:pass@mirror.javbus.test"}`},
 		{name: "scheme", provider: "1", body: `{"base_url":"ftp://mirror.javbus.test"}`},
-		{name: "port without hostname", provider: "1", body: `{"base_url":"https://:8443"}`},
+		{name: "http mirror", provider: "1", body: `{"base_url":"http://mirror.javbus.test"}`},
+		{name: "explicit default port", provider: "1", body: `{"base_url":"https://mirror.javbus.test:443"}`},
+		{name: "nonstandard port", provider: "1", body: `{"base_url":"https://mirror.javbus.test:8443"}`},
+		{name: "ip mirror", provider: "1", body: `{"base_url":"https://127.0.0.1"}`},
+		{name: "scoped ipv6 mirror", provider: "1", body: `{"base_url":"https://[fe80::1%25eth0]"}`},
 		{name: "missing field", provider: "1", body: `{}`},
 		{name: "api provider", provider: "12", body: `{"base_url":"https://mirror.test"}`},
 		{name: "unknown provider", provider: "99", body: `{"base_url":"https://mirror.test"}`},
@@ -235,17 +239,8 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 	if got := javbus(listProviders()); got.BaseURL != "https://mirror.javbus.test" {
 		t.Fatalf("invalid save changed provider: %+v", got)
 	}
-
-	scoped := update("1", `{"base_url":"http://[FE80::1%25Eth0]:8080/"}`)
-	if scoped.Code != http.StatusOK {
-		t.Fatalf("scoped IPv6 save: status=%d body=%s", scoped.Code, scoped.Body)
-	}
-	const scopedOrigin = "http://[fe80::1%25Eth0]:8080"
-	if got := javbus(listProviders()); got.BaseURL != scopedOrigin || got.Domain != "fe80::1%Eth0" {
-		t.Fatalf("scoped IPv6 provider entry = %+v", got)
-	}
-	if got := readConfig()["javbus_base_url"]; got != scopedOrigin {
-		t.Fatalf("stored scoped IPv6 origin = %q", got)
+	if got := readConfig()["javbus_base_url"]; got != "https://mirror.javbus.test" {
+		t.Fatalf("invalid save changed stored origin: %q", got)
 	}
 
 	start := make(chan struct{})

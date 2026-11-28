@@ -68,8 +68,8 @@ func updateProviderBaseURL(c *gin.Context) {
 		respondLocalizedError(
 			c,
 			http.StatusBadRequest,
-			"数据源地址无效：仅支持 http(s) 站点地址，不能包含路径、参数或账号信息",
-			"Invalid provider URL: use an http(s) origin without a path, query, or credentials",
+			"数据源地址无效，请使用 https://域名，地址中不能包含 IP、端口、路径、参数或账号信息",
+			"Invalid provider URL. Use https://domain without an IP address, port, path, query, or credentials.",
 		)
 		return
 	}

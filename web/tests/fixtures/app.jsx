@@ -37,6 +37,7 @@ const providers = [
     base_url: '',
     default_base_url: 'https://www.javbus.com',
     configurable: true,
+    last_result: { status: 'ok', elapsed_ms: 21 },
   },
   {
     id: 12,
@@ -60,20 +61,18 @@ const updateProviderBaseURL = (provider, body) => {
     }
     const invalidOrigin =
       !parsed ||
-      !['http:', 'https:'].includes(parsed.protocol) ||
-      parsed.username ||
-      parsed.password ||
-      parsed.search ||
-      parsed.hash ||
-      (parsed.pathname !== '/' && parsed.pathname !== '')
+      !/^https:\/\/[^/:?#@]+\/?$/i.test(raw) ||
+      !/^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.?$/i.test(parsed.hostname) ||
+      /^\d+\.\d+\.\d+\.\d+$/.test(parsed.hostname)
     if (invalidOrigin)
       return Response.json(
         { error_zh: '数据源地址无效', error_en: 'Invalid provider URL' },
         { status: 400 }
       )
-    const origin = `${parsed.protocol}//${parsed.host}`
+    const origin = `https://${parsed.hostname.replace(/\.$/, '')}`
     normalized = origin === provider.default_base_url ? '' : origin
   }
+  if (provider.base_url !== normalized) delete provider.last_result
   provider.base_url = normalized
   provider.domain = new URL(normalized || provider.default_base_url).hostname
   return Response.json({

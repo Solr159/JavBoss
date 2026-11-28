@@ -28,8 +28,8 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 }
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
-	ProviderMinnanoAV: "v3",
-	ProviderAVWiki:    "v4", // Discard false misses when the tags API redirects.
+	ProviderMinnanoAV: "v4", // Discard false misses after a search redirect.
+	ProviderAVWiki:    "v5", // Discard false misses for equivalent default ports.
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.

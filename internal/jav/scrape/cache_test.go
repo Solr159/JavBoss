@@ -205,14 +205,14 @@ func TestLookupCacheKeyVersionIsProviderSpecific(t *testing.T) {
 			provider: ProviderMinnanoAV,
 			method:   "lookup_actress_name",
 			input:    "倉沢裕美",
-			want:     "v3:jav:minnanoav:lookup_actress_name:倉沢裕美",
+			want:     "v4:jav:minnanoav:lookup_actress_name:倉沢裕美",
 		},
 		{
 			name:     "avwiki actress lookup uses normalized roman name version",
 			provider: ProviderAVWiki,
 			method:   "lookup_actress_name",
 			input:    "九井スナオ",
-			want:     "v4:jav:avwiki:lookup_actress_name:九井スナオ",
+			want:     "v5:jav:avwiki:lookup_actress_name:九井スナオ",
 		},
 	}
 

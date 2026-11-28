@@ -92,7 +92,7 @@ func (p *MinnanoAVClient) lookupMinnanoAVActressByName(ctx context.Context, base
 		return nil, err
 	}
 
-	doc, status, finalURL, err := p.fetchMinnanoAVHTML(ctx, searchURL, baseURL)
+	doc, status, finalSearchURL, err := p.fetchMinnanoAVHTML(ctx, searchURL, baseURL)
 	if err != nil {
 		return nil, err
 	}
@@ -100,25 +100,25 @@ func (p *MinnanoAVClient) lookupMinnanoAVActressByName(ctx context.Context, base
 		return nil, metadata.ErrNotFound
 	}
 
-	if profileURL := canonicalMinnanoAVActressURL(finalURL, baseURL); profileURL != "" {
+	if profileURL := canonicalMinnanoAVActressURL(finalSearchURL, finalSearchURL); profileURL != "" {
 		if info := parseMinnanoAVActressInfo(doc); info != nil {
 			return finalizeMinnanoAVActressInfo(name, profileURL, info, parseMinnanoAVActressAliases(doc)...)
 		}
 	}
 
-	profileURL := findMinnanoAVActressSearchResultURL(doc, name, searchURL, baseURL)
+	profileURL := findMinnanoAVActressSearchResultURL(doc, name, finalSearchURL)
 	if profileURL == "" {
 		return nil, metadata.ErrNotFound
 	}
 
-	doc, status, finalURL, err = p.fetchMinnanoAVHTML(ctx, profileURL, searchURL)
+	doc, status, finalProfileURL, err := p.fetchMinnanoAVHTML(ctx, profileURL, finalSearchURL)
 	if err != nil {
 		return nil, err
 	}
 	if status == http.StatusNotFound || doc == nil {
 		return nil, metadata.ErrNotFound
 	}
-	if canonical := canonicalMinnanoAVActressURL(finalURL, baseURL); canonical != "" {
+	if canonical := canonicalMinnanoAVActressURL(finalProfileURL, finalSearchURL); canonical != "" {
 		profileURL = canonical
 	}
 	return finalizeMinnanoAVActressInfo(
@@ -199,7 +199,7 @@ func responseURL(resp *http.Response, fallback string) string {
 	return fallback
 }
 
-func findMinnanoAVActressSearchResultURL(root *html.Node, name, pageURL, baseURL string) string {
+func findMinnanoAVActressSearchResultURL(root *html.Node, name, pageURL string) string {
 	name = normalizeMinnanoAVName(name)
 	if root == nil || name == "" {
 		return ""
@@ -211,7 +211,7 @@ func findMinnanoAVActressSearchResultURL(root *html.Node, name, pageURL, baseURL
 			return
 		}
 		resolved := parseutil.ResolveURL(pageURL, htmlutil.SelectionAttr(link, "href"))
-		if canonical := canonicalMinnanoAVActressURL(resolved, baseURL); canonical != "" {
+		if canonical := canonicalMinnanoAVActressURL(resolved, pageURL); canonical != "" {
 			matches[canonical] = struct{}{}
 		}
 	})

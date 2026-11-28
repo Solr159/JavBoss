@@ -1,7 +1,11 @@
 package minnanoav
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
@@ -30,6 +34,70 @@ func TestBuildMinnanoAVActressSearchURL(t *testing.T) {
 	}
 	if got := parsed.Query().Get("search"); got != "Go" {
 		t.Fatalf("search = %q, want Go", got)
+	}
+}
+
+func TestLookupUsesCanonicalSearchResponse(t *testing.T) {
+	const (
+		name        = "安堂なな"
+		searchPath  = "/search_result.php"
+		profilePath = "/actress861218.html"
+	)
+	for _, tc := range []struct {
+		name     string
+		absolute bool
+		direct   bool
+	}{
+		{name: "absolute result", absolute: true},
+		{name: "relative result"},
+		{name: "redirect directly to profile", direct: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				origin := "http://" + r.Host
+				switch r.URL.Path {
+				case searchPath:
+					href := profilePath[1:]
+					if tc.absolute {
+						href = origin + profilePath
+					}
+					fmt.Fprintf(w, `<h2 class="ttl"><a href="%s">%s</a></h2>`, href, name)
+					fmt.Fprintf(w, `<h2 class="ttl"><a href="https://other.test/actress1.html">%s</a></h2>`, name)
+				case profilePath:
+					if !tc.direct {
+						referer, err := url.Parse(r.Referer())
+						if err != nil || referer.Host != r.Host || referer.Path != searchPath {
+							t.Errorf("profile request referer = %q", r.Referer())
+						}
+					}
+					fmt.Fprintf(w, `<h1>%s</h1><div class="act-profile"></div>`, name)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer destination.Close()
+			redirect := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != searchPath {
+					t.Errorf("profile request went to configured origin: %s", r.URL.Path)
+					http.NotFound(w, r)
+					return
+				}
+				path := r.URL.RequestURI()
+				if tc.direct {
+					path = profilePath
+				}
+				http.Redirect(w, r, destination.URL+path, http.StatusFound)
+			}))
+			defer redirect.Close()
+
+			client := New(redirect.Client())
+			// Local servers exercise redirects independently of settings validation.
+			client.baseURL = redirect.URL
+			info, err := client.LookupActressByName(context.Background(), name)
+			if err != nil || info == nil || info.ProfileURL != destination.URL+profilePath {
+				t.Fatalf("info=%+v error=%v", info, err)
+			}
+		})
 	}
 }
 
@@ -98,7 +166,6 @@ func TestParseMinnanoAVRomanNameUsesGivenNameFirst(t *testing.T) {
 
 func TestFindMinnanoAVActressSearchResultURL(t *testing.T) {
 	const pageURL = "https://www.minnano-av.com/search_result.php?search_scope=actress"
-	const baseURL = "https://www.minnano-av.com"
 
 	t.Run("returns the unique exact match", func(t *testing.T) {
 		doc, err := htmlutil.ParseHTMLDocument([]byte(`<html><body>
@@ -108,7 +175,7 @@ func TestFindMinnanoAVActressSearchResultURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse fixture: %v", err)
 		}
-		got := findMinnanoAVActressSearchResultURL(doc, "安堂なな", pageURL, baseURL)
+		got := findMinnanoAVActressSearchResultURL(doc, "安堂なな", pageURL)
 		if got != "https://www.minnano-av.com/actress861218.html" {
 			t.Fatalf("result URL = %q", got)
 		}
@@ -122,7 +189,7 @@ func TestFindMinnanoAVActressSearchResultURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse fixture: %v", err)
 		}
-		got := findMinnanoAVActressSearchResultURL(doc, "今田美玲", pageURL, baseURL)
+		got := findMinnanoAVActressSearchResultURL(doc, "今田美玲", pageURL)
 		if got != "https://www.minnano-av.com/actress552222.html" {
 			t.Fatalf("result URL = %q", got)
 		}
@@ -136,7 +203,7 @@ func TestFindMinnanoAVActressSearchResultURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("parse fixture: %v", err)
 		}
-		if got := findMinnanoAVActressSearchResultURL(doc, "安堂なな", pageURL, baseURL); got != "" {
+		if got := findMinnanoAVActressSearchResultURL(doc, "安堂なな", pageURL); got != "" {
 			t.Fatalf("result URL = %q, want empty", got)
 		}
 	})

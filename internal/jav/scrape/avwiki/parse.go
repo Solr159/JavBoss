@@ -28,8 +28,13 @@ var (
 func parseActress(tag actressTag, origin string) *metadata.ActressInfo {
 	target, err := url.Parse(tag.Link)
 	base, baseErr := url.Parse(origin)
-	if err != nil || baseErr != nil || target.Scheme != base.Scheme || !strings.EqualFold(target.Host, base.Host) || target.User != nil || !profilePath.MatchString(target.Path) {
+	if err != nil || baseErr != nil || target.Scheme != base.Scheme ||
+		!strings.EqualFold(target.Hostname(), base.Hostname()) || effectivePort(target) != effectivePort(base) ||
+		target.User != nil || !profilePath.MatchString(target.Path) {
 		return nil
+	}
+	if port := target.Port(); port != "" && effectivePort(target) == defaultPort(target.Scheme) {
+		target.Host = strings.TrimSuffix(target.Host, ":"+port)
 	}
 	target.RawQuery, target.Fragment = "", ""
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(tag.Description))
@@ -72,6 +77,25 @@ func parseActress(tag actressTag, origin string) *metadata.ActressInfo {
 		info.Cup = parseutil.CupLetterToNumber(match[1])
 	}
 	return info
+}
+
+func effectivePort(u *url.URL) int {
+	if port := u.Port(); port != "" {
+		number, _ := strconv.Atoi(port)
+		return number
+	}
+	return defaultPort(u.Scheme)
+}
+
+func defaultPort(scheme string) int {
+	switch scheme {
+	case "https":
+		return 443
+	case "http":
+		return 80
+	default:
+		return 0
+	}
 }
 
 // AV Wiki mixes given-name-first text and family-name-first text. Its profile

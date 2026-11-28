@@ -57,6 +57,7 @@ test(
     )
     assert.equal(await browser.evaluate(`Boolean(${editor})`), false)
     assert.equal(await browser.evaluate(`Boolean(${card}.querySelector('input'))`), false)
+    assert.match(await browser.evaluate(`${card}.textContent`), /Available/)
 
     await openEditor()
     assert.equal(
@@ -65,6 +66,10 @@ test(
     )
     assert.equal(await browser.evaluate(`${input}.value`), DEFAULT_URL)
     assert.equal(await browser.evaluate(`document.activeElement === ${input}`), true)
+    assert.match(
+      await browser.evaluate(`${editor}.textContent`),
+      /Enter https:\/\/domain without a port/
+    )
 
     await typeAddress('https://discarded.javbus.test')
     await clickAction('Cancel')
@@ -80,9 +85,11 @@ test(
     )
 
     await openEditor()
-    await typeAndSave(`${DEFAULT_URL}/`)
+    await typeAndSave('https://WWW.JAVBUS.COM/')
     await browser.waitFor(`!${editor}`)
     assert.equal(await browser.evaluate(`${card}.textContent.includes('Custom')`), false)
+    assert.match(await browser.evaluate(`${card}.textContent`), /Available/)
+    assert.match(await browser.evaluate(`${card}.textContent`), /21 ms/)
 
     await openEditor()
     await typeAndSave('https://Mirror.JavBus.Test/')
@@ -94,6 +101,7 @@ test(
       { url: '/jav/providers/1/base_url', method: 'PUT' }
     )
     assert.match(await browser.evaluate(`${card}.textContent`), /mirror\.javbus\.test/)
+    assert.match(await browser.evaluate(`${card}.textContent`), /Not checked/)
 
     // An in-flight save leaves the focused field read-only so a rejection can be corrected.
     await openEditor()
@@ -108,7 +116,7 @@ test(
         return fetch(url, options)
       }
     }`)
-    await typeAddress('https://mirror.javbus.test/genre')
+    await typeAddress('https://mirror.javbus.test:443')
     await browser.evaluate(`${input}.focus(); ${editor}.requestSubmit()`)
     await browser.waitFor(`typeof window.finishProviderSave === 'function'`)
     assert.equal(await browser.evaluate(`${input}.readOnly`), true)
@@ -116,7 +124,7 @@ test(
     await browser.evaluate('window.finishProviderSave()')
     await browser.waitFor(alert)
     assert.match(await browser.evaluate(`${alert}.textContent`), /Invalid provider URL/)
-    assert.equal(await browser.evaluate(`${input}.value`), 'https://mirror.javbus.test/genre')
+    assert.equal(await browser.evaluate(`${input}.value`), 'https://mirror.javbus.test:443')
     assert.equal(await browser.evaluate(`${input}.readOnly`), false)
     assert.equal(await browser.evaluate(`document.activeElement === ${input}`), true)
 

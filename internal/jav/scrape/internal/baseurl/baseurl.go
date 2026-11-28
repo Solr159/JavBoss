@@ -5,37 +5,34 @@ package baseurl
 import (
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
+
+	"golang.org/x/net/idna"
 )
 
-// Normalize validates a configured site origin. Only an origin is accepted so
-// providers keep control of their own paths, queries, and fragments. Trailing
-// slashes are ignored and the host is lowercased, preserving IPv6 zone names.
+var (
+	domainProfile = idna.New(idna.MapForLookup(), idna.BidiRule(), idna.VerifyDNSLength(true))
+	ipv4Literal   = regexp.MustCompile(`^(?:[0-9]+|0x[0-9a-f]*)(?:\.(?:[0-9]+|0x[0-9a-f]*)){0,3}$`)
+)
+
+// Normalize accepts only an HTTPS domain without an explicit port. It removes an
+// optional trailing slash and normalizes the domain for DNS lookup.
 func Normalize(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", fmt.Errorf("site url is required")
-	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed == nil || parsed.Hostname() == "" {
-		return "", fmt.Errorf("site url must be a valid origin")
+	if err != nil || parsed.Scheme != "https" || parsed.Host == "" ||
+		parsed.Host != parsed.Hostname() || parsed.User != nil ||
+		(parsed.Path != "" && parsed.Path != "/") || parsed.ForceQuery ||
+		parsed.RawQuery != "" || strings.Contains(raw, "#") {
+		return "", fmt.Errorf("site url must use https://domain without a port, credentials, path, query, or fragment")
 	}
-	scheme := strings.ToLower(parsed.Scheme)
-	if scheme != "http" && scheme != "https" {
-		return "", fmt.Errorf("site url must use http or https")
+	host, err := domainProfile.ToASCII(parsed.Host)
+	host = strings.TrimSuffix(host, ".")
+	if err != nil || host == "" || ipv4Literal.MatchString(host) {
+		return "", fmt.Errorf("site url must contain a valid domain name")
 	}
-	if parsed.User != nil {
-		return "", fmt.Errorf("site url must not contain credentials")
-	}
-	if strings.TrimRight(parsed.Path, "/") != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", fmt.Errorf("site url must not contain a path, query, or fragment")
-	}
-	host, zone, scoped := strings.Cut(parsed.Host, "%")
-	host = strings.ToLower(host)
-	if scoped {
-		host += "%" + zone
-	}
-	return (&url.URL{Scheme: scheme, Host: host}).String(), nil
+	return "https://" + host, nil
 }
 
 // NormalizeOrDefault returns the normalized origin, or an empty string when raw

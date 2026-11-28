@@ -94,7 +94,8 @@ function ProviderAddress({ provider, name, disabled, onSaved }) {
     if (saving || disabled) return
     const value = draft.trim()
     const next = value === defaultURL ? '' : value
-    if (next === (provider.base_url || '')) {
+    const currentURL = provider.base_url || ''
+    if (next === currentURL) {
       setEditing(false)
       return
     }
@@ -102,7 +103,7 @@ function ProviderAddress({ provider, name, disabled, onSaved }) {
     setError('')
     try {
       const updated = await updateProviderBaseURL(provider.id, next)
-      onSaved(updated)
+      onSaved(updated, (updated.base_url || '') !== currentURL)
       setEditing(false)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -163,7 +164,13 @@ function ProviderAddress({ provider, name, disabled, onSaved }) {
               setError('')
             }}
             error={Boolean(error)}
-            helperText={error || zh('仅支持不含路径的站点地址', 'Enter a site URL without a path')}
+            helperText={
+              error ||
+              zh(
+                '请输入 https://域名，不能包含端口或路径',
+                'Enter https://domain without a port or path'
+              )
+            }
             slotProps={{
               input: { readOnly: saving },
               htmlInput: { inputMode: 'url', spellCheck: false },
@@ -282,7 +289,7 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
     )
   }
 
-  const applyProviderUpdate = (updated) => {
+  const applyProviderUpdate = (updated, addressChanged) => {
     setProviders((current) =>
       current.map((provider) =>
         provider.id === updated.provider
@@ -295,6 +302,7 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
           : provider
       )
     )
+    if (!addressChanged) return
     setResults((current) => {
       if (!(updated.provider in current)) return current
       const next = { ...current }

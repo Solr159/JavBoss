@@ -59,6 +59,31 @@ func TestParseActressRejectsUnrelatedProfiles(t *testing.T) {
 	}
 }
 
+func TestParseActressMatchesEffectiveOriginPort(t *testing.T) {
+	const name = "女優名"
+	const path = "/av-actress/test/"
+	for _, tc := range []struct{ name, origin, link, want string }{
+		{"explicit HTTPS response port", "https://av-wiki.net:443", "https://av-wiki.net", "https://av-wiki.net"},
+		{"explicit HTTPS link port", "https://av-wiki.net", "https://av-wiki.net:443", "https://av-wiki.net"},
+		{"explicit HTTP response port", "http://av-wiki.net:80", "http://av-wiki.net", "http://av-wiki.net"},
+		{"matching custom port", "https://av-wiki.net:8443", "https://av-wiki.net:8443", "https://av-wiki.net:8443"},
+		{"different port", "https://av-wiki.net:8443", "https://av-wiki.net", ""},
+		{"different scheme", "https://av-wiki.net:443", "http://av-wiki.net:443", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			tag := actressTag{Name: name, Link: tc.link + path, Description: profileFixture(name, "test name", "", "")}
+			info := parseActress(tag, tc.origin)
+			if tc.want == "" {
+				if info != nil {
+					t.Fatalf("unexpected profile: %+v", info)
+				}
+			} else if info == nil || info.ProfileURL != tc.want+path {
+				t.Fatalf("profile = %+v, want URL %q", info, tc.want+path)
+			}
+		})
+	}
+}
+
 func TestRomanNameUsesGivenNameFirst(t *testing.T) {
 	for _, tc := range []struct{ name, field, slug, want string }{
 		{"family first hyphens", "九井スナオ（ここのいすなお）- kokonoi-sunao", "kokonoi-sunao", "Sunao Kokonoi"},
