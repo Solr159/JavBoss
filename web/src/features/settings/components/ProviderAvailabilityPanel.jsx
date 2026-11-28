@@ -1,8 +1,17 @@
 import Tooltip from '@/shared/ui/Tooltip'
 import { useEffect, useRef, useState } from 'react'
-import { IconButton } from '@mui/material'
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  TextField,
+} from '@mui/material'
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded'
 import AccessTimeRoundedIcon from '@mui/icons-material/AccessTimeRounded'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 
 import {
   checkProviderAvailability,
@@ -62,28 +71,39 @@ function resultLabel(result) {
   }
 }
 
-function ProviderBaseURLField({ provider, name, disabled, onSaved }) {
-  const [draft, setDraft] = useState(provider.base_url || '')
+function ProviderAddress({ provider, name, disabled, onSaved }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const defaultURL = provider.default_base_url || ''
+  const editLabel = zh(`编辑 ${name} 站点地址`, `Edit ${name} URL`)
 
-  useEffect(() => {
-    setDraft(provider.base_url || '')
-  }, [provider.base_url])
+  const openEditor = () => {
+    setDraft(provider.base_url || defaultURL)
+    setError('')
+    setEditing(true)
+  }
 
-  const save = async (value) => {
+  const closeEditor = () => {
+    if (!saving) setEditing(false)
+  }
+
+  const save = async (event) => {
+    event.preventDefault()
     if (saving || disabled) return
-    const next = String(value || '').trim()
+    const value = draft.trim()
+    const next = value === defaultURL ? '' : value
     if (next === (provider.base_url || '')) {
-      setDraft(provider.base_url || '')
+      setEditing(false)
       return
     }
     setSaving(true)
     setError('')
     try {
       const updated = await updateProviderBaseURL(provider.id, next)
-      setDraft(updated.base_url || '')
-      onSaved?.(updated)
+      onSaved(updated)
+      setEditing(false)
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -92,57 +112,85 @@ function ProviderBaseURLField({ provider, name, disabled, onSaved }) {
   }
 
   return (
-    <form
-      className="space-y-1"
-      onSubmit={(event) => {
-        event.preventDefault()
-        save(draft)
-      }}
-    >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <input
-          type="text"
-          inputMode="url"
-          autoComplete="off"
-          spellCheck={false}
-          value={draft}
-          placeholder={provider.default_base_url || ''}
-          aria-label={zh(`自定义 ${name} 站点地址`, `Custom ${name} URL`)}
-          disabled={disabled || saving}
-          onChange={(event) => setDraft(event.target.value)}
-          className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] leading-4 text-zinc-800 placeholder:text-zinc-400 focus:border-ui-primary focus:outline-none disabled:opacity-60 dark:border-ui-border dark:bg-ui-surface dark:text-ui-text dark:placeholder:text-ui-faint"
-        />
-        <button
-          type="submit"
-          disabled={disabled || saving}
-          className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-700 transition hover:border-zinc-300 disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary"
-        >
-          {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
-        </button>
-        {provider.base_url ? (
-          <button
-            type="button"
-            onClick={() => save('')}
-            disabled={disabled || saving}
-            className="rounded-lg border border-zinc-200 px-2 py-1 text-[11px] text-zinc-700 transition hover:border-zinc-300 disabled:opacity-60 dark:border-ui-border dark:text-ui-secondary"
-          >
-            {zh('默认地址', 'Default')}
-          </button>
-        ) : null}
+    <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
+      <div className="flex min-w-0 items-center gap-1">
+        <span className="break-all">{provider.domain}</span>
+        {provider.configurable && (
+          <Tooltip title={editLabel} arrow>
+            <span className="inline-flex shrink-0">
+              <IconButton
+                type="button"
+                size="small"
+                aria-label={editLabel}
+                aria-haspopup="dialog"
+                disabled={disabled}
+                onClick={openEditor}
+                sx={{ width: 24, height: 24, color: 'var(--theme-faint, #71717a)' }}
+              >
+                <EditOutlinedIcon sx={{ fontSize: 15 }} />
+              </IconButton>
+            </span>
+          </Tooltip>
+        )}
       </div>
-      {error ? (
-        <p role="alert" className="text-[11px] leading-4 text-red-600 dark:text-red-300">
-          {error}
-        </p>
-      ) : (
-        <p className="text-[10px] leading-4 text-zinc-400 dark:text-ui-faint">
-          {zh(
-            '留空使用默认地址，仅支持站点地址（不含路径）',
-            'Leave empty for the default site; origin only'
-          )}
-        </p>
+      {provider.base_url && (
+        <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+          {zh('自定义', 'Custom')}
+        </span>
       )}
-    </form>
+      <Dialog
+        open={editing}
+        onClose={closeEditor}
+        disableScrollLock
+        fullWidth
+        maxWidth="xs"
+        slotProps={{ paper: { component: 'form', onSubmit: save, sx: { borderRadius: '16px' } } }}
+      >
+        <DialogTitle>{editLabel}</DialogTitle>
+        <DialogContent>
+          <TextField
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- The user has opened the editor.
+            autoFocus
+            fullWidth
+            size="small"
+            margin="dense"
+            label={zh('站点地址', 'Site URL')}
+            autoComplete="off"
+            value={draft}
+            disabled={disabled || saving}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setError('')
+            }}
+            error={Boolean(error)}
+            helperText={error || zh('仅支持不含路径的站点地址', 'Enter a site URL without a path')}
+            slotProps={{
+              htmlInput: { inputMode: 'url', spellCheck: false },
+              formHelperText: error ? { role: 'alert' } : undefined,
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pt: 0, pb: 2, flexWrap: 'wrap' }}>
+          <Button
+            type="button"
+            disabled={disabled || saving}
+            onClick={() => {
+              setDraft(defaultURL)
+              setError('')
+            }}
+            sx={{ mr: 'auto' }}
+          >
+            {zh('恢复默认', 'Restore defaults')}
+          </Button>
+          <Button type="button" onClick={closeEditor} disabled={saving}>
+            {zh('取消', 'Cancel')}
+          </Button>
+          <Button type="submit" variant="contained" disableElevation disabled={disabled || saving}>
+            {saving ? zh('保存中…', 'Saving...') : zh('保存', 'Save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </div>
   )
 }
 
@@ -269,8 +317,8 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
           </p>
           <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-ui-faint">
             {zh(
-              '可为每个数据源填写自定义站点地址替代默认地址，修改后需重新检测',
-              'Each source accepts a custom site origin instead of the default; re-check after saving'
+              '可自定义数据源的站点地址，修改后需重新检测。',
+              'Provider site URLs can be customized. Re-check after saving a change.'
             )}
           </p>
           {disabled && (
@@ -347,18 +395,16 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
               className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/80 bg-white p-3.5 transition hover:border-zinc-300 hover:shadow-sm dark:border-ui-border/80 dark:bg-ui-surface dark:hover:border-ui-faint"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold leading-5 text-zinc-800 dark:text-ui-text">
                     {name}
                   </div>
-                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-4 text-zinc-500 dark:text-ui-faint">
-                    <span className="break-all">{provider.domain}</span>
-                    {provider.base_url ? (
-                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] leading-4 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                        {zh('自定义', 'Custom')}
-                      </span>
-                    ) : null}
-                  </div>
+                  <ProviderAddress
+                    provider={provider}
+                    name={name}
+                    disabled={disabled || checking}
+                    onSaved={applyProviderUpdate}
+                  />
                   <div className="mt-1 text-[11px] text-zinc-500 dark:text-ui-faint">
                     {zh('测试查询：', 'Test lookup: ')}
                     {provider.sample}
@@ -391,14 +437,6 @@ export default function ProviderAvailabilityPanel({ disabled = false }) {
                   </span>
                 </Tooltip>
               </div>
-              {provider.configurable ? (
-                <ProviderBaseURLField
-                  provider={provider}
-                  name={name}
-                  disabled={disabled || checking}
-                  onSaved={applyProviderUpdate}
-                />
-              ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span
                   className={`inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-medium leading-4 ${color}`}
