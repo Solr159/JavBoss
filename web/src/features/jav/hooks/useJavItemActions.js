@@ -61,7 +61,6 @@ export default function useJavItemActions({
   hideSeries = false,
   hideIdols = false,
   hideTags = false,
-  hideActions = false,
   showFullFavoriteRating = false,
 }) {
   const primaryVideo = useMemo(() => (item?.videos || [])[0], [item])
@@ -675,7 +674,6 @@ export default function useJavItemActions({
     tagMaxRows,
     buildTagFilterHref,
     onTagClick,
-    hideActions,
     openFileLabel,
     handleOpenFile,
     handleOpenEditor,

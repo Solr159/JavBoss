@@ -15,7 +15,6 @@ export default function useJavPresentation(items) {
   const hideSeries = useStore((state) => configFlag(state.config?.jav_hide_series))
   const hideIdols = useStore((state) => configFlag(state.config?.jav_hide_idols))
   const hideTags = useStore((state) => configFlag(state.config?.jav_hide_tags))
-  const hideActions = useStore((state) => configFlag(state.config?.jav_hide_actions))
   const showFullFavoriteRating = useStore((state) =>
     configFlag(state.config?.jav_favorite_rating_show_full, false)
   )
@@ -37,7 +36,6 @@ export default function useJavPresentation(items) {
     hideSeries,
     hideIdols,
     hideTags,
-    hideActions,
     showFullFavoriteRating,
     displayItems,
   }

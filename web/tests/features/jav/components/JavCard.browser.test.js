@@ -123,7 +123,7 @@ test(
           const checkbox = ${checkbox};
           const rect = checkbox.getBoundingClientRect();
           const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
-          const boxes = [checkbox, ${rating}, card.querySelector('[aria-label="Edit custom tags"]'), card.querySelector('[aria-label="Add to JAV favorite groups"]')].map(el => el.getBoundingClientRect());
+          const boxes = [checkbox, ${rating}, card.querySelector('[aria-label="Edit JAV"]'), card.querySelector('[aria-label="Edit custom tags"]'), card.querySelector('[aria-label="Add to JAV favorite groups"]')].map(el => el.getBoundingClientRect());
           return {x, y, hit: checkbox.contains(document.elementFromPoint(x, y)), overlap: boxes.some((a, i) => boxes.slice(i + 1).some(b => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top))};
         })()`)
       assert.equal(controls.overlap, false, `width=${width}`)
@@ -147,6 +147,37 @@ test(
       assert.equal(await evaluate(`Boolean(document.querySelector('[role="dialog"]'))`), false)
       await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1200, y: 850 })
     }
+    assert.equal(
+      await evaluate(`(() => {
+      const top = document.querySelector('.jav-card .card-hover-scope').getBoundingClientRect().top;
+      return ['Edit JAV', 'Edit custom tags', 'Add to JAV favorite groups'].every(label =>
+        Math.abs(document.querySelector('.jav-card [aria-label="' + label + '"]').getBoundingClientRect().top - top - 8) < 1);
+    })()`),
+      true
+    )
+    const ratingPoint = await evaluate(
+      `(() => { const r = ${rating}.firstElementChild.getBoundingClientRect(); return {x:r.left+r.width/2, y:r.top+r.height/2} })()`
+    )
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', ...ratingPoint })
+    await waitFor(`document.querySelector('.jav-card-rating-editing')`)
+    assert.equal(
+      await evaluate(
+        `[...document.querySelectorAll('.jav-card-rating-editing .jav-card-cover-action')].every(el => getComputedStyle(el).visibility === 'hidden' && getComputedStyle(el).pointerEvents === 'none')`
+      ),
+      true
+    )
+    await command('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1200, y: 850 })
+    await waitFor(`!document.querySelector('.jav-card-rating-editing')`)
+    assert.equal(
+      await evaluate(
+        `getComputedStyle(document.querySelector('.jav-card [aria-label="Edit JAV"]')).visibility`
+      ),
+      'visible'
+    )
+    await evaluate(`${rating}.querySelector('input').focus()`)
+    await waitFor(`document.querySelector('.jav-card-rating-editing')`)
+    await evaluate(`document.activeElement.blur()`)
+    await waitFor(`!document.querySelector('.jav-card-rating-editing')`)
     await evaluate(`document.querySelector('button[aria-label="Display"]').click()`)
     const mode = `document.querySelector('select[aria-label="Cover display mode"]')`
     const fullRating = `document.querySelector('[role="switch"][aria-label="Show full favorite-rating hearts"]')`
@@ -514,10 +545,10 @@ test(
     const cover = `document.querySelector('.jav-card .card-hover-scope')`
     const trigger = `${cover}.querySelector('button')`
     const modal = `document.querySelector('[aria-labelledby="jav-detail-title-1"]')`
-    // Selection stays visible on devices reporting hover:none (including headless Chrome).
+    // Selection and editing stay visible on devices reporting hover:none (including headless Chrome).
     const actions = `${cover}.querySelectorAll('.card-hover-focus-visible:not([role="checkbox"])')`
     const actionsHaveOpacity = (opacity) =>
-      `[...${actions}].every(el => getComputedStyle(el).opacity === '${opacity}')`
+      `[...${actions}].every(el => getComputedStyle(el).opacity === (matchMedia('(hover: none)').matches && el.getAttribute('aria-label') === 'Edit JAV' ? '1' : '${opacity}'))`
     const pressKey = async (key, code, windowsVirtualKeyCode) => {
       await command('Input.dispatchKeyEvent', {
         type: 'keyDown',
@@ -570,6 +601,9 @@ test(
       `${cover}.contains(document.activeElement) && document.activeElement !== ${trigger}`
     )
     await waitFor(actionsHaveOpacity(1))
+    // Leave keyboard rating editing before reaching other cover actions with the pointer.
+    await evaluate(`document.activeElement.blur()`)
+    await waitFor(`!document.querySelector('.jav-card-rating-editing')`)
 
     await evaluate(`window.testStore.setState(state => ({
       javItems: state.javItems.map(item => ({...item, videos: [
