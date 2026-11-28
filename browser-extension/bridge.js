@@ -9,39 +9,13 @@
     return SESSION_PATTERN.test(candidate) ? candidate : "";
   }
 
-  function trustedJavBossOrigin(value) {
-    let parsed;
+  function isHttpOrigin(value) {
     try {
-      parsed = new URL(String(value || ""));
+      const parsed = new URL(String(value || ""));
+      return parsed.protocol === "http:" || parsed.protocol === "https:";
     } catch {
       return false;
     }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
-      return false;
-
-    const host = parsed.hostname.toLowerCase();
-    if (
-      host === "localhost" ||
-      host.endsWith(".localhost") ||
-      host === "127.0.0.1" ||
-      host === "[::1]" ||
-      host.endsWith(".local") ||
-      host === "host.docker.internal" ||
-      !host.includes(".") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.")
-    ) {
-      return true;
-    }
-    const octets = host.split(".").map((part) => Number.parseInt(part, 10));
-    return (
-      octets.length === 4 &&
-      octets.every(
-        (part) => Number.isInteger(part) && part >= 0 && part <= 255,
-      ) &&
-      ((octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-        (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127))
-    );
   }
 
   function postToParent(message) {
@@ -57,7 +31,7 @@
     const message = event.data;
     if (message?.type === "JAVBOSS_EXTENSION_CONNECT") {
       const requestedSessionId = validSessionID(message.sessionId);
-      if (!requestedSessionId || !trustedJavBossOrigin(event.origin)) return;
+      if (!requestedSessionId || !isHttpOrigin(event.origin)) return;
       parentOrigin = event.origin;
       sessionId = requestedSessionId;
       postToParent({ type: "JAVBOSS_EXTENSION_READY" });
