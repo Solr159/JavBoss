@@ -157,7 +157,7 @@ local user_opts = {
     nibble_color = "#FF8232",              -- color of chapter nibbles on the seekbar
     nibble_current_color = "#FFFFFF",      -- color of the current chapter nibble on the seekbar
     screenshot_marker_color = "#58D6E8",   -- color of saved screenshot markers below the seekbar
-    screenshot_marker_hover_color = "#FFFFFF", -- color of the hovered screenshot marker
+    screenshot_marker_hover_color = "#FFE600", -- bright yellow for the hovered screenshot marker
 
     osc_fade_strength = 100,               -- strength of the OSC background fade (0 to disable)
     fade_blur_strength = 100,              -- blur strength for the OSC alpha fade. caution: high values can take a lot of CPU time to render
@@ -845,7 +845,7 @@ end
 local function get_element_hitbox(element)
     if element.name == "seekbar" and #state.screenshot_markers > 0 then
         -- Include the markers below the track without moving slider geometry.
-        return element.hitbox.x1, element.hitbox.y1, element.hitbox.x2, element.hitbox.y2 + 6
+        return element.hitbox.x1, element.hitbox.y1, element.hitbox.x2, element.hitbox.y2 + 8
     end
     return element.hitbox.x1, element.hitbox.y1, element.hitbox.x2, element.hitbox.y2
 end
@@ -1536,8 +1536,8 @@ local function screenshot_at_slider_pos(element, pos, duration)
     if mouse_y <= track_bottom then return end
     local x = get_slider_ele_pos_for(element, pos)
     local scale_x = get_virt_scale_factor()
-    -- At least 12 screen pixels on either side, also respecting OSC scaling.
-    local nearest, distance = nil, math.max(12, 12 * scale_x)
+    -- Keep the hover radius at six screen pixels, independent of OSC scaling.
+    local nearest, distance = nil, 6 * scale_x
     for _, second in ipairs(state.screenshot_markers) do
         if second <= duration then
             local delta = math.abs(get_slider_ele_pos_for(element, second / duration * 100) - x)
@@ -1551,32 +1551,47 @@ local function draw_screenshot_markers(element, elem_ass, anim_override)
     if element.name ~= "seekbar" then return end
     local duration = mp.get_property_number("duration", 0)
     if duration <= 0 or #state.screenshot_markers == 0 then return end
-    local y = element.layout.geometry.h - element.layout.slider.gap + 1
+    local y = element.hitbox.y2 - element.layout.slider.gap + 1
     local hovered = not subtitle_menu and mouse_hit(element)
         and screenshot_at_slider_pos(element, get_slider_value(element), duration)
-    local function triangle(second, half_width, height)
-        local x = get_slider_ele_pos_for(element, second / duration * 100)
+    local scale_x = get_virt_scale_factor()
+    if scale_x <= 0 then return end
+    -- Keep stroke widths in screen pixels even when the OSC is scaled up.
+    local function marker_x(second)
+        local x = element.hitbox.x1 + get_slider_ele_pos_for(element, second / duration * 100)
+        return (math.floor(x / scale_x) + 0.5) * scale_x
+    end
+    local hovered_x = hovered and marker_x(hovered)
+    local function marker_layer(color)
+        -- Use one origin and absolute coordinates in a separate ASS event.
+        -- Reusing the slider event would leave its centered \pos/\an tags
+        -- competing with these markers' alignment and larger drawing bounds.
+        elem_ass:draw_stop()
+        elem_ass:new_event()
+        elem_ass:pos(0, 0)
+        elem_ass:an(7)
+        elem_ass:append("{\\blur0\\bord0\\shad0\\1c&H" .. osc_color_convert(color) .. "&}")
+        ass_append_alpha(elem_ass, element.layout.alpha, 0, nil, anim_override)
+        elem_ass:draw_start()
+    end
+    local function vertical_line(x, height, width)
+        local half_width = width * scale_x / 2
         elem_ass:move_to(x - half_width, y)
         elem_ass:line_to(x + half_width, y)
-        elem_ass:line_to(x, y + height)
+        elem_ass:line_to(x + half_width, y + height)
+        elem_ass:line_to(x - half_width, y + height)
         elem_ass:line_to(x - half_width, y)
     end
-    local last_x = -math.huge
-    begin_draw_layer(element, elem_ass, user_opts.screenshot_marker_color, anim_override)
+    marker_layer(user_opts.screenshot_marker_color)
     for _, second in ipairs(state.screenshot_markers) do
         if second <= duration and second ~= hovered then
-            local x = get_slider_ele_pos_for(element, second / duration * 100)
-            -- Collapse only the drawing of nearby points; retain exact times.
-            if x - last_x >= 4 then
-                triangle(second, 3.5, 5)
-                last_x = x
-            end
+            vertical_line(marker_x(second), 9, 1)
         end
     end
     if hovered then
-        -- Draw last even when neighboring markers were visually collapsed.
-        begin_draw_layer(element, elem_ass, user_opts.screenshot_marker_hover_color, anim_override)
-        triangle(hovered, 6, 7)
+        -- Keep the selected marker visible above any overlapping neighbors.
+        marker_layer(user_opts.screenshot_marker_hover_color)
+        vertical_line(hovered_x, 11, 2)
     end
 end
 

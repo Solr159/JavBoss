@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"image/png"
 	"math"
 	"os"
 	"os/exec"
@@ -65,11 +66,12 @@ mp.register_script_message("test-screenshots-inspect", function(width, height)
     osc_init()
     local el = state.seekbar_element
     local drawing = assdraw.ass_new()
-    local triangles, move_to, line_to = 0, drawing.move_to, drawing.line_to
-    local widths, start_x = {}, nil
+    local markers, move_to, line_to = 0, drawing.move_to, drawing.line_to
+    local widths, positions, start_x = {}, {}, nil
     drawing.move_to = function(self, x, y)
-        triangles = triangles + 1
+        markers = markers + 1
         start_x = x
+        positions[#positions + 1] = x * test_width / osc_param.displayresx
         move_to(self, x, y)
     end
     drawing.line_to = function(self, x, y)
@@ -84,13 +86,17 @@ mp.register_script_message("test-screenshots-inspect", function(width, height)
     mp.set_property_native("user-data/javboss-test/screenshots", {
         times = state.screenshot_markers, generation = screenshot_generation,
         entry = screenshot_entry(), loaded = screenshots_loaded,
-        drawing = drawing.text, triangles = triangles, tooltip = tooltip,
-        chapters = el.slider.markerF(), widths = widths,
+        drawing = drawing.text, markers = markers, tooltip = tooltip,
+        chapters = el.slider.markerF(), widths = widths, positions = positions,
         pointer_tooltip = el.slider.tooltipF(get_slider_value(el)),
         pointer_second = get_slider_value(el) * duration / 100,
         preview_second = state.sliderpos * duration / 100,
         hit = mouse_hit(el),
         delete_pending = screenshot_delete_pending ~= nil,
+        render_width = osc_param.displayresx, render_height = osc_param.playresy,
+        screen_width = test_width, screen_height = test_height,
+        slider_left = el.slider.min.glob_pos, slider_right = el.slider.max.glob_pos,
+        track_bottom = el.hitbox.y2 - el.layout.slider.gap, duration = duration,
     })
 end)
 mp.register_script_message("test-screenshots-pointer", function(second, dx, dy, action)
@@ -256,18 +262,19 @@ end)
 	}
 	for _, size := range [][2]string{{"480", "360"}, {"960", "540"}, {"1920", "1080"}} {
 		value := inspect(size[0], size[1])
-		if value["triangles"] != float64(2) || !strings.Contains(value["drawing"].(string), "E8D658") {
+		if value["markers"] != float64(2) || !strings.Contains(value["drawing"].(string), "E8D658") {
 			t.Fatalf("expected two cyan markers including zero, at %v: %v", size, value)
 		}
+		assertScreenshotMarkerPixels(t, value, false)
 		if chapters, _ := value["chapters"].([]any); len(chapters) != 2 {
 			t.Fatalf("screenshot markers changed chapter rendering: %v", value)
 		}
 		// Above and on the track (including its lower edge), nearby screenshots
 		// must not capture the hover preview or the normal click position.
 		for _, region := range []string{"above", "edge", "track"} {
-			command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", region, "move")
+			command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", region, "move")
 			value = inspect(size[0], size[1])
-			if strings.Contains(value["pointer_tooltip"].(string), "Screenshot") || strings.Contains(value["drawing"].(string), "1c&HFFFFFF&") {
+			if strings.Contains(value["pointer_tooltip"].(string), "Screenshot") || strings.Contains(value["drawing"].(string), "1c&H00E6FF&") {
 				t.Fatalf("screenshot captured %s hover at %v: %v", region, size, value)
 			}
 			if value["preview_second"] != value["pointer_second"] || value["preview_second"] == 2.5 {
@@ -275,27 +282,65 @@ end)
 			}
 		}
 		wantTime := value["pointer_second"].(float64)
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "track", "click")
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "track", "click")
 		waitPosition(wantTime)
-		// Hit the padded area eight screen pixels to the side and two below
+		// Hit the padded area five screen pixels to the side and two below
 		// the original seekbar. The real OSC event dispatcher must accept it.
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "move")
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "5", "2", "move")
 		value = inspect(size[0], size[1])
-		if value["hit"] != true || value["preview_second"] != 2.5 || !strings.Contains(value["pointer_tooltip"].(string), "00:00:02.500") || !strings.Contains(value["drawing"].(string), "1c&HFFFFFF&") {
+		if value["hit"] != true || value["preview_second"] != 2.5 || !strings.Contains(value["pointer_tooltip"].(string), "00:00:02.500") || !strings.Contains(value["drawing"].(string), "1c&H00E6FF&") {
 			t.Fatalf("missing padded hover feedback at %v: %v", size, value)
 		}
 		widths := value["widths"].([]any)
-		if widths[len(widths)-1] != float64(12) {
-			t.Fatalf("hovered marker was not enlarged: %v", widths)
+		for i, width := range widths {
+			pixels := width.(float64) * value["screen_width"].(float64) / value["render_width"].(float64)
+			want := 1.0
+			if i == len(widths)-1 {
+				want = 2
+			}
+			if math.Abs(pixels-want) > 0.001 {
+				t.Fatalf("marker width=%v screen pixels, want %v", pixels, want)
+			}
 		}
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "click")
-		waitPosition(2.5)
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "leave")
+		assertScreenshotMarkerPixels(t, value, true)
+		// Outside the tighter radius, preview the pointer's time without a
+		// screenshot highlight, even in the strip below the progress bar.
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "move")
 		value = inspect(size[0], size[1])
-		if strings.Contains(value["drawing"].(string), "1c&HFFFFFF&") {
+		if strings.Contains(value["drawing"].(string), "1c&H00E6FF&") || strings.Contains(value["pointer_tooltip"].(string), "Screenshot") || value["preview_second"] != value["pointer_second"] {
+			t.Fatalf("screenshot still captured pointer eight pixels away: %v", value)
+		}
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "2", "click")
+		waitPosition(2.5)
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "2", "leave")
+		value = inspect(size[0], size[1])
+		if strings.Contains(value["drawing"].(string), "1c&H00E6FF&") {
 			t.Fatal("hover highlight remained after leaving")
 		}
 	}
+	// Every timestamp must be drawn even when several share a screen pixel,
+	// including neighbors of the hovered marker.
+	denseNames := []string{"mpv_00-00-02.501.jpg", "mpv_00-00-02.600.jpg", "mpv_00-00-02.700.jpg"}
+	for _, name := range denseNames {
+		writeShot(name)
+	}
+	waitTimes([]any{float64(0), 2.5, 2.501, 2.6, 2.7, float64(120)})
+	for _, action := range []string{"leave", "move"} {
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.6", "0", "2", action)
+		value := inspect("960", "540")
+		if positions := value["positions"].([]any); len(positions) != 5 {
+			t.Fatalf("dense markers were skipped: %v", positions)
+		}
+		if action == "move" && !strings.Contains(value["pointer_tooltip"].(string), "00:00:02.600") {
+			t.Fatalf("dense timestamp lost its hover target: %v", value)
+		}
+	}
+	for _, name := range denseNames {
+		if err := os.Remove(filepath.Join(shots, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	waitTimes([]any{float64(0), 2.5, float64(120)})
 	// Dragging remains continuous rather than snapping back to the screenshot.
 	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "0", "0", "down")
 	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "0", "move")
@@ -341,7 +386,7 @@ end)
 	command("seek", 20, "absolute+exact")
 	waitPosition(20)
 	failDeletion.Store(true)
-	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "right")
+	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "2", "right")
 	deleteDeadline := time.Now().Add(3 * time.Second)
 	for {
 		value = inspect("960", "540")
@@ -357,7 +402,7 @@ end)
 		t.Fatal("failed deletion removed the marker")
 	}
 	failDeletion.Store(false)
-	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "right")
+	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "2", "right")
 	waitTimes([]any{float64(0), float64(120)})
 	if deleteCalls.Load() != 2 {
 		t.Fatalf("delete calls=%d, want 2", deleteCalls.Load())
@@ -378,4 +423,91 @@ end)
 	waitPosition(20)
 	command("stop")
 	waitTimes(nil)
+}
+
+// Render the actual ASS with libass, rather than assuming its position tags
+// behave like the Lua geometry. Duplicate \pos tags used to pass hit tests
+// while placing the visible markers far away from their clickable positions.
+func assertScreenshotMarkerPixels(t *testing.T, value map[string]any, hovered bool) {
+	t.Helper()
+	ffmpeg, err := exec.LookPath("ffmpeg")
+	if err != nil {
+		t.Log("ffmpeg unavailable; skipping ASS pixel verification")
+		return
+	}
+	dir := t.TempDir()
+	resX, resY := int(math.Round(value["render_width"].(float64))), int(math.Round(value["render_height"].(float64)))
+	w, h := int(value["screen_width"].(float64)), int(value["screen_height"].(float64))
+	sx, sy := float64(w)/float64(resX), float64(h)/float64(resY)
+	ass := fmt.Sprintf(`[Script Info]
+ScriptType: v4.00+
+PlayResX: %d
+PlayResY: %d
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,16,&H00FFFFFF,&H00FFFFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`, resX, resY)
+	for _, line := range strings.Split(value["drawing"].(string), "\n") {
+		if strings.TrimSpace(line) != "" {
+			ass += "Dialogue: 0,0:00:00.00,0:00:01.00,Default,,0,0,0,," + line + "\n"
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "markers.ass"), []byte(ass), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, ffmpeg, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", fmt.Sprintf("color=c=black:s=%dx%d:d=1", w, h), "-vf", "format=rgb24,ass=markers.ass", "-frames:v", "1", "-threads", "1", "markers.png")
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("render marker ASS: %v\n%s", err, output)
+	}
+	f, err := os.Open(filepath.Join(dir, "markers.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	pixels, err := png.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	left, right := value["slider_left"].(float64), value["slider_right"].(float64)
+	xs := []float64{left, left + (right-left)*2.5/value["duration"].(float64)}
+	for i, x := range xs {
+		xs[i] = math.Floor(x*sx) + 0.5
+	}
+	y := (value["track_bottom"].(float64) + 1) * sy
+	counts := [2]int{}
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			r, g, b, _ := pixels.At(px, py).RGBA()
+			cyan := g > 2500 && float64(g) > float64(r)*1.6 && float64(b) > float64(r)*1.6
+			highlight := r > 2500 && float64(g) > float64(r)*0.6 && float64(b) < float64(r)*0.4
+			if !cyan && !highlight {
+				continue
+			}
+			matched := false
+			for i, x := range xs {
+				isHovered := hovered && i == 1
+				halfWidth, height := 0.5, 9.0*sy
+				if isHovered {
+					halfWidth = 1
+					height = 11 * sy
+				}
+				if highlight == isHovered && math.Abs(float64(px)+0.5-x) <= halfWidth+1 && float64(py)+0.5 >= y-1 && float64(py)+0.5 <= y+height+1 {
+					counts[i]++
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				t.Fatalf("marker pixel (%d,%d) is outside expected lines at x=%v, y=%v (hovered=%v)", px, py, xs, y, hovered)
+			}
+		}
+	}
+	if counts[0] == 0 || counts[1] == 0 {
+		t.Fatalf("missing marker pixels at x=%v, y=%v: %v", xs, y, counts)
+	}
 }
