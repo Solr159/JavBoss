@@ -45,6 +45,17 @@ func TestBaseURLOverride(t *testing.T) {
 	}
 }
 
+func TestRelativePosterUsesMirrorOrigin(t *testing.T) {
+	info := avmooMovieInfoFromAPI(&avmooAPIMovie{
+		MovieFanHao: "ABC-001",
+		PosterLarge: "/pics/cover.jpg",
+		PosterSmall: "/pics/thumbnail.jpg",
+	}, "https://mirror.avmoo.test:8443")
+	if info == nil || info.CoverURL != "https://mirror.avmoo.test:8443/pics/cover.jpg" {
+		t.Fatalf("unexpected movie info: %+v", info)
+	}
+}
+
 func TestBaseURLFallsBackOnInvalidValue(t *testing.T) {
 	p := New(&http.Client{})
 	p.SetBaseURL("ftp://mirror.avmoo.test")

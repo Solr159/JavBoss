@@ -43,6 +43,16 @@ func TestBaseURLOverride(t *testing.T) {
 	}
 }
 
+func TestRelativePosterUsesMirrorOrigin(t *testing.T) {
+	info := avsoxMovieInfoFromAPI(&avsoxAPIMovie{
+		MovieFanHao: "030919_047",
+		PosterSmall: "/pics/thumbnail.jpg",
+	}, "https://mirror.avsox.test:8443")
+	if info == nil || info.CoverURL != "https://mirror.avsox.test:8443/pics/thumbnail.jpg" {
+		t.Fatalf("unexpected movie info: %+v", info)
+	}
+}
+
 func TestBaseURLFallsBackOnInvalidValue(t *testing.T) {
 	p := New(&http.Client{})
 	p.SetBaseURL("https://mirror.avsox.test/cn")

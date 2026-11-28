@@ -144,7 +144,7 @@ func TestAvsoxMovieInfoFromAPI(t *testing.T) {
 		t.Fatalf("unmarshal avsox api fixture: %v", err)
 	}
 
-	info := avsoxMovieInfoFromAPI(&movie)
+	info := avsoxMovieInfoFromAPI(&movie, DefaultBaseURL)
 	if info == nil {
 		t.Fatal("expected info, got nil")
 	}

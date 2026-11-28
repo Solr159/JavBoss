@@ -80,6 +80,11 @@ test(
     )
 
     await openEditor()
+    await typeAndSave(`${DEFAULT_URL}/`)
+    await browser.waitFor(`!${editor}`)
+    assert.equal(await browser.evaluate(`${card}.textContent.includes('Custom')`), false)
+
+    await openEditor()
     await typeAndSave('https://Mirror.JavBus.Test/')
     await browser.waitFor(`!${editor}`)
     await browser.waitFor(`${card}.textContent.includes('Custom')`)
@@ -90,13 +95,30 @@ test(
     )
     assert.match(await browser.evaluate(`${card}.textContent`), /mirror\.javbus\.test/)
 
-    // Origins with a path are rejected by the server and surfaced inline.
+    // An in-flight save leaves the focused field read-only so a rejection can be corrected.
     await openEditor()
     assert.equal(await browser.evaluate(`${input}.value`), 'https://mirror.javbus.test')
-    await typeAndSave('https://mirror.javbus.test/genre')
+    await browser.evaluate(`{
+      const fetch = window.fetch
+      window.fetch = async (url, options) => {
+        if (options?.method === 'PUT' && String(url).includes('/base_url')) {
+          window.fetch = fetch
+          await new Promise(resolve => { window.finishProviderSave = resolve })
+        }
+        return fetch(url, options)
+      }
+    }`)
+    await typeAddress('https://mirror.javbus.test/genre')
+    await browser.evaluate(`${input}.focus(); ${editor}.requestSubmit()`)
+    await browser.waitFor(`typeof window.finishProviderSave === 'function'`)
+    assert.equal(await browser.evaluate(`${input}.readOnly`), true)
+    assert.equal(await browser.evaluate(`document.activeElement === ${input}`), true)
+    await browser.evaluate('window.finishProviderSave()')
     await browser.waitFor(alert)
     assert.match(await browser.evaluate(`${alert}.textContent`), /Invalid provider URL/)
     assert.equal(await browser.evaluate(`${input}.value`), 'https://mirror.javbus.test/genre')
+    assert.equal(await browser.evaluate(`${input}.readOnly`), false)
+    assert.equal(await browser.evaluate(`document.activeElement === ${input}`), true)
 
     // Restore defaults edits the draft. Cancel keeps the saved custom URL.
     await clickAction('Restore defaults')

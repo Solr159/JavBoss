@@ -91,7 +91,7 @@ func avmooMovieInfoFromAPI(movie *avmooAPIMovie, baseURL string) *metadata.JavIn
 		Code:        strings.TrimSpace(movie.MovieFanHao),
 		ReleaseUnix: parseutil.ParseDateUnix(movie.ReleaseDate),
 		DurationMin: movie.Length,
-		CoverURL:    parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall),
+		CoverURL:    parseutil.ResolveURL(baseURL, parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall)),
 		SampleImages: parseutil.SampleImagesFromURLs(
 			movie.SampleSmall,
 			movie.SampleLarge,

@@ -177,11 +177,12 @@ func ProviderBaseURLConfigKey(provider Provider) string {
 	return provider.String() + "_base_url"
 }
 
-// NormalizeProviderBaseURL validates a configured site origin. Empty input
-// selects the default origin.
+// NormalizeProviderBaseURL validates a configured site origin and represents
+// the default origin as an empty override.
 func NormalizeProviderBaseURL(provider Provider, raw string) (string, error) {
 	provider = ParseProvider(int(provider))
-	if DefaultProviderBaseURL(provider) == "" {
+	defaultURL := DefaultProviderBaseURL(provider)
+	if defaultURL == "" {
 		return "", ErrUnsupportedProvider
 	}
 	if strings.TrimSpace(raw) == "" {
@@ -190,6 +191,9 @@ func NormalizeProviderBaseURL(provider Provider, raw string) (string, error) {
 	normalized, err := baseurl.Normalize(raw)
 	if err != nil {
 		return "", fmt.Errorf("%s base url: %w", provider, err)
+	}
+	if normalized == defaultURL {
+		return "", nil
 	}
 	return normalized, nil
 }

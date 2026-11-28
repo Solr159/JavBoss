@@ -84,15 +84,24 @@ func (p *AVWikiClient) LookupActressByName(ctx context.Context, name string) (*m
 			"search": {name}, "per_page": {"100"}, "page": {strconv.Itoa(page)},
 			"_fields": {"name,link,description"},
 		}
-		tags, pages, err := p.fetchTags(ctx, base, query)
+		resp, err := p.request(ctx, base, query)
 		if err != nil {
 			return nil, err
+		}
+		tags, pages, err := parseTagsResponse(resp)
+		if err != nil {
+			return nil, err
+		}
+		origin := base
+		if resp.Request != nil && resp.Request.URL != nil {
+			finalURL := resp.Request.URL
+			origin = (&url.URL{Scheme: finalURL.Scheme, Host: finalURL.Host}).String()
 		}
 		for _, tag := range tags {
 			if normalizeName(tag.Name) != name {
 				continue
 			}
-			info := parseActress(tag, base)
+			info := parseActress(tag, origin)
 			if info == nil {
 				continue
 			}
@@ -111,11 +120,7 @@ func (p *AVWikiClient) LookupActressByName(ctx context.Context, name string) (*m
 	return result, nil
 }
 
-func (p *AVWikiClient) fetchTags(ctx context.Context, base string, query url.Values) ([]actressTag, int, error) {
-	resp, err := p.request(ctx, base, query)
-	if err != nil {
-		return nil, 0, err
-	}
+func parseTagsResponse(resp *http.Response) ([]actressTag, int, error) {
 	defer resp.Body.Close()
 	logging.Info("avwiki response status: %s", resp.Status)
 	if resp.Header.Get("cf-mitigated") == "challenge" {

@@ -157,7 +157,7 @@ function ProviderAddress({ provider, name, disabled, onSaved }) {
             label={zh('站点地址', 'Site URL')}
             autoComplete="off"
             value={draft}
-            disabled={disabled || saving}
+            disabled={disabled}
             onChange={(event) => {
               setDraft(event.target.value)
               setError('')
@@ -165,6 +165,7 @@ function ProviderAddress({ provider, name, disabled, onSaved }) {
             error={Boolean(error)}
             helperText={error || zh('仅支持不含路径的站点地址', 'Enter a site URL without a path')}
             slotProps={{
+              input: { readOnly: saving },
               htmlInput: { inputMode: 'url', spellCheck: false },
               formHelperText: error ? { role: 'alert' } : undefined,
             }}

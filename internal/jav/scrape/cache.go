@@ -21,15 +21,15 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 	ProviderJavDatabase: "v4",
 	ProviderJavDB:       "v4",
 	ProviderJavDBAPI:    "v5", // Preserve separators when validating movie numbers.
-	ProviderAvmoo:       "v6",
-	ProviderAvsox:       "v3",
+	ProviderAvmoo:       "v7", // Resolve relative poster URLs.
+	ProviderAvsox:       "v4", // Resolve relative poster URLs.
 	ProviderJavMenu:     "v2",
 	ProviderThePornDB:   "v2",
 }
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
 	ProviderMinnanoAV: "v3",
-	ProviderAVWiki:    "v3", // Discard false misses from default-origin profile validation.
+	ProviderAVWiki:    "v4", // Discard false misses when the tags API redirects.
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.

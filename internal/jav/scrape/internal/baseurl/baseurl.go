@@ -10,7 +10,7 @@ import (
 
 // Normalize validates a configured site origin. Only an origin is accepted so
 // providers keep control of their own paths, queries, and fragments. Trailing
-// slashes are ignored and the host is lowercased.
+// slashes are ignored and the host is lowercased, preserving IPv6 zone names.
 func Normalize(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -30,7 +30,12 @@ func Normalize(raw string) (string, error) {
 	if strings.TrimRight(parsed.Path, "/") != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", fmt.Errorf("site url must not contain a path, query, or fragment")
 	}
-	return scheme + "://" + strings.ToLower(parsed.Host), nil
+	host, zone, scoped := strings.Cut(parsed.Host, "%")
+	host = strings.ToLower(host)
+	if scoped {
+		host += "%" + zone
+	}
+	return (&url.URL{Scheme: scheme, Host: host}).String(), nil
 }
 
 // NormalizeOrDefault returns the normalized origin, or an empty string when raw

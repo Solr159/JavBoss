@@ -90,7 +90,7 @@ func findAvsoxAPISearchResult(results []avsoxAPIMovie, code string) *avsoxAPIMov
 	return nil
 }
 
-func avsoxMovieInfoFromAPI(movie *avsoxAPIMovie) *metadata.JavInfo {
+func avsoxMovieInfoFromAPI(movie *avsoxAPIMovie, baseURL string) *metadata.JavInfo {
 	if movie == nil {
 		return nil
 	}
@@ -100,7 +100,7 @@ func avsoxMovieInfoFromAPI(movie *avsoxAPIMovie) *metadata.JavInfo {
 		Code:         strings.TrimSpace(movie.MovieFanHao),
 		ReleaseUnix:  parseutil.ParseDateUnix(movie.ReleaseDate),
 		DurationMin:  movie.Length,
-		CoverURL:     parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall),
+		CoverURL:     parseutil.ResolveURL(baseURL, parseutil.FirstNonEmpty(movie.PosterLarge, movie.PosterSmall)),
 		IsUncensored: &isUncensored,
 		Provider:     metadata.ProviderAvsox,
 	}

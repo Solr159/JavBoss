@@ -154,6 +154,7 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 	deps := newTestDependencies()
 	auth := testAuthService(deps, t)
 	router := NewRouter("", auth)
+	t.Cleanup(func() { _ = scrape.SetProviderBaseURL(scrape.ProviderJavBus, "") })
 
 	login := performRequest(router, http.MethodPost, "/auth/login", []byte(`{"password":"admin"}`), "http://example.com", nil)
 	if login.Code != http.StatusOK {
@@ -183,6 +184,15 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 		t.Fatal("javbus missing from provider list")
 		return scrape.AvailabilityProvider{}
 	}
+	readConfig := func() map[string]string {
+		t.Helper()
+		response := performRequest(router, http.MethodGet, "/config", nil, "http://example.com", cookie)
+		var cfg map[string]string
+		if err := json.Unmarshal(response.Body.Bytes(), &cfg); err != nil || response.Code != http.StatusOK {
+			t.Fatalf("read config: status=%d body=%s err=%v", response.Code, response.Body, err)
+		}
+		return cfg
+	}
 
 	if got := javbus(listProviders()); got.BaseURL != "" || got.DefaultBaseURL != "https://www.javbus.com" || got.Domain != "www.javbus.com" {
 		t.Fatalf("default provider entry = %+v", got)
@@ -202,13 +212,8 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 	if got := javbus(listProviders()); got.BaseURL != "https://mirror.javbus.test" || got.Domain != "mirror.javbus.test" {
 		t.Fatalf("configured provider entry = %+v", got)
 	}
-	config := performRequest(router, http.MethodGet, "/config", nil, "http://example.com", cookie)
-	var cfg map[string]string
-	if err := json.Unmarshal(config.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("decode config: %v", err)
-	}
-	if cfg["javbus_base_url"] != "https://mirror.javbus.test" {
-		t.Fatalf("stored javbus_base_url = %q", cfg["javbus_base_url"])
+	if got := readConfig()["javbus_base_url"]; got != "https://mirror.javbus.test" {
+		t.Fatalf("stored javbus_base_url = %q", got)
 	}
 
 	for _, tc := range []struct{ name, provider, body string }{
@@ -231,6 +236,18 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 		t.Fatalf("invalid save changed provider: %+v", got)
 	}
 
+	scoped := update("1", `{"base_url":"http://[FE80::1%25Eth0]:8080/"}`)
+	if scoped.Code != http.StatusOK {
+		t.Fatalf("scoped IPv6 save: status=%d body=%s", scoped.Code, scoped.Body)
+	}
+	const scopedOrigin = "http://[fe80::1%25Eth0]:8080"
+	if got := javbus(listProviders()); got.BaseURL != scopedOrigin || got.Domain != "fe80::1%Eth0" {
+		t.Fatalf("scoped IPv6 provider entry = %+v", got)
+	}
+	if got := readConfig()["javbus_base_url"]; got != scopedOrigin {
+		t.Fatalf("stored scoped IPv6 origin = %q", got)
+	}
+
 	start := make(chan struct{})
 	responses := make(chan *httptest.ResponseRecorder, 2)
 	for _, body := range []string{`{"base_url":"https://first.test"}`, `{"base_url":"https://second.test"}`} {
@@ -245,16 +262,11 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 			t.Errorf("concurrent save status=%d body=%s", response.Code, response.Body)
 		}
 	}
-	cfg = nil
-	config = performRequest(router, http.MethodGet, "/config", nil, "http://example.com", cookie)
-	if err := json.Unmarshal(config.Body.Bytes(), &cfg); err != nil {
-		t.Fatal(err)
-	}
-	if got := javbus(listProviders()).BaseURL; got != cfg["javbus_base_url"] {
-		t.Fatalf("runtime base url=%q stored=%q", got, cfg["javbus_base_url"])
+	if stored, runtime := readConfig()["javbus_base_url"], javbus(listProviders()).BaseURL; runtime != stored {
+		t.Fatalf("runtime base url=%q stored=%q", runtime, stored)
 	}
 
-	reset := update("1", `{"base_url":""}`)
+	reset := update("1", `{"base_url":"https://WWW.JAVBUS.COM/"}`)
 	if reset.Code != http.StatusOK {
 		t.Fatalf("reset status=%d body=%s", reset.Code, reset.Body)
 	}
@@ -267,5 +279,8 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 	}
 	if got := javbus(listProviders()); got.BaseURL != "" || got.Domain != "www.javbus.com" {
 		t.Fatalf("provider entry after reset = %+v", got)
+	}
+	if got, ok := readConfig()["javbus_base_url"]; !ok || got != "" {
+		t.Fatalf("stored default override = %q, present=%v", got, ok)
 	}
 }

@@ -13,6 +13,7 @@ func TestNormalize(t *testing.T) {
 		{name: "trims and lowercases", raw: "  HTTPS://JavBus.COM/ ", want: "https://javbus.com"},
 		{name: "keeps port", raw: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 		{name: "keeps ipv6", raw: "http://[::1]:8080", want: "http://[::1]:8080"},
+		{name: "keeps escaped ipv6 zone", raw: "http://[FE80::1%25Eth0]:8080/", want: "http://[fe80::1%25Eth0]:8080"},
 		{name: "empty", raw: "   ", wantErr: true},
 		{name: "port without hostname", raw: "https://:8443", wantErr: true},
 		{name: "no scheme", raw: "javbus.com", wantErr: true},
@@ -35,6 +36,9 @@ func TestNormalize(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Fatalf("Normalize(%q) = %q, want %q", tc.raw, got, tc.want)
+			}
+			if again, err := Normalize(got); err != nil || again != got {
+				t.Fatalf("Normalize(%q) = %q, error %v, want the same origin", got, again, err)
 			}
 		})
 	}

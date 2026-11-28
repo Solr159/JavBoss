@@ -71,7 +71,8 @@ const updateProviderBaseURL = (provider, body) => {
         { error_zh: '数据源地址无效', error_en: 'Invalid provider URL' },
         { status: 400 }
       )
-    normalized = `${parsed.protocol}//${parsed.host}`
+    const origin = `${parsed.protocol}//${parsed.host}`
+    normalized = origin === provider.default_base_url ? '' : origin
   }
   provider.base_url = normalized
   provider.domain = new URL(normalized || provider.default_base_url).hostname

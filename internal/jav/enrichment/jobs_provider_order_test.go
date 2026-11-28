@@ -20,8 +20,8 @@ func TestEnrichmentTriesFallbackBeforeMovingToNextJav(t *testing.T) {
 		result     scrape.JavInfo
 	}{
 		{"censored series", false, EnrichCensoredSeries, "v2:jav:javmenu:lookup_jav:", scrape.JavInfo{Series: "Fallback Series"}},
-		{"uncensored series", true, EnrichUncensoredSeries, "v3:jav:avsox:lookup_jav:", scrape.JavInfo{Series: "Fallback Series"}},
-		{"uncensored idols", true, EnrichUncensoredIdols, "v3:jav:avsox:lookup_jav:", scrape.JavInfo{Actors: []string{"Fallback Idol"}}},
+		{"uncensored series", true, EnrichUncensoredSeries, "v4:jav:avsox:lookup_jav:", scrape.JavInfo{Series: "Fallback Series"}},
+		{"uncensored idols", true, EnrichUncensoredIdols, "v4:jav:avsox:lookup_jav:", scrape.JavInfo{Actors: []string{"Fallback Idol"}}},
 	} {
 		t.Run(task.name, func(t *testing.T) {
 			gdb := openEnrichmentTestDB(deps, t)

@@ -76,12 +76,13 @@ func (p *AvsoxClient) LookupJavByCode(ctx context.Context, code string) (*metada
 	ctx, cancel := context.WithTimeout(ctx, avsoxLookupTimeout)
 	defer cancel()
 
-	movie, err := p.fetchAvsoxMovieByCode(ctx, p.BaseURL(), code)
+	base := p.BaseURL()
+	movie, err := p.fetchAvsoxMovieByCode(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
 
-	info := avsoxMovieInfoFromAPI(movie)
+	info := avsoxMovieInfoFromAPI(movie, base)
 	if info == nil {
 		return nil, metadata.ErrNotFound
 	}

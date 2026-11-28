@@ -43,6 +43,29 @@ func TestLookupExactNameAcrossPages(t *testing.T) {
 	}
 }
 
+func TestLookupValidatesProfilesAgainstRedirectDestination(t *testing.T) {
+	const name = "女優名"
+	destination := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		description := profileFixture(name, "test name", "", "T160-B85-W60-H88")
+		origin := "https://" + r.Host
+		json.NewEncoder(w).Encode([]actressTag{
+			{Name: name, Link: "https://unrelated.test/av-actress/test/", Description: description},
+			{Name: name, Link: origin + "/other/test/", Description: description},
+			{Name: name, Link: origin + "/av-actress/test/", Description: description},
+		})
+	}))
+	defer destination.Close()
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, destination.URL+r.URL.RequestURI(), http.StatusFound)
+	})
+	client.httpClient = destination.Client()
+
+	info, err := client.LookupActressByName(context.Background(), name)
+	if err != nil || info == nil || info.ProfileURL != destination.URL+"/av-actress/test/" {
+		t.Fatalf("info=%+v error=%v", info, err)
+	}
+}
+
 func TestLookupErrorsAndMisses(t *testing.T) {
 	for _, tc := range []struct {
 		name, body, challenge string
