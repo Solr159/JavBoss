@@ -77,6 +77,7 @@ export default function App() {
     javSeriesName,
     javPrefix,
     javSoloOnly,
+    javActorCounts,
     javFavoriteRatingEnabled,
     javFavoriteRatingMin,
     javFavoriteRatingMax,
@@ -122,6 +123,7 @@ export default function App() {
       javSeriesName: s.javSeriesName,
       javPrefix: s.javPrefix,
       javSoloOnly: s.javSoloOnly,
+      javActorCounts: s.javActorCounts,
       javFavoriteRatingEnabled: s.javFavoriteRatingEnabled,
       javFavoriteRatingMin: s.javFavoriteRatingMin,
       javFavoriteRatingMax: s.javFavoriteRatingMax,
@@ -507,6 +509,7 @@ export default function App() {
             seriesId: null,
             prefix: item?.prefix || '',
             soloOnly: false,
+            actorCounts: [],
             favoriteRatingEnabled: false,
             favoriteGroupId: null,
             random: false,
@@ -556,6 +559,7 @@ export default function App() {
             seriesName: '',
             prefix: '',
             soloOnly: false,
+            actorCounts: [],
             favoriteRatingEnabled: false,
             idolProfileFilters: createDefaultIdolProfileFilters(),
             favoriteGroupId: targetGroupId,
@@ -755,6 +759,7 @@ export default function App() {
         seriesName={javSeriesName}
         prefix={javPrefix}
         soloOnly={javSoloOnly}
+        actorCounts={javActorCounts}
         preferChineseName={configFlag(config?.jav_idol_prefer_chinese_name)}
         showSimplifiedTags={configFlag(config?.jav_tag_show_simplified)}
         favoriteGroupId={javFavoriteGroupId}

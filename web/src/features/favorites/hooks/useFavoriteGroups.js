@@ -218,6 +218,7 @@ export default function useFavoriteGroups({
         javSeriesName: '',
         javPrefix: '',
         javSoloOnly: false,
+        javActorCounts: [],
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,

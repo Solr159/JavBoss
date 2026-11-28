@@ -202,6 +202,7 @@ export async function fetchJavs({
   seriesId = null,
   prefix = '',
   soloOnly = false,
+  actorCounts = [],
   favoriteRatingEnabled = false,
   favoriteRatingMin = 0.5,
   favoriteRatingMax = 5,
@@ -219,7 +220,8 @@ export async function fetchJavs({
   if (studioId !== null && studioId !== undefined) params.set('studio_id', String(studioId))
   if (seriesId) params.set('series_id', String(seriesId))
   if (prefix) params.set('prefix', prefix)
-  if (soloOnly) params.set('solo', '1')
+  if (actorCounts.length) params.set('actor_counts', actorCounts.join(','))
+  else if (soloOnly) params.set('solo', '1')
   if (favoriteRatingEnabled) {
     params.set('favorite_rating_min', String(favoriteRatingMin))
     params.set('favorite_rating_max', String(favoriteRatingMax))
@@ -242,6 +244,7 @@ export async function fetchJavFilterOptions({
   seriesId = null,
   prefix = '',
   soloOnly = false,
+  actorCounts = [],
   favoriteRatingEnabled = false,
   favoriteRatingMin = 0.5,
   favoriteRatingMax = 5,
@@ -261,7 +264,8 @@ export async function fetchJavFilterOptions({
   if (studioId !== null && studioId !== undefined) params.set('studio_id', String(studioId))
   if (seriesId) params.set('series_id', String(seriesId))
   if (prefix) params.set('prefix', prefix)
-  if (soloOnly) params.set('solo', '1')
+  if (actorCounts.length) params.set('actor_counts', actorCounts.join(','))
+  else if (soloOnly) params.set('solo', '1')
   if (favoriteRatingEnabled) {
     params.set('favorite_rating_min', String(favoriteRatingMin))
     params.set('favorite_rating_max', String(favoriteRatingMax))

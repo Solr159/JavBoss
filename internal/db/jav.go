@@ -173,6 +173,7 @@ type JavSearchFilters struct {
 	StudioID          int64
 	SeriesID          int64
 	SoloOnly          bool
+	ActorCounts       []int64
 	FavoriteGroupID   int64
 	FavoriteRatingMin *float64
 	FavoriteRatingMax *float64
@@ -1199,13 +1200,28 @@ func (store *Store) buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs 
 	if filters.FavoriteRatingMax != nil {
 		q = q.Where("jav.favorite_rating <= ?", *filters.FavoriteRatingMax)
 	}
-	if filters.SoloOnly {
+	actorCounts := filters.ActorCounts
+	if len(actorCounts) == 0 && filters.SoloOnly {
+		actorCounts = []int64{1}
+	}
+	if len(actorCounts) > 0 {
 		soloJavs := store.conn.WithContext(ctx).
 			Table("jav_idol_map jim_solo_count").
 			Select("jim_solo_count.jav_id").
 			Group("jim_solo_count.jav_id").
-			Having("COUNT(DISTINCT jim_solo_count.jav_idol_id) = 1")
-		q = q.Where("jav.id IN (?)", soloJavs)
+			Having("COUNT(DISTINCT jim_solo_count.jav_idol_id) IN ?", actorCounts)
+		includeNone := false
+		for _, count := range actorCounts {
+			if count == 0 {
+				includeNone = true
+				break
+			}
+		}
+		if includeNone {
+			q = q.Where("(jav.id IN (?) OR NOT EXISTS (SELECT 1 FROM jav_idol_map jim_none WHERE jim_none.jav_id = jav.id))", soloJavs)
+		} else {
+			q = q.Where("jav.id IN (?)", soloJavs)
+		}
 	}
 	if len(tagIDs) > 0 {
 		q = q.

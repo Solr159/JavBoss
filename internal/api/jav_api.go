@@ -33,6 +33,7 @@ type javFilterQuery struct {
 	StudioID          int64
 	SeriesID          int64
 	SoloOnly          bool
+	ActorCounts       []int64
 	FavoriteGroupID   int64
 	FavoriteRatingMin *float64
 	FavoriteRatingMax *float64
@@ -46,6 +47,17 @@ func parseJavFilterQuery(c *gin.Context) (javFilterQuery, bool) {
 		Prefix:   strings.TrimSpace(c.Query("prefix")),
 		StudioID: -1,
 		SoloOnly: queryBool(c, "solo", false),
+	}
+	// actor_counts is a comma-separated OR filter of exact actress counts (0–5); 0 means no associated actresses.
+	if raw := strings.TrimSpace(c.Query("actor_counts")); raw != "" {
+		for _, part := range strings.Split(raw, ",") {
+			count, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64)
+			if err != nil || count < 0 || count > 5 {
+				respondLocalizedError(c, http.StatusBadRequest, "女优数量无效", "Invalid actress count")
+				return query, false
+			}
+			query.ActorCounts = append(query.ActorCounts, count)
+		}
 	}
 	if studioParam := strings.TrimSpace(c.Query("studio_id")); studioParam != "" {
 		parsed, err := strconv.ParseInt(studioParam, 10, 64)
@@ -115,6 +127,7 @@ func searchJav(c *gin.Context) {
 		StudioID:          filterQuery.StudioID,
 		SeriesID:          filterQuery.SeriesID,
 		SoloOnly:          filterQuery.SoloOnly,
+		ActorCounts:       filterQuery.ActorCounts,
 		FavoriteGroupID:   filterQuery.FavoriteGroupID,
 		FavoriteRatingMin: filterQuery.FavoriteRatingMin,
 		FavoriteRatingMax: filterQuery.FavoriteRatingMax,
@@ -146,6 +159,7 @@ func listJavFilterOptions(c *gin.Context) {
 			StudioID:          filterQuery.StudioID,
 			SeriesID:          filterQuery.SeriesID,
 			SoloOnly:          filterQuery.SoloOnly,
+			ActorCounts:       filterQuery.ActorCounts,
 			FavoriteGroupID:   filterQuery.FavoriteGroupID,
 			FavoriteRatingMin: filterQuery.FavoriteRatingMin,
 			FavoriteRatingMax: filterQuery.FavoriteRatingMax,

@@ -34,6 +34,7 @@ export function javQuery(state) {
     seriesId: state.javSeriesId,
     prefix: state.javPrefix,
     soloOnly: state.javSoloOnly,
+    actorCounts: state.javActorCounts,
     favoriteRatingEnabled: state.javFavoriteRatingEnabled,
     favoriteRatingMin: state.javFavoriteRatingMin,
     favoriteRatingMax: state.javFavoriteRatingMax,

@@ -9,6 +9,7 @@ import { generateRandomSeed } from '@/utils/urlState'
 import {
   IDOL_PROFILE_FILTER_DEFINITIONS,
   normalizeIdolProfileFilters,
+  normalizeJavActorCounts,
   createDefaultIdolProfileFilters,
 } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
@@ -48,6 +49,7 @@ export default function useLibraryFilters({
     javSeriesName,
     javPrefix,
     javSoloOnly,
+    javActorCounts,
     javFavoriteRatingEnabled,
     javFavoriteRatingMin,
     javFavoriteRatingMax,
@@ -75,6 +77,7 @@ export default function useLibraryFilters({
       javSeriesName: state.javSeriesName,
       javPrefix: state.javPrefix,
       javSoloOnly: state.javSoloOnly,
+      javActorCounts: state.javActorCounts,
       javFavoriteRatingEnabled: state.javFavoriteRatingEnabled,
       javFavoriteRatingMin: state.javFavoriteRatingMin,
       javFavoriteRatingMax: state.javFavoriteRatingMax,
@@ -118,6 +121,7 @@ export default function useLibraryFilters({
         javSeriesName: '',
         javPrefix: '',
         javSoloOnly: false,
+        javActorCounts: [],
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
@@ -409,7 +413,16 @@ export default function useLibraryFilters({
         onRemove: () => updateJavFilters({ javPrefix: '' }),
       })
     }
-    if (javSoloOnly) {
+    if (javActorCounts?.length) {
+      items.push({
+        key: 'jav-actor-counts',
+        label: zh(
+          `女优数量: ${javActorCounts.map((count) => (count === 0 ? '无女优' : `${count} 人`)).join('、')}`,
+          `Actress count: ${javActorCounts.map((count) => (count === 0 ? 'No actresses' : count)).join(', ')}`
+        ),
+        onRemove: () => updateJavFilters({ javActorCounts: [], javSoloOnly: false }),
+      })
+    } else if (javSoloOnly) {
       items.push({
         key: 'jav-solo',
         label: zh('单体作品', 'Solo works'),
@@ -452,6 +465,7 @@ export default function useLibraryFilters({
     javSeriesId,
     javSeriesName,
     javSoloOnly,
+    javActorCounts,
     javStudioId,
     javStudioName,
     javTab,
@@ -489,6 +503,7 @@ export default function useLibraryFilters({
         javSeriesName: '',
         javPrefix: '',
         javSoloOnly: false,
+        javActorCounts: [],
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
@@ -589,7 +604,8 @@ export default function useLibraryFilters({
         javSeriesId: hasSeries ? nextSeriesId : null,
         javSeriesName: nextSeriesName,
         javPrefix: nextPrefix,
-        javSoloOnly: Boolean(query?.soloOnly),
+        javSoloOnly: false,
+        javActorCounts: normalizeJavActorCounts(query?.actorCounts),
         javFavoriteRatingEnabled: nextFavoriteRatingEnabled,
         javFavoriteRatingMin: nextFavoriteRatingMin,
         javFavoriteRatingMax: nextFavoriteRatingMax,
