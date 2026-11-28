@@ -156,6 +156,8 @@ local user_opts = {
     thumbnail_box_outline = "#404040",     -- color of the border outline for thumbnail box
     nibble_color = "#FF8232",              -- color of chapter nibbles on the seekbar
     nibble_current_color = "#FFFFFF",      -- color of the current chapter nibble on the seekbar
+    screenshot_marker_color = "#58D6E8",   -- color of saved screenshot markers below the seekbar
+    screenshot_marker_hover_color = "#FFE600", -- bright yellow for the hovered screenshot marker
 
     osc_fade_strength = 100,               -- strength of the OSC background fade (0 to disable)
     fade_blur_strength = 100,              -- blur strength for the OSC alpha fade. caution: high values can take a lot of CPU time to render
@@ -620,6 +622,7 @@ local state = {
     new_file_flag = false,                  -- flag to detect new file starts
     keeponpause_active = false,             -- keeponpause bottombar active state
     chapter_list = {},                      -- sorted by time
+    screenshot_markers = {},                -- seconds, independent of chapter navigation
     chapter = -1,                           -- current chapter index
     visibility_modes = {},                  -- visibility_modes to cycle through
     mute = false,
@@ -840,6 +843,10 @@ local function get_hitbox_coords(x, y, an, w, h)
 end
 
 local function get_element_hitbox(element)
+    if element.name == "seekbar" and #state.screenshot_markers > 0 then
+        -- Include the markers below the track without moving slider geometry.
+        return element.hitbox.x1, element.hitbox.y1, element.hitbox.x2, element.hitbox.y2 + 8
+    end
     return element.hitbox.x1, element.hitbox.y1, element.hitbox.x2, element.hitbox.y2
 end
 
@@ -1516,6 +1523,78 @@ local function draw_seekbar_nibbles(element, elem_ass)
     end
 end
 
+-- Screenshot positions share the slider geometry, but never enter markerF:
+-- chapter rendering, titles and right-click navigation keep their own semantics.
+local delete_screenshot_marker
+local function screenshot_at_slider_pos(element, pos, duration)
+    if not element or not element.layout or duration <= 0 or state.playing_and_seeking then return end
+    if subtitle_menu or not mouse_hit(element) then return end
+    local _, mouse_y = get_virt_mouse_pos()
+    -- Only the strip below the visible track belongs to screenshot markers.
+    -- Hovering or clicking the track itself keeps continuous time selection.
+    local track_bottom = element.hitbox.y2 - element.layout.slider.gap
+    if mouse_y <= track_bottom then return end
+    local x = get_slider_ele_pos_for(element, pos)
+    local scale_x = get_virt_scale_factor()
+    -- Keep the hover radius at ten screen pixels, independent of OSC scaling.
+    local nearest, distance = nil, 10 * scale_x
+    for _, second in ipairs(state.screenshot_markers) do
+        if second <= duration then
+            local delta = math.abs(get_slider_ele_pos_for(element, second / duration * 100) - x)
+            if delta < distance then nearest, distance = second, delta end
+        end
+    end
+    return nearest
+end
+
+local function draw_screenshot_markers(element, elem_ass, anim_override)
+    if element.name ~= "seekbar" then return end
+    local duration = mp.get_property_number("duration", 0)
+    if duration <= 0 or #state.screenshot_markers == 0 then return end
+    local y = element.hitbox.y2 - element.layout.slider.gap + 1
+    local hovered = not subtitle_menu and mouse_hit(element)
+        and screenshot_at_slider_pos(element, get_slider_value(element), duration)
+    local scale_x = get_virt_scale_factor()
+    if scale_x <= 0 then return end
+    -- Keep stroke widths in screen pixels even when the OSC is scaled up.
+    local function marker_x(second)
+        local x = element.hitbox.x1 + get_slider_ele_pos_for(element, second / duration * 100)
+        return (math.floor(x / scale_x) + 0.5) * scale_x
+    end
+    local hovered_x = hovered and marker_x(hovered)
+    local function marker_layer(color)
+        -- Use one origin and absolute coordinates in a separate ASS event.
+        -- Reusing the slider event would leave its centered \pos/\an tags
+        -- competing with these markers' alignment and larger drawing bounds.
+        elem_ass:draw_stop()
+        elem_ass:new_event()
+        elem_ass:pos(0, 0)
+        elem_ass:an(7)
+        elem_ass:append("{\\blur0\\bord0\\shad0\\1c&H" .. osc_color_convert(color) .. "&}")
+        ass_append_alpha(elem_ass, element.layout.alpha, 0, nil, anim_override)
+        elem_ass:draw_start()
+    end
+    local function vertical_line(x, height, width)
+        local half_width = width * scale_x / 2
+        elem_ass:move_to(x - half_width, y)
+        elem_ass:line_to(x + half_width, y)
+        elem_ass:line_to(x + half_width, y + height)
+        elem_ass:line_to(x - half_width, y + height)
+        elem_ass:line_to(x - half_width, y)
+    end
+    marker_layer(user_opts.screenshot_marker_color)
+    for _, second in ipairs(state.screenshot_markers) do
+        if second <= duration and second ~= hovered then
+            vertical_line(marker_x(second), 9, 1)
+        end
+    end
+    if hovered then
+        -- Keep the selected marker visible above any overlapping neighbors.
+        marker_layer(user_opts.screenshot_marker_hover_color)
+        vertical_line(hovered_x, 11, 2)
+    end
+end
+
 -- Draw seekbar progress more accurately
 local function draw_seekbar_progress(element, elem_ass)
     local pos = element.slider.posF()
@@ -1633,6 +1712,7 @@ local function render_elements(master_ass, osc_vis, wc_vis)
                 local handle_x, handle_radius, is_active = get_seekbar_handle_pos(element) -- get handle position/radius
                 draw_seekbar_progress(element, elem_ass)
                 draw_seekbar_ranges(element, elem_ass, handle_x, handle_radius)
+                draw_screenshot_markers(element, elem_ass, anim_override)
                 draw_seekbar_handle(element, elem_ass, handle_x, handle_radius, anim_override, is_active) -- draw handle on top of progress
 
                 elem_ass:draw_stop()
@@ -1647,6 +1727,11 @@ local function render_elements(master_ass, osc_vis, wc_vis)
 
                     if mouse_hit(element) or force_seek_tooltip then
                         local sliderpos = get_slider_value(element)
+                        if element.name == "seekbar" then
+                            local duration = mp.get_property_number("duration", 0)
+                            local second = screenshot_at_slider_pos(element, sliderpos, duration)
+                            if second then sliderpos = second / duration * 100 end
+                        end
                         local tooltiplabel = element.slider.tooltipF(sliderpos)
                         local an = slider_lo.tooltip_an
                         local ty
@@ -3326,7 +3411,13 @@ local function osc_init()
     end
     ne.slider.tooltipF = function (pos)
         local duration = mp.get_property_number("duration")
-        if duration ~= nil and pos ~= nil then return format_time(duration * (pos / 100)) end
+        if duration ~= nil and pos ~= nil then
+            local second = screenshot_at_slider_pos(state.seekbar_element, pos, duration)
+            if second then
+                return locale.screenshot .. " " .. mp.format_time(second, "%H:%M:%S.%T") .. " · 右键删除"
+            end
+            return format_time(duration * (pos / 100))
+        end
         return ""
     end
     ne.slider.seekRangesF = build_cache_seek_ranges
@@ -3350,7 +3441,13 @@ local function osc_init()
         element.state.mbtnleft = true
         element.state.was_paused = mp.get_property_bool("pause")
         state.playing_and_seeking = false
-        mp.commandv("seek", get_slider_value(element), "absolute-percent+exact")
+        local pos = get_slider_value(element)
+        local second = screenshot_at_slider_pos(element, pos, mp.get_property_number("duration", 0))
+        if second then
+            mp.commandv("seek", second, "absolute+exact")
+        else
+            mp.commandv("seek", pos, "absolute-percent+exact")
+        end
     end
     ne.eventresponder["shift+mbtn_left_down"] = function (element)
         element.state.mbtnleft = true
@@ -3371,6 +3468,11 @@ local function osc_init()
     ne.eventresponder["mbtn_right_down"] = function (element)
         local chapter
         local pos = get_slider_value(element)
+        local second = screenshot_at_slider_pos(element, pos, mp.get_property_number("duration", 0))
+        if second then
+            delete_screenshot_marker(second)
+            return
+        end
         local diff = math.huge
 
         for i, marker in ipairs(element.slider.markerF()) do
@@ -3935,7 +4037,85 @@ mp.register_event("file-loaded", function()
     if oos == "bottom" or oos == "both" then show_osc() end
     if oos == "top" or oos == "both" then show_wc() end
 end)
-mp.register_event("start-file", function() close_subtitle_menu(); request_init() end)
+-- Each response carries both a playlist entry and a load generation. Checking
+-- them here avoids a late Go/network response applying to a new file or replay.
+local screenshot_generation, screenshots_loaded = 0, false
+local screenshot_delete_pending
+local function screenshot_entry()
+    local pos = mp.get_property_number("playlist-pos", -1)
+    return mp.get_property_number("playlist/" .. pos .. "/id", -1)
+end
+delete_screenshot_marker = function(second)
+    if not screenshots_loaded or screenshot_delete_pending then return end
+    screenshot_delete_pending = second
+    mp.commandv("script-message", "javboss-screenshot-delete", screenshot_generation, screenshot_entry(), string.format("%.3f", second))
+end
+local screenshot_timer = mp.add_periodic_timer(2, function()
+    if screenshots_loaded and not screenshot_delete_pending then
+        mp.commandv("script-message", "javboss-screenshot-request", screenshot_generation, screenshot_entry())
+    end
+end)
+screenshot_timer:kill()
+mp.register_event("start-file", function()
+    screenshot_generation = screenshot_generation + 1
+    screenshot_delete_pending = nil
+    screenshots_loaded = false
+    screenshot_timer:kill()
+    state.screenshot_markers = {}
+    close_subtitle_menu()
+    request_init()
+end)
+mp.register_event("file-loaded", function()
+    screenshots_loaded = true
+    screenshot_timer:resume()
+    mp.commandv("script-message", "javboss-screenshot-request", screenshot_generation, screenshot_entry())
+end)
+mp.register_event("end-file", function()
+    screenshots_loaded = false
+    screenshot_delete_pending = nil
+    screenshot_timer:kill()
+    state.screenshot_markers = {}
+    request_tick()
+end)
+mp.register_script_message("javboss-screenshot-markers", function(generation, entry, payload)
+    if screenshot_delete_pending or not screenshots_loaded or tonumber(generation) ~= screenshot_generation
+        or tonumber(entry) ~= screenshot_entry() then return end
+    local values = utils.parse_json(payload)
+    if type(values) ~= "table" then return end
+    local markers = {}
+    for _, second in ipairs(values) do
+        if type(second) == "number" and second >= 0 and second < math.huge then
+            markers[#markers + 1] = second
+        end
+    end
+    table.sort(markers)
+    local unique = {}
+    for _, second in ipairs(markers) do
+        if second ~= unique[#unique] then unique[#unique + 1] = second end
+    end
+    local changed = #unique ~= #state.screenshot_markers
+    if not changed then
+        for i, second in ipairs(unique) do
+            if second ~= state.screenshot_markers[i] then changed = true; break end
+        end
+    end
+    if changed then state.screenshot_markers = unique; request_tick() end
+end)
+mp.register_script_message("javboss-screenshot-deleted", function(generation, entry, second, status)
+    if not screenshots_loaded or tonumber(generation) ~= screenshot_generation
+        or tonumber(entry) ~= screenshot_entry() or tonumber(second) ~= screenshot_delete_pending then return end
+    screenshot_delete_pending = nil
+    if status == "deleted" then
+        for i = #state.screenshot_markers, 1, -1 do
+            if state.screenshot_markers[i] == tonumber(second) then table.remove(state.screenshot_markers, i) end
+        end
+        mp.osd_message("截图已删除", 2)
+    else
+        mp.osd_message("删除截图失败", 3)
+    end
+    request_tick()
+    mp.commandv("script-message", "javboss-screenshot-request", screenshot_generation, screenshot_entry())
+end)
 mp.register_event("end-file", close_subtitle_menu)
 mp.observe_property("track-list", "native", update_tracklist)
 observe_cached("playlist-count", request_init)
@@ -4278,7 +4458,7 @@ local function validate_user_opts()
         user_opts.window_controls_color, user_opts.held_element_color, user_opts.thumbnail_box_color, user_opts.chapter_title_color,
         user_opts.seekbar_cache_color, user_opts.hover_effect_color, user_opts.windowcontrols_close_hover, user_opts.windowcontrols_max_hover,
         user_opts.windowcontrols_min_hover, user_opts.cache_info_color, user_opts.thumbnail_box_outline, user_opts.nibble_color,
-        user_opts.nibble_current_color, user_opts.seek_handle_color,
+        user_opts.nibble_current_color, user_opts.seek_handle_color, user_opts.screenshot_marker_color, user_opts.screenshot_marker_hover_color,
     }
 
     if user_opts.seek_handle_border_color ~= "" then

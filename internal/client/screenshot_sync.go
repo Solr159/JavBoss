@@ -260,6 +260,8 @@ func (c *Client) retireScreenshotJob(job *screenshotSyncJob, now time.Time) bool
 }
 
 func (j *screenshotSyncJob) syncOnce() bool {
+	j.client.screenshotFilesMu.RLock()
+	defer j.client.screenshotFilesMu.RUnlock()
 	if j.takeCredentialsChanged() {
 		for _, state := range j.files {
 			if !state.uploaded {

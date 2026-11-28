@@ -55,6 +55,7 @@ type Client struct {
 	grantKeys map[string]string
 
 	screenshotMu         sync.Mutex
+	screenshotFilesMu    sync.RWMutex // uploads share access; screenshot deletion is exclusive
 	screenshotCtx        context.Context
 	screenshotCancel     context.CancelFunc
 	screenshotJobs       map[int64]*screenshotSyncJob
