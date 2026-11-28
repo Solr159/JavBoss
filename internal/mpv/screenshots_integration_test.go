@@ -284,9 +284,9 @@ end)
 		wantTime := value["pointer_second"].(float64)
 		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "track", "click")
 		waitPosition(wantTime)
-		// Hit the padded area five screen pixels to the side and two below
+		// Hit the padded area nine screen pixels to the side and two below
 		// the original seekbar. The real OSC event dispatcher must accept it.
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "5", "2", "move")
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "9", "2", "move")
 		value = inspect(size[0], size[1])
 		if value["hit"] != true || value["preview_second"] != 2.5 || !strings.Contains(value["pointer_tooltip"].(string), "00:00:02.500") || !strings.Contains(value["drawing"].(string), "1c&H00E6FF&") {
 			t.Fatalf("missing padded hover feedback at %v: %v", size, value)
@@ -305,10 +305,10 @@ end)
 		assertScreenshotMarkerPixels(t, value, true)
 		// Outside the tighter radius, preview the pointer's time without a
 		// screenshot highlight, even in the strip below the progress bar.
-		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "move")
+		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "11", "2", "move")
 		value = inspect(size[0], size[1])
 		if strings.Contains(value["drawing"].(string), "1c&H00E6FF&") || strings.Contains(value["pointer_tooltip"].(string), "Screenshot") || value["preview_second"] != value["pointer_second"] {
-			t.Fatalf("screenshot still captured pointer eight pixels away: %v", value)
+			t.Fatalf("screenshot still captured pointer eleven pixels away: %v", value)
 		}
 		command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "2", "2", "click")
 		waitPosition(2.5)

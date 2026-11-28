@@ -1536,8 +1536,8 @@ local function screenshot_at_slider_pos(element, pos, duration)
     if mouse_y <= track_bottom then return end
     local x = get_slider_ele_pos_for(element, pos)
     local scale_x = get_virt_scale_factor()
-    -- Keep the hover radius at six screen pixels, independent of OSC scaling.
-    local nearest, distance = nil, 6 * scale_x
+    -- Keep the hover radius at ten screen pixels, independent of OSC scaling.
+    local nearest, distance = nil, 10 * scale_x
     for _, second in ipairs(state.screenshot_markers) do
         if second <= duration then
             local delta = math.abs(get_slider_ele_pos_for(element, second / duration * 100) - x)
