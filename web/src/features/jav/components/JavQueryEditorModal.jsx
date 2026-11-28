@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
-import { Slider } from '@mui/material'
+import FavoriteRatingFilter from '@/features/favorites/components/FavoriteRatingFilter'
 import { fetchJavFilterOptions } from '@/features/jav/api'
 import AppModal from '@/shared/ui/AppModal'
 import { isUserJavTag, normalizeJavActorCounts } from '@/constants/jav'
@@ -607,53 +607,18 @@ export default function JavQueryEditorModal({
           </div>
         </fieldset>
 
-        <section className="min-w-0 space-y-2">
-          <div className="text-sm font-semibold text-slate-800 dark:text-ui-text">
+        <section className="flex min-w-0 items-center justify-between gap-4">
+          <div className="shrink-0 text-sm font-semibold text-slate-800 dark:text-ui-text">
             {zh('喜爱度', 'Favorite Rating')}
           </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover">
-            <input
-              type="checkbox"
-              checked={selectedFavoriteRatingEnabled}
-              onChange={(event) => setSelectedFavoriteRatingEnabled(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
-            />
-            <span>{zh('按喜爱度范围筛选', 'Filter by favorite rating range')}</span>
-          </label>
-          {selectedFavoriteRatingEnabled ? (
-            <div className="rounded border border-slate-200 bg-slate-50 px-5 pb-2 pt-7 dark:border-ui-border dark:bg-ui-canvas">
-              <Slider
-                value={selectedFavoriteRatingRange}
-                onChange={(_, value) => {
-                  if (Array.isArray(value)) setSelectedFavoriteRatingRange(value)
-                }}
-                min={0.5}
-                max={5}
-                step={0.5}
-                disableSwap
-                valueLabelDisplay="on"
-                valueLabelFormat={(value) => Number(value).toFixed(1)}
-                getAriaLabel={(index) =>
-                  index === 0
-                    ? zh('最低喜爱度', 'Minimum favorite rating')
-                    : zh('最高喜爱度', 'Maximum favorite rating')
-                }
-                sx={{
-                  color: 'var(--theme-blue-text, #2563eb)',
-                  py: 1,
-                  '& .MuiSlider-valueLabel': {
-                    top: -4,
-                    padding: 0,
-                    background: 'transparent',
-                    color: 'var(--theme-secondary, #475569)',
-                    fontSize: '0.75rem',
-                    fontWeight: 500,
-                  },
-                  '& .MuiSlider-valueLabel::before': { display: 'none' },
-                }}
-              />
-            </div>
-          ) : null}
+          <FavoriteRatingFilter
+            compact
+            enabled={selectedFavoriteRatingEnabled}
+            min={selectedFavoriteRatingRange[0]}
+            max={selectedFavoriteRatingRange[1]}
+            onEnabledChange={setSelectedFavoriteRatingEnabled}
+            onRangeChange={setSelectedFavoriteRatingRange}
+          />
         </section>
 
         <div className="grid grid-cols-2 items-start gap-x-5 gap-y-4">
