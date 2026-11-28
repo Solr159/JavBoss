@@ -32,6 +32,7 @@ const (
 type PlayOptions struct {
 	Title                  string
 	ResolveSubtitle        SubtitleResolver
+	ResolveScreenshots     ScreenshotResolver
 	SaveSubtitleOffset     SubtitleOffsetSaver
 	SaveSubtitleSelection  SubtitleSelectionSaver
 	NewWatchReporter       func() *playback.Reporter
@@ -87,7 +88,7 @@ var (
 
 // PlayVideo launches mpv to play the given file path.
 func PlayVideo(path string, options PlayOptions) error {
-	if options.NewWatchReporter != nil || options.ResolveSubtitle != nil || options.SaveSubtitleOffset != nil || options.SaveSubtitleSelection != nil {
+	if options.NewWatchReporter != nil || options.ResolveSubtitle != nil || options.SaveSubtitleOffset != nil || options.SaveSubtitleSelection != nil || playbackScreenshotResolver(options) != nil {
 		return PlayPlaylist([]PlaylistItem{{Path: path, Title: options.Title, Options: options}})
 	}
 	cancelFocusRestoreAttempts()
@@ -386,6 +387,7 @@ func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
 	}
 	callbacks := make(map[int64]func(), len(items))
 	subtitles := make(map[int64]SubtitleResolver, len(items))
+	screenshots := make(map[int64]ScreenshotResolver, len(items))
 	subtitleSavers := make(map[int64]SubtitleOffsetSaver, len(items))
 	subtitleSelectionSavers := make(map[int64]SubtitleSelectionSaver, len(items))
 	editableSubtitles := make(map[string]bool, len(items))
@@ -394,6 +396,7 @@ func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
 	for index, entry := range entries {
 		callbacks[entry.ID] = items[index].OnStarted
 		subtitles[entry.ID] = items[index].Options.ResolveSubtitle
+		screenshots[entry.ID] = playbackScreenshotResolver(items[index].Options)
 		subtitleSavers[entry.ID] = items[index].Options.SaveSubtitleOffset
 		subtitleSelectionSavers[entry.ID] = items[index].Options.SaveSubtitleSelection
 		editableSubtitles[strconv.FormatInt(entry.ID, 10)] = subtitleSavers[entry.ID] != nil
@@ -403,6 +406,7 @@ func (s *playerSession) playPlaylistLocked(items []PlaylistItem) error {
 		}
 	}
 	s.events.setCallbacks(callbacks)
+	s.events.setScreenshots(screenshots)
 	s.events.setSubtitles(subtitles, subtitleSavers, subtitleSelectionSavers)
 	s.events.setWatchReporters(reporters)
 	if err := runIPCCommand(s.ipcPath, []any{"set_property", "user-data/javboss/subtitle-editable-entries", editableSubtitles}); err != nil {

@@ -24,6 +24,9 @@ type playlistEvent struct {
 type playlistEvents struct {
 	endpoint                string
 	entryID                 int64
+	screenshots             map[int64]ScreenshotResolver
+	screenshotCancel        context.CancelFunc
+	screenshotContext       context.Context
 	subtitles               map[int64]SubtitleResolver
 	subtitleSavers          map[int64]SubtitleOffsetSaver
 	subtitleSelectionSavers map[int64]SubtitleSelectionSaver
@@ -106,6 +109,7 @@ func newPlaylistEvents(endpoint string) (*playlistEvents, error) {
 		defer conn.Close()
 		defer func() {
 			events.mu.Lock()
+			events.cancelScreenshots()
 			if events.subtitleCancel != nil {
 				events.subtitleCancel()
 			}
@@ -195,6 +199,9 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 	wasActive := e.watch.active()
 	switch event.Event {
 	case "client-message":
+		if len(event.Args) > 0 && event.Args[0] == "javboss-screenshot-request" {
+			return e.screenshotCallback(event.Args)
+		}
 		if len(event.Args) > 0 && event.Args[0] == "javboss-subtitle-selection" {
 			return e.subtitleSelectionCallback(event.Args)
 		}
@@ -203,6 +210,7 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 		}
 		return e.subtitleSaveCallback(event.Args)
 	case "start-file":
+		e.cancelScreenshots()
 		if e.subtitleCancel != nil {
 			e.subtitleCancel()
 			e.subtitleCancel = nil
@@ -228,6 +236,7 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 			return e.current
 		}
 	case "end-file":
+		e.cancelScreenshots()
 		if e.subtitleCancel != nil {
 			e.subtitleCancel()
 			e.subtitleCancel = nil
