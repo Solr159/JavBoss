@@ -3,11 +3,15 @@ package scrape
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"javboss/internal/util"
 )
@@ -64,8 +68,6 @@ func TestSetProviderBaseURLAppliesAndResets(t *testing.T) {
 		_ = SetProviderBaseURL(ProviderJavBus, "")
 		util.SetJavImageSources(nil)
 	})
-	defaultKey := defaultMetadataClient.lookupCacheKey(ProviderJavBus, "lookup_jav", "ABC-001")
-
 	if err := SetProviderBaseURL(ProviderJavBus, "https://mirror.javbus.test/"); err != nil {
 		t.Fatalf("SetProviderBaseURL: %v", err)
 	}
@@ -84,21 +86,169 @@ func TestSetProviderBaseURLAppliesAndResets(t *testing.T) {
 	if listed.DefaultBaseURL != DefaultProviderBaseURL(ProviderJavBus) {
 		t.Fatalf("listed default base url = %q", listed.DefaultBaseURL)
 	}
-	if got := defaultMetadataClient.lookupCacheKey(ProviderJavBus, "lookup_jav", "ABC-001"); got == defaultKey || !strings.HasSuffix(got, ":https://mirror.javbus.test") {
-		t.Fatalf("cache key %q does not encode the configured origin (default %q)", got, defaultKey)
-	}
-
 	if err := SetProviderBaseURL(ProviderJavBus, ""); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
 	if got := ProviderBaseURL(ProviderJavBus); got != "" {
 		t.Fatalf("ProviderBaseURL after reset = %q", got)
 	}
-	if got := defaultMetadataClient.lookupCacheKey(ProviderJavBus, "lookup_jav", "ABC-001"); got != defaultKey {
-		t.Fatalf("cache key after reset = %q, want %q", got, defaultKey)
-	}
 	if err := SetProviderBaseURL(ProviderJavBus, "https://mirror.javbus.test/genre"); err == nil {
 		t.Fatal("invalid base url accepted")
+	}
+}
+
+func TestAVWikiLookupsUseDefaultOrigin(t *testing.T) {
+	for _, reset := range []bool{false, true} {
+		httpClient := &http.Client{Transport: testRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Host != "av-wiki.net" || req.URL.Scheme != "https" {
+				t.Errorf("request URL = %s, want AV Wiki default", req.URL)
+			}
+			body := `[{"name":"女優名","link":"https://av-wiki.net/av-actress/test/","description":"<dl class=actress-data><dt>AV女優名</dt><dd>女優名</dd></dl>"}]`
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
+		})}
+		implementation, err := newProvider(ProviderAVWiki, httpClient)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if reset {
+			setter := implementation.(baseURLProvider)
+			setter.SetBaseURL("https://mirror.avwiki.test")
+			setter.SetBaseURL("")
+		}
+		result, err := implementation.(ActressNameLookup).LookupActressByName(context.Background(), "女優名")
+		if err != nil || result == nil || result.ProfileURL != "https://av-wiki.net/av-actress/test/" {
+			t.Fatalf("reset=%v: lookup=%+v, err=%v", reset, result, err)
+		}
+	}
+}
+
+type lookupCacheWithReadHook struct {
+	*memoryLookupCache
+	onRead func()
+}
+
+func (c lookupCacheWithReadHook) Get(key string, now time.Time) ([]byte, bool, error) {
+	c.onRead()
+	return c.memoryLookupCache.Get(key, now)
+}
+
+func TestLookupCacheUsesOriginOfCapturedProvider(t *testing.T) {
+	mirror := func() *httptest.Server {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			json.NewEncoder(w).Encode([]map[string]string{{
+				"name": "女優名", "link": "http://" + r.Host + "/av-actress/test/",
+				"description": "<dl class=actress-data><dt>AV女優名</dt><dd>女優名</dd></dl>",
+			}})
+		}))
+		t.Cleanup(server.Close)
+		return server
+	}
+	oldMirror, newMirror := mirror(), mirror()
+	provider := ProviderAVWiki
+	if err := SetProviderBaseURL(provider, oldMirror.URL); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = SetProviderBaseURL(provider, "")
+		util.SetJavImageSources(nil)
+	})
+
+	cache := newMemoryLookupCache()
+	oldCache := defaultMetadataClient.currentLookupCache()
+	t.Cleanup(func() { SetCache(oldCache) })
+	SetCache(lookupCacheWithReadHook{memoryLookupCache: cache, onRead: func() {
+		// Switch after looking up the key and before the upstream request starts.
+		if err := SetProviderBaseURL(provider, newMirror.URL); err != nil {
+			t.Fatal(err)
+		}
+		SetCache(cache)
+	}})
+
+	for _, origin := range []string{oldMirror.URL, newMirror.URL, oldMirror.URL} {
+		result, err := LookupActressByJapaneseName(context.Background(), "女優名", provider)
+		if err != nil || result == nil || result.ProfileURL != origin+"/av-actress/test/" {
+			t.Fatalf("origin=%s: lookup=%+v, err=%v", origin, result, err)
+		}
+		if origin == newMirror.URL {
+			if err := SetProviderBaseURL(provider, oldMirror.URL); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
+func TestMirrorSessionFollowsLookupOrigin(t *testing.T) {
+	for _, provider := range []Provider{ProviderAvmoo, ProviderAvsox} {
+		t.Run(provider.String(), func(t *testing.T) {
+			const oldOrigin = "https://old.test"
+			const newOrigin = "https://new.test"
+			var scraper baseURLProvider
+			var requests []string
+			httpClient := &http.Client{Transport: testRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				origin := req.URL.Scheme + "://" + req.URL.Host
+				requests = append(requests, req.Method+" "+origin)
+				token := req.URL.Hostname()
+				header := make(http.Header)
+				body := `{"code":200,"data":[]}`
+				if req.Method == http.MethodGet {
+					header.Set("Set-Cookie", "session="+token)
+					body = `<meta name="csrf-token" content="` + token + `">`
+					if origin == oldOrigin {
+						// Emulate a save while the first session request is in flight.
+						scraper.SetBaseURL(newOrigin)
+					}
+				} else if req.Header.Get("Cookie") != "session="+token ||
+					req.Header.Get("X-CSRF-Token") != token || req.Header.Get("Origin") != origin {
+					t.Errorf("POST to %s used headers from another origin", origin)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+			})}
+			implementation, err := newProvider(provider, httpClient)
+			if err != nil {
+				t.Fatal(err)
+			}
+			scraper = implementation.(baseURLProvider)
+			scraper.SetBaseURL(oldOrigin)
+
+			for range 2 {
+				_, err := implementation.(MovieLookup).LookupJavByCode(context.Background(), "ABC-001")
+				if !errors.Is(err, ErrNotFound) {
+					t.Fatalf("empty result error = %v, want not found", err)
+				}
+			}
+			want := []string{"GET " + oldOrigin, "POST " + oldOrigin, "GET " + newOrigin, "POST " + newOrigin}
+			if !slices.Equal(requests, want) {
+				t.Fatalf("requests = %v, want %v", requests, want)
+			}
+		})
+	}
+}
+
+func TestChangingOriginInvalidatesOnlyThatProvidersAvailability(t *testing.T) {
+	c := defaultMetadataClient
+	InvalidateAvailabilityCache()
+	t.Cleanup(InvalidateAvailabilityCache)
+	t.Cleanup(func() {
+		_ = SetProviderBaseURL(ProviderJavBus, "")
+		util.SetJavImageSources(nil)
+	})
+
+	now := time.Now()
+	other := AvailabilityResult{Provider: ProviderAVWiki, Status: "ok", CheckedAt: now}
+	c.cacheAvailabilityResult(other, c.beginAvailabilityCheck(other.Provider))
+	edited := AvailabilityResult{Provider: ProviderJavBus, Status: "ok", CheckedAt: now}
+	c.cacheAvailabilityResult(edited, c.beginAvailabilityCheck(edited.Provider))
+	pending := c.beginAvailabilityCheck(edited.Provider)
+
+	if err := SetProviderBaseURL(edited.Provider, "https://mirror.javbus.test"); err != nil {
+		t.Fatal(err)
+	}
+	c.cacheAvailabilityResult(edited, pending)
+	if got := c.cachedAvailabilityResult(edited.Provider); got != nil {
+		t.Fatalf("edited provider kept a stale result: %+v", got)
+	}
+	if got := c.cachedAvailabilityResult(other.Provider); got == nil || *got != other {
+		t.Fatalf("other provider lost its result: %+v", got)
 	}
 }
 

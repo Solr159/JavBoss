@@ -28,7 +28,7 @@ func TestBaseURLOverride(t *testing.T) {
 	}
 	p.SetBaseURL("https://mirror.avsox.test/")
 
-	if _, err := p.fetchAvsoxSession(context.Background(), "030919_047"); err == nil {
+	if _, err := p.fetchAvsoxSession(context.Background(), p.BaseURL(), "030919_047"); err == nil {
 		t.Fatal("expected not found error")
 	}
 	if len(transport.requests) != 1 {

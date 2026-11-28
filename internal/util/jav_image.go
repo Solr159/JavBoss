@@ -25,8 +25,12 @@ func SetJavImageSources(sources []JavImageSource) {
 	clean := make([]JavImageSource, 0, len(sources))
 	for _, source := range sources {
 		origin := strings.TrimRight(strings.TrimSpace(source.Origin), "/")
-		host := imageSourceHost(origin)
-		if host == "" || isOfficialJavImageHost(host) {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Hostname() == "" {
+			continue
+		}
+		if strings.EqualFold(parsed.Scheme, "https") && imageOriginPort(parsed) == "443" &&
+			isOfficialJavImageHost(strings.ToLower(parsed.Hostname())) {
 			continue
 		}
 		clean = append(clean, JavImageSource{Origin: origin, Cookie: source.Cookie})
@@ -43,7 +47,7 @@ func javImageSources() []JavImageSource {
 	return sources
 }
 
-// SetJavImageRequestHeaders applies image-source headers using the request host.
+// SetJavImageRequestHeaders applies image-source headers using the request URL.
 func SetJavImageRequestHeaders(req *http.Request) {
 	if req == nil || req.URL == nil {
 		return
@@ -52,7 +56,7 @@ func SetJavImageRequestHeaders(req *http.Request) {
 	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	host := strings.ToLower(req.URL.Hostname())
-	if source, ok := configuredJavImageSource(host); ok {
+	if source, ok := configuredJavImageSource(req.URL); ok {
 		req.Header.Set("Referer", source.Origin+"/")
 		if source.Cookie != "" {
 			req.Header.Set("Cookie", source.Cookie)
@@ -68,31 +72,45 @@ func SetJavImageRequestHeaders(req *http.Request) {
 	}
 }
 
-// configuredJavImageSource matches the request host against configured origins,
-// including subdomains such as an image CDN of the same site.
-func configuredJavImageSource(host string) (JavImageSource, bool) {
+// Prefer an exact origin, then the closest matching CDN parent on the same
+// scheme and port.
+func configuredJavImageSource(target *url.URL) (JavImageSource, bool) {
+	host := strings.ToLower(target.Hostname())
+	port := imageOriginPort(target)
+	var fallback JavImageSource
+	parentLength := 0
 	for _, source := range javImageSources() {
-		originHost := imageSourceHost(source.Origin)
-		if originHost == "" {
+		origin, err := url.Parse(source.Origin)
+		if err != nil || !strings.EqualFold(target.Scheme, origin.Scheme) || port != imageOriginPort(origin) {
 			continue
 		}
-		if host == originHost || strings.HasSuffix(host, "."+originHost) {
+		originHost := strings.ToLower(origin.Hostname())
+		if host == originHost {
 			return source, true
 		}
+		if len(originHost) > parentLength && strings.HasSuffix(host, "."+originHost) {
+			fallback = source
+			parentLength = len(originHost)
+		}
 	}
-	return JavImageSource{}, false
+	return fallback, parentLength > 0
 }
 
-func imageSourceHost(origin string) string {
-	parsed, err := url.Parse(origin)
-	if err != nil || parsed == nil {
+func imageOriginPort(origin *url.URL) string {
+	if port := origin.Port(); port != "" {
+		return port
+	}
+	switch strings.ToLower(origin.Scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
 		return ""
 	}
-	return strings.ToLower(parsed.Hostname())
 }
 
-// isOfficialJavImageHost keeps the built-in host rules authoritative so a
-// default origin never overrides the official site behavior.
+// isOfficialJavImageHost identifies hosts covered by the built-in header rules.
 func isOfficialJavImageHost(host string) bool {
 	switch {
 	case host == "javbus.com" || strings.HasSuffix(host, ".javbus.com"):

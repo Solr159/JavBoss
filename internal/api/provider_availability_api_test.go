@@ -215,6 +215,7 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 		{name: "path", provider: "1", body: `{"base_url":"https://mirror.javbus.test/genre"}`},
 		{name: "credentials", provider: "1", body: `{"base_url":"https://user:pass@mirror.javbus.test"}`},
 		{name: "scheme", provider: "1", body: `{"base_url":"ftp://mirror.javbus.test"}`},
+		{name: "port without hostname", provider: "1", body: `{"base_url":"https://:8443"}`},
 		{name: "missing field", provider: "1", body: `{}`},
 		{name: "api provider", provider: "12", body: `{"base_url":"https://mirror.test"}`},
 		{name: "unknown provider", provider: "99", body: `{"base_url":"https://mirror.test"}`},
@@ -224,6 +225,33 @@ func TestUpdateProviderBaseURL(t *testing.T) {
 				t.Fatalf("status=%d body=%s", got.Code, got.Body)
 			}
 		})
+	}
+
+	if got := javbus(listProviders()); got.BaseURL != "https://mirror.javbus.test" {
+		t.Fatalf("invalid save changed provider: %+v", got)
+	}
+
+	start := make(chan struct{})
+	responses := make(chan *httptest.ResponseRecorder, 2)
+	for _, body := range []string{`{"base_url":"https://first.test"}`, `{"base_url":"https://second.test"}`} {
+		go func() {
+			<-start
+			responses <- update("1", body)
+		}()
+	}
+	close(start)
+	for range 2 {
+		if response := <-responses; response.Code != http.StatusOK {
+			t.Errorf("concurrent save status=%d body=%s", response.Code, response.Body)
+		}
+	}
+	cfg = nil
+	config = performRequest(router, http.MethodGet, "/config", nil, "http://example.com", cookie)
+	if err := json.Unmarshal(config.Body.Bytes(), &cfg); err != nil {
+		t.Fatal(err)
+	}
+	if got := javbus(listProviders()).BaseURL; got != cfg["javbus_base_url"] {
+		t.Fatalf("runtime base url=%q stored=%q", got, cfg["javbus_base_url"])
 	}
 
 	reset := update("1", `{"base_url":""}`)

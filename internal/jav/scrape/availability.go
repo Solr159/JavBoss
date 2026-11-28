@@ -50,6 +50,12 @@ func (c *MetadataClient) invalidateAvailabilityCache() {
 	c.availabilityResults = nil
 }
 
+func (c *MetadataClient) invalidateProviderAvailability(provider Provider) {
+	c.availabilityMu.Lock()
+	defer c.availabilityMu.Unlock()
+	delete(c.availabilityResults, provider)
+}
+
 func (c *MetadataClient) cachedAvailabilityResult(provider Provider) *AvailabilityResult {
 	c.availabilityMu.Lock()
 	defer c.availabilityMu.Unlock()
@@ -90,6 +96,8 @@ func AvailabilityProviders() []AvailabilityProvider {
 }
 
 func (c *MetadataClient) AvailabilityProviders() []AvailabilityProvider {
+	c.providersMu.RLock()
+	defer c.providersMu.RUnlock()
 	result := make([]AvailabilityProvider, 0, len(c.providers))
 	for id, implementation := range c.providers {
 		if checker, ok := implementation.(ProviderOrigin); ok {
@@ -102,7 +110,7 @@ func (c *MetadataClient) AvailabilityProviders() []AvailabilityProvider {
 				Name:           id.String(),
 				Domain:         target.Hostname(),
 				Sample:         availabilitySample(id),
-				BaseURL:        c.ProviderBaseURL(id),
+				BaseURL:        configuredProviderBaseURL(id, implementation),
 				DefaultBaseURL: DefaultProviderBaseURL(id),
 				Configurable:   DefaultProviderBaseURL(id) != "",
 				LastResult:     c.cachedAvailabilityResult(id),

@@ -14,6 +14,7 @@ func TestNormalize(t *testing.T) {
 		{name: "keeps port", raw: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
 		{name: "keeps ipv6", raw: "http://[::1]:8080", want: "http://[::1]:8080"},
 		{name: "empty", raw: "   ", wantErr: true},
+		{name: "port without hostname", raw: "https://:8443", wantErr: true},
 		{name: "no scheme", raw: "javbus.com", wantErr: true},
 		{name: "unsupported scheme", raw: "ftp://javbus.com", wantErr: true},
 		{name: "credentials", raw: "https://user:pass@javbus.com", wantErr: true},

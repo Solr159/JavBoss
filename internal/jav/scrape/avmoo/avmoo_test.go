@@ -225,7 +225,7 @@ func TestAvmooSessionAuthErrorDetection(t *testing.T) {
 
 func TestAvmooSessionCacheReuseAndInvalidate(t *testing.T) {
 	p := New(NewHTTPClient())
-	session := avmooSession{csrfToken: "token", cookie: "cookie=value", referer: "https://avmoo.shop/tw/search/IPX-228"}
+	session := avmooSession{origin: p.BaseURL(), csrfToken: "token", cookie: "cookie=value", referer: "https://avmoo.shop/tw/search/IPX-228"}
 	p.sessionCache.Lock()
 	p.sessionCache.session = session
 	p.sessionCache.expiresAt = time.Now().Add(time.Minute)
@@ -237,7 +237,7 @@ func TestAvmooSessionCacheReuseAndInvalidate(t *testing.T) {
 		p.sessionCache.Unlock()
 	})
 
-	got, err := p.cachedAvmooSession(context.Background(), "IPX-229")
+	got, err := p.cachedAvmooSession(context.Background(), p.BaseURL(), "IPX-229")
 	if err != nil {
 		t.Fatalf("cachedAvmooSession: %v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 
 	"javboss/internal/common/logging"
 	dbpkg "javboss/internal/db"
@@ -43,6 +44,8 @@ type providerBaseURLResponse struct {
 	Domain         string          `json:"domain"`
 }
 
+var providerBaseURLSaveMu sync.Mutex
+
 // updateProviderBaseURL stores and applies a custom origin for one provider so
 // users can scrape a mirror instead of the built-in site.
 func updateProviderBaseURL(c *gin.Context) {
@@ -70,6 +73,10 @@ func updateProviderBaseURL(c *gin.Context) {
 		)
 		return
 	}
+
+	// Preserve the same order for the persisted and in-memory updates.
+	providerBaseURLSaveMu.Lock()
+	defer providerBaseURLSaveMu.Unlock()
 
 	key := scrape.ProviderBaseURLConfigKey(provider)
 	if err := dbpkg.Default().UpsertConfig(c.Request.Context(), map[string]string{key: normalized}); err != nil {

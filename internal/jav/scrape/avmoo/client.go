@@ -76,12 +76,13 @@ func (p *AvmooClient) LookupJavByCode(ctx context.Context, code string) (*metada
 	ctx, cancel := context.WithTimeout(ctx, avmooLookupTimeout)
 	defer cancel()
 
-	movie, err := p.fetchAvmooMovieByCode(ctx, code)
+	base := p.BaseURL()
+	movie, err := p.fetchAvmooMovieByCode(ctx, base, code)
 	if err != nil {
 		return nil, err
 	}
 
-	info := avmooMovieInfoFromAPI(movie, p.BaseURL())
+	info := avmooMovieInfoFromAPI(movie, base)
 	if info == nil {
 		return nil, metadata.ErrNotFound
 	}

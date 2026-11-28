@@ -17,7 +17,7 @@ func Normalize(raw string) (string, error) {
 		return "", fmt.Errorf("site url is required")
 	}
 	parsed, err := url.Parse(raw)
-	if err != nil || parsed == nil || parsed.Host == "" {
+	if err != nil || parsed == nil || parsed.Hostname() == "" {
 		return "", fmt.Errorf("site url must be a valid origin")
 	}
 	scheme := strings.ToLower(parsed.Scheme)

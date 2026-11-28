@@ -28,7 +28,7 @@ func TestBaseURLOverride(t *testing.T) {
 	}
 	p.SetBaseURL("https://mirror.avmoo.test/")
 
-	if _, err := p.fetchAvmooSession(context.Background(), "ABC-001"); err == nil {
+	if _, err := p.fetchAvmooSession(context.Background(), p.BaseURL(), "ABC-001"); err == nil {
 		t.Fatal("expected not found error")
 	}
 	if len(transport.requests) != 1 {

@@ -77,13 +77,14 @@ func (p *AVWikiClient) LookupActressByName(ctx context.Context, name string) (*m
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
+	base := p.BaseURL()
 	var result *metadata.ActressInfo
 	for page := 1; ; page++ {
 		query := url.Values{
 			"search": {name}, "per_page": {"100"}, "page": {strconv.Itoa(page)},
 			"_fields": {"name,link,description"},
 		}
-		tags, pages, err := p.fetchTags(ctx, query)
+		tags, pages, err := p.fetchTags(ctx, base, query)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +92,7 @@ func (p *AVWikiClient) LookupActressByName(ctx context.Context, name string) (*m
 			if normalizeName(tag.Name) != name {
 				continue
 			}
-			info := parseActress(tag, p.baseURL)
+			info := parseActress(tag, base)
 			if info == nil {
 				continue
 			}
@@ -110,8 +111,8 @@ func (p *AVWikiClient) LookupActressByName(ctx context.Context, name string) (*m
 	return result, nil
 }
 
-func (p *AVWikiClient) fetchTags(ctx context.Context, query url.Values) ([]actressTag, int, error) {
-	resp, err := p.request(ctx, query)
+func (p *AVWikiClient) fetchTags(ctx context.Context, base string, query url.Values) ([]actressTag, int, error) {
+	resp, err := p.request(ctx, base, query)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -148,8 +149,8 @@ func (p *AVWikiClient) fetchTags(ctx context.Context, query url.Values) ([]actre
 	return tags, pages, nil
 }
 
-func (p *AVWikiClient) request(ctx context.Context, query url.Values) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.BaseURL()+"/wp-json/wp/v2/tags?"+query.Encode(), nil)
+func (p *AVWikiClient) request(ctx context.Context, base string, query url.Values) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/wp-json/wp/v2/tags?"+query.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("avwiki: build request: %w", err)
 	}

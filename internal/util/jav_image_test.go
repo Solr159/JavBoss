@@ -78,3 +78,39 @@ func TestSetJavImageSources(t *testing.T) {
 		})
 	}
 }
+
+func TestImageHeadersDistinguishMirrorOrigins(t *testing.T) {
+	util.SetJavImageSources([]util.JavImageSource{
+		{Origin: "https://mirror.test:8443", Cookie: "age=verified"},
+		{Origin: "https://mirror.test:9443"},
+		{Origin: "https://mirror.test", Cookie: "age=verified"},
+		{Origin: "https://img.mirror.test"},
+		{Origin: "https://www.javbus.com:8443"},
+	})
+	t.Cleanup(func() { util.SetJavImageSources(nil) })
+
+	for _, tc := range []struct{ origin, referer, cookie string }{
+		{"https://mirror.test:8443", "https://mirror.test:8443/", "age=verified"},
+		{"https://mirror.test:9443", "https://mirror.test:9443/", ""},
+		{"https://mirror.test:4443", "", ""},
+		{"http://mirror.test:8443", "", ""},
+		{"https://mirror.test:443", "https://mirror.test/", "age=verified"},
+		{"https://img.mirror.test", "https://img.mirror.test/", ""},
+		{"https://cdn.mirror.test:9443", "https://mirror.test:9443/", ""},
+		{"https://www.javbus.com:8443", "https://www.javbus.com:8443/", ""},
+	} {
+		t.Run(tc.origin, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodGet, tc.origin+"/cover.jpg", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			util.SetJavImageRequestHeaders(req)
+			if got := req.Header.Get("Referer"); got != tc.referer {
+				t.Errorf("Referer = %q, want %q", got, tc.referer)
+			}
+			if got := req.Header.Get("Cookie"); got != tc.cookie {
+				t.Errorf("Cookie = %q, want %q", got, tc.cookie)
+			}
+		})
+	}
+}

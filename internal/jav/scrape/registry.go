@@ -23,9 +23,10 @@ import (
 	"javboss/internal/util"
 )
 
-// MetadataClient owns an immutable provider registry and an independently configurable cache.
+// MetadataClient owns the provider registry and an independently configurable cache.
 // Providers supplied to NewMetadataClient must support concurrent queries.
 type MetadataClient struct {
+	providersMu          sync.RWMutex
 	providers            map[Provider]any
 	availabilityFactory  func(Provider, *http.Client) (any, error)
 	cacheMu              sync.RWMutex
@@ -115,7 +116,9 @@ func (c *MetadataClient) providerFor(provider Provider) (any, error) {
 	if provider == ProviderUnknown || provider == ProviderUser || provider == ProviderManualScrape {
 		return nil, ErrUnsupportedProvider
 	}
+	c.providersMu.RLock()
 	implementation, ok := c.providers[provider]
+	c.providersMu.RUnlock()
 	if !ok || implementation == nil {
 		return nil, ErrUnsupportedProvider
 	}
@@ -200,7 +203,15 @@ func ProviderBaseURL(provider Provider) string {
 // ProviderBaseURL returns this client's configured origin of a provider, or an
 // empty string when the default origin is in use.
 func (c *MetadataClient) ProviderBaseURL(provider Provider) string {
-	effective := c.effectiveProviderBaseURL(provider)
+	implementation, err := c.providerFor(provider)
+	if err != nil {
+		return ""
+	}
+	return configuredProviderBaseURL(provider, implementation)
+}
+
+func configuredProviderBaseURL(provider Provider, implementation any) string {
+	effective := effectiveProviderBaseURL(implementation)
 	if effective == "" || effective == DefaultProviderBaseURL(provider) {
 		return ""
 	}
@@ -208,11 +219,7 @@ func (c *MetadataClient) ProviderBaseURL(provider Provider) string {
 }
 
 // effectiveProviderBaseURL reports the origin a provider currently requests.
-func (c *MetadataClient) effectiveProviderBaseURL(provider Provider) string {
-	implementation, err := c.providerFor(provider)
-	if err != nil {
-		return ""
-	}
+func effectiveProviderBaseURL(implementation any) string {
 	scraper, ok := implementation.(baseURLProvider)
 	if !ok {
 		return ""
@@ -234,21 +241,36 @@ func (c *MetadataClient) applyProviderBaseURL(provider Provider, implementation 
 // SetProviderBaseURL changes a provider's origin on the default metadata client.
 // An empty value restores the official origin.
 func SetProviderBaseURL(provider Provider, raw string) error {
+	provider = ParseProvider(int(provider))
 	normalized, err := NormalizeProviderBaseURL(provider, raw)
 	if err != nil {
 		return err
 	}
-	implementation, err := defaultMetadataClient.providerFor(provider)
+	c := defaultMetadataClient
+	c.providersMu.Lock()
+	defer c.providersMu.Unlock()
+
+	origin := normalized
+	if origin == "" {
+		origin = DefaultProviderBaseURL(provider)
+	}
+	if effectiveProviderBaseURL(c.providers[provider]) == origin {
+		return nil
+	}
+
+	// In-flight lookups keep their original instance, including its sessions.
+	implementation, err := newProvider(provider, newCachedProviderHTTPClient(provider))
 	if err != nil {
 		return err
 	}
-	setter, ok := implementation.(interface{ SetBaseURL(string) })
+	setter, ok := implementation.(baseURLProvider)
 	if !ok {
 		return ErrUnsupportedProvider
 	}
 	setter.SetBaseURL(normalized)
-	defaultMetadataClient.invalidateAvailabilityCache()
-	refreshJavImageSources()
+	c.providers[provider] = implementation
+	c.invalidateProviderAvailability(provider)
+	refreshJavImageSources(c.providers)
 	return nil
 }
 
@@ -268,10 +290,10 @@ func ApplyProviderBaseURLConfig(cfg map[string]string) {
 
 // refreshJavImageSources teaches the image proxy which Referer each configured
 // origin expects so covers served from a mirror keep loading.
-func refreshJavImageSources() {
+func refreshJavImageSources(providers map[Provider]any) {
 	sources := make([]util.JavImageSource, 0, len(ConfigurableBaseURLProviders()))
 	for _, provider := range ConfigurableBaseURLProviders() {
-		origin := defaultMetadataClient.effectiveProviderBaseURL(provider)
+		origin := effectiveProviderBaseURL(providers[provider])
 		if origin == "" {
 			continue
 		}

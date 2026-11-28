@@ -29,7 +29,7 @@ var lookupJavCacheKeyVersionByProvider = map[Provider]string{
 
 var lookupActressNameCacheKeyVersionByProvider = map[Provider]string{
 	ProviderMinnanoAV: "v3",
-	ProviderAVWiki:    "v2", // Normalize RomanName to given-name-first order.
+	ProviderAVWiki:    "v3", // Discard false misses from default-origin profile validation.
 }
 
 // LookupCache is a persistent key-value store for provider lookup results.
@@ -134,10 +134,9 @@ func cacheableLookupResult(c *MetadataClient, key string, value any, err error) 
 	}
 }
 
-// lookupCacheKey scopes a cache entry to the site origin actually contacted, so
-// switching a provider between mirrors cannot replay another origin's results.
-func (c *MetadataClient) lookupCacheKey(provider Provider, method, input string) string {
-	return lookupCacheKey(provider, method, input, c.ProviderBaseURL(provider))
+// providerLookupCacheKey uses the same provider instance that runs the lookup.
+func providerLookupCacheKey(provider Provider, implementation any, method, input string) string {
+	return lookupCacheKey(provider, method, input, configuredProviderBaseURL(provider, implementation))
 }
 
 func lookupCacheKey(provider Provider, method, input string, discriminator ...string) string {
