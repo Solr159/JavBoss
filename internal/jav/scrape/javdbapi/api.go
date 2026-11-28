@@ -73,6 +73,9 @@ func (p *JavDBAPIClient) init() {
 }
 
 func (p *JavDBAPIClient) get(ctx context.Context, path string, params url.Values, dest any) (err error) {
+	if err := checkAuthentication(ctx); err != nil {
+		return err
+	}
 	p.init()
 	started := time.Now()
 	status, responseBytes := 0, 0
@@ -96,6 +99,9 @@ func (p *JavDBAPIClient) get(ctx context.Context, path string, params url.Values
 	}
 	defer resp.Body.Close()
 	status = resp.StatusCode
+	if resp.StatusCode == http.StatusUnauthorized {
+		return pauseAuthentication("HTTP 401")
+	}
 	if resp.StatusCode == http.StatusNotFound {
 		return metadata.ErrNotFound
 	}
@@ -121,6 +127,9 @@ func (p *JavDBAPIClient) get(ctx context.Context, path string, params url.Values
 	}
 	success := strings.Trim(string(envelope.Success), "\"")
 	if success != "1" && !strings.EqualFold(success, "true") {
+		if envelope.Action == "JWTVerificationError" {
+			return pauseAuthentication(envelope.Action)
+		}
 		return fmt.Errorf("javdb-api: request rejected (%s)", envelope.Action)
 	}
 	if len(envelope.Data) == 0 || string(envelope.Data) == "null" {
@@ -356,8 +365,15 @@ func New(httpClient *http.Client, baseURL string) *JavDBAPIClient {
 
 // request uses this client's API identity, signing, rate limiter and transport.
 func (p *JavDBAPIClient) request(ctx context.Context, path string, params url.Values) (*http.Response, error) {
+	if err := checkAuthentication(ctx); err != nil {
+		return nil, err
+	}
 	p.init()
 	if err := p.limiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+	// Another request may have failed authentication while this one was queued.
+	if err := checkAuthentication(ctx); err != nil {
 		return nil, err
 	}
 	query := url.Values{
