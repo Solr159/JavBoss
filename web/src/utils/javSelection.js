@@ -7,6 +7,8 @@ export function javBulkQuery(state, sort) {
     seriesId: state.javSeriesId,
     prefix: state.javPrefix,
     soloOnly: state.javSoloOnly,
+    actorCounts: state.javActorCounts,
+    movieType: state.javMovieType,
     favoriteRatingEnabled: state.javFavoriteRatingEnabled,
     favoriteRatingMin: state.javFavoriteRatingMin,
     favoriteRatingMax: state.javFavoriteRatingMax,

@@ -5,7 +5,7 @@ import JavCoverCropModal from '@/features/jav/components/JavCoverCropModal'
 import useJavItemActions from '@/features/jav/hooks/useJavItemActions'
 import { JavCoverImage, IdolTagList, JavTagList } from '@/features/jav/components/JavCardTags'
 import { zh } from '@/utils/i18n'
-import { Rating, Popper, IconButton } from '@mui/material'
+import { Rating, Popper } from '@mui/material'
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded'
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded'
 import RemoveCircleOutlineRoundedIcon from '@mui/icons-material/RemoveCircleOutlineRounded'
@@ -19,12 +19,12 @@ import SearchIcon from '@mui/icons-material/Search'
 import PhotoLibraryOutlinedIcon from '@mui/icons-material/PhotoLibraryOutlined'
 import { ReleaseIcon, DurationIcon } from '@/features/jav/components/JavMetadataIcons'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
+import SmartDisplayOutlinedIcon from '@mui/icons-material/SmartDisplayOutlined'
 import CollectionsBookmarkOutlinedIcon from '@mui/icons-material/CollectionsBookmarkOutlined'
 import { StudioCard } from '@/features/jav/components/JavStudioView'
 import { SeriesCard } from '@/features/jav/components/JavSeriesView'
 import { IdolCard } from '@/features/jav/components/JavIdolGrid'
 import { MovieEdit } from '@mui/icons-material'
-import VideoLibraryOutlinedIcon from '@mui/icons-material/VideoLibraryOutlined'
 import { JavItemEditors } from '@/features/jav/components/JavItemEditors'
 import WatchTimeIcons from '@/features/playback/components/WatchTimeIcons'
 
@@ -118,9 +118,7 @@ export default function JavCard(props) {
     tagMaxRows,
     buildTagFilterHref,
     onTagClick,
-    hideActions,
     handleOpenEditor,
-    handleOpenVideoManager,
   } = model
   const videoCount = Array.isArray(item?.videos) ? item.videos.length : 0
   const metadataTextClassName = portrait ? 'text-[11px] leading-4 tracking-tight' : 'text-xs'
@@ -167,7 +165,7 @@ export default function JavCard(props) {
         style={portrait ? { containerType: 'inline-size' } : undefined}
       >
         <div
-          className="card-hover-scope group relative shrink-0 overflow-hidden bg-white dark:bg-ui-surface"
+          className={`card-hover-scope group relative shrink-0 overflow-hidden bg-white dark:bg-ui-surface ${favoriteRatingEditing ? 'jav-card-rating-editing' : ''}`}
           style={{ aspectRatio: portrait ? `100 / ${coverAspectPercent}` : '800 / 538' }}
         >
           {cover ? (
@@ -184,11 +182,11 @@ export default function JavCard(props) {
           )}
           <button
             type="button"
-            className="card-modal-trigger absolute inset-0 z-[1] cursor-pointer"
+            className="jav-card-cover-action card-modal-trigger absolute inset-0 z-[1] cursor-pointer"
             onClick={handleOpenDetail}
             aria-label={zh(`查看 ${code || 'JAV'} 详情`, `View ${code || 'JAV'} details`)}
           />
-          <div className="card-hover-focus-visible pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="jav-card-cover-action card-hover-focus-visible pointer-events-none absolute inset-0 z-[2] flex items-center justify-center bg-black/0 text-white opacity-0 transition-opacity group-hover:opacity-100">
             <button
               onClick={handlePlay}
               disabled={!canPlay}
@@ -318,7 +316,7 @@ export default function JavCard(props) {
                     event.stopPropagation()
                     onToggleSelect(item)
                   }}
-                  className={`card-hover-focus-visible flex ${coverSmallButtonSizeClassName} shrink-0 items-center justify-center rounded-full bg-black/65 shadow-lg shadow-black/40 transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60 [@media(hover:none)]:opacity-100 ${
+                  className={`jav-card-cover-action card-hover-focus-visible flex ${coverSmallButtonSizeClassName} shrink-0 items-center justify-center rounded-full bg-black/65 shadow-lg shadow-black/40 transition hover:bg-black/80 disabled:cursor-not-allowed disabled:opacity-60 [@media(hover:none)]:opacity-100 ${
                     checked
                       ? 'text-sky-300 opacity-100'
                       : 'text-white opacity-0 group-hover:opacity-100'
@@ -334,7 +332,7 @@ export default function JavCard(props) {
             ) : null}
           </div>
           {externalLinks.length > 0 ? (
-            <div className="card-hover-focus-visible group/external-links absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="jav-card-cover-action card-hover-focus-visible group/external-links absolute bottom-2 left-2 z-10 flex max-w-[calc(100%-1rem)] items-center opacity-0 transition-opacity group-hover:opacity-100">
               {portrait ? (
                 <button
                   type="button"
@@ -378,9 +376,19 @@ export default function JavCard(props) {
               </div>
             </div>
           ) : null}
+          <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
+            <button
+              type="button"
+              className={`jav-card-cover-action card-modal-trigger card-hover-focus-visible absolute top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100 [@media(hover:none)]:opacity-100 ${portrait ? 'jav-card-portrait-cover-action jav-card-cover-edit right-[4.5rem]' : 'right-[5.5rem]'}`}
+              aria-label={zh('编辑 JAV', 'Edit JAV')}
+              onClick={handleOpenEditor}
+            >
+              <MovieEdit sx={{ fontSize: portrait ? 16 : 18 }} />
+            </button>
+          </Tooltip>
           <button
             type="button"
-            className={`card-modal-trigger card-hover-focus-visible absolute top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100 ${portrait ? 'right-10' : 'right-12'}`}
+            className={`jav-card-cover-action card-modal-trigger card-hover-focus-visible absolute top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full bg-black/65 text-white opacity-0 shadow-lg shadow-black/40 transition hover:bg-black/80 group-hover:opacity-100 ${portrait ? 'jav-card-portrait-cover-action jav-card-cover-tags right-10' : 'right-12'}`}
             title={zh('编辑自定义标签', 'Edit custom tags')}
             aria-label={zh('编辑自定义标签', 'Edit custom tags')}
             onClick={handleOpenCustomTags}
@@ -389,7 +397,7 @@ export default function JavCard(props) {
           </button>
           <button
             type="button"
-            className={`card-modal-trigger card-hover-focus-visible absolute right-2 top-2 z-10 flex ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
+            className={`jav-card-cover-action card-modal-trigger card-hover-focus-visible absolute right-2 top-2 z-10 flex ${portrait ? 'jav-card-portrait-cover-action' : ''} ${coverButtonSizeClassName} items-center justify-center rounded-full shadow-lg shadow-black/40 transition ${
               favoriteCount > 0
                 ? 'bg-amber-400 text-amber-950 hover:bg-amber-300'
                 : 'bg-black/65 text-white opacity-0 hover:bg-black/80 group-hover:opacity-100'
@@ -406,7 +414,7 @@ export default function JavCard(props) {
           </button>
           {cover || canOpen ? (
             <div
-              className={`card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center opacity-0 transition-opacity group-hover:opacity-100 ${portrait ? 'gap-1' : 'gap-2'}`}
+              className={`jav-card-cover-action card-hover-focus-visible absolute bottom-2 right-2 z-10 flex items-center opacity-0 transition-opacity group-hover:opacity-100 ${portrait ? 'gap-1' : 'gap-2'}`}
             >
               {portrait && cover && item?.id ? (
                 <button
@@ -457,10 +465,35 @@ export default function JavCard(props) {
             title={titleText}
             style={titleClampStyle}
           >
-            {codeText ? (
-              <span className="font-semibold text-gray-800 dark:text-ui-text">{codeText}</span>
+            {codeText || item?.is_uncensored === true || videoCount > 1 ? (
+              <>
+                <span className="inline-flex items-center gap-1 align-baseline">
+                  {codeText ? (
+                    <span className="font-semibold text-gray-800 [text-box:trim-both_cap_alphabetic] dark:text-ui-text">
+                      {codeText}
+                    </span>
+                  ) : null}
+                  {item?.is_uncensored === true ? (
+                    <span className="whitespace-nowrap rounded bg-rose-100 px-1 py-0.5 text-[10px] font-medium leading-none text-rose-700 [text-box:trim-both_cap_alphabetic] dark:bg-rose-900 dark:text-rose-300">
+                      {zh('无码', 'Uncensored')}
+                    </span>
+                  ) : null}
+                  {videoCount > 1 ? (
+                    <span
+                      role="img"
+                      aria-label={zh(`${videoCount} 个视频`, `${videoCount} videos`)}
+                      title={zh(`${videoCount} 个视频`, `${videoCount} videos`)}
+                      className="inline-flex items-center gap-0.5 whitespace-nowrap rounded bg-slate-700 px-1 py-0.5 text-[10px] font-medium leading-none text-white"
+                    >
+                      <SmartDisplayOutlinedIcon sx={{ fontSize: 12 }} />
+                      <span aria-hidden="true" className="[text-box:trim-both_cap_alphabetic]">
+                        {videoCount}
+                      </span>
+                    </span>
+                  ) : null}
+                </span>{' '}
+              </>
             ) : null}
-            {codeText ? ' ' : null}
             <span className="font-medium text-gray-800 dark:text-ui-text">{mainTitle}</span>
           </div>
           <div
@@ -663,46 +696,6 @@ export default function JavCard(props) {
               onFilterLinkClick={handleFilterLinkClick}
             />
           )}
-          {!hideActions ? (
-            <div className={`flex flex-wrap items-center gap-2 ${portrait ? 'mt-auto' : ''}`}>
-              <div className={`flex items-center ${portrait ? '-my-0.5 gap-1' : 'gap-2'}`}>
-                <Tooltip title={zh('编辑 JAV', 'Edit JAV')}>
-                  <IconButton
-                    size="small"
-                    onClick={handleOpenEditor}
-                    aria-label={zh('编辑 JAV', 'Edit JAV')}
-                    className={portrait ? undefined : 'h-6 w-6'}
-                    sx={
-                      portrait ? { width: 22, height: 22, padding: '2px', fontSize: 16 } : undefined
-                    }
-                  >
-                    <MovieEdit fontSize="inherit" />
-                  </IconButton>
-                </Tooltip>
-                <div className="flex items-center gap-0.5">
-                  <Tooltip title={zh('视频管理', 'Manage videos')}>
-                    <IconButton
-                      size="small"
-                      onClick={handleOpenVideoManager}
-                      disabled={videoCount === 0}
-                      aria-label={zh('视频管理', 'Manage videos')}
-                      className={portrait ? undefined : 'h-6 w-6'}
-                      sx={
-                        portrait
-                          ? { width: 22, height: 22, padding: '2px', fontSize: 16 }
-                          : undefined
-                      }
-                    >
-                      <VideoLibraryOutlinedIcon fontSize="inherit" />
-                    </IconButton>
-                  </Tooltip>
-                  {videoCount > 1 ? (
-                    <span className="text-xs text-gray-500 dark:text-ui-faint">({videoCount})</span>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
         </div>
       </div>
       <JavItemEditors {...model} />

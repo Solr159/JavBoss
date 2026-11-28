@@ -108,6 +108,8 @@ export default function JavStudioDetailModal({
     tempSort: '',
     random: false,
     soloOnly: false,
+    actorCounts: [],
+    movieType: '',
   }
   const href = buildJavUrl({
     ...searchOptions,

@@ -397,6 +397,21 @@ body.has-page-scroll .sticky-pagination {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
+.favorite-rating-filter--compact {
+  width: 14rem;
+  height: 32px;
+  min-width: 0;
+  flex-shrink: 1;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.favorite-rating-filter--compact .favorite-rating-filter__toggle {
+  width: 23px;
+  height: 23px;
+  font-size: 17px;
+}
+
 .favorite-rating-filter--active {
   border-color: var(--theme-blue-border, #bfdbfe);
   background: var(--theme-blue-surface, #f8fbff);
@@ -1003,6 +1018,28 @@ body.has-page-scroll .sticky-pagination {
   transition:
     opacity 160ms ease,
     transform 160ms ease;
+}
+
+/* Editing the rating temporarily removes other cover controls from interaction. */
+.jav-card-rating-editing .jav-card-cover-action {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* Keep the top action row beside the collapsed rating on narrow portrait cards. */
+@container (max-width: 198px) {
+  .jav-card-portrait-cover-action {
+    width: 24px;
+    height: 24px;
+  }
+
+  .jav-card-cover-edit {
+    right: 4rem;
+  }
+
+  .jav-card-cover-tags {
+    right: 2.25rem;
+  }
 }
 
 /* Keep full date and duration text readable on the narrowest portrait cards. */

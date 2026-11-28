@@ -316,7 +316,7 @@ test('saving one display tab only persists its fields and updates its list state
     }
     assert.equal(
       Object.keys(payload).length,
-      { jav: 17, idol: 4, studio: 2, series: 2, tag: 1 }[tab]
+      { jav: 16, idol: 4, studio: 2, series: 2, tag: 1 }[tab]
     )
     assert.deepEqual(changes, tab === 'tag' ? [] : [[tab, true]])
     if (tab !== 'jav') {

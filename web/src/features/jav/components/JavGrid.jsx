@@ -58,7 +58,6 @@ export default function JavGrid({
     hideSeries,
     hideIdols,
     hideTags,
-    hideActions,
     showFullFavoriteRating,
     displayItems,
   } = useJavPresentation(items)
@@ -167,7 +166,6 @@ export default function JavGrid({
             hideSeries={hideSeries}
             hideIdols={hideIdols}
             hideTags={hideTags}
-            hideActions={hideActions}
             showFullFavoriteRating={showFullFavoriteRating}
           />
         ))}

@@ -858,9 +858,11 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	for _, idol := range idols {
 		idolByName[idol.Name] = idol
 	}
+	censored, uncensored := false, true
 	javs := []models.Jav{
-		{Code: "SOLO-001", Title: "One idol", FetchedAt: now},
-		{Code: "GROUP-001", Title: "Two idols", FetchedAt: now},
+		{Code: "NONE-001", Title: "No idols", FetchedAt: now},
+		{Code: "SOLO-001", Title: "One idol", FetchedAt: now, IsUncensored: &uncensored},
+		{Code: "GROUP-001", Title: "Two idols", FetchedAt: now, IsUncensored: &censored},
 	}
 	if err := db.Create(&javs).Error; err != nil {
 		t.Fatalf("create javs: %v", err)
@@ -878,6 +880,7 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 		t.Fatalf("create idol maps: %v", err)
 	}
 	videos := []models.Video{
+		{DirectoryID: dir.ID, Path: "none-001.mp4", Filename: "none-001.mp4", Fingerprint: "fp-none-001", JavID: int64Ptr(javByCode["NONE-001"].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "solo-001.mp4", Filename: "solo-001.mp4", Fingerprint: "fp-solo-001", JavID: int64Ptr(javByCode["SOLO-001"].ID), ModifiedAt: now},
 		{DirectoryID: dir.ID, Path: "group-001.mp4", Filename: "group-001.mp4", Fingerprint: "fp-group-001", JavID: int64Ptr(javByCode["GROUP-001"].ID), ModifiedAt: now},
 	}
@@ -896,6 +899,77 @@ func TestSearchJavFiltersSoloOnlyByIdolCount(t *testing.T) {
 	if items[0].Code != "SOLO-001" {
 		t.Fatalf("unexpected jav code: got %q want SOLO-001", items[0].Code)
 	}
+	for _, tc := range []struct {
+		name   string
+		counts []int64
+		want   int64
+	}{
+		{"unrestricted", nil, 3},
+		{"none", []int64{0}, 1},
+		{"none or two", []int64{0, 2}, 2},
+		{"all existing counts", []int64{0, 1, 2}, 3},
+		{"one", []int64{1}, 1},
+		{"two", []int64{2}, 1},
+		{"multiple", []int64{1, 2}, 2},
+		{"no matches", []int64{3, 4, 5}, 0},
+		{"duplicates", []int64{2, 2}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			filters := JavSearchFilters{StudioID: -1, ActorCounts: tc.counts}
+			items, total, err := deps.store.SearchJavWithPrefixFilters(ctx, nil, nil, "", "", "code", 20, 0, nil, nil, filters)
+			if err != nil || total != tc.want || int64(len(items)) != tc.want {
+				t.Fatalf("actor counts %v: total=%d items=%d err=%v, want %d", tc.counts, total, len(items), err, tc.want)
+			}
+			options, err := deps.store.ListJavFilterOptions(ctx, nil, nil, "", "", nil, filters, JavFilterOptionSearches{}, 120)
+			if err != nil || options.Total != tc.want {
+				t.Fatalf("filter options total=%d err=%v, want %d", options.Total, err, tc.want)
+			}
+			if len(tc.counts) > 0 {
+				wantWithIdol := tc.want
+				for _, count := range tc.counts {
+					if count == 0 {
+						wantWithIdol--
+						break
+					}
+				}
+				_, total, err = deps.store.SearchJavWithPrefixFilters(ctx, []int64{idolByName["Idol A"].ID}, nil, "", "", "code", 20, 0, nil, nil, filters)
+				if err != nil || total != wantWithIdol {
+					t.Fatalf("combined idol and count filter: total=%d err=%v, want %d", total, err, wantWithIdol)
+				}
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		movieType string
+		code      string
+	}{
+		{"censored", "GROUP-001"},
+		{"uncensored", "SOLO-001"},
+		{"unknown", "NONE-001"},
+	} {
+		t.Run(tc.movieType, func(t *testing.T) {
+			filters := JavSearchFilters{StudioID: -1, MovieType: tc.movieType}
+			items, total, err := deps.store.SearchJavWithPrefixFilters(ctx, nil, nil, "", "", "code", 20, 0, nil, nil, filters)
+			if err != nil || total != 1 || len(items) != 1 || items[0].Code != tc.code {
+				t.Fatalf("movie type %s: items=%v total=%d err=%v", tc.movieType, items, total, err)
+			}
+			options, err := deps.store.ListJavFilterOptions(ctx, nil, nil, "", "", nil, filters, JavFilterOptionSearches{}, 120)
+			if err != nil || options.Total != 1 {
+				t.Fatalf("options=%v err=%v", options, err)
+			}
+			filters.ActorCounts = []int64{1}
+			_, total, err = deps.store.SearchJavWithPrefixFilters(ctx, nil, nil, "", "", "code", 20, 0, nil, nil, filters)
+			want := int64(0)
+			if tc.movieType == "uncensored" {
+				want = 1
+			}
+			if err != nil || total != want {
+				t.Fatalf("combined filter: total=%d want=%d err=%v", total, want, err)
+			}
+		})
+	}
+
 }
 
 func TestUpdateJavReplacesEditableMetadata(t *testing.T) {

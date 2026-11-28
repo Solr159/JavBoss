@@ -114,3 +114,22 @@ test('video directory filters survive pagination and random links and can be cle
   assert.equal(cleared.directoryId, null)
   assert.equal(cleared.subdirectory, '')
 })
+
+test('JAV pagination retains count/type filters while explicit relation overrides clear them', async (t) => {
+  const [links, urls, { createAppState }] = await loadModules(t, [
+    'navigation/queryLinks.js',
+    'utils/urlState.js',
+    'store.js',
+  ])
+  const store = createStore(createAppState)
+  store.setState({ javTab: 'list', javActorCounts: [0, 2], javMovieType: 'uncensored' })
+  const query = (options) =>
+    urls.parseUrlState(
+      new URL(links.buildJavQueryLink(store.getState(), options), 'http://localhost').search
+    ).jav
+  assert.deepEqual(query({ page: 2 }).actorCounts, [0, 2])
+  assert.equal(query({ page: 2 }).movieType, 'uncensored')
+  assert.equal(query({ page: 2 }).page, 2)
+  assert.deepEqual(query({ actorCounts: [], movieType: '' }).actorCounts, [])
+  assert.equal(query({ actorCounts: [], movieType: '' }).movieType, '')
+})

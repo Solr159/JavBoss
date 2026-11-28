@@ -346,8 +346,6 @@ export default function DisplaySettingsModal({
   onJavHideIdolsChange,
   javHideTagsInput = false,
   onJavHideTagsChange,
-  javHideActionsInput = false,
-  onJavHideActionsChange,
   javFavoriteRatingShowFullInput = false,
   onJavFavoriteRatingShowFullChange,
   javWaterfallDefaultInput = false,
@@ -433,7 +431,6 @@ export default function DisplaySettingsModal({
         onJavHideSeriesChange?.(false)
         onJavHideIdolsChange?.(false)
         onJavHideTagsChange?.(false)
-        onJavHideActionsChange?.(false)
         onJavFavoriteRatingShowFullChange?.(false)
         onJavSortChange?.(JAV_SORT_OPTIONS[0]?.defaultValue || 'recent')
         onJavSortRulesChange?.([])
@@ -637,13 +634,6 @@ export default function DisplaySettingsModal({
                       label={zh('显示系列', 'Show series')}
                       checked={!javHideSeriesInput}
                       onChange={(visible) => onJavHideSeriesChange?.(!visible)}
-                    />
-                  </SettingsRow>
-                  <SettingsRow label={zh('显示操作按钮', 'Show action buttons')}>
-                    <SettingsSwitch
-                      label={zh('显示操作按钮', 'Show action buttons')}
-                      checked={!javHideActionsInput}
-                      onChange={(visible) => onJavHideActionsChange?.(!visible)}
                     />
                   </SettingsRow>
                   {!javCardPortraitInput ? (

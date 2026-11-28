@@ -90,10 +90,6 @@ export default function DisplaySettings({ onClose, onError, onWaterfallChange, i
       onJavHideTagsChange={(value) =>
         setDraft((current) => ({ ...current, javHideTagsInput: value }))
       }
-      javHideActionsInput={draft.javHideActionsInput}
-      onJavHideActionsChange={(value) =>
-        setDraft((current) => ({ ...current, javHideActionsInput: value }))
-      }
       javFavoriteRatingShowFullInput={draft.javFavoriteRatingShowFullInput}
       onJavFavoriteRatingShowFullChange={(value) =>
         setDraft((current) => ({ ...current, javFavoriteRatingShowFullInput: value }))

@@ -302,7 +302,12 @@ export function activeJavSortFilters(state) {
     active.push('series')
   }
   if (String(state?.javPrefix || '').trim()) active.push('prefix')
-  if (state?.javSoloOnly) active.push('solo')
+  if (
+    state?.javActorCounts?.length
+      ? state.javActorCounts.length === 1 && state.javActorCounts[0] === 1
+      : state?.javSoloOnly
+  )
+    active.push('solo')
   if (state?.javFavoriteRatingEnabled) active.push('favorite_rating')
   if (Number(state?.javFavoriteGroupId) > 0) active.push('favorite_group')
   return active
@@ -406,4 +411,23 @@ export function sortLabelParts(option, sort, zh) {
 
 export function isUserJavTag(tag) {
   return Number(tag?.provider) === JAV_PROVIDER_USER
+}
+
+export function normalizeJavActorCounts(values) {
+  return [
+    ...new Set(
+      (Array.isArray(values) ? values : [])
+        .filter(
+          (value) =>
+            (typeof value === 'number' || typeof value === 'string') && String(value).trim() !== ''
+        )
+        .map(Number)
+    ),
+  ]
+    .filter((value) => Number.isInteger(value) && value >= 0 && value <= 5)
+    .sort((a, b) => a - b)
+}
+
+export function normalizeJavMovieType(value) {
+  return ['censored', 'uncensored', 'unknown'].includes(value) ? value : ''
 }

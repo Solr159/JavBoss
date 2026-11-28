@@ -4,6 +4,8 @@ import {
   normalizeIdolProfileFilters,
   normalizeIdolSort,
   normalizeJavSort,
+  normalizeJavActorCounts,
+  normalizeJavMovieType,
 } from '@/constants/jav'
 import { normalizeVideoSort } from '@/constants/video'
 
@@ -124,6 +126,8 @@ export const parseUrlState = (searchString = window.location.search, options = {
     seriesName: (sp.get('series_name') || '').trim(),
     prefix: parseJavPrefix(sp.get('prefix')),
     soloOnly: sp.get('solo') === '1',
+    actorCounts: normalizeJavActorCounts((sp.get('actor_counts') || '').split(',')),
+    movieType: normalizeJavMovieType(sp.get('movie_type')),
     favoriteRatingEnabled,
     favoriteRatingMin: favoriteRatingEnabled ? favoriteRatingMin : 0.5,
     favoriteRatingMax: favoriteRatingEnabled ? favoriteRatingMax : 5,
@@ -173,7 +177,12 @@ export const buildUrlFromState = (state, basePath = window.location.pathname) =>
     if (state.jav.tab === 'list' && state.jav.prefix) {
       sp.set('prefix', state.jav.prefix)
     }
-    if (state.jav.tab === 'list' && state.jav.soloOnly) {
+    if (state.jav.tab === 'list' && state.jav.movieType) {
+      sp.set('movie_type', normalizeJavMovieType(state.jav.movieType))
+    }
+    if (state.jav.tab === 'list' && state.jav.actorCounts?.length) {
+      sp.set('actor_counts', normalizeJavActorCounts(state.jav.actorCounts).join(','))
+    } else if (state.jav.tab === 'list' && state.jav.soloOnly) {
       sp.set('solo', '1')
     }
     if (state.jav.tab === 'list' && state.jav.favoriteRatingEnabled) {
@@ -284,6 +293,8 @@ export const normalizeUrlStateFromStore = (store, tagsByName) => {
       seriesName: (store.javSeriesName || '').trim(),
       prefix: store.javPrefix || '',
       soloOnly: Boolean(store.javSoloOnly),
+      actorCounts: normalizeJavActorCounts(store.javActorCounts),
+      movieType: normalizeJavMovieType(store.javMovieType),
       favoriteRatingEnabled: Boolean(store.javFavoriteRatingEnabled),
       favoriteRatingMin: store.javFavoriteRatingMin ?? 0.5,
       favoriteRatingMax: store.javFavoriteRatingMax ?? 5,

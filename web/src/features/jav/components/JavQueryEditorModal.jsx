@@ -1,13 +1,16 @@
+import { ToggleButton, ToggleButtonGroup } from '@mui/material'
+import RadioButtonCheckedIcon from '@mui/icons-material/RadioButtonChecked'
+import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'
 import { useStore } from '@/store'
 import { preferChineseSeries, getSeriesDisplayName } from '@/features/jav/titleTranslation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined'
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 import SearchIcon from '@mui/icons-material/Search'
-import { Slider } from '@mui/material'
+import FavoriteRatingFilter from '@/features/favorites/components/FavoriteRatingFilter'
 import { fetchJavFilterOptions } from '@/features/jav/api'
 import AppModal from '@/shared/ui/AppModal'
-import { isUserJavTag } from '@/constants/jav'
+import { isUserJavTag, normalizeJavActorCounts, normalizeJavMovieType } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
 import { getErrorMessage } from '@/utils/errors'
 import { getIdolDisplayName } from '@/utils/javIdol'
@@ -15,7 +18,6 @@ import { withJavTagDisplayName } from '@/utils/javTag'
 
 const EMPTY_FILTER_OPTIONS = {
   total: 0,
-  solo_count: 0,
   prefixes: [],
   idols: [],
   tags: [],
@@ -93,6 +95,8 @@ export default function JavQueryEditorModal({
   seriesName = '',
   prefix = '',
   soloOnly = false,
+  actorCounts,
+  movieType = '',
   preferChineseName = false,
   showSimplifiedTags = false,
   favoriteGroupId = null,
@@ -127,7 +131,8 @@ export default function JavQueryEditorModal({
   const [studioSearch, setStudioSearch] = useState('')
   const [studioPickerOpen, setStudioPickerOpen] = useState(false)
   const [selectedSeries, setSelectedSeries] = useState(null)
-  const [selectedSoloOnly, setSelectedSoloOnly] = useState(false)
+  const [selectedMovieType, setSelectedMovieType] = useState('')
+  const [selectedActorCounts, setSelectedActorCounts] = useState([])
   const [selectedFavoriteRatingEnabled, setSelectedFavoriteRatingEnabled] = useState(false)
   const [selectedFavoriteRatingRange, setSelectedFavoriteRatingRange] = useState([0.5, 5])
   const [seriesSearch, setSeriesSearch] = useState('')
@@ -173,7 +178,10 @@ export default function JavQueryEditorModal({
         ? { id: parsedSeriesId, name: trimmedSeriesName || `#${parsedSeriesId}` }
         : null
     )
-    setSelectedSoloOnly(Boolean(soloOnly))
+    setSelectedActorCounts(
+      normalizeJavActorCounts(actorCounts?.length ? actorCounts : soloOnly ? [1] : [])
+    )
+    setSelectedMovieType(normalizeJavMovieType(movieType))
     setSelectedFavoriteRatingEnabled(Boolean(favoriteRatingEnabled))
     const nextFavoriteRatingMin = cleanFavoriteRating(favoriteRatingMin, 0.5)
     const nextFavoriteRatingMax = cleanFavoriteRating(favoriteRatingMax, 5)
@@ -198,6 +206,8 @@ export default function JavQueryEditorModal({
     seriesId,
     seriesName,
     soloOnly,
+    actorCounts,
+    movieType,
     studioId,
     studioName,
     tagIds,
@@ -216,7 +226,8 @@ export default function JavQueryEditorModal({
         studioId: selectedStudio?.id ?? null,
         seriesId: selectedSeries?.id ?? null,
         prefix: cleanJavPrefix(selectedPrefix?.prefix),
-        soloOnly: selectedSoloOnly,
+        actorCounts: selectedActorCounts,
+        movieType: selectedMovieType,
         favoriteGroupId,
         favoriteRatingEnabled: selectedFavoriteRatingEnabled,
         favoriteRatingMin: selectedFavoriteRatingRange[0],
@@ -231,7 +242,6 @@ export default function JavQueryEditorModal({
         .then((payload) => {
           const next = {
             total: Number(payload?.total) || 0,
-            solo_count: Number(payload?.solo_count) || 0,
             prefixes: Array.isArray(payload?.prefixes) ? payload.prefixes : [],
             idols: Array.isArray(payload?.idols) ? payload.idols : [],
             tags: Array.isArray(payload?.tags) ? payload.tags : [],
@@ -272,7 +282,8 @@ export default function JavQueryEditorModal({
     selectedFavoriteRatingEnabled,
     selectedFavoriteRatingRange,
     selectedSeries?.id,
-    selectedSoloOnly,
+    selectedActorCounts,
+    selectedMovieType,
     selectedStudio?.id,
     selectedTagIds,
     seriesSearch,
@@ -502,7 +513,8 @@ export default function JavQueryEditorModal({
     setStudioSearch('')
     setStudioPickerOpen(false)
     setSelectedSeries(null)
-    setSelectedSoloOnly(false)
+    setSelectedActorCounts([])
+    setSelectedMovieType('')
     setSelectedFavoriteRatingEnabled(false)
     setSelectedFavoriteRatingRange([0.5, 5])
     setSeriesSearch('')
@@ -517,7 +529,8 @@ export default function JavQueryEditorModal({
       tagIds: selectedTagIds,
       studio: selectedStudio,
       series: selectedSeries,
-      soloOnly: selectedSoloOnly,
+      actorCounts: selectedActorCounts,
+      movieType: selectedMovieType,
       favoriteRatingEnabled: selectedFavoriteRatingEnabled,
       favoriteRatingMin: selectedFavoriteRatingRange[0],
       favoriteRatingMax: selectedFavoriteRatingRange[1],
@@ -572,74 +585,110 @@ export default function JavQueryEditorModal({
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-        <section className="min-w-0 space-y-2">
-          <div className="text-sm font-semibold text-slate-800 dark:text-ui-text">
-            {zh('作品类型', 'Work Type')}
+        <fieldset className="min-w-0">
+          <legend className="float-left mr-3 text-sm font-semibold leading-7 text-slate-800 dark:text-ui-text">
+            {zh('女优数量', 'Actress Count')}
+          </legend>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {[0, 1, 2, 3, 4, 5].map((count) => (
+              <label
+                key={count}
+                className="flex h-7 cursor-pointer items-center gap-1.5 rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover"
+              >
+                <input
+                  type="checkbox"
+                  name="actor_counts"
+                  value={count}
+                  checked={selectedActorCounts.includes(count)}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setSelectedActorCounts((previous) =>
+                      checked
+                        ? normalizeJavActorCounts([...previous, count])
+                        : previous.filter((value) => value !== count)
+                    )
+                  }}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
+                />
+                <span>
+                  {count === 0 ? zh('无女优', 'No actresses') : zh(`${count} 人`, `${count}`)}
+                </span>
+              </label>
+            ))}
           </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover">
-            <input
-              type="checkbox"
-              checked={selectedSoloOnly}
-              onChange={(event) => setSelectedSoloOnly(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
-            />
-            <span className="min-w-0 flex-1">{zh('只看单体作品', 'Solo works only')}</span>
-            {!selectedSoloOnly ? (
-              <span className="shrink-0 text-xs text-slate-400 dark:text-ui-faint">
-                {zh(`${filterOptions.solo_count} 部`, `${filterOptions.solo_count} works`)}
-              </span>
-            ) : null}
-          </label>
-        </section>
+        </fieldset>
 
-        <section className="min-w-0 space-y-2">
-          <div className="text-sm font-semibold text-slate-800 dark:text-ui-text">
-            {zh('喜爱度', 'Favorite Rating')}
-          </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 dark:border-ui-border dark:bg-ui-surface dark:text-ui-secondary dark:hover:bg-ui-hover">
-            <input
-              type="checkbox"
-              checked={selectedFavoriteRatingEnabled}
-              onChange={(event) => setSelectedFavoriteRatingEnabled(event.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-ui-primary dark:border-ui-border dark:text-blue-300"
-            />
-            <span>{zh('按喜爱度范围筛选', 'Filter by favorite rating range')}</span>
-          </label>
-          {selectedFavoriteRatingEnabled ? (
-            <div className="rounded border border-slate-200 bg-slate-50 px-5 pb-2 pt-7 dark:border-ui-border dark:bg-ui-canvas">
-              <Slider
-                value={selectedFavoriteRatingRange}
-                onChange={(_, value) => {
-                  if (Array.isArray(value)) setSelectedFavoriteRatingRange(value)
+        <div className="grid grid-cols-1 items-center gap-x-5 gap-y-3 sm:grid-cols-2">
+          <fieldset className="min-w-0">
+            <legend className="float-left mr-3 text-sm font-semibold leading-7 text-slate-800 dark:text-ui-text">
+              {zh('影片类型', 'Movie Type')}
+            </legend>
+            <div className="flex justify-end">
+              <ToggleButtonGroup
+                exclusive
+                value={selectedMovieType || null}
+                onChange={(_, value) => setSelectedMovieType(value || '')}
+                onKeyDown={(event) => {
+                  // Space activates the focused option instead of the global query-editor shortcut.
+                  if (event.key === ' ') event.stopPropagation()
                 }}
-                min={0.5}
-                max={5}
-                step={0.5}
-                disableSwap
-                valueLabelDisplay="on"
-                valueLabelFormat={(value) => Number(value).toFixed(1)}
-                getAriaLabel={(index) =>
-                  index === 0
-                    ? zh('最低喜爱度', 'Minimum favorite rating')
-                    : zh('最高喜爱度', 'Maximum favorite rating')
-                }
+                aria-label={zh('影片类型', 'Movie Type')}
                 sx={{
-                  color: 'var(--theme-blue-text, #2563eb)',
-                  py: 1,
-                  '& .MuiSlider-valueLabel': {
-                    top: -4,
-                    padding: 0,
-                    background: 'transparent',
-                    color: 'var(--theme-secondary, #475569)',
+                  gap: 0.75,
+                  '& .MuiToggleButtonGroup-grouped': {
+                    m: 0,
+                    height: 28,
+                    px: 1,
+                    py: 0,
+                    gap: 0.5,
+                    border: '1px solid var(--theme-border, #e2e8f0)',
+                    borderRadius: '4px',
                     fontSize: '0.75rem',
-                    fontWeight: 500,
+                    textTransform: 'none',
+                    transition: 'none',
+                    '&.Mui-focusVisible': {
+                      outline: '2px solid var(--theme-blue-text, #1d4ed8)',
+                      outlineOffset: 2,
+                    },
+                    color: 'var(--theme-secondary, #475569)',
+                    '&.Mui-selected': {
+                      color: 'var(--theme-blue-text, #1d4ed8)',
+                      backgroundColor: 'var(--theme-blue-surface, #eff6ff)',
+                    },
                   },
-                  '& .MuiSlider-valueLabel::before': { display: 'none' },
                 }}
-              />
+              >
+                {[
+                  ['censored', zh('有码', 'Censored')],
+                  ['uncensored', zh('无码', 'Uncensored')],
+                  ['unknown', zh('未知', 'Unknown')],
+                ].map(([value, label]) => (
+                  <ToggleButton key={value} name="movie_type" value={value} disableRipple>
+                    {selectedMovieType === value ? (
+                      <RadioButtonCheckedIcon sx={{ fontSize: 14 }} />
+                    ) : (
+                      <RadioButtonUncheckedIcon sx={{ fontSize: 14 }} />
+                    )}
+                    <span>{label}</span>
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
             </div>
-          ) : null}
-        </section>
+          </fieldset>
+          <section className="flex min-w-0 items-center justify-between gap-4">
+            <div className="shrink-0 text-sm font-semibold text-slate-800 dark:text-ui-text">
+              {zh('喜爱度', 'Favorite Rating')}
+            </div>
+            <FavoriteRatingFilter
+              compact
+              enabled={selectedFavoriteRatingEnabled}
+              min={selectedFavoriteRatingRange[0]}
+              max={selectedFavoriteRatingRange[1]}
+              onEnabledChange={setSelectedFavoriteRatingEnabled}
+              onRangeChange={setSelectedFavoriteRatingRange}
+            />
+          </section>
+        </div>
 
         <div className="grid grid-cols-2 items-start gap-x-5 gap-y-4">
           <section className="min-w-0 space-y-2">
