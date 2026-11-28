@@ -34,6 +34,7 @@ type javFilterQuery struct {
 	SeriesID          int64
 	SoloOnly          bool
 	ActorCounts       []int64
+	MovieType         string
 	FavoriteGroupID   int64
 	FavoriteRatingMin *float64
 	FavoriteRatingMax *float64
@@ -47,6 +48,14 @@ func parseJavFilterQuery(c *gin.Context) (javFilterQuery, bool) {
 		Prefix:   strings.TrimSpace(c.Query("prefix")),
 		StudioID: -1,
 		SoloOnly: queryBool(c, "solo", false),
+	}
+	// movie_type selects censored, uncensored, or unknown (NULL); omitted means all.
+	query.MovieType = strings.TrimSpace(c.Query("movie_type"))
+	switch query.MovieType {
+	case "", "censored", "uncensored", "unknown":
+	default:
+		respondLocalizedError(c, http.StatusBadRequest, "影片类型无效", "Invalid movie type")
+		return query, false
 	}
 	// actor_counts is a comma-separated OR filter of exact actress counts (0–5); 0 means no associated actresses.
 	if raw := strings.TrimSpace(c.Query("actor_counts")); raw != "" {
@@ -128,6 +137,7 @@ func searchJav(c *gin.Context) {
 		SeriesID:          filterQuery.SeriesID,
 		SoloOnly:          filterQuery.SoloOnly,
 		ActorCounts:       filterQuery.ActorCounts,
+		MovieType:         filterQuery.MovieType,
 		FavoriteGroupID:   filterQuery.FavoriteGroupID,
 		FavoriteRatingMin: filterQuery.FavoriteRatingMin,
 		FavoriteRatingMax: filterQuery.FavoriteRatingMax,
@@ -160,6 +170,7 @@ func listJavFilterOptions(c *gin.Context) {
 			SeriesID:          filterQuery.SeriesID,
 			SoloOnly:          filterQuery.SoloOnly,
 			ActorCounts:       filterQuery.ActorCounts,
+			MovieType:         filterQuery.MovieType,
 			FavoriteGroupID:   filterQuery.FavoriteGroupID,
 			FavoriteRatingMin: filterQuery.FavoriteRatingMin,
 			FavoriteRatingMax: filterQuery.FavoriteRatingMax,

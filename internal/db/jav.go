@@ -174,6 +174,7 @@ type JavSearchFilters struct {
 	SeriesID          int64
 	SoloOnly          bool
 	ActorCounts       []int64
+	MovieType         string
 	FavoriteGroupID   int64
 	FavoriteRatingMin *float64
 	FavoriteRatingMax *float64
@@ -1199,6 +1200,14 @@ func (store *Store) buildJavFilter(ctx context.Context, idolIDs []int64, tagIDs 
 	}
 	if filters.FavoriteRatingMax != nil {
 		q = q.Where("jav.favorite_rating <= ?", *filters.FavoriteRatingMax)
+	}
+	switch filters.MovieType {
+	case "censored":
+		q = q.Where("jav.is_uncensored = ?", false)
+	case "uncensored":
+		q = q.Where("jav.is_uncensored = ?", true)
+	case "unknown":
+		q = q.Where("jav.is_uncensored IS NULL")
 	}
 	actorCounts := filters.ActorCounts
 	if len(actorCounts) == 0 && filters.SoloOnly {

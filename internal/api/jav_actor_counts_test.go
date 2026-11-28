@@ -42,3 +42,23 @@ func TestParseJavActorCounts(t *testing.T) {
 		})
 	}
 }
+
+func TestParseJavMovieType(t *testing.T) {
+	for _, value := range []string{"", "censored", "uncensored", "unknown", "invalid"} {
+		t.Run(value, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			ctx, _ := gin.CreateTestContext(recorder)
+			ctx.Request = httptest.NewRequest("GET", "/jav?movie_type="+value, nil)
+			query, valid := parseJavFilterQuery(ctx)
+			if valid != (value != "invalid") {
+				t.Fatalf("valid=%v", valid)
+			}
+			if valid && query.MovieType != value {
+				t.Fatalf("movie type=%q", query.MovieType)
+			}
+			if !valid && recorder.Code != 400 {
+				t.Fatalf("status=%d", recorder.Code)
+			}
+		})
+	}
+}

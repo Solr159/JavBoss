@@ -50,6 +50,7 @@ test(
           javTags: [7],
           javSoloOnly: false,
           javActorCounts: [1, 3],
+          javMovieType: 'uncensored',
           javFavoriteRatingEnabled: true,
           javFavoriteRatingMin: 3,
           javFavoriteRatingMax: 5,

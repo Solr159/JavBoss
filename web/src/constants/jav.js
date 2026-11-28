@@ -427,3 +427,7 @@ export function normalizeJavActorCounts(values) {
     .filter((value) => Number.isInteger(value) && value >= 0 && value <= 5)
     .sort((a, b) => a - b)
 }
+
+export function normalizeJavMovieType(value) {
+  return ['censored', 'uncensored', 'unknown'].includes(value) ? value : ''
+}

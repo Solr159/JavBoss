@@ -33,6 +33,7 @@ export function buildJavQueryLink(state, options = {}, pathname = '/') {
     'search',
     'idolIds',
     'actorCounts',
+    'movieType',
     'tagIds',
     'studioName',
     'seriesName',

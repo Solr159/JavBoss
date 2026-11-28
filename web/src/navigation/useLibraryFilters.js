@@ -10,6 +10,7 @@ import {
   IDOL_PROFILE_FILTER_DEFINITIONS,
   normalizeIdolProfileFilters,
   normalizeJavActorCounts,
+  normalizeJavMovieType,
   createDefaultIdolProfileFilters,
 } from '@/constants/jav'
 import { zh } from '@/utils/i18n'
@@ -50,6 +51,7 @@ export default function useLibraryFilters({
     javPrefix,
     javSoloOnly,
     javActorCounts,
+    javMovieType,
     javFavoriteRatingEnabled,
     javFavoriteRatingMin,
     javFavoriteRatingMax,
@@ -78,6 +80,7 @@ export default function useLibraryFilters({
       javPrefix: state.javPrefix,
       javSoloOnly: state.javSoloOnly,
       javActorCounts: state.javActorCounts,
+      javMovieType: state.javMovieType,
       javFavoriteRatingEnabled: state.javFavoriteRatingEnabled,
       javFavoriteRatingMin: state.javFavoriteRatingMin,
       javFavoriteRatingMax: state.javFavoriteRatingMax,
@@ -122,6 +125,7 @@ export default function useLibraryFilters({
         javPrefix: '',
         javSoloOnly: false,
         javActorCounts: [],
+        javMovieType: '',
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
@@ -413,6 +417,18 @@ export default function useLibraryFilters({
         onRemove: () => updateJavFilters({ javPrefix: '' }),
       })
     }
+    if (javMovieType) {
+      const labels = {
+        censored: zh('有码', 'Censored'),
+        uncensored: zh('无码', 'Uncensored'),
+        unknown: zh('未知', 'Unknown'),
+      }
+      items.push({
+        key: 'jav-movie-type',
+        label: zh(`影片类型: ${labels[javMovieType]}`, `Movie type: ${labels[javMovieType]}`),
+        onRemove: () => updateJavFilters({ javMovieType: '' }),
+      })
+    }
     if (javActorCounts?.length) {
       items.push({
         key: 'jav-actor-counts',
@@ -466,6 +482,7 @@ export default function useLibraryFilters({
     javSeriesName,
     javSoloOnly,
     javActorCounts,
+    javMovieType,
     javStudioId,
     javStudioName,
     javTab,
@@ -504,6 +521,7 @@ export default function useLibraryFilters({
         javPrefix: '',
         javSoloOnly: false,
         javActorCounts: [],
+        javMovieType: '',
         javFavoriteRatingEnabled: false,
         javFavoriteRatingMin: 0.5,
         javFavoriteRatingMax: 5,
@@ -606,6 +624,7 @@ export default function useLibraryFilters({
         javPrefix: nextPrefix,
         javSoloOnly: false,
         javActorCounts: normalizeJavActorCounts(query?.actorCounts),
+        javMovieType: normalizeJavMovieType(query?.movieType),
         javFavoriteRatingEnabled: nextFavoriteRatingEnabled,
         javFavoriteRatingMin: nextFavoriteRatingMin,
         javFavoriteRatingMax: nextFavoriteRatingMax,
