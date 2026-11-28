@@ -100,6 +100,7 @@ func (c *Client) handlePlay(w http.ResponseWriter, r *http.Request) {
 		NewWatchReporter:       c.playbackReporter(request.VideoID, request.LocationID, cookie, request.Path, request.DirPath),
 		ResolveSubtitle:        c.subtitleResolver(request.VideoID, request.LocationID, cookie, request.Path, request.DirPath),
 		ResolveScreenshots:     c.screenshotResolver(request.VideoID, cookie),
+		DeleteScreenshot:       c.screenshotDeleter(request.VideoID, cookie),
 		SaveSubtitleOffset:     c.subtitleOffsetSaver(request.VideoID, cookie),
 		SaveSubtitleSelection:  c.subtitleSelectionSaver(request.VideoID, cookie),
 		DataDir:                dataDir,

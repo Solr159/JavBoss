@@ -490,6 +490,7 @@ func playVideoFile(c *gin.Context) {
 	if err := mpv.PlayVideo(fullPath, mpv.PlayOptions{
 		NewWatchReporter:      localPlaybackReporter(videoID, 0, dirPath, fullPath),
 		ResolveSubtitle:       localSubtitleResolver(videoID, 0, fullPath),
+		DeleteScreenshot:      localScreenshotDeleter(dataDir, videoID),
 		SaveSubtitleOffset:    localSubtitleOffsetSaver(videoID),
 		SaveSubtitleSelection: localSubtitleSelectionSaver(videoID),
 		DataDir:               dataDir,
@@ -594,6 +595,7 @@ func playVideoPlaylist(c *gin.Context) {
 			Options: mpv.PlayOptions{
 				NewWatchReporter:      localPlaybackReporter(videoID, location.ID, "", ""),
 				ResolveSubtitle:       localSubtitleResolver(videoID, location.ID, fullPath),
+				DeleteScreenshot:      localScreenshotDeleter(dataDir, videoID),
 				SaveSubtitleOffset:    localSubtitleOffsetSaver(videoID),
 				SaveSubtitleSelection: localSubtitleSelectionSaver(videoID),
 				DataDir:               dataDir,

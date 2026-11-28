@@ -1525,6 +1525,7 @@ end
 
 -- Screenshot positions share the slider geometry, but never enter markerF:
 -- chapter rendering, titles and right-click navigation keep their own semantics.
+local delete_screenshot_marker
 local function screenshot_at_slider_pos(element, pos, duration)
     if not element or not element.layout or duration <= 0 or state.playing_and_seeking then return end
     if subtitle_menu or not mouse_hit(element) then return end
@@ -3398,7 +3399,7 @@ local function osc_init()
         if duration ~= nil and pos ~= nil then
             local second = screenshot_at_slider_pos(state.seekbar_element, pos, duration)
             if second then
-                return locale.screenshot .. " " .. mp.format_time(second, "%H:%M:%S.%T")
+                return locale.screenshot .. " " .. mp.format_time(second, "%H:%M:%S.%T") .. " · 右键删除"
             end
             return format_time(duration * (pos / 100))
         end
@@ -3452,6 +3453,11 @@ local function osc_init()
     ne.eventresponder["mbtn_right_down"] = function (element)
         local chapter
         local pos = get_slider_value(element)
+        local second = screenshot_at_slider_pos(element, pos, mp.get_property_number("duration", 0))
+        if second then
+            delete_screenshot_marker(second)
+            return
+        end
         local diff = math.huge
 
         for i, marker in ipairs(element.slider.markerF()) do
@@ -4019,18 +4025,25 @@ end)
 -- Each response carries both a playlist entry and a load generation. Checking
 -- them here avoids a late Go/network response applying to a new file or replay.
 local screenshot_generation, screenshots_loaded = 0, false
+local screenshot_delete_pending
 local function screenshot_entry()
     local pos = mp.get_property_number("playlist-pos", -1)
     return mp.get_property_number("playlist/" .. pos .. "/id", -1)
 end
+delete_screenshot_marker = function(second)
+    if not screenshots_loaded or screenshot_delete_pending then return end
+    screenshot_delete_pending = second
+    mp.commandv("script-message", "javboss-screenshot-delete", screenshot_generation, screenshot_entry(), string.format("%.3f", second))
+end
 local screenshot_timer = mp.add_periodic_timer(2, function()
-    if screenshots_loaded then
+    if screenshots_loaded and not screenshot_delete_pending then
         mp.commandv("script-message", "javboss-screenshot-request", screenshot_generation, screenshot_entry())
     end
 end)
 screenshot_timer:kill()
 mp.register_event("start-file", function()
     screenshot_generation = screenshot_generation + 1
+    screenshot_delete_pending = nil
     screenshots_loaded = false
     screenshot_timer:kill()
     state.screenshot_markers = {}
@@ -4044,12 +4057,13 @@ mp.register_event("file-loaded", function()
 end)
 mp.register_event("end-file", function()
     screenshots_loaded = false
+    screenshot_delete_pending = nil
     screenshot_timer:kill()
     state.screenshot_markers = {}
     request_tick()
 end)
 mp.register_script_message("javboss-screenshot-markers", function(generation, entry, payload)
-    if not screenshots_loaded or tonumber(generation) ~= screenshot_generation
+    if screenshot_delete_pending or not screenshots_loaded or tonumber(generation) ~= screenshot_generation
         or tonumber(entry) ~= screenshot_entry() then return end
     local values = utils.parse_json(payload)
     if type(values) ~= "table" then return end
@@ -4071,6 +4085,21 @@ mp.register_script_message("javboss-screenshot-markers", function(generation, en
         end
     end
     if changed then state.screenshot_markers = unique; request_tick() end
+end)
+mp.register_script_message("javboss-screenshot-deleted", function(generation, entry, second, status)
+    if not screenshots_loaded or tonumber(generation) ~= screenshot_generation
+        or tonumber(entry) ~= screenshot_entry() or tonumber(second) ~= screenshot_delete_pending then return end
+    screenshot_delete_pending = nil
+    if status == "deleted" then
+        for i = #state.screenshot_markers, 1, -1 do
+            if state.screenshot_markers[i] == tonumber(second) then table.remove(state.screenshot_markers, i) end
+        end
+        mp.osd_message("截图已删除", 2)
+    else
+        mp.osd_message("删除截图失败", 3)
+    end
+    request_tick()
+    mp.commandv("script-message", "javboss-screenshot-request", screenshot_generation, screenshot_entry())
 end)
 mp.register_event("end-file", close_subtitle_menu)
 mp.observe_property("track-list", "native", update_tracklist)

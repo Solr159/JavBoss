@@ -3,7 +3,9 @@
 package mpv
 
 import (
+	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -11,8 +13,11 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"javboss/internal/video/screenshot"
 )
 
 func TestScreenshotMarkersWithMPV(t *testing.T) {
@@ -85,6 +90,7 @@ mp.register_script_message("test-screenshots-inspect", function(width, height)
         pointer_second = get_slider_value(el) * duration / 100,
         preview_second = state.sliderpos * duration / 100,
         hit = mouse_hit(el),
+        delete_pending = screenshot_delete_pending ~= nil,
     })
 end)
 mp.register_script_message("test-screenshots-pointer", function(second, dx, dy, action)
@@ -122,7 +128,7 @@ end)
 		}
 	}
 	t.Setenv(modernZEnvDir, assets)
-	wave := make([]byte, 44+8000*2*60)
+	wave := make([]byte, 44+8000*2*90)
 	copy(wave, "RIFF")
 	binary.LittleEndian.PutUint32(wave[4:], uint32(len(wave)-8))
 	copy(wave[8:], "WAVEfmt ")
@@ -156,8 +162,29 @@ end)
 	writeShot("128.jpg")
 	s := &playerSession{}
 	t.Cleanup(s.Reset)
+	var failDeletion atomic.Bool
+	var deleteCalls atomic.Int32
+	deleter := func(ctx context.Context, second float64) error {
+		deleteCalls.Add(1)
+		if failDeletion.Load() {
+			return errors.New("test deletion failure")
+		}
+		names, err := screenshot.PlaybackNamesAt(dir, 1, second)
+		if err != nil {
+			return err
+		}
+		for _, name := range names {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if err := os.Remove(filepath.Join(shots, name)); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	if err := s.PlayPlaylist([]PlaylistItem{
-		{Path: path, Options: PlayOptions{DataDir: dir, VideoID: 1}},
+		{Path: path, Options: PlayOptions{DataDir: dir, VideoID: 1, DeleteScreenshot: deleter}},
 		{Path: path, Options: PlayOptions{DataDir: dir, VideoID: 2}},
 	}); err != nil {
 		t.Fatal(err)
@@ -286,6 +313,11 @@ end)
 	}
 	command("script-message-to", "modernz", "test-screenshots-pointer", "30", "0", "0", "click")
 	waitPosition(30)
+	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "0", "track", "right")
+	waitPosition(0)
+	if deleteCalls.Load() != 0 {
+		t.Fatal("right-click on the track deleted a screenshot instead of navigating chapters")
+	}
 	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "0", "0", "leave")
 	writeShot("mpv_00-00-15.jpg")
 	waitTimes([]any{float64(0), 2.5, float64(15), float64(120)})
@@ -306,6 +338,44 @@ end)
 	if !reflect.DeepEqual(value["times"], first["times"]) {
 		t.Fatalf("old generation overwrote replay markers: %v", value)
 	}
+	command("seek", 20, "absolute+exact")
+	waitPosition(20)
+	failDeletion.Store(true)
+	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "right")
+	deleteDeadline := time.Now().Add(3 * time.Second)
+	for {
+		value = inspect("960", "540")
+		if deleteCalls.Load() == 1 && value["delete_pending"] == false {
+			break
+		}
+		if time.Now().After(deleteDeadline) {
+			t.Fatal("failed deletion did not acknowledge the request")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !reflect.DeepEqual(value["times"], first["times"]) {
+		t.Fatal("failed deletion removed the marker")
+	}
+	failDeletion.Store(false)
+	command("script-message-to", "modernz", "test-screenshots-pointer", "2.5", "8", "2", "right")
+	waitTimes([]any{float64(0), float64(120)})
+	if deleteCalls.Load() != 2 {
+		t.Fatalf("delete calls=%d, want 2", deleteCalls.Load())
+	}
+	for _, name := range []string{"mpv_00-00-02.500.jpg", "mpv_00-00-02.500.png"} {
+		if _, err := os.Stat(filepath.Join(shots, name)); !os.IsNotExist(err) {
+			t.Fatalf("right-click did not delete %s: %v", name, err)
+		}
+	}
+	// Exercise a fractional timestamp beyond a minute through JSON and Lua.
+	writeShot("mpv_00-01-01.029.jpg")
+	waitTimes([]any{float64(0), 61.029, float64(120)})
+	command("script-message-to", "modernz", "test-screenshots-pointer", "61.029", "0", "2", "right")
+	waitTimes([]any{float64(0), float64(120)})
+	if _, err := os.Stat(filepath.Join(shots, "mpv_00-01-01.029.jpg")); !os.IsNotExist(err) {
+		t.Fatalf("fractional timestamp was not deleted: %v", err)
+	}
+	waitPosition(20)
 	command("stop")
 	waitTimes(nil)
 }

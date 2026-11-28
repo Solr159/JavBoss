@@ -27,6 +27,11 @@ type playlistEvents struct {
 	screenshots             map[int64]ScreenshotResolver
 	screenshotCancel        context.CancelFunc
 	screenshotContext       context.Context
+	screenshotDone          chan struct{}
+	screenshotDeleters      map[int64]ScreenshotDeleter
+	screenshotSnapshot      *screenshotSnapshot
+	screenshotDeleteCancel  context.CancelFunc
+	screenshotDeleteContext context.Context
 	subtitles               map[int64]SubtitleResolver
 	subtitleSavers          map[int64]SubtitleOffsetSaver
 	subtitleSelectionSavers map[int64]SubtitleSelectionSaver
@@ -199,6 +204,9 @@ func (e *playlistEvents) handleAt(event playlistEvent, now time.Time) func() {
 	wasActive := e.watch.active()
 	switch event.Event {
 	case "client-message":
+		if len(event.Args) > 0 && event.Args[0] == "javboss-screenshot-delete" {
+			return e.screenshotDeleteCallback(event.Args)
+		}
 		if len(event.Args) > 0 && event.Args[0] == "javboss-screenshot-request" {
 			return e.screenshotCallback(event.Args)
 		}

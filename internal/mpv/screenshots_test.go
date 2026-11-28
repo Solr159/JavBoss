@@ -52,3 +52,29 @@ func TestScreenshotRequestsCancelOnSwitchAndRejectWrongEntry(t *testing.T) {
 		t.Fatal("refresh accepted after end-file")
 	}
 }
+
+func TestScreenshotDeletionRejectsStaleSnapshotAndCancelsOnSwitch(t *testing.T) {
+	calls := 0
+	e := &playlistEvents{loaded: true, entryID: 1, screenshotSnapshot: &screenshotSnapshot{generation: "2", seconds: []float64{2.5}}}
+	e.setScreenshotDeleters(map[int64]ScreenshotDeleter{1: func(context.Context, float64) error { calls++; return nil }})
+	request := func(generation, entry, second string) func() {
+		return e.handle(playlistEvent{Event: "client-message", Args: []string{"javboss-screenshot-delete", generation, entry, second}})
+	}
+	for _, args := range [][3]string{{"1", "1", "2.5"}, {"2", "1", "99"}, {"2", "2", "2.5"}, {"2", "1", "NaN"}} {
+		if callback := request(args[0], args[1], args[2]); callback != nil {
+			callback()
+		}
+		if calls != 0 {
+			t.Fatalf("invalid request deleted a screenshot: %v", args)
+		}
+	}
+	callback := request("2", "1", "2.5")
+	if callback == nil {
+		t.Fatal("valid deletion request was rejected")
+	}
+	e.handle(playlistEvent{Event: "start-file", EntryID: 2})
+	callback()
+	if calls != 0 {
+		t.Fatal("canceled request deleted a screenshot after file switch")
+	}
+}

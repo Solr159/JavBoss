@@ -2,6 +2,7 @@ package screenshot
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -30,8 +31,12 @@ func PlaybackSecond(name string) (float64, bool) {
 		return 0, false
 	}
 	minutes, _ := strconv.Atoi(parts[2])
-	seconds, _ := strconv.ParseFloat(parts[3]+"."+parts[4], 64)
-	return float64(hours)*3600 + float64(minutes)*60 + seconds, true
+	seconds, _ := strconv.Atoi(parts[3])
+	millis, _ := strconv.Atoi(parts[4] + strings.Repeat("0", 3-len(parts[4])))
+	// Convert once from integer milliseconds so the marker, JSON and delete
+	// request all use the same float (e.g. 61.029, not 61.028999999999996).
+	totalMillis := hours*3600000 + uint64(minutes)*60000 + uint64(seconds)*1000 + uint64(millis)
+	return float64(totalMillis) / 1000, true
 }
 
 // ListPlaybackSeconds scans metadata only; it never decodes screenshot images.
@@ -58,4 +63,29 @@ func ListPlaybackSeconds(dataDir string, videoID int64) ([]float64, error) {
 	}
 	slices.Sort(seconds)
 	return slices.Compact(seconds), nil
+}
+
+// PlaybackNamesAt returns all images represented by one deduplicated marker.
+func PlaybackNamesAt(dataDir string, videoID int64, second float64) ([]string, error) {
+	if dataDir == "" || videoID <= 0 || second < 0 || math.IsNaN(second) || math.IsInf(second, 0) {
+		return nil, fmt.Errorf("invalid screenshot marker")
+	}
+	dir := filepath.Join(dataDir, "video", strconv.FormatInt(videoID, 10), "screenshot")
+	entries, err := os.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read screenshot files: %w", err)
+	}
+	var names []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		if value, ok := PlaybackSecond(entry.Name()); ok && value == second {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
 }

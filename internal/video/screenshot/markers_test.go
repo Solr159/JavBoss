@@ -15,6 +15,8 @@ func TestPlaybackSecond(t *testing.T) {
 	}{
 		{"mpv_00-00-00.jpg", 0, true},
 		{"mpv_00-12-34.500.png", 754.5, true},
+		{"mpv_00-01-01.029.jpg", 61.029, true},
+		{"mpv_01-01-01.029.jpg", 3661.029, true},
 		{"mpv_01-02-03.001.webp", 3723.001, true},
 		{"mpv_100-00-00.1.JPEG", 360000.1, true},
 		{"128.jpg", 0, false},
