@@ -206,18 +206,7 @@ export default function JavCard(props) {
               </svg>
             </button>
           </div>
-          <div
-            className="absolute left-2 top-2 z-10 flex items-center gap-1"
-            onMouseLeave={() => {
-              setFavoriteRatingEditing(false)
-              setFavoriteRatingPreview(null)
-            }}
-            onBlur={(event) => {
-              if (event.currentTarget.contains(event.relatedTarget)) return
-              setFavoriteRatingEditing(false)
-              setFavoriteRatingPreview(null)
-            }}
-          >
+          <div className="absolute left-2 top-2 z-10 flex items-center gap-1">
             <Tooltip
               title={
                 favoriteRatingError ||
@@ -236,6 +225,15 @@ export default function JavCard(props) {
               <span
                 role="group"
                 aria-label={zh('喜爱度评分', 'Favorite rating')}
+                onMouseLeave={() => {
+                  setFavoriteRatingEditing(false)
+                  setFavoriteRatingPreview(null)
+                }}
+                onBlur={(event) => {
+                  if (event.currentTarget.contains(event.relatedTarget)) return
+                  setFavoriteRatingEditing(false)
+                  setFavoriteRatingPreview(null)
+                }}
                 className={`flex items-center rounded-full bg-black/70 py-0.5 shadow-lg shadow-black/50 transition-opacity ${portrait ? 'px-1' : 'px-1.5'} ${
                   favoriteRatingSaving
                     ? 'opacity-60'

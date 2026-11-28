@@ -162,7 +162,13 @@ test(
     await waitFor(`document.querySelector('.jav-card-rating-editing')`)
     assert.equal(
       await evaluate(
-        `[...document.querySelectorAll('.jav-card-rating-editing .jav-card-cover-action')].every(el => getComputedStyle(el).visibility === 'hidden' && getComputedStyle(el).pointerEvents === 'none')`
+        `[...document.querySelectorAll('.jav-card-rating-editing .jav-card-cover-action')].every(el => getComputedStyle(el).opacity === '0' && getComputedStyle(el).pointerEvents === 'none')`
+      ),
+      true
+    )
+    assert.equal(
+      await evaluate(
+        `[...document.querySelectorAll('.jav-card-rating-editing .jav-card-cover-action button')].every(el => getComputedStyle(el).pointerEvents === 'none')`
       ),
       true
     )
@@ -529,7 +535,7 @@ test(
 )
 
 test(
-  'JAV cover actions hide after mouse-opened dialogs close with Escape',
+  'JAV cover actions hide unless hovered or keyboard-focused after dialogs close',
   { skip: browserUnavailable, timeout: 60000 },
   async (t) => {
     const { origin, command, evaluate, waitFor } = await openBrowser(t, {
@@ -547,8 +553,9 @@ test(
     const modal = `document.querySelector('[aria-labelledby="jav-detail-title-1"]')`
     // Selection and editing stay visible on devices reporting hover:none (including headless Chrome).
     const actions = `${cover}.querySelectorAll('.card-hover-focus-visible:not([role="checkbox"])')`
+    // Native focus-visible must keep its action visible, including after focus restoration.
     const actionsHaveOpacity = (opacity) =>
-      `[...${actions}].every(el => getComputedStyle(el).opacity === (matchMedia('(hover: none)').matches && el.getAttribute('aria-label') === 'Edit JAV' ? '1' : '${opacity}'))`
+      `[...${actions}].every(el => getComputedStyle(el).opacity === ((matchMedia('(hover: none)').matches && el.getAttribute('aria-label') === 'Edit JAV') || el.matches('.jav-card-cover-action:focus-visible') || (el.matches('.jav-card-cover-action') && el.querySelector(':focus-visible')) ? '1' : '${opacity}'))`
     const pressKey = async (key, code, windowsVirtualKeyCode) => {
       await command('Input.dispatchKeyEvent', {
         type: 'keyDown',
@@ -600,10 +607,12 @@ test(
     await waitFor(
       `${cover}.contains(document.activeElement) && document.activeElement !== ${trigger}`
     )
-    await waitFor(actionsHaveOpacity(1))
-    // Leave keyboard rating editing before reaching other cover actions with the pointer.
-    await evaluate(`document.activeElement.blur()`)
+    // Tab enters rating editing first; the next Tab must reach selection naturally.
+    await waitFor(`document.querySelector('.jav-card-rating-editing')`)
+    await pressKey('Tab', 'Tab', 9)
+    await waitFor(`document.activeElement.getAttribute('role') === 'checkbox'`)
     await waitFor(`!document.querySelector('.jav-card-rating-editing')`)
+    await waitFor(actionsHaveOpacity(1))
 
     await evaluate(`window.testStore.setState(state => ({
       javItems: state.javItems.map(item => ({...item, videos: [

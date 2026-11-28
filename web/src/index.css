@@ -1020,9 +1020,21 @@ body.has-page-scroll .sticky-pagination {
     transform 160ms ease;
 }
 
-/* Editing the rating temporarily removes other cover controls from interaction. */
+/* Keep cover actions reachable and visible when keyboard focus moves to them. */
+.jav-card-cover-action:focus-visible,
+.jav-card-cover-action:has(:focus-visible) {
+  opacity: 1;
+}
+
+/* Hide overlapping pointer targets without removing them from sequential focus.
+   Override hover/focus opacity until focus leaves the rating group. */
 .jav-card-rating-editing .jav-card-cover-action {
-  visibility: hidden;
+  opacity: 0 !important;
+  pointer-events: none;
+  transition: none;
+}
+
+.jav-card-rating-editing .jav-card-cover-action * {
   pointer-events: none;
 }
 
